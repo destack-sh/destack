@@ -1,6 +1,11 @@
 use destack_vm as vm;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::core::{
+    bytes_to_vm, call_out, map_native_array_to_vm, map_native_slice_to_vm,
+    store_bytes_from_vm as bytes_from_vm, store_string_from_vm as string_from_vm,
+    values_array_to_vm,
+};
 use crate::platform::input::{
     InputCompositionEvent, InputCompositionEventPayloadVm, InputCompositionEventVm,
     InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceDescriptor,
@@ -17,31 +22,8 @@ use crate::platform::input::{
     InputTextInputAreaVm, InputTextInputType, InputTouchEventVm, InputTouchState,
     InputTouchStateVm, InputWindowTargetVm, host as host_input,
 };
-use crate::platform::{NativeArray, VmAggregateCodec, VmArray, VmSlice, resource};
+use crate::platform::{NativeArray, VmArray, VmSlice, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
-
-/// Invoke one host call that writes through an out pointer.
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    // allocate one uninitialized output slot for the host call
-    let mut out = std::mem::MaybeUninit::<T>::uninit();
-
-    // execute call and assume initialization on success
-    call(out.as_mut_ptr())?;
-    Ok(unsafe { out.assume_init() })
-}
-
-/// Convert one VM string handle into one runtime native string reference.
-fn string_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
-) -> RuntimeResult<NativeStringRef> {
-    // resolve VM string payload and copy into binding storage
-    let value = context
-        .string_ref(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    Ok(binding.store_string(value.as_str()))
-}
 
 /// Convert one native device-info payload into its VM shape.
 fn device_info_to_vm(
@@ -295,13 +277,9 @@ fn list_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeResult<VmSlice<InputDeviceDescriptorVm>> {
-    // decode native slice and convert each item
-    let values = unsafe { values.as_slice()? };
-    let mut vm_values = Vec::with_capacity(values.len());
-    for value in values {
-        vm_values.push(device_info_to_vm(context, *value)?);
-    }
-    VmSlice::from_values(context, &vm_values)
+    map_native_slice_to_vm(context, values, |context, value| {
+        device_info_to_vm(context, *value)
+    })
 }
 
 /// Convert one native event array into one VM array.
@@ -309,46 +287,9 @@ fn event_array_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: NativeArray<InputEvent>,
 ) -> RuntimeResult<VmArray<InputEventVm>> {
-    // decode native array and convert each item
-    let values = unsafe { values.as_slice()? };
-    let mut vm_values = Vec::with_capacity(values.len());
-    for value in values {
-        vm_values.push(event_to_vm(context, *value)?);
-    }
-    VmArray::from_values(context, &vm_values)
-}
-
-/// Convert one native array into one VM array.
-fn array_to_vm<T: VmAggregateCodec>(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeArray<T>,
-) -> RuntimeResult<VmArray<T>> {
-    // decode native backing storage
-    let values = unsafe { values.as_slice()? };
-
-    // allocate one VM array from decoded values
-    VmArray::from_values(context, values)
-}
-
-/// Convert one VM byte slice into one runtime-owned native slice.
-fn bytes_slice_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    values: VmSlice<u8>,
-) -> RuntimeResult<NativeSlice<u8>> {
-    // copy VM bytes into binding-owned backing storage
-    let values = values.read_bytes(context)?;
-    Ok(binding.store_slice(values))
-}
-
-/// Convert one native byte slice into one VM byte slice.
-fn bytes_slice_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeSlice<u8>,
-) -> RuntimeResult<VmSlice<u8>> {
-    // expose native bytes through one VM byte slice
-    let values = unsafe { values.as_slice()? };
-    Ok(VmSlice::from_bytes(context, values))
+    map_native_array_to_vm(context, values, |context, value| {
+        event_to_vm(context, *value)
+    })
 }
 
 /// Convert one native gamepad state snapshot into its VM shape.
@@ -357,9 +298,9 @@ fn gamepad_state_to_vm(
     value: InputGamepadState,
 ) -> RuntimeResult<InputGamepadStateVm> {
     // convert variable-length gamepad arrays
-    let axes = array_to_vm(context, value.axes)?;
-    let buttons = array_to_vm(context, value.buttons)?;
-    let touches = array_to_vm(context, value.touches)?;
+    let axes = values_array_to_vm(context, value.axes)?;
+    let buttons = values_array_to_vm(context, value.buttons)?;
+    let touches = values_array_to_vm(context, value.touches)?;
 
     // build one VM snapshot
     Ok(InputGamepadStateVm {
@@ -386,8 +327,8 @@ fn keyboard_state_to_vm(
     let device_id = unsafe { value.device_id.as_str()? };
 
     // convert variable-length key arrays
-    let pressed_codes = array_to_vm(context, value.pressed_codes)?;
-    let pressed_scan_codes = array_to_vm(context, value.pressed_scan_codes)?;
+    let pressed_codes = values_array_to_vm(context, value.pressed_codes)?;
+    let pressed_scan_codes = values_array_to_vm(context, value.pressed_scan_codes)?;
 
     // build one VM snapshot
     Ok(InputKeyboardStateVm {
@@ -406,7 +347,7 @@ fn raw_hid_report_to_vm(
     value: InputRawHidReport,
 ) -> RuntimeResult<InputRawHidReportVm> {
     // convert report payload bytes
-    let data = bytes_slice_to_vm(context, value.data)?;
+    let data = bytes_to_vm(context, value.data)?;
 
     // build one VM raw-hid report
     Ok(InputRawHidReportVm {
@@ -444,7 +385,7 @@ fn touch_state_to_vm(
     let device_id = unsafe { value.device_id.as_str()? };
 
     // convert variable-length contact array
-    let contacts = array_to_vm(context, value.contacts)?;
+    let contacts = values_array_to_vm(context, value.contacts)?;
 
     // build one VM touch snapshot
     Ok(InputTouchStateVm {
@@ -933,7 +874,7 @@ pub(crate) fn destack_input_haptics_effects(
 ) -> RuntimeResult<VmArray<InputHapticEffectType>> {
     let values =
         call_out(|out| unsafe { host_input::destack_input_haptics_effects(binding, out, handle) })?;
-    array_to_vm(context, values)
+    values_array_to_vm(context, values)
 }
 
 /// Play one haptic effect.
@@ -1207,7 +1148,7 @@ pub(crate) fn destack_input_raw_hid_get_feature(
     let value = call_out(|out| unsafe {
         host_input::destack_input_raw_hid_get_feature(binding, out, handle, reportid, maxbytes)
     })?;
-    bytes_slice_to_vm(context, value)
+    bytes_to_vm(context, value)
 }
 
 /// Read one raw-hid report.
@@ -1263,7 +1204,7 @@ pub(crate) fn destack_input_raw_hid_set_feature(
     reportid: u8,
     data: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let data = bytes_slice_from_vm(binding, context, data)?;
+    let data = bytes_from_vm(binding, context, data)?;
     unsafe { host_input::destack_input_raw_hid_set_feature(binding, handle, reportid, data) }
 }
 
@@ -1321,7 +1262,7 @@ pub(crate) fn destack_input_raw_hid_write(
     reportid: u8,
     data: VmSlice<u8>,
 ) -> RuntimeResult<u32> {
-    let data = bytes_slice_from_vm(binding, context, data)?;
+    let data = bytes_from_vm(binding, context, data)?;
     call_out(|out| unsafe {
         host_input::destack_input_raw_hid_write(binding, out, handle, reportid, data)
     })
@@ -1380,7 +1321,7 @@ pub(crate) fn destack_input_sensor_list(
 ) -> RuntimeResult<VmArray<InputSensorDescriptorVm>> {
     let values =
         call_out(|out| unsafe { host_input::destack_input_sensor_list(binding, out, handle) })?;
-    array_to_vm(context, values)
+    values_array_to_vm(context, values)
 }
 
 /// Read one sensor sample.

@@ -1,32 +1,13 @@
 #![allow(dead_code)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::core::{call_out, store_string_from_vm as string_ref_from_vm};
 use crate::platform::resource::{
     BarrierHandle, CondVarHandle, MutexHandle, RwLockHandle, ThreadHandle, ThreadLocalKey,
     ThreadSemaphoreHandle,
 };
 use crate::platform::thread::{ThreadOptionsVm, host as host_thread};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
-
-/// Call one native binding with one output pointer and return the produced value.
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    let mut out = std::mem::MaybeUninit::<T>::uninit();
-    call(out.as_mut_ptr())?;
-    Ok(unsafe { out.assume_init() })
-}
-
-/// Convert one VM string handle into one call-context native string reference.
-fn string_ref_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
-) -> RuntimeResult<NativeStringRef> {
-    let value = context
-        .string_ref(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-
-    Ok(binding.store_string(value.as_str()))
-}
 
 /// Create one thread-local key.
 ///

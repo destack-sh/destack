@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::core::call_out;
 use crate::platform::os::*;
 use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
 use crate::runtime::{BindingCallContext, NativeStringRef};
@@ -12,16 +13,6 @@ use super::credentials::{
     read_credentials, write_credentials,
 };
 use super::{host_impl as host_os_host, info as host_os_info, power as host_os_power};
-
-/// Invoke one host call that writes through an out pointer.
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    // allocate one uninitialized output slot for the host call
-    let mut out = std::mem::MaybeUninit::<T>::uninit();
-
-    // execute call and assume initialization on success
-    call(out.as_mut_ptr())?;
-    Ok(unsafe { out.assume_init() })
-}
 
 /// Clear clipboard payload.
 ///
@@ -1159,13 +1150,15 @@ pub(crate) fn destack_os_credentials_contains(
     context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
-    access_group: vm::StringHandle,
+    access_group: Option<vm::StringHandle>,
 ) -> RuntimeResult<bool> {
     // decode vm service, account, and optional access-group values
     let service = vm_string_to_owned(context, service, "service")?;
     let account = vm_string_to_owned(context, account, "account")?;
-    let access_group =
-        normalize_optional_string(vm_string_to_owned(context, access_group, "accessGroup")?);
+    let access_group = access_group
+        .map(|value| vm_string_to_owned(context, value, "accessGroup"))
+        .transpose()?;
+    let access_group = normalize_optional_string(access_group);
 
     // execute one contains query
     contains_credentials(binding, &service, &account, access_group.as_deref())
@@ -1194,13 +1187,15 @@ pub(crate) fn destack_os_credentials_delete(
     context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
-    access_group: vm::StringHandle,
+    access_group: Option<vm::StringHandle>,
 ) -> RuntimeResult<()> {
     // decode vm service, account, and optional access-group values
     let service = vm_string_to_owned(context, service, "service")?;
     let account = vm_string_to_owned(context, account, "account")?;
-    let access_group =
-        normalize_optional_string(vm_string_to_owned(context, access_group, "accessGroup")?);
+    let access_group = access_group
+        .map(|value| vm_string_to_owned(context, value, "accessGroup"))
+        .transpose()?;
+    let access_group = normalize_optional_string(access_group);
 
     // execute one delete operation
     delete_credentials(binding, &service, &account, access_group.as_deref())
@@ -1231,11 +1226,12 @@ pub(crate) fn destack_os_credentials_read(
     let query = CredentialQueryOwned {
         service: vm_string_to_owned(context, query.service, "query.service")?,
         account: vm_string_to_owned(context, query.account, "query.account")?,
-        access_group: normalize_optional_string(vm_string_to_owned(
-            context,
-            query.access_group,
-            "query.accessGroup",
-        )?),
+        access_group: normalize_optional_string(
+            query
+                .access_group
+                .map(|value| vm_string_to_owned(context, value, "query.accessGroup"))
+                .transpose()?,
+        ),
         require_authentication: query.require_authentication,
     };
 
@@ -1282,11 +1278,12 @@ pub(crate) fn destack_os_credentials_write(
     let options = CredentialWriteOptionsOwned {
         service: vm_string_to_owned(context, options.service, "options.service")?,
         account: vm_string_to_owned(context, options.account, "options.account")?,
-        access_group: normalize_optional_string(vm_string_to_owned(
-            context,
-            options.access_group,
-            "options.accessGroup",
-        )?),
+        access_group: normalize_optional_string(
+            options
+                .access_group
+                .map(|value| vm_string_to_owned(context, value, "options.accessGroup"))
+                .transpose()?,
+        ),
         bytes: vm_bytes_to_owned(context, options.bytes, "options.bytes")?,
         accessibility: options.accessibility,
         authentication: options.authentication,

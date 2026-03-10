@@ -20,6 +20,11 @@ use super::core::{
 use super::digest::message_digest;
 use super::key::{require_key_usage, resolve_host_secret_key_material, resolve_secret_key_bytes};
 
+/// Return the effective mac tag length in bytes.
+fn tag_length_bytes(parameters: CryptoMacParameters) -> u32 {
+    parameters.tag_length_bytes.unwrap_or(0)
+}
+
 /// Compute one mac in one shot.
 fn mac_compute_internal(
     binding: &BindingCallContext,
@@ -63,8 +68,9 @@ fn mac_compute_internal(
     )?;
 
     // apply optional output truncation
-    if parameters.tag_length_bytes != 0 {
-        let length = parameters.tag_length_bytes as usize;
+    let tag_length_bytes = tag_length_bytes(parameters);
+    if tag_length_bytes != 0 {
+        let length = tag_length_bytes as usize;
         if length > output.len() {
             return Err(core_platform::invalid_argument(
                 "parameters.tagLengthBytes",
@@ -237,8 +243,9 @@ pub(crate) fn mac_finish(
             )?;
             *hasher = next_hasher;
 
-            if parameters.tag_length_bytes != 0 {
-                let length = parameters.tag_length_bytes as usize;
+            let tag_length_bytes = tag_length_bytes(parameters);
+            if tag_length_bytes != 0 {
+                let length = tag_length_bytes as usize;
                 if length > output.len() {
                     return Err(core_platform::invalid_argument(
                         "parameters.tagLengthBytes",

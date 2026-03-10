@@ -10,39 +10,16 @@ use super::{
     AudioStreamTimingVm, native as native_audio,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{VmSlice, audio as audio_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::platform::core::{
+    bytes_to_vm, call_out, intern_string_to_vm as string_to_vm, map_native_slice_to_vm,
+    store_bytes_from_vm as bytes_from_vm, store_string_from_vm as string_from_vm,
+    store_vm_byte_slices,
+};
+use crate::platform::{PlatformError, VmArray, VmSlice, audio as audio_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 type NativeByteVectors = NativeSlice<NativeSlice<u8>>;
 type VmByteVectorList = Vec<VmSlice<u8>>;
-
-/// Invoke one host call that writes through an out pointer.
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    let mut out = std::mem::MaybeUninit::<T>::uninit();
-    call(out.as_mut_ptr())?;
-    Ok(unsafe { out.assume_init() })
-}
-
-/// Convert one VM string into one runtime string reference.
-fn string_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
-) -> RuntimeResult<NativeStringRef> {
-    let value = context
-        .string_ref(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    Ok(binding.store_string(value.as_str()))
-}
-
-/// Convert one native string into one VM string handle.
-fn string_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeStringRef,
-) -> RuntimeResult<vm::StringHandle> {
-    let value = unsafe { value.as_str()? };
-    Ok(vm::StringHandle::new(context.intern_string(value)))
-}
 
 /// Convert one VM device-open options payload into one native payload.
 fn device_open_options_from_vm(
@@ -362,13 +339,9 @@ fn descriptor_slice_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: NativeSlice<AudioDeviceDescriptor>,
 ) -> RuntimeResult<VmSlice<AudioDeviceDescriptorVm>> {
-    let values = unsafe { values.as_slice()? };
-    let mut vm_values = Vec::with_capacity(values.len());
-    for value in values {
-        vm_values.push(device_descriptor_to_vm(context, *value)?);
-    }
-
-    VmSlice::from_values(context, &vm_values)
+    map_native_slice_to_vm(context, values, |context, value| {
+        device_descriptor_to_vm(context, *value)
+    })
 }
 
 /// Convert one native backend-descriptor slice into one vm slice.
@@ -376,13 +349,9 @@ fn backend_slice_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: NativeSlice<AudioBackendDescriptor>,
 ) -> RuntimeResult<VmSlice<AudioBackendDescriptorVm>> {
-    let values = unsafe { values.as_slice()? };
-    let mut vm_values = Vec::with_capacity(values.len());
-    for value in values {
-        vm_values.push(backend_descriptor_to_vm(context, *value)?);
-    }
-
-    VmSlice::from_values(context, &vm_values)
+    map_native_slice_to_vm(context, values, |context, value| {
+        backend_descriptor_to_vm(context, *value)
+    })
 }
 
 /// Convert one native event slice into one vm slice.
@@ -390,32 +359,9 @@ fn event_slice_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: NativeSlice<AudioEvent>,
 ) -> RuntimeResult<VmSlice<AudioEventVm>> {
-    let values = unsafe { values.as_slice()? };
-    let mut vm_values = Vec::with_capacity(values.len());
-    for value in values {
-        vm_values.push(event_to_vm(context, *value)?);
-    }
-
-    VmSlice::from_values(context, &vm_values)
-}
-
-/// Convert one vm byte slice into one runtime native byte slice.
-fn bytes_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    values: VmSlice<u8>,
-) -> RuntimeResult<NativeSlice<u8>> {
-    let values = values.read_bytes(context)?;
-    Ok(binding.store_slice(values))
-}
-
-/// Convert one native byte slice into one vm byte slice.
-fn bytes_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeSlice<u8>,
-) -> RuntimeResult<VmSlice<u8>> {
-    let values = unsafe { values.as_slice()? };
-    Ok(VmSlice::from_bytes(context, values))
+    map_native_slice_to_vm(context, values, |context, value| {
+        event_to_vm(context, *value)
+    })
 }
 
 /// Convert one VM vectorized byte-slice payload into one runtime vectorized payload.
@@ -424,14 +370,7 @@ fn byte_vectors_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<NativeSlice<NativeSlice<u8>>> {
-    let values = values.read_values(context)?;
-    let mut native = Vec::with_capacity(values.len());
-    for value in values {
-        let bytes = value.read_bytes(context)?;
-        native.push(binding.store_slice(bytes));
-    }
-
-    Ok(binding.store_slice(native))
+    store_vm_byte_slices(binding, context, values, "buffers")
 }
 
 /// Prepare writable native vectorized buffers from one VM vectorized payload.

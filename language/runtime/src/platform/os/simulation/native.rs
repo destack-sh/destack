@@ -1220,7 +1220,7 @@ pub(crate) unsafe fn destack_os_credentials_contains(
     out: *mut bool,
     service: NativeStringRef,
     account: NativeStringRef,
-    access_group: NativeStringRef,
+    access_group: Option<NativeStringRef>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -1255,7 +1255,7 @@ pub(crate) unsafe fn destack_os_credentials_delete(
     binding: &BindingCallContext,
     service: NativeStringRef,
     account: NativeStringRef,
-    access_group: NativeStringRef,
+    access_group: Option<NativeStringRef>,
 ) -> RuntimeResult<()> {
     let _ = (binding, service, account, access_group);
 

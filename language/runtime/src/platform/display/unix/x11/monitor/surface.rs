@@ -6,7 +6,7 @@ use crate::platform::{NativeSlice, core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::snapshot::{
-    descriptor_from_owned, enumerate_monitor_snapshots, monitor_snapshot_for_handle,
+    descriptor_from_value, enumerate_monitor_snapshots, monitor_snapshot_for_handle,
 };
 use crate::platform::display::unix::x11::{core, resource as display_resource};
 
@@ -23,7 +23,7 @@ pub(crate) unsafe fn monitor_list(
     let snapshots = enumerate_monitor_snapshots(binding)?;
     let mut values = Vec::with_capacity(snapshots.len());
     for snapshot in snapshots {
-        values.push(descriptor_from_owned(binding, &snapshot.descriptor));
+        values.push(descriptor_from_value(binding, &snapshot.descriptor));
     }
 
     unsafe {
@@ -98,7 +98,7 @@ pub(crate) unsafe fn monitor_descriptor(
         monitor_snapshot_for_handle(binding, handle, "destack.display.monitor.descriptor")?;
 
     unsafe {
-        *out = descriptor_from_owned(binding, &snapshot.descriptor);
+        *out = descriptor_from_value(binding, &snapshot.descriptor);
     }
 
     Ok(())

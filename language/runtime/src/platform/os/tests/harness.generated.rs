@@ -1265,7 +1265,7 @@ impl<'call> OsHarnessContext<'call> {
                     context,
                     service,
                     account,
-                    accessgroup,
+                    Some(accessgroup),
                 )?;
                 Ok(out)
             }
@@ -1280,7 +1280,7 @@ impl<'call> OsHarnessContext<'call> {
                         out.as_mut_ptr(),
                         service,
                         account,
-                        accessgroup,
+                        Some(accessgroup),
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -1323,7 +1323,7 @@ impl<'call> OsHarnessContext<'call> {
                     context,
                     service,
                     account,
-                    accessgroup,
+                    Some(accessgroup),
                 )
             }
             None => {
@@ -1335,7 +1335,7 @@ impl<'call> OsHarnessContext<'call> {
                         self.call_context,
                         service,
                         account,
-                        accessgroup,
+                        Some(accessgroup),
                     )
                 }
             }

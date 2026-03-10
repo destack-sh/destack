@@ -35,7 +35,7 @@ use super::core::{
     HostKeyMaterial, KEY_USAGE_DECRYPT, KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS,
     KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT, KEY_USAGE_SIGN, KEY_USAGE_UNWRAP, KEY_USAGE_VERIFY,
     KEY_USAGE_WRAP, attach_key_to_store, create_persistent_identifier, decode_native_bytes,
-    decode_native_string, enforce_store_key_policy,
+    decode_native_string, decode_optional_native_bytes, enforce_store_key_policy,
     host_store_supports_hardware_backed_pair_algorithm, insert_key_resource, invalid_data,
     message_digest, openssl_error, permission_denied, resolve_key_resource, resolve_store_resource,
     store_provenance_from_store, store_provenance_to_descriptor,
@@ -107,9 +107,19 @@ struct NormalizedKeyImportRequest {
     /// Whether the resulting key material is exportable.
     extractable: bool,
     /// Optional passphrase bytes for encrypted key formats.
-    passphrase: NativeSlice<u8>,
+    passphrase: Option<NativeSlice<u8>>,
     /// Whether key material should persist.
     persistent: bool,
+}
+
+/// Return the effective digest for one optional key request lane.
+fn request_digest(digest: Option<CryptoDigestAlgorithm>) -> CryptoDigestAlgorithm {
+    digest.unwrap_or(CryptoDigestAlgorithm::Unknown)
+}
+
+/// Return the effective named-curve selector for one optional key request lane.
+fn request_named_curve(named_curve: Option<CryptoNamedCurve>) -> CryptoNamedCurve {
+    named_curve.unwrap_or(CryptoNamedCurve::Unknown)
 }
 
 /// Parsed JSON Web Key payload.
@@ -375,7 +385,7 @@ fn normalize_key_generation_request(
                 named_curve: CryptoNamedCurve::Unknown,
                 modulus_bits: request.modulus_bits,
                 public_exponent: request.public_exponent,
-                digest: request.digest,
+                digest: request_digest(request.digest),
                 size_bits: 0,
                 usage_mask: request.usage_mask,
                 label: request.label,
@@ -450,7 +460,7 @@ fn normalize_key_import_request(request: CryptoKeyImportRequest) -> NormalizedKe
             format: request.format,
             bytes: request.bytes,
             algorithm: CryptoKeyAlgorithm::Ec,
-            named_curve: request.named_curve,
+            named_curve: request_named_curve(request.named_curve),
             digest: CryptoDigestAlgorithm::Unknown,
             usage_mask: request.usage_mask,
             label: request.label,
@@ -503,7 +513,7 @@ fn normalize_key_import_request(request: CryptoKeyImportRequest) -> NormalizedKe
             bytes: request.bytes,
             algorithm: CryptoKeyAlgorithm::Rsa,
             named_curve: CryptoNamedCurve::Unknown,
-            digest: request.digest,
+            digest: request_digest(request.digest),
             usage_mask: request.usage_mask,
             label: request.label,
             extractable: request.extractable,
@@ -1564,7 +1574,8 @@ fn key_import_with_bytes(
     // decode stable operation binding
     let operation = "destack.crypto.key.import";
     let label = decode_native_string(request.label, "request.label")?;
-    let passphrase = decode_native_bytes(request.passphrase, "request.passphrase")?;
+    let passphrase =
+        decode_optional_native_bytes(request.passphrase, "request.passphrase")?.unwrap_or_default();
     let mut bytes = Zeroizing::new(bytes);
     let store_resource = resolve_store_resource(binding, store, operation)?;
     let store_provenance = {
@@ -2311,7 +2322,7 @@ fn key_wrap_parameters_to_asymmetric(
     if parameters.algorithm == CryptoKeyWrapAlgorithm::RsaOaep {
         return Ok(CryptoAsymmetricEncryptionParameters {
             algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
-            digest: parameters.digest,
+            digest: Some(optional_digest(parameters.digest)),
             label: parameters.label,
         });
     }
@@ -2321,6 +2332,37 @@ fn key_wrap_parameters_to_asymmetric(
         "parameters.algorithm",
         "rsa oaep parameters require one rsa-oaep key-wrap algorithm",
     ))
+}
+
+/// Return one digest selector with Unknown as the missing default.
+fn optional_digest(digest: Option<CryptoDigestAlgorithm>) -> CryptoDigestAlgorithm {
+    digest.unwrap_or(CryptoDigestAlgorithm::Unknown)
+}
+
+/// Require one concrete digest selector.
+fn required_digest(
+    digest: Option<CryptoDigestAlgorithm>,
+    field: &'static str,
+) -> RuntimeResult<CryptoDigestAlgorithm> {
+    let digest = optional_digest(digest);
+    if digest == CryptoDigestAlgorithm::Unknown {
+        return Err(core_platform::invalid_argument(
+            field,
+            "digest must not be Unknown",
+        ));
+    }
+
+    Ok(digest)
+}
+
+/// Return one configured rsa-pss salt length.
+fn rsa_pss_salt_length(salt_length_bytes: Option<u32>) -> RsaPssSaltlen {
+    let salt_length_bytes = salt_length_bytes.unwrap_or(0);
+    if salt_length_bytes == 0 {
+        return RsaPssSaltlen::DIGEST_LENGTH;
+    }
+
+    RsaPssSaltlen::custom(salt_length_bytes as i32)
 }
 
 /// Return one AES key-wrap cipher for one wrap algorithm and wrapping-key size.
@@ -2357,7 +2399,7 @@ fn aes_key_wrap_cipher(
 /// Enforce AES key-wrap parameter shape.
 fn validate_aes_key_wrap_parameters(parameters: CryptoKeyWrapParameters) -> RuntimeResult<()> {
     // aes wrap algorithms do not consume digest selectors
-    if parameters.digest != CryptoDigestAlgorithm::Unknown {
+    if optional_digest(parameters.digest) != CryptoDigestAlgorithm::Unknown {
         return Err(core_platform::invalid_argument(
             "parameters.digest",
             "digest must be Unknown for aes key-wrap algorithms",
@@ -2980,9 +3022,9 @@ pub(super) fn key_descriptor_from_resource(
             CryptoKeyDescriptor::CryptoKeyDescriptorRsa(CryptoKeyDescriptorRsa {
                 algorithm: binding.store_string("rsa"),
                 key_kind: key.kind,
-                modulus_bits: key.modulus_bits,
-                public_exponent: key.public_exponent,
-                digest: key.digest,
+                modulus_bits: Some(key.modulus_bits),
+                public_exponent: Some(key.public_exponent),
+                digest: Some(key.digest),
                 usage_mask: key.usage_mask,
                 label,
                 extractable: key.extractable,
@@ -2996,7 +3038,7 @@ pub(super) fn key_descriptor_from_resource(
             CryptoKeyDescriptor::CryptoKeyDescriptorEc(CryptoKeyDescriptorEc {
                 algorithm: binding.store_string("ec"),
                 key_kind: key.kind,
-                named_curve: key.named_curve,
+                named_curve: Some(key.named_curve),
                 usage_mask: key.usage_mask,
                 label,
                 extractable: key.extractable,
@@ -3062,7 +3104,7 @@ pub(super) fn key_descriptor_from_resource(
             CryptoKeyDescriptor::CryptoKeyDescriptorAes(CryptoKeyDescriptorAes {
                 algorithm: binding.store_string("aes"),
                 key_kind: key.kind,
-                size_bits: key.size_bits,
+                size_bits: Some(key.size_bits),
                 usage_mask: key.usage_mask,
                 label,
                 extractable: key.extractable,
@@ -3076,7 +3118,7 @@ pub(super) fn key_descriptor_from_resource(
             CryptoKeyDescriptor::CryptoKeyDescriptorChaCha20(CryptoKeyDescriptorChaCha20 {
                 algorithm: binding.store_string("chacha20"),
                 key_kind: key.kind,
-                size_bits: key.size_bits,
+                size_bits: Some(key.size_bits),
                 usage_mask: key.usage_mask,
                 label,
                 extractable: key.extractable,
@@ -3090,8 +3132,8 @@ pub(super) fn key_descriptor_from_resource(
             CryptoKeyDescriptor::CryptoKeyDescriptorHmac(CryptoKeyDescriptorHmac {
                 algorithm: binding.store_string("hmac"),
                 key_kind: key.kind,
-                size_bits: key.size_bits,
-                digest: key.digest,
+                size_bits: Some(key.size_bits),
+                digest: Some(key.digest),
                 usage_mask: key.usage_mask,
                 label,
                 extractable: key.extractable,
@@ -3105,7 +3147,7 @@ pub(super) fn key_descriptor_from_resource(
             CryptoKeyDescriptor::CryptoKeyDescriptorAes(CryptoKeyDescriptorAes {
                 algorithm: binding.store_string("aes"),
                 key_kind: key.kind,
-                size_bits: key.size_bits,
+                size_bits: Some(key.size_bits),
                 usage_mask: key.usage_mask,
                 label,
                 extractable: key.extractable,
@@ -3262,7 +3304,7 @@ pub(super) fn build_signer<'a>(
 ) -> RuntimeResult<Signer<'a>> {
     let signer = match parameters.algorithm {
         CryptoSignatureAlgorithm::RsaPkcs1v15 => {
-            let digest = message_digest(parameters.digest)?;
+            let digest = message_digest(required_digest(parameters.digest, "parameters.digest")?)?;
             let mut signer =
                 Signer::new(digest, key).map_err(|error| openssl_error(operation, error))?;
             signer
@@ -3271,7 +3313,7 @@ pub(super) fn build_signer<'a>(
             signer
         }
         CryptoSignatureAlgorithm::RsaPss => {
-            let digest = message_digest(parameters.digest)?;
+            let digest = message_digest(required_digest(parameters.digest, "parameters.digest")?)?;
             let mut signer =
                 Signer::new(digest, key).map_err(|error| openssl_error(operation, error))?;
             signer
@@ -3280,18 +3322,14 @@ pub(super) fn build_signer<'a>(
             signer
                 .set_rsa_mgf1_md(digest)
                 .map_err(|error| openssl_error(operation, error))?;
-            let salt_length = if parameters.salt_length_bytes == 0 {
-                RsaPssSaltlen::DIGEST_LENGTH
-            } else {
-                RsaPssSaltlen::custom(parameters.salt_length_bytes as i32)
-            };
+            let salt_length = rsa_pss_salt_length(parameters.salt_length_bytes);
             signer
                 .set_rsa_pss_saltlen(salt_length)
                 .map_err(|error| openssl_error(operation, error))?;
             signer
         }
         CryptoSignatureAlgorithm::Ecdsa => {
-            let digest = message_digest(parameters.digest)?;
+            let digest = message_digest(required_digest(parameters.digest, "parameters.digest")?)?;
             Signer::new(digest, key).map_err(|error| openssl_error(operation, error))?
         }
         CryptoSignatureAlgorithm::Ed25519 | CryptoSignatureAlgorithm::Ed448 => {
@@ -3316,7 +3354,7 @@ pub(super) fn build_verifier<'a>(
 ) -> RuntimeResult<Verifier<'a>> {
     let verifier = match parameters.algorithm {
         CryptoSignatureAlgorithm::RsaPkcs1v15 => {
-            let digest = message_digest(parameters.digest)?;
+            let digest = message_digest(required_digest(parameters.digest, "parameters.digest")?)?;
             let mut verifier =
                 Verifier::new(digest, key).map_err(|error| openssl_error(operation, error))?;
             verifier
@@ -3325,7 +3363,7 @@ pub(super) fn build_verifier<'a>(
             verifier
         }
         CryptoSignatureAlgorithm::RsaPss => {
-            let digest = message_digest(parameters.digest)?;
+            let digest = message_digest(required_digest(parameters.digest, "parameters.digest")?)?;
             let mut verifier =
                 Verifier::new(digest, key).map_err(|error| openssl_error(operation, error))?;
             verifier
@@ -3334,18 +3372,14 @@ pub(super) fn build_verifier<'a>(
             verifier
                 .set_rsa_mgf1_md(digest)
                 .map_err(|error| openssl_error(operation, error))?;
-            let salt_length = if parameters.salt_length_bytes == 0 {
-                RsaPssSaltlen::DIGEST_LENGTH
-            } else {
-                RsaPssSaltlen::custom(parameters.salt_length_bytes as i32)
-            };
+            let salt_length = rsa_pss_salt_length(parameters.salt_length_bytes);
             verifier
                 .set_rsa_pss_saltlen(salt_length)
                 .map_err(|error| openssl_error(operation, error))?;
             verifier
         }
         CryptoSignatureAlgorithm::Ecdsa => {
-            let digest = message_digest(parameters.digest)?;
+            let digest = message_digest(required_digest(parameters.digest, "parameters.digest")?)?;
             Verifier::new(digest, key).map_err(|error| openssl_error(operation, error))?
         }
         CryptoSignatureAlgorithm::Ed25519 | CryptoSignatureAlgorithm::Ed448 => {
@@ -3373,7 +3407,7 @@ pub(super) fn configure_encrypter(
             .set_rsa_padding(Padding::PKCS1)
             .map_err(|error| openssl_error(operation, error))?,
         CryptoAsymmetricEncryptionAlgorithm::RsaOaep => {
-            let digest = message_digest(parameters.digest)?;
+            let digest = message_digest(required_digest(parameters.digest, "parameters.digest")?)?;
             encrypter
                 .set_rsa_padding(Padding::PKCS1_OAEP)
                 .map_err(|error| openssl_error(operation, error))?;
@@ -3412,7 +3446,7 @@ pub(super) fn configure_decrypter(
             .set_rsa_padding(Padding::PKCS1)
             .map_err(|error| openssl_error(operation, error))?,
         CryptoAsymmetricEncryptionAlgorithm::RsaOaep => {
-            let digest = message_digest(parameters.digest)?;
+            let digest = message_digest(required_digest(parameters.digest, "parameters.digest")?)?;
             decrypter
                 .set_rsa_padding(Padding::PKCS1_OAEP)
                 .map_err(|error| openssl_error(operation, error))?;

@@ -8,7 +8,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::OsPath;
 use crate::platform::net::{core as core_net, *};
-use crate::platform::resource::*;
+use crate::platform::resource::{ResourceFinalizer, ResourceId};
 use crate::platform::{core as core_platform, *};
 use crate::runtime::{BindingCallContext, NativeSlice};
 use std::collections::HashMap;

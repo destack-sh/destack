@@ -6,7 +6,7 @@ use super::os;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::OsPath;
 use crate::platform::net::{core as core_net, *};
-use crate::platform::resource::*;
+use crate::platform::resource::{ResourceEntry, ResourceKind, TransferredHandle};
 use crate::platform::{core as core_platform, *};
 use crate::runtime::{BindingCallContext, NativeSlice};
 

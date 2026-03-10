@@ -21,6 +21,11 @@ use super::core::{
 };
 use super::key::{require_key_usage, resolve_host_secret_key_material, resolve_secret_key_bytes};
 
+/// Return the effective AEAD tag length lane.
+fn tag_length_bytes(parameters: CryptoCipherParameters) -> u32 {
+    parameters.tag_length_bytes.unwrap_or(0)
+}
+
 /// Encrypt one payload in one shot.
 pub(crate) fn cipher_encrypt(
     binding: &BindingCallContext,
@@ -136,7 +141,7 @@ pub(crate) fn cipher_open(
         let resource_value = CryptoCipherResource {
             algorithm: parameters.algorithm,
             direction,
-            tag_length_bytes: parameters.tag_length_bytes,
+            tag_length_bytes: tag_length_bytes(parameters),
             state: CryptoCipherState::HostSecret {
                 material,
                 store_kind,
@@ -167,7 +172,7 @@ pub(crate) fn cipher_open(
     let resource_value = CryptoCipherResource {
         algorithm: parameters.algorithm,
         direction,
-        tag_length_bytes: parameters.tag_length_bytes,
+        tag_length_bytes: tag_length_bytes(parameters),
         state: CryptoCipherState::Software { key, crypter },
     };
     let entry = ResourceEntry::new(CRYPTO_CIPHER_RESOURCE_KIND)
@@ -306,7 +311,7 @@ fn cipher_finish_host_secret(
         nonce: binding.store_slice(nonce.to_vec()),
         additional_data: binding.store_slice(additional_data.to_vec()),
         tag: binding.store_slice(decrypt_tag.to_vec()),
-        tag_length_bytes,
+        tag_length_bytes: Some(tag_length_bytes),
     };
 
     // dispatch one-shot host cipher for buffered stream payload
@@ -395,7 +400,7 @@ pub(crate) fn cipher_reset(
 
     // replace active algorithm parameters
     resource.algorithm = parameters.algorithm;
-    resource.tag_length_bytes = parameters.tag_length_bytes;
+    resource.tag_length_bytes = tag_length_bytes(parameters);
     let direction = resource.direction;
 
     // rebuild stream state with reset parameters
@@ -513,7 +518,7 @@ fn prepare_host_cipher_stream_parameters(
     if is_aead_cipher(parameters.algorithm) {
         let expected_tag_length = resolve_aead_tag_length(
             parameters.algorithm,
-            parameters.tag_length_bytes,
+            tag_length_bytes(parameters),
             "parameters.tagLengthBytes",
         )?;
         if direction == CryptoCipherDirection::Decrypt && decrypt_tag.len() != expected_tag_length {
@@ -656,7 +661,7 @@ pub(super) fn build_cipher_state(
         if direction == CryptoCipherDirection::Encrypt {
             resolve_aead_tag_length(
                 parameters.algorithm,
-                parameters.tag_length_bytes,
+                tag_length_bytes(parameters),
                 "parameters.tagLengthBytes",
             )?;
         } else {
@@ -667,8 +672,8 @@ pub(super) fn build_cipher_state(
                     "authentication tag is required for decrypt",
                 ));
             }
-            if parameters.tag_length_bytes != 0 && parameters.tag_length_bytes as usize != tag.len()
-            {
+            let tag_length_bytes = tag_length_bytes(parameters);
+            if tag_length_bytes != 0 && tag_length_bytes as usize != tag.len() {
                 return Err(core_platform::invalid_argument(
                     "parameters.tagLengthBytes",
                     "tagLengthBytes must match decrypt tag length",
@@ -719,7 +724,7 @@ pub(super) fn cipher_process(
     {
         let tag_length = resolve_aead_tag_length(
             parameters.algorithm,
-            parameters.tag_length_bytes,
+            tag_length_bytes(parameters),
             "parameters.tagLengthBytes",
         )?;
         let mut tag = vec![0u8; tag_length];

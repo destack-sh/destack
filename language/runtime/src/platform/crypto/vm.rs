@@ -1,4 +1,12 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::core::{
+    bytes_to_vm, call_out, intern_string_to_vm as string_to_vm, map_native_array_to_vm,
+    optional_intern_string_to_vm as optional_string_to_vm,
+    optional_store_bytes_from_vm as optional_bytes_from_vm,
+    optional_store_string_from_vm as optional_string_from_vm, store_bytes_from_vm as bytes_from_vm,
+    store_string_from_vm as string_from_vm, store_values_from_vm as slice_from_vm,
+    values_array_to_vm, values_to_vm as slice_to_vm, write_bytes_to_vm,
+};
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoAgreementDeriveKeyRequestVm, CryptoArgon2idRequest,
     CryptoArgon2idRequestVm, CryptoAsymmetricEncryptionParameters,
@@ -36,8 +44,8 @@ use crate::platform::crypto::{
     CryptoStoreProvenanceVm, CryptoStoreProvider, CryptoStoreSignatureCapabilityVm,
     host as host_crypto,
 };
-use crate::platform::{NativeArray, VmAggregateCodec, VmArray, VmSlice, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::platform::{VmArray, VmSlice, resource};
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 /// Derive one symmetric key from one local private key and one peer public key.
@@ -1674,7 +1682,7 @@ pub(crate) fn destack_crypto_random_fill(
 ) -> RuntimeResult<()> {
     let native_buffer = binding.store_slice(vec![0_u8; buffer.len as usize]);
     unsafe { host_crypto::destack_crypto_random_fill(binding, native_buffer) }?;
-    copy_native_bytes_into_vm(context, buffer, native_buffer)
+    write_bytes_to_vm(context, buffer, native_buffer)
 }
 
 /// Close one crypto store.
@@ -1787,10 +1795,13 @@ pub(crate) fn destack_crypto_store_probe_capability(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     kind: CryptoStoreKind,
-    provider: CryptoStoreProvider,
+    provider: Option<CryptoStoreProvider>,
 ) -> RuntimeResult<CryptoStoreCapabilityVm> {
+    // normalize one absent provider to the default software provider
+    let provider = provider.unwrap_or(CryptoStoreProvider::OpenSsl);
+
     let capability = call_out(|out| unsafe {
-        host_crypto::destack_crypto_store_probe_capability(binding, out, kind, provider)
+        host_crypto::destack_crypto_store_probe_capability(binding, out, kind, Some(provider))
     })?;
 
     store_capability_to_vm(context, capability)
@@ -1818,7 +1829,7 @@ pub(crate) fn destack_crypto_store_probe_kinds(
 ) -> RuntimeResult<VmArray<CryptoStoreKind>> {
     let kinds =
         call_out(|out| unsafe { host_crypto::destack_crypto_store_probe_kinds(binding, out) })?;
-    array_to_vm(context, kinds)
+    values_array_to_vm(context, kinds)
 }
 
 /// Open one crypto store.
@@ -1851,82 +1862,6 @@ pub(crate) fn destack_crypto_store_open(
     call_out(|out| unsafe { host_crypto::destack_crypto_store_open(binding, out, options) })
 }
 
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    let mut value = std::mem::MaybeUninit::<T>::uninit();
-    call(value.as_mut_ptr())?;
-    Ok(unsafe { value.assume_init() })
-}
-
-fn string_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
-) -> RuntimeResult<NativeStringRef> {
-    let value = context
-        .string_ref(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    Ok(binding.store_string(value.as_str()))
-}
-
-fn string_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeStringRef,
-) -> RuntimeResult<vm::StringHandle> {
-    let value = unsafe { value.as_str()? };
-    Ok(vm::StringHandle::new(context.intern_string(value)))
-}
-
-fn bytes_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    value: VmSlice<u8>,
-) -> RuntimeResult<NativeSlice<u8>> {
-    let bytes = value.read_bytes(context)?;
-    Ok(binding.store_slice(bytes))
-}
-
-fn slice_from_vm<T: Copy + VmAggregateCodec + 'static>(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    value: VmSlice<T>,
-) -> RuntimeResult<NativeSlice<T>> {
-    let values = value.read_values(context)?;
-    Ok(binding.store_slice(values))
-}
-
-fn bytes_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeSlice<u8>,
-) -> RuntimeResult<VmSlice<u8>> {
-    let value = unsafe { value.as_slice()? };
-    Ok(VmSlice::from_bytes(context, value))
-}
-
-fn slice_to_vm<T: Copy + VmAggregateCodec>(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeSlice<T>,
-) -> RuntimeResult<VmSlice<T>> {
-    let value = unsafe { value.as_slice()? };
-    VmSlice::from_values(context, value)
-}
-
-fn array_to_vm<T: Copy + VmAggregateCodec>(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeArray<T>,
-) -> RuntimeResult<VmArray<T>> {
-    let value = unsafe { value.as_slice()? };
-    VmArray::from_values(context, value)
-}
-
-fn copy_native_bytes_into_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    output: VmSlice<u8>,
-    value: NativeSlice<u8>,
-) -> RuntimeResult<()> {
-    let value = unsafe { value.as_slice()? };
-    output.write_bytes(context, value)
-}
-
 fn agreement_request_from_vm(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -1946,16 +1881,24 @@ fn certificate_verify_request_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoCertificateVerifyRequestVm,
 ) -> RuntimeResult<CryptoCertificateVerifyRequest> {
+    // decode one optional identity
+    let identity = request
+        .identity
+        .map(|identity| -> RuntimeResult<_> {
+            Ok(CryptoCertificateVerifyIdentity {
+                kind: identity.kind,
+                value: string_from_vm(binding, context, identity.value)?,
+            })
+        })
+        .transpose()?;
+
     Ok(CryptoCertificateVerifyRequest {
         leaf: request.leaf,
         intermediates: slice_from_vm(binding, context, request.intermediates)?,
         trust_anchors: slice_from_vm(binding, context, request.trust_anchors)?,
         use_system_trust_anchors: request.use_system_trust_anchors,
         purpose: request.purpose,
-        identity: CryptoCertificateVerifyIdentity {
-            kind: request.identity.kind,
-            value: string_from_vm(binding, context, request.identity.value)?,
-        },
+        identity,
         verification_unix_seconds: request.verification_unix_seconds,
         revocation_mode: request.revocation_mode,
     })
@@ -2197,7 +2140,7 @@ fn key_import_request_from_vm(
                 label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
+                passphrase: optional_bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
@@ -2211,7 +2154,7 @@ fn key_import_request_from_vm(
                     label: string_from_vm(binding, context, request.label)?,
                     extractable: request.extractable,
                     residency: request.residency,
-                    passphrase: bytes_from_vm(binding, context, request.passphrase)?,
+                    passphrase: optional_bytes_from_vm(binding, context, request.passphrase)?,
                     persistent: request.persistent,
                 },
             ))
@@ -2226,7 +2169,7 @@ fn key_import_request_from_vm(
                 label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
+                passphrase: optional_bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
@@ -2239,7 +2182,7 @@ fn key_import_request_from_vm(
                 label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
+                passphrase: optional_bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
@@ -2252,7 +2195,7 @@ fn key_import_request_from_vm(
                 label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
+                passphrase: optional_bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
@@ -2266,7 +2209,7 @@ fn key_import_request_from_vm(
                 label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
+                passphrase: optional_bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
@@ -2280,7 +2223,7 @@ fn key_import_request_from_vm(
                 label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
+                passphrase: optional_bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
@@ -2293,7 +2236,7 @@ fn key_import_request_from_vm(
                 label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
+                passphrase: optional_bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
@@ -2306,7 +2249,7 @@ fn key_import_request_from_vm(
                 label: string_from_vm(binding, context, request.label)?,
                 extractable: request.extractable,
                 residency: request.residency,
-                passphrase: bytes_from_vm(binding, context, request.passphrase)?,
+                passphrase: optional_bytes_from_vm(binding, context, request.passphrase)?,
                 persistent: request.persistent,
             }),
         ),
@@ -2345,7 +2288,7 @@ fn key_query_from_vm(
         label_prefix: string_from_vm(binding, context, query.label_prefix)?,
         algorithm: query.algorithm,
         usage_mask: query.usage_mask,
-        cursor: string_from_vm(binding, context, query.cursor)?,
+        cursor: optional_string_from_vm(binding, context, query.cursor)?,
         limit: query.limit,
     })
 }
@@ -2359,7 +2302,7 @@ fn certificate_query_from_vm(
         subject_contains: string_from_vm(binding, context, query.subject_contains)?,
         issuer_contains: string_from_vm(binding, context, query.issuer_contains)?,
         subject_alternative_name: string_from_vm(binding, context, query.subject_alternative_name)?,
-        cursor: string_from_vm(binding, context, query.cursor)?,
+        cursor: optional_string_from_vm(binding, context, query.cursor)?,
         limit: query.limit,
     })
 }
@@ -2372,7 +2315,7 @@ fn store_options_from_vm(
     Ok(CryptoStoreOptions {
         kind: options.kind,
         provider: options.provider,
-        namespace: string_from_vm(binding, context, options.namespace)?,
+        namespace: optional_string_from_vm(binding, context, options.namespace)?,
     })
 }
 
@@ -2530,11 +2473,11 @@ fn certificate_descriptor_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: CryptoCertificateDescriptor,
 ) -> RuntimeResult<CryptoCertificateDescriptorVm> {
-    let names_native = unsafe { value.subject_alternative_names.as_slice()? };
-    let mut names_vm = Vec::with_capacity(names_native.len());
-    for value in names_native {
-        names_vm.push(string_to_vm(context, *value)?);
-    }
+    let names_vm = map_native_array_to_vm(
+        context,
+        value.subject_alternative_names,
+        |context, value| string_to_vm(context, *value),
+    )?;
 
     let validity = CryptoCertificateValidityVm {
         not_before_unix_seconds: value.validity.not_before_unix_seconds,
@@ -2545,7 +2488,7 @@ fn certificate_descriptor_to_vm(
         subject: string_to_vm(context, value.subject)?,
         issuer: string_to_vm(context, value.issuer)?,
         serial_number: string_to_vm(context, value.serial_number)?,
-        subject_alternative_names: VmArray::from_values(context, &names_vm)?,
+        subject_alternative_names: names_vm,
         fingerprint_sha256: bytes_to_vm(context, value.fingerprint_sha256)?,
         validity,
         is_certificate_authority: value.is_certificate_authority,
@@ -2562,7 +2505,7 @@ fn store_provenance_to_vm(
         identity: CryptoStoreIdentityVm {
             kind: value.identity.kind,
             provider: value.identity.provider,
-            namespace: string_to_vm(context, value.identity.namespace)?,
+            namespace: optional_string_to_vm(context, value.identity.namespace)?,
         },
     })
 }
@@ -2571,116 +2514,106 @@ fn store_capability_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: CryptoStoreCapability,
 ) -> RuntimeResult<CryptoStoreCapabilityVm> {
-    let key_capabilities_native = unsafe { value.key_capabilities.as_slice()? };
-    let mut key_capabilities = Vec::with_capacity(key_capabilities_native.len());
-    for row in key_capabilities_native {
-        key_capabilities.push(CryptoStoreKeyCapabilityVm {
-            algorithm: row.algorithm,
-            residency: row.residency,
-            supports_generate_secret: row.supports_generate_secret,
-            supports_generate_pair: row.supports_generate_pair,
-            supports_import: row.supports_import,
-            supports_export_public: row.supports_export_public,
-            supports_export_private: row.supports_export_private,
-            supports_export_secret: row.supports_export_secret,
-            supported_usage_mask: row.supported_usage_mask,
-            supported_import_formats: slice_to_vm(context, row.supported_import_formats)?,
-            supported_export_formats: slice_to_vm(context, row.supported_export_formats)?,
-        });
-    }
+    let key_capabilities =
+        map_native_array_to_vm(context, value.key_capabilities, |context, row| {
+            Ok(CryptoStoreKeyCapabilityVm {
+                algorithm: row.algorithm,
+                residency: row.residency,
+                supports_generate_secret: row.supports_generate_secret,
+                supports_generate_pair: row.supports_generate_pair,
+                supports_import: row.supports_import,
+                supports_export_public: row.supports_export_public,
+                supports_export_private: row.supports_export_private,
+                supports_export_secret: row.supports_export_secret,
+                supported_usage_mask: row.supported_usage_mask,
+                supported_import_formats: slice_to_vm(context, row.supported_import_formats)?,
+                supported_export_formats: slice_to_vm(context, row.supported_export_formats)?,
+            })
+        })?;
 
-    let signature_capabilities_native = unsafe { value.signature_capabilities.as_slice()? };
-    let mut signature_capabilities = Vec::with_capacity(signature_capabilities_native.len());
-    for row in signature_capabilities_native {
-        signature_capabilities.push(CryptoStoreSignatureCapabilityVm {
-            key_algorithm: row.key_algorithm,
-            signature_algorithm: row.signature_algorithm,
-            supports_sign: row.supports_sign,
-            supports_verify: row.supports_verify,
-            supported_digests: slice_to_vm(context, row.supported_digests)?,
-        });
-    }
+    let signature_capabilities =
+        map_native_array_to_vm(context, value.signature_capabilities, |context, row| {
+            Ok(CryptoStoreSignatureCapabilityVm {
+                key_algorithm: row.key_algorithm,
+                signature_algorithm: row.signature_algorithm,
+                supports_sign: row.supports_sign,
+                supports_verify: row.supports_verify,
+                supported_digests: slice_to_vm(context, row.supported_digests)?,
+            })
+        })?;
 
-    let asymmetric_capabilities_native =
-        unsafe { value.asymmetric_encryption_capabilities.as_slice()? };
-    let mut asymmetric_capabilities = Vec::with_capacity(asymmetric_capabilities_native.len());
-    for row in asymmetric_capabilities_native {
-        asymmetric_capabilities.push(CryptoStoreAsymmetricEncryptionCapabilityVm {
-            key_algorithm: row.key_algorithm,
-            algorithm: row.algorithm,
-            supports_encrypt: row.supports_encrypt,
-            supports_decrypt: row.supports_decrypt,
-            supported_digests: slice_to_vm(context, row.supported_digests)?,
-        });
-    }
+    let asymmetric_capabilities = map_native_array_to_vm(
+        context,
+        value.asymmetric_encryption_capabilities,
+        |context, row| {
+            Ok(CryptoStoreAsymmetricEncryptionCapabilityVm {
+                key_algorithm: row.key_algorithm,
+                algorithm: row.algorithm,
+                supports_encrypt: row.supports_encrypt,
+                supports_decrypt: row.supports_decrypt,
+                supported_digests: slice_to_vm(context, row.supported_digests)?,
+            })
+        },
+    )?;
 
-    let key_wrap_capabilities_native = unsafe { value.key_wrap_capabilities.as_slice()? };
-    let mut key_wrap_capabilities = Vec::with_capacity(key_wrap_capabilities_native.len());
-    for row in key_wrap_capabilities_native {
-        key_wrap_capabilities.push(CryptoStoreKeyWrapCapabilityVm {
-            wrapping_key_algorithm: row.wrapping_key_algorithm,
-            algorithm: row.algorithm,
-            supports_wrap: row.supports_wrap,
-            supports_unwrap: row.supports_unwrap,
-            supported_digests: slice_to_vm(context, row.supported_digests)?,
-        });
-    }
+    let key_wrap_capabilities =
+        map_native_array_to_vm(context, value.key_wrap_capabilities, |context, row| {
+            Ok(CryptoStoreKeyWrapCapabilityVm {
+                wrapping_key_algorithm: row.wrapping_key_algorithm,
+                algorithm: row.algorithm,
+                supports_wrap: row.supports_wrap,
+                supports_unwrap: row.supports_unwrap,
+                supported_digests: slice_to_vm(context, row.supported_digests)?,
+            })
+        })?;
 
-    let cipher_capabilities_native = unsafe { value.cipher_capabilities.as_slice()? };
-    let mut cipher_capabilities = Vec::with_capacity(cipher_capabilities_native.len());
-    for row in cipher_capabilities_native {
-        cipher_capabilities.push(CryptoStoreCipherCapabilityVm {
-            key_algorithm: row.key_algorithm,
-            algorithm: row.algorithm,
-            supports_one_shot: row.supports_one_shot,
-            supports_streaming: row.supports_streaming,
-            supports_additional_data: row.supports_additional_data,
-            supports_detached_tag: row.supports_detached_tag,
-            min_tag_length_bytes: row.min_tag_length_bytes,
-            max_tag_length_bytes: row.max_tag_length_bytes,
-        });
-    }
+    let cipher_capabilities =
+        map_native_array_to_vm(context, value.cipher_capabilities, |_, row| {
+            Ok(CryptoStoreCipherCapabilityVm {
+                key_algorithm: row.key_algorithm,
+                algorithm: row.algorithm,
+                supports_one_shot: row.supports_one_shot,
+                supports_streaming: row.supports_streaming,
+                supports_additional_data: row.supports_additional_data,
+                supports_detached_tag: row.supports_detached_tag,
+                min_tag_length_bytes: row.min_tag_length_bytes,
+                max_tag_length_bytes: row.max_tag_length_bytes,
+            })
+        })?;
 
-    let mac_capabilities_native = unsafe { value.mac_capabilities.as_slice()? };
-    let mut mac_capabilities = Vec::with_capacity(mac_capabilities_native.len());
-    for row in mac_capabilities_native {
-        mac_capabilities.push(CryptoStoreMacCapabilityVm {
-            key_algorithm: row.key_algorithm,
-            algorithm: row.algorithm,
-            supports_one_shot: row.supports_one_shot,
-            supports_streaming: row.supports_streaming,
-            supported_digests: slice_to_vm(context, row.supported_digests)?,
-            min_tag_length_bytes: row.min_tag_length_bytes,
-            max_tag_length_bytes: row.max_tag_length_bytes,
-        });
-    }
-
-    let agreement_capabilities_native = unsafe { value.agreement_capabilities.as_slice()? };
-    let agreement_capabilities = agreement_capabilities_native.to_vec();
+    let mac_capabilities =
+        map_native_array_to_vm(context, value.mac_capabilities, |context, row| {
+            Ok(CryptoStoreMacCapabilityVm {
+                key_algorithm: row.key_algorithm,
+                algorithm: row.algorithm,
+                supports_one_shot: row.supports_one_shot,
+                supports_streaming: row.supports_streaming,
+                supported_digests: slice_to_vm(context, row.supported_digests)?,
+                min_tag_length_bytes: row.min_tag_length_bytes,
+                max_tag_length_bytes: row.max_tag_length_bytes,
+            })
+        })?;
 
     Ok(CryptoStoreCapabilityVm {
         identity: CryptoStoreIdentityVm {
             kind: value.identity.kind,
             provider: value.identity.provider,
-            namespace: string_to_vm(context, value.identity.namespace)?,
+            namespace: optional_string_to_vm(context, value.identity.namespace)?,
         },
         is_available: value.is_available,
         supports_hardware_backed: value.supports_hardware_backed,
         supports_persistent: value.supports_persistent,
         supports_key_export: value.supports_key_export,
-        supported_key_algorithms: array_to_vm(context, value.supported_key_algorithms)?,
-        supported_key_formats: array_to_vm(context, value.supported_key_formats)?,
-        supported_key_residencies: array_to_vm(context, value.supported_key_residencies)?,
-        key_capabilities: VmArray::from_values(context, &key_capabilities)?,
-        signature_capabilities: VmArray::from_values(context, &signature_capabilities)?,
-        asymmetric_encryption_capabilities: VmArray::from_values(
-            context,
-            &asymmetric_capabilities,
-        )?,
-        key_wrap_capabilities: VmArray::from_values(context, &key_wrap_capabilities)?,
-        cipher_capabilities: VmArray::from_values(context, &cipher_capabilities)?,
-        mac_capabilities: VmArray::from_values(context, &mac_capabilities)?,
-        agreement_capabilities: VmArray::from_values(context, &agreement_capabilities)?,
+        supported_key_algorithms: values_array_to_vm(context, value.supported_key_algorithms)?,
+        supported_key_formats: values_array_to_vm(context, value.supported_key_formats)?,
+        supported_key_residencies: values_array_to_vm(context, value.supported_key_residencies)?,
+        key_capabilities,
+        signature_capabilities,
+        asymmetric_encryption_capabilities: asymmetric_capabilities,
+        key_wrap_capabilities,
+        cipher_capabilities,
+        mac_capabilities,
+        agreement_capabilities: values_array_to_vm(context, value.agreement_capabilities)?,
         certificate_capabilities: CryptoStoreCertificateCapabilityVm {
             supports_import: value.certificate_capabilities.supports_import,
             supports_export: value.certificate_capabilities.supports_export,
@@ -2703,7 +2636,10 @@ fn certificate_verify_result_to_vm(
         error: value.error,
         error_code: value.error_code,
         failed_certificate_index: value.failed_certificate_index,
-        failed_certificate_subject: string_to_vm(context, value.failed_certificate_subject)?,
+        failed_certificate_subject: optional_string_to_vm(
+            context,
+            value.failed_certificate_subject,
+        )?,
         chain_length: value.chain_length,
         used_system_trust_anchor: value.used_system_trust_anchor,
     })
@@ -2713,20 +2649,18 @@ fn key_list_page_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: CryptoKeyListPage,
 ) -> RuntimeResult<CryptoKeyListPageVm> {
-    let entries_native = unsafe { value.entries.as_slice()? };
-    let mut entries_vm = Vec::with_capacity(entries_native.len());
-    for entry in entries_native {
-        entries_vm.push(CryptoKeyListEntryVm {
+    let entries_vm = map_native_array_to_vm(context, value.entries, |context, entry| {
+        Ok(CryptoKeyListEntryVm {
             handle: entry.handle,
             label: string_to_vm(context, entry.label)?,
             algorithm: entry.algorithm,
             usage_mask: entry.usage_mask,
-        });
-    }
+        })
+    })?;
 
     Ok(CryptoKeyListPageVm {
-        entries: VmArray::from_values(context, &entries_vm)?,
-        next_cursor: string_to_vm(context, value.next_cursor)?,
+        entries: entries_vm,
+        next_cursor: optional_string_to_vm(context, value.next_cursor)?,
     })
 }
 
@@ -2734,19 +2668,17 @@ fn certificate_list_page_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: CryptoCertificateListPage,
 ) -> RuntimeResult<CryptoCertificateListPageVm> {
-    let entries_native = unsafe { value.entries.as_slice()? };
-    let mut entries_vm = Vec::with_capacity(entries_native.len());
-    for entry in entries_native {
-        entries_vm.push(CryptoCertificateListEntryVm {
+    let entries_vm = map_native_array_to_vm(context, value.entries, |context, entry| {
+        Ok(CryptoCertificateListEntryVm {
             handle: entry.handle,
             subject: string_to_vm(context, entry.subject)?,
             issuer: string_to_vm(context, entry.issuer)?,
             serial_number: string_to_vm(context, entry.serial_number)?,
-        });
-    }
+        })
+    })?;
 
     Ok(CryptoCertificateListPageVm {
-        entries: VmArray::from_values(context, &entries_vm)?,
-        next_cursor: string_to_vm(context, value.next_cursor)?,
+        entries: entries_vm,
+        next_cursor: optional_string_to_vm(context, value.next_cursor)?,
     })
 }

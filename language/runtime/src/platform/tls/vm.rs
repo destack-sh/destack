@@ -1,108 +1,18 @@
 use destack_vm as vm;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::core::{
+    allocate_vm_read_buffer as allocate_read_buffer, bytes_to_vm as bytes_slice_to_vm, call_out,
+    store_bytes_from_vm as bytes_slice_from_vm, store_string_from_vm as string_ref_from_vm,
+    store_string_slice_from_vm as string_slice_from_vm,
+    store_vm_byte_slices as bytes_slices_from_vm, write_vm_read_buffer as write_read_buffer,
+};
 use crate::platform::tls::{
     TlsContextOptions, TlsContextOptionsVm, TlsHandshakeStatus, TlsHostnameVerificationMode,
     TlsSessionResumptionMode, TlsSessionResumptionState, host as host_tls,
 };
 use crate::platform::{VmSlice, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
-
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    // allocate one output slot and invoke one host call
-    let mut value = std::mem::MaybeUninit::<T>::uninit();
-    call(value.as_mut_ptr())?;
-
-    Ok(unsafe { value.assume_init() })
-}
-
-fn string_ref_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
-) -> RuntimeResult<NativeStringRef> {
-    // resolve one VM string handle
-    let value = context
-        .string_ref(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-
-    // store one call-scoped native string reference
-    Ok(binding.store_string(value.as_str()))
-}
-
-fn string_slice_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    values: VmSlice<vm::StringHandle>,
-) -> RuntimeResult<NativeStringSlice> {
-    // decode one VM string handle slice
-    let values = values.read_values(context)?;
-    let mut native_values = Vec::with_capacity(values.len());
-    for value in values {
-        native_values.push(string_ref_from_vm(binding, context, value)?);
-    }
-
-    // store one native string slice for host calls
-    Ok(binding.store_string_slice(native_values))
-}
-
-fn bytes_slices_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    values: VmSlice<VmSlice<u8>>,
-) -> RuntimeResult<NativeSlice<NativeSlice<u8>>> {
-    // decode one VM nested byte-slice payload
-    let values = values.raw_values(context)?;
-    let mut native_values = Vec::with_capacity(values.len());
-    for value in values {
-        let value = VmSlice::<u8>::from_value(context, value, "alpn_protocols", "Slice<uint8>")?;
-        let value = value.read_bytes(context)?;
-        native_values.push(binding.store_slice(value));
-    }
-
-    // store one native nested byte-slice payload
-    Ok(binding.store_slice(native_values))
-}
-
-fn bytes_slice_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    values: VmSlice<u8>,
-) -> RuntimeResult<NativeSlice<u8>> {
-    // copy one VM byte slice into native call storage
-    let values = values.read_bytes(context)?;
-
-    Ok(binding.store_slice(values))
-}
-
-fn bytes_slice_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeSlice<u8>,
-) -> RuntimeResult<VmSlice<u8>> {
-    // read one native byte slice
-    let values = unsafe { values.as_slice()? };
-
-    // encode one VM byte slice
-    VmSlice::from_values(context, values)
-}
-
-fn allocate_read_buffer(binding: &BindingCallContext, buffer: VmSlice<u8>) -> NativeSlice<u8> {
-    // allocate one native read buffer with matching length
-    let length = buffer.len as usize;
-
-    binding.store_slice(vec![0u8; length])
-}
-
-fn write_read_buffer(
-    context: &mut vm::ExternalCallContext<'_>,
-    buffer: VmSlice<u8>,
-    native: NativeSlice<u8>,
-) -> RuntimeResult<()> {
-    // copy one native read buffer back into VM memory
-    let bytes = unsafe { native.as_slice()? };
-
-    buffer.write_bytes(context, bytes)
-}
+use crate::runtime::BindingCallContext;
 
 fn context_options_from_vm(
     binding: &BindingCallContext,
@@ -110,7 +20,8 @@ fn context_options_from_vm(
     options: TlsContextOptionsVm,
 ) -> RuntimeResult<TlsContextOptions> {
     // decode one ALPN protocol list
-    let alpn_protocols = bytes_slices_from_vm(binding, context, options.alpn_protocols)?;
+    let alpn_protocols =
+        bytes_slices_from_vm(binding, context, options.alpn_protocols, "alpn_protocols")?;
 
     Ok(TlsContextOptions {
         role: options.role,

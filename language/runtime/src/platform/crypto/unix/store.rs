@@ -140,9 +140,13 @@ pub(crate) unsafe fn destack_crypto_store_probe_capability(
     binding: &BindingCallContext,
     out: *mut CryptoStoreCapability,
     kind: CryptoStoreKind,
-    provider: CryptoStoreProvider,
+    provider: Option<CryptoStoreProvider>,
 ) -> RuntimeResult<()> {
-    let capability = crypto_core::store_probe_capability(binding, kind, provider)?;
+    let capability = crypto_core::store_probe_capability(
+        binding,
+        kind,
+        provider.unwrap_or(CryptoStoreProvider::OpenSsl),
+    )?;
     unsafe { write_out_value(out, capability) }
 }
 

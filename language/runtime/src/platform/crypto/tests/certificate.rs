@@ -97,11 +97,11 @@ fn test_certificate_import_export_descriptor_verify_delete() {
             trust_anchors,
             use_system_trust_anchors: false,
             purpose: CryptoCertificatePurpose::ServerAuth,
-            identity: CryptoCertificateVerifyIdentity {
+            identity: Some(CryptoCertificateVerifyIdentity {
                 kind: CryptoCertificateIdentityKind::DnsName,
                 value: context.call_context.store_string("localhost"),
-            },
-            verification_unix_seconds: 0,
+            }),
+            verification_unix_seconds: Some(0),
             revocation_mode: CryptoCertificateRevocationMode::Default,
         };
         let result =
@@ -118,11 +118,11 @@ fn test_certificate_import_export_descriptor_verify_delete() {
             trust_anchors,
             use_system_trust_anchors: true,
             purpose: CryptoCertificatePurpose::ServerAuth,
-            identity: CryptoCertificateVerifyIdentity {
+            identity: Some(CryptoCertificateVerifyIdentity {
                 kind: CryptoCertificateIdentityKind::DnsName,
                 value: context.call_context.store_string("localhost"),
-            },
-            verification_unix_seconds: 0,
+            }),
+            verification_unix_seconds: Some(0),
             revocation_mode: CryptoCertificateRevocationMode::Default,
         };
         let result = context
@@ -200,8 +200,8 @@ fn test_certificate_import_follows_host_store_write_behavior() {
                     subject_contains: context.call_context.store_string(""),
                     issuer_contains: context.call_context.store_string(""),
                     subject_alternative_name: context.call_context.store_string(""),
-                    cursor: context.call_context.store_string(""),
-                    limit: 8,
+                    cursor: Some(context.call_context.store_string("")),
+                    limit: Some(8),
                 };
                 let page = context
                     .destack_crypto_store_list_certificates(store, context.request_value(query)?)?;
@@ -268,8 +268,8 @@ fn test_certificate_system_lane_matches_rustls_native_certs_trust_subset() {
                 subject_contains: context.call_context.store_string(""),
                 issuer_contains: context.call_context.store_string(""),
                 subject_alternative_name: context.call_context.store_string(""),
-                cursor: context.call_context.store_string(""),
-                limit: u32::MAX,
+                cursor: Some(context.call_context.store_string("")),
+                limit: Some(u32::MAX),
             };
             let page = context
                 .destack_crypto_store_list_certificates(store, context.request_value(query)?)?;

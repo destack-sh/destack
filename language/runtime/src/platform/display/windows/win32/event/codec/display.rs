@@ -201,7 +201,7 @@ pub(crate) fn display_event_from_record(
                     value.dropped_count,
                 ),
                 payload: DisplayAddedPayload {
-                    descriptor: monitor::descriptor_from_owned(binding, &descriptor),
+                    descriptor: monitor::descriptor_from_value(binding, &descriptor),
                 },
             })
         }
@@ -219,7 +219,7 @@ pub(crate) fn display_event_from_record(
                     id: binding.store_string(&id),
                     descriptor: descriptor
                         .as_ref()
-                        .map(|value| monitor::descriptor_from_owned(binding, value)),
+                        .map(|value| monitor::descriptor_from_value(binding, value)),
                 },
             })
         }
@@ -256,8 +256,8 @@ pub(crate) fn display_event_from_record(
             payload: DisplayDescriptorChangedPayload {
                 previous: previous
                     .as_ref()
-                    .map(|value| monitor::descriptor_from_owned(binding, value)),
-                current: monitor::descriptor_from_owned(binding, &current),
+                    .map(|value| monitor::descriptor_from_value(binding, value)),
+                current: monitor::descriptor_from_value(binding, &current),
                 changed_mask: DisplayMetricChangedMask(changed_mask),
             },
         }),

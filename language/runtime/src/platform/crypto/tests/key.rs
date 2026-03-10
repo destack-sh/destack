@@ -82,13 +82,13 @@ fn test_key_pair_sign_verify_encrypt_decrypt() {
                 algorithm: context.call_context.store_string("rsa"),
                 modulus_bits: 2048,
                 public_exponent: 65537,
-                digest: CryptoDigestAlgorithm::Sha256,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
                 usage_mask: CryptoKeyUsageMask(
                     KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT,
                 ),
                 label: context.call_context.store_string("rsa"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -100,8 +100,8 @@ fn test_key_pair_sign_verify_encrypt_decrypt() {
         // sign and verify one payload
         let sign_parameters = CryptoSignatureParameters {
             algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
-            digest: CryptoDigestAlgorithm::Sha256,
-            salt_length_bytes: 0,
+            digest: Some(CryptoDigestAlgorithm::Sha256),
+            salt_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"sign payload")?;
         let signature = context.destack_crypto_key_sign(
@@ -114,8 +114,8 @@ fn test_key_pair_sign_verify_encrypt_decrypt() {
 
         let verify_parameters = CryptoSignatureParameters {
             algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
-            digest: CryptoDigestAlgorithm::Sha256,
-            salt_length_bytes: 0,
+            digest: Some(CryptoDigestAlgorithm::Sha256),
+            salt_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"sign payload")?;
         let signature_value = context.bytes_slice_value(&signature)?;
@@ -130,7 +130,7 @@ fn test_key_pair_sign_verify_encrypt_decrypt() {
         // encrypt and decrypt one payload
         let encrypt_parameters = CryptoAsymmetricEncryptionParameters {
             algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
-            digest: CryptoDigestAlgorithm::Sha256,
+            digest: Some(CryptoDigestAlgorithm::Sha256),
             label: context.call_context.store_slice(Vec::<u8>::new()),
         };
         let plaintext = context.bytes_slice_value(b"encrypt payload")?;
@@ -144,7 +144,7 @@ fn test_key_pair_sign_verify_encrypt_decrypt() {
 
         let decrypt_parameters = CryptoAsymmetricEncryptionParameters {
             algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
-            digest: CryptoDigestAlgorithm::Sha256,
+            digest: Some(CryptoDigestAlgorithm::Sha256),
             label: context.call_context.store_slice(Vec::<u8>::new()),
         };
         let ciphertext = context.bytes_slice_value(&ciphertext)?;
@@ -187,11 +187,11 @@ fn test_key_wrap_unwrap_roundtrip() {
                 algorithm: context.call_context.store_string("rsa"),
                 modulus_bits: 2048,
                 public_exponent: 65537,
-                digest: CryptoDigestAlgorithm::Sha256,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_WRAP | KEY_USAGE_UNWRAP),
                 label: context.call_context.store_string("wrapping"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -209,7 +209,7 @@ fn test_key_wrap_unwrap_roundtrip() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
                 label: context.call_context.store_string("session"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -224,7 +224,7 @@ fn test_key_wrap_unwrap_roundtrip() {
 
         let wrap_parameters = CryptoKeyWrapParameters {
             algorithm: CryptoKeyWrapAlgorithm::RsaOaep,
-            digest: CryptoDigestAlgorithm::Sha256,
+            digest: Some(CryptoDigestAlgorithm::Sha256),
             label: context.call_context.store_slice(Vec::<u8>::new()),
         };
         let wrapped = context.destack_crypto_key_wrap(
@@ -244,14 +244,14 @@ fn test_key_wrap_unwrap_roundtrip() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
                 label: context.call_context.store_string("unwrapped"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                residency: Some(CryptoKeyResidency::Unknown),
+                passphrase: Some(context.call_context.store_slice(Vec::<u8>::new())),
                 persistent: false,
             },
         );
         let unwrap_parameters = CryptoKeyWrapParameters {
             algorithm: CryptoKeyWrapAlgorithm::RsaOaep,
-            digest: CryptoDigestAlgorithm::Sha256,
+            digest: Some(CryptoDigestAlgorithm::Sha256),
             label: context.call_context.store_slice(Vec::<u8>::new()),
         };
         let wrapped = context.bytes_slice_value(&wrapped)?;
@@ -310,7 +310,7 @@ fn test_key_wrap_unwrap_roundtrip_aes_key_wrap_lanes() {
                     usage_mask: CryptoKeyUsageMask(KEY_USAGE_WRAP | KEY_USAGE_UNWRAP),
                     label: context.call_context.store_string("aes-wrap"),
                     extractable: true,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: false,
                     persistent: false,
                 },
@@ -327,7 +327,7 @@ fn test_key_wrap_unwrap_roundtrip_aes_key_wrap_lanes() {
                     usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
                     label: context.call_context.store_string("aes-session"),
                     extractable: true,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: false,
                     persistent: false,
                 },
@@ -343,7 +343,7 @@ fn test_key_wrap_unwrap_roundtrip_aes_key_wrap_lanes() {
             // wrap the target key with the selected aes key-wrap algorithm
             let wrap_parameters = CryptoKeyWrapParameters {
                 algorithm: wrap_algorithm,
-                digest: CryptoDigestAlgorithm::Unknown,
+                digest: Some(CryptoDigestAlgorithm::Unknown),
                 label: context.call_context.store_slice(Vec::<u8>::new()),
             };
             let wrapped = context.destack_crypto_key_wrap(
@@ -363,14 +363,14 @@ fn test_key_wrap_unwrap_roundtrip_aes_key_wrap_lanes() {
                     usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
                     label: context.call_context.store_string("aes-unwrapped"),
                     extractable: true,
-                    residency: CryptoKeyResidency::Unknown,
-                    passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                    residency: Some(CryptoKeyResidency::Unknown),
+                    passphrase: Some(context.call_context.store_slice(Vec::<u8>::new())),
                     persistent: false,
                 },
             );
             let unwrap_parameters = CryptoKeyWrapParameters {
                 algorithm: wrap_algorithm,
-                digest: CryptoDigestAlgorithm::Unknown,
+                digest: Some(CryptoDigestAlgorithm::Unknown),
                 label: context.call_context.store_slice(Vec::<u8>::new()),
             };
             let wrapped = context.bytes_slice_value(&wrapped)?;
@@ -412,7 +412,7 @@ fn test_key_sign_verify_ed25519() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
                 label: context.call_context.store_string("ed25519"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -424,8 +424,8 @@ fn test_key_sign_verify_ed25519() {
         // sign and verify one payload
         let parameters = CryptoSignatureParameters {
             algorithm: CryptoSignatureAlgorithm::Ed25519,
-            digest: CryptoDigestAlgorithm::Unknown,
-            salt_length_bytes: 0,
+            digest: Some(CryptoDigestAlgorithm::Unknown),
+            salt_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"ed25519 payload")?;
         let signature = context.destack_crypto_key_sign(
@@ -438,8 +438,8 @@ fn test_key_sign_verify_ed25519() {
 
         let parameters = CryptoSignatureParameters {
             algorithm: CryptoSignatureAlgorithm::Ed25519,
-            digest: CryptoDigestAlgorithm::Unknown,
-            salt_length_bytes: 0,
+            digest: Some(CryptoDigestAlgorithm::Unknown),
+            salt_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"ed25519 payload")?;
         let signature = context.bytes_slice_value(&signature)?;
@@ -477,7 +477,7 @@ fn test_key_sign_verify_ed448_when_supported() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
                 label: context.call_context.store_string("ed448"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -489,8 +489,8 @@ fn test_key_sign_verify_ed448_when_supported() {
         // sign and verify one payload
         let parameters = CryptoSignatureParameters {
             algorithm: CryptoSignatureAlgorithm::Ed448,
-            digest: CryptoDigestAlgorithm::Unknown,
-            salt_length_bytes: 0,
+            digest: Some(CryptoDigestAlgorithm::Unknown),
+            salt_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"ed448 payload")?;
         let signature = context.destack_crypto_key_sign(
@@ -503,8 +503,8 @@ fn test_key_sign_verify_ed448_when_supported() {
 
         let parameters = CryptoSignatureParameters {
             algorithm: CryptoSignatureAlgorithm::Ed448,
-            digest: CryptoDigestAlgorithm::Unknown,
-            salt_length_bytes: 0,
+            digest: Some(CryptoDigestAlgorithm::Unknown),
+            salt_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"ed448 payload")?;
         let signature = context.bytes_slice_value(&signature)?;
@@ -535,11 +535,11 @@ fn test_key_usage_mask_enforces_permissions() {
                 algorithm: context.call_context.store_string("rsa"),
                 modulus_bits: 2048,
                 public_exponent: 65537,
-                digest: CryptoDigestAlgorithm::Sha256,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
                 label: context.call_context.store_string("sign-only"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -551,8 +551,8 @@ fn test_key_usage_mask_enforces_permissions() {
         // signing is allowed
         let sign_parameters = CryptoSignatureParameters {
             algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
-            digest: CryptoDigestAlgorithm::Sha256,
-            salt_length_bytes: 0,
+            digest: Some(CryptoDigestAlgorithm::Sha256),
+            salt_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"usage")?;
         let _signature = context.destack_crypto_key_sign(
@@ -564,8 +564,8 @@ fn test_key_usage_mask_enforces_permissions() {
         // verify and encrypt lanes should be denied
         let verify_parameters = CryptoSignatureParameters {
             algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
-            digest: CryptoDigestAlgorithm::Sha256,
-            salt_length_bytes: 0,
+            digest: Some(CryptoDigestAlgorithm::Sha256),
+            salt_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"usage")?;
         let signature = context.bytes_slice_value(b"bad-signature")?;
@@ -586,7 +586,7 @@ fn test_key_usage_mask_enforces_permissions() {
 
         let encrypt_parameters = CryptoAsymmetricEncryptionParameters {
             algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
-            digest: CryptoDigestAlgorithm::Sha256,
+            digest: Some(CryptoDigestAlgorithm::Sha256),
             label: context.call_context.store_slice(Vec::<u8>::new()),
         };
         let payload = context.bytes_slice_value(b"blocked")?;
@@ -625,7 +625,7 @@ fn test_key_import_export_sec1_roundtrip() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
                 label: context.call_context.store_string("ec"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -653,12 +653,12 @@ fn test_key_import_export_sec1_roundtrip() {
                 algorithm: context.call_context.store_string("ec"),
                 format: CryptoKeyFormat::Sec1Pem,
                 bytes: context.call_context.store_slice(sec1),
-                named_curve: CryptoNamedCurve::P256,
+                named_curve: Some(CryptoNamedCurve::P256),
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
                 label: context.call_context.store_string("ec-import"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                residency: Some(CryptoKeyResidency::Unknown),
+                passphrase: Some(context.call_context.store_slice(Vec::<u8>::new())),
                 persistent: false,
             },
         );
@@ -696,11 +696,11 @@ fn test_key_export_sec1_rejects_non_ec_private_key() {
                 algorithm: context.call_context.store_string("rsa"),
                 modulus_bits: 2048,
                 public_exponent: 65537,
-                digest: CryptoDigestAlgorithm::Sha256,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
                 label: context.call_context.store_string("rsa"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -749,7 +749,7 @@ fn test_key_import_rejects_algorithm_or_curve_mismatch() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
                 label: context.call_context.store_string("ec"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -772,12 +772,12 @@ fn test_key_import_rejects_algorithm_or_curve_mismatch() {
                 algorithm: context.call_context.store_string("rsa"),
                 format: CryptoKeyFormat::Sec1Pem,
                 bytes: context.call_context.store_slice(sec1.clone()),
-                digest: CryptoDigestAlgorithm::Sha256,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
                 label: context.call_context.store_string("mismatch-algorithm"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                residency: Some(CryptoKeyResidency::Unknown),
+                passphrase: Some(context.call_context.store_slice(Vec::<u8>::new())),
                 persistent: false,
             },
         );
@@ -801,12 +801,12 @@ fn test_key_import_rejects_algorithm_or_curve_mismatch() {
                 algorithm: context.call_context.store_string("ec"),
                 format: CryptoKeyFormat::Sec1Pem,
                 bytes: context.call_context.store_slice(sec1),
-                named_curve: CryptoNamedCurve::P384,
+                named_curve: Some(CryptoNamedCurve::P384),
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
                 label: context.call_context.store_string("mismatch-curve"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                residency: Some(CryptoKeyResidency::Unknown),
+                passphrase: Some(context.call_context.store_slice(Vec::<u8>::new())),
                 persistent: false,
             },
         );
@@ -859,8 +859,8 @@ fn test_key_import_jwk_oct_roundtrip() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
                 label: context.call_context.store_string("oct-jwk"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                residency: Some(CryptoKeyResidency::Unknown),
+                passphrase: Some(context.call_context.store_slice(Vec::<u8>::new())),
                 persistent: false,
             },
         );
@@ -893,12 +893,12 @@ fn test_key_import_jwk_rsa_private_sign_verify() {
                 algorithm: context.call_context.store_string("rsa"),
                 format: CryptoKeyFormat::Jwk,
                 bytes: context.call_context.store_slice(jwk_bytes),
-                digest: CryptoDigestAlgorithm::Sha256,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
                 label: context.call_context.store_string("rsa-jwk"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                residency: Some(CryptoKeyResidency::Unknown),
+                passphrase: Some(context.call_context.store_slice(Vec::<u8>::new())),
                 persistent: false,
             },
         );
@@ -908,8 +908,8 @@ fn test_key_import_jwk_rsa_private_sign_verify() {
         // sign one payload and verify with the imported key handle
         let sign_parameters = CryptoSignatureParameters {
             algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
-            digest: CryptoDigestAlgorithm::Sha256,
-            salt_length_bytes: 0,
+            digest: Some(CryptoDigestAlgorithm::Sha256),
+            salt_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"jwk-rsa-sign")?;
         let signature = context.destack_crypto_key_sign(
@@ -922,8 +922,8 @@ fn test_key_import_jwk_rsa_private_sign_verify() {
 
         let verify_parameters = CryptoSignatureParameters {
             algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
-            digest: CryptoDigestAlgorithm::Sha256,
-            salt_length_bytes: 0,
+            digest: Some(CryptoDigestAlgorithm::Sha256),
+            salt_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"jwk-rsa-sign")?;
         let signature = context.bytes_slice_value(&signature)?;
@@ -958,7 +958,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
                 usage_mask: CryptoKeyUsageMask(0),
                 label: context.call_context.store_string("hardware"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: true,
                 persistent: false,
             },
@@ -984,7 +984,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
                 usage_mask: CryptoKeyUsageMask(0),
                 label: context.call_context.store_string("persistent"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: true,
             },
@@ -1009,8 +1009,8 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
                 usage_mask: CryptoKeyUsageMask(0),
                 label: context.call_context.store_string("persistent-import"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                residency: Some(CryptoKeyResidency::Unknown),
+                passphrase: Some(context.call_context.store_slice(Vec::<u8>::new())),
                 persistent: true,
             },
         );
@@ -1058,7 +1058,7 @@ fn test_key_generate_follows_host_lane_write_support() {
                     usage_mask: CryptoKeyUsageMask(0),
                     label: context.call_context.store_string("host-write"),
                     extractable: true,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: false,
                     persistent: false,
                 },
@@ -1121,7 +1121,7 @@ fn test_key_generate_nonpersistent_host_keys_do_not_survive_reopen() {
                     usage_mask: CryptoKeyUsageMask(0),
                     label: context.call_context.store_string(&label_prefix),
                     extractable: true,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: false,
                     persistent: false,
                 },
@@ -1135,10 +1135,10 @@ fn test_key_generate_nonpersistent_host_keys_do_not_survive_reopen() {
             let store = context.destack_crypto_store_open(options)?;
             let query = CryptoKeyQuery {
                 label_prefix: context.call_context.store_string(&label_prefix),
-                algorithm: CryptoKeyAlgorithm::Unknown,
-                usage_mask: CryptoKeyUsageMask(0),
-                cursor: context.call_context.store_string(""),
-                limit: 128,
+                algorithm: Some(CryptoKeyAlgorithm::Unknown),
+                usage_mask: Some(CryptoKeyUsageMask(0)),
+                cursor: Some(context.call_context.store_string("")),
+                limit: Some(128),
             };
             let page =
                 context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
@@ -1186,7 +1186,7 @@ fn test_key_generate_persistent_roundtrip_on_supported_host_lanes() {
                     usage_mask: CryptoKeyUsageMask(0),
                     label: context.call_context.store_string(&label_prefix),
                     extractable: true,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: false,
                     persistent: true,
                 },
@@ -1200,10 +1200,10 @@ fn test_key_generate_persistent_roundtrip_on_supported_host_lanes() {
             let store = context.destack_crypto_store_open(options)?;
             let query = CryptoKeyQuery {
                 label_prefix: context.call_context.store_string(&label_prefix),
-                algorithm: CryptoKeyAlgorithm::Unknown,
-                usage_mask: CryptoKeyUsageMask(0),
-                cursor: context.call_context.store_string(""),
-                limit: 128,
+                algorithm: Some(CryptoKeyAlgorithm::Unknown),
+                usage_mask: Some(CryptoKeyUsageMask(0)),
+                cursor: Some(context.call_context.store_string("")),
+                limit: Some(128),
             };
             let page =
                 context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
@@ -1224,10 +1224,10 @@ fn test_key_generate_persistent_roundtrip_on_supported_host_lanes() {
             let store = context.destack_crypto_store_open(options)?;
             let query = CryptoKeyQuery {
                 label_prefix: context.call_context.store_string(&label_prefix),
-                algorithm: CryptoKeyAlgorithm::Unknown,
-                usage_mask: CryptoKeyUsageMask(0),
-                cursor: context.call_context.store_string(""),
-                limit: 128,
+                algorithm: Some(CryptoKeyAlgorithm::Unknown),
+                usage_mask: Some(CryptoKeyUsageMask(0)),
+                cursor: Some(context.call_context.store_string("")),
+                limit: Some(128),
             };
             let page =
                 context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
@@ -1273,7 +1273,7 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
                     algorithm: context.call_context.store_string("rsa"),
                     modulus_bits: 2048,
                     public_exponent: 65537,
-                    digest: CryptoDigestAlgorithm::Sha256,
+                    digest: Some(CryptoDigestAlgorithm::Sha256),
                     usage_mask: CryptoKeyUsageMask(
                         KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT,
                     ),
@@ -1281,7 +1281,7 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
                         .call_context
                         .store_string(&format!("{label_prefix}-create")),
                     extractable: false,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: false,
                     persistent: true,
                 },
@@ -1305,8 +1305,8 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
             // sign and verify one payload
             let sign_parameters = CryptoSignatureParameters {
                 algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
-                digest: CryptoDigestAlgorithm::Sha256,
-                salt_length_bytes: 0,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
+                salt_length_bytes: Some(0),
             };
             let payload = context.bytes_slice_value(b"host-persistent-rsa-sign")?;
             let signature = context.destack_crypto_key_sign(
@@ -1319,8 +1319,8 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
 
             let verify_parameters = CryptoSignatureParameters {
                 algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
-                digest: CryptoDigestAlgorithm::Sha256,
-                salt_length_bytes: 0,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
+                salt_length_bytes: Some(0),
             };
             let payload = context.bytes_slice_value(b"host-persistent-rsa-sign")?;
             let signature = context.bytes_slice_value(&signature)?;
@@ -1335,7 +1335,7 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
             // encrypt and decrypt one payload
             let encrypt_parameters = CryptoAsymmetricEncryptionParameters {
                 algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
-                digest: CryptoDigestAlgorithm::Sha256,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
                 label: context.call_context.store_slice(Vec::<u8>::new()),
             };
             let plaintext = context.bytes_slice_value(b"host-persistent-rsa-decrypt")?;
@@ -1349,7 +1349,7 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
 
             let decrypt_parameters = CryptoAsymmetricEncryptionParameters {
                 algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
-                digest: CryptoDigestAlgorithm::Sha256,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
                 label: context.call_context.store_slice(Vec::<u8>::new()),
             };
             let ciphertext = context.bytes_slice_value(&ciphertext)?;
@@ -1384,10 +1384,10 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
             let store = context.destack_crypto_store_open(options)?;
             let query = CryptoKeyQuery {
                 label_prefix: context.call_context.store_string(&label_prefix),
-                algorithm: CryptoKeyAlgorithm::Rsa,
-                usage_mask: CryptoKeyUsageMask(0),
-                cursor: context.call_context.store_string(""),
-                limit: 128,
+                algorithm: Some(CryptoKeyAlgorithm::Rsa),
+                usage_mask: Some(CryptoKeyUsageMask(0)),
+                cursor: Some(context.call_context.store_string("")),
+                limit: Some(128),
             };
             let page =
                 context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
@@ -1421,7 +1421,7 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
                 algorithm: context.call_context.store_string("rsa"),
                 modulus_bits: 2048,
                 public_exponent: 65537,
-                digest: CryptoDigestAlgorithm::Sha256,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
                 usage_mask: CryptoKeyUsageMask(
                     KEY_USAGE_SIGN
                         | KEY_USAGE_VERIFY
@@ -1431,7 +1431,7 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
                 ),
                 label: context.call_context.store_string("import-source-rsa"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -1478,7 +1478,7 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
                     algorithm: context.call_context.store_string("rsa"),
                     format: CryptoKeyFormat::Pkcs8Der,
                     bytes: context.call_context.store_slice(source_private_key.clone()),
-                    digest: CryptoDigestAlgorithm::Sha256,
+                    digest: Some(CryptoDigestAlgorithm::Sha256),
                     usage_mask: CryptoKeyUsageMask(
                         KEY_USAGE_SIGN
                             | KEY_USAGE_VERIFY
@@ -1490,8 +1490,8 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
                         .call_context
                         .store_string(&format!("{label_prefix}-import")),
                     extractable: false,
-                    residency: CryptoKeyResidency::Unknown,
-                    passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                    residency: Some(CryptoKeyResidency::Unknown),
+                    passphrase: Some(context.call_context.store_slice(Vec::<u8>::new())),
                     persistent: true,
                 },
             );
@@ -1513,7 +1513,7 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             // decrypt payloads encrypted with the source public key
             let encrypt_parameters = CryptoAsymmetricEncryptionParameters {
                 algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
-                digest: CryptoDigestAlgorithm::Sha256,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
                 label: context.call_context.store_slice(Vec::<u8>::new()),
             };
             let plaintext = context.bytes_slice_value(b"host-rsa-import-decrypt")?;
@@ -1525,7 +1525,7 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             let ciphertext = context.bytes_from_slice_value(ciphertext)?;
             let decrypt_parameters = CryptoAsymmetricEncryptionParameters {
                 algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
-                digest: CryptoDigestAlgorithm::Sha256,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
                 label: context.call_context.store_slice(Vec::<u8>::new()),
             };
             let ciphertext = context.bytes_slice_value(&ciphertext)?;
@@ -1540,8 +1540,8 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             // sign with imported key and verify with the source public key
             let sign_parameters = CryptoSignatureParameters {
                 algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
-                digest: CryptoDigestAlgorithm::Sha256,
-                salt_length_bytes: 0,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
+                salt_length_bytes: Some(0),
             };
             let payload = context.bytes_slice_value(b"host-rsa-import-sign")?;
             let signature = context.destack_crypto_key_sign(
@@ -1552,8 +1552,8 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             let signature = context.bytes_from_slice_value(signature)?;
             let verify_parameters = CryptoSignatureParameters {
                 algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
-                digest: CryptoDigestAlgorithm::Sha256,
-                salt_length_bytes: 0,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
+                salt_length_bytes: Some(0),
             };
             let payload = context.bytes_slice_value(b"host-rsa-import-sign")?;
             let signature = context.bytes_slice_value(&signature)?;
@@ -1588,10 +1588,10 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             let store = context.destack_crypto_store_open(options)?;
             let query = CryptoKeyQuery {
                 label_prefix: context.call_context.store_string(&label_prefix),
-                algorithm: CryptoKeyAlgorithm::Rsa,
-                usage_mask: CryptoKeyUsageMask(0),
-                cursor: context.call_context.store_string(""),
-                limit: 128,
+                algorithm: Some(CryptoKeyAlgorithm::Rsa),
+                usage_mask: Some(CryptoKeyUsageMask(0)),
+                cursor: Some(context.call_context.store_string("")),
+                limit: Some(128),
             };
             let page =
                 context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
@@ -1649,7 +1649,7 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
                         .call_context
                         .store_string(&format!("{label_prefix}-create")),
                     extractable: false,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: false,
                     persistent: true,
                 },
@@ -1673,8 +1673,8 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
             // sign and verify one payload
             let sign_parameters = CryptoSignatureParameters {
                 algorithm: CryptoSignatureAlgorithm::Ecdsa,
-                digest: CryptoDigestAlgorithm::Sha256,
-                salt_length_bytes: 0,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
+                salt_length_bytes: Some(0),
             };
             let payload = context.bytes_slice_value(b"host-persistent-ec-sign")?;
             let signature = context.destack_crypto_key_sign(
@@ -1687,8 +1687,8 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
 
             let verify_parameters = CryptoSignatureParameters {
                 algorithm: CryptoSignatureAlgorithm::Ecdsa,
-                digest: CryptoDigestAlgorithm::Sha256,
-                salt_length_bytes: 0,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
+                salt_length_bytes: Some(0),
             };
             let payload = context.bytes_slice_value(b"host-persistent-ec-sign")?;
             let signature = context.bytes_slice_value(&signature)?;
@@ -1723,10 +1723,10 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
             let store = context.destack_crypto_store_open(options)?;
             let query = CryptoKeyQuery {
                 label_prefix: context.call_context.store_string(&label_prefix),
-                algorithm: CryptoKeyAlgorithm::Ec,
-                usage_mask: CryptoKeyUsageMask(0),
-                cursor: context.call_context.store_string(""),
-                limit: 128,
+                algorithm: Some(CryptoKeyAlgorithm::Ec),
+                usage_mask: Some(CryptoKeyUsageMask(0)),
+                cursor: Some(context.call_context.store_string("")),
+                limit: Some(128),
             };
             let page =
                 context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
@@ -1777,7 +1777,7 @@ fn test_key_generate_persistent_rejects_host_lanes_without_persistence() {
                         .call_context
                         .store_string("host-persistent-unsupported"),
                     extractable: true,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: false,
                     persistent: true,
                 },
@@ -1827,7 +1827,7 @@ fn test_key_generate_hardware_backed_secret_follows_host_lane_support() {
                     usage_mask: CryptoKeyUsageMask(0x0000_0004 | 0x0000_0008),
                     label: context.call_context.store_string("host-hardware-secret"),
                     extractable: false,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: true,
                     persistent: true,
                 },
@@ -1889,7 +1889,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies_on_provider_store() 
                 usage_mask: CryptoKeyUsageMask(0),
                 label: context.call_context.store_string("provider-hardware"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: true,
                 persistent: false,
             },
@@ -1914,7 +1914,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies_on_provider_store() 
                 usage_mask: CryptoKeyUsageMask(0),
                 label: context.call_context.store_string("provider-persistent"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: true,
             },

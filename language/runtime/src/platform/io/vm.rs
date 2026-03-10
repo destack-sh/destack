@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::core::{call_out, store_values_from_vm, values_to_vm};
 use crate::platform::fs::OsPathVm;
 use crate::platform::io::{
     CompletionEvent, CompletionEventVm, CompletionOperation, CompletionOperationKind,
@@ -9,16 +10,9 @@ use crate::platform::io::{
     PollEventVm, PollInterest, TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpec,
     TimerFdSpecVm, UringFeaturesVm, UringParametersVm, core as core_io, host as host_io,
 };
-use crate::platform::{PlatformError, VmArray, VmSlice, VmValueCodec, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::platform::{PlatformError, VmArray, VmSlice, resource};
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
-
-/// Call one host binding with one output pointer.
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    let mut out = std::mem::MaybeUninit::<T>::uninit();
-    call(out.as_mut_ptr())?;
-    Ok(unsafe { out.assume_init() })
-}
 
 /// Convert one native timerfd schedule into one vm timerfd schedule.
 fn vm_timer_fd_spec(spec: TimerFdSpec) -> TimerFdSpecVm {
@@ -40,67 +34,16 @@ fn native_timer_fd_spec(spec: TimerFdSpecVm) -> TimerFdSpec {
 fn encode_poll_events_vm_array(
     context: &mut vm::ExternalCallContext<'_>,
     events: &[PollEventVm],
-) -> VmArray<PollEventVm> {
-    // encode each poll event aggregate payload
-    let mut values = Vec::with_capacity(events.len());
-    for event in events {
-        let field_0 = vm::Value::uint(event.key, 64);
-        let field_1 = vm::Value::uint(event.ready.0 as u64, 32);
-        let field_2 = vm::Value::int(event.data as i64, 32);
-        values.push(context.allocate_aggregate(vec![field_0, field_1, field_2]));
-    }
-
-    // allocate one vm raw value array for the encoded events
-    let data = context.allocate_raw_values(values);
-    VmArray {
-        data,
-        len: events.len() as u32,
-        capacity: events.len() as u32,
-        _marker: std::marker::PhantomData,
-    }
+) -> RuntimeResult<VmArray<PollEventVm>> {
+    VmArray::from_values(context, events)
 }
 
 /// Encode one completion event slice into one VM array.
 fn encode_completion_events_vm_array(
     context: &mut vm::ExternalCallContext<'_>,
     events: &[CompletionEventVm],
-) -> VmArray<CompletionEventVm> {
-    // encode each completion event aggregate payload
-    let mut values = Vec::with_capacity(events.len());
-    for event in events {
-        let field_0 = vm::Value::uint(event.key, 64);
-        let field_1 = vm::Value::int(event.result, 64);
-        let field_2 = vm::Value::uint(event.flags as u64, 32);
-        values.push(context.allocate_aggregate(vec![field_0, field_1, field_2]));
-    }
-
-    // allocate one vm raw value array for the encoded events
-    let data = context.allocate_raw_values(values);
-    VmArray {
-        data,
-        len: events.len() as u32,
-        capacity: events.len() as u32,
-        _marker: std::marker::PhantomData,
-    }
-}
-
-/// Decode one VM slice into one runtime-owned native slice.
-fn slice_from_vm<T: VmValueCodec + 'static>(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    values: VmSlice<T>,
-) -> RuntimeResult<NativeSlice<T>> {
-    let values = values.read_values(context)?;
-    Ok(binding.store_slice(values))
-}
-
-/// Encode one native slice into one VM slice.
-fn slice_to_vm<T: VmValueCodec>(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeSlice<T>,
-) -> RuntimeResult<VmSlice<T>> {
-    let values = unsafe { values.as_slice()? };
-    VmSlice::from_values(context, values)
+) -> RuntimeResult<VmArray<CompletionEventVm>> {
+    VmArray::from_values(context, events)
 }
 
 /// Decode one vm descriptor request into one native descriptor request.
@@ -125,7 +68,7 @@ fn descriptor_result_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     result: DescriptorResult,
 ) -> RuntimeResult<DescriptorResultVm> {
-    let output = slice_to_vm(context, result.output)?;
+    let output = values_to_vm(context, result.output)?;
     Ok(DescriptorResultVm {
         return_value: result.return_value,
         output,
@@ -287,7 +230,7 @@ pub(crate) fn destack_io_completion_submit_batch(
     operationcount: u32,
     operationwordstride: u32,
 ) -> RuntimeResult<u32> {
-    let operationwords = slice_from_vm(binding, context, operationwords)?;
+    let operationwords = store_values_from_vm(binding, context, operationwords)?;
     core_io::completion_submit_batch(
         binding,
         handle,
@@ -322,7 +265,7 @@ pub(crate) fn destack_io_completion_wait(
     maxevents: u32,
 ) -> RuntimeResult<VmArray<CompletionEventVm>> {
     let events = core_io::completion_wait(binding, handle, timeoutns, maxevents)?;
-    Ok(encode_completion_events_vm_array(context, &events))
+    encode_completion_events_vm_array(context, &events)
 }
 
 /// Execute one fcntl-style descriptor command.
@@ -777,7 +720,7 @@ pub(crate) fn destack_io_poll_wait(
     maxevents: u32,
 ) -> RuntimeResult<VmArray<PollEventVm>> {
     let events = core_io::poll_wait(binding, handle, timeoutns, maxevents)?;
-    Ok(encode_poll_events_vm_array(context, &events))
+    encode_poll_events_vm_array(context, &events)
 }
 
 /// Close one io_uring ring.
@@ -879,8 +822,8 @@ pub(crate) fn destack_io_uring_register_buffers(
     addresses: VmSlice<u64>,
     lengths: VmSlice<u32>,
 ) -> RuntimeResult<()> {
-    let addresses = slice_from_vm(binding, context, addresses)?;
-    let lengths = slice_from_vm(binding, context, lengths)?;
+    let addresses = store_values_from_vm(binding, context, addresses)?;
+    let lengths = store_values_from_vm(binding, context, lengths)?;
     core_io::uring_register_buffers(binding, handle, addresses, lengths)
 }
 
@@ -907,7 +850,7 @@ pub(crate) fn destack_io_uring_register_files(
     handle: resource::UringHandle,
     files: VmSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
-    let files = slice_from_vm(binding, context, files)?;
+    let files = store_values_from_vm(binding, context, files)?;
     core_io::uring_register_files(binding, handle, files)
 }
 

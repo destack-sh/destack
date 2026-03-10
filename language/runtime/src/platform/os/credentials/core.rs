@@ -114,7 +114,8 @@ pub(crate) fn decode_native_bytes(bytes: NativeSlice<u8>, field: &str) -> Runtim
 }
 
 /// Normalize one optional string argument.
-pub(crate) fn normalize_optional_string(value: String) -> Option<String> {
+pub(crate) fn normalize_optional_string(value: Option<String>) -> Option<String> {
+    let value = value?;
     if value.is_empty() {
         return None;
     }

@@ -72,7 +72,7 @@ pub(super) fn credential_write_options_value(
         let options = CredentialWriteOptionsVm {
             service: vm::StringHandle::new(vm_context.intern_string(service)),
             account: vm::StringHandle::new(vm_context.intern_string(account)),
-            access_group: vm::StringHandle::new(vm_context.intern_string(access_group)),
+            access_group: Some(vm::StringHandle::new(vm_context.intern_string(access_group))),
             bytes: VmSlice::from_bytes(vm_context, bytes),
             accessibility,
             authentication,
@@ -86,7 +86,7 @@ pub(super) fn credential_write_options_value(
     let options = CredentialWriteOptions {
         service: context.call_context.store_string(service),
         account: context.call_context.store_string(account),
-        access_group: context.call_context.store_string(access_group),
+        access_group: Some(context.call_context.store_string(access_group)),
         bytes: context.call_context.store_slice(bytes.to_vec()),
         accessibility,
         authentication,
@@ -110,7 +110,7 @@ pub(super) fn credential_query_value(
         let query = CredentialQueryVm {
             service: vm::StringHandle::new(vm_context.intern_string(service)),
             account: vm::StringHandle::new(vm_context.intern_string(account)),
-            access_group: vm::StringHandle::new(vm_context.intern_string(access_group)),
+            access_group: Some(vm::StringHandle::new(vm_context.intern_string(access_group))),
             require_authentication,
         };
 
@@ -121,7 +121,7 @@ pub(super) fn credential_query_value(
     let query = CredentialQuery {
         service: context.call_context.store_string(service),
         account: context.call_context.store_string(account),
-        access_group: context.call_context.store_string(access_group),
+        access_group: Some(context.call_context.store_string(access_group)),
         require_authentication,
     };
 

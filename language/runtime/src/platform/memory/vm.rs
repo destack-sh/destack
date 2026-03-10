@@ -1,4 +1,5 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core::call_out;
 use crate::platform::memory::{
     MemoryAdvice, MemoryNumaPolicy, MemoryProtection, MemoryRangeVm, MemoryRemapFlags,
     MemoryReserveFlags, ProtectedMemoryRangeVm,
@@ -7,18 +8,6 @@ use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 use super::host as host_memory;
-
-/// Invoke one host call that writes one output pointer.
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    // allocate uninitialized storage for the host out pointer
-    let mut out = std::mem::MaybeUninit::<T>::uninit();
-
-    // execute the host call and initialize output
-    call(out.as_mut_ptr())?;
-
-    // return initialized output value
-    Ok(unsafe { out.assume_init() })
-}
 
 /// Apply memory access advice.
 pub(crate) fn destack_memory_advise(

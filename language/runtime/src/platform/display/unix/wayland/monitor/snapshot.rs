@@ -125,7 +125,7 @@ pub(crate) fn snapshot_by_display_handle(
 }
 
 /// Convert one owned descriptor into one ABI payload.
-pub(crate) fn descriptor_from_owned(
+pub(crate) fn descriptor_from_value(
     context: &BindingCallContext,
     value: &DisplayDescriptorSnapshot,
 ) -> DisplayDescriptor {

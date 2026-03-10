@@ -416,6 +416,16 @@ pub(crate) fn decode_native_string(
     Ok(value.to_string())
 }
 
+/// Decode one optional native string argument into owned text.
+pub(crate) fn decode_optional_native_string(
+    argument: Option<NativeStringRef>,
+    field: &str,
+) -> RuntimeResult<Option<String>> {
+    argument
+        .map(|argument| decode_native_string(argument, field))
+        .transpose()
+}
+
 /// Decode one native byte slice argument into owned bytes.
 pub(crate) fn decode_native_bytes(bytes: NativeSlice<u8>, field: &str) -> RuntimeResult<Vec<u8>> {
     let bytes = unsafe { bytes.as_slice() }.map_err(|_| {
@@ -427,6 +437,16 @@ pub(crate) fn decode_native_bytes(bytes: NativeSlice<u8>, field: &str) -> Runtim
     })?;
 
     Ok(bytes.to_vec())
+}
+
+/// Decode one optional native byte-slice argument into owned bytes.
+pub(crate) fn decode_optional_native_bytes(
+    bytes: Option<NativeSlice<u8>>,
+    field: &str,
+) -> RuntimeResult<Option<Vec<u8>>> {
+    bytes
+        .map(|bytes| decode_native_bytes(bytes, field))
+        .transpose()
 }
 
 /// Decode one native mutable byte slice argument.
@@ -726,11 +746,18 @@ pub(super) fn store_provenance_to_descriptor(
     binding: &BindingCallContext,
     store_provenance: &CryptoStoreProvenanceResource,
 ) -> CryptoStoreProvenance {
+    // encode optional namespace only when this lane names one
+    let namespace = if store_provenance.namespace.is_empty() {
+        None
+    } else {
+        Some(binding.store_string(&store_provenance.namespace))
+    };
+
     CryptoStoreProvenance {
         identity: CryptoStoreIdentity {
             kind: store_provenance.kind,
-            provider: store_provenance.provider,
-            namespace: binding.store_string(&store_provenance.namespace),
+            provider: Some(store_provenance.provider),
+            namespace,
         },
     }
 }

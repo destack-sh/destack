@@ -27,6 +27,11 @@ pub(super) use crate::platform::crypto::host::unix::apple::{
     ecdsa_signature_algorithm,
 };
 
+/// Return the effective digest selector.
+fn digest(parameters: CryptoSignatureParameters) -> CryptoDigestAlgorithm {
+    parameters.digest.unwrap_or(CryptoDigestAlgorithm::Unknown)
+}
+
 /// Return one supported keychain ec named curve and key size pair.
 pub(super) fn keychain_ec_curve(named_curve: CryptoNamedCurve) -> Option<(CryptoNamedCurve, i32)> {
     match named_curve {
@@ -65,8 +70,9 @@ pub(super) fn rsa_signature_algorithm(
 ) -> RuntimeResult<SecKeyAlgorithm> {
     match parameters.algorithm {
         CryptoSignatureAlgorithm::RsaPkcs1v15 => {
+            let digest = digest(parameters);
             let algorithm = unsafe {
-                match parameters.digest {
+                match digest {
                     CryptoDigestAlgorithm::Sha1 => kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA1,
                     CryptoDigestAlgorithm::Sha224 => {
                         kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA224
@@ -85,7 +91,7 @@ pub(super) fn rsa_signature_algorithm(
                             "parameters.digest",
                             format!(
                                 "digest {:?} is not supported for keychain rsa pkcs1v15 signing",
-                                parameters.digest
+                                digest
                             ),
                         ))
                         .boxed());
@@ -96,22 +102,21 @@ pub(super) fn rsa_signature_algorithm(
             Ok(algorithm)
         }
         CryptoSignatureAlgorithm::RsaPss => {
-            let Some(digest_size) = digest_output_size_bytes(parameters.digest) else {
+            let digest = digest(parameters);
+            let Some(digest_size) = digest_output_size_bytes(digest) else {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "parameters.digest",
-                    format!(
-                        "digest {:?} is not supported for keychain rsa pss",
-                        parameters.digest
-                    ),
+                    format!("digest {:?} is not supported for keychain rsa pss", digest),
                 ))
                 .boxed());
             };
-            if parameters.salt_length_bytes != 0 && parameters.salt_length_bytes != digest_size {
+            let salt_length_bytes = parameters.salt_length_bytes.unwrap_or(0);
+            if salt_length_bytes != 0 && salt_length_bytes != digest_size {
                 return Err(core_platform::not_supported(operation));
             }
 
             let algorithm = unsafe {
-                match parameters.digest {
+                match digest {
                     CryptoDigestAlgorithm::Sha1 => kSecKeyAlgorithmRSASignatureMessagePSSSHA1,
                     CryptoDigestAlgorithm::Sha224 => kSecKeyAlgorithmRSASignatureMessagePSSSHA224,
                     CryptoDigestAlgorithm::Sha256 => kSecKeyAlgorithmRSASignatureMessagePSSSHA256,
@@ -122,7 +127,7 @@ pub(super) fn rsa_signature_algorithm(
                             "parameters.digest",
                             format!(
                                 "digest {:?} is not supported for keychain rsa pss signing",
-                                parameters.digest
+                                digest
                             ),
                         ))
                         .boxed());
@@ -150,8 +155,9 @@ pub(super) fn rsa_decrypt_algorithm(
                 return Err(core_platform::not_supported(operation));
             }
 
+            let digest = parameters.digest.unwrap_or(CryptoDigestAlgorithm::Unknown);
             let algorithm = unsafe {
-                match parameters.digest {
+                match digest {
                     CryptoDigestAlgorithm::Sha1 => kSecKeyAlgorithmRSAEncryptionOAEPSHA1,
                     CryptoDigestAlgorithm::Sha224 => kSecKeyAlgorithmRSAEncryptionOAEPSHA224,
                     CryptoDigestAlgorithm::Sha256 => kSecKeyAlgorithmRSAEncryptionOAEPSHA256,
@@ -162,7 +168,7 @@ pub(super) fn rsa_decrypt_algorithm(
                             "parameters.digest",
                             format!(
                                 "digest {:?} is not supported for keychain rsa oaep decryption",
-                                parameters.digest
+                                digest
                             ),
                         ))
                         .boxed());

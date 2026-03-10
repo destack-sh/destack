@@ -24,7 +24,7 @@ fn test_mac_compute_and_verify() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
                 label: context.call_context.store_string("hmac"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -36,7 +36,7 @@ fn test_mac_compute_and_verify() {
         let parameters = CryptoMacParameters {
             algorithm: CryptoMacAlgorithm::Hmac,
             digest: CryptoDigestAlgorithm::Sha256,
-            tag_length_bytes: 0,
+            tag_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"mac payload")?;
         let tag =
@@ -48,7 +48,7 @@ fn test_mac_compute_and_verify() {
         let parameters = CryptoMacParameters {
             algorithm: CryptoMacAlgorithm::Hmac,
             digest: CryptoDigestAlgorithm::Sha256,
-            tag_length_bytes: 0,
+            tag_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"mac payload")?;
         let tag = context.bytes_slice_value(&tag_bytes)?;
@@ -64,7 +64,7 @@ fn test_mac_compute_and_verify() {
         let parameters = CryptoMacParameters {
             algorithm: CryptoMacAlgorithm::Hmac,
             digest: CryptoDigestAlgorithm::Sha256,
-            tag_length_bytes: 0,
+            tag_length_bytes: Some(0),
         };
         let wrong = context.bytes_slice_value(b"wrong")?;
         let tag = context.bytes_slice_value(&tag_bytes)?;
@@ -98,7 +98,7 @@ fn test_mac_streaming_matches_one_shot() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
                 label: context.call_context.store_string("hmac-stream"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -108,7 +108,7 @@ fn test_mac_streaming_matches_one_shot() {
         let parameters = CryptoMacParameters {
             algorithm: CryptoMacAlgorithm::Hmac,
             digest: CryptoDigestAlgorithm::Sha256,
-            tag_length_bytes: 0,
+            tag_length_bytes: Some(0),
         };
 
         // compute one-shot hmac output
@@ -121,7 +121,7 @@ fn test_mac_streaming_matches_one_shot() {
         let parameters = CryptoMacParameters {
             algorithm: CryptoMacAlgorithm::Hmac,
             digest: CryptoDigestAlgorithm::Sha256,
-            tag_length_bytes: 0,
+            tag_length_bytes: Some(0),
         };
         let handle = context.destack_crypto_mac_open(key, context.request_value(parameters)?)?;
         let chunk_a = context.bytes_slice_value(b"stream-")?;
@@ -157,7 +157,7 @@ fn test_mac_reset_clears_stream_state() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
                 label: context.call_context.store_string("hmac-reset"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -167,7 +167,7 @@ fn test_mac_reset_clears_stream_state() {
         let parameters = CryptoMacParameters {
             algorithm: CryptoMacAlgorithm::Hmac,
             digest: CryptoDigestAlgorithm::Sha256,
-            tag_length_bytes: 0,
+            tag_length_bytes: Some(0),
         };
 
         // open streaming mac and feed one discarded chunk
@@ -186,7 +186,7 @@ fn test_mac_reset_clears_stream_state() {
         let parameters = CryptoMacParameters {
             algorithm: CryptoMacAlgorithm::Hmac,
             digest: CryptoDigestAlgorithm::Sha256,
-            tag_length_bytes: 0,
+            tag_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"stream-mac-payload")?;
         let one_shot =
@@ -217,7 +217,7 @@ fn test_mac_verify_rejects_missing_verify_usage() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
                 label: context.call_context.store_string("hmac-sign-only"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -229,7 +229,7 @@ fn test_mac_verify_rejects_missing_verify_usage() {
         let parameters = CryptoMacParameters {
             algorithm: CryptoMacAlgorithm::Hmac,
             digest: CryptoDigestAlgorithm::Sha256,
-            tag_length_bytes: 0,
+            tag_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"verify-lane")?;
         let tag =
@@ -239,7 +239,7 @@ fn test_mac_verify_rejects_missing_verify_usage() {
         let parameters = CryptoMacParameters {
             algorithm: CryptoMacAlgorithm::Hmac,
             digest: CryptoDigestAlgorithm::Sha256,
-            tag_length_bytes: 0,
+            tag_length_bytes: Some(0),
         };
         let payload = context.bytes_slice_value(b"verify-lane")?;
         let tag = context.bytes_slice_value(&tag)?;
@@ -293,7 +293,7 @@ fn test_mac_streaming_host_secret_follows_lane_support() {
                     usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
                     label: context.call_context.store_string("host-stream-mac"),
                     extractable: false,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: true,
                     persistent: true,
                 },
@@ -318,7 +318,7 @@ fn test_mac_streaming_host_secret_follows_lane_support() {
             let parameters = CryptoMacParameters {
                 algorithm: CryptoMacAlgorithm::Hmac,
                 digest: CryptoDigestAlgorithm::Sha256,
-                tag_length_bytes: 0,
+                tag_length_bytes: Some(0),
             };
             let handle =
                 context.destack_crypto_mac_open(key, context.request_value(parameters)?)?;
@@ -348,7 +348,7 @@ fn test_mac_streaming_host_secret_follows_lane_support() {
             let parameters = CryptoMacParameters {
                 algorithm: CryptoMacAlgorithm::Hmac,
                 digest: CryptoDigestAlgorithm::Sha256,
-                tag_length_bytes: 0,
+                tag_length_bytes: Some(0),
             };
             let payload = context.bytes_slice_value(b"host-stream-mac")?;
             let one_shot = context.destack_crypto_mac_compute(
