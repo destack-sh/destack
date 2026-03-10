@@ -28,9 +28,15 @@ use crate::platform::diagnostic::PlatformErrorCode;
 #[test]
 fn test_audio_clock_now_returns_monotonic_and_wall_samples() {
     with_harness_context(|mut context| {
+        let first_monotonic_ns = context.destack_audio_clock_now(AudioClockDomain::Monotonic)?;
         let monotonic_ns = context.destack_audio_clock_now(AudioClockDomain::Monotonic)?;
         let wall_ns = context.destack_audio_clock_now(AudioClockDomain::Wall)?;
-        assert!(monotonic_ns > 0, "clock.now monotonic should be non-zero");
+
+        // process-relative monotonic clocks may start at zero very early in runtime startup
+        assert!(
+            monotonic_ns >= first_monotonic_ns,
+            "clock.now monotonic should be non-decreasing",
+        );
         assert!(wall_ns > 0, "clock.now wall should be non-zero");
 
         Ok(())

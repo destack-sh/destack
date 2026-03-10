@@ -140,6 +140,20 @@ pub(crate) fn qpc_frequency_hz() -> u64 {
     })
 }
 
+/// Return one cached process-relative QPC epoch sample.
+fn qpc_process_epoch_ticks() -> Option<u64> {
+    // reuse the established process epoch when it already exists
+    if let Some(epoch_ticks) = QPC_MONOTONIC_EPOCH_TICKS.get().copied() {
+        return Some(epoch_ticks);
+    }
+
+    // otherwise capture and publish one fresh epoch sample
+    let epoch_ticks = qpc_now_ticks()?;
+    let _ = QPC_MONOTONIC_EPOCH_TICKS.set(epoch_ticks);
+
+    Some(*QPC_MONOTONIC_EPOCH_TICKS.get().unwrap_or(&epoch_ticks))
+}
+
 /// Read one QueryPerformanceCounter tick value.
 pub(crate) fn qpc_now_ticks() -> Option<u64> {
     let mut counter = 0i64;
@@ -161,6 +175,16 @@ pub(crate) fn qpc_ticks_to_ns(counter: u64) -> Option<u64> {
     Some(((u128::from(counter) * 1_000_000_000u128) / u128::from(frequency)) as u64)
 }
 
+/// Convert one QPC tick value into 100ns units.
+pub(crate) fn qpc_ticks_to_hundred_nanos(counter: u64) -> Option<u64> {
+    let frequency = qpc_frequency_hz();
+    if frequency == 0 {
+        return None;
+    }
+
+    Some(((u128::from(counter) * 10_000_000u128) / u128::from(frequency)) as u64)
+}
+
 /// Read one monotonic timestamp from QueryPerformanceCounter.
 pub(crate) fn qpc_now_ns() -> Option<u64> {
     let counter = qpc_now_ticks()?;
@@ -169,22 +193,22 @@ pub(crate) fn qpc_now_ns() -> Option<u64> {
 
 /// Read one process-relative monotonic timestamp from QueryPerformanceCounter.
 pub(crate) fn qpc_process_monotonic_nanos() -> Option<u64> {
-    // reuse the established process epoch when it already exists
-    let epoch_ticks = if let Some(epoch_ticks) = QPC_MONOTONIC_EPOCH_TICKS.get().copied() {
-        epoch_ticks
-    }
-    // otherwise capture and publish one fresh epoch sample
-    else {
-        let epoch_ticks = qpc_now_ticks()?;
-        let _ = QPC_MONOTONIC_EPOCH_TICKS.set(epoch_ticks);
-        *QPC_MONOTONIC_EPOCH_TICKS.get().unwrap_or(&epoch_ticks)
-    };
+    let epoch_ticks = qpc_process_epoch_ticks()?;
 
     // convert the process-relative delta into nanoseconds
     let now_ticks = qpc_now_ticks()?;
     let delta_ticks = now_ticks.saturating_sub(epoch_ticks);
 
     qpc_ticks_to_ns(delta_ticks)
+}
+
+/// Convert one QPC-derived 100ns timestamp into process-relative monotonic nanoseconds.
+pub(crate) fn qpc_hundred_nanos_to_process_nanos(counter_hundred_nanos: u64) -> Option<u64> {
+    let epoch_ticks = qpc_process_epoch_ticks()?;
+    let epoch_hundred_nanos = qpc_ticks_to_hundred_nanos(epoch_ticks)?;
+    let delta_hundred_nanos = counter_hundred_nanos.saturating_sub(epoch_hundred_nanos);
+
+    Some(delta_hundred_nanos.saturating_mul(100))
 }
 
 /// Convert a utf-8 byte slice into a nul-terminated wide string.

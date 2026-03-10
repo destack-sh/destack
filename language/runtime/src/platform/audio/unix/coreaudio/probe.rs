@@ -1,5 +1,9 @@
 #[cfg(target_os = "macos")]
+use std::collections::HashMap;
+#[cfg(target_os = "macos")]
 use std::ptr;
+#[cfg(target_os = "macos")]
+use std::sync::{Mutex, OnceLock};
 
 #[cfg(target_os = "macos")]
 use crate::platform::audio::core::codec::frame_bytes;
@@ -13,21 +17,59 @@ use super::abi::{
 use super::callback::loopback_probe_input_callback;
 #[cfg(target_os = "macos")]
 use super::constants::{
-    COREAUDIO_LOOPBACK_PROBE_FRAMES, K_AUDIO_DEVICE_PROPERTY_NOMINAL_SAMPLE_RATE,
+    COREAUDIO_LOOPBACK_PROBE_FRAMES, K_AUDIO_DEVICE_PROPERTY_DEVICE_UID,
+    K_AUDIO_DEVICE_PROPERTY_NOMINAL_SAMPLE_RATE, K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
     K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT, K_FALLBACK_SAMPLE_RATE, K_NO_ERR,
 };
 #[cfg(target_os = "macos")]
 use super::format::{channel_layout, channel_mask};
 #[cfg(target_os = "macos")]
 use super::property::{
-    get_scalar_optional, get_stream_channel_count, rate_to_u32, stream_description,
+    get_cfstring_optional, get_scalar_optional, get_stream_channel_count, rate_to_u32,
+    stream_description,
 };
 #[cfg(target_os = "macos")]
 use super::queue::bind_queue_device;
 use crate::platform::audio as audio_types;
 
+/// Dispose one temporary CoreAudio loopback probe queue.
 #[cfg(target_os = "macos")]
-pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
+fn dispose_probe_queue(queue: super::abi::AudioQueueRef) {
+    unsafe {
+        let _ = AudioQueueStop(queue, 1);
+        let _ = AudioQueueDispose(queue, 1);
+    }
+}
+
+/// Return the shared CoreAudio loopback capability cache.
+#[cfg(target_os = "macos")]
+fn loopback_support_cache() -> &'static Mutex<HashMap<String, bool>> {
+    static LOOPBACK_SUPPORT_CACHE: OnceLock<Mutex<HashMap<String, bool>>> = OnceLock::new();
+
+    LOOPBACK_SUPPORT_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Clear cached CoreAudio loopback capability probe results.
+#[cfg(target_os = "macos")]
+pub(super) fn clear_loopback_support_cache() {
+    let mut cache = loopback_support_cache()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    cache.clear();
+}
+
+/// Return one stable cache key for a CoreAudio device when available.
+#[cfg(target_os = "macos")]
+fn loopback_support_cache_key(device_id: AudioDeviceID) -> Option<String> {
+    get_cfstring_optional(
+        device_id,
+        K_AUDIO_DEVICE_PROPERTY_DEVICE_UID,
+        K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn probe_loopback_support_uncached(device_id: AudioDeviceID) -> bool {
     // skip probing for devices with no output channels
     let output_channels =
         get_stream_channel_count(device_id, K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT).unwrap_or(0);
@@ -81,9 +123,7 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
 
     // bind the temporary queue to the requested device
     if bind_queue_device(queue, device_id).is_err() {
-        unsafe {
-            let _ = AudioQueueDispose(queue, 1);
-        }
+        dispose_probe_queue(queue);
         return false;
     }
 
@@ -91,9 +131,7 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
     let bytes_per_frame = match frame_bytes(config.format, config.channels) {
         Ok(value) => value as u32,
         Err(_) => {
-            unsafe {
-                let _ = AudioQueueDispose(queue, 1);
-            }
+            dispose_probe_queue(queue);
             return false;
         }
     };
@@ -101,9 +139,7 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
     let mut buffer = ptr::null_mut();
     let allocate_status = unsafe { AudioQueueAllocateBuffer(queue, buffer_bytes, &mut buffer) };
     if allocate_status != K_NO_ERR {
-        unsafe {
-            let _ = AudioQueueDispose(queue, 1);
-        }
+        dispose_probe_queue(queue);
         return false;
     }
 
@@ -112,25 +148,45 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
     buffer_mut.audio_data_byte_size = buffer_mut.audio_data_bytes_capacity;
     let enqueue_status = unsafe { AudioQueueEnqueueBuffer(queue, buffer, 0, ptr::null()) };
     if enqueue_status != K_NO_ERR {
-        unsafe {
-            let _ = AudioQueueDispose(queue, 1);
-        }
+        dispose_probe_queue(queue);
         return false;
     }
 
     let start_status = unsafe { AudioQueueStart(queue, ptr::null()) };
     if start_status != K_NO_ERR {
-        unsafe {
-            let _ = AudioQueueDispose(queue, 1);
-        }
+        dispose_probe_queue(queue);
         return false;
     }
 
     // tear down the probe queue and report support
-    unsafe {
-        let _ = AudioQueueStop(queue, 1);
-        let _ = AudioQueueDispose(queue, 1);
-    }
+    dispose_probe_queue(queue);
 
     true
+}
+
+/// Return whether one CoreAudio output device supports loopback capture.
+#[cfg(target_os = "macos")]
+pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
+    let Some(cache_key) = loopback_support_cache_key(device_id) else {
+        return probe_loopback_support_uncached(device_id);
+    };
+
+    // reuse one cached probe result for this stable device uid
+    {
+        let cache = loopback_support_cache()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if let Some(value) = cache.get(&cache_key) {
+            return *value;
+        }
+    }
+
+    // otherwise probe once and publish the result for later enumerations
+    let support = probe_loopback_support_uncached(device_id);
+    let mut cache = loopback_support_cache()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    cache.insert(cache_key, support);
+
+    support
 }

@@ -13,6 +13,8 @@ use super::constants::{
 #[cfg(target_os = "macos")]
 use super::format::property_address;
 #[cfg(target_os = "macos")]
+use super::probe::clear_loopback_support_cache;
+#[cfg(target_os = "macos")]
 use crate::diagnostic::RuntimeError;
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "macos")]
@@ -116,6 +118,7 @@ unsafe extern "C" fn coreaudio_device_property_listener(
 
     let _ = in_client_data;
     let _ = std::panic::catch_unwind(|| {
+        clear_loopback_support_cache();
         publish_device_snapshot_native(AudioBackend::CoreAudio);
     });
 

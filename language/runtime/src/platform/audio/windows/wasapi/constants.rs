@@ -64,7 +64,3 @@ pub(super) const PROBED_SAMPLE_FORMATS: [audio_types::AudioSampleFormat; 5] = [
     audio_types::AudioSampleFormat::S32,
     audio_types::AudioSampleFormat::F32,
 ];
-/// The QPC scale denominator for 100ns timestamps.
-pub(super) const HUNDRED_NANOS_PER_SECOND: u128 = 10_000_000;
-/// The nanosecond conversion factor from 100ns units.
-pub(super) const NANOS_PER_HUNDRED_NANOS: u64 = 100;

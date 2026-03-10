@@ -201,6 +201,11 @@ pub(super) struct CoreAudioStreamContext {
     pub(super) stream: Arc<AudioStreamHostState>,
 }
 
+/// One retained callback-context token owned by a queue.
+#[cfg(target_os = "macos")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct CoreAudioCallbackContextToken(pub(super) usize);
+
 /// CoreAudio struct `CoreAudioQueueHandle`.
 #[cfg(target_os = "macos")]
 #[derive(Debug)]
@@ -209,8 +214,8 @@ pub(super) struct CoreAudioQueueHandle {
     pub(super) queue: AudioQueueRef,
     /// One strong owner reference held by runtime control flow.
     pub(super) _context_owner: Arc<CoreAudioStreamContext>,
-    /// One raw pointer reference retained by CoreAudio callbacks.
-    pub(super) context_raw: *const CoreAudioStreamContext,
+    /// One retained callback context token owned by the queue.
+    pub(super) callback_context_token: CoreAudioCallbackContextToken,
 }
 
 #[cfg(target_os = "macos")]
