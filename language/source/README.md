@@ -58,15 +58,15 @@ The file system abstraction supports both real files and virtual/in-memory sourc
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_source
-```
-
-### Diagnostic and query coverage
-
-```sh
 just language/test-specification
 just language/test-query
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

@@ -7,15 +7,15 @@ It applies file updates, drives incremental analysis, refreshes configuration st
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_service
-```
-
-### Query and applied LSP coverage
-
-```sh
 just language/test-query
 just language/test-lsp
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

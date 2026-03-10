@@ -425,15 +425,15 @@ Imported symbols reference external definitions (FFI, other modules, runtime).
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_mir
-```
-
-### VM and optimization coverage
-
-```sh
 cargo test -p destack_test --test optimize
 just language/test-emit
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

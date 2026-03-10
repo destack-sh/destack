@@ -145,15 +145,15 @@ The pinned TypeScript version lives in `language/builtin/fetch.py` and should be
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_builtin
-```
-
-### Builtin integration coverage
-
-```sh
 just language/test-specification
 just language/test-query
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

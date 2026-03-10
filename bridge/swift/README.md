@@ -12,3 +12,18 @@ let client = Client()
 print(client.backend)
 print(client.version())
 ```
+
+## Testing
+
+Run these from the repository root.
+
+```sh
+# focused local loop
+just bridge/test
+
+# clean gate
+just bridge/quick
+
+# exhaustive gate
+just bridge/full
+```

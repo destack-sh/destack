@@ -64,16 +64,15 @@ class MyVisitor implements NodeVisitor {
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_ast
 cargo test -p destack_test --test smoke -- --parser
-```
+just language/test-parser-conformance
 
-### Compatibility coverage
+# clean gate
+just language/quick
 
-```sh
-just language/install-parser-conformance
-cargo test --release -p destack_test --test parser-conformance
+# exhaustive gate
+just language/full
 ```

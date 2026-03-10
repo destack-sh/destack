@@ -35,15 +35,15 @@ Resolver follows Node and TypeScript self reference semantics.
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_resolver
 just language/test-resolver
-```
-
-### Workspace query coverage
-
-```sh
 just language/test-query
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

@@ -14,3 +14,18 @@ System.out.println(client.version());
 System.out.println(client.capiAbiVersion());
 System.out.println(client.capiIsAvailable());
 ```
+
+## Testing
+
+Run these from the repository root.
+
+```sh
+# focused local loop
+just bridge/test
+
+# clean gate
+just bridge/quick
+
+# exhaustive gate
+just bridge/full
+```

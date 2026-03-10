@@ -57,31 +57,15 @@ Comment and blank trivia are emitted in source order into split buffers:
 
 Run these from the repository root.
 
-### Parser-focused local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_parser
 cargo test -p destack_test --test smoke -- --parser
-```
+just language/test-parser-conformance
 
-### Shared test gates
-
-```sh
+# clean gate
 just language/quick
+
+# exhaustive gate
 just language/full
-```
-
-### Parser conformance coverage
-
-```sh
-cargo test --release -p destack_test --test parser-conformance
-```
-
-### Parser performance and fuzzing
-
-```sh
-just language/bench-parser
-just language/bench-lexer
-just language/fuzz-parser 300
-just language/fuzz-lexer 300
 ```

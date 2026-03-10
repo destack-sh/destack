@@ -411,15 +411,14 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_linter
 just language/test-linter
-```
 
-### Performance coverage
+# clean gate
+just language/quick
 
-```sh
-just language/bench-linter-stats "--help"
+# exhaustive gate
+just language/full
 ```

@@ -27,15 +27,15 @@ Continuations are "single shot" (i.e., they cannot be resumed multiple times) un
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_vm
-```
-
-### Execution and optimization coverage
-
-```sh
 cargo test -p destack_test --test optimize
 just language/test-emit
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

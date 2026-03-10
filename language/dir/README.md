@@ -121,15 +121,15 @@ Note that a polymorphic `T` might still resolve to `Static`: Resolution answers 
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_dir
-```
-
-### Downstream coverage
-
-```sh
 just language/test-specification
 just language/test-emit
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

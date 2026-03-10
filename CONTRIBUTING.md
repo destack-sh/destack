@@ -23,9 +23,11 @@ We value clarity, correctness, and performance.
 
 ## Code Style
 
-Before opening a PR, run `just quick` from the repository root.
-This runs the same repository quick gate that CI enforces across language, library, service, app, and bridge.
-Use `just quick` for normal local confidence, `just fmt` for formatting, `just check` for static checks, and `just full` for the deepest local verification sweep.
+Before committing, run `just quick` from the repository root.
+Before pushing or landing a non-trivial change, run `just full` from the repository root at least once.
+`just quick` is the normal local confidence gate.
+`just full` is the deepest local verification sweep and should be the final pre-push gate for broad, risky, or cross-cutting changes.
+Use `just fmt` for formatting and `just check` for static checks when you are iterating on one area.
 See [TESTING.md](TESTING.md) for the full test matrix and suite details.
 
 ## Versioning And Status

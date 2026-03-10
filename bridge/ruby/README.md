@@ -13,3 +13,18 @@ client = Destack::Client.new
 puts client.backend
 puts client.version
 ```
+
+## Testing
+
+Run these from the repository root.
+
+```sh
+# focused local loop
+just bridge/test
+
+# clean gate
+just bridge/quick
+
+# exhaustive gate
+just bridge/full
+```

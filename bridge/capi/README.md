@@ -6,3 +6,18 @@ This crate exposes a minimal stable surface for FFI-based language clients.
 ## Header
 
 The public C header lives at `include/destack.h`.
+
+## Testing
+
+Run these from the repository root.
+
+```sh
+# focused local loop
+just bridge/test
+
+# clean gate
+just bridge/quick
+
+# exhaustive gate
+just bridge/full
+```

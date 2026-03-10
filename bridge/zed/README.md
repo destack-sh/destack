@@ -61,9 +61,15 @@ The extension registers `destack-lsp` for these Zed languages:
 
 ## Testing
 
-Run bridge tests with Cargo.
+Run these from the repository root.
 
 ```sh
-cd bridge/zed
-cargo test --release
+# focused local loop
+just bridge/test-zed
+
+# clean gate
+just bridge/quick
+
+# exhaustive gate
+just bridge/full
 ```

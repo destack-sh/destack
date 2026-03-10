@@ -83,6 +83,20 @@ cd app/cli/npm-win32-x64-msvc && npm run publish:live
 cd app/cli && npm run publish:live
 ```
 
+## Testing
+
+Run these from the repository root.
+
+```sh
+# focused local loop
+cargo test -p destack_cli
+
+# clean gate
+just app/quick
+
+# exhaustive gate
+just app/full
+```
 ## Layout
 
 | Path | Purpose | Description |
