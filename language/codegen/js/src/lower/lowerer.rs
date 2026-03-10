@@ -8,8 +8,8 @@ use destack_dir as dir;
 use destack_dir::{SymbolTable, TypeTable};
 use destack_source::FileType;
 use destack_workspace::{
-    Artifact, ArtifactContent, ArtifactId, ArtifactScope, ArtifactVersion, Module, ModuleAst,
-    OutputFormat, Target, TargetId,
+    Module, ModuleAst, Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion,
+    Target, TargetId,
 };
 
 use crate::tree::NodeTree as JsTree;
@@ -18,8 +18,8 @@ use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, LocalNodeIdAny, f
 /// Output from JS code generation.
 #[derive(Debug)]
 pub struct CodegenJsOutput {
-    /// Generated artifacts.
-    pub artifacts: Vec<Artifact>,
+    /// Generated outputs.
+    pub outputs: Vec<Output>,
     /// Warnings encountered during generation.
     pub warnings: Vec<CodegenJsWarning>,
     /// Non-fatal errors encountered during generation.
@@ -109,7 +109,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Finish lowering and produce output.
     pub fn finish(
         self,
-        registry_next_id: impl Fn() -> ArtifactId,
+        registry_next_id: impl Fn() -> OutputId,
         package_dir: &std::path::Path,
         root_dir: Option<&std::path::Path>,
     ) -> CodegenJsResult<CodegenJsOutput>
@@ -121,7 +121,7 @@ impl<'a> ModuleLowerer<'a> {
         use destack_fir::prelude::format_with;
         use destack_source::{File, Uri};
 
-        let mut artifacts = Vec::new();
+        let mut outputs = Vec::new();
 
         // determine what files to generate based on target
         let file_types = match self.target.output {
@@ -135,7 +135,7 @@ impl<'a> ModuleLowerer<'a> {
             OutputFormat::Ts => vec![FileType::TypeScript],
             _ => {
                 return Ok(CodegenJsOutput {
-                    artifacts,
+                    outputs,
                     warnings: self.warnings,
                     errors: self.errors,
                 });
@@ -197,11 +197,11 @@ impl<'a> ModuleLowerer<'a> {
             };
             let code = printed.as_str().to_string();
 
-            // create artifact
+            // create output
             let content = match file_type {
-                FileType::JavaScript => ArtifactContent::javascript(code),
-                FileType::TypeScript => ArtifactContent::typescript(code),
-                FileType::TypeScriptDeclaration => ArtifactContent::declaration(code),
+                FileType::JavaScript => OutputContent::javascript(code),
+                FileType::TypeScript => OutputContent::typescript(code),
+                FileType::TypeScriptDeclaration => OutputContent::declaration(code),
                 _ => {
                     return Err(CodegenJsError::Internal {
                         message: format!("unsupported file type: {file_type:?}"),
@@ -209,20 +209,20 @@ impl<'a> ModuleLowerer<'a> {
                 }
             };
 
-            let artifact = Artifact {
+            let output = Output {
                 id: registry_next_id(),
-                version: ArtifactVersion::INITIAL,
-                scope: ArtifactScope::Module(self.module.id),
+                version: OutputVersion::INITIAL,
+                scope: OutputScope::Module(self.module.id),
                 target: TargetId::new(self.module.package_id, self.target.name.clone()),
                 uri,
                 content,
                 source: None,
             };
-            artifacts.push(artifact);
+            outputs.push(output);
         }
 
         Ok(CodegenJsOutput {
-            artifacts,
+            outputs,
             warnings: self.warnings,
             errors: self.errors,
         })

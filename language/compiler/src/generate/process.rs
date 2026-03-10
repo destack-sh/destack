@@ -5,7 +5,7 @@ use destack_compiler_macros::DefineTask;
 use destack_source::{ModuleId, ModuleStamp, ModuleVersion, ProfileStamp, ProfileVersion};
 use destack_workspace::{OutputFormat, ProfileId, TargetId};
 
-/// Task to generate code for a module into an artifact.
+/// Task to generate code for a module into outputs.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
 #[phase(Generate)]
 pub enum GenerateTask {

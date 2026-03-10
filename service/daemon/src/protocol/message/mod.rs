@@ -1,4 +1,3 @@
-mod artifact;
 mod cache;
 mod command;
 mod daemon;
@@ -7,6 +6,7 @@ mod envelope;
 mod file;
 mod invalidation;
 mod notification;
+mod output;
 mod payload;
 mod progress;
 mod query;
@@ -15,7 +15,6 @@ mod runtime;
 mod watch;
 mod workspace;
 
-pub use artifact::*;
 pub use cache::*;
 pub use command::*;
 pub use daemon::*;
@@ -24,6 +23,7 @@ pub use envelope::*;
 pub use file::*;
 pub use invalidation::*;
 pub use notification::*;
+pub use output::*;
 pub use payload::*;
 pub use progress::*;
 pub use query::*;

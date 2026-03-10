@@ -913,7 +913,7 @@ mod tests {
             Arc::new(crate::PackageRegistry::new()),
             Arc::new(crate::TsConfigRegistry::new()),
             Arc::new(StringPool::new()),
-            Arc::new(crate::ArtifactRegistry::new()),
+            Arc::new(crate::OutputRegistry::new()),
             None,
         );
 
@@ -999,7 +999,7 @@ mod tests {
             Arc::new(crate::PackageRegistry::new()),
             Arc::new(crate::TsConfigRegistry::new()),
             Arc::new(StringPool::new()),
-            Arc::new(crate::ArtifactRegistry::new()),
+            Arc::new(crate::OutputRegistry::new()),
             None,
         );
         program.apply_workspace_index(loaded);

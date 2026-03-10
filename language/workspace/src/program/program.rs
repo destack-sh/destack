@@ -12,9 +12,9 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 
 use crate::{
-    ArtifactRegistry, Builtins, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot,
-    FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleDetection, ModuleFormat,
-    ModuleGraphKey, ModuleGraphStamp, ModuleGraphVersion, ModuleRegistry, ModuleSource, Package,
+    Builtins, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot, FormatterOptions,
+    LinterOptions, Loader, Module, ModuleAst, ModuleDetection, ModuleFormat, ModuleGraphKey,
+    ModuleGraphStamp, ModuleGraphVersion, ModuleRegistry, ModuleSource, OutputRegistry, Package,
     PackageKind, PackageRegistry, Platform, Profile, ProfileConfig, ProfileEnv, ProfileFlags,
     ProfileId, ProfileKey, ProfileRegistry, ProgramIndex, Runtime, SourceType, Target, TargetId,
     TsConfigId, TsConfigOptions, TsConfigRegistry, WorkspaceFileEntry, WorkspaceIndexSnapshot,
@@ -108,8 +108,8 @@ pub struct Program {
     pub tsconfigs: Arc<TsConfigRegistry>,
     /// The combined string pool.
     pub strings: Arc<StringPool>,
-    /// Generated artifacts (from codegen).
-    pub artifacts: Arc<ArtifactRegistry>,
+    /// Generated outputs.
+    pub outputs: Arc<OutputRegistry>,
     /// The profiles in this program.
     pub profiles: Arc<ProfileRegistry>,
     /// Derived tables and indexes for the program.
@@ -157,7 +157,7 @@ impl Program {
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
         let tsconfigs = Arc::new(TsConfigRegistry::new());
-        let artifacts = Arc::new(ArtifactRegistry::new());
+        let outputs = Arc::new(OutputRegistry::new());
         let profiles = Arc::new(ProfileRegistry::new());
         let index = Arc::new(ProgramIndex::new());
         let strings = Arc::new(StringPool::new());
@@ -179,7 +179,7 @@ impl Program {
             modules,
             packages,
             tsconfigs,
-            artifacts,
+            outputs,
             profiles,
             index,
             strings,
@@ -204,7 +204,7 @@ impl Program {
         packages: Arc<PackageRegistry>,
         tsconfigs: Arc<TsConfigRegistry>,
         strings: Arc<StringPool>,
-        artifacts: Arc<ArtifactRegistry>,
+        outputs: Arc<OutputRegistry>,
         builtins: Option<Arc<Builtins>>,
     ) -> Self {
         let diagnostics = DiagnosticCollector::new();
@@ -227,7 +227,7 @@ impl Program {
             modules,
             packages,
             tsconfigs,
-            artifacts,
+            outputs,
             profiles,
             index,
             strings,

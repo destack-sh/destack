@@ -21,7 +21,7 @@ impl Compiler {
         self.require_optimize(module_id, profile, &target_id)?;
 
         // generate artifact
-        let registry_next_id = || self.program.artifacts.next_id();
+        let registry_next_id = || self.program.outputs.next_id();
         let output = destack_codegen_native::generate_module(
             self.program.clone(),
             module_id,
@@ -29,8 +29,8 @@ impl Compiler {
             registry_next_id,
         )
         .map_err(|e| self.map_cranelift_error(module_id, &target.name, profile, e))?;
-        for artifact in output.artifacts {
-            self.program.artifacts.insert(artifact);
+        for output in output.outputs {
+            self.program.outputs.insert(output);
         }
 
         // map warnings/errors

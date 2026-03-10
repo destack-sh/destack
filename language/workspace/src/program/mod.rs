@@ -1,4 +1,3 @@
-mod artifact;
 mod ast;
 mod cache;
 mod comptime;
@@ -18,7 +17,6 @@ mod signature;
 mod specifier;
 mod target;
 
-pub use artifact::*;
 pub use ast::*;
 pub use cache::*;
 pub use comptime::*;

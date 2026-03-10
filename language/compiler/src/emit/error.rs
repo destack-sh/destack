@@ -6,7 +6,7 @@ use crate::{
 };
 use destack_compiler_macros::DefineError;
 use destack_source::{FileType, PackageId, Uri};
-use destack_workspace::{ArtifactId, Program, TargetId};
+use destack_workspace::{OutputId, Program, TargetId};
 
 /// Errors during the emit phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -45,16 +45,16 @@ pub enum EmitError {
     },
 
     // -------------------------------------------------------------------------
-    // 2xx: Artifact issues
+    // 2xx: Output issues
     // -------------------------------------------------------------------------
-    /// Artifact has invalid or missing output path.
-    #[error(code = "EW200", message = "artifact has invalid output path: {uri}")]
-    InvalidOutputPath { artifact: ArtifactId, uri: Uri },
+    /// Output has invalid or missing output path.
+    #[error(code = "EW200", message = "output has invalid output path: {uri}")]
+    InvalidOutputPath { output: OutputId, uri: Uri },
 
-    /// Unsupported artifact.
-    #[error(code = "EW201", message = "unsupported artifact type '{file_type}'")]
-    UnsupportedArtifact {
-        artifact: ArtifactId,
+    /// Unsupported output.
+    #[error(code = "EW201", message = "unsupported output type '{file_type}'")]
+    UnsupportedOutput {
+        output: OutputId,
         uri: Uri,
         file_type: FileType,
     },
@@ -65,7 +65,7 @@ pub enum EmitError {
     /// Failed to write output file.
     #[error(code = "EW300", message = "failed to write file '{path}': {message}")]
     FailedWrite {
-        artifact: ArtifactId,
+        output: OutputId,
         path: PathBuf,
         message: Option<String>,
     },

@@ -6,8 +6,8 @@ use cranelift_codegen::settings::{self, Configurable};
 use destack_codegen_lib::CodegenBackend;
 use destack_source::{FileType, ModuleId};
 use destack_workspace::{
-    Artifact, ArtifactContent, ArtifactId, ArtifactScope, ArtifactVersion, ModuleMir, OutputFormat,
-    Program, Target, TargetId,
+    ModuleMir, Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion, Program,
+    Target, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -17,8 +17,8 @@ use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarni
 /// Output from Cranelift code generation.
 #[derive(Debug)]
 pub struct CodegenCraneliftOutput {
-    /// Generated artifacts.
-    pub artifacts: Vec<Artifact>,
+    /// Generated outputs.
+    pub outputs: Vec<Output>,
     /// Warnings encountered during generation.
     pub warnings: Vec<CodegenCraneliftWarning>,
     /// Non-fatal errors encountered during generation.
@@ -187,12 +187,12 @@ impl CodegenBackend for CodegenCraneliftBackend {
 /// Generate code for a module using Cranelift.
 ///
 /// This is the main entry point for native/WASM code generation from the compiler.
-/// Returns artifacts and any warnings encountered during generation.
+/// Returns outputs and any warnings encountered during generation.
 pub fn generate_module(
     program: Arc<Program>,
     module_id: ModuleId,
     target: &Target,
-    registry_next_id: impl Fn() -> ArtifactId,
+    registry_next_id: impl Fn() -> OutputId,
 ) -> CodegenCraneliftResult<CodegenCraneliftOutput> {
     // validate target
     match target.output {
@@ -218,12 +218,12 @@ pub fn generate_module(
     let mir = module.mir(&target_id);
     let compile_output = backend.compile_module(mir, name)?;
 
-    // determine file type and create artifact
+    // determine file type and create output
     let (file_type, content) = match target.output {
-        OutputFormat::Wasm => (FileType::Wasm, ArtifactContent::wasm(compile_output.bytes)),
+        OutputFormat::Wasm => (FileType::Wasm, OutputContent::wasm(compile_output.bytes)),
         OutputFormat::Native => (
             FileType::Object,
-            ArtifactContent::object(compile_output.bytes),
+            OutputContent::object(compile_output.bytes),
         ),
         _ => {
             return Err(CodegenCraneliftError::UnsupportedTarget {
@@ -236,10 +236,10 @@ pub fn generate_module(
     let extension = file_type.extension().unwrap_or("o");
     let uri = module.uri.without_extension().with_extension(extension);
 
-    let artifact = Artifact {
+    let output = Output {
         id: registry_next_id(),
-        version: ArtifactVersion::INITIAL,
-        scope: ArtifactScope::Module(module_id),
+        version: OutputVersion::INITIAL,
+        scope: OutputScope::Module(module_id),
         target: target_id,
         uri,
         content,
@@ -247,7 +247,7 @@ pub fn generate_module(
     };
 
     Ok(CodegenCraneliftOutput {
-        artifacts: vec![artifact],
+        outputs: vec![output],
         warnings: compile_output.warnings,
         errors: compile_output.errors,
     })

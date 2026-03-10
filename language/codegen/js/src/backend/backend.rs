@@ -26,7 +26,7 @@ impl CodegenBackend for JsBackend {
 /// Generate code for a module.
 ///
 /// This is the main entry point for JS/TS code generation from the compiler.
-/// Returns artifacts and any warnings encountered during generation.
+/// Returns outputs and any warnings encountered during generation.
 pub fn generate_module(
     program: Arc<Program>,
     module_id: ModuleId,
@@ -67,7 +67,7 @@ pub fn generate_module(
     );
     lowerer.lower_module()?;
 
-    // finish and get artifacts + warnings
-    let registry_next_id = || program.artifacts.next_id();
+    // finish and get outputs + warnings
+    let registry_next_id = || program.outputs.next_id();
     lowerer.finish(registry_next_id, &package_dir, root_dir.as_deref())
 }

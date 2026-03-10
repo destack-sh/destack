@@ -18,8 +18,8 @@ impl Compiler {
         let output =
             destack_codegen_js::generate_module(self.program.clone(), module_id, target, profile)
                 .map_err(|e| Self::map_js_error(module_id, profile, e))?;
-        for artifact in output.artifacts {
-            self.program.artifacts.insert(artifact);
+        for output in output.outputs {
+            self.program.outputs.insert(output);
         }
 
         // map warnings/errors
