@@ -1,5 +1,5 @@
 use destack_ast::{self as ast};
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
 use smallvec::smallvec;

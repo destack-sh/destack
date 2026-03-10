@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_ast as ast;
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_source::{
     DiagnosticCollector, DiagnosticStore, File, FileContent, FileId, FileRegistry, FileSystem,
     FileType, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, PackageVersion, Uri,

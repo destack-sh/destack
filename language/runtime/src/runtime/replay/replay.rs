@@ -1,4 +1,4 @@
-use destack_base::{Capture, CaptureMode, SnapshotCodec};
+use destack_core::{Capture, CaptureMode, SnapshotCodec};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::bindings::{BindingDescriptor, BindingReplayKind, BindingReplayPayload};

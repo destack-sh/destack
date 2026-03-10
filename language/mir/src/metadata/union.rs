@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_base::StringId;
+use destack_core::StringId;
 
 use crate::{LocalNodeId, Type};
 

@@ -1,4 +1,4 @@
-use destack_base::fnv1a_128;
+use destack_core::fnv1a_128;
 use serde::{Deserialize, Serialize};
 
 /// Stable identifier for one canonical platform capability name.

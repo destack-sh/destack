@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use destack_base::pluralize;
+use destack_core::pluralize;
 use destack_parser::source_colorizer;
 use destack_source::{
     AnnotateOptions, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileRegistry,

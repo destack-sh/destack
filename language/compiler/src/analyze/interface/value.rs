@@ -82,7 +82,7 @@ impl NodeVisitor for InterfaceValueReferenceCollector<'_> {
             }
         }
 
-        destack_base::ensure_sufficient_stack(|| {
+        destack_core::ensure_sufficient_stack(|| {
             walk_expression(self, tree, id, expression);
         });
     }

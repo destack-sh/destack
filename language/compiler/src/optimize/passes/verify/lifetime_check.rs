@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use destack_source::ModuleId;
@@ -1079,7 +1079,7 @@ fn origins_for_signature(
 fn disallowed_origins(
     origins: &BorrowOriginSet,
     lifetime: &mir::Lifetime,
-    parameter_names: &[Option<destack_base::StringId>],
+    parameter_names: &[Option<destack_core::StringId>],
     strings: &StringPool,
 ) -> Option<String> {
     // collect disallowed origins
@@ -1108,7 +1108,7 @@ fn disallowed_origins(
 
 fn format_origin(
     origin: &BorrowOrigin,
-    parameter_names: &[Option<destack_base::StringId>],
+    parameter_names: &[Option<destack_core::StringId>],
     strings: &StringPool,
 ) -> String {
     // format origin descriptions

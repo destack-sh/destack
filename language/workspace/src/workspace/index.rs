@@ -648,7 +648,7 @@ mod tests {
     use std::sync::Arc;
     use std::time::SystemTime;
 
-    use destack_base::StringPool;
+    use destack_core::StringPool;
     use destack_source::{
         FileMetadata, FileRegistry, FileVersion, MemoryFileSystem, ModuleId, ModuleVersion,
         PhysicalFileSystem, TemporaryPhysicalFileSystem, strip_json,

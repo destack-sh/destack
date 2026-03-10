@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_base::{StringId, StringPool};
+use destack_core::{StringId, StringPool};
 use destack_builtin::{
     BuiltinLibKind, BuiltinLibSource, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime,
     CORE_SOURCES, LanguageSymbol, PRELUDE_SOURCE, builtin_lib,

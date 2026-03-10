@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::OnceLock;
 
-use destack_base::{Capture, CaptureMode};
+use destack_core::{Capture, CaptureMode};
 use destack_heap as heap;
 use destack_workspace::{SchedulerOptions, SchedulerPolicy};
 use parking_lot::Mutex;

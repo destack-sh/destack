@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{CaptureKind, CapturedBinding, GlobalSymbolId, Mutability};
 use {destack_dir as dir, destack_mir as mir};
 

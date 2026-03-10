@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 
 use destack_mir as mir;
 
@@ -476,7 +476,7 @@ impl TypeLowerer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use destack_base::StringPool;
+    use destack_core::StringPool;
     use destack_workspace::{ModuleRegistry, PackageRegistry};
     use std::sync::Arc;
 

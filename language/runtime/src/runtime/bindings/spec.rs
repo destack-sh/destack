@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::runtime::capability::{PlatformCapabilityId, PlatformCapabilitySet};
 use crate::runtime::replay::EntropyKind;
-use destack_base::fnv1a_128;
+use destack_core::fnv1a_128;
 pub use destack_workspace::{BindingAffinity, BindingBlocking, BindingEffect, BindingScope};
 
 /// Replay behavior for external bindings.

@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_base::{Color, pluralize};
+use destack_core::{Color, pluralize};
 
 use crate::{AnnotateOptions, DiagnosticCollection, FileRegistry, SourceColorizer, annotate_file};
 

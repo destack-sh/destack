@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol};
 use destack_workspace::{ProfileId, WellKnownSymbols};

@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::ModuleTarget;
 use destack_source::{ModuleId, ModuleVersion, PackageId};
 use destack_workspace::{

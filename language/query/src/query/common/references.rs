@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_ast as ast;
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     self as dir, DependencyItem, DependencyKind, DependencyMode, Expression, GlobalSymbolId,
     NodeType, StaticKey, SymbolSpace,

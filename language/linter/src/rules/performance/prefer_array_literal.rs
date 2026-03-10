@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     self as dir, GlobalSymbolId, LocalNodeId, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
     walk_expression,

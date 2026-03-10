@@ -1,5 +1,5 @@
 use crate::{GlobalSymbolId, WellKnownSymbolKey};
-use destack_base::{StringId, StringPool};
+use destack_core::{StringId, StringPool};
 use serde::{Deserialize, Serialize};
 
 /// Symbol as a key.

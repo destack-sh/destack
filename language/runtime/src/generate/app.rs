@@ -352,7 +352,7 @@ fn report_diagnostics(program: &Program) {
 /// Collect and render bindings for all platform domains.
 fn generate_bindings(
     program: &Program,
-    strings: &destack_base::StringPool,
+    strings: &destack_core::StringPool,
     profile_id: ProfileId,
     platform_modules: &[destack_source::ModuleId],
     write_platform_index: bool,

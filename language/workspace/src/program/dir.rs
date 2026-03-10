@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{self as dir};
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;

@@ -8,7 +8,7 @@ use std::os::windows::io::{RawHandle, RawSocket};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_base::{Capture, CaptureMode};
+use destack_core::{Capture, CaptureMode};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -735,7 +735,7 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use destack_base::CaptureMode;
+    use destack_core::CaptureMode;
 
     use super::ResourceId;
     use crate::platform::diagnostic::PlatformError;

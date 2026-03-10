@@ -371,7 +371,7 @@ fn decorator_on_node(ast: &ModuleAst, node_id: u32, name: &str) -> bool {
 fn decorator_name_id(
     ast: &ModuleAst,
     decorator: &ast::Decorator,
-) -> Option<destack_base::StringId> {
+) -> Option<destack_core::StringId> {
     let mut expression_id = decorator.expression;
     loop {
         match ast.tree.get(expression_id) {

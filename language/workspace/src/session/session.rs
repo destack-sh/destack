@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 use parking_lot::RwLock;
 

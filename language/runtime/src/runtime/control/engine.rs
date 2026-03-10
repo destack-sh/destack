@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use destack_base::LocalStringPool;
+use destack_core::LocalStringPool;
 use destack_mir::NodeTree;
 use destack_vm::Isolate;
 

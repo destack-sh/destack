@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{FunctionAbstraction, FunctionMode, GlobalSymbolId, LocalNodeId, Member};
 use {destack_dir as dir, destack_mir as mir};
 

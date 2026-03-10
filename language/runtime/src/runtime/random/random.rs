@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeResult;
-use destack_base::{Capture, CaptureMode};
+use destack_core::{Capture, CaptureMode};
 use destack_workspace::RandomOptions;
 
 use super::HostRandom;

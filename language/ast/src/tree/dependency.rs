@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Name, Node, NodeType};

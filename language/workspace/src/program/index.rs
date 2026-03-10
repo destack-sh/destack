@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use dashmap::DashMap;
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     Declaration, ExtensionKind, GlobalSymbolId, LocalExtensionId, LocalNodeId, LocalSymbolId,
     StaticKey, SymbolSpace, SymbolType,

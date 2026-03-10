@@ -50,7 +50,7 @@ pub fn ensure_sufficient_stack<R, F: FnOnce() -> R>(f: F) -> R {
 ///  # Example
 ///
 /// ```ignore
-/// destack_base::ensure_sufficient_stack! {
+/// destack_core::ensure_sufficient_stack! {
 ///     fn walk_expression(&mut self, expr: &Expression) -> Result<()> {
 ///         match expr {
 ///             Expression::Binary { left, right, .. } => {

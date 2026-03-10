@@ -1,5 +1,5 @@
 use destack_ast::{self as ast};
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
 use smallvec::smallvec;
@@ -8,7 +8,7 @@ use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
-    destack_base::ensure_sufficient_stack! {
+    destack_core::ensure_sufficient_stack! {
         /// Unbind a DIR expression to an AST expression.
         #[allow(clippy::too_many_arguments)]
         pub fn unbind_expression(

@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use destack_ast::StringId;
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::{

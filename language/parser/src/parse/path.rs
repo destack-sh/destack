@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_source::Span;
 use smallvec::SmallVec;
 

@@ -7,7 +7,7 @@ use std::thread;
 use std::time::Duration;
 
 use destack_ast::NodeParentIndex;
-use destack_base::ImmutableStringPool;
+use destack_core::ImmutableStringPool;
 use destack_dir::{
     Annotation, Argument, CaptureKind, CaptureSet, Declaration, Declarator, DumperOptions,
     DynamicKey, Expression, FunctionKind, GlobalSymbolId, LocalNodeId, NodeTree, Pattern,

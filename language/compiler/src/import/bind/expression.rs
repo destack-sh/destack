@@ -106,7 +106,7 @@ impl Compiler {
         true
     }
 
-    destack_base::ensure_sufficient_stack! {
+    destack_core::ensure_sufficient_stack! {
         /// Bind an expression to a DIR expression with a symbol space order.
         pub(super) fn bind_expression(
             &self,

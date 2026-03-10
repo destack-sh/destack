@@ -1,4 +1,4 @@
-use destack_base::{Capture, CaptureMode, SnapshotCodec};
+use destack_core::{Capture, CaptureMode, SnapshotCodec};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;

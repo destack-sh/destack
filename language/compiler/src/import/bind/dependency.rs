@@ -1,5 +1,5 @@
 use destack_ast::{self as ast};
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalNodeIdAny,
     LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType, StaticKey, SymbolSpace,

@@ -79,7 +79,7 @@ impl NodeVisitor for CollectVisitor<'_> {
         }
 
         // walk nested expression nodes
-        destack_base::ensure_sufficient_stack(|| {
+        destack_core::ensure_sufficient_stack(|| {
             walk_expression(self, tree, id, expression);
         });
     }

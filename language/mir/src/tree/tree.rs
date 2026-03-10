@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use destack_base::Arena;
+use destack_core::Arena;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 

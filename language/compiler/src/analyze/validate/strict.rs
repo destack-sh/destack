@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     AbstractionModifier, BindingKind, BindingModifier, Declaration, DeclarationDescriptor,
     DeclarationKind, Declarator, DependencyItem, Expression, FlowGraphBuilder, FunctionAbstraction,

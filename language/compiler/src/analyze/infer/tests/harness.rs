@@ -8,7 +8,7 @@ pub(super) use crate::{
     AnalyzeOptions, Compiler, InferState, TestProgram, assert_string, assert_type,
     expect_let_declarator_by_name, root_expression_id,
 };
-pub(super) use destack_base::StringId;
+pub(super) use destack_core::StringId;
 pub(super) use destack_dir::{
     Argument, BinaryOperator, Declaration, Declarator, EnumFieldValue, Expression, ExtensionKind,
     FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, IfKind, IntType,

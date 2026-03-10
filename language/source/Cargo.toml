@@ -13,7 +13,7 @@ doctest = false
 
 [dependencies]
 # language
-destack_base = { workspace = true }
+destack_core = { workspace = true }
 
 # general
 cfg-if = { workspace = true }

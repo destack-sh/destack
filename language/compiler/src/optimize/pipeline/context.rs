@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::{FloatMathPolicy, TargetId};

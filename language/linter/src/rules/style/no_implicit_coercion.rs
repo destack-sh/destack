@@ -168,7 +168,7 @@ fn is_string_literal_expression(
 /// Return true when the expression is an empty string literal.
 fn is_empty_string_expression(
     tree: &dir::NodeTree,
-    strings: &destack_base::StringPool,
+    strings: &destack_core::StringPool,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_base::{ImmutableStringPool, StringPool};
+use destack_core::{ImmutableStringPool, StringPool};
 use destack_mir as mir;
 use destack_source::{DiffOptions, FileId, ModuleId, PackageId, print_diff};
 use destack_workspace::TargetId;
@@ -720,7 +720,7 @@ impl TestProgram {
     }
 
     /// Get string by id from the string pool.
-    pub(crate) fn get_string(&self, id: destack_base::StringId) -> &str {
+    pub(crate) fn get_string(&self, id: destack_core::StringId) -> &str {
         self.strings.get(id)
     }
 
@@ -833,7 +833,7 @@ impl TestProgram {
 mod tests {
     use std::sync::Arc;
 
-    use destack_base::StringPool;
+    use destack_core::StringPool;
     use destack_compiler_macros::declare_pass;
     use destack_mir as mir;
 

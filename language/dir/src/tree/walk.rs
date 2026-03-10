@@ -146,7 +146,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
     id: LocalNodeId<Expression>,
     expression: &Expression,
 ) {
-    destack_base::ensure_sufficient_stack(|| {
+    destack_core::ensure_sufficient_stack(|| {
         visitor.visit_any(tree, NodeType::Expression, id.id);
         match expression {
             Expression::Declaration {
@@ -861,7 +861,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
     id: LocalNodeId<Declaration>,
     declaration: &Declaration,
 ) {
-    destack_base::ensure_sufficient_stack(|| {
+    destack_core::ensure_sufficient_stack(|| {
         visitor.visit_any(tree, NodeType::Declaration, id.id);
         match declaration {
             Declaration::Global {
@@ -1386,7 +1386,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
     id: LocalNodeId<Pattern>,
     pattern: &Pattern,
 ) {
-    destack_base::ensure_sufficient_stack(|| {
+    destack_core::ensure_sufficient_stack(|| {
         visitor.visit_any(tree, NodeType::Pattern, id.id);
         match pattern {
             Pattern::Wildcard => {}

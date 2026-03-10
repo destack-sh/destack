@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 
 use crate::metadata::{Layout, LayoutField, LayoutType};
 use crate::parse::{ParseError, ParseResult, Parser};

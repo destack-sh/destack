@@ -1,6 +1,6 @@
 use std::sync::{Arc, OnceLock};
 
-use destack_base::{Capture, CaptureMode};
+use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
 #[cfg(target_os = "macos")]

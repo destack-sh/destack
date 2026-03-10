@@ -1,4 +1,4 @@
-# base
+# core
 
 Low-level utilities shared across the Destack toolchain.
 
@@ -31,7 +31,7 @@ Run these from the repository root.
 
 ```sh
 # focused local loop
-cargo test -p destack_base
+cargo test -p destack_core
 cargo test -p destack_test --test optimize
 just language/test-query
 

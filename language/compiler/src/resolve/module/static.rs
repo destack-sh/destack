@@ -928,7 +928,7 @@ impl Compiler {
         profile_id: ProfileId,
         node_id: LocalNodeIdAny,
         value: StaticIfValue,
-        name: destack_base::StringId,
+        name: destack_core::StringId,
         import_meta: &ImportMeta,
     ) -> ResolveResult<StaticIfValue> {
         // dispatch member access by value
@@ -1034,7 +1034,7 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
         node_id: LocalNodeIdAny,
-        name: destack_base::StringId,
+        name: destack_core::StringId,
         import_meta: &ImportMeta,
     ) -> ResolveResult<StaticIfValue> {
         // resolve the import.meta property name
@@ -1093,7 +1093,7 @@ impl Compiler {
     /// Resolve an import.meta.env member value.
     fn import_meta_env_member(
         &self,
-        name: destack_base::StringId,
+        name: destack_core::StringId,
         import_meta: &ImportMeta,
     ) -> ResolveResult<StaticIfValue> {
         // resolve the import.meta.env property name
@@ -1130,7 +1130,7 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
         node_id: LocalNodeIdAny,
-        name: destack_base::StringId,
+        name: destack_core::StringId,
         import_meta: &ImportMeta,
     ) -> ResolveResult<StaticIfValue> {
         // resolve the import.meta.target property name

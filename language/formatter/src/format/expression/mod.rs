@@ -8,7 +8,7 @@ pub(crate) use destack_ast::{
     TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator, WhereClause, WhileKind,
     YieldCardinality,
 };
-pub(crate) use destack_base::StringId;
+pub(crate) use destack_core::StringId;
 pub(crate) use destack_fir::format::{FormatError, GroupId};
 pub(crate) use destack_fir::prelude::*;
 pub(crate) use destack_source::Span;

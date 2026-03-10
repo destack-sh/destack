@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 use regex_syntax::hir::HirKind;

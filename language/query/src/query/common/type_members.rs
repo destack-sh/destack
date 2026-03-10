@@ -348,7 +348,7 @@ fn resolve_local_symbol_members(
     symbol_id: LocalSymbolId,
     types: &TypeTable,
     symbols: &SymbolTable,
-    strings: &destack_base::StringPool,
+    strings: &destack_core::StringPool,
 ) -> Vec<MemberInfo> {
     // prepare the member buffer
     let mut members = Vec::new();
@@ -553,7 +553,7 @@ pub(crate) fn resolve_extension_members_for_symbol(
 }
 
 /// Convert a static key to a member name, resolving the string ID to an actual string.
-fn static_key_to_member_name(key: &StaticKey, strings: &destack_base::StringPool) -> MemberName {
+fn static_key_to_member_name(key: &StaticKey, strings: &destack_core::StringPool) -> MemberName {
     // convert the key into a displayable member name
     match key {
         StaticKey::Name(string_id) => MemberName::String(strings.get(*string_id).to_string()),

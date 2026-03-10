@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use destack_ast::{Keyword, LiteralType, TokenSpan, TokenType};
-use destack_base::Color;
+use destack_core::Color;
 use destack_source::{File, SourceColorizer};
 
 use super::Lexer;

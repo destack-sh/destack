@@ -1,6 +1,6 @@
 use std::mem;
 
-use destack_base::{Capture, CaptureMode};
+use destack_core::{Capture, CaptureMode};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 

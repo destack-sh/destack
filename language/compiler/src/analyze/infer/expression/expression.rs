@@ -2501,7 +2501,7 @@ impl Compiler {
         }
     }
 
-    destack_base::ensure_sufficient_stack! {
+    destack_core::ensure_sufficient_stack! {
     /// Infer the type of an expression.
     pub(crate) fn infer_expression(
         &self,

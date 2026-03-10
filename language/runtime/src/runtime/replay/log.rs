@@ -8,7 +8,7 @@ use crate::runtime::replay::{
     TraceCheckpointIndex, TraceCursor, TraceEvent, TraceHeader, TraceSegmentIndex, TraceTrailer,
 };
 use crate::runtime::world::BranchId;
-use destack_base::{FNV_OFFSET_BASIS_128, fnv1a_128_update};
+use destack_core::{FNV_OFFSET_BASIS_128, fnv1a_128_update};
 use postcard::experimental::serialized_size;
 
 use super::chunk::TraceSegment;

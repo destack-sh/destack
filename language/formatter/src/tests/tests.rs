@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_ast::{NodeParentIndex, NodeTree, TokenSpan};
-use destack_base::ImmutableStringPool;
+use destack_core::ImmutableStringPool;
 use destack_fir::format;
 use destack_fir::format::Format;
 use destack_parser::{ParseResult, Parser};

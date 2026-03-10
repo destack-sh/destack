@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
 	# language
-	"language/base",
 	"language/ast",
 	"language/builtin",
 	"language/test/mirbench",
@@ -27,6 +26,7 @@ members = [
 	"language/codegen/js",
 	"language/compiler",
 	"language/compiler/macros",
+	"language/core",
 	"language/dir",
 	"language/fir",
 	"language/formatter",
@@ -72,15 +72,14 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 # language
-destack_base = { path = "language/base" }
 destack_ast = { path = "language/ast" }
-destack_test_mirbench = { path = "language/test/mirbench" }
 destack_builtin = { path = "language/builtin" }
-destack_codegen_native = { path = "language/codegen/native" }
 destack_codegen_js = { path = "language/codegen/js" }
 destack_codegen_lib = { path = "language/codegen/lib" }
+destack_codegen_native = { path = "language/codegen/native" }
 destack_compiler = { path = "language/compiler" }
 destack_compiler_macros = { path = "language/compiler/macros" }
+destack_core = { path = "language/core" }
 destack_dir = { path = "language/dir" }
 destack_fir = { path = "language/fir" }
 destack_formatter = { path = "language/formatter" }
@@ -97,9 +96,10 @@ destack_resolver = { path = "language/resolver" }
 destack_runtime = { path = "language/runtime" }
 destack_source = { path = "language/source" }
 destack_test = { path = "language/test" }
+destack_test_mirbench = { path = "language/test/mirbench" }
 destack_unicode = { path = "language/unicode" }
-destack_workspace = { path = "language/workspace" }
 destack_service = { path = "language/service" }
+destack_workspace = { path = "language/workspace" }
 
 # service
 destack_daemon = { path = "service/daemon" }

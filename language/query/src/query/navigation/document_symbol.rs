@@ -1,5 +1,5 @@
 use destack_ast as ast;
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_dir::{Declaration, EnumField, LocalNodeId, Member, NodeTree};
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};

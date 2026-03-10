@@ -29,7 +29,7 @@ declare_lint! {
 fn get_binding_name(
     ctx: &LintModuleAstContext<'_>,
     pattern_id: ast::LocalNodeId<Pattern>,
-) -> Option<destack_base::StringId> {
+) -> Option<destack_core::StringId> {
     let pattern = ctx.tree.get(pattern_id);
     match pattern {
         Pattern::Binding {
@@ -45,7 +45,7 @@ fn get_binding_name(
 fn is_assignment_to(
     ctx: &LintModuleAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
-    target_name: destack_base::StringId,
+    target_name: destack_core::StringId,
 ) -> bool {
     let expr = ctx.tree.get(expr_id);
 
@@ -74,7 +74,7 @@ fn is_assignment_to(
 fn expr_is_simple_assignment(
     ctx: &LintModuleAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
-    target_name: destack_base::StringId,
+    target_name: destack_core::StringId,
 ) -> bool {
     let expr = ctx.tree.get(expr_id);
 
@@ -202,7 +202,7 @@ fn prefer_expression_over_let_if_fix(
     condition_expression_id: ast::LocalNodeId<ast::Expression>,
     then_expression_id: ast::LocalNodeId<ast::Expression>,
     else_expression_id: ast::LocalNodeId<ast::Expression>,
-    target_name: destack_base::StringId,
+    target_name: destack_core::StringId,
 ) -> Option<LintFix> {
     let let_text = ctx
         .get_span_text(ctx.tree.get_span(let_expression_id))
@@ -246,7 +246,7 @@ fn prefer_expression_over_let_if_fix(
 fn assignment_value_text(
     ctx: &LintModuleAstContext<'_>,
     branch_expression_id: ast::LocalNodeId<ast::Expression>,
-    target_name: destack_base::StringId,
+    target_name: destack_core::StringId,
 ) -> Option<String> {
     let branch_expression = ctx.tree.get(branch_expression_id);
     let ast::Expression::Block(block_id) = branch_expression else {

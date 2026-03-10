@@ -6,7 +6,7 @@ use crate::analyze::common::{
     rewrite_type_with_cache,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, Member, NodeTree, NodeType, StaticArgument, StaticExpression, StaticKey,

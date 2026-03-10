@@ -3,7 +3,7 @@ use destack_ast::{
     DependencyItem, DependencyKind, DependencyMode, Expression, ImportSource, ImportTarget,
     Keyword, LocalNodeId, Name, NodeTree, ScalarLiteral,
 };
-use destack_base::ImmutableStringPool;
+use destack_core::ImmutableStringPool;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;

@@ -8,7 +8,7 @@ use crate::runtime::scheduler::Timer;
 use crate::runtime::time::WorldInstant;
 use crate::runtime::world::{Ingress, RebindContext, RuntimeId, Wake, World};
 use crate::runtime::{DropCounts, DropReason};
-use destack_base::CaptureMode;
+use destack_core::CaptureMode;
 use destack_heap as heap;
 use destack_workspace::RuntimeOptions;
 use std::collections::BTreeMap;

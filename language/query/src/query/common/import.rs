@@ -5,7 +5,7 @@ use destack_ast::{
     DependencyItem, DependencyKind, DependencyMode, Expression, ImportTarget, LocalNodeId,
     NodeTree, ScalarLiteral, TokenType,
 };
-use destack_base::{ImmutableStringPool, StringId};
+use destack_core::{ImmutableStringPool, StringId};
 use destack_source::{Edit, FileId, PathExt, Span};
 
 use crate::common::{QueryContext, normalize_separators, relative_path};

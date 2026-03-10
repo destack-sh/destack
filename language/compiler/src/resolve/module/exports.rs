@@ -108,7 +108,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export_assignment_item: Option<LocalNodeId<DependencyItem>>,
-        default_name: destack_base::StringId,
+        default_name: destack_core::StringId,
     ) {
         let mut seen_exports = HashSet::new();
         let scope = symbols.get_scope_by_id(binding.scope);
@@ -266,7 +266,7 @@ impl Compiler {
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export_assignment_item: Option<LocalNodeId<DependencyItem>>,
-        default_name: destack_base::StringId,
+        default_name: destack_core::StringId,
         export_items: &[LocalNodeId<DependencyItem>],
     ) {
         // dependency items are already filtered to export expressions
@@ -646,7 +646,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export_assignment_item: Option<LocalNodeId<DependencyItem>>,
-        default_name: destack_base::StringId,
+        default_name: destack_core::StringId,
     ) {
         // collect namespace symbols
         let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
@@ -787,7 +787,7 @@ impl Compiler {
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export_assignment_item: Option<LocalNodeId<DependencyItem>>,
-        default_name: destack_base::StringId,
+        default_name: destack_core::StringId,
         export_items: &[LocalNodeId<DependencyItem>],
     ) {
         // dependency items are already filtered to export expressions
@@ -1152,9 +1152,9 @@ impl Compiler {
         &self,
         mode: DependencyMode,
         name: Option<destack_dir::Name>,
-        alias: Option<destack_base::StringId>,
-        default_name: destack_base::StringId,
-    ) -> Option<destack_base::StringId> {
+        alias: Option<destack_core::StringId>,
+        default_name: destack_core::StringId,
+    ) -> Option<destack_core::StringId> {
         // prefer explicit aliases
         if alias.is_some() {
             return alias;

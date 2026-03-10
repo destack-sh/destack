@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use destack_base::{ImmutableStringPool, StringId};
+use destack_core::{ImmutableStringPool, StringId};
 use destack_dir::{
     AbstractionModifier, AccessorKind, Argument, Asynchrony, BindingAnchor, BindingKind,
     BindingModifier, BindingOperator, Declaration, DeclarationKind, Dumper, DumperOptions,

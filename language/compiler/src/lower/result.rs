@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_dir as dir;
 
 /// Result union metadata resolved from a type id.

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_source::Span;
 
 use crate::{Block, Function, Global, Instruction, Local, LocalNodeId, Type, Value};

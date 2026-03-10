@@ -3,7 +3,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_base::Color;
+use destack_core::Color;
 
 use crate::{File, LabeledSpan, Span};
 

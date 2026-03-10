@@ -14,7 +14,7 @@ doctest = false
 [dependencies]
 # language
 destack_ast = { workspace = true }
-destack_base = { workspace = true }
+destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_source = { workspace = true }
 destack_workspace = { path = "../workspace", default-features = false }

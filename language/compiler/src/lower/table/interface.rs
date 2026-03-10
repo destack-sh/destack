@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{DynamicKey, GlobalSymbolId, LocalNodeId, Member};
 use {destack_dir as dir, destack_mir as mir};
 

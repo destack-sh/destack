@@ -1,4 +1,4 @@
-use destack_base::StringRef;
+use destack_core::StringRef;
 use destack_dir::{Expression, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 

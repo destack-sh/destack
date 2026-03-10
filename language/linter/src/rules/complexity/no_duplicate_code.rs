@@ -1013,7 +1013,7 @@ struct BlockSignatures {
 
 /// Build exact and near signatures for a block.
 fn build_block_signatures(
-    strings: &destack_base::StringPool,
+    strings: &destack_core::StringPool,
     tree: &ast::NodeTree,
     block_id: ast::LocalNodeId<ast::Block>,
     include_near: bool,
@@ -1028,7 +1028,7 @@ fn build_block_signatures(
 
 #[derive(Debug)]
 struct AstSignatureCollector<'a> {
-    strings: &'a destack_base::StringPool,
+    strings: &'a destack_core::StringPool,
     visitor_options: ast::NodeVisitorOptions,
     exact_signature: SignatureHasher,
     exact_token_hashes: Vec<u64>,
@@ -1040,7 +1040,7 @@ struct AstSignatureCollector<'a> {
 impl<'a> AstSignatureCollector<'a> {
     /// Create a new signature collector.
     fn new(
-        strings: &'a destack_base::StringPool,
+        strings: &'a destack_core::StringPool,
         include_near: bool,
         include_near_token_hashes: bool,
     ) -> Self {

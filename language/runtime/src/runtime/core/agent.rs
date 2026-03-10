@@ -1,4 +1,4 @@
-use destack_base::{Capture, CaptureMode, fnv1a_64};
+use destack_core::{Capture, CaptureMode, fnv1a_64};
 use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

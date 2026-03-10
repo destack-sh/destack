@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 
 use crate::optimize::common::{MemoryLocation, TypeKey};
 

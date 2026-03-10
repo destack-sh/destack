@@ -82,7 +82,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
     fn constructor_field_names(
         &self,
         callee_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<Vec<destack_base::StringId>> {
+    ) -> Option<Vec<destack_core::StringId>> {
         // resolve the struct constructor symbol
         let target_symbol = expression_target_symbol(self.ctx.tree, callee_id)?;
         if target_symbol.ty() != SymbolType::Struct {

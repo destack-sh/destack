@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_base::{StringId, StringPool};
+use destack_core::{StringId, StringPool};
 use destack_dir::AnchoredGlobalNodeId;
 use destack_query::format::format_unique_symbol_qualified_name;
 use destack_source::ModuleId;

@@ -20,7 +20,7 @@ impl Compiler {
         module: &std::sync::Arc<parking_lot::RwLock<Module>>,
         profile: ProfileId,
         target_id: &TargetId,
-    ) -> ExecuteResult<(mir::NodeTree, destack_base::StringPool)> {
+    ) -> ExecuteResult<(mir::NodeTree, destack_core::StringPool)> {
         // snapshot dir inputs for lowering
         let module_guard = module.read();
         let dir = module_guard.dir(profile);
@@ -74,7 +74,7 @@ impl Compiler {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> ExecuteResult<(
         mir::NodeTree,
-        destack_base::StringPool,
+        destack_core::StringPool,
         mir::LocalNodeId<mir::Function>,
     )> {
         let lowerer = ComptimeLowerer::new(self, module, profile)?;
@@ -204,7 +204,7 @@ impl<'a> ComptimeLowerer<'a> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> ExecuteResult<(
         mir::NodeTree,
-        destack_base::StringPool,
+        destack_core::StringPool,
         mir::LocalNodeId<mir::Function>,
     )> {
         // compute an anchor for diagnostics

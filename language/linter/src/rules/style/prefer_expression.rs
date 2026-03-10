@@ -2,7 +2,7 @@ use destack_ast::{
     self as ast, AssignOperator, Block, Declarator, Expression, IfCondition, IfKind, LetKind,
     LocalNodeId, NodeTree, Pattern,
 };
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};

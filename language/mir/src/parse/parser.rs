@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_base::{ImmutableStringPool, StringPool};
+use destack_core::{ImmutableStringPool, StringPool};
 use destack_source::{FileId, Span};
 
 use crate::validate::{Validator, ValidatorOptions};

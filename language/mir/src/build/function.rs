@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
@@ -173,7 +173,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Set a debug parameter name on the function signature.
-    pub fn set_parameter_name(&mut self, index: usize, name: destack_base::StringId) {
+    pub fn set_parameter_name(&mut self, index: usize, name: destack_core::StringId) {
         // record parameter names for diagnostics
         let function = self.tree.get_mut(self.function_id);
         if let Some(slot) = function.parameter_names.get_mut(index) {

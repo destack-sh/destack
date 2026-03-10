@@ -1,6 +1,6 @@
 use std::fmt;
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{StaticArgument, StaticExpression};
 
 /// A structured error for static argument resolution.

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use std::collections::HashSet;
 use std::path::Path;
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     Declaration, Declarator, DependencyItem, DependencyKind, DependencyMode, EnumField, Expression,
     GlobalNodeIdAny, GlobalSymbolId, LocalScopeId, LocalSymbolId, Member, Name, NodeType,

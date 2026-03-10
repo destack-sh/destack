@@ -1,6 +1,6 @@
 //! Unified diff output for comparing text.
 
-use destack_base::Color;
+use destack_core::Color;
 
 /// Options for diff output.
 #[derive(Debug, Clone, Default)]

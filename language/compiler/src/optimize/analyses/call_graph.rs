@@ -1463,7 +1463,7 @@ mod tests {
         let (tree, strings) =
             mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
                 .expect("failed to parse MIR");
-        let pool = destack_base::StringPool::new();
+        let pool = destack_core::StringPool::new();
         pool.copy_from_immutable(&strings);
 
         let mut module = Module::blank(

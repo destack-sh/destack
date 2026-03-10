@@ -2,7 +2,7 @@ use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
     TaskSkipReason,
 };
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_compiler_macros::DefineError;
 use destack_dir::{
     AnchoredGlobalNodeId, FunctionAbstraction, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,

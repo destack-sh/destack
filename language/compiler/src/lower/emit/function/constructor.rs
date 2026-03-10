@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{AnchoredGlobalNodeId, GlobalSymbolId};
 use destack_mir as mir;
 

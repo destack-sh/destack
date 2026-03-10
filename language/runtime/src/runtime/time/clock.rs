@@ -3,7 +3,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::runtime::time::{HostClock, HostClockSource, Nanos, VirtualClock, WorldInstant};
-use destack_base::{Capture, CaptureMode};
+use destack_core::{Capture, CaptureMode};
 use destack_workspace::TimeOptions;
 
 /// Materialized clock state captured in one world image.

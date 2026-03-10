@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::analyze::common::TypeContext;
 use crate::{AnalyzeError, Compiler};
 use destack_ast::Keyword;
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     Declaration, LocalNodeId, Member, NodeTree, NodeType, Parameter, Property, StaticKey,
     SymbolSpace,

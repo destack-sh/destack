@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, NodeType,
     PrimitiveType, ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable,

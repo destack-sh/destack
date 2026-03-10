@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-use destack_base::{ImmutableStringPool, StringPool};
+use destack_core::{ImmutableStringPool, StringPool};
 use destack_compiler::{
     CompositePipeline, FunctionPass, FunctionPipeline, FunctionToModuleAdaptor, ModulePass,
     ModulePipeline, OptimizationLevel, Pipeline, PipelineContext, PipelineOptions, PipelineTarget,
