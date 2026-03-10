@@ -1599,6 +1599,7 @@ version = "0.55.4"
 dependencies = [
  "argon2",
  "base64",
+ "block2",
  "core-foundation-sys",
  "destack_ast",
  "destack_builtin",
@@ -1641,6 +1642,7 @@ dependencies = [
  "wayland-client",
  "wayland-protocols",
  "wayland-protocols-wlr",
+ "windows",
  "windows-sys 0.52.0",
  "x11rb",
  "zeroize",

@@ -185,12 +185,6 @@ pub(crate) fn qpc_ticks_to_hundred_nanos(counter: u64) -> Option<u64> {
     Some(((u128::from(counter) * 10_000_000u128) / u128::from(frequency)) as u64)
 }
 
-/// Read one monotonic timestamp from QueryPerformanceCounter.
-pub(crate) fn qpc_now_ns() -> Option<u64> {
-    let counter = qpc_now_ticks()?;
-    qpc_ticks_to_ns(counter)
-}
-
 /// Read one process-relative monotonic timestamp from QueryPerformanceCounter.
 pub(crate) fn qpc_process_monotonic_nanos() -> Option<u64> {
     let epoch_ticks = qpc_process_epoch_ticks()?;

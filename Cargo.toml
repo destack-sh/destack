@@ -204,6 +204,7 @@ wayland-client = "0.31.11"
 wayland-protocols = { version = "0.32.9", features = ["client", "staging", "unstable"] }
 wayland-protocols-wlr = { version = "0.3.11", features = ["client"] }
 objc2 = "0.6.3"
+block2 = "0.6.2"
 objc2-app-kit = "0.3.2"
 objc2-core-foundation = "0.3.2"
 objc2-core-graphics = "0.3.2"
