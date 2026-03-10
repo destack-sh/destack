@@ -97,11 +97,9 @@ just bridge/full
 
 ## Release
 
-Release CI is tag driven and runs on `v*` pushes.
-Use `just release` to prepare a local patch release commit and tag.
-Use `just release minor` or `just release major` when you want a non-default bump.
-Nightly is the high-frequency canary channel.
-Stable patch releases are the normal release vehicle.
-Stable minor releases should mark notable public milestones.
-Use `just release-push` to push the current release commit and tag.
+Release CI is tag driven and runs on `v*` pushes:
+ - Use `just release` to prepare a local patch release commit and tag.
+ - Use `just release minor` or `just release major` when you want a non-default bump.
+ - Use `just release-push` to push the current release commit and tag.
+ - Nightly is the high-frequency canary channel.
 See [RELEASE.md](RELEASE.md) for the canonical release runbook, credential matrix, signing model, and failure recovery guidance.
