@@ -46,15 +46,15 @@ The formatter uses FIR (Formatting IR) for layout decisions, automatically break
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_json
-```
-
-### Downstream coverage
-
-```sh
 cargo test -p destack_workspace
 cargo test -p destack_service
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

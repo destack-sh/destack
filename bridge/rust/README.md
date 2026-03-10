@@ -20,3 +20,18 @@ assert!(client.capi_abi_version() > 0);
 assert!(client.capi_is_available());
 assert_eq!(destack::version(), "0.55.4");
 ```
+
+## Testing
+
+Run these from the repository root.
+
+```sh
+# focused local loop
+just bridge/test
+
+# clean gate
+just bridge/quick
+
+# exhaustive gate
+just bridge/full
+```

@@ -114,15 +114,15 @@ Having one document model means consistent formatting behavior across all code o
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_fir
-```
-
-### Formatter integration coverage
-
-```sh
 just language/test-formatter
 just language/test-formatter-conformance
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

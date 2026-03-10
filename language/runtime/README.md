@@ -84,16 +84,15 @@ The low-level `platform` bindings are not meant to be used by general userland -
 ## Testing
 
 Run these from the repository root.
-Quick check:
-```sh
-cargo test -p destack_runtime
-```
 
-Target coverage:
 ```sh
-just language/doctor-toolchain
-just language/lint-toolchain
-just language/check-runtime-macos # or linux/windows-msvc on matching hosts
-just language/check-runtime-ios
-just language/check-runtime-android
+# focused local loop
+cargo test -p destack_runtime
+just language/check-runtime-macos # or linux/windows on matching hosts
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

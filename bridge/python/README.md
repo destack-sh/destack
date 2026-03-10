@@ -21,3 +21,18 @@ assert client.version() == "0.55.4"
 assert client.capi_abi_version() > 0
 assert client.capi_is_available() is True
 ```
+
+## Testing
+
+Run these from the repository root.
+
+```sh
+# focused local loop
+just bridge/test
+
+# clean gate
+just bridge/quick
+
+# exhaustive gate
+just bridge/full
+```

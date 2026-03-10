@@ -7,15 +7,15 @@ Generated tables for identifier validation (XID_Start, XID_Continue) and display
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_unicode
-```
-
-### Parser integration coverage
-
-```sh
 cargo test -p destack_parser
 cargo test -p destack_test --test smoke -- --parser
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

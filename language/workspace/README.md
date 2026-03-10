@@ -172,17 +172,15 @@ The same query layer is also used by daemon backed workflows.
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_workspace
-```
-
-### Query, LSP, and language coverage
-
-```sh
 just language/test-query
 just language/test-lsp
-just language/test-specification
-just language/test-formatter
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

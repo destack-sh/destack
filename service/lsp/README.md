@@ -5,16 +5,16 @@ This crate owns protocol mapping, request lifecycle handling, progress, cancella
 
 ## Testing
 
-Run these commands from the repository root.
-
-### Quick local loop
+Run these from the repository root.
 
 ```sh
+# focused local loop
 cargo test -p destack_lsp
-```
-
-### Applied LSP coverage
-
-```sh
 just language/test-lsp
+
+# clean gate
+just service/quick
+
+# exhaustive gate
+just service/full
 ```

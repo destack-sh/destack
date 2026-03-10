@@ -179,30 +179,15 @@ function process(data: &readonly Buffer, out: ^Result): &readonly Output {
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_formatter
 just language/test-formatter
-```
-
-### Shared test gates
-
-```sh
-just language/quick
-just language/full
-```
-
-### Conformance coverage
-
-```sh
-just language/install-formatter-conformance
 just language/test-formatter-conformance
-```
 
-### Performance and fuzzing
+# clean gate
+just language/quick
 
-```sh
-just language/bench-formatter-stats "--help"
-just language/fuzz-formatter 300
+# exhaustive gate
+just language/full
 ```

@@ -29,15 +29,15 @@ const s: string = pool.get(id)
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_base
-```
-
-### Downstream coverage
-
-```sh
 cargo test -p destack_test --test optimize
 just language/test-query
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

@@ -159,23 +159,16 @@ The compiler, daemon, and LSP share a single canonical cache format for all reus
 
 Run these from the repository root.
 
-### Quick local loop
-
 ```sh
+# focused local loop
 cargo test -p destack_compiler
 cargo test -p destack_test --test smoke -- --compiler
-```
-
-### Language behavior coverage
-
-```sh
 just language/test-specification
-just language/test-parser-conformance
-just language/test-emit
-```
-
-### Query and incremental coverage
-
-```sh
 just language/test-query
+
+# clean gate
+just language/quick
+
+# exhaustive gate
+just language/full
 ```

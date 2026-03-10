@@ -14,3 +14,18 @@ Console.WriteLine(client.Version());
 Console.WriteLine(client.CapiAbiVersion());
 Console.WriteLine(client.CapiIsAvailable());
 ```
+
+## Testing
+
+Run these from the repository root.
+
+```sh
+# focused local loop
+just bridge/test
+
+# clean gate
+just bridge/quick
+
+# exhaustive gate
+just bridge/full
+```

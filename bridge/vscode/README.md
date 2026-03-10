@@ -18,9 +18,16 @@ Set these settings in your workspace or user settings.
 
 ## Testing
 
-Run grammar and VSCode bridge smoke tests.
+Run these from the repository root.
 
 ```sh
-bun run test:grammar
-bun run test:bridge
+# focused local loop
+just bridge/test-vscode
+just bridge/test-vscode-bridge
+
+# clean gate
+just bridge/quick
+
+# exhaustive gate
+just bridge/full
 ```

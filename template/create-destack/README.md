@@ -36,3 +36,18 @@ npm create destack@latest my-app -- --template app --yes
 - `--dry-run`: Print the planned actions without writing files.
 - `-y, --yes`: Skip prompts.
 - `-h, --help`: Show CLI help.
+
+## Testing
+
+Run these from the repository root.
+
+```sh
+# focused local loop
+just check
+
+# clean gate
+just quick
+
+# exhaustive gate
+just full
+```
