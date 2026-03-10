@@ -1,6 +1,7 @@
 use std::path::Path;
 
-use crate::query::{self, QueryRequestEnvelope, QueryResponseEnvelope};
+use destack_query as query;
+use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::Program;
 

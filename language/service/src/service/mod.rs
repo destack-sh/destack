@@ -2,7 +2,6 @@ mod error;
 mod file;
 mod graph;
 mod lifecycle;
-#[cfg(feature = "query")]
 mod query;
 mod service;
 mod types;

@@ -1,6 +1,6 @@
+use destack_query as query;
+use destack_query::{CodeLens, CodeLensData};
 use destack_source::Span;
-use destack_workspace::query;
-use destack_workspace::query::{CodeLens, CodeLensData};
 
 use crate::harness::TestResult;
 use crate::query::runner::position::resolve_query_position;

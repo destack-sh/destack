@@ -38,6 +38,7 @@ members = [
 	"language/vm/abi",
 	"language/mir",
 	"language/parser",
+	"language/query",
 	"language/resolver",
 	"language/runtime",
 	"language/source",
@@ -47,9 +48,6 @@ members = [
 	"language/service",
 	# service
 	"service/daemon",
-	"service/lsp",
-	"service/lsp/server",
-	"service/lsp/types",
 	# app
 	"app/cli",
 	# bridge
@@ -91,6 +89,7 @@ destack_vm = { path = "language/vm" }
 destack_vm_abi = { path = "language/vm/abi" }
 destack_mir = { path = "language/mir" }
 destack_parser = { path = "language/parser" }
+destack_query = { path = "language/query" }
 destack_resolver = { path = "language/resolver" }
 destack_runtime = { path = "language/runtime" }
 destack_source = { path = "language/source" }

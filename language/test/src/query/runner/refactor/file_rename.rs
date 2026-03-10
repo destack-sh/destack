@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use destack_query as query;
 use destack_source::Uri;
-use destack_workspace::query;
 
 use crate::harness::TestResult;
 use crate::query::{QueryExpectation, QueryTestSession};

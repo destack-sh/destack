@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::query::{QueryExecutionMode, QueryMethodId};
+use destack_query::{QueryExecutionMode, QueryMethodId};
 use destack_source::FileId;
 
 use super::WorkspaceHandleId;

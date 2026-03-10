@@ -1,5 +1,5 @@
-use destack_workspace::query;
-use destack_workspace::query::FoldingRange;
+use destack_query as query;
+use destack_query::FoldingRange;
 
 use crate::harness::TestResult;
 use crate::query::runner::snapshot::normalize_expected_snapshot;

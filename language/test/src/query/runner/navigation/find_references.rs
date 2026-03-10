@@ -1,5 +1,5 @@
+use destack_query as query;
 use destack_source::Span;
-use destack_workspace::query;
 
 use crate::harness::TestResult;
 use crate::query::runner::snapshot::normalize_expected_snapshot;

@@ -12,8 +12,9 @@ use crate::mdtest::{
     parse_mdtest_file, parse_mdtest_libs, run_with_timeout, slug,
 };
 use crate::query::{QueryTestSession, runner};
+use destack_query as query;
 use destack_source::{BatchEdit, Edit, MemoryFileSystem};
-use destack_workspace::{MemoryCacheStore, query};
+use destack_workspace::MemoryCacheStore;
 
 /// Type of query test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,10 +1,10 @@
 use destack_ast::{DependencyItem, Expression, ImportSource, ImportTarget, LocalNodeId, NodeTree};
 use destack_base::ImmutableStringPool;
-use destack_workspace::ImportSortOrder;
-use destack_workspace::common::{
+use destack_query::common::{
     ImportDeclarationKey, categorize_import, sort_dependency_items as sort_items,
     sort_import_declaration_indices,
 };
+use destack_workspace::ImportSortOrder;
 
 /// Get the inner import expression, unwrapping Statement if needed.
 pub fn get_import_expression(

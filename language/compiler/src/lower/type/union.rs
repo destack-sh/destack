@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use destack_base::{StringId, StringPool};
 use destack_dir::AnchoredGlobalNodeId;
+use destack_query::format::format_unique_symbol_qualified_name;
 use destack_source::ModuleId;
-use destack_workspace::format::format_unique_symbol_qualified_name;
 use {destack_dir as dir, destack_mir as mir};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};

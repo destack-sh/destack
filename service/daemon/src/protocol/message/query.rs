@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_service::query::{QueryRequestEnvelope, QueryResponseEnvelope};
+use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_source::{ModuleId, ProfileId};
 
 use super::{BinaryPayload, DiagnosticBatch, WorkspaceHandleId};
@@ -234,7 +234,7 @@ pub struct CacheStatsPayload {
 mod tests {
     use super::*;
 
-    use destack_service::query::{HoverRequest, HoverResponse, QueryRequest, QueryResponse};
+    use destack_query::{HoverRequest, HoverResponse, QueryRequest, QueryResponse};
     use destack_source::Uri;
 
     /// Preserves query request envelopes across payload encoding and decoding.

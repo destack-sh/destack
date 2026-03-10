@@ -1,5 +1,6 @@
+use destack_query as query;
+use destack_query::{SemanticTokenModifiers, SemanticTokenType};
 use destack_source::Span;
-use destack_workspace::query::{self, SemanticTokenModifiers, SemanticTokenType};
 
 use crate::harness::TestResult;
 use crate::query::runner::position::resolve_query_span;

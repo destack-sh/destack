@@ -2,7 +2,7 @@ use std::io::{IsTerminal, Read};
 use std::path::{Path, PathBuf};
 
 use clap::Args;
-use destack_service::query::{
+use destack_query::{
     QueryExecutionMode, QueryMethod, QueryMethodId, QueryRequest, QueryRequestEnvelope, assist,
     navigation, parse_query_request, query_method, query_methods, refactor,
 };

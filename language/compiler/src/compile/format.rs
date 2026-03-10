@@ -16,7 +16,7 @@ use destack_mir as mir;
 use destack_source::{FileType, ModuleId, ModuleStamp, PackageId, PackageStamp, ProfileStamp, Uri};
 use destack_workspace::{ModuleGraphStamp, ProfileId, Program, TargetId};
 
-use destack_workspace::format::{format_global_type, format_symbol_name};
+use destack_query::format::{format_global_type, format_symbol_name};
 
 /// Trait for formatting types in diagnostic messages. Should not fail.
 pub trait DiagnosticFormat {

@@ -1,6 +1,6 @@
+use destack_query as query;
+use destack_query::{TypeHierarchyItem, TypeHierarchyKind};
 use destack_source::Span;
-use destack_workspace::query;
-use destack_workspace::query::{TypeHierarchyItem, TypeHierarchyKind};
 
 use crate::harness::TestResult;
 use crate::query::runner::position::resolve_query_position;

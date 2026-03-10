@@ -12,8 +12,8 @@ use crate::protocol::{
     WorkspaceHandleId, WorkspaceOpenOptions, inline_payload_max_bytes, payload_chunk_bytes,
 };
 use crate::tests::{RequestRetryPolicy, TestDaemon, TestProtocolHarness, wait_for_condition};
-use destack_service::query;
-use destack_service::query::{
+use destack_query as query;
+use destack_query::{
     DocumentSymbolsRequest, FindReferencesRequest, GotoDefinitionRequest, HoverRequest,
     QueryRequest, QueryRequestEnvelope, QueryResponse, RenameFilesRequest, SemanticTokensRequest,
 };
