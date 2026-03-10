@@ -7,12 +7,13 @@ use std::time::{Duration, Instant};
 
 use dashmap::{DashMap, DashSet};
 use destack_compiler::CompilerOptions;
+use destack_query as query;
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_service::{
     LanguageService as LspLanguageService, LanguageServiceError, RescanReason, WorkspaceMessage,
-    WorkspaceMessageKind as ProtocolMessageKind, WorkspaceUpdateRecord, query,
+    WorkspaceMessageKind as ProtocolMessageKind, WorkspaceUpdateRecord,
 };
 use destack_source::{
     BatchEdit, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem,
@@ -4416,7 +4417,7 @@ impl LanguageServer for DestackLanguageServer {
 mod tests {
     use super::DestackLanguageServer;
     use destack_lsp_types as lsp;
-    use destack_service::query;
+    use destack_query as query;
 
     /// Map umbrella refactor kinds to all workspace refactor buckets.
     #[test]

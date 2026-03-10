@@ -41,6 +41,9 @@ members = [
 	"language/query",
 	"language/resolver",
 	"language/runtime",
+	"language/lsp",
+	"language/lsp/server",
+	"language/lsp/types",
 	"language/source",
 	"language/test",
 	"language/unicode",
@@ -100,9 +103,9 @@ destack_service = { path = "language/service" }
 
 # service
 destack_daemon = { path = "service/daemon" }
-destack_lsp = { path = "service/lsp" }
-destack_lsp_server = { path = "service/lsp/server" }
-destack_lsp_types = { path = "service/lsp/types" }
+destack_lsp = { path = "language/lsp" }
+destack_lsp_server = { path = "language/lsp/server" }
+destack_lsp_types = { path = "language/lsp/types" }
 
 # app
 destack_cli = { path = "app/cli" }

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use destack_dir::{GlobalSymbolId, LocalSymbolId, SymbolType};
-use destack_service::query;
+use destack_query as query;
 use destack_source::{File, FileId, FileType, ModuleId, PackageId, Span, Uri};
 use destack_workspace::Session;
 

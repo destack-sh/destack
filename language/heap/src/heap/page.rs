@@ -336,7 +336,6 @@ impl<T> Page<T> {
     #[inline]
     pub unsafe fn get_unchecked(&self, offset: usize) -> &T {
         debug_assert!(self.is_occupied(offset), "page slot is not occupied");
-
         unsafe { self.cells.get_unchecked(offset) }
     }
 
@@ -347,7 +346,6 @@ impl<T> Page<T> {
     #[inline]
     pub unsafe fn get_unchecked_mut(&mut self, offset: usize) -> &mut T {
         debug_assert!(self.is_occupied(offset), "page slot is not occupied");
-
         unsafe { self.cells.get_unchecked_mut(offset) }
     }
 
@@ -355,7 +353,6 @@ impl<T> Page<T> {
     #[inline]
     pub fn set(&mut self, offset: usize, cell: T) {
         self.cells[offset] = cell;
-
         if !self.occupied.contains(offset) {
             self.occupied.set(offset);
         }

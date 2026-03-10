@@ -10,9 +10,8 @@ use destack_formatter::{
 };
 use destack_lsp_types as lsp;
 use destack_parser::Parser;
-use destack_service::{
-    FileSnapshot, LanguageService as LspLanguageService, LanguageServiceError, query,
-};
+use destack_query as query;
+use destack_service::{FileSnapshot, LanguageService as LspLanguageService, LanguageServiceError};
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, Span, WATCHABLE_FILE_TYPES,
 };

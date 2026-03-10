@@ -121,15 +121,15 @@ tags = ["service", "daemon"]
 summary = "Background service for watch mode, orchestration, and caching"
 
 [[project]]
-id = "service-lsp"
-area = "service"
+id = "language-lsp"
+area = "language"
 name = "lsp"
-path = "service/lsp"
-readme = "service/lsp/README.md"
+path = "language/lsp"
+readme = "language/lsp/README.md"
 status = "Experimental"
 languages = ["Rust"]
 license = "MIT"
-tags = ["service", "lsp"]
+tags = ["language", "lsp"]
 summary = "Language Server Protocol service implementation"
 
 [[project]]

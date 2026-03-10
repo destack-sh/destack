@@ -3,7 +3,7 @@ use std::cmp;
 
 use destack_ast::TokenSpan;
 use destack_lsp_types as lsp;
-use destack_service::query;
+use destack_query as query;
 use destack_source::{File, Span};
 use destack_workspace::Session;
 

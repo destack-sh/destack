@@ -7,7 +7,6 @@ First-party services for most things most software needs, including some Destack
 | Project | Status | Summary |
 |---------|--------|---------|
 | [`daemon`](daemon/README.md) | Experimental | Background service for watch mode, orchestration, and caching |
-| [`lsp`](lsp/README.md) | Experimental | Language Server Protocol service implementation |
 
 ## Commands
 
