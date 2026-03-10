@@ -1,5 +1,5 @@
+use super::{BindingCatalog, BindingType, CatalogBindingScope};
 use crate::error::GeneratorValidationIssue;
-use crate::model::{BindingCatalog, BindingType, CatalogBindingScope};
 
 /// Validate one normalized binding catalog and fail on invalid invariants.
 pub(crate) fn validate_binding_catalog(catalog: &BindingCatalog) {
@@ -130,12 +130,12 @@ fn validate_binding_type(
 mod tests {
     use std::collections::BTreeMap;
 
-    use crate::error::GeneratorValidationIssue;
-    use crate::model::{
+    use super::super::{
         BindingCatalog, BindingEntry, BindingTaggedUnionVariant, BindingType,
         CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind,
         CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload,
     };
+    use crate::error::GeneratorValidationIssue;
 
     use super::collect_validation_issues;
 

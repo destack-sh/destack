@@ -1,123 +1,277 @@
+use super::codegen::ModuleCodegen;
+use super::docs::GeneratedDocumentation;
 use super::*;
-use crate::emit::to_pascal_case;
+use crate::analyze::{BindingEntry, BindingType, CatalogBindingSimulation};
 
-/// Render a handwritten harness module scaffold.
-pub(crate) fn render_domain_test_harness_stub() -> String {
-    let mut output = String::new();
-    output.push_str("#[path = \"harness.generated.rs\"]\n");
-    output.push_str("mod generated;\n\n");
-    output.push_str("#[allow(unused_imports)]\n");
-    output.push_str("pub(crate) use generated::*;\n");
-    output
+/// Stateful renderer for one native stub module.
+struct NativeStubRenderer<'a> {
+    /// The platform module being rendered.
+    domain: &'a str,
+    /// The binding catalog for this module.
+    bindings: &'a ModuleBindings,
+    /// The function visibility for generated entrypoints.
+    function_visibility: &'a str,
+    /// Whether this renderer emits simulation stubs.
+    is_simulation: bool,
+    /// Rust naming helpers for this module.
+    codegen: ModuleCodegen<'a>,
+    /// Rendered output buffer.
+    output: String,
 }
 
-/// Render generated test harness methods for one domain.
-pub(crate) fn render_domain_test_harness_generated(
-    domain: &str,
-    bindings: &BindingCatalogEntry,
-) -> String {
-    render_standardized_test_harness_generated(domain, bindings)
-}
-
-/// Render full docs for one generated harness method.
-fn render_binding_docs(entry: &BindingEntry, extern_name: &str) -> String {
-    let Some(documentation) = entry.documentation.as_deref() else {
-        return format!("/// Binding for `{extern_name}`.\n");
-    };
-
-    let mut lines = documentation
-        .lines()
-        .map(|line| line.trim_end().to_string())
-        .collect::<Vec<_>>();
-
-    if lines.iter().all(|line| !line.trim().is_empty()) && lines.len() > 1 {
-        let mut normalized = Vec::with_capacity(lines.len() + 8);
-        normalized.push(lines[0].clone());
-
-        let second_line = lines[1].trim();
-        if !second_line.starts_with('#') {
-            normalized.push(String::new());
+impl<'a> NativeStubRenderer<'a> {
+    /// Create one native stub renderer.
+    fn new(
+        domain: &'a str,
+        bindings: &'a ModuleBindings,
+        function_visibility: &'a str,
+        is_simulation: bool,
+    ) -> Self {
+        Self {
+            domain,
+            bindings,
+            function_visibility,
+            is_simulation,
+            codegen: ModuleCodegen::new(domain),
+            output: String::new(),
         }
-
-        for line in lines.into_iter().skip(1) {
-            let is_heading = line.trim_start().starts_with('#');
-            if is_heading
-                && normalized
-                    .last()
-                    .is_some_and(|last| !last.trim().is_empty())
-            {
-                normalized.push(String::new());
-            }
-            normalized.push(line);
-        }
-
-        lines = normalized;
     }
 
-    let mut docs = String::new();
-    for line in lines {
-        if line.trim().is_empty() {
-            docs.push_str("///\n");
+    /// Render the full native stub file.
+    fn render(mut self) -> String {
+        let bindings = if self.is_simulation {
+            collect_simulation_bindings(self.bindings)
         } else {
-            docs.push_str(&format!("/// {line}\n"));
+            self.bindings.clone()
+        };
+        let consts = BindingSymbol::collect(&self.codegen, &bindings);
+        let usage = NativeUsage::collect(&bindings);
+        let type_domains = collect_type_domains(self.domain, &bindings);
+        let mut named_types = if self.is_simulation {
+            collect_native_stub_named_types(self.domain, &bindings)
+        } else {
+            collect_native_named_types(self.domain, &bindings)
+        };
+
+        // error stubs already import the shared platform error type explicitly
+        if self.domain == "error" && !self.is_simulation {
+            named_types.remove("PlatformError");
+        }
+
+        // file header
+        self.output.push_str("#![allow(dead_code)]\n");
+        self.output.push_str("#![allow(unused_imports)]\n");
+        self.output
+            .push_str("#![allow(clippy::missing_safety_doc)]\n");
+        self.output
+            .push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
+        if !self.is_simulation {
+            self.output.push_str(&format!(
+                "use crate::platform::{}::bindings_generated as bindings;\n",
+                self.domain
+            ));
+        }
+        self.output.push_str("use crate::platform::{\n");
+        self.output.push_str("    PlatformError,\n");
+        if usage.uses_platform_slice {
+            self.output.push_str("    NativeSlice,\n");
+        }
+        if usage.uses_platform_array {
+            self.output.push_str("    NativeArray,\n");
+        }
+        if usage.uses_platform_string_ref {
+            self.output.push_str("    NativeStringRef,\n");
+        }
+        if usage.uses_platform_string_slice {
+            self.output.push_str("    NativeStringSlice,\n");
+        }
+        self.output.push_str("};\n\n");
+        self.output
+            .push_str("use crate::runtime::BindingCallContext;\n");
+        if !self.is_simulation {
+            self.output.push_str("use bindings::*;\n");
+        }
+        self.output.push('\n');
+
+        // platform imports
+        if !type_domains.is_empty() {
+            let imports = type_domains
+                .iter()
+                .map(|domain| domain.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.output
+                .push_str(&format!("use crate::platform::{{{imports}}};\n"));
+        }
+        if !named_types.is_empty() {
+            let names = named_types.iter().cloned().collect::<Vec<_>>().join(", ");
+            self.output.push_str(&format!(
+                "use crate::platform::{}::{{{names}}};\n",
+                self.domain
+            ));
+        }
+        if self.domain == "error" {
+            self.output
+                .push_str("use crate::platform::error as platform_error;\n");
+        }
+        self.output.push('\n');
+
+        // binding stubs
+        for binding in &consts {
+            self.render_binding(binding);
+            self.output.push('\n');
+        }
+
+        self.output
+    }
+
+    /// Render documentation for one native stub binding.
+    fn write_docs(&mut self, entry: &BindingEntry, extern_name: &str) {
+        let fallback = if self.is_simulation {
+            format!("Simulation binding for `{extern_name}`.")
+        } else {
+            format!("Binding for `{extern_name}`.")
+        };
+        let docs = GeneratedDocumentation::render(entry.documentation.as_deref(), &fallback);
+
+        self.output.push_str(&docs);
+    }
+
+    /// Render one native stub binding.
+    fn render_binding(&mut self, binding: &BindingSymbol<'_>) {
+        let entry = binding.entry;
+        if !entry.return_is_result {
+            panic!(
+                "platform binding {} must return Result",
+                binding.extern_name
+            );
+        }
+
+        let function_name = binding.implementation_fn_name.clone();
+        let mut params = Vec::new();
+        let mut unused = Vec::new();
+
+        // native result out pointer
+        if entry.return_binding != BindingType::Void {
+            let out_type = self.codegen.native_type_for_binding(&entry.return_binding);
+            params.push(format!("out: *mut {out_type}"));
+            unused.push("out".to_string());
+        }
+
+        // native parameters
+        for (index, param) in entry.parameters.iter().enumerate() {
+            let name = self.codegen.sanitize_param_name(&param.name, index);
+            let ty = self.codegen.native_type_for_binding(&param.binding_type);
+            params.push(format!("{name}: {ty}"));
+            unused.push(name);
+        }
+
+        // function header
+        self.write_docs(entry, binding.extern_name);
+        self.output.push_str(&format!(
+            "{} unsafe fn {function_name}({}BindingCallContext{}) -> RuntimeResult<()> {{\n",
+            self.function_visibility,
+            if self.is_simulation {
+                "_binding: &"
+            } else {
+                "binding: &"
+            },
+            if params.is_empty() {
+                String::new()
+            } else {
+                format!(", {}", params.join(", "))
+            }
+        ));
+
+        // result pointer validation
+        if entry.return_binding != BindingType::Void {
+            self.output.push_str("    if out.is_null() {\n");
+            self.output.push_str(
+                "        return Err(RuntimeError::from(PlatformError::null_pointer(\"out\")).boxed());\n",
+            );
+            self.output.push_str("    }\n");
+        }
+
+        // keep parameters marked as used in the stub
+        if let Some((first, rest)) = unused.split_first() {
+            if rest.is_empty() {
+                self.output.push_str(&format!("    let _ = {first};\n"));
+            } else {
+                self.output.push_str("    let _ = (");
+                self.output.push_str(&unused.join(", "));
+                self.output.push_str(");\n");
+            }
+        }
+        self.output.push('\n');
+
+        // runtime fallback
+        self.output
+            .push_str("    Err(RuntimeError::from(PlatformError::not_supported(\n");
+        if self.is_simulation {
+            self.output
+                .push_str(&format!("        \"{}\",\n", binding.extern_name));
+        } else {
+            self.output
+                .push_str(&format!("        \"{}\",\n", binding.extern_name));
+        }
+        self.output.push_str("    ))\n");
+        self.output.push_str("    .boxed())\n");
+        self.output.push_str("}\n");
+    }
+}
+
+/// Stateful renderer for one VM stub module.
+struct VmStubRenderer<'a> {
+    /// The platform module being rendered.
+    domain: &'a str,
+    /// The binding catalog for this module.
+    bindings: &'a ModuleBindings,
+    /// Whether this renderer emits simulation stubs.
+    is_simulation: bool,
+    /// Rust naming helpers for this module.
+    codegen: ModuleCodegen<'a>,
+    /// Rendered output buffer.
+    output: String,
+}
+
+impl<'a> VmStubRenderer<'a> {
+    /// Create one VM stub renderer.
+    fn new(domain: &'a str, bindings: &'a ModuleBindings, is_simulation: bool) -> Self {
+        Self {
+            domain,
+            bindings,
+            is_simulation,
+            codegen: ModuleCodegen::new(domain),
+            output: String::new(),
         }
     }
 
-    if docs.is_empty() {
-        return format!("/// Binding for `{extern_name}`.\n");
-    }
+    /// Render the full VM stub file.
+    fn render(mut self) -> String {
+        let bindings = if self.is_simulation {
+            collect_simulation_bindings(self.bindings)
+        } else {
+            self.bindings.clone()
+        };
+        let consts = BindingSymbol::collect(&self.codegen, &bindings);
+        let vm_types = if self.is_simulation {
+            collect_vm_stub_named_types(self.domain, &bindings)
+        } else {
+            collect_vm_named_types(self.domain, &bindings)
+        };
+        let type_domains = collect_type_domains(self.domain, &bindings);
+        let vm_usage = VmStubUsage::collect(&bindings);
 
-    docs
-}
+        // file header
+        self.output.push_str("#![allow(dead_code)]\n");
+        self.output.push_str("#![allow(unused_imports)]\n");
+        self.output.push_str("use destack_vm as vm;\n");
+        self.output
+            .push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
+        self.output
+            .push_str("use crate::platform::PlatformError;\n");
 
-/// Indent one doc block for insertion into one method impl.
-fn indent_doc_lines(docs: &str, indent: &str) -> String {
-    let mut output = String::new();
-    for line in docs.lines() {
-        output.push_str(indent);
-        output.push_str(line);
-        output.push('\n');
-    }
-
-    output
-}
-
-/// Render one standardized generated test harness for one domain.
-fn render_standardized_test_harness_generated(
-    domain: &str,
-    bindings: &BindingCatalogEntry,
-) -> String {
-    let consts = build_binding_consts(domain, bindings);
-    let context_name = format!("{}HarnessContext", to_pascal_case(domain));
-    let usage = collect_native_usage(bindings);
-    let vm_usage = collect_vm_stub_usage(bindings);
-    let native_named_types = collect_native_named_types(domain, bindings);
-    let vm_named_types = collect_vm_named_types(domain, bindings);
-    let type_domains = collect_type_domains(domain, bindings);
-    let mut local_named_types = native_named_types
-        .union(&vm_named_types)
-        .cloned()
-        .collect::<Vec<_>>();
-    local_named_types.sort();
-    local_named_types.dedup();
-    let native_alias = format!("{domain}_native");
-    let vm_alias = format!("{domain}_vm");
-
-    let mut output = String::new();
-    output.push_str("// generated by generate-bindings: test harness, do not edit\n\n");
-    output.push_str("#![allow(dead_code)]\n");
-    output.push_str("#![allow(unused_imports, dead_code)]\n\n");
-    output.push_str("#![allow(clippy::type_complexity)]\n\n");
-    output.push_str("use destack_vm as vm;\n");
-    output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
-    output.push_str("use crate::platform::PlatformError as HarnessPlatformError;\n");
-    output.push_str(&format!(
-        "use crate::platform::{domain}::native as {native_alias};\n"
-    ));
-    output.push_str(&format!(
-        "use crate::platform::{domain}::vm as {vm_alias};\n"
-    ));
-    if vm_usage.uses_vm_slice || vm_usage.uses_vm_array {
+        // VM helper imports
         let mut vm_imports = Vec::new();
         if vm_usage.uses_vm_slice {
             vm_imports.push("VmSlice");
@@ -125,699 +279,141 @@ fn render_standardized_test_harness_generated(
         if vm_usage.uses_vm_array {
             vm_imports.push("VmArray");
         }
-        output.push_str(&format!(
-            "use crate::platform::{{{}}};\n",
-            vm_imports.join(", ")
-        ));
-    }
-    if usage.uses_platform_slice
-        || usage.uses_platform_array
-        || usage.uses_platform_string_ref
-        || usage.uses_platform_string_slice
-    {
-        let mut native_imports = Vec::new();
-        if usage.uses_platform_slice {
-            native_imports.push("NativeSlice");
+        if !vm_imports.is_empty() {
+            self.output.push_str(&format!(
+                "use crate::platform::{{{}}};\n",
+                vm_imports.join(", ")
+            ));
         }
-        if usage.uses_platform_array {
-            native_imports.push("NativeArray");
+        if !type_domains.is_empty() {
+            let imports = type_domains
+                .iter()
+                .map(|domain| domain.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.output
+                .push_str(&format!("use crate::platform::{{{imports}}};\n"));
         }
-        if usage.uses_platform_string_ref {
-            native_imports.push("NativeStringRef");
+        if !vm_types.is_empty() {
+            let names = vm_types.iter().cloned().collect::<Vec<_>>().join(", ");
+            self.output.push_str(&format!(
+                "use crate::platform::{}::{{{names}}};\n",
+                self.domain
+            ));
         }
-        if usage.uses_platform_string_slice {
-            native_imports.push("NativeStringSlice");
-        }
-        output.push_str(&format!(
-            "use crate::platform::{{{}}};\n",
-            native_imports.join(", ")
-        ));
-    }
-    for type_domain in &type_domains {
-        if type_domain == domain {
-            continue;
+        self.output
+            .push_str("use crate::runtime::BindingCallContext;\n\n");
+
+        // binding stubs
+        for binding in &consts {
+            self.render_binding(binding);
+            self.output.push('\n');
         }
 
-        output.push_str(&format!("use crate::platform::{type_domain};\n"));
-    }
-    if !local_named_types.is_empty() {
-        output.push_str(&format!(
-            "use crate::platform::{domain}::{{{}}};\n",
-            local_named_types.join(", ")
-        ));
-    }
-    if domain == "error" {
-        output.push_str("use crate::platform::error as platform_error;\n");
-    }
-    output.push_str(&format!(
-        "use crate::platform::{domain}::tests::{context_name};\n\n"
-    ));
-
-    output.push_str(&format!("impl<'call> {context_name}<'call> {{\n"));
-    output.push_str("    /// Return the generated VM context if available.\n");
-    output.push_str("    #[allow(clippy::mut_from_ref)]\n");
-    output.push_str(
-        "    fn generated_vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {\n",
-    );
-    output.push_str("        self.vm_context\n");
-    output.push_str("            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })\n");
-    output.push_str("    }\n\n");
-    output.push_str("    /// Return one standardized value payload for native and VM variants.\n");
-    output.push_str("    pub(crate) fn harness_value<Native, Vm>(\n");
-    output.push_str("        &self,\n");
-    output.push_str("        native: Native,\n");
-    output.push_str("    ) -> HarnessValue<Native, Vm> {\n");
-    output.push_str("        HarnessValue::Native(native)\n");
-    output.push_str("    }\n\n");
-    output.push_str("    /// Return one standardized value payload for VM and native variants.\n");
-    output.push_str("    pub(crate) fn harness_value_vm<Native, Vm>(&self, vm: Vm) -> HarnessValue<Native, Vm> {\n");
-    output.push_str("        HarnessValue::Vm(vm)\n");
-    output.push_str("    }\n\n");
-
-    for binding in &consts {
-        write_test_harness_unified_method(
-            &mut output,
-            domain,
-            native_alias.as_str(),
-            vm_alias.as_str(),
-            binding,
-        );
-        output.push('\n');
+        self.output
     }
 
-    output.push_str("}\n");
-    output.push('\n');
-    output.push_str(
-        "/// Wrapper that carries one native or VM value for generated harness bindings.\n",
-    );
-    output.push_str("pub(crate) enum HarnessValue<Native, Vm> {\n");
-    output.push_str("    /// Native value variant.\n");
-    output.push_str("    Native(Native),\n");
-    output.push_str("    /// VM value variant.\n");
-    output.push_str("    Vm(Vm),\n");
-    output.push_str("}\n\n");
-    output.push_str("impl<Native, Vm> HarnessValue<Native, Vm> {\n");
-    output.push_str("    /// Convert one wrapper into one native value.\n");
-    output.push_str("    fn into_native(self, label: &str) -> RuntimeResult<Native> {\n");
-    output.push_str("        match self {\n");
-    output.push_str("            HarnessValue::Native(value) => Ok(value),\n");
-    output.push_str("            HarnessValue::Vm(_) => Err(RuntimeError::from(\n");
-    output.push_str("                HarnessPlatformError::invalid_argument_value(\n");
-    output.push_str("                    label,\n");
-    output.push_str("                    \"expected native harness value\",\n");
-    output.push_str("                ),\n");
-    output.push_str("            )\n");
-    output.push_str("            .boxed()),\n");
-    output.push_str("        }\n");
-    output.push_str("    }\n\n");
-    output.push_str("    /// Convert one wrapper into one VM value.\n");
-    output.push_str("    fn into_vm(self, label: &str) -> RuntimeResult<Vm> {\n");
-    output.push_str("        match self {\n");
-    output.push_str("            HarnessValue::Vm(value) => Ok(value),\n");
-    output.push_str("            HarnessValue::Native(_) => Err(RuntimeError::from(\n");
-    output.push_str("                HarnessPlatformError::invalid_argument_value(\n");
-    output.push_str("                    label,\n");
-    output.push_str("                    \"expected VM harness value\",\n");
-    output.push_str("                ),\n");
-    output.push_str("            )\n");
-    output.push_str("            .boxed()),\n");
-    output.push_str("        }\n");
-    output.push_str("    }\n");
-    output.push_str("}\n");
-    output
-}
-
-/// Render one generated unified harness method.
-fn write_test_harness_unified_method(
-    output: &mut String,
-    domain: &str,
-    native_alias: &str,
-    vm_alias: &str,
-    binding: &BindingConst<'_>,
-) {
-    let function_name = &binding.implementation_fn_name;
-    let method_name = function_name.as_str();
-    let native_return_type = native_type_for_binding(domain, &binding.entry.return_binding);
-    let vm_return_type = vm_type_for_binding(domain, &binding.entry.return_binding);
-    let return_types_match = native_return_type == vm_return_type;
-    let return_type = if binding.entry.return_binding == BindingType::Void {
-        "()".to_string()
-    } else if return_types_match {
-        native_return_type.clone()
-    } else {
-        format!("HarnessValue<{native_return_type}, {vm_return_type}>")
-    };
-    let mut method_params = Vec::new();
-    let mut native_pre_args = Vec::new();
-    let mut vm_pre_args = Vec::new();
-    let mut native_call_args = Vec::new();
-    let mut vm_call_args = Vec::new();
-    for (index, parameter) in binding.entry.parameters.iter().enumerate() {
-        let name = sanitize_param_name(&parameter.name, index);
-        let native_parameter_type = native_type_for_binding(domain, &parameter.binding_type);
-        let vm_parameter_type = vm_type_for_binding(domain, &parameter.binding_type);
-        if native_parameter_type == vm_parameter_type {
-            method_params.push(format!("{name}: {native_parameter_type}"));
-            native_call_args.push(name.clone());
-            vm_call_args.push(name);
+    /// Render documentation for one VM stub binding.
+    fn write_docs(&mut self, entry: &BindingEntry, extern_name: &str) {
+        let fallback = if self.is_simulation {
+            format!("Simulation binding for `{extern_name}`.")
         } else {
-            method_params.push(format!(
-                "{name}: HarnessValue<{native_parameter_type}, {vm_parameter_type}>"
-            ));
-            native_pre_args.push(format!(
-                "                let {name} = {name}.into_native(\"{name}\")?;\n"
-            ));
-            vm_pre_args.push(format!(
-                "                let {name} = {name}.into_vm(\"{name}\")?;\n"
-            ));
-            native_call_args.push(name.clone());
-            vm_call_args.push(name);
-        }
+            format!("Binding for `{extern_name}`.")
+        };
+        let docs = GeneratedDocumentation::render(entry.documentation.as_deref(), &fallback);
+
+        self.output.push_str(&docs);
     }
 
-    let docs = render_binding_docs(binding.entry, binding.extern_name);
-    output.push_str(&indent_doc_lines(&docs, "    "));
-    output.push_str(&format!("    pub(crate) fn {method_name}("));
-    if method_params.is_empty() {
-        output.push_str("&mut self");
-    } else {
-        output.push_str("&mut self, ");
-        output.push_str(&method_params.join(", "));
-    }
-    output.push_str(&format!(") -> RuntimeResult<{return_type}> {{\n"));
-    output.push_str("        match self.generated_vm_context_mut() {\n");
-    output.push_str("            Some(context) => {\n");
-    for line in &vm_pre_args {
-        output.push_str(line);
-    }
+    /// Render one VM stub binding.
+    fn render_binding(&mut self, binding: &BindingSymbol<'_>) {
+        let entry = binding.entry;
+        let function_name = binding.implementation_fn_name.clone();
+        let return_type = self.codegen.render_return_type(entry);
+        let params = self.codegen.render_params(entry);
+        let mut unused = Vec::new();
 
-    if binding.entry.return_binding == BindingType::Void {
-        output.push_str(&format!(
-            "                {vm_alias}::{function_name}(self.call_context, context"
-        ));
-        for arg in &vm_call_args {
-            output.push_str(", ");
-            output.push_str(arg);
+        // VM parameters
+        for (index, param) in entry.parameters.iter().enumerate() {
+            unused.push(self.codegen.sanitize_param_name(&param.name, index));
         }
-        output.push_str(")\n");
-        output.push_str("            }\n");
-        output.push_str("            None => {\n");
-        for line in &native_pre_args {
-            output.push_str(line);
-        }
-        output.push_str("                unsafe {\n");
-        output.push_str(&format!(
-            "                    {native_alias}::{function_name}(self.call_context"
-        ));
-        for arg in &native_call_args {
-            output.push_str(", ");
-            output.push_str(arg);
-        }
-        output.push_str(")\n");
-        output.push_str("                }\n");
-        output.push_str("            }\n");
-        output.push_str("        }\n");
-        output.push_str("    }\n");
-        return;
-    }
 
-    output.push_str(&format!(
-        "                let out = {vm_alias}::{function_name}(self.call_context, context"
-    ));
-    for arg in &vm_call_args {
-        output.push_str(", ");
-        output.push_str(arg);
-    }
-    output.push_str(")?;\n");
-    if return_types_match {
-        output.push_str("                Ok(out)\n");
-    } else {
-        output.push_str("                Ok(HarnessValue::Vm(out))\n");
-    }
-    output.push_str("            }\n");
-    output.push_str("            None => {\n");
-    for line in &native_pre_args {
-        output.push_str(line);
-    }
-    output.push_str(&format!(
-        "                let mut out = std::mem::MaybeUninit::<{native_return_type}>::uninit();\n"
-    ));
-    output.push_str("                unsafe {\n");
-    output.push_str(&format!(
-        "                    {native_alias}::{function_name}(self.call_context, out.as_mut_ptr()"
-    ));
-    for arg in &native_call_args {
-        output.push_str(", ");
-        output.push_str(arg);
-    }
-    output.push_str(")?;\n");
-    output.push_str("                }\n");
-    output.push_str("                let out = unsafe { out.assume_init() };\n");
-    if return_types_match {
-        output.push_str("                Ok(out)\n");
-    } else {
-        output.push_str("                Ok(HarnessValue::Native(out))\n");
-    }
-    output.push_str("            }\n");
-    output.push_str("        }\n");
-    output.push_str("    }\n");
-}
+        // function header
+        self.write_docs(entry, binding.extern_name);
+        self.output
+            .push_str(&format!("pub(crate) fn {function_name}(\n"));
+        if self.is_simulation {
+            self.output.push_str("    _binding: &BindingCallContext,\n");
+        } else {
+            self.output.push_str("    _binding: &BindingCallContext,\n");
+        }
+        self.output
+            .push_str("    _context: &mut vm::ExternalCallContext<'_>,\n");
+        for param in &params {
+            self.output.push_str(&format!("    {param},\n"));
+        }
+        self.output
+            .push_str(&format!(") -> RuntimeResult<{return_type}> {{\n"));
 
-/// Render documentation comments for one generated stub implementation.
-fn write_stub_docs(
-    output: &mut String,
-    entry: &BindingEntry,
-    extern_name: &str,
-    is_simulation: bool,
-) {
-    if let Some(documentation) = entry.documentation.as_deref() {
-        for line in documentation.lines() {
-            if line.trim().is_empty() {
-                output.push_str("///\n");
+        // keep parameters marked as used in the stub
+        if let Some((first, rest)) = unused.split_first() {
+            if rest.is_empty() {
+                self.output.push_str(&format!("    let _ = {first};\n"));
             } else {
-                output.push_str(&format!("/// {line}\n"));
+                self.output.push_str("    let _ = (");
+                self.output.push_str(&unused.join(", "));
+                self.output.push_str(");\n");
             }
         }
-    } else if is_simulation {
-        output.push_str(&format!("/// Simulation binding for `{extern_name}`.\n"));
-    } else {
-        output.push_str(&format!("/// Binding for `{extern_name}`.\n"));
+
+        // runtime fallback
+        self.output
+            .push_str("    Err(RuntimeError::from(PlatformError::not_supported(\n");
+        if self.is_simulation {
+            self.output
+                .push_str(&format!("        \"{}\",\n", binding.extern_name));
+        } else {
+            self.output.push_str(&format!(
+                "        \"{} is not available in the VM yet\",\n",
+                binding.extern_name
+            ));
+        }
+        self.output.push_str("    ))\n");
+        self.output.push_str("    .boxed())\n");
+        self.output.push_str("}\n");
     }
 }
 
 /// Render stub native bindings for a runtime domain.
-pub(crate) fn render_native_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
-    render_native_like_stub(domain, bindings, "pub(crate)")
+pub(crate) fn render_native_stub(domain: &str, bindings: &ModuleBindings) -> String {
+    NativeStubRenderer::new(domain, bindings, "pub(crate)", false).render()
 }
 
 /// Render stub host bindings for a runtime domain.
-pub(crate) fn render_host_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
-    render_native_like_stub(domain, bindings, "pub(crate)")
-}
-
-/// Render stub host-like bindings for a runtime domain.
-fn render_native_like_stub(
-    domain: &str,
-    bindings: &BindingCatalogEntry,
-    function_visibility: &str,
-) -> String {
-    // build a deterministic list of binding descriptors
-    let consts = build_binding_consts(domain, bindings);
-
-    // collect required imports for the native stub
-    let usage = collect_native_usage(bindings);
-
-    // collect domain-specific named types for imports
-    let mut named_types = collect_native_named_types(domain, bindings);
-    let type_domains = collect_type_domains(domain, bindings);
-    if domain == "error" {
-        named_types.remove("PlatformError");
-    }
-
-    // render the stub file content
-    let mut output = String::new();
-    output.push_str("#![allow(dead_code)]\n");
-    output.push_str("#![allow(unused_imports)]\n");
-    output.push_str("#![allow(clippy::missing_safety_doc)]\n");
-    output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
-    output.push_str(&format!(
-        "use crate::platform::{domain}::bindings_generated as bindings;\n"
-    ));
-    output.push_str("use crate::platform::{\n");
-    output.push_str("    PlatformError,\n");
-    if usage.uses_platform_slice {
-        output.push_str("    NativeSlice,\n");
-    }
-    if usage.uses_platform_array {
-        output.push_str("    NativeArray,\n");
-    }
-    if usage.uses_platform_string_ref {
-        output.push_str("    NativeStringRef,\n");
-    }
-    if usage.uses_platform_string_slice {
-        output.push_str("    NativeStringSlice,\n");
-    }
-    output.push_str("};\n\n");
-    output.push_str("use crate::runtime::BindingCallContext;\n");
-    output.push_str("use bindings::*;\n\n");
-    if !type_domains.is_empty() {
-        let imports = type_domains
-            .iter()
-            .map(|domain| domain.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
-    }
-    if !named_types.is_empty() {
-        let names = named_types.iter().cloned().collect::<Vec<_>>().join(", ");
-        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n\n"));
-    }
-    if domain == "error" {
-        output.push_str("use crate::platform::error as platform_error;\n\n");
-    }
-    output.push('\n');
-
-    for binding in &consts {
-        let entry = binding.entry;
-        if !entry.return_is_result {
-            panic!(
-                "platform binding {} must return Result",
-                binding.extern_name
-            );
-        }
-
-        let function_name = binding.implementation_fn_name.clone();
-        let mut params = Vec::new();
-        let mut unused = vec!["binding".to_string()];
-
-        if entry.return_binding != BindingType::Void {
-            let out_type = native_type_for_binding(domain, &entry.return_binding);
-            params.push(format!("out: *mut {out_type}"));
-            unused.push("out".to_string());
-        }
-
-        for (index, param) in entry.parameters.iter().enumerate() {
-            let name = sanitize_param_name(&param.name, index);
-            let ty = native_type_for_binding(domain, &param.binding_type);
-            params.push(format!("{name}: {ty}"));
-            unused.push(name);
-        }
-
-        write_stub_docs(&mut output, entry, binding.extern_name, false);
-        output.push_str(&format!(
-            "{function_visibility} unsafe fn {function_name}(binding: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
-            if params.is_empty() {
-                String::new()
-            } else {
-                format!(", {}", params.join(", "))
-            }
-        ));
-        if entry.return_binding != BindingType::Void {
-            output.push_str("    if out.is_null() {\n");
-            output.push_str(
-                "        return Err(RuntimeError::from(PlatformError::null_pointer(\"out\")).boxed());\n",
-            );
-            output.push_str("    }\n");
-        }
-        if let Some((first, rest)) = unused.split_first() {
-            if rest.is_empty() {
-                output.push_str(&format!("    let _ = {first};\n"));
-            } else {
-                output.push_str("    let _ = (");
-                output.push_str(&unused.join(", "));
-                output.push_str(");\n");
-            }
-        }
-        output.push('\n');
-        output.push_str("    Err(RuntimeError::from(PlatformError::not_supported(\n");
-        output.push_str(&format!("        \"{}\",\n", binding.extern_name));
-        output.push_str("    ))\n");
-        output.push_str("    .boxed())\n");
-        output.push_str("}\n\n");
-    }
-
-    output
+pub(crate) fn render_host_stub(domain: &str, bindings: &ModuleBindings) -> String {
+    NativeStubRenderer::new(domain, bindings, "pub(crate)", false).render()
 }
 
 /// Render stub VM bindings for a runtime domain.
-pub(crate) fn render_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
-    // build a deterministic list of binding descriptors
-    let consts = build_binding_consts(domain, bindings);
-    let vm_types = collect_vm_named_types(domain, bindings);
-    let type_domains = collect_type_domains(domain, bindings);
-    let vm_usage = collect_vm_stub_usage(bindings);
-
-    // render the stub file content
-    let mut output = String::new();
-    output.push_str("#![allow(dead_code)]\n");
-    output.push_str("#![allow(unused_imports)]\n");
-    output.push_str("use destack_vm as vm;\n");
-    output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
-    output.push_str("use crate::platform::PlatformError;\n");
-    let mut vm_imports = Vec::new();
-    if vm_usage.uses_vm_slice {
-        vm_imports.push("VmSlice");
-    }
-    if vm_usage.uses_vm_array {
-        vm_imports.push("VmArray");
-    }
-    if !vm_imports.is_empty() {
-        output.push_str(&format!(
-            "use crate::platform::{{{}}};\n",
-            vm_imports.join(", ")
-        ));
-    }
-    if !type_domains.is_empty() {
-        let imports = type_domains
-            .iter()
-            .map(|domain| domain.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
-    }
-    if !vm_types.is_empty() {
-        let names = vm_types.iter().cloned().collect::<Vec<_>>().join(", ");
-        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n"));
-    }
-    output.push_str("use crate::runtime::BindingCallContext;\n\n");
-
-    for binding in &consts {
-        let entry = binding.entry;
-        let method_name = binding.implementation_fn_name.clone();
-        let return_type = render_return_type(domain, entry);
-        let params = render_params(domain, entry);
-        let mut unused = Vec::new();
-
-        for (index, param) in entry.parameters.iter().enumerate() {
-            unused.push(sanitize_param_name(&param.name, index));
-        }
-
-        write_stub_docs(&mut output, entry, binding.extern_name, false);
-        output.push_str(&format!("pub(crate) fn {method_name}(\n"));
-        output.push_str("    _binding: &BindingCallContext,\n");
-        output.push_str("    _context: &mut vm::ExternalCallContext<'_>,\n");
-        for param in &params {
-            output.push_str(&format!("    {param},\n"));
-        }
-        output.push_str(&format!(") -> RuntimeResult<{return_type}> {{\n"));
-        if let Some((first, rest)) = unused.split_first() {
-            if rest.is_empty() {
-                output.push_str(&format!("    let _ = {first};\n"));
-            } else {
-                output.push_str("    let _ = (");
-                output.push_str(&unused.join(", "));
-                output.push_str(");\n");
-            }
-        }
-        output.push_str("    Err(RuntimeError::from(PlatformError::not_supported(\n");
-        output.push_str(&format!(
-            "        \"{} is not available in the VM yet\",\n",
-            binding.extern_name
-        ));
-        output.push_str("    ))\n");
-        output.push_str("    .boxed())\n");
-        output.push_str("}\n\n");
-    }
-
-    output
+pub(crate) fn render_vm_stub(domain: &str, bindings: &ModuleBindings) -> String {
+    VmStubRenderer::new(domain, bindings, false).render()
 }
 
 /// Render stub simulation native bindings for a runtime domain.
-pub(crate) fn render_simulation_native_stub(
-    domain: &str,
-    bindings: &BindingCatalogEntry,
-) -> String {
-    let simulation_bindings = collect_simulation_bindings(bindings);
-
-    // build a deterministic list of binding descriptors
-    let consts = build_binding_consts(domain, &simulation_bindings);
-
-    // collect required imports for the simulation native stub
-    let usage = collect_native_usage(&simulation_bindings);
-
-    // collect domain-specific named types for imports
-    let named_types = collect_native_stub_named_types(domain, &simulation_bindings);
-    let type_domains = collect_type_domains(domain, &simulation_bindings);
-
-    // render the stub file content
-    let mut output = String::new();
-    output.push_str("#![allow(dead_code)]\n");
-    output.push_str("#![allow(unused_imports)]\n");
-    output.push_str("#![allow(clippy::missing_safety_doc)]\n");
-    output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
-    output.push_str("use crate::platform::PlatformError;\n");
-    output.push_str("use crate::platform::{\n");
-    if usage.uses_platform_slice {
-        output.push_str("    NativeSlice,\n");
-    }
-    if usage.uses_platform_array {
-        output.push_str("    NativeArray,\n");
-    }
-    if usage.uses_platform_string_ref {
-        output.push_str("    NativeStringRef,\n");
-    }
-    if usage.uses_platform_string_slice {
-        output.push_str("    NativeStringSlice,\n");
-    }
-    output.push_str("};\n\n");
-    output.push_str("use crate::runtime::BindingCallContext;\n\n");
-    if !type_domains.is_empty() {
-        let imports = type_domains
-            .iter()
-            .map(|domain| domain.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
-    }
-    if !named_types.is_empty() {
-        let names = named_types.iter().cloned().collect::<Vec<_>>().join(", ");
-        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n\n"));
-    }
-    if domain == "error" {
-        output.push_str("use crate::platform::error as platform_error;\n\n");
-    }
-    output.push('\n');
-
-    for binding in &consts {
-        let entry = binding.entry;
-        if !entry.return_is_result {
-            panic!(
-                "platform binding {} must return Result",
-                binding.extern_name
-            );
-        }
-
-        let function_name = binding.implementation_fn_name.clone();
-        let mut params = Vec::new();
-        let mut unused = Vec::new();
-
-        if entry.return_binding != BindingType::Void {
-            let out_type = native_type_for_binding(domain, &entry.return_binding);
-            params.push(format!("out: *mut {out_type}"));
-            unused.push("out".to_string());
-        }
-
-        for (index, param) in entry.parameters.iter().enumerate() {
-            let name = sanitize_param_name(&param.name, index);
-            let ty = native_type_for_binding(domain, &param.binding_type);
-            params.push(format!("{name}: {ty}"));
-            unused.push(name);
-        }
-
-        write_stub_docs(&mut output, entry, binding.extern_name, true);
-        output.push_str(&format!(
-            "pub(crate) unsafe fn {function_name}(_binding: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
-            if params.is_empty() {
-                String::new()
-            } else {
-                format!(", {}", params.join(", "))
-            }
-        ));
-        if let Some((first, rest)) = unused.split_first() {
-            if rest.is_empty() {
-                output.push_str(&format!("    let _ = {first};\n"));
-            } else {
-                output.push_str("    let _ = (");
-                output.push_str(&unused.join(", "));
-                output.push_str(");\n");
-            }
-        }
-        output.push('\n');
-        output.push_str("    Err(RuntimeError::from(PlatformError::not_supported(\n");
-        output.push_str(&format!("        \"{}\",\n", binding.extern_name));
-        output.push_str("    ))\n");
-        output.push_str("    .boxed())\n");
-        output.push_str("}\n\n");
-    }
-
-    output
+pub(crate) fn render_simulation_native_stub(domain: &str, bindings: &ModuleBindings) -> String {
+    NativeStubRenderer::new(domain, bindings, "pub(crate)", true).render()
 }
 
 /// Render stub simulation VM bindings for a runtime domain.
-pub(crate) fn render_simulation_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
-    let simulation_bindings = collect_simulation_bindings(bindings);
-
-    // build a deterministic list of binding descriptors
-    let consts = build_binding_consts(domain, &simulation_bindings);
-    let vm_types = collect_vm_stub_named_types(domain, &simulation_bindings);
-    let type_domains = collect_type_domains(domain, &simulation_bindings);
-    let vm_usage = collect_vm_stub_usage(&simulation_bindings);
-
-    // render the stub file content
-    let mut output = String::new();
-    output.push_str("#![allow(dead_code)]\n");
-    output.push_str("#![allow(unused_imports)]\n");
-    output.push_str("use destack_vm as vm;\n");
-    output.push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
-    output.push_str("use crate::platform::PlatformError;\n");
-    let mut vm_imports = Vec::new();
-    if vm_usage.uses_vm_slice {
-        vm_imports.push("VmSlice");
-    }
-    if vm_usage.uses_vm_array {
-        vm_imports.push("VmArray");
-    }
-    if !vm_imports.is_empty() {
-        output.push_str(&format!(
-            "use crate::platform::{{{}}};\n",
-            vm_imports.join(", ")
-        ));
-    }
-    if !type_domains.is_empty() {
-        let imports = type_domains
-            .iter()
-            .map(|domain| domain.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
-    }
-    if !vm_types.is_empty() {
-        let names = vm_types.iter().cloned().collect::<Vec<_>>().join(", ");
-        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n"));
-    }
-    output.push_str("use crate::runtime::BindingCallContext;\n\n");
-
-    for binding in &consts {
-        let entry = binding.entry;
-        let method_name = binding.implementation_fn_name.clone();
-        let return_type = render_return_type(domain, entry);
-        let params = render_params(domain, entry);
-        let mut unused = Vec::new();
-
-        for (index, param) in entry.parameters.iter().enumerate() {
-            unused.push(sanitize_param_name(&param.name, index));
-        }
-
-        write_stub_docs(&mut output, entry, binding.extern_name, true);
-        output.push_str(&format!("pub(crate) fn {method_name}(\n"));
-        output.push_str("    _binding: &BindingCallContext,\n");
-        output.push_str("    _context: &mut vm::ExternalCallContext<'_>,\n");
-        for param in &params {
-            output.push_str(&format!("    {param},\n"));
-        }
-        output.push_str(&format!(") -> RuntimeResult<{return_type}> {{\n"));
-        if let Some((first, rest)) = unused.split_first() {
-            if rest.is_empty() {
-                output.push_str(&format!("    let _ = {first};\n"));
-            } else {
-                output.push_str("    let _ = (");
-                output.push_str(&unused.join(", "));
-                output.push_str(");\n");
-            }
-        }
-        output.push_str("    Err(RuntimeError::from(PlatformError::not_supported(\n");
-        output.push_str(&format!("        \"{}\",\n", binding.extern_name));
-        output.push_str("    ))\n");
-        output.push_str("    .boxed())\n");
-        output.push_str("}\n\n");
-    }
-
-    output
+pub(crate) fn render_simulation_vm_stub(domain: &str, bindings: &ModuleBindings) -> String {
+    VmStubRenderer::new(domain, bindings, true).render()
 }
 
 /// Collect simulation-capable bindings for one domain.
-fn collect_simulation_bindings(bindings: &BindingCatalogEntry) -> BindingCatalogEntry {
-    let mut simulation_bindings = BindingCatalogEntry::new();
+fn collect_simulation_bindings(bindings: &ModuleBindings) -> ModuleBindings {
+    let mut simulation_bindings = ModuleBindings::new();
+
+    // keep only simulation-capable bindings
     for (extern_name, entry) in bindings {
         if entry.simulation == CatalogBindingSimulation::Unsupported {
             continue;
@@ -827,263 +423,121 @@ fn collect_simulation_bindings(bindings: &BindingCatalogEntry) -> BindingCatalog
     simulation_bindings
 }
 
+/// Stateful renderer for generated module-level stubs.
+struct ModuleStubRenderer {
+    /// Rendered output buffer.
+    output: String,
+}
+
+impl ModuleStubRenderer {
+    /// Create one empty module-stub renderer.
+    fn new() -> Self {
+        Self {
+            output: String::new(),
+        }
+    }
+
+    /// Render the simulation module stub.
+    fn render_simulation_mod(mut self) -> String {
+        // simulation exports
+        self.output.push_str("pub(crate) mod native;\n");
+        self.output.push_str("pub(crate) mod vm;\n");
+
+        self.output
+    }
+
+    /// Render the top-level module stub.
+    fn render_module_mod(
+        mut self,
+        has_world_dispatch: bool,
+        has_simulation_dispatch: bool,
+    ) -> String {
+        // generated modules
+        self.output.push_str("#[path = \"abi.generated.rs\"]\n");
+        self.output.push_str("pub(crate) mod abi_generated;\n");
+        self.output
+            .push_str("#[path = \"bindings.generated.rs\"]\n");
+        self.output.push_str("mod bindings_generated;\n\n");
+        self.output
+            .push_str("#[allow(unused_imports, unreachable_pub)]\n");
+        self.output.push_str("pub use abi_generated::*;\n");
+        self.output
+            .push_str("#[allow(unused_imports, unreachable_pub)]\n");
+        self.output.push_str("pub use bindings_generated::*;\n");
+
+        // handwritten entrypoints
+        if has_world_dispatch {
+            self.output.push_str("mod host;\n");
+        }
+        self.output.push_str("pub mod native;\n");
+        if has_simulation_dispatch {
+            self.output.push_str("pub(crate) mod simulation;\n");
+        }
+        self.output.push_str("pub mod vm;\n");
+
+        self.output
+    }
+
+    /// Render the host router stub.
+    fn render_host_router(mut self) -> String {
+        // unix route
+        self.output.push_str("#[cfg(unix)]\n");
+        self.output.push_str("#[path = \"unix/mod.rs\"]\n");
+        self.output.push_str("mod unix;\n");
+        self.output.push_str("#[cfg(unix)]\n");
+        self.output.push_str("#[allow(unused_imports)]\n");
+        self.output.push_str("pub(crate) use unix::*;\n\n");
+
+        // windows route
+        self.output.push_str("#[cfg(windows)]\n");
+        self.output.push_str("#[path = \"windows/mod.rs\"]\n");
+        self.output.push_str("mod windows;\n");
+        self.output.push_str("#[cfg(windows)]\n");
+        self.output.push_str("#[allow(unused_imports)]\n");
+        self.output.push_str("pub(crate) use windows::*;\n\n");
+
+        // unsupported route
+        self.output.push_str("#[cfg(not(any(unix, windows)))]\n");
+        self.output.push_str("#[path = \"unsupported.rs\"]\n");
+        self.output.push_str("mod unsupported;\n");
+        self.output.push_str("#[cfg(not(any(unix, windows)))]\n");
+        self.output.push_str("#[allow(unused_imports)]\n");
+        self.output.push_str("pub(crate) use unsupported::*;\n");
+
+        self.output
+    }
+
+    /// Render the OS backend shim stub.
+    fn render_os_backend_mod(mut self) -> String {
+        // unsupported shim
+        self.output.push_str("#[path = \"../unsupported.rs\"]\n");
+        self.output.push_str("mod unsupported;\n\n");
+        self.output.push_str("#[allow(unused_imports)]\n");
+        self.output.push_str("pub(crate) use unsupported::*;\n");
+
+        self.output
+    }
+}
+
 /// Render a simulation module re-export stub for a runtime domain.
 pub(crate) fn render_simulation_mod_stub() -> String {
-    let mut output = String::new();
-    output.push_str("pub(crate) mod native;\n");
-    output.push_str("pub(crate) mod vm;\n");
-    output
+    ModuleStubRenderer::new().render_simulation_mod()
 }
 
 /// Render a top-level module stub for a runtime domain.
-pub(crate) fn render_domain_mod_stub(
+pub(crate) fn render_module_mod_stub(
     has_world_dispatch: bool,
     has_simulation_dispatch: bool,
-    has_runtime_dispatch: bool,
 ) -> String {
-    let mut output = String::new();
-    output.push_str("#[path = \"abi.generated.rs\"]\n");
-    output.push_str("mod abi_generated;\n");
-    output.push_str("#[path = \"bindings.generated.rs\"]\n");
-    output.push_str("mod bindings_generated;\n\n");
-    output.push_str("#[allow(unused_imports, unreachable_pub)]\n");
-    output.push_str("pub use abi_generated::*;\n");
-    output.push_str("#[allow(unused_imports, unreachable_pub)]\n");
-    output.push_str("pub use bindings_generated::*;\n");
-    if has_world_dispatch {
-        output.push_str("mod host;\n");
-    }
-    output.push_str("pub mod native;\n");
-    if has_runtime_dispatch {
-        output.push_str("pub(crate) mod runtime;\n");
-    }
-    if has_simulation_dispatch {
-        output.push_str("pub(crate) mod simulation;\n");
-    }
-    output.push_str("pub mod vm;\n");
-    output
+    ModuleStubRenderer::new().render_module_mod(has_world_dispatch, has_simulation_dispatch)
 }
 
 /// Render a host router stub for world-dispatched domains.
 pub(crate) fn render_host_router_stub() -> String {
-    let mut output = String::new();
-    output.push_str("#[cfg(unix)]\n");
-    output.push_str("#[path = \"unix/mod.rs\"]\n");
-    output.push_str("mod unix;\n");
-    output.push_str("#[cfg(unix)]\n");
-    output.push_str("#[allow(unused_imports)]\n");
-    output.push_str("pub(crate) use unix::*;\n\n");
-    output.push_str("#[cfg(windows)]\n");
-    output.push_str("#[path = \"windows/mod.rs\"]\n");
-    output.push_str("mod windows;\n");
-    output.push_str("#[cfg(windows)]\n");
-    output.push_str("#[allow(unused_imports)]\n");
-    output.push_str("pub(crate) use windows::*;\n\n");
-    output.push_str("#[cfg(not(any(unix, windows)))]\n");
-    output.push_str("#[path = \"unsupported.rs\"]\n");
-    output.push_str("mod unsupported;\n");
-    output.push_str("#[cfg(not(any(unix, windows)))]\n");
-    output.push_str("#[allow(unused_imports)]\n");
-    output.push_str("pub(crate) use unsupported::*;\n");
-    output
+    ModuleStubRenderer::new().render_host_router()
 }
 
 /// Render a unix or windows backend shim for world-dispatched domains.
 pub(crate) fn render_os_backend_mod_stub() -> String {
-    let mut output = String::new();
-    output.push_str("#[path = \"../unsupported.rs\"]\n");
-    output.push_str("mod unsupported;\n\n");
-    output.push_str("#[allow(unused_imports)]\n");
-    output.push_str("pub(crate) use unsupported::*;\n");
-    output
-}
-
-/// Render a runtime module re-export stub for a runtime domain.
-pub(crate) fn render_runtime_mod_stub() -> String {
-    let mut output = String::new();
-    output.push_str("// generated by generate-bindings: stub, do not edit\n\n");
-    output.push_str("pub(crate) mod native;\n");
-    output.push_str("pub(crate) mod vm;\n");
-    output
-}
-
-/// Collect runtime-scope bindings from one domain catalog.
-fn collect_runtime_bindings(bindings: &BindingCatalogEntry) -> BindingCatalogEntry {
-    let mut runtime_bindings = BindingCatalogEntry::new();
-
-    for (extern_name, entry) in bindings {
-        if entry.scope == CatalogBindingScope::Runtime {
-            runtime_bindings.insert(extern_name.clone(), entry.clone());
-        }
-    }
-
-    runtime_bindings
-}
-
-/// Render a runtime native forwarding stub for a runtime domain.
-pub(crate) fn render_runtime_native_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
-    let runtime_bindings = collect_runtime_bindings(bindings);
-    let consts = build_binding_consts(domain, &runtime_bindings);
-    let usage = collect_native_usage(&runtime_bindings);
-    let named_types = collect_native_stub_named_types(domain, &runtime_bindings);
-    let type_domains = collect_type_domains(domain, &runtime_bindings);
-    let native_alias = format!("{domain}_native");
-
-    let mut output = String::new();
-    output.push_str("// generated by generate-bindings: stub, do not edit\n\n");
-    output.push_str("#![allow(unused_imports, dead_code)]\n\n");
-    output.push_str("use crate::diagnostic::RuntimeResult;\n");
-    output.push_str("use crate::platform::{\n");
-    if usage.uses_platform_slice {
-        output.push_str("    NativeSlice,\n");
-    }
-    if usage.uses_platform_array {
-        output.push_str("    NativeArray,\n");
-    }
-    if usage.uses_platform_string_ref {
-        output.push_str("    NativeStringRef,\n");
-    }
-    if usage.uses_platform_string_slice {
-        output.push_str("    NativeStringSlice,\n");
-    }
-    output.push_str("};\n");
-    output.push_str("use crate::runtime::BindingCallContext;\n\n");
-    if !type_domains.is_empty() {
-        let imports = type_domains
-            .iter()
-            .map(|domain| domain.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
-    }
-    if !named_types.is_empty() {
-        let names = named_types.iter().cloned().collect::<Vec<_>>().join(", ");
-        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n"));
-    }
-    output.push_str(&format!(
-        "use crate::platform::{domain}::native as {native_alias};\n\n"
-    ));
-
-    for binding in &consts {
-        let entry = binding.entry;
-        if entry.scope != CatalogBindingScope::Runtime {
-            continue;
-        }
-        if !entry.return_is_result {
-            panic!(
-                "platform binding {} must return Result",
-                binding.extern_name
-            );
-        }
-
-        let function_name = binding.implementation_fn_name.clone();
-        let mut params = Vec::new();
-        let mut call_args = vec!["binding".to_string()];
-
-        if entry.return_binding != BindingType::Void {
-            let out_type = native_type_for_binding(domain, &entry.return_binding);
-            params.push(format!("out: *mut {out_type}"));
-            call_args.push("out".to_string());
-        }
-
-        for (index, param) in entry.parameters.iter().enumerate() {
-            let name = sanitize_param_name(&param.name, index);
-            let ty = native_type_for_binding(domain, &param.binding_type);
-            params.push(format!("{name}: {ty}"));
-            call_args.push(name);
-        }
-
-        write_stub_docs(&mut output, entry, binding.extern_name, false);
-        output.push_str(&format!(
-            "pub(crate) unsafe fn {function_name}(binding: &BindingCallContext{}) -> RuntimeResult<()> {{\n",
-            if params.is_empty() {
-                String::new()
-            } else {
-                format!(", {}", params.join(", "))
-            }
-        ));
-        output.push_str(&format!(
-            "    unsafe {{ {native_alias}::{function_name}({}) }}\n",
-            call_args.join(", ")
-        ));
-        output.push_str("}\n\n");
-    }
-
-    output
-}
-
-/// Render a runtime VM forwarding stub for a runtime domain.
-pub(crate) fn render_runtime_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
-    let runtime_bindings = collect_runtime_bindings(bindings);
-    let consts = build_binding_consts(domain, &runtime_bindings);
-    let vm_types = collect_vm_stub_named_types(domain, &runtime_bindings);
-    let type_domains = collect_type_domains(domain, &runtime_bindings);
-    let vm_usage = collect_vm_stub_usage(&runtime_bindings);
-    let vm_alias = format!("{domain}_vm");
-
-    let mut output = String::new();
-    output.push_str("// generated by generate-bindings: stub, do not edit\n\n");
-    output.push_str("#![allow(unused_imports)]\n\n");
-    output.push_str("use destack_vm as vm;\n\n");
-    output.push_str("use crate::diagnostic::RuntimeResult;\n");
-    let mut vm_imports = Vec::new();
-    if vm_usage.uses_vm_slice {
-        vm_imports.push("VmSlice");
-    }
-    if vm_usage.uses_vm_array {
-        vm_imports.push("VmArray");
-    }
-    if !vm_imports.is_empty() {
-        output.push_str(&format!(
-            "use crate::platform::{{{}}};\n",
-            vm_imports.join(", ")
-        ));
-    }
-    if !type_domains.is_empty() {
-        let imports = type_domains
-            .iter()
-            .map(|domain| domain.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
-    }
-    if !vm_types.is_empty() {
-        let names = vm_types.iter().cloned().collect::<Vec<_>>().join(", ");
-        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n"));
-    }
-    output.push_str(&format!(
-        "use crate::platform::{domain}::vm as {vm_alias};\n"
-    ));
-    output.push_str("use crate::runtime::BindingCallContext;\n\n");
-
-    for binding in &consts {
-        let entry = binding.entry;
-        if entry.scope != CatalogBindingScope::Runtime {
-            continue;
-        }
-
-        let method_name = binding.implementation_fn_name.clone();
-        let return_type = render_return_type(domain, entry);
-        let params = render_params(domain, entry);
-        let mut call_args = vec!["binding".to_string(), "context".to_string()];
-        for (index, param) in entry.parameters.iter().enumerate() {
-            call_args.push(sanitize_param_name(&param.name, index));
-        }
-
-        write_stub_docs(&mut output, entry, binding.extern_name, false);
-        output.push_str(&format!("pub(crate) fn {method_name}(\n"));
-        output.push_str("    binding: &BindingCallContext,\n");
-        output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
-        for param in &params {
-            output.push_str(&format!("    {param},\n"));
-        }
-        output.push_str(&format!(") -> RuntimeResult<{return_type}> {{\n"));
-        output.push_str(&format!(
-            "    {vm_alias}::{method_name}({})\n",
-            call_args.join(", ")
-        ));
-        output.push_str("}\n\n");
-    }
-
-    output
+    ModuleStubRenderer::new().render_os_backend_mod()
 }

@@ -10,7 +10,7 @@ use destack_query::format::{format_local_type, format_type_literal};
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleRegistry, ProfileId, Program};
 
-use crate::model::{
+use super::{
     BindingEnumValue, BindingEnumVariant, BindingField, BindingParameter, BindingReturn,
     BindingTaggedUnionVariant, BindingType,
 };
@@ -61,7 +61,7 @@ impl BindingTypeSymbols {
 enum SliceKind {
     /// Borrowed slice type.
     Slice,
-    /// Owned array type.
+    /// Array type.
     Array,
     /// Readonly array type.
     ReadonlyArray,
@@ -653,7 +653,7 @@ fn platform_domain_from_uri(uri: &str) -> Option<String> {
 }
 
 /// Resolve a binding type from a global symbol.
-fn binding_type_from_symbol(
+pub(crate) fn binding_type_from_symbol(
     symbol_id: GlobalSymbolId,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -1586,7 +1586,7 @@ mod tests {
     use destack_core::StringPool;
     use destack_dir as dir;
 
-    use crate::model::BindingType;
+    use super::super::BindingType;
 
     use super::binding_type_from_scalar_literal;
 

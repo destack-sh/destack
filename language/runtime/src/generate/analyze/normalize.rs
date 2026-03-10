@@ -1,4 +1,4 @@
-use crate::model::{BindingCatalog, BindingType};
+use super::{BindingCatalog, BindingType};
 
 /// Normalize one binding catalog into one deterministic canonical shape.
 pub(crate) fn normalize_binding_catalog(mut catalog: BindingCatalog) -> BindingCatalog {
@@ -72,7 +72,7 @@ fn normalize_optional_binding_type(inner: &mut Box<BindingType>) {
 mod tests {
     use std::collections::BTreeMap;
 
-    use crate::model::{
+    use super::super::{
         BindingCatalog, BindingEntry, BindingField, BindingParameter, BindingTaggedUnionVariant,
         BindingType, CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind,
         CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload,

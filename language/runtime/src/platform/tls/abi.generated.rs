@@ -4,14 +4,18 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{
-    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
-    tls as platform_tls,
-};
+use crate::diagnostic::RuntimeError;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::PlatformError as AbiPlatformError;
+use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::runtime::BindingCallContext;
+use crate::platform::VmValueCodec;
+use crate::platform::VmAggregateCodec;
+use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::tls as platform_tls;
 
 /// ABI enum for TlsHandshakeStatus.
 #[repr(u8)]
@@ -29,22 +33,41 @@ impl VmValueCodec for TlsHandshakeStatus {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Complete,
-            1u8 => Self::WantRead,
-            2u8 => Self::WantWrite,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown TlsHandshakeStatus value",
-                ))
-                .boxed());
-            }
+            0u8 => Self::Complete, 1u8 => Self::WantRead, 2u8 => Self::WantWrite,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown TlsHandshakeStatus value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for TlsHandshakeStatus.
+pub type TlsHandshakeStatusValue = TlsHandshakeStatus;
+
+impl NativeAbiCodec for TlsHandshakeStatus {
+    type Value = TlsHandshakeStatusValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TlsHandshakeStatus {
+    type Value = TlsHandshakeStatusValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -64,22 +87,41 @@ impl VmValueCodec for TlsHostnameVerificationMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Strict,
-            1u8 => Self::AllowMismatch,
-            2u8 => Self::Disabled,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown TlsHostnameVerificationMode value",
-                ))
-                .boxed());
-            }
+            0u8 => Self::Strict, 1u8 => Self::AllowMismatch, 2u8 => Self::Disabled,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown TlsHostnameVerificationMode value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for TlsHostnameVerificationMode.
+pub type TlsHostnameVerificationModeValue = TlsHostnameVerificationMode;
+
+impl NativeAbiCodec for TlsHostnameVerificationMode {
+    type Value = TlsHostnameVerificationModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TlsHostnameVerificationMode {
+    type Value = TlsHostnameVerificationModeValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -97,21 +139,41 @@ impl VmValueCodec for TlsRole {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Client,
-            1u8 => Self::Server,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown TlsRole value",
-                ))
-                .boxed());
-            }
+            0u8 => Self::Client, 1u8 => Self::Server,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown TlsRole value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for TlsRole.
+pub type TlsRoleValue = TlsRole;
+
+impl NativeAbiCodec for TlsRole {
+    type Value = TlsRoleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TlsRole {
+    type Value = TlsRoleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -133,23 +195,41 @@ impl VmValueCodec for TlsSessionResumptionMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Disabled,
-            1u8 => Self::Stateful,
-            2u8 => Self::Stateless,
-            3u8 => Self::StatefulAndStateless,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown TlsSessionResumptionMode value",
-                ))
-                .boxed());
-            }
+            0u8 => Self::Disabled, 1u8 => Self::Stateful, 2u8 => Self::Stateless, 3u8 => Self::StatefulAndStateless,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown TlsSessionResumptionMode value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for TlsSessionResumptionMode.
+pub type TlsSessionResumptionModeValue = TlsSessionResumptionMode;
+
+impl NativeAbiCodec for TlsSessionResumptionMode {
+    type Value = TlsSessionResumptionModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TlsSessionResumptionMode {
+    type Value = TlsSessionResumptionModeValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -167,21 +247,41 @@ impl VmValueCodec for TlsSessionResumptionState {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Fresh,
-            1u8 => Self::Resumed,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown TlsSessionResumptionState value",
-                ))
-                .boxed());
-            }
+            0u8 => Self::Fresh, 1u8 => Self::Resumed,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown TlsSessionResumptionState value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for TlsSessionResumptionState.
+pub type TlsSessionResumptionStateValue = TlsSessionResumptionState;
+
+impl NativeAbiCodec for TlsSessionResumptionState {
+    type Value = TlsSessionResumptionStateValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TlsSessionResumptionState {
+    type Value = TlsSessionResumptionStateValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -199,21 +299,41 @@ impl VmValueCodec for TlsVersion {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u16 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            771u16 => Self::Tls12,
-            772u16 => Self::Tls13,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown TlsVersion value",
-                ))
-                .boxed());
-            }
+            771u16 => Self::Tls12, 772u16 => Self::Tls13,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown TlsVersion value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u16 as VmValueCodec>::encode(self as u16)
+    }
+}
+
+/// Value type for TlsVersion.
+pub type TlsVersionValue = TlsVersion;
+
+impl NativeAbiCodec for TlsVersion {
+    type Value = TlsVersionValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TlsVersion {
+    type Value = TlsVersionValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -237,55 +357,33 @@ pub type TlsContextOptionsVm = TlsContextOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for TlsContextOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("TlsContextOptionsAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("TlsContextOptionsAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for TlsContextOptionsAbi<NativeAbi> {}
 impl Clone for TlsContextOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for TlsContextOptionsAbi<VmAbi> {}
 impl Clone for TlsContextOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for TlsContextOptionsAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "TlsContextOptions",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "TlsContextOptions")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 5 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
         }
         let field_role = <TlsRole as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_min_version =
-            <TlsVersion as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_max_version =
-            <TlsVersion as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_min_version = <TlsVersion as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_max_version = <TlsVersion as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_verify_peer = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_alpn_protocols =
-            <VmSlice<VmSlice<u8>> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_alpn_protocols = <VmSlice<VmSlice<u8>> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             role: field_role,
             min_version: field_min_version,
@@ -295,27 +393,21 @@ impl VmAggregateCodec for TlsContextOptionsAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <TlsRole as VmAggregateCodec>::encode_with_context(self.role, context)?,
             <TlsVersion as VmAggregateCodec>::encode_with_context(self.min_version, context)?,
             <TlsVersion as VmAggregateCodec>::encode_with_context(self.max_version, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.verify_peer, context)?,
-            <VmSlice<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
-                self.alpn_protocols,
-                context,
-            )?,
+            <VmSlice<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(self.alpn_protocols, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
 }
 
-/// Replay struct for TlsContextOptions.
+/// Value type for TlsContextOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TlsContextOptionsReplayRecord {
+pub struct TlsContextOptionsValue {
     /// Client or server role.
     pub role: TlsRole,
     /// Minimum protocol version.
@@ -327,3 +419,67 @@ pub struct TlsContextOptionsReplayRecord {
     /// Application layer protocol identifiers in preference order.
     pub alpn_protocols: Vec<Vec<u8>>,
 }
+
+impl NativeAbiCodec for TlsContextOptionsAbi<NativeAbi> {
+    type Value = TlsContextOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(TlsContextOptionsValue {
+            role: unsafe { <TlsRole as NativeAbiCodec>::into_value(self.role)? },
+            min_version: unsafe { <TlsVersion as NativeAbiCodec>::into_value(self.min_version)? },
+            max_version: unsafe { <TlsVersion as NativeAbiCodec>::into_value(self.max_version)? },
+            verify_peer: unsafe { <bool as NativeAbiCodec>::into_value(self.verify_peer)? },
+            alpn_protocols: unsafe { <NativeSlice<NativeSlice<u8>> as NativeAbiCodec>::into_value(self.alpn_protocols)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            role: <TlsRole as NativeAbiCodec>::from_value(binding, value.role),
+            min_version: <TlsVersion as NativeAbiCodec>::from_value(binding, value.min_version),
+            max_version: <TlsVersion as NativeAbiCodec>::from_value(binding, value.max_version),
+            verify_peer: <bool as NativeAbiCodec>::from_value(binding, value.verify_peer),
+            alpn_protocols: <NativeSlice<NativeSlice<u8>> as NativeAbiCodec>::from_value(binding, value.alpn_protocols),
+        }
+    }
+}
+
+impl VmAbiCodec for TlsContextOptionsAbi<VmAbi> {
+    type Value = TlsContextOptionsValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(TlsContextOptionsValue {
+            role: <TlsRole as VmAbiCodec>::into_value(self.role, context)?,
+            min_version: <TlsVersion as VmAbiCodec>::into_value(self.min_version, context)?,
+            max_version: <TlsVersion as VmAbiCodec>::into_value(self.max_version, context)?,
+            verify_peer: <bool as VmAbiCodec>::into_value(self.verify_peer, context)?,
+            alpn_protocols: <VmSlice<VmSlice<u8>> as VmAbiCodec>::into_value(self.alpn_protocols, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            role: <TlsRole as VmAbiCodec>::from_value(context, value.role)?,
+            min_version: <TlsVersion as VmAbiCodec>::from_value(context, value.min_version)?,
+            max_version: <TlsVersion as VmAbiCodec>::from_value(context, value.max_version)?,
+            verify_peer: <bool as VmAbiCodec>::from_value(context, value.verify_peer)?,
+            alpn_protocols: <VmSlice<VmSlice<u8>> as VmAbiCodec>::from_value(context, value.alpn_protocols)?,
+        })
+    }
+}
+
+/// Replay struct for TlsContextOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TlscontextoptionsReplayRecord {
+    /// Client or server role.
+    pub role: TlsRole,
+    /// Minimum protocol version.
+    pub min_version: TlsVersion,
+    /// Maximum protocol version.
+    pub max_version: TlsVersion,
+    /// Require peer certificate validation.
+    pub verify_peer: bool,
+    /// Application layer protocol identifiers in preference order.
+    pub alpn_protocols: Vec<Vec<u8>>,
+}
+

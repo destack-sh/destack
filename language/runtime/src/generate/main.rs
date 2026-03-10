@@ -1,16 +1,13 @@
-mod app;
+mod analyze;
 mod capability;
-mod collect;
 mod emit;
 mod error;
+mod generator;
 mod model;
-mod normalize;
 mod option;
-mod refresh;
-mod types;
-mod validate;
-mod write;
+
+use generator::RuntimeGenerator;
 
 fn main() {
-    app::run();
+    RuntimeGenerator::run();
 }

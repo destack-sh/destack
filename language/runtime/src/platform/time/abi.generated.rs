@@ -4,13 +4,17 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{
-    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
-    time as platform_time,
-};
+use crate::diagnostic::RuntimeError;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::PlatformError as AbiPlatformError;
+use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::runtime::BindingCallContext;
+use crate::platform::VmValueCodec;
+use crate::platform::VmAggregateCodec;
+use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::time as platform_time;
 
 /// ABI newtype for TimerFlags.
 #[repr(transparent)]
@@ -29,6 +33,33 @@ impl VmValueCodec for TimerFlags {
 
     fn encode(self) -> vm::Value {
         <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for TimerFlags.
+pub type TimerFlagsValue = TimerFlags;
+
+impl NativeAbiCodec for TimerFlags {
+    type Value = TimerFlagsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TimerFlags {
+    type Value = TimerFlagsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -54,25 +85,41 @@ impl VmValueCodec for ClockId {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Wall,
-            2u8 => Self::Monotonic,
-            3u8 => Self::ProcessCpu,
-            4u8 => Self::ThreadCpu,
-            5u8 => Self::Boot,
-            6u8 => Self::MonotonicRaw,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown ClockId value",
-                ))
-                .boxed());
-            }
+            1u8 => Self::Wall, 2u8 => Self::Monotonic, 3u8 => Self::ProcessCpu, 4u8 => Self::ThreadCpu, 5u8 => Self::Boot, 6u8 => Self::MonotonicRaw,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown ClockId value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for ClockId.
+pub type ClockIdValue = ClockId;
+
+impl NativeAbiCodec for ClockId {
+    type Value = ClockIdValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ClockId {
+    type Value = ClockIdValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -94,23 +141,41 @@ impl VmValueCodec for ClockSource {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Realtime,
-            2u8 => Self::Monotonic,
-            3u8 => Self::PerformanceCounter,
-            4u8 => Self::Virtual,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown ClockSource value",
-                ))
-                .boxed());
-            }
+            1u8 => Self::Realtime, 2u8 => Self::Monotonic, 3u8 => Self::PerformanceCounter, 4u8 => Self::Virtual,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown ClockSource value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for ClockSource.
+pub type ClockSourceValue = ClockSource;
+
+impl NativeAbiCodec for ClockSource {
+    type Value = ClockSourceValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ClockSource {
+    type Value = ClockSourceValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -128,21 +193,41 @@ impl VmValueCodec for SleepClock {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Wall,
-            2u8 => Self::Monotonic,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown SleepClock value",
-                ))
-                .boxed());
-            }
+            1u8 => Self::Wall, 2u8 => Self::Monotonic,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown SleepClock value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for SleepClock.
+pub type SleepClockValue = SleepClock;
+
+impl NativeAbiCodec for SleepClock {
+    type Value = SleepClockValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SleepClock {
+    type Value = SleepClockValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -160,21 +245,41 @@ impl VmValueCodec for TimerClock {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Wall,
-            2u8 => Self::Monotonic,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown TimerClock value",
-                ))
-                .boxed());
-            }
+            1u8 => Self::Wall, 2u8 => Self::Monotonic,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown TimerClock value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for TimerClock.
+pub type TimerClockValue = TimerClock;
+
+impl NativeAbiCodec for TimerClock {
+    type Value = TimerClockValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TimerClock {
+    type Value = TimerClockValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -195,34 +300,18 @@ pub struct ClockMetadata {
 pub type ClockMetadataVm = ClockMetadata;
 
 impl VmAggregateCodec for ClockMetadata {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ClockMetadata",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ClockMetadata")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 4 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
         }
         let field_id = <ClockId as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_source =
-            <ClockSource as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_resolution_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_is_monotonic =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_source = <ClockSource as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_resolution_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_is_monotonic = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             id: field_id,
             source: field_source,
@@ -231,10 +320,7 @@ impl VmAggregateCodec for ClockMetadata {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <ClockId as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <ClockSource as VmAggregateCodec>::encode_with_context(self.source, context)?,
@@ -242,6 +328,33 @@ impl VmAggregateCodec for ClockMetadata {
             <bool as VmAggregateCodec>::encode_with_context(self.is_monotonic, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ClockMetadata.
+pub type ClockMetadataValue = ClockMetadata;
+
+impl NativeAbiCodec for ClockMetadata {
+    type Value = ClockMetadataValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ClockMetadata {
+    type Value = ClockMetadataValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -258,26 +371,13 @@ pub struct TimerOptions {
 pub type TimerOptionsVm = TimerOptions;
 
 impl VmAggregateCodec for TimerOptions {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "TimerOptions",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "TimerOptions")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
         let field_clock = <TimerClock as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_flags = <TimerFlags as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -287,10 +387,7 @@ impl VmAggregateCodec for TimerOptions {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <TimerClock as VmAggregateCodec>::encode_with_context(self.clock, context)?,
             <TimerFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
@@ -298,3 +395,31 @@ impl VmAggregateCodec for TimerOptions {
         Ok(context.allocate_aggregate(slots))
     }
 }
+
+/// Value type for TimerOptions.
+pub type TimerOptionsValue = TimerOptions;
+
+impl NativeAbiCodec for TimerOptions {
+    type Value = TimerOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TimerOptions {
+    type Value = TimerOptionsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+

@@ -4,10 +4,15 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, core as platform_core};
+use crate::diagnostic::RuntimeError;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::PlatformError as AbiPlatformError;
+use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::runtime::BindingCallContext;
+use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::core as platform_core;
 
 /// ABI enum for BackendSupport.
 #[repr(u8)]
@@ -27,17 +32,8 @@ impl VmValueCodec for BackendSupport {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Available,
-            1u8 => Self::UnsupportedTarget,
-            2u8 => Self::DisabledByBuild,
-            3u8 => Self::HostUnavailable,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown BackendSupport value",
-                ))
-                .boxed());
-            }
+            0u8 => Self::Available, 1u8 => Self::UnsupportedTarget, 2u8 => Self::DisabledByBuild, 3u8 => Self::HostUnavailable,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown BackendSupport value")).boxed()),
         };
         Ok(decoded)
     }
@@ -46,3 +42,31 @@ impl VmValueCodec for BackendSupport {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
+
+/// Value type for BackendSupport.
+pub type BackendSupportValue = BackendSupport;
+
+impl NativeAbiCodec for BackendSupport {
+    type Value = BackendSupportValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BackendSupport {
+    type Value = BackendSupportValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+

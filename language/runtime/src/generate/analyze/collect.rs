@@ -10,13 +10,11 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::{Platform, ProfileId, Program};
 
-use crate::model::{
-    BindingCatalog, BindingEntry, BindingReturn, BindingType, CatalogBindingAffinity,
-    CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
+use super::{
+    BindingCatalog, BindingEntry, BindingParameter, BindingReturn, BindingType,
+    CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
     CatalogBindingSimulation, CatalogEffectClass, CatalogEntropyKind, CatalogReplayPayload,
-    CatalogReplayPolicy, ConstantCatalog, ConstantEntry, ConstantValue,
-};
-use crate::types::{
+    CatalogReplayPolicy, ConstantCatalog, ConstantEntry, ConstantValue, binding_type_from_symbol,
     binding_type_from_type_id, binding_type_symbols, collect_binding_params,
     collect_binding_return, format_declared_signature,
 };
@@ -33,7 +31,7 @@ struct BindingRecord {
     /// Canonical signature string for stability checks.
     signature: String,
     /// Parameter metadata payload.
-    params: Vec<crate::model::BindingParameter>,
+    params: Vec<BindingParameter>,
     /// Return binding type for generated wrappers.
     return_binding: BindingReturn,
     /// Effect classification for replay and policy.
@@ -346,6 +344,58 @@ pub(crate) fn collect_platform_constants(
     domains
 }
 
+/// Collect exported platform type declarations from builtin modules.
+pub(crate) fn collect_platform_types(
+    program: &Program,
+    strings: &StringPool,
+    profile_id: ProfileId,
+    platform_modules: &[ModuleId],
+) -> Vec<BindingType> {
+    // collect binding type symbols for declaration lowering
+    let binding_symbols = binding_type_symbols(program, profile_id);
+
+    // accumulate exported platform types
+    let mut binding_types = Vec::new();
+
+    // scan each platform module for exported type declarations
+    for module_id in platform_modules {
+        let module = program.modules.get(*module_id);
+        let module = module.read();
+
+        let dir = module.dir(profile_id);
+        let tree = dir.tree.read();
+
+        // collect exported type-like declarations
+        for (_declaration_id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
+            let descriptor = declaration.descriptor();
+            if descriptor.export.is_none() {
+                continue;
+            }
+
+            // lower exported nominal binding types
+            let binding_type = match declaration {
+                Declaration::Type { .. }
+                | Declaration::Struct { .. }
+                | Declaration::Enum { .. } => {
+                    let symbol_id = declaration.symbol().into_global(module.id);
+                    binding_type_from_symbol(
+                        symbol_id,
+                        &program.modules,
+                        strings,
+                        profile_id,
+                        &binding_symbols,
+                    )
+                }
+
+                _ => continue,
+            };
+            binding_types.push(binding_type);
+        }
+    }
+
+    binding_types
+}
+
 /// Return whether one binding type can store integer constant payloads.
 fn binding_type_supports_integer_constants(binding_type: &BindingType) -> bool {
     match binding_type {
@@ -552,7 +602,7 @@ fn binding_from_node(
     documentation: Option<String>,
     extern_name: Option<String>,
     signature: String,
-    params: Vec<crate::model::BindingParameter>,
+    params: Vec<BindingParameter>,
     return_binding: BindingReturn,
     effect_class: CatalogEffectClass,
     replay_payload: CatalogReplayPayload,
@@ -1301,7 +1351,7 @@ fn scalar_string_literal(
 
 #[cfg(test)]
 mod tests {
-    use crate::model::{BindingType, CatalogBindingReplayKind, CatalogEntropyKind};
+    use super::super::{BindingType, CatalogBindingReplayKind, CatalogEntropyKind};
 
     use super::{
         binding_replay_kind_for_name, binding_type_supports_integer_constants,
