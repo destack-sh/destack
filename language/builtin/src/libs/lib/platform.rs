@@ -50,12 +50,6 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
-            LIB_PLATFORM_AUDIO_MIDI_DS,
-            "lib",
-            "platform/audio",
-            "midi.ds"
-        ),
-        (
             LIB_PLATFORM_AUDIO_STREAM_DS,
             "lib",
             "platform/audio",
@@ -478,6 +472,43 @@ builtin_lib_sources_targeted!(
             "types.ds"
         ),
         (
+            LIB_PLATFORM_MIDI_BACKEND_DS,
+            "lib",
+            "platform/midi",
+            "backend.ds"
+        ),
+        (
+            LIB_PLATFORM_MIDI_EVENT_DS,
+            "lib",
+            "platform/midi",
+            "event.ds"
+        ),
+        (
+            LIB_PLATFORM_MIDI_INDEX_DS,
+            "lib",
+            "platform/midi",
+            "index.ds"
+        ),
+        (
+            LIB_PLATFORM_MIDI_INPUT_DS,
+            "lib",
+            "platform/midi",
+            "input.ds"
+        ),
+        (
+            LIB_PLATFORM_MIDI_OUTPUT_DS,
+            "lib",
+            "platform/midi",
+            "output.ds"
+        ),
+        (LIB_PLATFORM_MIDI_PORT_DS, "lib", "platform/midi", "port.ds"),
+        (
+            LIB_PLATFORM_MIDI_PROTOCOL_DS,
+            "lib",
+            "platform/midi",
+            "protocol.ds"
+        ),
+        (
             LIB_PLATFORM_NET_ADDRESS_DS,
             "lib",
             "platform/net",
@@ -756,7 +787,7 @@ builtin_lib_sources_targeted!(
             "lineage.ds"
         ),
         (
-            LIB_PLATFORM_RUNTIME_OBSERVE_DS,
+            LIB_PLATFORM_RUNTIME_OBSERVATION_DS,
             "lib",
             "platform/runtime",
             "observation.ds"
@@ -904,7 +935,6 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_AUDIO_DEVICE_DS,
         LIB_PLATFORM_AUDIO_EVENT_DS,
         LIB_PLATFORM_AUDIO_INDEX_DS,
-        LIB_PLATFORM_AUDIO_MIDI_DS,
         LIB_PLATFORM_AUDIO_STREAM_DS,
         LIB_PLATFORM_CORE_BACKEND_DS,
         LIB_PLATFORM_CORE_INDEX_DS,
@@ -997,6 +1027,13 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_MEMORY_PROTECT_DS,
         LIB_PLATFORM_MEMORY_QUERY_DS,
         LIB_PLATFORM_MEMORY_TYPES_DS,
+        LIB_PLATFORM_MIDI_BACKEND_DS,
+        LIB_PLATFORM_MIDI_EVENT_DS,
+        LIB_PLATFORM_MIDI_INDEX_DS,
+        LIB_PLATFORM_MIDI_INPUT_DS,
+        LIB_PLATFORM_MIDI_OUTPUT_DS,
+        LIB_PLATFORM_MIDI_PORT_DS,
+        LIB_PLATFORM_MIDI_PROTOCOL_DS,
         LIB_PLATFORM_NET_ADDRESS_DS,
         LIB_PLATFORM_NET_INDEX_DS,
         LIB_PLATFORM_NET_INTERFACE_DS,
@@ -1055,7 +1092,7 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_RUNTIME_INDEX_DS,
         LIB_PLATFORM_RUNTIME_INSPECT_DS,
         LIB_PLATFORM_RUNTIME_LINEAGE_DS,
-        LIB_PLATFORM_RUNTIME_OBSERVE_DS,
+        LIB_PLATFORM_RUNTIME_OBSERVATION_DS,
         LIB_PLATFORM_RUNTIME_SNAPSHOT_DS,
         LIB_PLATFORM_RUNTIME_TRACE_DS,
         LIB_PLATFORM_RUNTIME_TYPES_DS,
