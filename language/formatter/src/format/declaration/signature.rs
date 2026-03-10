@@ -510,15 +510,13 @@ fn preserve_blank_line_before_parameter_with_separator_comments(
     // preserve blank lines between that cluster and the next parameter
     if let Some(previous_separator_source) =
         separator_line_comment_sources[parameter_index - 1].as_ref()
+        && previous_separator_source.is_own_line
+        && let Some(last_comment_id) = previous_separator_source.comment_ids.last().copied()
     {
-        if previous_separator_source.is_own_line {
-            if let Some(last_comment_id) = previous_separator_source.comment_ids.last().copied() {
-                let last_comment_span = context.span(last_comment_id);
-                let right_parameter_span = context.span(right_parameter_id);
-                if let Some(between_span) = last_comment_span.gap_to(right_parameter_span) {
-                    return context.has_blank_line(between_span);
-                }
-            }
+        let last_comment_span = context.span(last_comment_id);
+        let right_parameter_span = context.span(right_parameter_id);
+        if let Some(between_span) = last_comment_span.gap_to(right_parameter_span) {
+            return context.has_blank_line(between_span);
         }
     }
 
@@ -552,13 +550,12 @@ fn write_signature_separator_comment_multiline_parameter_list<'ast>(
             }
         }
 
-        if let Some(comment_source) = separator_line_comment_sources[index].as_ref() {
-            if !parameter_is_variadic(f.context(), *parameter_id)
-                && write_parameter_without_separator_line_comment(f, *parameter_id)?
-            {
-                write_separator_line_comment_after_comma(f, comment_source)?;
-                continue;
-            }
+        if let Some(comment_source) = separator_line_comment_sources[index].as_ref()
+            && !parameter_is_variadic(f.context(), *parameter_id)
+            && write_parameter_without_separator_line_comment(f, *parameter_id)?
+        {
+            write_separator_line_comment_after_comma(f, comment_source)?;
+            continue;
         }
 
         write!(f, [group(parameter_id)])?;
