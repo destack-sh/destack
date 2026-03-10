@@ -138,8 +138,14 @@ export newtype AudioStreamHandle = ResourceId;
 /// Handle for one audio event subscription endpoint.
 export newtype AudioEventHandle = ResourceId;
 
-/// Handle for one MIDI endpoint.
-export newtype MidiPortHandle = ResourceId;
+/// Handle for one opened MIDI input endpoint.
+export newtype MidiInputPortHandle = ResourceId;
+
+/// Handle for one opened MIDI output endpoint.
+export newtype MidiOutputPortHandle = ResourceId;
+
+/// Handle for one MIDI topology event stream.
+export newtype MidiEventHandle = ResourceId;
 
 /// Handle for one display device endpoint.
 export newtype DisplayHandle = ResourceId;

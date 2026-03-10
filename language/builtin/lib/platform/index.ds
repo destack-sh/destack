@@ -12,6 +12,7 @@ export { input } from "./input/index.ds";
 export { io } from "./io/index.ds";
 export { ipc } from "./ipc/index.ds";
 export { memory } from "./memory/index.ds";
+export { midi } from "./midi/index.ds";
 export { net } from "./net/index.ds";
 export { os } from "./os/index.ds";
 export { process } from "./process/index.ds";
