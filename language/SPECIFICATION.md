@@ -445,7 +445,9 @@ const v: Add<Vec2> = Vec2 { x: 1, y: 2 }  // OK: Vec2 implements Add
 
 Nominal interfaces are used for:
 - **Operator interfaces** (`Add`, `Compare`, `Equal`, etc.) to prevent accidental operator overloading
-- **Marker traits** (`Send`, `Sync`, `Copy`) for compile-time capabilities
+- **Capability traits** (`Send`, `Sync`, `Copy`) for compile-time capabilities
+
+Ordinary interfaces may also define explicit protocols such as `Clone`.
 
 The `newtype` modifier follows the same pattern as `newtype` on type aliases—it makes the interface nominal.
 Extending a nominal interface produces a nominal interface (nominality is inherited).
@@ -1422,9 +1424,9 @@ x if x.isValid()     // with method call
 
 ### Try, Results and Errors (and Exceptions)
 
-Destack uses **Result-first error handling**: recoverable errors use `Result<T, E>`, while `throw` is reserved for unrecoverable panics.
+Destack uses **Result-first error handling**: recoverable errors use `Result<T, E>`, while exceptions exist for compatibility, interop, and migration.
 The builtin `Error` interface is the conventional error shape, but any type can be used as `E`.
-For compatibility with existing JS/TS, we also recognize `throw` in JS/TS targets.
+`Result<T, E>` with `?` and `??` remains the preferred everyday style.
 
 #### Try protocol
 
@@ -1498,12 +1500,13 @@ try {
 }
 ```
 
-The example uses `Result`, but any type implementing `Try` behaves the same.
-`try` does not implicitly unwrap `Result` values.
-Use `?` or `??` inside the block to propagate `Try` errors into the catch.
-When a `?` is inside a `try` with a catch, `Try.fromError` is not required.
-Exceptions still propagate into the catch on JS targets, or are rejected by `no_exceptions` on native.
-A try expression must include a catch or finally block.
+ALl types implementing `Try` support `try`/`catch` propagation, including the standard lirbary `Result`:
+ - Note that `try` does not implicitly unwrap `Result` values.
+ - Use `?` or `??` inside the block to propagate `Try` errors into the catch.
+ - When a `?` is inside a `try` with a catch, `Try.fromError` is not required.
+
+Thrown exceptions propagate into the catch in the usual way when exceptions are enabled.
+As usual, a try expression must include a catch or finally block.
 
 ```ds
 try {
@@ -1515,10 +1518,10 @@ try {
 }
 ```
 
-#### Panic
+#### throw and native exceptions
 
-`throw` is intended for **unrecoverable errors**: assertion failures, invariant violations, bugs.
-Panics indicate programmer error, not conditions the caller should handle.
+`throw` supports exception-style control flow for compatibility with JS/TS and with exception-oriented ecosystems like Java and C#.
+Destack still prefers `Result` for ordinary recoverable errors, especially in performance-critical code.
 
 ```ds
 function unwrap<T>(r: Result<T, Error>): T {
@@ -1528,9 +1531,6 @@ function unwrap<T>(r: Result<T, Error>): T {
     }
 }
 ```
-
-**Native targets:** `throw` aborts the process immediately. No stack unwinding, no catching.
-**JS targets:** `throw` behaves as normal JavaScript throw for compatibility.
 
 ### Using
 `using` declares a resource that will be disposed when the current **lexical scope** exits.
@@ -2428,6 +2428,10 @@ print(node.value); // error: use after ownership transfer
 Passing a `^T` by value transfers ownership to the callee.
 Use `^expr` to convert a value `T` into an owning handle `^T`.
 If you already have `^T`, pass it directly instead of writing `^expr`.
+`Copy` and `Clone` do not weaken `^T` affine semantics.
+They apply to plain values and explicit duplication, not to implicit owner taking fallback.
+If a function requires `^T`, the argument is moved.
+The compiler does not silently copy a `Copy` value just to satisfy an owning parameter.
 
 Using a value after ownership transfer is an error (suppressible to warning).
 
@@ -2444,6 +2448,43 @@ function process() {
     log("done");                       // data can be dropped before this line
 }
 ```
+
+### Borrow checking
+
+Destack's borrow checking is provenance based, i.e., based on the origin roots of a borrowed value (similar to Mojo).
+Each borrow has one or more origin roots that identify the owners or storage locations it depends on.
+
+**Origin roots:**
+
+- A borrow taken from a parameter has that parameter as its origin root.
+- A borrow taken from a local, stack allocation, global, or owned value has that storage as its origin root.
+- A borrow returned from a call uses the roots described by the callee's lifetime contract.
+- A borrow of static or global only data uses the `Static` origin.
+
+**Derived borrows:**
+
+- Reborrowing a borrow preserves the same origin roots.
+- Borrowing a field, element, or view of a value derives a borrow with the same roots as the base value.
+- Casting between borrow forms preserves provenance when the conversion is safe and non-owning.
+
+**Merged borrows:**
+
+- When control flow merges borrows from different origins, the resulting borrow carries the union of all possible roots.
+- Function lifetime summaries may therefore mention multiple parameters.
+- The compiler may reject a borrow only when it cannot represent the required provenance conservatively.
+
+**Invalidation:**
+
+- Moving an owned value invalidates the previous binding and every borrow rooted in it.
+- Dropping or freeing a value invalidates every borrow rooted in that value.
+- Mutating through an exclusive path invalidates conflicting readonly borrows according to the borrow rules.
+- Storing through raw pointers or unknown aliases may conservatively invalidate precise provenance facts.
+
+**Lifetime summaries:**
+
+- A function lifetime annotation describes the provenance roots that a returned borrow may depend on.
+- It does not encode the entire internal borrow graph or every derived reborrow step.
+- The inferred default follows normal receiver and parameter based borrowing conventions.
 
 **Suspension points (`await` and `yield`):**
 
@@ -2500,6 +2541,12 @@ Explicit conversions:
 - `&T` → `T` requires `Copy` or an explicit clone
 - `&T` → `^T` requires an explicit clone and ownership transfer
 - `*T` conversions require explicit unsafe operations
+
+Copy and clone conversions:
+- Passing plain `T` may copy when the type implements `Copy`.
+- Explicit duplication may use `Clone` when the type exposes that protocol.
+- Passing `^T` never performs an implicit copy fallback, even when `T: Copy`.
+- To produce a second owner, first copy or clone the underlying value, then convert or move that new value explicitly.
 
 Example (implicit borrow):
 
