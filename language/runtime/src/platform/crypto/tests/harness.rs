@@ -177,6 +177,22 @@ fn vm_string_from_native(
     Ok(vm::StringHandle::new(context.intern_string(value)))
 }
 
+/// Convert one optional native string into one optional VM string handle.
+fn vm_optional_string_from_native(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: Option<NativeStringRef>,
+) -> RuntimeResult<Option<vm::StringHandle>> {
+    // route absent values through unchanged
+    let Some(value) = value else {
+        return Ok(None);
+    };
+
+    // convert the present native string value
+    let value = vm_string_from_native(context, value)?;
+
+    Ok(Some(value))
+}
+
 /// Convert one native byte slice into one VM byte slice.
 fn vm_bytes_from_native(
     context: &mut vm::ExternalCallContext<'_>,
@@ -191,6 +207,22 @@ fn vm_bytes_from_native(
     Ok(value)
 }
 
+/// Convert one optional native byte slice into one optional VM byte slice.
+fn vm_optional_bytes_from_native(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: Option<NativeSlice<u8>>,
+) -> RuntimeResult<Option<VmSlice<u8>>> {
+    // route absent values through unchanged
+    let Some(value) = value else {
+        return Ok(None);
+    };
+
+    // convert the present native byte slice
+    let value = vm_bytes_from_native(context, value)?;
+
+    Ok(Some(value))
+}
+
 /// Convert one native typed slice into one VM typed slice.
 fn vm_slice_from_native<T: Copy + VmValueCodec>(
     context: &mut vm::ExternalCallContext<'_>,
@@ -203,6 +235,44 @@ fn vm_slice_from_native<T: Copy + VmValueCodec>(
     let value = VmSlice::from_values(context, value)?;
 
     Ok(value)
+}
+
+/// Decode one optional native string into owned text.
+fn optional_native_string_to_string(value: Option<NativeStringRef>) -> RuntimeResult<String> {
+    // decode absent values as empty strings for harness comparisons
+    let Some(value) = value else {
+        return Ok(String::new());
+    };
+
+    // decode one present native string
+    let value = unsafe { value.as_str()? };
+
+    Ok(value.to_string())
+}
+
+/// Decode one optional vm string into owned text.
+fn optional_vm_string_to_string(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: Option<vm::StringHandle>,
+) -> RuntimeResult<String> {
+    // decode absent values as empty strings for harness comparisons
+    let Some(value) = value else {
+        return Ok(String::new());
+    };
+
+    // decode one present vm string
+    let value = context
+        .string_ref(value)
+        .map_err(|error| RuntimeError::from(error).boxed())?
+        .as_str()
+        .to_string();
+
+    Ok(value)
+}
+
+/// Return one harness store provider default.
+fn store_provider_or_default(provider: Option<CryptoStoreProvider>) -> CryptoStoreProvider {
+    provider.unwrap_or(CryptoStoreProvider::OpenSsl)
 }
 
 impl<'call> CryptoHarnessContext<'call> {
@@ -431,11 +501,12 @@ impl<'call> CryptoHarnessContext<'call> {
         // decode store provenance from native or vm certificate descriptor values
         match value {
             HarnessValue::Native(value) => {
-                let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
+                let namespace =
+                    optional_native_string_to_string(value.store_provenance.identity.namespace)?;
                 Ok((
                     value.store_provenance.identity.kind,
-                    value.store_provenance.identity.provider,
-                    namespace.to_string(),
+                    store_provider_or_default(value.store_provenance.identity.provider),
+                    namespace,
                 ))
             }
             HarnessValue::Vm(value) => {
@@ -447,14 +518,11 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let namespace = context
-                    .string_ref(value.store_provenance.identity.namespace)
-                    .map_err(|error| RuntimeError::from(error).boxed())?
-                    .as_str()
-                    .to_string();
+                let namespace =
+                    optional_vm_string_to_string(context, value.store_provenance.identity.namespace)?;
                 Ok((
                     value.store_provenance.identity.kind,
-                    value.store_provenance.identity.provider,
+                    store_provider_or_default(value.store_provenance.identity.provider),
                     namespace,
                 ))
             }
@@ -504,75 +572,93 @@ impl<'call> CryptoHarnessContext<'call> {
         match value {
             HarnessValue::Native(value) => match value {
                 CryptoKeyDescriptor::CryptoKeyDescriptorAes(value) => {
-                    let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
+                    let namespace = optional_native_string_to_string(
+                        value.store_provenance.identity.namespace,
+                    )?;
                     Ok((
                         value.store_provenance.identity.kind,
-                        value.store_provenance.identity.provider,
-                        namespace.to_string(),
+                        store_provider_or_default(value.store_provenance.identity.provider),
+                        namespace,
                     ))
                 }
                 CryptoKeyDescriptor::CryptoKeyDescriptorChaCha20(value) => {
-                    let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
+                    let namespace = optional_native_string_to_string(
+                        value.store_provenance.identity.namespace,
+                    )?;
                     Ok((
                         value.store_provenance.identity.kind,
-                        value.store_provenance.identity.provider,
-                        namespace.to_string(),
+                        store_provider_or_default(value.store_provenance.identity.provider),
+                        namespace,
                     ))
                 }
                 CryptoKeyDescriptor::CryptoKeyDescriptorEc(value) => {
-                    let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
+                    let namespace = optional_native_string_to_string(
+                        value.store_provenance.identity.namespace,
+                    )?;
                     Ok((
                         value.store_provenance.identity.kind,
-                        value.store_provenance.identity.provider,
-                        namespace.to_string(),
+                        store_provider_or_default(value.store_provenance.identity.provider),
+                        namespace,
                     ))
                 }
                 CryptoKeyDescriptor::CryptoKeyDescriptorEd25519(value) => {
-                    let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
+                    let namespace = optional_native_string_to_string(
+                        value.store_provenance.identity.namespace,
+                    )?;
                     Ok((
                         value.store_provenance.identity.kind,
-                        value.store_provenance.identity.provider,
-                        namespace.to_string(),
+                        store_provider_or_default(value.store_provenance.identity.provider),
+                        namespace,
                     ))
                 }
                 CryptoKeyDescriptor::CryptoKeyDescriptorEd448(value) => {
-                    let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
+                    let namespace = optional_native_string_to_string(
+                        value.store_provenance.identity.namespace,
+                    )?;
                     Ok((
                         value.store_provenance.identity.kind,
-                        value.store_provenance.identity.provider,
-                        namespace.to_string(),
+                        store_provider_or_default(value.store_provenance.identity.provider),
+                        namespace,
                     ))
                 }
                 CryptoKeyDescriptor::CryptoKeyDescriptorHmac(value) => {
-                    let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
+                    let namespace = optional_native_string_to_string(
+                        value.store_provenance.identity.namespace,
+                    )?;
                     Ok((
                         value.store_provenance.identity.kind,
-                        value.store_provenance.identity.provider,
-                        namespace.to_string(),
+                        store_provider_or_default(value.store_provenance.identity.provider),
+                        namespace,
                     ))
                 }
                 CryptoKeyDescriptor::CryptoKeyDescriptorRsa(value) => {
-                    let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
+                    let namespace = optional_native_string_to_string(
+                        value.store_provenance.identity.namespace,
+                    )?;
                     Ok((
                         value.store_provenance.identity.kind,
-                        value.store_provenance.identity.provider,
-                        namespace.to_string(),
+                        store_provider_or_default(value.store_provenance.identity.provider),
+                        namespace,
                     ))
                 }
                 CryptoKeyDescriptor::CryptoKeyDescriptorX25519(value) => {
-                    let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
+                    let namespace = optional_native_string_to_string(
+                        value.store_provenance.identity.namespace,
+                    )?;
                     Ok((
                         value.store_provenance.identity.kind,
-                        value.store_provenance.identity.provider,
-                        namespace.to_string(),
+                        store_provider_or_default(value.store_provenance.identity.provider),
+                        namespace,
                     ))
                 }
                 CryptoKeyDescriptor::CryptoKeyDescriptorX448(value) => {
-                    let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
+                    let namespace = optional_native_string_to_string(
+                        value.store_provenance.identity.namespace,
+                    )?;
                     Ok((
                         value.store_provenance.identity.kind,
-                        value.store_provenance.identity.provider,
-                        namespace.to_string(),
+                        store_provider_or_default(value.store_provenance.identity.provider),
+                        namespace,
                     ))
                 }
             },
@@ -587,110 +673,101 @@ impl<'call> CryptoHarnessContext<'call> {
                 })?;
                 match value {
                     CryptoKeyDescriptorVm::CryptoKeyDescriptorAes(value) => {
-                        let namespace = context
-                            .string_ref(value.store_provenance.identity.namespace)
-                            .map_err(|error| RuntimeError::from(error).boxed())?
-                            .as_str()
-                            .to_string();
+                        let namespace = optional_vm_string_to_string(
+                            context,
+                            value.store_provenance.identity.namespace,
+                        )?;
                         Ok((
                             value.store_provenance.identity.kind,
-                            value.store_provenance.identity.provider,
+                            store_provider_or_default(value.store_provenance.identity.provider),
                             namespace,
                         ))
                     }
                     CryptoKeyDescriptorVm::CryptoKeyDescriptorChaCha20(value) => {
-                        let namespace = context
-                            .string_ref(value.store_provenance.identity.namespace)
-                            .map_err(|error| RuntimeError::from(error).boxed())?
-                            .as_str()
-                            .to_string();
+                        let namespace = optional_vm_string_to_string(
+                            context,
+                            value.store_provenance.identity.namespace,
+                        )?;
                         Ok((
                             value.store_provenance.identity.kind,
-                            value.store_provenance.identity.provider,
+                            store_provider_or_default(value.store_provenance.identity.provider),
                             namespace,
                         ))
                     }
                     CryptoKeyDescriptorVm::CryptoKeyDescriptorEc(value) => {
-                        let namespace = context
-                            .string_ref(value.store_provenance.identity.namespace)
-                            .map_err(|error| RuntimeError::from(error).boxed())?
-                            .as_str()
-                            .to_string();
+                        let namespace = optional_vm_string_to_string(
+                            context,
+                            value.store_provenance.identity.namespace,
+                        )?;
                         Ok((
                             value.store_provenance.identity.kind,
-                            value.store_provenance.identity.provider,
+                            store_provider_or_default(value.store_provenance.identity.provider),
                             namespace,
                         ))
                     }
                     CryptoKeyDescriptorVm::CryptoKeyDescriptorEd25519(value) => {
-                        let namespace = context
-                            .string_ref(value.store_provenance.identity.namespace)
-                            .map_err(|error| RuntimeError::from(error).boxed())?
-                            .as_str()
-                            .to_string();
+                        let namespace = optional_vm_string_to_string(
+                            context,
+                            value.store_provenance.identity.namespace,
+                        )?;
                         Ok((
                             value.store_provenance.identity.kind,
-                            value.store_provenance.identity.provider,
+                            store_provider_or_default(value.store_provenance.identity.provider),
                             namespace,
                         ))
                     }
                     CryptoKeyDescriptorVm::CryptoKeyDescriptorEd448(value) => {
-                        let namespace = context
-                            .string_ref(value.store_provenance.identity.namespace)
-                            .map_err(|error| RuntimeError::from(error).boxed())?
-                            .as_str()
-                            .to_string();
+                        let namespace = optional_vm_string_to_string(
+                            context,
+                            value.store_provenance.identity.namespace,
+                        )?;
                         Ok((
                             value.store_provenance.identity.kind,
-                            value.store_provenance.identity.provider,
+                            store_provider_or_default(value.store_provenance.identity.provider),
                             namespace,
                         ))
                     }
                     CryptoKeyDescriptorVm::CryptoKeyDescriptorHmac(value) => {
-                        let namespace = context
-                            .string_ref(value.store_provenance.identity.namespace)
-                            .map_err(|error| RuntimeError::from(error).boxed())?
-                            .as_str()
-                            .to_string();
+                        let namespace = optional_vm_string_to_string(
+                            context,
+                            value.store_provenance.identity.namespace,
+                        )?;
                         Ok((
                             value.store_provenance.identity.kind,
-                            value.store_provenance.identity.provider,
+                            store_provider_or_default(value.store_provenance.identity.provider),
                             namespace,
                         ))
                     }
                     CryptoKeyDescriptorVm::CryptoKeyDescriptorRsa(value) => {
-                        let namespace = context
-                            .string_ref(value.store_provenance.identity.namespace)
-                            .map_err(|error| RuntimeError::from(error).boxed())?
-                            .as_str()
-                            .to_string();
+                        let namespace = optional_vm_string_to_string(
+                            context,
+                            value.store_provenance.identity.namespace,
+                        )?;
                         Ok((
                             value.store_provenance.identity.kind,
-                            value.store_provenance.identity.provider,
+                            store_provider_or_default(value.store_provenance.identity.provider),
                             namespace,
                         ))
                     }
                     CryptoKeyDescriptorVm::CryptoKeyDescriptorX25519(value) => {
-                        let namespace = context
-                            .string_ref(value.store_provenance.identity.namespace)
-                            .map_err(|error| RuntimeError::from(error).boxed())?
-                            .as_str()
-                            .to_string();
+                        let namespace = optional_vm_string_to_string(
+                            context,
+                            value.store_provenance.identity.namespace,
+                        )?;
                         Ok((
                             value.store_provenance.identity.kind,
-                            value.store_provenance.identity.provider,
+                            store_provider_or_default(value.store_provenance.identity.provider),
                             namespace,
                         ))
                     }
                     CryptoKeyDescriptorVm::CryptoKeyDescriptorX448(value) => {
-                        let namespace = context
-                            .string_ref(value.store_provenance.identity.namespace)
-                            .map_err(|error| RuntimeError::from(error).boxed())?
-                            .as_str()
-                            .to_string();
+                        let namespace = optional_vm_string_to_string(
+                            context,
+                            value.store_provenance.identity.namespace,
+                        )?;
                         Ok((
                             value.store_provenance.identity.kind,
-                            value.store_provenance.identity.provider,
+                            store_provider_or_default(value.store_provenance.identity.provider),
                             namespace,
                         ))
                     }
@@ -838,7 +915,7 @@ impl<'call> CryptoHarnessContext<'call> {
                 let key_wrap_capabilities = unsafe { value.key_wrap_capabilities.as_slice()? };
                 Ok(HarnessStoreCapability {
                     kind: value.identity.kind,
-                    provider: value.identity.provider,
+                    provider: store_provider_or_default(value.identity.provider),
                     is_available: value.is_available,
                     supports_hardware_backed: value.supports_hardware_backed,
                     supports_persistent: value.supports_persistent,
@@ -882,7 +959,7 @@ impl<'call> CryptoHarnessContext<'call> {
                 )?;
                 Ok(HarnessStoreCapability {
                     kind: value.identity.kind,
-                    provider: value.identity.provider,
+                    provider: store_provider_or_default(value.identity.provider),
                     is_available: value.is_available,
                     supports_hardware_backed: value.supports_hardware_backed,
                     supports_persistent: value.supports_persistent,
@@ -929,12 +1006,17 @@ impl<'call> CryptoHarnessContext<'call> {
                     error: value.error,
                     error_code: value.error_code,
                     failed_certificate_index: value.failed_certificate_index,
-                    failed_certificate_subject: self.call_context.store_string(
-                        context
-                            .string_ref(value.failed_certificate_subject)
-                            .map_err(|error| RuntimeError::from(error).boxed())?
-                            .as_str(),
-                    ),
+                    failed_certificate_subject: match value.failed_certificate_subject {
+                        Some(subject) => {
+                            let subject = context
+                                .string_ref(subject)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            let subject = subject.as_str();
+
+                            Some(self.call_context.store_string(subject))
+                        }
+                        None => None,
+                    },
                     chain_length: value.chain_length,
                     used_system_trust_anchor: value.used_system_trust_anchor,
                 })
@@ -954,13 +1036,13 @@ impl<'call> CryptoHarnessContext<'call> {
         match namespace {
             HarnessValue::Native(namespace) => self.harness_value(CryptoStoreOptions {
                 kind,
-                provider: CryptoStoreProvider::OpenSsl,
-                namespace,
+                provider: Some(CryptoStoreProvider::OpenSsl),
+                namespace: Some(namespace),
             }),
             HarnessValue::Vm(namespace) => self.harness_value_vm(CryptoStoreOptionsVm {
                 kind,
-                provider: CryptoStoreProvider::OpenSsl,
-                namespace,
+                provider: Some(CryptoStoreProvider::OpenSsl),
+                namespace: Some(namespace),
             }),
         }
     }
@@ -1001,7 +1083,7 @@ impl CryptoHarnessRequestValue for CryptoStoreOptions {
         Ok(CryptoStoreOptionsVm {
             kind: self.kind,
             provider: self.provider,
-            namespace: vm_string_from_native(context, self.namespace)?,
+            namespace: vm_optional_string_from_native(context, self.namespace)?,
         })
     }
 }
@@ -1059,9 +1141,12 @@ impl CryptoHarnessRequestValue for CryptoCertificateVerifyRequest {
             trust_anchors: vm_slice_from_native(context, self.trust_anchors)?,
             use_system_trust_anchors: self.use_system_trust_anchors,
             purpose: self.purpose,
-            identity: CryptoCertificateVerifyIdentityVm {
-                kind: self.identity.kind,
-                value: vm_string_from_native(context, self.identity.value)?,
+            identity: match self.identity {
+                Some(identity) => Some(CryptoCertificateVerifyIdentityVm {
+                    kind: identity.kind,
+                    value: vm_string_from_native(context, identity.value)?,
+                }),
+                None => None,
             },
             verification_unix_seconds: self.verification_unix_seconds,
             revocation_mode: self.revocation_mode,
@@ -1246,7 +1331,7 @@ impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
                         label: vm_string_from_native(context, value.label)?,
                         extractable: value.extractable,
                         residency: value.residency,
-                        passphrase: vm_bytes_from_native(context, value.passphrase)?,
+                        passphrase: vm_optional_bytes_from_native(context, value.passphrase)?,
                         persistent: value.persistent,
                     },
                 ))
@@ -1261,7 +1346,7 @@ impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
                         label: vm_string_from_native(context, value.label)?,
                         extractable: value.extractable,
                         residency: value.residency,
-                        passphrase: vm_bytes_from_native(context, value.passphrase)?,
+                        passphrase: vm_optional_bytes_from_native(context, value.passphrase)?,
                         persistent: value.persistent,
                     },
                 ))
@@ -1277,7 +1362,7 @@ impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
                         label: vm_string_from_native(context, value.label)?,
                         extractable: value.extractable,
                         residency: value.residency,
-                        passphrase: vm_bytes_from_native(context, value.passphrase)?,
+                        passphrase: vm_optional_bytes_from_native(context, value.passphrase)?,
                         persistent: value.persistent,
                     },
                 ))
@@ -1292,7 +1377,7 @@ impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
                         label: vm_string_from_native(context, value.label)?,
                         extractable: value.extractable,
                         residency: value.residency,
-                        passphrase: vm_bytes_from_native(context, value.passphrase)?,
+                        passphrase: vm_optional_bytes_from_native(context, value.passphrase)?,
                         persistent: value.persistent,
                     },
                 ))
@@ -1307,7 +1392,7 @@ impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
                         label: vm_string_from_native(context, value.label)?,
                         extractable: value.extractable,
                         residency: value.residency,
-                        passphrase: vm_bytes_from_native(context, value.passphrase)?,
+                        passphrase: vm_optional_bytes_from_native(context, value.passphrase)?,
                         persistent: value.persistent,
                     },
                 ))
@@ -1323,7 +1408,7 @@ impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
                         label: vm_string_from_native(context, value.label)?,
                         extractable: value.extractable,
                         residency: value.residency,
-                        passphrase: vm_bytes_from_native(context, value.passphrase)?,
+                        passphrase: vm_optional_bytes_from_native(context, value.passphrase)?,
                         persistent: value.persistent,
                     },
                 ))
@@ -1339,7 +1424,7 @@ impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
                         label: vm_string_from_native(context, value.label)?,
                         extractable: value.extractable,
                         residency: value.residency,
-                        passphrase: vm_bytes_from_native(context, value.passphrase)?,
+                        passphrase: vm_optional_bytes_from_native(context, value.passphrase)?,
                         persistent: value.persistent,
                     },
                 ))
@@ -1354,7 +1439,7 @@ impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
                         label: vm_string_from_native(context, value.label)?,
                         extractable: value.extractable,
                         residency: value.residency,
-                        passphrase: vm_bytes_from_native(context, value.passphrase)?,
+                        passphrase: vm_optional_bytes_from_native(context, value.passphrase)?,
                         persistent: value.persistent,
                     },
                 ))
@@ -1369,7 +1454,7 @@ impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
                         label: vm_string_from_native(context, value.label)?,
                         extractable: value.extractable,
                         residency: value.residency,
-                        passphrase: vm_bytes_from_native(context, value.passphrase)?,
+                        passphrase: vm_optional_bytes_from_native(context, value.passphrase)?,
                         persistent: value.persistent,
                     },
                 ))
@@ -1409,7 +1494,7 @@ impl CryptoHarnessRequestValue for CryptoKeyQuery {
             label_prefix: vm_string_from_native(context, self.label_prefix)?,
             algorithm: self.algorithm,
             usage_mask: self.usage_mask,
-            cursor: vm_string_from_native(context, self.cursor)?,
+            cursor: vm_optional_string_from_native(context, self.cursor)?,
             limit: self.limit,
         })
     }
@@ -1426,7 +1511,7 @@ impl CryptoHarnessRequestValue for CryptoCertificateQuery {
                 context,
                 self.subject_alternative_name,
             )?,
-            cursor: vm_string_from_native(context, self.cursor)?,
+            cursor: vm_optional_string_from_native(context, self.cursor)?,
             limit: self.limit,
         })
     }

@@ -3,9 +3,16 @@ use destack_vm as vm;
 use super::host;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{NativeAbi, VmAbi};
-use crate::platform::fs::{
-    OsPath, OsPathBytes, OsPathVm, PathBytesAbi, PathUtf16Abi, core as core_fs,
+use crate::platform::core::{
+    allocate_vm_read_buffer as allocate_read_buffer,
+    allocate_vm_read_buffers as allocate_read_buffers, bytes_array_to_vm, call_out,
+    map_native_array_to_vm, map_native_slice_to_vm, store_bytes_array_from_vm,
+    store_bytes_from_vm as buffer_from_vm, store_os_path_from_vm as path_ref_from_vm,
+    store_string_from_vm as host_from_vm, store_values_array_from_vm,
+    store_vm_byte_slices as buffers_from_vm, string_array_to_vm, values_array_to_vm,
+    write_vm_read_buffer as write_read_buffer, write_vm_read_buffers as write_read_buffers,
 };
+use crate::platform::fs::{OsPath, OsPathBytes, PathBytesAbi};
 use crate::platform::net::{
     AcceptFlags, KeepAliveConfig, Linger, NetInterface, NetInterfaceVm, PacketBackendDescriptor,
     PacketBackendDescriptorVm, PacketCaptureOptionsVm, PacketCaptureRecordVm, PacketCaptureStatsVm,
@@ -871,11 +878,11 @@ pub fn destack_net_readv(
     handle: SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
-    let (native_buffers, vm_buffers) = allocate_read_buffers(binding, context, buffers)?;
+    let (native_buffers, vm_buffers) = allocate_read_buffers(binding, context, buffers, "buffers")?;
     let count = call_out(|out| unsafe {
         host_net::destack_net_readv(binding, out, handle, native_buffers)
     })?;
-    write_read_buffers(context, vm_buffers, native_buffers)?;
+    write_read_buffers(context, vm_buffers, native_buffers, "buffers")?;
     Ok(count)
 }
 
@@ -902,7 +909,7 @@ pub fn destack_net_writev(
     handle: SocketHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
-    let native_buffers = buffers_from_vm(binding, context, buffers)?;
+    let native_buffers = buffers_from_vm(binding, context, buffers, "buffers")?;
     call_out(|out| unsafe { host_net::destack_net_writev(binding, out, handle, native_buffers) })
 }
 
@@ -986,32 +993,15 @@ pub fn destack_net_reverse_lookup(
     let names = call_out(|out| unsafe {
         host_net::destack_net_reverse_lookup_names_raw(binding, out, address, flags)
     })?;
-    let names = unsafe { names.as_slice()? };
 
     // map native lookup records into vm lookup records
-    let mut vm_names = Vec::with_capacity(names.len());
-    for name in names {
+    map_native_array_to_vm(context, names, |context, name| {
         let host = unsafe { name.host.as_str()? };
         let service = unsafe { name.service.as_str()? };
 
         let host = vm::StringHandle::new(context.intern_string(host));
         let service = vm::StringHandle::new(context.intern_string(service));
-        vm_names.push(ReverseLookupNameVm { host, service });
-    }
-
-    // encode vm aggregate output values
-    let mut values = Vec::with_capacity(vm_names.len());
-    for name in vm_names {
-        let value = context.allocate_aggregate(vec![name.host.value(), name.service.value()]);
-        values.push(value);
-    }
-    let name_count = values.len() as u32;
-    let data = context.allocate_raw_values(values);
-    Ok(VmArray {
-        data,
-        len: name_count,
-        capacity: name_count,
-        _marker: std::marker::PhantomData::<ReverseLookupNameVm>,
+        Ok(ReverseLookupNameVm { host, service })
     })
 }
 
@@ -2129,130 +2119,12 @@ pub fn destack_net_get_only_v6(
     call_out(|out| unsafe { host_net::destack_net_get_only_v6(binding, out, handle) })
 }
 
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    // allocate space for the output and invoke the call
-    let mut value = std::mem::MaybeUninit::<T>::uninit();
-    call(value.as_mut_ptr())?;
-    Ok(unsafe { value.assume_init() })
-}
-
-fn host_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    host: vm::StringHandle,
-) -> RuntimeResult<NativeStringRef> {
-    // resolve the VM string
-    let host_ref = context
-        .string_ref(host)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-
-    // store it in the binding arena
-    Ok(binding.store_string(host_ref.as_str()))
-}
-
-fn buffer_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    buffer: VmSlice<u8>,
-) -> RuntimeResult<NativeSlice<u8>> {
-    // copy the VM buffer into binding storage
-    let bytes = buffer.read_bytes(context)?;
-    Ok(binding.store_slice(bytes))
-}
-
-fn allocate_read_buffer(binding: &BindingCallContext, buffer: VmSlice<u8>) -> NativeSlice<u8> {
-    // allocate a native buffer for reads
-    let length = buffer.len as usize;
-    binding.store_slice(vec![0u8; length])
-}
-
-fn write_read_buffer(
-    context: &mut vm::ExternalCallContext<'_>,
-    buffer: VmSlice<u8>,
-    native: NativeSlice<u8>,
-) -> RuntimeResult<()> {
-    // copy bytes back into the VM buffer
-    let bytes = unsafe { native.as_slice()? };
-    buffer.write_bytes(context, bytes)
-}
-
-fn decode_buffer_slices(
-    context: &mut vm::ExternalCallContext<'_>,
-    buffers: VmSlice<VmSlice<u8>>,
-) -> RuntimeResult<Vec<VmSlice<u8>>> {
-    let values = buffers.raw_values(context)?;
-    let mut decoded = Vec::with_capacity(values.len());
-    for value in values {
-        decoded.push(VmSlice::from_value(
-            context,
-            value,
-            "buffers",
-            "Slice<uint8>",
-        )?);
-    }
-    Ok(decoded)
-}
-
-#[allow(clippy::type_complexity)]
-fn allocate_read_buffers(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    buffers: VmSlice<VmSlice<u8>>,
-) -> RuntimeResult<(NativeSlice<NativeSlice<u8>>, Vec<VmSlice<u8>>)> {
-    let vm_buffers = decode_buffer_slices(context, buffers)?;
-    let mut native_buffers = Vec::with_capacity(vm_buffers.len());
-    for buffer in vm_buffers.iter() {
-        let length = buffer.len as usize;
-        native_buffers.push(binding.store_slice(vec![0u8; length]));
-    }
-    let native_slice = binding.store_slice(native_buffers);
-
-    Ok((native_slice, vm_buffers))
-}
-
-fn write_read_buffers(
-    context: &mut vm::ExternalCallContext<'_>,
-    vm_buffers: Vec<VmSlice<u8>>,
-    native_buffers: NativeSlice<NativeSlice<u8>>,
-) -> RuntimeResult<()> {
-    let native_buffers = unsafe { native_buffers.as_slice()? };
-    if native_buffers.len() != vm_buffers.len() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "buffers",
-            "buffer length mismatch",
-        ))
-        .boxed());
-    }
-
-    for (vm_buffer, native_buffer) in vm_buffers.into_iter().zip(native_buffers.iter()) {
-        let bytes = unsafe { native_buffer.as_slice()? };
-        vm_buffer.write_bytes(context, bytes)?;
-    }
-
-    Ok(())
-}
-
-fn buffers_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    buffers: VmSlice<VmSlice<u8>>,
-) -> RuntimeResult<NativeSlice<NativeSlice<u8>>> {
-    let vm_buffers = decode_buffer_slices(context, buffers)?;
-    let mut native_buffers = Vec::with_capacity(vm_buffers.len());
-    for buffer in vm_buffers {
-        let bytes = buffer.read_bytes(context)?;
-        native_buffers.push(binding.store_slice(bytes));
-    }
-    Ok(binding.store_slice(native_buffers))
-}
-
 fn socket_address_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     address: SocketAddress,
 ) -> RuntimeResult<SocketAddressVm> {
-    // decode raw address bytes
-    let bytes = unsafe { address.bytes.as_slice()? };
-    let bytes = VmArray::from_values(context, bytes)?;
+    // encode the raw address bytes
+    let bytes = bytes_array_to_vm(context, address.bytes)?;
 
     // build the VM socket address
     Ok(SocketAddressVm {
@@ -2267,12 +2139,10 @@ fn socket_address_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     address: SocketAddressVm,
 ) -> RuntimeResult<SocketAddress> {
-    let bytes = address.bytes.read_bytes(context)?;
-
     Ok(SocketAddress {
         family: address.family,
         length: address.length,
-        bytes: binding.store_array(bytes),
+        bytes: store_bytes_array_from_vm(binding, context, address.bytes)?,
     })
 }
 
@@ -2295,84 +2165,46 @@ fn socket_address_raw_array_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     array: NativeArray<SocketAddress>,
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
-    let items = unsafe { array.as_slice()? };
-    let mut values = Vec::with_capacity(items.len());
-    for item in items {
-        let raw_value = socket_address_raw_to_vm(context, *item)?;
-        let bytes = raw_value.bytes.to_value(context);
-        let family = vm::Value::uint(raw_value.family as u64, 16);
-        let value = context.allocate_aggregate(vec![family, bytes]);
-        values.push(value);
-    }
-    let pointer = context.allocate_raw_values(values);
-    Ok(VmArray {
-        data: pointer,
-        len: items.len() as u32,
-        capacity: items.len() as u32,
-        _marker: std::marker::PhantomData::<SocketAddressVm>,
+    map_native_array_to_vm(context, array, |context, item| {
+        socket_address_raw_to_vm(context, *item)
     })
-}
-
-fn string_array_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    array: NativeArray<NativeStringRef>,
-) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    let values = unsafe { array.as_slice()? };
-    let mut handles = Vec::with_capacity(values.len());
-    for value in values {
-        let name = unsafe { value.as_str()? };
-        let handle = vm::StringHandle::new(context.intern_string(name));
-        handles.push(handle);
-    }
-    VmArray::from_values(context, &handles)
 }
 
 fn net_interface_array_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     array: NativeArray<NetInterface>,
 ) -> RuntimeResult<VmArray<NetInterfaceVm>> {
-    let values = unsafe { array.as_slice()? };
-    let mut interfaces = Vec::with_capacity(values.len());
-
-    for value in values {
+    map_native_array_to_vm(context, array, |context, value| {
         let name = unsafe { value.name.as_str()? };
         let name = vm::StringHandle::new(context.intern_string(name));
-        let mac_address = unsafe { value.mac_address.as_slice()? };
-        let mac_address = VmArray::from_bytes(context, mac_address);
+        let mac_address = bytes_array_to_vm(context, value.mac_address)?;
         let addresses = socket_address_raw_array_to_vm(context, value.addresses)?;
 
-        interfaces.push(NetInterfaceVm {
+        Ok(NetInterfaceVm {
             name,
             index: value.index,
             flags: value.flags,
             mtu: value.mtu,
             mac_address,
             addresses,
-        });
-    }
-
-    VmArray::from_values(context, &interfaces)
+        })
+    })
 }
 
 fn packet_backend_descriptor_slice_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: NativeSlice<PacketBackendDescriptor>,
 ) -> RuntimeResult<VmSlice<PacketBackendDescriptorVm>> {
-    let values = unsafe { value.as_slice()? };
-    let mut descriptors = Vec::with_capacity(values.len());
-
-    for value in values {
+    map_native_slice_to_vm(context, value, |context, value| {
         let name = unsafe { value.name.as_str()? };
-        descriptors.push(PacketBackendDescriptorVm {
+        Ok(PacketBackendDescriptorVm {
             backend: value.backend,
             name: vm::StringHandle::new(context.intern_string(name)),
             available: value.available,
             priority: value.priority,
             capability_flags: value.capability_flags,
-        });
-    }
-
-    VmSlice::from_values(context, &descriptors)
+        })
+    })
 }
 
 fn route_entry_from_vm(
@@ -2398,12 +2230,10 @@ fn route_entry_array_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     array: NativeArray<RouteEntry>,
 ) -> RuntimeResult<VmArray<RouteEntryVm>> {
-    let values = unsafe { array.as_slice()? };
-    let mut routes = Vec::with_capacity(values.len());
-    for route in values {
+    map_native_array_to_vm(context, array, |context, route| {
         let destination = socket_address_raw_to_vm(context, route.destination)?;
         let gateway = socket_address_raw_to_vm(context, route.gateway)?;
-        routes.push(RouteEntryVm {
+        Ok(RouteEntryVm {
             family: route.family,
             destination,
             prefix_length: route.prefix_length,
@@ -2411,10 +2241,8 @@ fn route_entry_array_to_vm(
             interface_index: route.interface_index,
             metric: route.metric,
             kind: route.kind,
-        });
-    }
-
-    VmArray::from_values(context, &routes)
+        })
+    })
 }
 
 fn udp_receive_to_vm(
@@ -2489,16 +2317,15 @@ fn socket_send_message_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     message: SocketSendMessageVm,
 ) -> RuntimeResult<SocketSendMessage> {
-    let fds = message.fds.read_values(context)?;
-    let fds = binding.store_array(fds);
+    let fds = store_values_array_from_vm(binding, context, message.fds)?;
     let address = if let Some(address) = message.address {
         let address = socket_address_raw_from_vm(binding, context, address)?;
         Some(address)
     } else {
         None
     };
-    let control = message.control.0.read_bytes(context)?;
-    let control = SocketControlBufferAbi::<NativeAbi>(binding.store_array(control));
+    let control = store_bytes_array_from_vm(binding, context, message.control.0)?;
+    let control = SocketControlBufferAbi::<NativeAbi>(control);
     let credentials = message.credentials.map(|credentials| SocketCredentials {
         pid: credentials.pid,
         uid: credentials.uid,
@@ -2524,11 +2351,9 @@ fn socket_recv_message_to_vm(
     } else {
         None
     };
-    let control = unsafe { message.control.0.as_slice()? };
-    let control = VmArray::from_bytes(context, control);
+    let control = bytes_array_to_vm(context, message.control.0)?;
     let control = SocketControlBufferAbi::<VmAbi>(control);
-    let fds = unsafe { message.fds.as_slice()? };
-    let fds = VmArray::from_values(context, fds)?;
+    let fds = values_array_to_vm(context, message.fds)?;
     let credentials = message.credentials.map(|credentials| SocketCredentialsVm {
         pid: credentials.pid,
         uid: credentials.uid,
@@ -2547,25 +2372,6 @@ fn socket_recv_message_to_vm(
     })
 }
 
-fn path_ref_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
-) -> RuntimeResult<OsPath> {
-    match path {
-        OsPathVm::OsPathBytes(path_bytes) => {
-            let bytes = path_bytes.bytes.0.read_bytes(context)?;
-            let bytes = PathBytesAbi::<NativeAbi>(binding.store_array(bytes));
-            Ok(core_fs::path_ref_from_bytes(bytes))
-        }
-        OsPathVm::OsPathUtf16(path_utf16) => {
-            let units = path_utf16.utf16.0.read_values(context)?;
-            let utf16 = PathUtf16Abi::<NativeAbi>(binding.store_array(units));
-            Ok(core_fs::path_ref_from_utf16(utf16))
-        }
-    }
-}
-
 fn uds_address_from_vm(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -2580,8 +2386,8 @@ fn uds_address_from_vm(
             }))
         }
         UdsAddressVm::UdsAbstractAddress(abstract_address) => {
-            let abstract_name = abstract_address.abstract_name.read_bytes(context)?;
-            let abstract_name = binding.store_array(abstract_name);
+            let abstract_name =
+                store_bytes_array_from_vm(binding, context, abstract_address.abstract_name)?;
             Ok(UdsAddress::UdsAbstractAddress(UdsAbstractAddress {
                 kind: binding.store_string("abstract"),
                 abstract_name,
@@ -2778,8 +2584,8 @@ pub(super) fn destack_net_get_sock_opt_raw(
     let value = call_out(|out| unsafe {
         host_net::destack_net_get_sock_opt_raw(binding, out, handle, level, name, maxbytes)
     })?;
-    let value = unsafe { value.as_slice()? };
-    Ok(VmArray::from_bytes(context, value))
+
+    bytes_array_to_vm(context, value)
 }
 
 /// Read packet timestamping mode.

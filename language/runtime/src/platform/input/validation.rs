@@ -98,7 +98,7 @@ pub(crate) fn validate_pointer_coordinates(x: f64, y: f64) -> RuntimeResult<()> 
 /// Return whether one window target is explicitly scoped.
 #[cfg(unix)]
 pub(crate) fn has_explicit_window_target(target: InputWindowTarget) -> bool {
-    target.window.0.0 != 0
+    target.window.is_some_and(|window| window.0.0 != 0)
 }
 
 /// Validate one global-only target requirement.

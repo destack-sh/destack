@@ -1,30 +1,29 @@
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::{core as core_fs, host as host_fs};
-
-use crate::platform::abi::{NativeAbi, VmAbi};
+use crate::platform::core::{
+    allocate_vm_read_buffer as allocate_read_buffer,
+    allocate_vm_read_buffers as allocate_read_buffers, bytes_array_array_to_vm, bytes_array_to_vm,
+    call_out, intern_string_to_vm as string_ref_to_vm, map_native_array_to_vm,
+    os_path_to_vm as path_ref_to_vm, store_bytes_from_vm,
+    store_os_path_from_vm as path_ref_from_vm, store_string_from_vm as string_ref_from_vm,
+    store_vm_byte_slices as buffers_from_vm, string_array_to_vm,
+    write_vm_read_buffer as write_read_buffer, write_vm_read_buffers as write_read_buffers,
+};
 use crate::platform::fs::{
     AccessMode, AllocFlags, AtFlags, CopyFlags, DirectoryHandle, Dirent, DirentNext,
     DirentNextEndVm, DirentNextEntryVm, DirentNextVm, DirentVm, FdFlags, FileAdvice, FileHandle,
     FileLockFlags, FileMode, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags,
-    NodeDevice, OpenFlags, OpenOptions, OpenOptionsVm, OsPath, OsPathBytesVm, OsPathUtf16Vm,
-    OsPathVm, PathBytes, PathBytesAbi, PathBytesVm, PathUtf16, PathUtf16Abi, PathUtf16Vm,
-    ReadWriteFlags, RenameFlags, SeekWhence, SpliceCursor, SpliceFlags, Stat, StatFs, StatusFlags,
-    Statx, StatxFlags, StatxMask, SymlinkType, SyncFlags, WatchBatch, WatchBatchVm,
-    WatchCreateEventVm, WatchEvent, WatchEventMetadataVm, WatchEventVm, WatchMetadataEventVm,
-    WatchModifyEventVm, WatchOptions, WatchOptionsVm, WatchOverflowEventVm, WatchRemoveEventVm,
-    WatchRenameEventVm, XattrFlags,
+    NodeDevice, OpenFlags, OpenOptions, OpenOptionsVm, OsPath, OsPathVm, ReadWriteFlags,
+    RenameFlags, SeekWhence, SpliceCursor, SpliceFlags, Stat, StatFs, StatusFlags, Statx,
+    StatxFlags, StatxMask, SymlinkType, SyncFlags, WatchBatch, WatchBatchVm, WatchCreateEventVm,
+    WatchEvent, WatchEventMetadataVm, WatchEventVm, WatchMetadataEventVm, WatchModifyEventVm,
+    WatchOptions, WatchOptionsVm, WatchOverflowEventVm, WatchRemoveEventVm, WatchRenameEventVm,
+    XattrFlags, host as host_fs,
 };
 use crate::platform::resource::{PipeHandle, ResourceId, SocketHandle, WatchHandle};
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
-
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    let mut out = std::mem::MaybeUninit::<T>::uninit();
-    call(out.as_mut_ptr())?;
-    Ok(unsafe { out.assume_init() })
-}
+use crate::runtime::BindingCallContext;
 
 /// Check file access permissions.
 ///
@@ -741,7 +740,7 @@ pub fn destack_fs_write(
     handle: FileHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    let native = buffer_from_vm(binding, context, buffer)?;
+    let native = store_bytes_from_vm(binding, context, buffer)?;
     call_out(|out| unsafe { host_fs::destack_fs_write(binding, out, handle, native) })
 }
 
@@ -769,7 +768,7 @@ pub fn destack_fs_pwrite(
     buffer: VmSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
-    let native = buffer_from_vm(binding, context, buffer)?;
+    let native = store_bytes_from_vm(binding, context, buffer)?;
     call_out(|out| unsafe { host_fs::destack_fs_pwrite(binding, out, handle, native, offset) })
 }
 
@@ -796,10 +795,10 @@ pub fn destack_fs_readv(
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
-    let (native_buffers, vm_buffers) = allocate_read_buffers(binding, context, buffers)?;
+    let (native_buffers, vm_buffers) = allocate_read_buffers(binding, context, buffers, "buffers")?;
     let count =
         call_out(|out| unsafe { host_fs::destack_fs_readv(binding, out, handle, native_buffers) })?;
-    write_read_buffers(context, vm_buffers, native_buffers)?;
+    write_read_buffers(context, vm_buffers, native_buffers, "buffers")?;
     Ok(count)
 }
 
@@ -827,11 +826,11 @@ pub fn destack_fs_preadv(
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
-    let (native_buffers, vm_buffers) = allocate_read_buffers(binding, context, buffers)?;
+    let (native_buffers, vm_buffers) = allocate_read_buffers(binding, context, buffers, "buffers")?;
     let count = call_out(|out| unsafe {
         host_fs::destack_fs_preadv(binding, out, handle, native_buffers, offset)
     })?;
-    write_read_buffers(context, vm_buffers, native_buffers)?;
+    write_read_buffers(context, vm_buffers, native_buffers, "buffers")?;
     Ok(count)
 }
 
@@ -860,11 +859,11 @@ pub fn destack_fs_preadv2(
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<u64> {
-    let (native_buffers, vm_buffers) = allocate_read_buffers(binding, context, buffers)?;
+    let (native_buffers, vm_buffers) = allocate_read_buffers(binding, context, buffers, "buffers")?;
     let count = call_out(|out| unsafe {
         host_fs::destack_fs_preadv2(binding, out, handle, native_buffers, offset, flags)
     })?;
-    write_read_buffers(context, vm_buffers, native_buffers)?;
+    write_read_buffers(context, vm_buffers, native_buffers, "buffers")?;
     Ok(count)
 }
 
@@ -891,7 +890,7 @@ pub fn destack_fs_writev(
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
-    let native_buffers = buffers_from_vm(binding, context, buffers)?;
+    let native_buffers = buffers_from_vm(binding, context, buffers, "buffers")?;
     call_out(|out| unsafe { host_fs::destack_fs_writev(binding, out, handle, native_buffers) })
 }
 
@@ -919,7 +918,7 @@ pub fn destack_fs_pwritev(
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
-    let native_buffers = buffers_from_vm(binding, context, buffers)?;
+    let native_buffers = buffers_from_vm(binding, context, buffers, "buffers")?;
     call_out(|out| unsafe {
         host_fs::destack_fs_pwritev(binding, out, handle, native_buffers, offset)
     })
@@ -950,7 +949,7 @@ pub fn destack_fs_pwritev2(
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<u64> {
-    let native_buffers = buffers_from_vm(binding, context, buffers)?;
+    let native_buffers = buffers_from_vm(binding, context, buffers, "buffers")?;
     call_out(|out| unsafe {
         host_fs::destack_fs_pwritev2(binding, out, handle, native_buffers, offset, flags)
     })
@@ -2331,7 +2330,7 @@ pub fn destack_fs_vmsplice(
     flags: SpliceFlags,
 ) -> RuntimeResult<u64> {
     // decode VM buffer slices into native host buffers
-    let native_buffers = buffers_from_vm(binding, context, buffers)?;
+    let native_buffers = buffers_from_vm(binding, context, buffers, "buffers")?;
 
     // forward vmsplice to the host lane
     call_out(|out| unsafe {
@@ -2476,7 +2475,7 @@ pub fn destack_fs_getxattr(
     let path = path_ref_from_vm(binding, context, path)?;
     let name = string_ref_from_vm(binding, context, name)?;
     let values = call_out(|out| unsafe { host_fs::destack_fs_getxattr(binding, out, path, name) })?;
-    array_u8_to_vm(context, values)
+    bytes_array_to_vm(context, values)
 }
 
 /// Read an extended attribute by path with a raw name payload.
@@ -2504,7 +2503,7 @@ pub fn destack_fs_getxattr_bytes(
 ) -> RuntimeResult<VmArray<u8>> {
     // decode path and raw name inputs
     let path = path_ref_from_vm(binding, context, path)?;
-    let name = buffer_from_vm(binding, context, name)?;
+    let name = store_bytes_from_vm(binding, context, name)?;
 
     // dispatch by path encoding
     let values = call_out(|out| match path {
@@ -2516,7 +2515,7 @@ pub fn destack_fs_getxattr_bytes(
         },
     })?;
 
-    array_u8_to_vm(context, values)
+    bytes_array_to_vm(context, values)
 }
 
 /// Read an extended attribute without following symlinks.
@@ -2546,7 +2545,7 @@ pub fn destack_fs_lgetxattr(
     let name = string_ref_from_vm(binding, context, name)?;
     let values =
         call_out(|out| unsafe { host_fs::destack_fs_lgetxattr(binding, out, path, name) })?;
-    array_u8_to_vm(context, values)
+    bytes_array_to_vm(context, values)
 }
 
 /// Read an extended attribute without following symlinks, using a raw name payload.
@@ -2574,7 +2573,7 @@ pub fn destack_fs_lgetxattr_bytes(
 ) -> RuntimeResult<VmArray<u8>> {
     // decode path and raw name inputs
     let path = path_ref_from_vm(binding, context, path)?;
-    let name = buffer_from_vm(binding, context, name)?;
+    let name = store_bytes_from_vm(binding, context, name)?;
 
     // dispatch by path encoding
     let values = call_out(|out| match path {
@@ -2586,7 +2585,7 @@ pub fn destack_fs_lgetxattr_bytes(
         },
     })?;
 
-    array_u8_to_vm(context, values)
+    bytes_array_to_vm(context, values)
 }
 
 /// Read an extended attribute by handle.
@@ -2615,7 +2614,7 @@ pub fn destack_fs_fgetxattr(
     let name = string_ref_from_vm(binding, context, name)?;
     let values =
         call_out(|out| unsafe { host_fs::destack_fs_fgetxattr(binding, out, handle, name) })?;
-    array_u8_to_vm(context, values)
+    bytes_array_to_vm(context, values)
 }
 
 /// Read an extended attribute by handle with a raw name payload.
@@ -2642,14 +2641,14 @@ pub fn destack_fs_fgetxattr_bytes(
     name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
     // decode the raw name input
-    let name = buffer_from_vm(binding, context, name)?;
+    let name = store_bytes_from_vm(binding, context, name)?;
 
     // dispatch through the raw handle lane
     let values = call_out(|out| unsafe {
         host_fs::destack_fs_fgetxattr_handle(binding, out, handle, name)
     })?;
 
-    array_u8_to_vm(context, values)
+    bytes_array_to_vm(context, values)
 }
 
 /// Set an extended attribute by path.
@@ -2679,7 +2678,7 @@ pub fn destack_fs_setxattr(
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(binding, context, path)?;
     let name = string_ref_from_vm(binding, context, name)?;
-    let value = buffer_from_vm(binding, context, value)?;
+    let value = store_bytes_from_vm(binding, context, value)?;
     unsafe { host_fs::destack_fs_setxattr(binding, path, name, value, flags) }
 }
 
@@ -2710,8 +2709,8 @@ pub fn destack_fs_setxattr_bytes(
 ) -> RuntimeResult<()> {
     // decode path, raw name, and value inputs
     let path = path_ref_from_vm(binding, context, path)?;
-    let name = buffer_from_vm(binding, context, name)?;
-    let value = buffer_from_vm(binding, context, value)?;
+    let name = store_bytes_from_vm(binding, context, name)?;
+    let value = store_bytes_from_vm(binding, context, value)?;
 
     // dispatch by path encoding
     match path {
@@ -2751,7 +2750,7 @@ pub fn destack_fs_lsetxattr(
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(binding, context, path)?;
     let name = string_ref_from_vm(binding, context, name)?;
-    let value = buffer_from_vm(binding, context, value)?;
+    let value = store_bytes_from_vm(binding, context, value)?;
     unsafe { host_fs::destack_fs_lsetxattr(binding, path, name, value, flags) }
 }
 
@@ -2782,8 +2781,8 @@ pub fn destack_fs_lsetxattr_bytes(
 ) -> RuntimeResult<()> {
     // decode path, raw name, and value inputs
     let path = path_ref_from_vm(binding, context, path)?;
-    let name = buffer_from_vm(binding, context, name)?;
-    let value = buffer_from_vm(binding, context, value)?;
+    let name = store_bytes_from_vm(binding, context, name)?;
+    let value = store_bytes_from_vm(binding, context, value)?;
 
     // dispatch by path encoding
     match path {
@@ -2822,7 +2821,7 @@ pub fn destack_fs_fsetxattr(
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     let name = string_ref_from_vm(binding, context, name)?;
-    let value = buffer_from_vm(binding, context, value)?;
+    let value = store_bytes_from_vm(binding, context, value)?;
     unsafe { host_fs::destack_fs_fsetxattr(binding, handle, name, value, flags) }
 }
 
@@ -2852,8 +2851,8 @@ pub fn destack_fs_fsetxattr_bytes(
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     // decode raw name and value inputs
-    let name = buffer_from_vm(binding, context, name)?;
-    let value = buffer_from_vm(binding, context, value)?;
+    let name = store_bytes_from_vm(binding, context, name)?;
+    let value = store_bytes_from_vm(binding, context, value)?;
 
     // dispatch through the raw handle lane
     unsafe { host_fs::destack_fs_fsetxattr_handle(binding, handle, name, value, flags) }
@@ -2921,7 +2920,7 @@ pub fn destack_fs_listxattr_bytes(
         },
     })?;
 
-    array_array_u8_to_vm(context, names)
+    bytes_array_array_to_vm(context, names)
 }
 
 /// List extended attribute names without following symlinks.
@@ -2986,7 +2985,7 @@ pub fn destack_fs_llistxattr_bytes(
         },
     })?;
 
-    array_array_u8_to_vm(context, names)
+    bytes_array_array_to_vm(context, names)
 }
 
 /// List extended attribute names by handle.
@@ -3041,7 +3040,7 @@ pub fn destack_fs_flistxattr_bytes(
     let names =
         call_out(|out| unsafe { host_fs::destack_fs_flistxattr_handle(binding, out, handle) })?;
 
-    array_array_u8_to_vm(context, names)
+    bytes_array_array_to_vm(context, names)
 }
 
 /// Remove an extended attribute by path.
@@ -3097,7 +3096,7 @@ pub fn destack_fs_removexattr_bytes(
 ) -> RuntimeResult<()> {
     // decode path and raw name inputs
     let path = path_ref_from_vm(binding, context, path)?;
-    let name = buffer_from_vm(binding, context, name)?;
+    let name = store_bytes_from_vm(binding, context, name)?;
 
     // dispatch by path encoding
     match path {
@@ -3163,7 +3162,7 @@ pub fn destack_fs_lremovexattr_bytes(
 ) -> RuntimeResult<()> {
     // decode path and raw name inputs
     let path = path_ref_from_vm(binding, context, path)?;
-    let name = buffer_from_vm(binding, context, name)?;
+    let name = store_bytes_from_vm(binding, context, name)?;
 
     // dispatch by path encoding
     match path {
@@ -3227,7 +3226,7 @@ pub fn destack_fs_fremovexattr_bytes(
     name: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     // decode the raw name input
-    let name = buffer_from_vm(binding, context, name)?;
+    let name = store_bytes_from_vm(binding, context, name)?;
 
     // dispatch through the raw handle lane
     unsafe { host_fs::destack_fs_fremovexattr_handle(binding, handle, name) }
@@ -3398,248 +3397,13 @@ pub fn destack_fs_madvise(
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.madvise")).boxed())
 }
 
-fn path_bytes_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    path: PathBytesVm,
-) -> RuntimeResult<PathBytes> {
-    let bytes = path.0.read_bytes(context)?;
-    Ok(PathBytesAbi::<NativeAbi>(binding.store_array(bytes)))
-}
-
-fn path_utf16_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    path: PathUtf16Vm,
-) -> RuntimeResult<PathUtf16> {
-    let units = path.0.read_values(context)?;
-    Ok(PathUtf16Abi::<NativeAbi>(binding.store_array(units)))
-}
-
-fn path_ref_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
-) -> RuntimeResult<OsPath> {
-    match path {
-        OsPathVm::OsPathBytes(path_bytes) => {
-            let bytes = path_bytes_from_vm(binding, context, path_bytes.bytes)?;
-            Ok(core_fs::path_ref_from_bytes(bytes))
-        }
-        OsPathVm::OsPathUtf16(path_utf16) => {
-            let utf16 = path_utf16_from_vm(binding, context, path_utf16.utf16)?;
-            Ok(core_fs::path_ref_from_utf16(utf16))
-        }
-    }
-}
-
-fn path_bytes_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    path: PathBytes,
-) -> RuntimeResult<PathBytesVm> {
-    let bytes = unsafe { path.0.as_slice()? };
-    let array = VmArray::from_bytes(context, bytes);
-    Ok(PathBytesAbi::<VmAbi>(array))
-}
-
-fn path_utf16_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    path: PathUtf16,
-) -> RuntimeResult<PathUtf16Vm> {
-    let units = unsafe { path.0.as_slice()? };
-    let array = VmArray::from_values(context, units)?;
-    Ok(PathUtf16Abi::<VmAbi>(array))
-}
-
-fn path_ref_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    path: OsPath,
-) -> RuntimeResult<OsPathVm> {
-    match path {
-        OsPath::OsPathBytes(path_bytes) => {
-            let bytes = path_bytes_to_vm(context, path_bytes.bytes)?;
-            Ok(OsPathVm::OsPathBytes(OsPathBytesVm {
-                kind: vm::StringHandle::new(context.intern_string("bytes")),
-                bytes,
-            }))
-        }
-        OsPath::OsPathUtf16(path_utf16) => {
-            let utf16 = path_utf16_to_vm(context, path_utf16.utf16)?;
-            Ok(OsPathVm::OsPathUtf16(OsPathUtf16Vm {
-                kind: vm::StringHandle::new(context.intern_string("utf16")),
-                utf16,
-            }))
-        }
-    }
-}
-
-fn string_ref_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
-) -> RuntimeResult<NativeStringRef> {
-    let string_ref = context
-        .string_ref(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    Ok(binding.store_string(string_ref.as_str()))
-}
-
-fn string_ref_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeStringRef,
-) -> RuntimeResult<vm::StringHandle> {
-    let value = unsafe { value.as_str()? };
-    Ok(vm::StringHandle::new(context.intern_string(value)))
-}
-
-fn array_u8_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    array: NativeArray<u8>,
-) -> RuntimeResult<VmArray<u8>> {
-    let bytes = unsafe { array.as_slice()? };
-    Ok(VmArray::from_bytes(context, bytes))
-}
-
-fn string_array_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    array: NativeArray<NativeStringRef>,
-) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    let names = unsafe { array.as_slice()? };
-    let mut handles = Vec::with_capacity(names.len());
-    for name in names {
-        let value = unsafe { name.as_str()? };
-        let handle = vm::StringHandle::new(context.intern_string(value));
-        handles.push(handle);
-    }
-    VmArray::from_values(context, &handles)
-}
-
-fn array_array_u8_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    array: NativeArray<NativeArray<u8>>,
-) -> RuntimeResult<VmArray<VmArray<u8>>> {
-    // decode the native byte arrays
-    let arrays = unsafe { array.as_slice()? };
-    let mut encoded = Vec::with_capacity(arrays.len());
-
-    // encode each byte array as vm bytes
-    for array in arrays {
-        let bytes = unsafe { array.as_slice()? };
-        encoded.push(VmArray::from_bytes(context, bytes));
-    }
-
-    VmArray::from_values(context, &encoded)
-}
-
-fn buffer_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    buffer: VmSlice<u8>,
-) -> RuntimeResult<NativeSlice<u8>> {
-    let bytes = buffer.read_bytes(context)?;
-    Ok(binding.store_slice(bytes))
-}
-
-fn allocate_read_buffer(binding: &BindingCallContext, buffer: VmSlice<u8>) -> NativeSlice<u8> {
-    let length = buffer.len as usize;
-    binding.store_slice(vec![0u8; length])
-}
-
-fn write_read_buffer(
-    context: &mut vm::ExternalCallContext<'_>,
-    buffer: VmSlice<u8>,
-    native: NativeSlice<u8>,
-) -> RuntimeResult<()> {
-    let bytes = unsafe { native.as_slice()? };
-    buffer.write_bytes(context, bytes)
-}
-
-fn decode_buffer_slices(
-    context: &mut vm::ExternalCallContext<'_>,
-    buffers: VmSlice<VmSlice<u8>>,
-) -> RuntimeResult<Vec<VmSlice<u8>>> {
-    let values = buffers.raw_values(context)?;
-    let mut decoded = Vec::with_capacity(values.len());
-    for value in values {
-        decoded.push(VmSlice::from_value(
-            context,
-            value,
-            "buffers",
-            "Slice<uint8>",
-        )?);
-    }
-    Ok(decoded)
-}
-
-/// Allocate native read buffers for a set of VM slices.
-#[allow(clippy::type_complexity)]
-fn allocate_read_buffers(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    buffers: VmSlice<VmSlice<u8>>,
-) -> RuntimeResult<(NativeSlice<NativeSlice<u8>>, Vec<VmSlice<u8>>)> {
-    let vm_buffers = decode_buffer_slices(context, buffers)?;
-    let mut native_buffers = Vec::with_capacity(vm_buffers.len());
-    for buffer in vm_buffers.iter() {
-        let length = buffer.len as usize;
-        native_buffers.push(binding.store_slice(vec![0u8; length]));
-    }
-    let native_slice = binding.store_slice(native_buffers);
-
-    Ok((native_slice, vm_buffers))
-}
-
-/// Copy native buffer data back into VM slices.
-fn write_read_buffers(
-    context: &mut vm::ExternalCallContext<'_>,
-    vm_buffers: Vec<VmSlice<u8>>,
-    native_buffers: NativeSlice<NativeSlice<u8>>,
-) -> RuntimeResult<()> {
-    let native_buffers = unsafe { native_buffers.as_slice()? };
-    if native_buffers.len() != vm_buffers.len() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "buffers",
-            "buffer length mismatch",
-        ))
-        .boxed());
-    }
-
-    for (vm_buffer, native_buffer) in vm_buffers.into_iter().zip(native_buffers.iter()) {
-        let bytes = unsafe { native_buffer.as_slice()? };
-        vm_buffer.write_bytes(context, bytes)?;
-    }
-
-    Ok(())
-}
-
-/// Convert VM slice buffers into native slices.
-fn buffers_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    buffers: VmSlice<VmSlice<u8>>,
-) -> RuntimeResult<NativeSlice<NativeSlice<u8>>> {
-    let vm_buffers = decode_buffer_slices(context, buffers)?;
-    let mut native_buffers = Vec::with_capacity(vm_buffers.len());
-    for buffer in vm_buffers {
-        let bytes = buffer.read_bytes(context)?;
-        native_buffers.push(binding.store_slice(bytes));
-    }
-
-    Ok(binding.store_slice(native_buffers))
-}
-
 fn watch_batch_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     batch: WatchBatch,
 ) -> RuntimeResult<WatchBatchVm> {
-    let events = unsafe { batch.events.as_slice()? };
-    let mut values = Vec::with_capacity(events.len());
-    for event in events {
-        let value = watch_event_to_vm(context, *event)?;
-        values.push(value);
-    }
-
-    let events = VmArray::from_values(context, &values)?;
+    let events = map_native_array_to_vm(context, batch.events, |context, event| {
+        watch_event_to_vm(context, *event)
+    })?;
 
     Ok(WatchBatchVm {
         events,
@@ -3725,17 +3489,13 @@ fn dirent_array_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     entries: NativeArray<Dirent>,
 ) -> RuntimeResult<VmArray<DirentVm>> {
-    let entries = unsafe { entries.as_slice()? };
-    let mut values = Vec::with_capacity(entries.len());
-    for entry in entries {
+    map_native_array_to_vm(context, entries, |context, entry| {
         let name = path_ref_to_vm(context, entry.name)?;
-        values.push(DirentVm {
+        Ok(DirentVm {
             name,
             kind: entry.kind,
-        });
-    }
-
-    VmArray::from_values(context, &values)
+        })
+    })
 }
 
 fn dirent_next_to_vm(

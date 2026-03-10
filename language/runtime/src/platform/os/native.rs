@@ -87,7 +87,7 @@ pub(crate) unsafe fn destack_os_credentials_contains(
     out: *mut bool,
     service: NativeStringRef,
     account: NativeStringRef,
-    access_group: NativeStringRef,
+    access_group: Option<NativeStringRef>,
 ) -> RuntimeResult<()> {
     // reject null output pointers
     if out.is_null() {
@@ -97,8 +97,10 @@ pub(crate) unsafe fn destack_os_credentials_contains(
     // decode native service, account, and optional access-group values
     let service = decode_native_string(service, "service")?;
     let account = decode_native_string(account, "account")?;
-    let access_group =
-        normalize_optional_string(decode_native_string(access_group, "accessGroup")?);
+    let access_group = access_group
+        .map(|value| decode_native_string(value, "accessGroup"))
+        .transpose()?;
+    let access_group = normalize_optional_string(access_group);
 
     // execute one contains query
     let result = contains_credentials(binding, &service, &account, access_group.as_deref())?;
@@ -133,13 +135,15 @@ pub(crate) unsafe fn destack_os_credentials_delete(
     binding: &BindingCallContext,
     service: NativeStringRef,
     account: NativeStringRef,
-    access_group: NativeStringRef,
+    access_group: Option<NativeStringRef>,
 ) -> RuntimeResult<()> {
     // decode native service, account, and optional access-group values
     let service = decode_native_string(service, "service")?;
     let account = decode_native_string(account, "account")?;
-    let access_group =
-        normalize_optional_string(decode_native_string(access_group, "accessGroup")?);
+    let access_group = access_group
+        .map(|value| decode_native_string(value, "accessGroup"))
+        .transpose()?;
+    let access_group = normalize_optional_string(access_group);
 
     // execute one delete operation
     delete_credentials(binding, &service, &account, access_group.as_deref())
@@ -175,10 +179,12 @@ pub(crate) unsafe fn destack_os_credentials_read(
     let query = CredentialQueryOwned {
         service: decode_native_string(query.service, "query.service")?,
         account: decode_native_string(query.account, "query.account")?,
-        access_group: normalize_optional_string(decode_native_string(
-            query.access_group,
-            "query.accessGroup",
-        )?),
+        access_group: normalize_optional_string(
+            query
+                .access_group
+                .map(|value| decode_native_string(value, "query.accessGroup"))
+                .transpose()?,
+        ),
         require_authentication: query.require_authentication,
     };
 
@@ -227,10 +233,12 @@ pub(crate) unsafe fn destack_os_credentials_write(
     let options = CredentialWriteOptionsOwned {
         service: decode_native_string(options.service, "options.service")?,
         account: decode_native_string(options.account, "options.account")?,
-        access_group: normalize_optional_string(decode_native_string(
-            options.access_group,
-            "options.accessGroup",
-        )?),
+        access_group: normalize_optional_string(
+            options
+                .access_group
+                .map(|value| decode_native_string(value, "options.accessGroup"))
+                .transpose()?,
+        ),
         bytes: decode_native_bytes(options.bytes, "options.bytes")?,
         accessibility: options.accessibility,
         authentication: options.authentication,

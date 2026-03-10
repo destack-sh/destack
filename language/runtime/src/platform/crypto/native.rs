@@ -1595,9 +1595,14 @@ pub(crate) unsafe fn destack_crypto_store_probe_capability(
     binding: &BindingCallContext,
     out: *mut CryptoStoreCapability,
     kind: CryptoStoreKind,
-    provider: CryptoStoreProvider,
+    provider: Option<CryptoStoreProvider>,
 ) -> RuntimeResult<()> {
-    unsafe { host_crypto::destack_crypto_store_probe_capability(binding, out, kind, provider) }
+    // normalize one absent provider to the default software provider
+    let provider = provider.unwrap_or(CryptoStoreProvider::OpenSsl);
+
+    unsafe {
+        host_crypto::destack_crypto_store_probe_capability(binding, out, kind, Some(provider))
+    }
 }
 
 /// List store backend kinds that are currently available.

@@ -27,7 +27,7 @@ fn test_agreement_derive_shared_secret_and_key() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
                 label: context.call_context.store_string("x25519"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -90,7 +90,7 @@ fn test_agreement_enforces_key_usage_mask() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
                 label: context.call_context.store_string("x25519-sign-only"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -158,7 +158,7 @@ fn test_agreement_rejects_mismatched_key_algorithms() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
                 label: context.call_context.store_string("x25519"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -174,7 +174,7 @@ fn test_agreement_rejects_mismatched_key_algorithms() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
                 label: context.call_context.store_string("ec"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -260,7 +260,7 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
                         .call_context
                         .store_string(&format!("{label_prefix}-alice")),
                     extractable: false,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: false,
                     persistent: true,
                 },
@@ -290,7 +290,7 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
                         .call_context
                         .store_string(&format!("{label_prefix}-bob")),
                     extractable: false,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: false,
                     persistent: true,
                 },
@@ -351,10 +351,10 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
             let store = context.destack_crypto_store_open(options)?;
             let query = CryptoKeyQuery {
                 label_prefix: context.call_context.store_string(&label_prefix),
-                algorithm: CryptoKeyAlgorithm::Ec,
-                usage_mask: CryptoKeyUsageMask(0),
-                cursor: context.call_context.store_string(""),
-                limit: 128,
+                algorithm: Some(CryptoKeyAlgorithm::Ec),
+                usage_mask: Some(CryptoKeyUsageMask(0)),
+                cursor: Some(context.call_context.store_string("")),
+                limit: Some(128),
             };
             let page =
                 context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;

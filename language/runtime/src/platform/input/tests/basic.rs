@@ -595,7 +595,7 @@ fn test_input_macos_pointer_state_and_relative_mode_surface_matches_capabilities
         context.destack_input_pointer_set_relative_mode(handle, false)?;
 
         let target = InputWindowTarget {
-            window: WindowHandle(ResourceId(0)),
+            window: Some(WindowHandle(ResourceId(0))),
         };
         assert_not_supported_result(context.destack_input_pointer_capture(
             handle,
@@ -623,7 +623,7 @@ fn test_input_macos_pointer_state_and_relative_mode_surface_matches_capabilities
 fn test_input_harness_window_target_helper_roundtrip() {
     with_harness_context(|context| {
         let target = InputWindowTarget {
-            window: WindowHandle(ResourceId(1)),
+            window: Some(WindowHandle(ResourceId(1))),
         };
         let _ = context.window_target(target);
 
@@ -2741,3 +2741,5 @@ fn test_input_linux_haptics_play_rejects_out_of_range_params() {
         Ok(())
     });
 }
+
+// FUGU #Cleanup: split and organize input/tests/basic.rs properly (also see other modules)

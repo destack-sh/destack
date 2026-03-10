@@ -7,7 +7,7 @@ use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::mode::apply_monitor_mode_by_id;
 use super::snapshot::{
-    descriptor_from_owned, enumerate_monitor_snapshots, monitor_snapshot_by_id,
+    descriptor_from_value, enumerate_monitor_snapshots, monitor_snapshot_by_id,
     monitor_snapshot_for_handle,
 };
 use crate::platform::display::windows::win32::{core, event, resource as display_resource};
@@ -22,7 +22,7 @@ pub(crate) unsafe fn monitor_list(
 
     let descriptors = enumerate_monitor_snapshots()?
         .into_iter()
-        .map(|snapshot| descriptor_from_owned(context, &snapshot.descriptor))
+        .map(|snapshot| descriptor_from_value(context, &snapshot.descriptor))
         .collect::<Vec<_>>();
     unsafe {
         *out = context.store_slice(descriptors);
@@ -89,7 +89,7 @@ pub(crate) unsafe fn monitor_descriptor(
     let snapshot =
         monitor_snapshot_for_handle(context, handle, "destack.display.monitor.descriptor")?;
     unsafe {
-        *out = descriptor_from_owned(context, &snapshot.descriptor);
+        *out = descriptor_from_value(context, &snapshot.descriptor);
     }
 
     Ok(())

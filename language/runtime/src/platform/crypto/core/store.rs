@@ -32,7 +32,7 @@ use super::core::{
     DEFAULT_KEY_LIST_LIMIT, HostKeyBackend, HostKeyMaterial, KEY_USAGE_DECRYPT,
     KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT,
     KEY_USAGE_SIGN, KEY_USAGE_UNWRAP, KEY_USAGE_VERIFY, KEY_USAGE_WRAP, decode_native_string,
-    handle_not_found, host_store_supports_certificate_write,
+    decode_optional_native_string, handle_not_found, host_store_supports_certificate_write,
     host_store_supports_hardware_backed_key, host_store_supports_hardware_backed_pair_algorithm,
     host_store_supports_key_persistence, insert_certificate_resource, insert_key_resource,
     invalid_argument, invalid_data, not_supported, openssl_error, resolve_key_resource,
@@ -44,6 +44,57 @@ use super::probe::{
     probe_key_algorithms, probe_key_formats, probe_key_wrap_algorithms, probe_mac_algorithms,
     probe_signature_algorithms,
 };
+
+/// Return the effective store provider for one options payload.
+fn store_provider(provider: Option<CryptoStoreProvider>) -> CryptoStoreProvider {
+    provider.unwrap_or(CryptoStoreProvider::OpenSsl)
+}
+
+/// Return the effective key-list cursor offset.
+fn key_query_offset(query: CryptoKeyQuery) -> RuntimeResult<usize> {
+    let cursor_raw =
+        decode_optional_native_string(query.cursor, "query.cursor")?.unwrap_or_default();
+    if cursor_raw.is_empty() {
+        return Ok(0);
+    }
+
+    cursor_raw
+        .parse::<usize>()
+        .map_err(|_| invalid_argument("query.cursor", "cursor must be one integer index"))
+}
+
+/// Return the effective key-list page size.
+fn key_query_limit(query: CryptoKeyQuery) -> usize {
+    query.limit.unwrap_or(DEFAULT_KEY_LIST_LIMIT as u32) as usize
+}
+
+/// Return the effective key algorithm filter.
+fn key_query_algorithm(query: CryptoKeyQuery) -> CryptoKeyAlgorithm {
+    query.algorithm.unwrap_or(CryptoKeyAlgorithm::Unknown)
+}
+
+/// Return the effective key usage filter.
+fn key_query_usage_mask(query: CryptoKeyQuery) -> CryptoKeyUsageMask {
+    query.usage_mask.unwrap_or(CryptoKeyUsageMask(0))
+}
+
+/// Return the effective certificate-list cursor offset.
+fn certificate_query_offset(query: CryptoCertificateQuery) -> RuntimeResult<usize> {
+    let cursor_raw =
+        decode_optional_native_string(query.cursor, "query.cursor")?.unwrap_or_default();
+    if cursor_raw.is_empty() {
+        return Ok(0);
+    }
+
+    cursor_raw
+        .parse::<usize>()
+        .map_err(|_| invalid_argument("query.cursor", "cursor must be one integer index"))
+}
+
+/// Return the effective certificate-list page size.
+fn certificate_query_limit(query: CryptoCertificateQuery) -> usize {
+    query.limit.unwrap_or(DEFAULT_CERTIFICATE_LIST_LIMIT as u32) as usize
+}
 
 /// Current version for serialized host-key store snapshots.
 const HOST_KEY_SNAPSHOT_VERSION: u32 = 1;
@@ -333,8 +384,8 @@ pub(crate) fn store_probe_capability(
         CryptoStoreKind::Ephemeral => CryptoStoreCapability {
             identity: CryptoStoreIdentity {
                 kind,
-                provider: CryptoStoreProvider::OpenSsl,
-                namespace: binding.store_string(""),
+                provider: Some(CryptoStoreProvider::OpenSsl),
+                namespace: None,
             },
             is_available: true,
             supports_hardware_backed: false,
@@ -385,8 +436,8 @@ pub(crate) fn store_probe_capability(
             CryptoStoreCapability {
                 identity: CryptoStoreIdentity {
                     kind,
-                    provider: CryptoStoreProvider::OpenSsl,
-                    namespace: binding.store_string(""),
+                    provider: Some(CryptoStoreProvider::OpenSsl),
+                    namespace: None,
                 },
                 is_available: store_capability.is_available,
                 supports_hardware_backed: store_capability.supports_hardware_backed,
@@ -454,8 +505,8 @@ pub(crate) fn store_probe_capability(
             CryptoStoreCapability {
                 identity: CryptoStoreIdentity {
                     kind,
-                    provider,
-                    namespace: binding.store_string(""),
+                    provider: Some(provider),
+                    namespace: None,
                 },
                 is_available,
                 supports_hardware_backed: false,
@@ -908,7 +959,9 @@ pub(crate) fn store_open(
     options: CryptoStoreOptions,
 ) -> RuntimeResult<resource::CryptoStoreHandle> {
     // decode store option strings
-    let namespace = decode_native_string(options.namespace, "options.namespace")?;
+    let namespace =
+        decode_optional_native_string(options.namespace, "options.namespace")?.unwrap_or_default();
+    let provider = store_provider(options.provider);
 
     // open one ephemeral in-memory store lane
     if options.kind == CryptoStoreKind::Ephemeral {
@@ -921,7 +974,7 @@ pub(crate) fn store_open(
 
         let store = CryptoStoreResource {
             kind: options.kind,
-            provider: CryptoStoreProvider::OpenSsl,
+            provider,
             namespace,
             keys: Vec::new(),
             certificates: Vec::new(),
@@ -933,7 +986,7 @@ pub(crate) fn store_open(
     if options.kind == CryptoStoreKind::Provider {
         let store = CryptoStoreResource {
             kind: options.kind,
-            provider: CryptoStoreProvider::OpenSsl,
+            provider,
             namespace,
             keys: Vec::new(),
             certificates: Vec::new(),
@@ -962,7 +1015,7 @@ pub(crate) fn store_open(
             load_host_persistent_keys(binding, options.kind, "destack.crypto.store.open")?;
         let store_provenance = CryptoStoreProvenanceResource {
             kind: options.kind,
-            provider: CryptoStoreProvider::OpenSsl,
+            provider,
             namespace: String::new(),
         };
 
@@ -1010,7 +1063,7 @@ pub(crate) fn store_open(
 
         let store = CryptoStoreResource {
             kind: options.kind,
-            provider: CryptoStoreProvider::OpenSsl,
+            provider,
             namespace,
             keys,
             certificates,
@@ -1068,19 +1121,10 @@ pub(crate) fn store_list_keys(
 
     // decode query pagination and key filters
     let label_prefix = decode_native_string(query.label_prefix, "query.labelPrefix")?;
-    let cursor_raw = decode_native_string(query.cursor, "query.cursor")?;
-    let offset = if cursor_raw.is_empty() {
-        0usize
-    } else {
-        cursor_raw
-            .parse::<usize>()
-            .map_err(|_| invalid_argument("query.cursor", "cursor must be one integer index"))?
-    };
-    let limit = if query.limit == 0 {
-        DEFAULT_KEY_LIST_LIMIT
-    } else {
-        query.limit as usize
-    };
+    let offset = key_query_offset(query)?;
+    let limit = key_query_limit(query);
+    let algorithm = key_query_algorithm(query);
+    let usage_mask = key_query_usage_mask(query);
 
     // collect key descriptors that satisfy the query
     let mut filtered = Vec::new();
@@ -1105,14 +1149,10 @@ pub(crate) fn store_list_keys(
         if !label_prefix.is_empty() && !key_resource.label.starts_with(&label_prefix) {
             continue;
         }
-        if query.algorithm != CryptoKeyAlgorithm::Unknown
-            && key_resource.algorithm != query.algorithm
-        {
+        if algorithm != CryptoKeyAlgorithm::Unknown && key_resource.algorithm != algorithm {
             continue;
         }
-        if query.usage_mask.0 != 0
-            && (key_resource.usage_mask.0 & query.usage_mask.0) != query.usage_mask.0
-        {
+        if usage_mask.0 != 0 && (key_resource.usage_mask.0 & usage_mask.0) != usage_mask.0 {
             continue;
         }
 
@@ -1129,9 +1169,9 @@ pub(crate) fn store_list_keys(
     let end = start.saturating_add(limit).min(filtered.len());
     let entries = filtered[start..end].to_vec();
     let next_cursor = if end < filtered.len() {
-        binding.store_string(&end.to_string())
+        Some(binding.store_string(&end.to_string()))
     } else {
-        binding.store_string("")
+        None
     };
 
     Ok(CryptoKeyListPage {
@@ -1161,19 +1201,8 @@ pub(crate) fn store_list_certificates(
         query.subject_alternative_name,
         "query.subjectAlternativeName",
     )?;
-    let cursor_raw = decode_native_string(query.cursor, "query.cursor")?;
-    let offset = if cursor_raw.is_empty() {
-        0usize
-    } else {
-        cursor_raw
-            .parse::<usize>()
-            .map_err(|_| invalid_argument("query.cursor", "cursor must be one integer index"))?
-    };
-    let limit = if query.limit == 0 {
-        DEFAULT_CERTIFICATE_LIST_LIMIT
-    } else {
-        query.limit as usize
-    };
+    let offset = certificate_query_offset(query)?;
+    let limit = certificate_query_limit(query);
 
     // collect certificate descriptors that satisfy the query
     let mut filtered = Vec::new();
@@ -1240,9 +1269,9 @@ pub(crate) fn store_list_certificates(
     let end = start.saturating_add(limit).min(filtered.len());
     let entries = filtered[start..end].to_vec();
     let next_cursor = if end < filtered.len() {
-        binding.store_string(&end.to_string())
+        Some(binding.store_string(&end.to_string()))
     } else {
-        binding.store_string("")
+        None
     };
 
     Ok(CryptoCertificateListPage {

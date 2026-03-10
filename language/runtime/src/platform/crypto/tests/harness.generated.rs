@@ -2906,7 +2906,7 @@ impl<'call> CryptoHarnessContext<'call> {
                     self.call_context,
                     context,
                     kind,
-                    provider,
+                    Some(provider),
                 )?;
                 Ok(HarnessValue::Vm(out))
             }
@@ -2917,7 +2917,7 @@ impl<'call> CryptoHarnessContext<'call> {
                         self.call_context,
                         out.as_mut_ptr(),
                         kind,
-                        provider,
+                        Some(provider),
                     )?;
                 }
                 let out = unsafe { out.assume_init() };

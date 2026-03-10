@@ -63,6 +63,7 @@ pub mod tty;
 
 pub use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 pub use abi::{NativeArray, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, VmValueCodec};
+pub(crate) use core::{NativeAbiCodec, VmAbiCodec};
 pub use diagnostic::{PlatformError, PlatformErrorCode, PlatformResult};
 pub use generated::{PLATFORM_NATIVE_BINDINGS, PLATFORM_VM_BINDINGS};
 #[cfg(target_os = "linux")]

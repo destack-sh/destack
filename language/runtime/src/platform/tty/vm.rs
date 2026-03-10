@@ -1,4 +1,5 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core::call_out;
 use crate::platform::tty::{
     PtyPairVm, TtyModeVm, TtySizeVm, TtyTermiosAttributes, TtyTermiosAttributesVm,
     TtyTermiosFlowAction, TtyTermiosQueue, TtyTermiosSetAction,
@@ -8,16 +9,6 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 use destack_vm as vm;
 
 use super::host as host_tty;
-
-/// Invoke one host call that writes through an out pointer.
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    // allocate one uninitialized output slot for the host call
-    let mut out = std::mem::MaybeUninit::<T>::uninit();
-
-    // execute call and assume initialization on success
-    call(out.as_mut_ptr())?;
-    Ok(unsafe { out.assume_init() })
-}
 
 /// Build one native byte slice from one mutable vec.
 fn native_bytes_from_vec(bytes: &mut Vec<u8>) -> NativeSlice<u8> {

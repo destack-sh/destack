@@ -2276,7 +2276,7 @@ pub(crate) unsafe fn destack_crypto_store_probe_capability(
     binding: &BindingCallContext,
     out: *mut CryptoStoreCapability,
     kind: CryptoStoreKind,
-    provider: CryptoStoreProvider,
+    provider: Option<CryptoStoreProvider>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());

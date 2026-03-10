@@ -1,10 +1,13 @@
 use destack_vm as vm;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::{NativeAbi, VmAbi};
-use crate::platform::fs::{
-    self, OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm,
-    PathUtf16, PathUtf16Abi, PathUtf16Vm, core as core_fs,
+use crate::diagnostic::RuntimeResult;
+use crate::platform::core::{
+    bytes_array_to_vm, call_out, intern_string_to_vm as string_ref_to_vm,
+    os_path_to_vm as path_ref_to_vm, store_bytes_array_from_vm,
+    store_bytes_from_vm as bytes_slice_from_vm, store_os_path_from_vm as path_ref_from_vm,
+    store_string_from_vm as string_ref_from_vm, store_string_slice_from_vm as string_slice_from_vm,
+    store_values_array_from_vm, store_values_from_vm, string_slice_to_vm, values_array_to_vm,
+    values_to_vm,
 };
 use crate::platform::process::{
     ExecAtFlags, GroupId, ProcessCpuSet, ProcessCpuSetVm, ProcessFdAction, ProcessFdActionClose,
@@ -18,186 +21,8 @@ use crate::platform::process::{
     ProcessWaitStatusVm, ProcessWaitStoppedStatusVm, Signal, SignalEventVm, SignalFdFlags,
     SignalMaskHow, SyscallFilterFlags, UserId, host as host_process,
 };
-use crate::platform::{NativeArray, VmAggregateCodec, VmArray, VmSlice, VmValueCodec, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
-
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    let mut out = std::mem::MaybeUninit::<T>::uninit();
-    call(out.as_mut_ptr())?;
-    Ok(unsafe { out.assume_init() })
-}
-
-fn path_bytes_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    path: PathBytesVm,
-) -> RuntimeResult<PathBytes> {
-    let bytes = path.0.read_bytes(context)?;
-    Ok(PathBytesAbi::<NativeAbi>(binding.store_array(bytes)))
-}
-
-fn path_utf16_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    path: PathUtf16Vm,
-) -> RuntimeResult<PathUtf16> {
-    let units = path.0.read_values(context)?;
-    Ok(PathUtf16Abi::<NativeAbi>(binding.store_array(units)))
-}
-
-fn path_ref_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
-) -> RuntimeResult<OsPath> {
-    match path {
-        OsPathVm::OsPathBytes(path_bytes) => {
-            let bytes = path_bytes_from_vm(binding, context, path_bytes.bytes)?;
-            Ok(core_fs::path_ref_from_bytes(bytes))
-        }
-        OsPathVm::OsPathUtf16(path_utf16) => {
-            let utf16 = path_utf16_from_vm(binding, context, path_utf16.utf16)?;
-            Ok(core_fs::path_ref_from_utf16(utf16))
-        }
-    }
-}
-
-fn path_bytes_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    path: PathBytes,
-) -> RuntimeResult<PathBytesVm> {
-    let bytes = unsafe { path.0.as_slice()? };
-    let array = VmArray::from_bytes(context, bytes);
-    Ok(PathBytesAbi::<VmAbi>(array))
-}
-
-fn path_utf16_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    path: PathUtf16,
-) -> RuntimeResult<PathUtf16Vm> {
-    let units = unsafe { path.0.as_slice()? };
-    let array = VmArray::from_values(context, units)?;
-    Ok(PathUtf16Abi::<VmAbi>(array))
-}
-
-fn path_ref_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    path: OsPath,
-) -> RuntimeResult<OsPathVm> {
-    match path {
-        OsPath::OsPathBytes(path_bytes) => {
-            let bytes = path_bytes_to_vm(context, path_bytes.bytes)?;
-            Ok(OsPathVm::OsPathBytes(OsPathBytesVm {
-                kind: vm::StringHandle::new(context.intern_string("bytes")),
-                bytes,
-            }))
-        }
-        OsPath::OsPathUtf16(path_utf16) => {
-            let utf16 = path_utf16_to_vm(context, path_utf16.utf16)?;
-            Ok(OsPathVm::OsPathUtf16(OsPathUtf16Vm {
-                kind: vm::StringHandle::new(context.intern_string("utf16")),
-                utf16,
-            }))
-        }
-    }
-}
-
-fn string_ref_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
-) -> RuntimeResult<NativeStringRef> {
-    let string_ref = context
-        .string_ref(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    Ok(binding.store_string(string_ref.as_str()))
-}
-
-fn string_ref_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeStringRef,
-) -> RuntimeResult<vm::StringHandle> {
-    let value = unsafe { value.as_str()? };
-    Ok(vm::StringHandle::new(context.intern_string(value)))
-}
-
-fn string_slice_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    values: VmSlice<vm::StringHandle>,
-) -> RuntimeResult<NativeStringSlice> {
-    let values = values.read_values(context)?;
-    let mut native_values = Vec::with_capacity(values.len());
-    for value in values {
-        native_values.push(string_ref_from_vm(binding, context, value)?);
-    }
-
-    Ok(binding.store_string_slice(native_values))
-}
-
-fn string_slice_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeStringSlice,
-) -> RuntimeResult<VmSlice<vm::StringHandle>> {
-    let values = unsafe { values.as_slice()? };
-    let mut handles = Vec::with_capacity(values.len());
-    for value in values {
-        handles.push(string_ref_to_vm(context, *value)?);
-    }
-
-    VmSlice::from_values(context, &handles)
-}
-
-fn bytes_slice_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    values: VmSlice<u8>,
-) -> RuntimeResult<NativeSlice<u8>> {
-    let values = values.read_bytes(context)?;
-    Ok(binding.store_slice(values))
-}
-
-fn array_u8_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    values: VmArray<u8>,
-) -> RuntimeResult<NativeArray<u8>> {
-    let values = values.read_bytes(context)?;
-    Ok(binding.store_array(values))
-}
-
-fn array_u8_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeArray<u8>,
-) -> RuntimeResult<VmArray<u8>> {
-    let values = unsafe { values.as_slice()? };
-    Ok(VmArray::from_bytes(context, values))
-}
-
-fn slice_from_vm<T: VmValueCodec + 'static>(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    values: VmSlice<T>,
-) -> RuntimeResult<NativeSlice<T>> {
-    let values = values.read_values(context)?;
-    Ok(binding.store_slice(values))
-}
-
-fn slice_to_vm<T: VmValueCodec>(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeSlice<T>,
-) -> RuntimeResult<VmSlice<T>> {
-    let values = unsafe { values.as_slice()? };
-    VmSlice::from_values(context, values)
-}
-
-fn array_to_vm<T: VmValueCodec>(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeArray<T>,
-) -> RuntimeResult<VmArray<T>> {
-    let values = unsafe { values.as_slice()? };
-    VmArray::from_values(context, values)
-}
+use crate::platform::{VmAggregateCodec, VmArray, VmSlice, fs, resource};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 fn process_spawn_options_from_vm(
     binding: &BindingCallContext,
@@ -218,20 +43,18 @@ fn process_cpu_set_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     cpus: ProcessCpuSetVm,
 ) -> RuntimeResult<ProcessCpuSet> {
-    let cpus = cpus.cpus.read_values(context)?;
-    Ok(ProcessCpuSet {
-        cpus: binding.store_array(cpus),
-    })
+    let cpus = store_values_array_from_vm(binding, context, cpus.cpus)?;
+
+    Ok(ProcessCpuSet { cpus })
 }
 
 fn process_cpu_set_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     cpus: ProcessCpuSet,
 ) -> RuntimeResult<ProcessCpuSetVm> {
-    let cpus = unsafe { cpus.cpus.as_slice()? };
-    Ok(ProcessCpuSetVm {
-        cpus: VmArray::from_values(context, cpus)?,
-    })
+    let cpus = values_array_to_vm(context, cpus.cpus)?;
+
+    Ok(ProcessCpuSetVm { cpus })
 }
 
 fn process_stdio_from_vm(
@@ -589,7 +412,7 @@ pub(crate) fn destack_process_env_get_bytes(
     let name = bytes_slice_from_vm(binding, context, name)?;
     let value =
         call_out(|out| unsafe { host_process::destack_process_env_get_bytes(binding, out, name) })?;
-    array_u8_to_vm(context, value)
+    bytes_array_to_vm(context, value)
 }
 
 /// Set an environment variable by UTF-8 name and value.
@@ -1030,7 +853,7 @@ pub(crate) fn destack_process_signal_fd_open(
     signals: VmSlice<Signal>,
     flags: SignalFdFlags,
 ) -> RuntimeResult<resource::SignalFdHandle> {
-    let signals = slice_from_vm(binding, context, signals)?;
+    let signals = store_values_from_vm(binding, context, signals)?;
     call_out(|out| unsafe {
         host_process::destack_process_signal_fd_open(binding, out, signals, flags)
     })
@@ -1084,7 +907,7 @@ pub(crate) fn destack_process_signal_fd_set_mask(
     handle: resource::SignalFdHandle,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<()> {
-    let signals = slice_from_vm(binding, context, signals)?;
+    let signals = store_values_from_vm(binding, context, signals)?;
     unsafe { host_process::destack_process_signal_fd_set_mask(binding, handle, signals) }
 }
 
@@ -1222,7 +1045,7 @@ pub(crate) fn destack_process_job_assign(
     pids: VmSlice<ProcessId>,
 ) -> RuntimeResult<()> {
     let name = string_ref_from_vm(binding, context, name)?;
-    let pids = slice_from_vm(binding, context, pids)?;
+    let pids = store_values_from_vm(binding, context, pids)?;
     unsafe { host_process::destack_process_job_assign(binding, name, pids) }
 }
 
@@ -1372,7 +1195,7 @@ pub(crate) fn destack_process_groups(
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<GroupId>> {
     let groups = call_out(|out| unsafe { host_process::destack_process_groups(binding, out) })?;
-    slice_to_vm(context, groups)
+    values_to_vm(context, groups)
 }
 
 /// Return the current process identifier.
@@ -1545,7 +1368,7 @@ pub(crate) fn destack_process_set_groups(
     context: &mut vm::ExternalCallContext<'_>,
     groups: VmSlice<GroupId>,
 ) -> RuntimeResult<()> {
-    let groups = slice_from_vm(binding, context, groups)?;
+    let groups = store_values_from_vm(binding, context, groups)?;
     unsafe { host_process::destack_process_set_groups(binding, groups) }
 }
 
@@ -1696,7 +1519,7 @@ pub(crate) fn destack_process_install_syscall_filter(
     program: VmArray<u8>,
     flags: SyscallFilterFlags,
 ) -> RuntimeResult<()> {
-    let program = array_u8_from_vm(binding, context, program)?;
+    let program = store_bytes_array_from_vm(binding, context, program)?;
     unsafe { host_process::destack_process_install_syscall_filter(binding, program, flags) }
 }
 
@@ -2158,7 +1981,7 @@ pub(crate) fn destack_process_signal_mask_read(
 ) -> RuntimeResult<VmArray<Signal>> {
     let signals =
         call_out(|out| unsafe { host_process::destack_process_signal_mask_read(binding, out) })?;
-    array_to_vm(context, signals)
+    values_array_to_vm(context, signals)
 }
 
 /// Update the current thread signal mask.
@@ -2184,7 +2007,7 @@ pub(crate) fn destack_process_signal_mask_update(
     how: SignalMaskHow,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<()> {
-    let signals = slice_from_vm(binding, context, signals)?;
+    let signals = store_values_from_vm(binding, context, signals)?;
     unsafe { host_process::destack_process_signal_mask_update(binding, how, signals) }
 }
 
@@ -2287,7 +2110,7 @@ pub(crate) fn destack_process_signal_try_wait(
     context: &mut vm::ExternalCallContext<'_>,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<SignalEventVm> {
-    let signals = slice_from_vm(binding, context, signals)?;
+    let signals = store_values_from_vm(binding, context, signals)?;
     call_out(|out| unsafe { host_process::destack_process_signal_try_wait(binding, out, signals) })
 }
 
@@ -2338,7 +2161,7 @@ pub(crate) fn destack_process_signal_wait(
     context: &mut vm::ExternalCallContext<'_>,
     signals: VmSlice<Signal>,
 ) -> RuntimeResult<SignalEventVm> {
-    let signals = slice_from_vm(binding, context, signals)?;
+    let signals = store_values_from_vm(binding, context, signals)?;
     call_out(|out| unsafe { host_process::destack_process_signal_wait(binding, out, signals) })
 }
 

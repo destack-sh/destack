@@ -46,6 +46,11 @@ use super::security::{
     probe_secure_enclave_support,
 };
 
+/// Return the effective signature digest.
+fn signature_digest(parameters: CryptoSignatureParameters) -> CryptoDigestAlgorithm {
+    parameters.digest.unwrap_or(CryptoDigestAlgorithm::Unknown)
+}
+
 pub(crate) fn host_store_supports_hardware_backed_key(
     binding: &BindingCallContext,
     kind: CryptoStoreKind,
@@ -530,7 +535,7 @@ pub(crate) fn host_key_sign(
                 return Err(core_platform::not_supported(operation));
             }
 
-            ecdsa_signature_algorithm(parameters.digest, operation)?
+            ecdsa_signature_algorithm(signature_digest(parameters), operation)?
         }
         HostKeyBackend::KeychainEc => {
             if algorithm != CryptoKeyAlgorithm::Ec
@@ -539,7 +544,7 @@ pub(crate) fn host_key_sign(
                 return Err(core_platform::not_supported(operation));
             }
 
-            ecdsa_signature_algorithm(parameters.digest, operation)?
+            ecdsa_signature_algorithm(signature_digest(parameters), operation)?
         }
         HostKeyBackend::KeychainRsa => {
             if algorithm != CryptoKeyAlgorithm::Rsa {

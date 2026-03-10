@@ -72,7 +72,7 @@ pub(crate) fn enumerate_monitor_snapshots_for_runtime(
 }
 
 /// Convert one owned descriptor into one ABI payload.
-pub(crate) fn descriptor_from_owned(
+pub(crate) fn descriptor_from_value(
     binding: &BindingCallContext,
     value: &DisplayDescriptorSnapshot,
 ) -> DisplayDescriptor {

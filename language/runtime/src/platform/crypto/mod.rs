@@ -1,5 +1,5 @@
 #[path = "abi.generated.rs"]
-mod abi_generated;
+pub(crate) mod abi_generated;
 #[path = "bindings.generated.rs"]
 mod bindings_generated;
 #[cfg(any(unix, windows))]

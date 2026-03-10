@@ -34,7 +34,7 @@ fn test_store_open_list_keys_close() {
                 usage_mask: CryptoKeyUsageMask(0),
                 label: context.call_context.store_string("session-key"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -45,10 +45,10 @@ fn test_store_open_list_keys_close() {
         // query keys and verify one key is listed
         let key_query = CryptoKeyQuery {
             label_prefix: context.call_context.store_string("session"),
-            algorithm: CryptoKeyAlgorithm::Unknown,
-            usage_mask: CryptoKeyUsageMask(0),
-            cursor: context.call_context.store_string(""),
-            limit: 16,
+            algorithm: Some(CryptoKeyAlgorithm::Unknown),
+            usage_mask: Some(CryptoKeyUsageMask(0)),
+            cursor: Some(context.call_context.store_string("")),
+            limit: Some(16),
         };
         let page =
             context.destack_crypto_store_list_keys(store, context.request_value(key_query)?)?;
@@ -60,8 +60,8 @@ fn test_store_open_list_keys_close() {
             subject_contains: context.call_context.store_string(""),
             issuer_contains: context.call_context.store_string(""),
             subject_alternative_name: context.call_context.store_string(""),
-            cursor: context.call_context.store_string(""),
-            limit: 8,
+            cursor: Some(context.call_context.store_string("")),
+            limit: Some(8),
         };
         let page = context.destack_crypto_store_list_certificates(
             store,
@@ -180,8 +180,8 @@ fn test_store_list_certificates_for_available_host_lanes() {
                 subject_contains: context.call_context.store_string(""),
                 issuer_contains: context.call_context.store_string(""),
                 subject_alternative_name: context.call_context.store_string(""),
-                cursor: context.call_context.store_string(""),
-                limit: 16,
+                cursor: Some(context.call_context.store_string("")),
+                limit: Some(16),
             };
             let page = context
                 .destack_crypto_store_list_certificates(store, context.request_value(query)?)?;
@@ -301,8 +301,8 @@ fn test_store_open_accepts_provider_for_ephemeral() {
         // provider input should not block ephemeral store open
         let options = CryptoStoreOptions {
             kind: CryptoStoreKind::Ephemeral,
-            provider: CryptoStoreProvider::OpenSsl,
-            namespace: context.call_context.store_string(""),
+            provider: Some(CryptoStoreProvider::OpenSsl),
+            namespace: Some(context.call_context.store_string("")),
         };
         let options = context.request_value(options)?;
         let store = context.destack_crypto_store_open(options)?;
@@ -320,8 +320,8 @@ fn test_store_open_rejects_namespace_for_ephemeral() {
         // namespaces are invalid for ephemeral lanes
         let options = CryptoStoreOptions {
             kind: CryptoStoreKind::Ephemeral,
-            provider: CryptoStoreProvider::OpenSsl,
-            namespace: context.call_context.store_string("namespace"),
+            provider: Some(CryptoStoreProvider::OpenSsl),
+            namespace: Some(context.call_context.store_string("namespace")),
         };
         let options = context.request_value(options)?;
         let result = context.destack_crypto_store_open(options);
@@ -507,8 +507,8 @@ fn test_store_provider_open_generate_key() {
         // open one provider store lane using openssl backend
         let options = CryptoStoreOptions {
             kind: CryptoStoreKind::Provider,
-            provider: CryptoStoreProvider::OpenSsl,
-            namespace: context.call_context.store_string("project-a"),
+            provider: Some(CryptoStoreProvider::OpenSsl),
+            namespace: Some(context.call_context.store_string("project-a")),
         };
         let options = context.request_value(options)?;
         let store = context.destack_crypto_store_open(options)?;
@@ -521,7 +521,7 @@ fn test_store_provider_open_generate_key() {
                 usage_mask: CryptoKeyUsageMask(0),
                 label: context.call_context.store_string("provider-key"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },

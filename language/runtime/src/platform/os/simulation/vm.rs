@@ -1137,7 +1137,7 @@ pub(crate) fn destack_os_credentials_contains(
     _context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
-    access_group: vm::StringHandle,
+    access_group: Option<vm::StringHandle>,
 ) -> RuntimeResult<bool> {
     let _ = (service, account, access_group);
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1169,7 +1169,7 @@ pub(crate) fn destack_os_credentials_delete(
     _context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
-    access_group: vm::StringHandle,
+    access_group: Option<vm::StringHandle>,
 ) -> RuntimeResult<()> {
     let _ = (service, account, access_group);
     Err(RuntimeError::from(PlatformError::not_supported(

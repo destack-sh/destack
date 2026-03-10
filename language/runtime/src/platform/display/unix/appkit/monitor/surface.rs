@@ -6,7 +6,7 @@ use crate::platform::display::{
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
-use super::{descriptor_from_owned, enumerate_monitor_snapshots, monitor_snapshot_by_display_id};
+use super::{descriptor_from_value, enumerate_monitor_snapshots, monitor_snapshot_by_display_id};
 use crate::platform::display::unix::appkit::{core, resource as display_resource};
 
 /// Close one display endpoint.
@@ -47,7 +47,7 @@ pub(crate) unsafe fn monitor_descriptor(
         .ok_or_else(|| core::display_not_found("destack.display.monitor.descriptor", handle))?;
 
     unsafe {
-        *out = descriptor_from_owned(binding, &snapshot.descriptor);
+        *out = descriptor_from_value(binding, &snapshot.descriptor);
     }
 
     Ok(())
@@ -65,7 +65,7 @@ pub(crate) unsafe fn monitor_list(
 
     // convert each snapshot descriptor into one ABI value
     for snapshot in snapshots {
-        values.push(descriptor_from_owned(binding, &snapshot.descriptor));
+        values.push(descriptor_from_value(binding, &snapshot.descriptor));
     }
 
     unsafe {

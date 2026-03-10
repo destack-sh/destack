@@ -1691,7 +1691,7 @@ pub(crate) fn destack_crypto_store_probe_capability(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     kind: CryptoStoreKind,
-    provider: CryptoStoreProvider,
+    provider: Option<CryptoStoreProvider>,
 ) -> RuntimeResult<CryptoStoreCapabilityVm> {
     let _ = (kind, provider);
     Err(RuntimeError::from(PlatformError::not_supported(

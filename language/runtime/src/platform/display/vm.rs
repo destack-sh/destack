@@ -1,13 +1,13 @@
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::VmAbi;
-use crate::platform::fs::{
-    OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm,
-    PathUtf16, PathUtf16Abi, PathUtf16Vm,
+use crate::platform::core::{
+    call_out, intern_string_to_vm as string_to_vm, map_native_array_to_vm, map_native_slice_to_vm,
+    optional_intern_string_to_vm as optional_string_to_vm, os_path_to_vm as path_to_vm,
+    store_string_from_vm as string_from_vm,
 };
 use crate::platform::{NativeArray, VmArray, VmSlice, display as display_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::{BindingCallContext, NativeSlice};
 use display_platform::{
     DisplayBackendCapabilityFlags, DisplayBackendDescriptor, DisplayBackendDescriptorVm,
     DisplayDescriptor, DisplayDescriptorVm, DisplayGammaRamp, DisplayGammaRampVm, DisplayMode,
@@ -21,85 +21,6 @@ use display_platform::{
     WindowModeOptions, WindowModeOptionsVm, WindowModePayload, WindowModePayloadVm, WindowOptions,
     WindowOptionsVm, native as host_display,
 };
-
-/// Invoke one host call that writes through an output pointer.
-fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
-    // allocate one uninitialized output slot
-    let mut out = std::mem::MaybeUninit::<T>::uninit();
-
-    // execute call and assume initialization on success
-    call(out.as_mut_ptr())?;
-    Ok(unsafe { out.assume_init() })
-}
-
-/// Convert one VM string handle into one runtime-owned native string.
-fn string_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
-) -> RuntimeResult<NativeStringRef> {
-    let value = context
-        .string_ref(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    Ok(binding.store_string(value.as_str()))
-}
-
-/// Convert one native string into one VM string handle.
-fn string_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeStringRef,
-) -> RuntimeResult<vm::StringHandle> {
-    let value = unsafe { value.as_str()? };
-    Ok(vm::StringHandle::new(context.intern_string(value)))
-}
-
-/// Convert one optional native string into one optional VM string handle.
-fn optional_string_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: Option<NativeStringRef>,
-) -> RuntimeResult<Option<vm::StringHandle>> {
-    value.map(|value| string_to_vm(context, value)).transpose()
-}
-
-/// Convert one native path-byte payload to VM.
-fn path_bytes_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    path: PathBytes,
-) -> RuntimeResult<PathBytesVm> {
-    let bytes = unsafe { path.0.as_slice()? };
-    let array = VmArray::from_bytes(context, bytes);
-    Ok(PathBytesAbi::<VmAbi>(array))
-}
-
-/// Convert one native path-utf16 payload to VM.
-fn path_utf16_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    path: PathUtf16,
-) -> RuntimeResult<PathUtf16Vm> {
-    let units = unsafe { path.0.as_slice()? };
-    let array = VmArray::from_values(context, units)?;
-    Ok(PathUtf16Abi::<VmAbi>(array))
-}
-
-/// Convert one native path payload to VM.
-fn path_to_vm(context: &mut vm::ExternalCallContext<'_>, path: OsPath) -> RuntimeResult<OsPathVm> {
-    match path {
-        OsPath::OsPathBytes(path_bytes) => {
-            let bytes = path_bytes_to_vm(context, path_bytes.bytes)?;
-            Ok(OsPathVm::OsPathBytes(OsPathBytesVm {
-                kind: vm::StringHandle::new(context.intern_string("bytes")),
-                bytes,
-            }))
-        }
-        OsPath::OsPathUtf16(path_utf16) => {
-            let utf16 = path_utf16_to_vm(context, path_utf16.utf16)?;
-            Ok(OsPathVm::OsPathUtf16(OsPathUtf16Vm {
-                kind: vm::StringHandle::new(context.intern_string("utf16")),
-                utf16,
-            }))
-        }
-    }
-}
 
 /// Convert one native window-mode payload to VM.
 fn window_mode_options_to_vm(
@@ -362,14 +283,9 @@ fn descriptor_slice_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: NativeSlice<DisplayDescriptor>,
 ) -> RuntimeResult<VmSlice<DisplayDescriptorVm>> {
-    let value = unsafe { value.as_slice()? };
-    let mut vm_values = Vec::with_capacity(value.len());
-
-    for descriptor in value {
-        vm_values.push(display_descriptor_to_vm(context, *descriptor)?);
-    }
-
-    VmSlice::from_values(context, &vm_values)
+    map_native_slice_to_vm(context, value, |context, descriptor| {
+        display_descriptor_to_vm(context, *descriptor)
+    })
 }
 
 /// Convert one native backend descriptor slice into one VM slice.
@@ -377,14 +293,9 @@ fn backend_descriptor_slice_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: NativeSlice<DisplayBackendDescriptor>,
 ) -> RuntimeResult<VmSlice<DisplayBackendDescriptorVm>> {
-    let value = unsafe { value.as_slice()? };
-    let mut vm_values = Vec::with_capacity(value.len());
-
-    for descriptor in value {
-        vm_values.push(display_backend_descriptor_to_vm(context, *descriptor)?);
-    }
-
-    VmSlice::from_values(context, &vm_values)
+    map_native_slice_to_vm(context, value, |context, descriptor| {
+        display_backend_descriptor_to_vm(context, *descriptor)
+    })
 }
 
 /// List display backends that are available for the active target.
@@ -411,14 +322,9 @@ fn display_event_array_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: NativeArray<DisplayMonitorEvent>,
 ) -> RuntimeResult<VmArray<DisplayMonitorEventVm>> {
-    let value = unsafe { value.as_slice()? };
-    let mut vm_values = Vec::with_capacity(value.len());
-
-    for event in value {
-        vm_values.push(display_event_to_vm(context, *event)?);
-    }
-
-    VmArray::from_values(context, &vm_values)
+    map_native_array_to_vm(context, value, |context, event| {
+        display_event_to_vm(context, *event)
+    })
 }
 
 /// Convert one native window-event array into one VM array.
@@ -426,14 +332,9 @@ fn window_event_array_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: NativeArray<display_platform::WindowEvent>,
 ) -> RuntimeResult<VmArray<display_platform::WindowEventVm>> {
-    let value = unsafe { value.as_slice()? };
-    let mut vm_values = Vec::with_capacity(value.len());
-
-    for event in value {
-        vm_values.push(window_event_to_vm(context, *event)?);
-    }
-
-    VmArray::from_values(context, &vm_values)
+    map_native_array_to_vm(context, value, |context, event| {
+        window_event_to_vm(context, *event)
+    })
 }
 
 /// Convert one native display gamma-ramp payload to VM.

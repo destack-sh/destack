@@ -1754,7 +1754,7 @@ pub(crate) unsafe fn destack_crypto_store_probe_capability(
     _binding: &BindingCallContext,
     out: *mut CryptoStoreCapability,
     kind: CryptoStoreKind,
-    provider: CryptoStoreProvider,
+    provider: Option<CryptoStoreProvider>,
 ) -> RuntimeResult<()> {
     let _ = (out, kind, provider);
 

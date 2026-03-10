@@ -24,7 +24,7 @@ fn test_cipher_encrypt_decrypt_aes_gcm() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
                 label: context.call_context.store_string("aes"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -40,7 +40,7 @@ fn test_cipher_encrypt_decrypt_aes_gcm() {
             nonce,
             additional_data: empty,
             tag: empty,
-            tag_length_bytes: 16,
+            tag_length_bytes: Some(16),
         };
         let payload = context.bytes_slice_value(b"cipher payload")?;
         let encrypted = context.destack_crypto_cipher_encrypt(
@@ -61,7 +61,7 @@ fn test_cipher_encrypt_decrypt_aes_gcm() {
             nonce,
             additional_data: empty,
             tag,
-            tag_length_bytes: 16,
+            tag_length_bytes: Some(16),
         };
         let ciphertext = context.bytes_slice_value(&ciphertext)?;
         let decrypted = context.destack_crypto_cipher_decrypt(
@@ -93,7 +93,7 @@ fn test_cipher_streaming_respects_aead_tag_length() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
                 label: context.call_context.store_string("stream"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -109,7 +109,7 @@ fn test_cipher_streaming_respects_aead_tag_length() {
             nonce,
             additional_data: empty,
             tag: empty,
-            tag_length_bytes: 12,
+            tag_length_bytes: Some(12),
         };
         let encrypt_handle = context.destack_crypto_cipher_open(
             key,
@@ -135,7 +135,7 @@ fn test_cipher_streaming_respects_aead_tag_length() {
             nonce,
             additional_data: empty,
             tag,
-            tag_length_bytes: 12,
+            tag_length_bytes: Some(12),
         };
         let decrypt_handle = context.destack_crypto_cipher_open(
             key,
@@ -171,7 +171,7 @@ fn test_cipher_streaming_update_additional_data_roundtrip() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
                 label: context.call_context.store_string("aad-stream"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -187,7 +187,7 @@ fn test_cipher_streaming_update_additional_data_roundtrip() {
             nonce,
             additional_data: empty,
             tag: empty,
-            tag_length_bytes: 16,
+            tag_length_bytes: Some(16),
         };
         let encrypt_handle = context.destack_crypto_cipher_open(
             key,
@@ -214,7 +214,7 @@ fn test_cipher_streaming_update_additional_data_roundtrip() {
             nonce,
             additional_data: empty,
             tag,
-            tag_length_bytes: 16,
+            tag_length_bytes: Some(16),
         };
         let decrypt_handle = context.destack_crypto_cipher_open(
             key,
@@ -251,7 +251,7 @@ fn test_cipher_reset_clears_stream_state() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
                 label: context.call_context.store_string("cipher-reset"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -267,7 +267,7 @@ fn test_cipher_reset_clears_stream_state() {
             nonce,
             additional_data: empty,
             tag: empty,
-            tag_length_bytes: 16,
+            tag_length_bytes: Some(16),
         };
         let encrypt_handle = context.destack_crypto_cipher_open(
             key,
@@ -284,7 +284,7 @@ fn test_cipher_reset_clears_stream_state() {
             nonce,
             additional_data: empty,
             tag: empty,
-            tag_length_bytes: 16,
+            tag_length_bytes: Some(16),
         };
         context.destack_crypto_cipher_reset(
             encrypt_handle,
@@ -305,7 +305,7 @@ fn test_cipher_reset_clears_stream_state() {
             nonce,
             additional_data: empty,
             tag,
-            tag_length_bytes: 16,
+            tag_length_bytes: Some(16),
         };
         let ciphertext = context.bytes_slice_value(&ciphertext)?;
         let decrypted = context.destack_crypto_cipher_decrypt(
@@ -337,7 +337,7 @@ fn test_cipher_encrypt_rejects_missing_encrypt_usage() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_DECRYPT),
                 label: context.call_context.store_string("decrypt-only"),
                 extractable: true,
-                residency: CryptoKeyResidency::Unknown,
+                residency: Some(CryptoKeyResidency::Unknown),
                 hardware_backed: false,
                 persistent: false,
             },
@@ -352,7 +352,7 @@ fn test_cipher_encrypt_rejects_missing_encrypt_usage() {
             nonce,
             additional_data: empty,
             tag: empty,
-            tag_length_bytes: 16,
+            tag_length_bytes: Some(16),
         };
         let payload = context.bytes_slice_value(b"blocked")?;
         // encryption should fail when key is missing encrypt usage
@@ -400,7 +400,7 @@ fn test_cipher_streaming_host_secret_follows_lane_support() {
                     usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
                     label: context.call_context.store_string("host-stream-cipher"),
                     extractable: false,
-                    residency: CryptoKeyResidency::Unknown,
+                    residency: Some(CryptoKeyResidency::Unknown),
                     hardware_backed: true,
                     persistent: true,
                 },
@@ -429,7 +429,7 @@ fn test_cipher_streaming_host_secret_follows_lane_support() {
                 nonce,
                 additional_data: empty,
                 tag: empty,
-                tag_length_bytes: 16,
+                tag_length_bytes: Some(16),
             };
             let encrypt_handle = context.destack_crypto_cipher_open(
                 key,
@@ -465,7 +465,7 @@ fn test_cipher_streaming_host_secret_follows_lane_support() {
                 nonce,
                 additional_data: empty,
                 tag,
-                tag_length_bytes: 16,
+                tag_length_bytes: Some(16),
             };
             let decrypt_handle = context.destack_crypto_cipher_open(
                 key,

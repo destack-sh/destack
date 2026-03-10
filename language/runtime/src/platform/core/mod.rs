@@ -1,7 +1,9 @@
 #[path = "abi.generated.rs"]
-mod abi_generated;
+pub(crate) mod abi_generated;
 
 mod backend;
+mod clock;
+mod codec;
 mod convert;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 mod dll;
@@ -9,12 +11,15 @@ mod errno;
 mod error;
 #[cfg(unix)]
 mod unix;
+mod value;
 #[cfg(windows)]
 mod windows;
 
 #[allow(unused_imports, unreachable_pub)]
 pub use abi_generated::*;
 pub(crate) use backend::{aggregate_backend_support, backend_support_error};
+pub(crate) use clock::monotonic_now_ns;
+pub(crate) use codec::*;
 #[cfg(unix)]
 pub(crate) use convert::duration_from_option_ns;
 #[allow(unused_imports)]
@@ -56,6 +61,7 @@ pub(crate) use unix::{
 pub(crate) use unix::{close_dynamic_library, load_dynamic_symbol, open_dynamic_library};
 #[cfg(unix)]
 pub(crate) use unix::{io_error, net_error};
+pub(crate) use value::{NativeAbiCodec, VmAbiCodec};
 #[cfg(windows)]
 #[allow(unused_imports)]
 pub(crate) use windows::{
@@ -68,27 +74,3 @@ pub(crate) use windows::{
     qpc_ticks_to_hundred_nanos, qpc_ticks_to_ns, string_from_utf8, string_from_wide, wide_from_str,
     wide_from_utf8, wide_from_utf16, wide_with_nul,
 };
-
-/// Return one process-monotonic timestamp in nanoseconds.
-#[cfg(any(unix, windows))]
-#[allow(dead_code)]
-pub(crate) fn monotonic_now_ns() -> u64 {
-    // use the native Apple host-time domain
-    #[cfg(target_vendor = "apple")]
-    {
-        apple_process_monotonic_nanos()
-    }
-
-    // use process-relative CLOCK_MONOTONIC on non-Apple Unix hosts
-    #[cfg(all(unix, not(target_vendor = "apple")))]
-    {
-        unix_process_monotonic_nanos()
-    }
-
-    // use process-relative QPC on Windows hosts
-    #[cfg(windows)]
-    {
-        qpc_process_monotonic_nanos()
-            .unwrap_or_else(|| panic!("QueryPerformanceCounter monotonic clock unavailable"))
-    }
-}

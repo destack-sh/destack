@@ -367,8 +367,16 @@ pub(crate) fn certificate_verify(
         CryptoCertificatePurpose::CodeSigning => X509PurposeId::CODE_SIGN,
         CryptoCertificatePurpose::EmailProtection => X509PurposeId::SMIME_SIGN,
     };
-    let identity_value = decode_native_string(request.identity.value, "request.identity.value")?;
-    let identity_kind = request.identity.kind;
+    let identity_kind = request
+        .identity
+        .map(|identity| identity.kind)
+        .unwrap_or(CryptoCertificateIdentityKind::DnsName);
+    let identity_value = request
+        .identity
+        .map(|identity| decode_native_string(identity.value, "request.identity.value"))
+        .transpose()?
+        .unwrap_or_default();
+    let verification_unix_seconds = request.verification_unix_seconds.unwrap_or(0);
 
     // verify against explicit trust anchors only
     let (
@@ -383,7 +391,7 @@ pub(crate) fn certificate_verify(
         &intermediates,
         &trust_anchor_certificates,
         purpose,
-        request.verification_unix_seconds,
+        verification_unix_seconds,
         request.revocation_mode,
         identity_kind,
         &identity_value,
@@ -395,9 +403,10 @@ pub(crate) fn certificate_verify(
             valid: without_system_valid,
             error: without_system_error,
             error_code: without_system_error_code,
-            failed_certificate_index: without_system_failed_certificate_index,
-            failed_certificate_subject: binding
-                .store_string(&without_system_failed_certificate_subject),
+            failed_certificate_index: (!without_system_valid)
+                .then_some(without_system_failed_certificate_index),
+            failed_certificate_subject: (!without_system_failed_certificate_subject.is_empty())
+                .then_some(binding.store_string(&without_system_failed_certificate_subject)),
             chain_length: without_system_chain_length,
             used_system_trust_anchor: false,
         });
@@ -423,7 +432,7 @@ pub(crate) fn certificate_verify(
         &intermediates,
         &trust_anchor_certificates_with_system,
         purpose,
-        request.verification_unix_seconds,
+        verification_unix_seconds,
         request.revocation_mode,
         identity_kind,
         &identity_value,
@@ -433,8 +442,10 @@ pub(crate) fn certificate_verify(
         valid: with_system_valid,
         error: with_system_error,
         error_code: with_system_error_code,
-        failed_certificate_index: with_system_failed_certificate_index,
-        failed_certificate_subject: binding.store_string(&with_system_failed_certificate_subject),
+        failed_certificate_index: (!with_system_valid)
+            .then_some(with_system_failed_certificate_index),
+        failed_certificate_subject: (!with_system_failed_certificate_subject.is_empty())
+            .then_some(binding.store_string(&with_system_failed_certificate_subject)),
         chain_length: with_system_chain_length,
         used_system_trust_anchor: request.use_system_trust_anchors
             && !without_system_valid
