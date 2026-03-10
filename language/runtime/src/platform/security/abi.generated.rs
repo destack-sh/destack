@@ -4,43 +4,18 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{
-    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
-    security as platform_security,
-};
+use crate::diagnostic::RuntimeError;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::PlatformError as AbiPlatformError;
+use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::runtime::BindingCallContext;
+use crate::platform::VmValueCodec;
+use crate::platform::VmAggregateCodec;
+use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-
-/// ABI newtype for PlatformCapability.
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct PlatformCapabilityAbi<A: BindingAbi>(
-    /// Inner value.
-    pub A::String,
-);
-
-pub type PlatformCapability = PlatformCapabilityAbi<NativeAbi>;
-pub type PlatformCapabilityVm = PlatformCapabilityAbi<VmAbi>;
-
-impl VmAggregateCodec for PlatformCapabilityAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self(
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, value)?,
-        ))
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.0, context)
-    }
-}
+use crate::platform::security as platform_security;
 
 /// ABI enum for SecurityPolicyMode.
 #[repr(u8)]
@@ -58,16 +33,8 @@ impl VmValueCodec for SecurityPolicyMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Allow,
-            2u8 => Self::Deny,
-            3u8 => Self::Audit,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown SecurityPolicyMode value",
-                ))
-                .boxed());
-            }
+            1u8 => Self::Allow, 2u8 => Self::Deny, 3u8 => Self::Audit,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown SecurityPolicyMode value")).boxed()),
         };
         Ok(decoded)
     }
@@ -77,11 +44,38 @@ impl VmValueCodec for SecurityPolicyMode {
     }
 }
 
+/// Value type for SecurityPolicyMode.
+pub type SecurityPolicyModeValue = SecurityPolicyMode;
+
+impl NativeAbiCodec for SecurityPolicyMode {
+    type Value = SecurityPolicyModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SecurityPolicyMode {
+    type Value = SecurityPolicyModeValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI struct for SecurityPolicyRule.
 #[repr(C)]
 pub struct SecurityPolicyRuleAbi<A: BindingAbi> {
     /// Capability selector for the rule.
-    pub capability: platform_security::PlatformCapabilityAbi<A>,
+    pub capability: A::String,
     /// Decision mode for the capability.
     pub mode: SecurityPolicyMode,
 }
@@ -91,77 +85,96 @@ pub type SecurityPolicyRuleVm = SecurityPolicyRuleAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SecurityPolicyRuleAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("SecurityPolicyRuleAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("SecurityPolicyRuleAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for SecurityPolicyRuleAbi<NativeAbi> {}
 impl Clone for SecurityPolicyRuleAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for SecurityPolicyRuleAbi<VmAbi> {}
 impl Clone for SecurityPolicyRuleAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SecurityPolicyRule",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SecurityPolicyRule")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
-        let field_capability =
-            <PlatformCapabilityVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_mode =
-            <SecurityPolicyMode as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_capability = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_mode = <SecurityPolicyMode as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             capability: field_capability,
             mode: field_mode,
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <PlatformCapabilityVm as VmAggregateCodec>::encode_with_context(
-                self.capability,
-                context,
-            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.capability, context)?,
             <SecurityPolicyMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
 }
 
-/// Replay struct for SecurityPolicyRule.
+/// Value type for SecurityPolicyRule.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SecurityPolicyRuleReplayRecord {
+pub struct SecurityPolicyRuleValue {
     /// Capability selector for the rule.
     pub capability: String,
     /// Decision mode for the capability.
     pub mode: SecurityPolicyMode,
 }
+
+impl NativeAbiCodec for SecurityPolicyRuleAbi<NativeAbi> {
+    type Value = SecurityPolicyRuleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(SecurityPolicyRuleValue {
+            capability: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.capability)? },
+            mode: unsafe { <SecurityPolicyMode as NativeAbiCodec>::into_value(self.mode)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            capability: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.capability),
+            mode: <SecurityPolicyMode as NativeAbiCodec>::from_value(binding, value.mode),
+        }
+    }
+}
+
+impl VmAbiCodec for SecurityPolicyRuleAbi<VmAbi> {
+    type Value = SecurityPolicyRuleValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(SecurityPolicyRuleValue {
+            capability: <vm::StringHandle as VmAbiCodec>::into_value(self.capability, context)?,
+            mode: <SecurityPolicyMode as VmAbiCodec>::into_value(self.mode, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            capability: <vm::StringHandle as VmAbiCodec>::from_value(context, value.capability)?,
+            mode: <SecurityPolicyMode as VmAbiCodec>::from_value(context, value.mode)?,
+        })
+    }
+}
+
+/// Replay struct for SecurityPolicyRule.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SecuritypolicyruleReplayRecord {
+    /// Capability selector for the rule.
+    pub capability: String,
+    /// Decision mode for the capability.
+    pub mode: SecurityPolicyMode,
+}
+

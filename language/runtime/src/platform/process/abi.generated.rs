@@ -4,14 +4,21 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{
-    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec, fs,
-    fs as platform_fs, process as platform_process, resource, resource as platform_resource,
-};
+use crate::diagnostic::RuntimeError;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::PlatformError as AbiPlatformError;
+use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::runtime::BindingCallContext;
+use crate::platform::VmValueCodec;
+use crate::platform::VmAggregateCodec;
+use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::{fs, resource};
+use crate::platform::fs as platform_fs;
+use crate::platform::process as platform_process;
+use crate::platform::resource as platform_resource;
 
 /// ABI newtype for ExecAtFlags.
 #[repr(transparent)]
@@ -30,6 +37,127 @@ impl VmValueCodec for ExecAtFlags {
 
     fn encode(self) -> vm::Value {
         <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ExecAtFlags.
+pub type ExecAtFlagsValue = ExecAtFlags;
+
+impl NativeAbiCodec for ExecAtFlags {
+    type Value = ExecAtFlagsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ExecAtFlags {
+    type Value = ExecAtFlagsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for FileHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FileHandle(
+    /// Inner value.
+    pub resource::ResourceId,
+);
+
+pub type FileHandleVm = FileHandle;
+
+impl VmValueCodec for FileHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <resource::ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for FileHandle.
+pub type FileHandleValue = FileHandle;
+
+impl NativeAbiCodec for FileHandle {
+    type Value = FileHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for FileHandle {
+    type Value = FileHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for FileMode.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FileMode(
+    /// Inner value.
+    pub u32,
+);
+
+pub type FileModeVm = FileMode;
+
+impl VmValueCodec for FileMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for FileMode.
+pub type FileModeValue = FileMode;
+
+impl NativeAbiCodec for FileMode {
+    type Value = FileModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for FileMode {
+    type Value = FileModeValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -53,6 +181,233 @@ impl VmValueCodec for GroupId {
     }
 }
 
+/// Value type for GroupId.
+pub type GroupIdValue = GroupId;
+
+impl NativeAbiCodec for GroupId {
+    type Value = GroupIdValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GroupId {
+    type Value = GroupIdValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for OpenFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct OpenFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type OpenFlagsVm = OpenFlags;
+
+impl VmValueCodec for OpenFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for OpenFlags.
+pub type OpenFlagsValue = OpenFlags;
+
+impl NativeAbiCodec for OpenFlags {
+    type Value = OpenFlagsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for OpenFlags {
+    type Value = OpenFlagsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for PathBytes.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct PathBytesAbi<A: BindingAbi>(
+    /// Inner value.
+    pub A::Array<u8>,
+);
+
+pub type PathBytes = PathBytesAbi<NativeAbi>;
+pub type PathBytesVm = PathBytesAbi<VmAbi>;
+
+impl VmAggregateCodec for PathBytesAbi<VmAbi> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?))
+    }
+
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+        <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
+    }
+}
+
+/// Value type for PathBytes.
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PathBytesValue(
+    /// Inner value.
+    pub Vec<u8>,
+);
+
+impl NativeAbiCodec for PathBytesAbi<NativeAbi> {
+    type Value = PathBytesValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(PathBytesValue(unsafe { <NativeArray<u8> as NativeAbiCodec>::into_value(self.0)? }))
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self(<NativeArray<u8> as NativeAbiCodec>::from_value(binding, value.0))
+    }
+}
+
+impl VmAbiCodec for PathBytesAbi<VmAbi> {
+    type Value = PathBytesValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(PathBytesValue(<VmArray<u8> as VmAbiCodec>::into_value(self.0, context)?))
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self(<VmArray<u8> as VmAbiCodec>::from_value(context, value.0)?))
+    }
+}
+
+/// ABI newtype for PathUtf16.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct PathUtf16Abi<A: BindingAbi>(
+    /// Inner value.
+    pub A::Array<u16>,
+);
+
+pub type PathUtf16 = PathUtf16Abi<NativeAbi>;
+pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
+
+impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?))
+    }
+
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+        <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
+    }
+}
+
+/// Value type for PathUtf16.
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PathUtf16Value(
+    /// Inner value.
+    pub Vec<u16>,
+);
+
+impl NativeAbiCodec for PathUtf16Abi<NativeAbi> {
+    type Value = PathUtf16Value;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(PathUtf16Value(unsafe { <NativeArray<u16> as NativeAbiCodec>::into_value(self.0)? }))
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self(<NativeArray<u16> as NativeAbiCodec>::from_value(binding, value.0))
+    }
+}
+
+impl VmAbiCodec for PathUtf16Abi<VmAbi> {
+    type Value = PathUtf16Value;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(PathUtf16Value(<VmArray<u16> as VmAbiCodec>::into_value(self.0, context)?))
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self(<VmArray<u16> as VmAbiCodec>::from_value(context, value.0)?))
+    }
+}
+
+/// ABI newtype for PipeHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PipeHandle(
+    /// Inner value.
+    pub resource::ResourceId,
+);
+
+pub type PipeHandleVm = PipeHandle;
+
+impl VmValueCodec for PipeHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <resource::ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for PipeHandle.
+pub type PipeHandleValue = PipeHandle;
+
+impl NativeAbiCodec for PipeHandle {
+    type Value = PipeHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for PipeHandle {
+    type Value = PipeHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for ProcessFdFlags.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -70,6 +425,33 @@ impl VmValueCodec for ProcessFdFlags {
 
     fn encode(self) -> vm::Value {
         <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ProcessFdFlags.
+pub type ProcessFdFlagsValue = ProcessFdFlags;
+
+impl NativeAbiCodec for ProcessFdFlags {
+    type Value = ProcessFdFlagsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessFdFlags {
+    type Value = ProcessFdFlagsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -93,6 +475,33 @@ impl VmValueCodec for ProcessFdSignalFlags {
     }
 }
 
+/// Value type for ProcessFdSignalFlags.
+pub type ProcessFdSignalFlagsValue = ProcessFdSignalFlags;
+
+impl NativeAbiCodec for ProcessFdSignalFlags {
+    type Value = ProcessFdSignalFlagsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessFdSignalFlags {
+    type Value = ProcessFdSignalFlagsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for ProcessId.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -110,6 +519,33 @@ impl VmValueCodec for ProcessId {
 
     fn encode(self) -> vm::Value {
         <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ProcessId.
+pub type ProcessIdValue = ProcessId;
+
+impl NativeAbiCodec for ProcessId {
+    type Value = ProcessIdValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessId {
+    type Value = ProcessIdValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -133,6 +569,33 @@ impl VmValueCodec for ProcessLimitResource {
     }
 }
 
+/// Value type for ProcessLimitResource.
+pub type ProcessLimitResourceValue = ProcessLimitResource;
+
+impl NativeAbiCodec for ProcessLimitResource {
+    type Value = ProcessLimitResourceValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessLimitResource {
+    type Value = ProcessLimitResourceValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for ProcessUnshareFlags.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -150,6 +613,33 @@ impl VmValueCodec for ProcessUnshareFlags {
 
     fn encode(self) -> vm::Value {
         <u64 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ProcessUnshareFlags.
+pub type ProcessUnshareFlagsValue = ProcessUnshareFlags;
+
+impl NativeAbiCodec for ProcessUnshareFlags {
+    type Value = ProcessUnshareFlagsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessUnshareFlags {
+    type Value = ProcessUnshareFlagsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -173,6 +663,80 @@ impl VmValueCodec for ProcessWaitFlags {
     }
 }
 
+/// Value type for ProcessWaitFlags.
+pub type ProcessWaitFlagsValue = ProcessWaitFlags;
+
+impl NativeAbiCodec for ProcessWaitFlags {
+    type Value = ProcessWaitFlagsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessWaitFlags {
+    type Value = ProcessWaitFlagsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for ResourceId.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ResourceId(
+    /// Inner value.
+    pub u64,
+);
+
+pub type ResourceIdVm = ResourceId;
+
+impl VmValueCodec for ResourceId {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u64 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u64 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ResourceId.
+pub type ResourceIdValue = ResourceId;
+
+impl NativeAbiCodec for ResourceId {
+    type Value = ResourceIdValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ResourceId {
+    type Value = ResourceIdValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for Signal.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -190,6 +754,33 @@ impl VmValueCodec for Signal {
 
     fn encode(self) -> vm::Value {
         <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for Signal.
+pub type SignalValue = Signal;
+
+impl NativeAbiCodec for Signal {
+    type Value = SignalValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for Signal {
+    type Value = SignalValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -213,6 +804,33 @@ impl VmValueCodec for SignalFdFlags {
     }
 }
 
+/// Value type for SignalFdFlags.
+pub type SignalFdFlagsValue = SignalFdFlags;
+
+impl NativeAbiCodec for SignalFdFlags {
+    type Value = SignalFdFlagsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SignalFdFlags {
+    type Value = SignalFdFlagsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for SyscallFilterFlags.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -233,6 +851,33 @@ impl VmValueCodec for SyscallFilterFlags {
     }
 }
 
+/// Value type for SyscallFilterFlags.
+pub type SyscallFilterFlagsValue = SyscallFilterFlags;
+
+impl NativeAbiCodec for SyscallFilterFlags {
+    type Value = SyscallFilterFlagsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SyscallFilterFlags {
+    type Value = SyscallFilterFlagsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for UserId.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -250,6 +895,33 @@ impl VmValueCodec for UserId {
 
     fn encode(self) -> vm::Value {
         <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for UserId.
+pub type UserIdValue = UserId;
+
+impl NativeAbiCodec for UserId {
+    type Value = UserIdValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UserId {
+    type Value = UserIdValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -279,27 +951,41 @@ impl VmValueCodec for ProcessNamespaceKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Mount,
-            2u8 => Self::User,
-            3u8 => Self::Pid,
-            4u8 => Self::Network,
-            5u8 => Self::Ipc,
-            6u8 => Self::Uts,
-            7u8 => Self::Cgroup,
-            8u8 => Self::Time,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown ProcessNamespaceKind value",
-                ))
-                .boxed());
-            }
+            1u8 => Self::Mount, 2u8 => Self::User, 3u8 => Self::Pid, 4u8 => Self::Network, 5u8 => Self::Ipc, 6u8 => Self::Uts, 7u8 => Self::Cgroup, 8u8 => Self::Time,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown ProcessNamespaceKind value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for ProcessNamespaceKind.
+pub type ProcessNamespaceKindValue = ProcessNamespaceKind;
+
+impl NativeAbiCodec for ProcessNamespaceKind {
+    type Value = ProcessNamespaceKindValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessNamespaceKind {
+    type Value = ProcessNamespaceKindValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -325,25 +1011,41 @@ impl VmValueCodec for ProcessSchedulerPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Other,
-            2u8 => Self::Fifo,
-            3u8 => Self::RoundRobin,
-            4u8 => Self::Batch,
-            5u8 => Self::Idle,
-            6u8 => Self::Deadline,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown ProcessSchedulerPolicy value",
-                ))
-                .boxed());
-            }
+            1u8 => Self::Other, 2u8 => Self::Fifo, 3u8 => Self::RoundRobin, 4u8 => Self::Batch, 5u8 => Self::Idle, 6u8 => Self::Deadline,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown ProcessSchedulerPolicy value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for ProcessSchedulerPolicy.
+pub type ProcessSchedulerPolicyValue = ProcessSchedulerPolicy;
+
+impl NativeAbiCodec for ProcessSchedulerPolicy {
+    type Value = ProcessSchedulerPolicyValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessSchedulerPolicy {
+    type Value = ProcessSchedulerPolicyValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -363,22 +1065,149 @@ impl VmValueCodec for SignalMaskHow {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Set,
-            1u8 => Self::Block,
-            2u8 => Self::Unblock,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown SignalMaskHow value",
-                ))
-                .boxed());
-            }
+            0u8 => Self::Set, 1u8 => Self::Block, 2u8 => Self::Unblock,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown SignalMaskHow value")).boxed()),
         };
         Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// Value type for SignalMaskHow.
+pub type SignalMaskHowValue = SignalMaskHow;
+
+impl NativeAbiCodec for SignalMaskHow {
+    type Value = SignalMaskHowValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SignalMaskHow {
+    type Value = SignalMaskHowValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI tagged union for OsPath.
+pub enum OsPathAbi<A: BindingAbi> {
+    /// OsPathBytes variant.
+    OsPathBytes(platform_fs::OsPathBytesAbi<A>),
+    /// OsPathUtf16 variant.
+    OsPathUtf16(platform_fs::OsPathUtf16Abi<A>),
+}
+
+pub type OsPath = OsPathAbi<NativeAbi>;
+pub type OsPathVm = OsPathAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for OsPathAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("OsPathAbi").finish()
+    }
+}
+
+impl Copy for OsPathAbi<NativeAbi> {}
+impl Clone for OsPathAbi<NativeAbi> {
+    fn clone(&self) -> Self { *self }
+}
+impl Copy for OsPathAbi<VmAbi> {}
+impl Clone for OsPathAbi<VmAbi> {
+    fn clone(&self) -> Self { *self }
+}
+
+impl VmAggregateCodec for OsPathAbi<VmAbi> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "OsPath")).boxed());
+        }
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            1243901586u32 => Self::OsPathBytes(<fs::OsPathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            2271740357u32 => Self::OsPathUtf16(<fs::OsPathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown OsPath tag")).boxed()),
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::OsPathBytes(value) => {
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1243901586u32, context)?;
+                let payload_value = <fs::OsPathBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::OsPathUtf16(value) => {
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2271740357u32, context)?;
+                let payload_value = <fs::OsPathUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for OsPath.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum OsPathValue {
+    /// OsPathBytes variant.
+    OsPathBytes(platform_fs::abi_generated::OsPathBytesValue),
+    /// OsPathUtf16 variant.
+    OsPathUtf16(platform_fs::abi_generated::OsPathUtf16Value),
+}
+
+impl NativeAbiCodec for OsPathAbi<NativeAbi> {
+    type Value = OsPathValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        let owned = match self {
+            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(unsafe { <fs::OsPathBytes as NativeAbiCodec>::into_value(value)? }),
+            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(unsafe { <fs::OsPathUtf16 as NativeAbiCodec>::into_value(value)? }),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        match value {
+            OsPathValue::OsPathBytes(value) => Self::OsPathBytes(<fs::OsPathBytes as NativeAbiCodec>::from_value(binding, value)),
+            OsPathValue::OsPathUtf16(value) => Self::OsPathUtf16(<fs::OsPathUtf16 as NativeAbiCodec>::from_value(binding, value)),
+        }
+    }
+}
+
+impl VmAbiCodec for OsPathAbi<VmAbi> {
+    type Value = OsPathValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        let owned = match self {
+            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(<fs::OsPathBytesVm as VmAbiCodec>::into_value(value, context)?),
+            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(<fs::OsPathUtf16Vm as VmAbiCodec>::into_value(value, context)?),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        match value {
+            OsPathValue::OsPathBytes(value) => Ok(Self::OsPathBytes(<fs::OsPathBytesVm as VmAbiCodec>::from_value(context, value)?)),
+            OsPathValue::OsPathUtf16(value) => Ok(Self::OsPathUtf16(<fs::OsPathUtf16Vm as VmAbiCodec>::from_value(context, value)?)),
+        }
     }
 }
 
@@ -403,101 +1232,104 @@ impl<A: BindingAbi> std::fmt::Debug for ProcessFdActionAbi<A> {
 
 impl Copy for ProcessFdActionAbi<NativeAbi> {}
 impl Clone for ProcessFdActionAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessFdActionAbi<VmAbi> {}
 impl Clone for ProcessFdActionAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessFdActionAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessFdAction",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessFdAction")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            2905013758u32 => Self::ProcessFdActionClose(
-                <ProcessFdActionCloseVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
-                )?,
-            ),
-            4005297379u32 => Self::ProcessFdActionDup2(
-                <ProcessFdActionDup2Vm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
-                )?,
-            ),
-            83587847u32 => Self::ProcessFdActionOpen(
-                <ProcessFdActionOpenVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
-                )?,
-            ),
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown ProcessFdAction tag",
-                ))
-                .boxed());
-            }
+            2905013758u32 => Self::ProcessFdActionClose(<ProcessFdActionCloseVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            4005297379u32 => Self::ProcessFdActionDup2(<ProcessFdActionDup2Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            83587847u32 => Self::ProcessFdActionOpen(<ProcessFdActionOpenVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown ProcessFdAction tag")).boxed()),
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::ProcessFdActionClose(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(2905013758u32, context)?;
-                let payload_value =
-                    <ProcessFdActionCloseVm as VmAggregateCodec>::encode_with_context(
-                        value, context,
-                    )?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2905013758u32, context)?;
+                let payload_value = <ProcessFdActionCloseVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::ProcessFdActionDup2(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(4005297379u32, context)?;
-                let payload_value =
-                    <ProcessFdActionDup2Vm as VmAggregateCodec>::encode_with_context(
-                        value, context,
-                    )?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(4005297379u32, context)?;
+                let payload_value = <ProcessFdActionDup2Vm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::ProcessFdActionOpen(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(83587847u32, context)?;
-                let payload_value =
-                    <ProcessFdActionOpenVm as VmAggregateCodec>::encode_with_context(
-                        value, context,
-                    )?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(83587847u32, context)?;
+                let payload_value = <ProcessFdActionOpenVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
         };
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessFdAction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ProcessFdActionValue {
+    /// ProcessFdActionClose variant.
+    ProcessFdActionClose(ProcessFdActionCloseValue),
+    /// ProcessFdActionDup2 variant.
+    ProcessFdActionDup2(ProcessFdActionDup2Value),
+    /// ProcessFdActionOpen variant.
+    ProcessFdActionOpen(ProcessFdActionOpenValue),
+}
+
+impl NativeAbiCodec for ProcessFdActionAbi<NativeAbi> {
+    type Value = ProcessFdActionValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        let owned = match self {
+            Self::ProcessFdActionClose(value) => ProcessFdActionValue::ProcessFdActionClose(unsafe { <ProcessFdActionClose as NativeAbiCodec>::into_value(value)? }),
+            Self::ProcessFdActionDup2(value) => ProcessFdActionValue::ProcessFdActionDup2(unsafe { <ProcessFdActionDup2 as NativeAbiCodec>::into_value(value)? }),
+            Self::ProcessFdActionOpen(value) => ProcessFdActionValue::ProcessFdActionOpen(unsafe { <ProcessFdActionOpen as NativeAbiCodec>::into_value(value)? }),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        match value {
+            ProcessFdActionValue::ProcessFdActionClose(value) => Self::ProcessFdActionClose(<ProcessFdActionClose as NativeAbiCodec>::from_value(binding, value)),
+            ProcessFdActionValue::ProcessFdActionDup2(value) => Self::ProcessFdActionDup2(<ProcessFdActionDup2 as NativeAbiCodec>::from_value(binding, value)),
+            ProcessFdActionValue::ProcessFdActionOpen(value) => Self::ProcessFdActionOpen(<ProcessFdActionOpen as NativeAbiCodec>::from_value(binding, value)),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessFdActionAbi<VmAbi> {
+    type Value = ProcessFdActionValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        let owned = match self {
+            Self::ProcessFdActionClose(value) => ProcessFdActionValue::ProcessFdActionClose(<ProcessFdActionCloseVm as VmAbiCodec>::into_value(value, context)?),
+            Self::ProcessFdActionDup2(value) => ProcessFdActionValue::ProcessFdActionDup2(<ProcessFdActionDup2Vm as VmAbiCodec>::into_value(value, context)?),
+            Self::ProcessFdActionOpen(value) => ProcessFdActionValue::ProcessFdActionOpen(<ProcessFdActionOpenVm as VmAbiCodec>::into_value(value, context)?),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        match value {
+            ProcessFdActionValue::ProcessFdActionClose(value) => Ok(Self::ProcessFdActionClose(<ProcessFdActionCloseVm as VmAbiCodec>::from_value(context, value)?)),
+            ProcessFdActionValue::ProcessFdActionDup2(value) => Ok(Self::ProcessFdActionDup2(<ProcessFdActionDup2Vm as VmAbiCodec>::from_value(context, value)?)),
+            ProcessFdActionValue::ProcessFdActionOpen(value) => Ok(Self::ProcessFdActionOpen(<ProcessFdActionOpenVm as VmAbiCodec>::from_value(context, value)?)),
+        }
     }
 }
 
@@ -526,117 +1358,128 @@ impl<A: BindingAbi> std::fmt::Debug for ProcessStdioAbi<A> {
 
 impl Copy for ProcessStdioAbi<NativeAbi> {}
 impl Clone for ProcessStdioAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessStdioAbi<VmAbi> {}
 impl Clone for ProcessStdioAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessStdioAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessStdio",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessStdio")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            46947289u32 => Self::ProcessStdioDescriptor(
-                <ProcessStdioDescriptorVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
-                )?,
-            ),
-            2179141151u32 => Self::ProcessStdioFile(
-                <ProcessStdioFileVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
-            ),
-            2207291713u32 => Self::ProcessStdioInherit(
-                <ProcessStdioInheritVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
-                )?,
-            ),
-            3646280302u32 => Self::ProcessStdioNull(
-                <ProcessStdioNullVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
-            ),
-            2794683663u32 => Self::ProcessStdioPipe(
-                <ProcessStdioPipeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
-            ),
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown ProcessStdio tag",
-                ))
-                .boxed());
-            }
+            46947289u32 => Self::ProcessStdioDescriptor(<ProcessStdioDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            2179141151u32 => Self::ProcessStdioFile(<ProcessStdioFileVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            2207291713u32 => Self::ProcessStdioInherit(<ProcessStdioInheritVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            3646280302u32 => Self::ProcessStdioNull(<ProcessStdioNullVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            2794683663u32 => Self::ProcessStdioPipe(<ProcessStdioPipeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown ProcessStdio tag")).boxed()),
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::ProcessStdioDescriptor(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(46947289u32, context)?;
-                let payload_value =
-                    <ProcessStdioDescriptorVm as VmAggregateCodec>::encode_with_context(
-                        value, context,
-                    )?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(46947289u32, context)?;
+                let payload_value = <ProcessStdioDescriptorVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::ProcessStdioFile(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(2179141151u32, context)?;
-                let payload_value =
-                    <ProcessStdioFileVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2179141151u32, context)?;
+                let payload_value = <ProcessStdioFileVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::ProcessStdioInherit(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(2207291713u32, context)?;
-                let payload_value =
-                    <ProcessStdioInheritVm as VmAggregateCodec>::encode_with_context(
-                        value, context,
-                    )?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2207291713u32, context)?;
+                let payload_value = <ProcessStdioInheritVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::ProcessStdioNull(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(3646280302u32, context)?;
-                let payload_value =
-                    <ProcessStdioNullVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3646280302u32, context)?;
+                let payload_value = <ProcessStdioNullVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::ProcessStdioPipe(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(2794683663u32, context)?;
-                let payload_value =
-                    <ProcessStdioPipeVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2794683663u32, context)?;
+                let payload_value = <ProcessStdioPipeVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
         };
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessStdio.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ProcessStdioValue {
+    /// ProcessStdioDescriptor variant.
+    ProcessStdioDescriptor(ProcessStdioDescriptorValue),
+    /// ProcessStdioFile variant.
+    ProcessStdioFile(ProcessStdioFileValue),
+    /// ProcessStdioInherit variant.
+    ProcessStdioInherit(ProcessStdioInheritValue),
+    /// ProcessStdioNull variant.
+    ProcessStdioNull(ProcessStdioNullValue),
+    /// ProcessStdioPipe variant.
+    ProcessStdioPipe(ProcessStdioPipeValue),
+}
+
+impl NativeAbiCodec for ProcessStdioAbi<NativeAbi> {
+    type Value = ProcessStdioValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        let owned = match self {
+            Self::ProcessStdioDescriptor(value) => ProcessStdioValue::ProcessStdioDescriptor(unsafe { <ProcessStdioDescriptor as NativeAbiCodec>::into_value(value)? }),
+            Self::ProcessStdioFile(value) => ProcessStdioValue::ProcessStdioFile(unsafe { <ProcessStdioFile as NativeAbiCodec>::into_value(value)? }),
+            Self::ProcessStdioInherit(value) => ProcessStdioValue::ProcessStdioInherit(unsafe { <ProcessStdioInherit as NativeAbiCodec>::into_value(value)? }),
+            Self::ProcessStdioNull(value) => ProcessStdioValue::ProcessStdioNull(unsafe { <ProcessStdioNull as NativeAbiCodec>::into_value(value)? }),
+            Self::ProcessStdioPipe(value) => ProcessStdioValue::ProcessStdioPipe(unsafe { <ProcessStdioPipe as NativeAbiCodec>::into_value(value)? }),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        match value {
+            ProcessStdioValue::ProcessStdioDescriptor(value) => Self::ProcessStdioDescriptor(<ProcessStdioDescriptor as NativeAbiCodec>::from_value(binding, value)),
+            ProcessStdioValue::ProcessStdioFile(value) => Self::ProcessStdioFile(<ProcessStdioFile as NativeAbiCodec>::from_value(binding, value)),
+            ProcessStdioValue::ProcessStdioInherit(value) => Self::ProcessStdioInherit(<ProcessStdioInherit as NativeAbiCodec>::from_value(binding, value)),
+            ProcessStdioValue::ProcessStdioNull(value) => Self::ProcessStdioNull(<ProcessStdioNull as NativeAbiCodec>::from_value(binding, value)),
+            ProcessStdioValue::ProcessStdioPipe(value) => Self::ProcessStdioPipe(<ProcessStdioPipe as NativeAbiCodec>::from_value(binding, value)),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessStdioAbi<VmAbi> {
+    type Value = ProcessStdioValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        let owned = match self {
+            Self::ProcessStdioDescriptor(value) => ProcessStdioValue::ProcessStdioDescriptor(<ProcessStdioDescriptorVm as VmAbiCodec>::into_value(value, context)?),
+            Self::ProcessStdioFile(value) => ProcessStdioValue::ProcessStdioFile(<ProcessStdioFileVm as VmAbiCodec>::into_value(value, context)?),
+            Self::ProcessStdioInherit(value) => ProcessStdioValue::ProcessStdioInherit(<ProcessStdioInheritVm as VmAbiCodec>::into_value(value, context)?),
+            Self::ProcessStdioNull(value) => ProcessStdioValue::ProcessStdioNull(<ProcessStdioNullVm as VmAbiCodec>::into_value(value, context)?),
+            Self::ProcessStdioPipe(value) => ProcessStdioValue::ProcessStdioPipe(<ProcessStdioPipeVm as VmAbiCodec>::into_value(value, context)?),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        match value {
+            ProcessStdioValue::ProcessStdioDescriptor(value) => Ok(Self::ProcessStdioDescriptor(<ProcessStdioDescriptorVm as VmAbiCodec>::from_value(context, value)?)),
+            ProcessStdioValue::ProcessStdioFile(value) => Ok(Self::ProcessStdioFile(<ProcessStdioFileVm as VmAbiCodec>::from_value(context, value)?)),
+            ProcessStdioValue::ProcessStdioInherit(value) => Ok(Self::ProcessStdioInherit(<ProcessStdioInheritVm as VmAbiCodec>::from_value(context, value)?)),
+            ProcessStdioValue::ProcessStdioNull(value) => Ok(Self::ProcessStdioNull(<ProcessStdioNullVm as VmAbiCodec>::from_value(context, value)?)),
+            ProcessStdioValue::ProcessStdioPipe(value) => Ok(Self::ProcessStdioPipe(<ProcessStdioPipeVm as VmAbiCodec>::from_value(context, value)?)),
+        }
     }
 }
 
@@ -665,129 +1508,324 @@ impl<A: BindingAbi> std::fmt::Debug for ProcessWaitStatusAbi<A> {
 
 impl Copy for ProcessWaitStatusAbi<NativeAbi> {}
 impl Clone for ProcessWaitStatusAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessWaitStatusAbi<VmAbi> {}
 impl Clone for ProcessWaitStatusAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessWaitStatusAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessWaitStatus",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessWaitStatus")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            2147747583u32 => Self::ProcessWaitContinuedStatus(
-                <ProcessWaitContinuedStatusVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
-                )?,
-            ),
-            4060872876u32 => Self::ProcessWaitExitedStatus(
-                <ProcessWaitExitedStatusVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
-                )?,
-            ),
-            2787154895u32 => Self::ProcessWaitRunningStatus(
-                <ProcessWaitRunningStatusVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
-                )?,
-            ),
-            2483179112u32 => Self::ProcessWaitSignaledStatus(
-                <ProcessWaitSignaledStatusVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
-                )?,
-            ),
-            116212971u32 => Self::ProcessWaitStoppedStatus(
-                <ProcessWaitStoppedStatusVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
-                )?,
-            ),
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown ProcessWaitStatus tag",
-                ))
-                .boxed());
-            }
+            2147747583u32 => Self::ProcessWaitContinuedStatus(<ProcessWaitContinuedStatusVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            4060872876u32 => Self::ProcessWaitExitedStatus(<ProcessWaitExitedStatusVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            2787154895u32 => Self::ProcessWaitRunningStatus(<ProcessWaitRunningStatusVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            2483179112u32 => Self::ProcessWaitSignaledStatus(<ProcessWaitSignaledStatusVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            116212971u32 => Self::ProcessWaitStoppedStatus(<ProcessWaitStoppedStatusVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown ProcessWaitStatus tag")).boxed()),
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::ProcessWaitContinuedStatus(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(2147747583u32, context)?;
-                let payload_value =
-                    <ProcessWaitContinuedStatusVm as VmAggregateCodec>::encode_with_context(
-                        value, context,
-                    )?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2147747583u32, context)?;
+                let payload_value = <ProcessWaitContinuedStatusVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::ProcessWaitExitedStatus(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(4060872876u32, context)?;
-                let payload_value =
-                    <ProcessWaitExitedStatusVm as VmAggregateCodec>::encode_with_context(
-                        value, context,
-                    )?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(4060872876u32, context)?;
+                let payload_value = <ProcessWaitExitedStatusVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::ProcessWaitRunningStatus(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(2787154895u32, context)?;
-                let payload_value =
-                    <ProcessWaitRunningStatusVm as VmAggregateCodec>::encode_with_context(
-                        value, context,
-                    )?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2787154895u32, context)?;
+                let payload_value = <ProcessWaitRunningStatusVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::ProcessWaitSignaledStatus(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(2483179112u32, context)?;
-                let payload_value =
-                    <ProcessWaitSignaledStatusVm as VmAggregateCodec>::encode_with_context(
-                        value, context,
-                    )?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2483179112u32, context)?;
+                let payload_value = <ProcessWaitSignaledStatusVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::ProcessWaitStoppedStatus(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(116212971u32, context)?;
-                let payload_value =
-                    <ProcessWaitStoppedStatusVm as VmAggregateCodec>::encode_with_context(
-                        value, context,
-                    )?;
+                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(116212971u32, context)?;
+                let payload_value = <ProcessWaitStoppedStatusVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
         };
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessWaitStatus.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ProcessWaitStatusValue {
+    /// ProcessWaitContinuedStatus variant.
+    ProcessWaitContinuedStatus(ProcessWaitContinuedStatusValue),
+    /// ProcessWaitExitedStatus variant.
+    ProcessWaitExitedStatus(ProcessWaitExitedStatusValue),
+    /// ProcessWaitRunningStatus variant.
+    ProcessWaitRunningStatus(ProcessWaitRunningStatusValue),
+    /// ProcessWaitSignaledStatus variant.
+    ProcessWaitSignaledStatus(ProcessWaitSignaledStatusValue),
+    /// ProcessWaitStoppedStatus variant.
+    ProcessWaitStoppedStatus(ProcessWaitStoppedStatusValue),
+}
+
+impl NativeAbiCodec for ProcessWaitStatusAbi<NativeAbi> {
+    type Value = ProcessWaitStatusValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        let owned = match self {
+            Self::ProcessWaitContinuedStatus(value) => ProcessWaitStatusValue::ProcessWaitContinuedStatus(unsafe { <ProcessWaitContinuedStatus as NativeAbiCodec>::into_value(value)? }),
+            Self::ProcessWaitExitedStatus(value) => ProcessWaitStatusValue::ProcessWaitExitedStatus(unsafe { <ProcessWaitExitedStatus as NativeAbiCodec>::into_value(value)? }),
+            Self::ProcessWaitRunningStatus(value) => ProcessWaitStatusValue::ProcessWaitRunningStatus(unsafe { <ProcessWaitRunningStatus as NativeAbiCodec>::into_value(value)? }),
+            Self::ProcessWaitSignaledStatus(value) => ProcessWaitStatusValue::ProcessWaitSignaledStatus(unsafe { <ProcessWaitSignaledStatus as NativeAbiCodec>::into_value(value)? }),
+            Self::ProcessWaitStoppedStatus(value) => ProcessWaitStatusValue::ProcessWaitStoppedStatus(unsafe { <ProcessWaitStoppedStatus as NativeAbiCodec>::into_value(value)? }),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        match value {
+            ProcessWaitStatusValue::ProcessWaitContinuedStatus(value) => Self::ProcessWaitContinuedStatus(<ProcessWaitContinuedStatus as NativeAbiCodec>::from_value(binding, value)),
+            ProcessWaitStatusValue::ProcessWaitExitedStatus(value) => Self::ProcessWaitExitedStatus(<ProcessWaitExitedStatus as NativeAbiCodec>::from_value(binding, value)),
+            ProcessWaitStatusValue::ProcessWaitRunningStatus(value) => Self::ProcessWaitRunningStatus(<ProcessWaitRunningStatus as NativeAbiCodec>::from_value(binding, value)),
+            ProcessWaitStatusValue::ProcessWaitSignaledStatus(value) => Self::ProcessWaitSignaledStatus(<ProcessWaitSignaledStatus as NativeAbiCodec>::from_value(binding, value)),
+            ProcessWaitStatusValue::ProcessWaitStoppedStatus(value) => Self::ProcessWaitStoppedStatus(<ProcessWaitStoppedStatus as NativeAbiCodec>::from_value(binding, value)),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessWaitStatusAbi<VmAbi> {
+    type Value = ProcessWaitStatusValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        let owned = match self {
+            Self::ProcessWaitContinuedStatus(value) => ProcessWaitStatusValue::ProcessWaitContinuedStatus(<ProcessWaitContinuedStatusVm as VmAbiCodec>::into_value(value, context)?),
+            Self::ProcessWaitExitedStatus(value) => ProcessWaitStatusValue::ProcessWaitExitedStatus(<ProcessWaitExitedStatusVm as VmAbiCodec>::into_value(value, context)?),
+            Self::ProcessWaitRunningStatus(value) => ProcessWaitStatusValue::ProcessWaitRunningStatus(<ProcessWaitRunningStatusVm as VmAbiCodec>::into_value(value, context)?),
+            Self::ProcessWaitSignaledStatus(value) => ProcessWaitStatusValue::ProcessWaitSignaledStatus(<ProcessWaitSignaledStatusVm as VmAbiCodec>::into_value(value, context)?),
+            Self::ProcessWaitStoppedStatus(value) => ProcessWaitStatusValue::ProcessWaitStoppedStatus(<ProcessWaitStoppedStatusVm as VmAbiCodec>::into_value(value, context)?),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        match value {
+            ProcessWaitStatusValue::ProcessWaitContinuedStatus(value) => Ok(Self::ProcessWaitContinuedStatus(<ProcessWaitContinuedStatusVm as VmAbiCodec>::from_value(context, value)?)),
+            ProcessWaitStatusValue::ProcessWaitExitedStatus(value) => Ok(Self::ProcessWaitExitedStatus(<ProcessWaitExitedStatusVm as VmAbiCodec>::from_value(context, value)?)),
+            ProcessWaitStatusValue::ProcessWaitRunningStatus(value) => Ok(Self::ProcessWaitRunningStatus(<ProcessWaitRunningStatusVm as VmAbiCodec>::from_value(context, value)?)),
+            ProcessWaitStatusValue::ProcessWaitSignaledStatus(value) => Ok(Self::ProcessWaitSignaledStatus(<ProcessWaitSignaledStatusVm as VmAbiCodec>::from_value(context, value)?)),
+            ProcessWaitStatusValue::ProcessWaitStoppedStatus(value) => Ok(Self::ProcessWaitStoppedStatus(<ProcessWaitStoppedStatusVm as VmAbiCodec>::from_value(context, value)?)),
+        }
+    }
+}
+
+/// ABI struct for OsPathBytes.
+#[repr(C)]
+pub struct OsPathBytesAbi<A: BindingAbi> {
+    /// Discriminator for this platform path variant.
+    pub kind: A::String,
+    /// Raw byte payload.
+    pub bytes: platform_fs::PathBytesAbi<A>,
+}
+
+pub type OsPathBytes = OsPathBytesAbi<NativeAbi>;
+pub type OsPathBytesVm = OsPathBytesAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for OsPathBytesAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("OsPathBytesAbi").finish_non_exhaustive()
+    }
+}
+
+impl Copy for OsPathBytesAbi<NativeAbi> {}
+impl Clone for OsPathBytesAbi<NativeAbi> {
+    fn clone(&self) -> Self { *self }
+}
+impl Copy for OsPathBytesAbi<VmAbi> {}
+impl Clone for OsPathBytesAbi<VmAbi> {
+    fn clone(&self) -> Self { *self }
+}
+
+impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "OsPathBytes")).boxed());
+        }
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+        }
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes = <fs::PathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            bytes: field_bytes,
+        })
+    }
+
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for OsPathBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OsPathBytesValue {
+    /// Discriminator for this platform path variant.
+    pub kind: String,
+    /// Raw byte payload.
+    pub bytes: platform_fs::abi_generated::PathBytesValue,
+}
+
+impl NativeAbiCodec for OsPathBytesAbi<NativeAbi> {
+    type Value = OsPathBytesValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(OsPathBytesValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            bytes: unsafe { <fs::PathBytes as NativeAbiCodec>::into_value(self.bytes)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            bytes: <fs::PathBytes as NativeAbiCodec>::from_value(binding, value.bytes),
+        }
+    }
+}
+
+impl VmAbiCodec for OsPathBytesAbi<VmAbi> {
+    type Value = OsPathBytesValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(OsPathBytesValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            bytes: <fs::PathBytesVm as VmAbiCodec>::into_value(self.bytes, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            bytes: <fs::PathBytesVm as VmAbiCodec>::from_value(context, value.bytes)?,
+        })
+    }
+}
+
+/// ABI struct for OsPathUtf16.
+#[repr(C)]
+pub struct OsPathUtf16Abi<A: BindingAbi> {
+    /// Discriminator for this platform path variant.
+    pub kind: A::String,
+    /// UTF-16 payload.
+    pub utf16: platform_fs::PathUtf16Abi<A>,
+}
+
+pub type OsPathUtf16 = OsPathUtf16Abi<NativeAbi>;
+pub type OsPathUtf16Vm = OsPathUtf16Abi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for OsPathUtf16Abi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("OsPathUtf16Abi").finish_non_exhaustive()
+    }
+}
+
+impl Copy for OsPathUtf16Abi<NativeAbi> {}
+impl Clone for OsPathUtf16Abi<NativeAbi> {
+    fn clone(&self) -> Self { *self }
+}
+impl Copy for OsPathUtf16Abi<VmAbi> {}
+impl Clone for OsPathUtf16Abi<VmAbi> {
+    fn clone(&self) -> Self { *self }
+}
+
+impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "OsPathUtf16")).boxed());
+        }
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+        }
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_utf16 = <fs::PathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            utf16: field_utf16,
+        })
+    }
+
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for OsPathUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OsPathUtf16Value {
+    /// Discriminator for this platform path variant.
+    pub kind: String,
+    /// UTF-16 payload.
+    pub utf16: platform_fs::abi_generated::PathUtf16Value,
+}
+
+impl NativeAbiCodec for OsPathUtf16Abi<NativeAbi> {
+    type Value = OsPathUtf16Value;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(OsPathUtf16Value {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            utf16: unsafe { <fs::PathUtf16 as NativeAbiCodec>::into_value(self.utf16)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            utf16: <fs::PathUtf16 as NativeAbiCodec>::from_value(binding, value.utf16),
+        }
+    }
+}
+
+impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
+    type Value = OsPathUtf16Value;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(OsPathUtf16Value {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            utf16: <fs::PathUtf16Vm as VmAbiCodec>::into_value(self.utf16, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            utf16: <fs::PathUtf16Vm as VmAbiCodec>::from_value(context, value.utf16)?,
+        })
     }
 }
 
@@ -803,60 +1841,78 @@ pub type ProcessCpuSetVm = ProcessCpuSetAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessCpuSetAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessCpuSetAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessCpuSetAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessCpuSetAbi<NativeAbi> {}
 impl Clone for ProcessCpuSetAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessCpuSetAbi<VmAbi> {}
 impl Clone for ProcessCpuSetAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessCpuSetAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessCpuSet",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessCpuSet")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 1 fields")).boxed());
         }
-        let field_cpus =
-            <VmArray<u32> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self { cpus: field_cpus })
+        let field_cpus = <VmArray<u32> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self {
+            cpus: field_cpus,
+        })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![<VmArray<u32> as VmAggregateCodec>::encode_with_context(
-            self.cpus, context,
-        )?];
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <VmArray<u32> as VmAggregateCodec>::encode_with_context(self.cpus, context)?,
+        ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessCpuSet.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessCpuSetValue {
+    /// CPU indices in the affinity set.
+    pub cpus: Vec<u32>,
+}
+
+impl NativeAbiCodec for ProcessCpuSetAbi<NativeAbi> {
+    type Value = ProcessCpuSetValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessCpuSetValue {
+            cpus: unsafe { <NativeArray<u32> as NativeAbiCodec>::into_value(self.cpus)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            cpus: <NativeArray<u32> as NativeAbiCodec>::from_value(binding, value.cpus),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessCpuSetAbi<VmAbi> {
+    type Value = ProcessCpuSetValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessCpuSetValue {
+            cpus: <VmArray<u32> as VmAbiCodec>::into_value(self.cpus, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            cpus: <VmArray<u32> as VmAbiCodec>::from_value(context, value.cpus)?,
+        })
     }
 }
 
@@ -874,49 +1930,29 @@ pub type ProcessFdActionCloseVm = ProcessFdActionCloseAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessFdActionCloseAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessFdActionCloseAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessFdActionCloseAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessFdActionCloseAbi<NativeAbi> {}
 impl Clone for ProcessFdActionCloseAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessFdActionCloseAbi<VmAbi> {}
 impl Clone for ProcessFdActionCloseAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessFdActionCloseAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessFdActionClose",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessFdActionClose")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_descriptor = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
@@ -924,15 +1960,57 @@ impl VmAggregateCodec for ProcessFdActionCloseAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.descriptor, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessFdActionClose.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessFdActionCloseValue {
+    /// Discriminator for this fd action variant.
+    pub kind: String,
+    /// Descriptor to close.
+    pub descriptor: i32,
+}
+
+impl NativeAbiCodec for ProcessFdActionCloseAbi<NativeAbi> {
+    type Value = ProcessFdActionCloseValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessFdActionCloseValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            descriptor: unsafe { <i32 as NativeAbiCodec>::into_value(self.descriptor)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            descriptor: <i32 as NativeAbiCodec>::from_value(binding, value.descriptor),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessFdActionCloseAbi<VmAbi> {
+    type Value = ProcessFdActionCloseValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessFdActionCloseValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            descriptor: <i32 as VmAbiCodec>::into_value(self.descriptor, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            descriptor: <i32 as VmAbiCodec>::from_value(context, value.descriptor)?,
+        })
     }
 }
 
@@ -952,49 +2030,29 @@ pub type ProcessFdActionDup2Vm = ProcessFdActionDup2Abi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessFdActionDup2Abi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessFdActionDup2Abi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessFdActionDup2Abi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessFdActionDup2Abi<NativeAbi> {}
 impl Clone for ProcessFdActionDup2Abi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessFdActionDup2Abi<VmAbi> {}
 impl Clone for ProcessFdActionDup2Abi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessFdActionDup2Abi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessFdActionDup2",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessFdActionDup2")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_source = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_target = <i32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
@@ -1004,16 +2062,64 @@ impl VmAggregateCodec for ProcessFdActionDup2Abi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.source, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.target, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessFdActionDup2.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessFdActionDup2Value {
+    /// Discriminator for this fd action variant.
+    pub kind: String,
+    /// Source descriptor.
+    pub source: i32,
+    /// Target descriptor.
+    pub target: i32,
+}
+
+impl NativeAbiCodec for ProcessFdActionDup2Abi<NativeAbi> {
+    type Value = ProcessFdActionDup2Value;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessFdActionDup2Value {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            source: unsafe { <i32 as NativeAbiCodec>::into_value(self.source)? },
+            target: unsafe { <i32 as NativeAbiCodec>::into_value(self.target)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            source: <i32 as NativeAbiCodec>::from_value(binding, value.source),
+            target: <i32 as NativeAbiCodec>::from_value(binding, value.target),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessFdActionDup2Abi<VmAbi> {
+    type Value = ProcessFdActionDup2Value;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessFdActionDup2Value {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            source: <i32 as VmAbiCodec>::into_value(self.source, context)?,
+            target: <i32 as VmAbiCodec>::into_value(self.target, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            source: <i32 as VmAbiCodec>::from_value(context, value.source)?,
+            target: <i32 as VmAbiCodec>::from_value(context, value.target)?,
+        })
     }
 }
 
@@ -1037,56 +2143,33 @@ pub type ProcessFdActionOpenVm = ProcessFdActionOpenAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessFdActionOpenAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessFdActionOpenAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessFdActionOpenAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessFdActionOpenAbi<NativeAbi> {}
 impl Clone for ProcessFdActionOpenAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessFdActionOpenAbi<VmAbi> {}
 impl Clone for ProcessFdActionOpenAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessFdActionOpenAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessFdActionOpen",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessFdActionOpen")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 5 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_target = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_path =
-            <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags =
-            <fs::OpenFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_mode =
-            <fs::FileMode as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_path = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_flags = <fs::OpenFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_mode = <fs::FileMode as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             kind: field_kind,
             target: field_target,
@@ -1096,10 +2179,7 @@ impl VmAggregateCodec for ProcessFdActionOpenAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.target, context)?,
@@ -1108,6 +2188,69 @@ impl VmAggregateCodec for ProcessFdActionOpenAbi<VmAbi> {
             <fs::FileMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessFdActionOpen.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessFdActionOpenValue {
+    /// Discriminator for this fd action variant.
+    pub kind: String,
+    /// Target descriptor.
+    pub target: i32,
+    /// Path used by open action.
+    pub path: platform_fs::abi_generated::OsPathValue,
+    /// Open flags for open action.
+    pub flags: fs::OpenFlags,
+    /// Open mode for open action.
+    pub mode: fs::FileMode,
+}
+
+impl NativeAbiCodec for ProcessFdActionOpenAbi<NativeAbi> {
+    type Value = ProcessFdActionOpenValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessFdActionOpenValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            target: unsafe { <i32 as NativeAbiCodec>::into_value(self.target)? },
+            path: unsafe { <fs::OsPath as NativeAbiCodec>::into_value(self.path)? },
+            flags: unsafe { <fs::OpenFlags as NativeAbiCodec>::into_value(self.flags)? },
+            mode: unsafe { <fs::FileMode as NativeAbiCodec>::into_value(self.mode)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            target: <i32 as NativeAbiCodec>::from_value(binding, value.target),
+            path: <fs::OsPath as NativeAbiCodec>::from_value(binding, value.path),
+            flags: <fs::OpenFlags as NativeAbiCodec>::from_value(binding, value.flags),
+            mode: <fs::FileMode as NativeAbiCodec>::from_value(binding, value.mode),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessFdActionOpenAbi<VmAbi> {
+    type Value = ProcessFdActionOpenValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessFdActionOpenValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            target: <i32 as VmAbiCodec>::into_value(self.target, context)?,
+            path: <fs::OsPathVm as VmAbiCodec>::into_value(self.path, context)?,
+            flags: <fs::OpenFlags as VmAbiCodec>::into_value(self.flags, context)?,
+            mode: <fs::FileMode as VmAbiCodec>::into_value(self.mode, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            target: <i32 as VmAbiCodec>::from_value(context, value.target)?,
+            path: <fs::OsPathVm as VmAbiCodec>::from_value(context, value.path)?,
+            flags: <fs::OpenFlags as VmAbiCodec>::from_value(context, value.flags)?,
+            mode: <fs::FileMode as VmAbiCodec>::from_value(context, value.mode)?,
+        })
     }
 }
 
@@ -1126,30 +2269,16 @@ pub struct ProcessGroupIds {
 pub type ProcessGroupIdsVm = ProcessGroupIds;
 
 impl VmAggregateCodec for ProcessGroupIds {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessGroupIds",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessGroupIds")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
         }
         let field_real = <GroupId as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_effective =
-            <GroupId as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_effective = <GroupId as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_saved = <GroupId as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             real: field_real,
@@ -1158,16 +2287,40 @@ impl VmAggregateCodec for ProcessGroupIds {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <GroupId as VmAggregateCodec>::encode_with_context(self.real, context)?,
             <GroupId as VmAggregateCodec>::encode_with_context(self.effective, context)?,
             <GroupId as VmAggregateCodec>::encode_with_context(self.saved, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessGroupIds.
+pub type ProcessGroupIdsValue = ProcessGroupIds;
+
+impl NativeAbiCodec for ProcessGroupIds {
+    type Value = ProcessGroupIdsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessGroupIds {
+    type Value = ProcessGroupIdsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -1184,26 +2337,13 @@ pub struct ProcessLimit {
 pub type ProcessLimitVm = ProcessLimit;
 
 impl VmAggregateCodec for ProcessLimit {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessLimit",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessLimit")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
         let field_soft = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_hard = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -1213,15 +2353,39 @@ impl VmAggregateCodec for ProcessLimit {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.soft, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.hard, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessLimit.
+pub type ProcessLimitValue = ProcessLimit;
+
+impl NativeAbiCodec for ProcessLimit {
+    type Value = ProcessLimitValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessLimit {
+    type Value = ProcessLimitValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -1240,29 +2404,15 @@ pub struct ProcessSchedulerConfig {
 pub type ProcessSchedulerConfigVm = ProcessSchedulerConfig;
 
 impl VmAggregateCodec for ProcessSchedulerConfig {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessSchedulerConfig",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessSchedulerConfig")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
         }
-        let field_policy =
-            <ProcessSchedulerPolicy as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_policy = <ProcessSchedulerPolicy as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_priority = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
@@ -1272,19 +2422,40 @@ impl VmAggregateCodec for ProcessSchedulerConfig {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <ProcessSchedulerPolicy as VmAggregateCodec>::encode_with_context(
-                self.policy,
-                context,
-            )?,
+            <ProcessSchedulerPolicy as VmAggregateCodec>::encode_with_context(self.policy, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.priority, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessSchedulerConfig.
+pub type ProcessSchedulerConfigValue = ProcessSchedulerConfig;
+
+impl NativeAbiCodec for ProcessSchedulerConfig {
+    type Value = ProcessSchedulerConfigValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessSchedulerConfig {
+    type Value = ProcessSchedulerConfigValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -1306,53 +2477,32 @@ pub type ProcessSpawnOptionsVm = ProcessSpawnOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessSpawnOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessSpawnOptionsAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessSpawnOptionsAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessSpawnOptionsAbi<NativeAbi> {}
 impl Clone for ProcessSpawnOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessSpawnOptionsAbi<VmAbi> {}
 impl Clone for ProcessSpawnOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessSpawnOptionsAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessSpawnOptions",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessSpawnOptions")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 4 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
         }
         let field_cwd = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_detached = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_reset_signals =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_new_process_group =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_reset_signals = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_new_process_group = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             cwd: field_cwd,
             detached: field_detached,
@@ -1361,10 +2511,7 @@ impl VmAggregateCodec for ProcessSpawnOptionsAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.cwd, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.detached, context)?,
@@ -1372,6 +2519,63 @@ impl VmAggregateCodec for ProcessSpawnOptionsAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.new_process_group, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessSpawnOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessSpawnOptionsValue {
+    /// Current directory for the child process.
+    pub cwd: platform_fs::abi_generated::OsPathValue,
+    /// Whether to create a detached child process.
+    pub detached: bool,
+    /// Whether to reset signal dispositions in the child.
+    pub reset_signals: bool,
+    /// Whether to create a new process group.
+    pub new_process_group: bool,
+}
+
+impl NativeAbiCodec for ProcessSpawnOptionsAbi<NativeAbi> {
+    type Value = ProcessSpawnOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessSpawnOptionsValue {
+            cwd: unsafe { <fs::OsPath as NativeAbiCodec>::into_value(self.cwd)? },
+            detached: unsafe { <bool as NativeAbiCodec>::into_value(self.detached)? },
+            reset_signals: unsafe { <bool as NativeAbiCodec>::into_value(self.reset_signals)? },
+            new_process_group: unsafe { <bool as NativeAbiCodec>::into_value(self.new_process_group)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            cwd: <fs::OsPath as NativeAbiCodec>::from_value(binding, value.cwd),
+            detached: <bool as NativeAbiCodec>::from_value(binding, value.detached),
+            reset_signals: <bool as NativeAbiCodec>::from_value(binding, value.reset_signals),
+            new_process_group: <bool as NativeAbiCodec>::from_value(binding, value.new_process_group),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessSpawnOptionsAbi<VmAbi> {
+    type Value = ProcessSpawnOptionsValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessSpawnOptionsValue {
+            cwd: <fs::OsPathVm as VmAbiCodec>::into_value(self.cwd, context)?,
+            detached: <bool as VmAbiCodec>::into_value(self.detached, context)?,
+            reset_signals: <bool as VmAbiCodec>::into_value(self.reset_signals, context)?,
+            new_process_group: <bool as VmAbiCodec>::into_value(self.new_process_group, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            cwd: <fs::OsPathVm as VmAbiCodec>::from_value(context, value.cwd)?,
+            detached: <bool as VmAbiCodec>::from_value(context, value.detached)?,
+            reset_signals: <bool as VmAbiCodec>::from_value(context, value.reset_signals)?,
+            new_process_group: <bool as VmAbiCodec>::from_value(context, value.new_process_group)?,
+        })
     }
 }
 
@@ -1389,49 +2593,29 @@ pub type ProcessStdioDescriptorVm = ProcessStdioDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessStdioDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessStdioDescriptorAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessStdioDescriptorAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessStdioDescriptorAbi<NativeAbi> {}
 impl Clone for ProcessStdioDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessStdioDescriptorAbi<VmAbi> {}
 impl Clone for ProcessStdioDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessStdioDescriptorAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessStdioDescriptor",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessStdioDescriptor")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_descriptor = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
@@ -1439,15 +2623,57 @@ impl VmAggregateCodec for ProcessStdioDescriptorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.descriptor, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessStdioDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessStdioDescriptorValue {
+    /// Discriminator for this stdio variant.
+    pub kind: String,
+    /// Numeric descriptor used for this stdio lane.
+    pub descriptor: i32,
+}
+
+impl NativeAbiCodec for ProcessStdioDescriptorAbi<NativeAbi> {
+    type Value = ProcessStdioDescriptorValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessStdioDescriptorValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            descriptor: unsafe { <i32 as NativeAbiCodec>::into_value(self.descriptor)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            descriptor: <i32 as NativeAbiCodec>::from_value(binding, value.descriptor),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessStdioDescriptorAbi<VmAbi> {
+    type Value = ProcessStdioDescriptorValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessStdioDescriptorValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            descriptor: <i32 as VmAbiCodec>::into_value(self.descriptor, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            descriptor: <i32 as VmAbiCodec>::from_value(context, value.descriptor)?,
+        })
     }
 }
 
@@ -1465,66 +2691,87 @@ pub type ProcessStdioFileVm = ProcessStdioFileAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessStdioFileAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessStdioFileAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessStdioFileAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessStdioFileAbi<NativeAbi> {}
 impl Clone for ProcessStdioFileAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessStdioFileAbi<VmAbi> {}
 impl Clone for ProcessStdioFileAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessStdioFileAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessStdioFile",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessStdioFile")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_file =
-            <resource::FileHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_file = <resource::FileHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             file: field_file,
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <resource::FileHandle as VmAggregateCodec>::encode_with_context(self.file, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessStdioFile.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessStdioFileValue {
+    /// Discriminator for this stdio variant.
+    pub kind: String,
+    /// File handle used for this stdio lane.
+    pub file: resource::FileHandle,
+}
+
+impl NativeAbiCodec for ProcessStdioFileAbi<NativeAbi> {
+    type Value = ProcessStdioFileValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessStdioFileValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            file: unsafe { <resource::FileHandle as NativeAbiCodec>::into_value(self.file)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            file: <resource::FileHandle as NativeAbiCodec>::from_value(binding, value.file),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessStdioFileAbi<VmAbi> {
+    type Value = ProcessStdioFileValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessStdioFileValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            file: <resource::FileHandle as VmAbiCodec>::into_value(self.file, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            file: <resource::FileHandle as VmAbiCodec>::from_value(context, value.file)?,
+        })
     }
 }
 
@@ -1540,60 +2787,78 @@ pub type ProcessStdioInheritVm = ProcessStdioInheritAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessStdioInheritAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessStdioInheritAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessStdioInheritAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessStdioInheritAbi<NativeAbi> {}
 impl Clone for ProcessStdioInheritAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessStdioInheritAbi<VmAbi> {}
 impl Clone for ProcessStdioInheritAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessStdioInheritAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessStdioInherit",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessStdioInherit")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 1 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self { kind: field_kind })
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self {
+            kind: field_kind,
+        })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
-            self.kind, context,
-        )?];
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+        ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessStdioInherit.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessStdioInheritValue {
+    /// Discriminator for this stdio variant.
+    pub kind: String,
+}
+
+impl NativeAbiCodec for ProcessStdioInheritAbi<NativeAbi> {
+    type Value = ProcessStdioInheritValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessStdioInheritValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessStdioInheritAbi<VmAbi> {
+    type Value = ProcessStdioInheritValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessStdioInheritValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+        })
     }
 }
 
@@ -1609,60 +2874,78 @@ pub type ProcessStdioNullVm = ProcessStdioNullAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessStdioNullAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessStdioNullAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessStdioNullAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessStdioNullAbi<NativeAbi> {}
 impl Clone for ProcessStdioNullAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessStdioNullAbi<VmAbi> {}
 impl Clone for ProcessStdioNullAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessStdioNullAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessStdioNull",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessStdioNull")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 1 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self { kind: field_kind })
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self {
+            kind: field_kind,
+        })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
-            self.kind, context,
-        )?];
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+        ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessStdioNull.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessStdioNullValue {
+    /// Discriminator for this stdio variant.
+    pub kind: String,
+}
+
+impl NativeAbiCodec for ProcessStdioNullAbi<NativeAbi> {
+    type Value = ProcessStdioNullValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessStdioNullValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessStdioNullAbi<VmAbi> {
+    type Value = ProcessStdioNullValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessStdioNullValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+        })
     }
 }
 
@@ -1680,66 +2963,87 @@ pub type ProcessStdioPipeVm = ProcessStdioPipeAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessStdioPipeAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessStdioPipeAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessStdioPipeAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessStdioPipeAbi<NativeAbi> {}
 impl Clone for ProcessStdioPipeAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessStdioPipeAbi<VmAbi> {}
 impl Clone for ProcessStdioPipeAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessStdioPipeAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessStdioPipe",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessStdioPipe")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_pipe =
-            <resource::PipeHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_pipe = <resource::PipeHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             pipe: field_pipe,
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <resource::PipeHandle as VmAggregateCodec>::encode_with_context(self.pipe, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessStdioPipe.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessStdioPipeValue {
+    /// Discriminator for this stdio variant.
+    pub kind: String,
+    /// Pipe handle used for this stdio lane.
+    pub pipe: resource::PipeHandle,
+}
+
+impl NativeAbiCodec for ProcessStdioPipeAbi<NativeAbi> {
+    type Value = ProcessStdioPipeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessStdioPipeValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            pipe: unsafe { <resource::PipeHandle as NativeAbiCodec>::into_value(self.pipe)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            pipe: <resource::PipeHandle as NativeAbiCodec>::from_value(binding, value.pipe),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessStdioPipeAbi<VmAbi> {
+    type Value = ProcessStdioPipeValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessStdioPipeValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            pipe: <resource::PipeHandle as VmAbiCodec>::into_value(self.pipe, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            pipe: <resource::PipeHandle as VmAbiCodec>::from_value(context, value.pipe)?,
+        })
     }
 }
 
@@ -1758,26 +3062,13 @@ pub struct ProcessUserIds {
 pub type ProcessUserIdsVm = ProcessUserIds;
 
 impl VmAggregateCodec for ProcessUserIds {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessUserIds",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessUserIds")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
         }
         let field_real = <UserId as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_effective = <UserId as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -1789,16 +3080,40 @@ impl VmAggregateCodec for ProcessUserIds {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <UserId as VmAggregateCodec>::encode_with_context(self.real, context)?,
             <UserId as VmAggregateCodec>::encode_with_context(self.effective, context)?,
             <UserId as VmAggregateCodec>::encode_with_context(self.saved, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessUserIds.
+pub type ProcessUserIdsValue = ProcessUserIds;
+
+impl NativeAbiCodec for ProcessUserIds {
+    type Value = ProcessUserIdsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessUserIds {
+    type Value = ProcessUserIdsValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -1816,49 +3131,29 @@ pub type ProcessWaitContinuedStatusVm = ProcessWaitContinuedStatusAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessWaitContinuedStatusAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessWaitContinuedStatusAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessWaitContinuedStatusAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessWaitContinuedStatusAbi<NativeAbi> {}
 impl Clone for ProcessWaitContinuedStatusAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessWaitContinuedStatusAbi<VmAbi> {}
 impl Clone for ProcessWaitContinuedStatusAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessWaitContinuedStatusAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessWaitContinuedStatus",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessWaitContinuedStatus")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_pid = <ProcessId as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
@@ -1866,15 +3161,57 @@ impl VmAggregateCodec for ProcessWaitContinuedStatusAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <ProcessId as VmAggregateCodec>::encode_with_context(self.pid, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessWaitContinuedStatus.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessWaitContinuedStatusValue {
+    /// Discriminator for this wait-status variant.
+    pub kind: String,
+    /// Child process identifier.
+    pub pid: ProcessId,
+}
+
+impl NativeAbiCodec for ProcessWaitContinuedStatusAbi<NativeAbi> {
+    type Value = ProcessWaitContinuedStatusValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessWaitContinuedStatusValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            pid: unsafe { <ProcessId as NativeAbiCodec>::into_value(self.pid)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            pid: <ProcessId as NativeAbiCodec>::from_value(binding, value.pid),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessWaitContinuedStatusAbi<VmAbi> {
+    type Value = ProcessWaitContinuedStatusValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessWaitContinuedStatusValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            pid: <ProcessId as VmAbiCodec>::into_value(self.pid, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            pid: <ProcessId as VmAbiCodec>::from_value(context, value.pid)?,
+        })
     }
 }
 
@@ -1894,49 +3231,29 @@ pub type ProcessWaitExitedStatusVm = ProcessWaitExitedStatusAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessWaitExitedStatusAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessWaitExitedStatusAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessWaitExitedStatusAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessWaitExitedStatusAbi<NativeAbi> {}
 impl Clone for ProcessWaitExitedStatusAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessWaitExitedStatusAbi<VmAbi> {}
 impl Clone for ProcessWaitExitedStatusAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessWaitExitedStatusAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessWaitExitedStatus",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessWaitExitedStatus")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_pid = <ProcessId as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_exit_code = <i32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
@@ -1946,16 +3263,64 @@ impl VmAggregateCodec for ProcessWaitExitedStatusAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <ProcessId as VmAggregateCodec>::encode_with_context(self.pid, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.exit_code, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessWaitExitedStatus.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessWaitExitedStatusValue {
+    /// Discriminator for this wait-status variant.
+    pub kind: String,
+    /// Child process identifier.
+    pub pid: ProcessId,
+    /// Exit code when available.
+    pub exit_code: i32,
+}
+
+impl NativeAbiCodec for ProcessWaitExitedStatusAbi<NativeAbi> {
+    type Value = ProcessWaitExitedStatusValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessWaitExitedStatusValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            pid: unsafe { <ProcessId as NativeAbiCodec>::into_value(self.pid)? },
+            exit_code: unsafe { <i32 as NativeAbiCodec>::into_value(self.exit_code)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            pid: <ProcessId as NativeAbiCodec>::from_value(binding, value.pid),
+            exit_code: <i32 as NativeAbiCodec>::from_value(binding, value.exit_code),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessWaitExitedStatusAbi<VmAbi> {
+    type Value = ProcessWaitExitedStatusValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessWaitExitedStatusValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            pid: <ProcessId as VmAbiCodec>::into_value(self.pid, context)?,
+            exit_code: <i32 as VmAbiCodec>::into_value(self.exit_code, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            pid: <ProcessId as VmAbiCodec>::from_value(context, value.pid)?,
+            exit_code: <i32 as VmAbiCodec>::from_value(context, value.exit_code)?,
+        })
     }
 }
 
@@ -1973,49 +3338,29 @@ pub type ProcessWaitRunningStatusVm = ProcessWaitRunningStatusAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessWaitRunningStatusAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessWaitRunningStatusAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessWaitRunningStatusAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessWaitRunningStatusAbi<NativeAbi> {}
 impl Clone for ProcessWaitRunningStatusAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessWaitRunningStatusAbi<VmAbi> {}
 impl Clone for ProcessWaitRunningStatusAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessWaitRunningStatusAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessWaitRunningStatus",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessWaitRunningStatus")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_pid = <ProcessId as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
@@ -2023,15 +3368,57 @@ impl VmAggregateCodec for ProcessWaitRunningStatusAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <ProcessId as VmAggregateCodec>::encode_with_context(self.pid, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessWaitRunningStatus.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessWaitRunningStatusValue {
+    /// Discriminator for this wait-status variant.
+    pub kind: String,
+    /// Child process identifier.
+    pub pid: ProcessId,
+}
+
+impl NativeAbiCodec for ProcessWaitRunningStatusAbi<NativeAbi> {
+    type Value = ProcessWaitRunningStatusValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessWaitRunningStatusValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            pid: unsafe { <ProcessId as NativeAbiCodec>::into_value(self.pid)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            pid: <ProcessId as NativeAbiCodec>::from_value(binding, value.pid),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessWaitRunningStatusAbi<VmAbi> {
+    type Value = ProcessWaitRunningStatusValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessWaitRunningStatusValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            pid: <ProcessId as VmAbiCodec>::into_value(self.pid, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            pid: <ProcessId as VmAbiCodec>::from_value(context, value.pid)?,
+        })
     }
 }
 
@@ -2053,49 +3440,29 @@ pub type ProcessWaitSignaledStatusVm = ProcessWaitSignaledStatusAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessWaitSignaledStatusAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessWaitSignaledStatusAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessWaitSignaledStatusAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessWaitSignaledStatusAbi<NativeAbi> {}
 impl Clone for ProcessWaitSignaledStatusAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessWaitSignaledStatusAbi<VmAbi> {}
 impl Clone for ProcessWaitSignaledStatusAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessWaitSignaledStatusAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessWaitSignaledStatus",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessWaitSignaledStatus")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 4 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_pid = <ProcessId as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_signal = <Signal as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_core_dumped = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
@@ -2107,10 +3474,7 @@ impl VmAggregateCodec for ProcessWaitSignaledStatusAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <ProcessId as VmAggregateCodec>::encode_with_context(self.pid, context)?,
@@ -2118,6 +3482,63 @@ impl VmAggregateCodec for ProcessWaitSignaledStatusAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.core_dumped, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessWaitSignaledStatus.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessWaitSignaledStatusValue {
+    /// Discriminator for this wait-status variant.
+    pub kind: String,
+    /// Child process identifier.
+    pub pid: ProcessId,
+    /// Signal number when available.
+    pub signal: Signal,
+    /// Whether a core file was produced.
+    pub core_dumped: bool,
+}
+
+impl NativeAbiCodec for ProcessWaitSignaledStatusAbi<NativeAbi> {
+    type Value = ProcessWaitSignaledStatusValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessWaitSignaledStatusValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            pid: unsafe { <ProcessId as NativeAbiCodec>::into_value(self.pid)? },
+            signal: unsafe { <Signal as NativeAbiCodec>::into_value(self.signal)? },
+            core_dumped: unsafe { <bool as NativeAbiCodec>::into_value(self.core_dumped)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            pid: <ProcessId as NativeAbiCodec>::from_value(binding, value.pid),
+            signal: <Signal as NativeAbiCodec>::from_value(binding, value.signal),
+            core_dumped: <bool as NativeAbiCodec>::from_value(binding, value.core_dumped),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessWaitSignaledStatusAbi<VmAbi> {
+    type Value = ProcessWaitSignaledStatusValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessWaitSignaledStatusValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            pid: <ProcessId as VmAbiCodec>::into_value(self.pid, context)?,
+            signal: <Signal as VmAbiCodec>::into_value(self.signal, context)?,
+            core_dumped: <bool as VmAbiCodec>::into_value(self.core_dumped, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            pid: <ProcessId as VmAbiCodec>::from_value(context, value.pid)?,
+            signal: <Signal as VmAbiCodec>::from_value(context, value.signal)?,
+            core_dumped: <bool as VmAbiCodec>::from_value(context, value.core_dumped)?,
+        })
     }
 }
 
@@ -2137,49 +3558,29 @@ pub type ProcessWaitStoppedStatusVm = ProcessWaitStoppedStatusAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessWaitStoppedStatusAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessWaitStoppedStatusAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessWaitStoppedStatusAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessWaitStoppedStatusAbi<NativeAbi> {}
 impl Clone for ProcessWaitStoppedStatusAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessWaitStoppedStatusAbi<VmAbi> {}
 impl Clone for ProcessWaitStoppedStatusAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for ProcessWaitStoppedStatusAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessWaitStoppedStatus",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProcessWaitStoppedStatus")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_pid = <ProcessId as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_signal = <Signal as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
@@ -2189,16 +3590,64 @@ impl VmAggregateCodec for ProcessWaitStoppedStatusAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <ProcessId as VmAggregateCodec>::encode_with_context(self.pid, context)?,
             <Signal as VmAggregateCodec>::encode_with_context(self.signal, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ProcessWaitStoppedStatus.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProcessWaitStoppedStatusValue {
+    /// Discriminator for this wait-status variant.
+    pub kind: String,
+    /// Child process identifier.
+    pub pid: ProcessId,
+    /// Signal number when available.
+    pub signal: Signal,
+}
+
+impl NativeAbiCodec for ProcessWaitStoppedStatusAbi<NativeAbi> {
+    type Value = ProcessWaitStoppedStatusValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ProcessWaitStoppedStatusValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            pid: unsafe { <ProcessId as NativeAbiCodec>::into_value(self.pid)? },
+            signal: unsafe { <Signal as NativeAbiCodec>::into_value(self.signal)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            pid: <ProcessId as NativeAbiCodec>::from_value(binding, value.pid),
+            signal: <Signal as NativeAbiCodec>::from_value(binding, value.signal),
+        }
+    }
+}
+
+impl VmAbiCodec for ProcessWaitStoppedStatusAbi<VmAbi> {
+    type Value = ProcessWaitStoppedStatusValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ProcessWaitStoppedStatusValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            pid: <ProcessId as VmAbiCodec>::into_value(self.pid, context)?,
+            signal: <Signal as VmAbiCodec>::into_value(self.signal, context)?,
+        })
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            pid: <ProcessId as VmAbiCodec>::from_value(context, value.pid)?,
+            signal: <Signal as VmAbiCodec>::from_value(context, value.signal)?,
+        })
     }
 }
 
@@ -2215,26 +3664,13 @@ pub struct SignalEvent {
 pub type SignalEventVm = SignalEvent;
 
 impl VmAggregateCodec for SignalEvent {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SignalEvent",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SignalEvent")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
         let field_signal = <Signal as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_pid = <ProcessId as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -2244,10 +3680,7 @@ impl VmAggregateCodec for SignalEvent {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <Signal as VmAggregateCodec>::encode_with_context(self.signal, context)?,
             <ProcessId as VmAggregateCodec>::encode_with_context(self.pid, context)?,
@@ -2256,16 +3689,61 @@ impl VmAggregateCodec for SignalEvent {
     }
 }
 
+/// Value type for SignalEvent.
+pub type SignalEventValue = SignalEvent;
+
+impl NativeAbiCodec for SignalEvent {
+    type Value = SignalEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SignalEvent {
+    type Value = SignalEventValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// Replay struct for OsPathBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OspathbytesReplayRecord {
+    /// Discriminator for this platform path variant.
+    pub kind: String,
+    /// Raw byte payload.
+    pub bytes: Vec<u8>,
+}
+
+/// Replay struct for OsPathUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Ospathutf16ReplayRecord {
+    /// Discriminator for this platform path variant.
+    pub kind: String,
+    /// UTF-16 payload.
+    pub utf16: Vec<u16>,
+}
+
 /// Replay struct for ProcessCpuSet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessCpuSetReplayRecord {
+pub struct ProcesscpusetReplayRecord {
     /// CPU indices in the affinity set.
     pub cpus: Vec<u32>,
 }
 
 /// Replay struct for ProcessFdActionClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessFdActionCloseReplayRecord {
+pub struct ProcessfdactioncloseReplayRecord {
     /// Discriminator for this fd action variant.
     pub kind: String,
     /// Descriptor to close.
@@ -2274,7 +3752,7 @@ pub struct ProcessFdActionCloseReplayRecord {
 
 /// Replay struct for ProcessFdActionDup2.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessFdActionDup2ReplayRecord {
+pub struct Processfdactiondup2ReplayRecord {
     /// Discriminator for this fd action variant.
     pub kind: String,
     /// Source descriptor.
@@ -2285,13 +3763,13 @@ pub struct ProcessFdActionDup2ReplayRecord {
 
 /// Replay struct for ProcessFdActionOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessFdActionOpenReplayRecord {
+pub struct ProcessfdactionopenReplayRecord {
     /// Discriminator for this fd action variant.
     pub kind: String,
     /// Target descriptor.
     pub target: i32,
     /// Path used by open action.
-    pub path: fs::OsPathReplayRecord,
+    pub path: fs::OspathReplayRecord,
     /// Open flags for open action.
     pub flags: fs::OpenFlags,
     /// Open mode for open action.
@@ -2300,9 +3778,9 @@ pub struct ProcessFdActionOpenReplayRecord {
 
 /// Replay struct for ProcessSpawnOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessSpawnOptionsReplayRecord {
+pub struct ProcessspawnoptionsReplayRecord {
     /// Current directory for the child process.
-    pub cwd: fs::OsPathReplayRecord,
+    pub cwd: fs::OspathReplayRecord,
     /// Whether to create a detached child process.
     pub detached: bool,
     /// Whether to reset signal dispositions in the child.
@@ -2313,7 +3791,7 @@ pub struct ProcessSpawnOptionsReplayRecord {
 
 /// Replay struct for ProcessStdioDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessStdioDescriptorReplayRecord {
+pub struct ProcessstdiodescriptorReplayRecord {
     /// Discriminator for this stdio variant.
     pub kind: String,
     /// Numeric descriptor used for this stdio lane.
@@ -2322,7 +3800,7 @@ pub struct ProcessStdioDescriptorReplayRecord {
 
 /// Replay struct for ProcessStdioFile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessStdioFileReplayRecord {
+pub struct ProcessstdiofileReplayRecord {
     /// Discriminator for this stdio variant.
     pub kind: String,
     /// File handle used for this stdio lane.
@@ -2331,21 +3809,21 @@ pub struct ProcessStdioFileReplayRecord {
 
 /// Replay struct for ProcessStdioInherit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessStdioInheritReplayRecord {
+pub struct ProcessstdioinheritReplayRecord {
     /// Discriminator for this stdio variant.
     pub kind: String,
 }
 
 /// Replay struct for ProcessStdioNull.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessStdioNullReplayRecord {
+pub struct ProcessstdionullReplayRecord {
     /// Discriminator for this stdio variant.
     pub kind: String,
 }
 
 /// Replay struct for ProcessStdioPipe.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessStdioPipeReplayRecord {
+pub struct ProcessstdiopipeReplayRecord {
     /// Discriminator for this stdio variant.
     pub kind: String,
     /// Pipe handle used for this stdio lane.
@@ -2354,7 +3832,7 @@ pub struct ProcessStdioPipeReplayRecord {
 
 /// Replay struct for ProcessWaitContinuedStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessWaitContinuedStatusReplayRecord {
+pub struct ProcesswaitcontinuedstatusReplayRecord {
     /// Discriminator for this wait-status variant.
     pub kind: String,
     /// Child process identifier.
@@ -2363,7 +3841,7 @@ pub struct ProcessWaitContinuedStatusReplayRecord {
 
 /// Replay struct for ProcessWaitExitedStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessWaitExitedStatusReplayRecord {
+pub struct ProcesswaitexitedstatusReplayRecord {
     /// Discriminator for this wait-status variant.
     pub kind: String,
     /// Child process identifier.
@@ -2374,7 +3852,7 @@ pub struct ProcessWaitExitedStatusReplayRecord {
 
 /// Replay struct for ProcessWaitRunningStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessWaitRunningStatusReplayRecord {
+pub struct ProcesswaitrunningstatusReplayRecord {
     /// Discriminator for this wait-status variant.
     pub kind: String,
     /// Child process identifier.
@@ -2383,7 +3861,7 @@ pub struct ProcessWaitRunningStatusReplayRecord {
 
 /// Replay struct for ProcessWaitSignaledStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessWaitSignaledStatusReplayRecord {
+pub struct ProcesswaitsignaledstatusReplayRecord {
     /// Discriminator for this wait-status variant.
     pub kind: String,
     /// Child process identifier.
@@ -2396,7 +3874,7 @@ pub struct ProcessWaitSignaledStatusReplayRecord {
 
 /// Replay struct for ProcessWaitStoppedStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessWaitStoppedStatusReplayRecord {
+pub struct ProcesswaitstoppedstatusReplayRecord {
     /// Discriminator for this wait-status variant.
     pub kind: String,
     /// Child process identifier.
@@ -2405,43 +3883,53 @@ pub struct ProcessWaitStoppedStatusReplayRecord {
     pub signal: Signal,
 }
 
+/// Replay enum for OsPath.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum OspathReplayRecord {
+    /// OsPathBytes variant.
+    OsPathBytes(fs::OspathbytesReplayRecord),
+    /// OsPathUtf16 variant.
+    OsPathUtf16(fs::Ospathutf16ReplayRecord),
+}
+
 /// Replay enum for ProcessFdAction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ProcessFdActionReplayRecord {
+pub enum ProcessfdactionReplayRecord {
     /// ProcessFdActionClose variant.
-    ProcessFdActionClose(ProcessFdActionCloseReplayRecord),
+    ProcessFdActionClose(ProcessfdactioncloseReplayRecord),
     /// ProcessFdActionDup2 variant.
-    ProcessFdActionDup2(ProcessFdActionDup2ReplayRecord),
+    ProcessFdActionDup2(Processfdactiondup2ReplayRecord),
     /// ProcessFdActionOpen variant.
-    ProcessFdActionOpen(ProcessFdActionOpenReplayRecord),
+    ProcessFdActionOpen(ProcessfdactionopenReplayRecord),
 }
 
 /// Replay enum for ProcessStdio.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ProcessStdioReplayRecord {
+pub enum ProcessstdioReplayRecord {
     /// ProcessStdioDescriptor variant.
-    ProcessStdioDescriptor(ProcessStdioDescriptorReplayRecord),
+    ProcessStdioDescriptor(ProcessstdiodescriptorReplayRecord),
     /// ProcessStdioFile variant.
-    ProcessStdioFile(ProcessStdioFileReplayRecord),
+    ProcessStdioFile(ProcessstdiofileReplayRecord),
     /// ProcessStdioInherit variant.
-    ProcessStdioInherit(ProcessStdioInheritReplayRecord),
+    ProcessStdioInherit(ProcessstdioinheritReplayRecord),
     /// ProcessStdioNull variant.
-    ProcessStdioNull(ProcessStdioNullReplayRecord),
+    ProcessStdioNull(ProcessstdionullReplayRecord),
     /// ProcessStdioPipe variant.
-    ProcessStdioPipe(ProcessStdioPipeReplayRecord),
+    ProcessStdioPipe(ProcessstdiopipeReplayRecord),
 }
 
 /// Replay enum for ProcessWaitStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ProcessWaitStatusReplayRecord {
+pub enum ProcesswaitstatusReplayRecord {
     /// ProcessWaitContinuedStatus variant.
-    ProcessWaitContinuedStatus(ProcessWaitContinuedStatusReplayRecord),
+    ProcessWaitContinuedStatus(ProcesswaitcontinuedstatusReplayRecord),
     /// ProcessWaitExitedStatus variant.
-    ProcessWaitExitedStatus(ProcessWaitExitedStatusReplayRecord),
+    ProcessWaitExitedStatus(ProcesswaitexitedstatusReplayRecord),
     /// ProcessWaitRunningStatus variant.
-    ProcessWaitRunningStatus(ProcessWaitRunningStatusReplayRecord),
+    ProcessWaitRunningStatus(ProcesswaitrunningstatusReplayRecord),
     /// ProcessWaitSignaledStatus variant.
-    ProcessWaitSignaledStatus(ProcessWaitSignaledStatusReplayRecord),
+    ProcessWaitSignaledStatus(ProcesswaitsignaledstatusReplayRecord),
     /// ProcessWaitStoppedStatus variant.
-    ProcessWaitStoppedStatus(ProcessWaitStoppedStatusReplayRecord),
+    ProcessWaitStoppedStatus(ProcesswaitstoppedstatusReplayRecord),
 }
+

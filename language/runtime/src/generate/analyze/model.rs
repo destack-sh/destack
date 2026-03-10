@@ -220,7 +220,7 @@ pub(crate) enum BindingType {
     StringSlice,
     /// Slice of binding values.
     Slice(Box<BindingType>),
-    /// Owned array of binding values.
+    /// Array of binding values.
     Array(Box<BindingType>),
     /// Optional binding value.
     Optional(Box<BindingType>),

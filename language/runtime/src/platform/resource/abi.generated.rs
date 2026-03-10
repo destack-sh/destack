@@ -4,14 +4,2556 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{
-    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
-    resource as platform_resource,
-};
+use crate::diagnostic::RuntimeError;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::PlatformError as AbiPlatformError;
+use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::runtime::BindingCallContext;
+use crate::platform::VmValueCodec;
+use crate::platform::VmAggregateCodec;
+use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::resource as platform_resource;
+
+/// ABI newtype for AudioDeviceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioDeviceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type AudioDeviceHandleVm = AudioDeviceHandle;
+
+impl VmValueCodec for AudioDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for AudioDeviceHandle.
+pub type AudioDeviceHandleValue = AudioDeviceHandle;
+
+impl NativeAbiCodec for AudioDeviceHandle {
+    type Value = AudioDeviceHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for AudioDeviceHandle {
+    type Value = AudioDeviceHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for AudioEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type AudioEventHandleVm = AudioEventHandle;
+
+impl VmValueCodec for AudioEventHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for AudioEventHandle.
+pub type AudioEventHandleValue = AudioEventHandle;
+
+impl NativeAbiCodec for AudioEventHandle {
+    type Value = AudioEventHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for AudioEventHandle {
+    type Value = AudioEventHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for AudioStreamHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioStreamHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type AudioStreamHandleVm = AudioStreamHandle;
+
+impl VmValueCodec for AudioStreamHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for AudioStreamHandle.
+pub type AudioStreamHandleValue = AudioStreamHandle;
+
+impl NativeAbiCodec for AudioStreamHandle {
+    type Value = AudioStreamHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for AudioStreamHandle {
+    type Value = AudioStreamHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for BackgroundEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BackgroundEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type BackgroundEventHandleVm = BackgroundEventHandle;
+
+impl VmValueCodec for BackgroundEventHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for BackgroundEventHandle.
+pub type BackgroundEventHandleValue = BackgroundEventHandle;
+
+impl NativeAbiCodec for BackgroundEventHandle {
+    type Value = BackgroundEventHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BackgroundEventHandle {
+    type Value = BackgroundEventHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for BarrierHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BarrierHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type BarrierHandleVm = BarrierHandle;
+
+impl VmValueCodec for BarrierHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for BarrierHandle.
+pub type BarrierHandleValue = BarrierHandle;
+
+impl NativeAbiCodec for BarrierHandle {
+    type Value = BarrierHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BarrierHandle {
+    type Value = BarrierHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for BluetoothDeviceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BluetoothDeviceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type BluetoothDeviceHandleVm = BluetoothDeviceHandle;
+
+impl VmValueCodec for BluetoothDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for BluetoothDeviceHandle.
+pub type BluetoothDeviceHandleValue = BluetoothDeviceHandle;
+
+impl NativeAbiCodec for BluetoothDeviceHandle {
+    type Value = BluetoothDeviceHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BluetoothDeviceHandle {
+    type Value = BluetoothDeviceHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for BluetoothScanHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BluetoothScanHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type BluetoothScanHandleVm = BluetoothScanHandle;
+
+impl VmValueCodec for BluetoothScanHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for BluetoothScanHandle.
+pub type BluetoothScanHandleValue = BluetoothScanHandle;
+
+impl NativeAbiCodec for BluetoothScanHandle {
+    type Value = BluetoothScanHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BluetoothScanHandle {
+    type Value = BluetoothScanHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for BluetoothSubscriptionHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BluetoothSubscriptionHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type BluetoothSubscriptionHandleVm = BluetoothSubscriptionHandle;
+
+impl VmValueCodec for BluetoothSubscriptionHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for BluetoothSubscriptionHandle.
+pub type BluetoothSubscriptionHandleValue = BluetoothSubscriptionHandle;
+
+impl NativeAbiCodec for BluetoothSubscriptionHandle {
+    type Value = BluetoothSubscriptionHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BluetoothSubscriptionHandle {
+    type Value = BluetoothSubscriptionHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for CameraDeviceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CameraDeviceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CameraDeviceHandleVm = CameraDeviceHandle;
+
+impl VmValueCodec for CameraDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for CameraDeviceHandle.
+pub type CameraDeviceHandleValue = CameraDeviceHandle;
+
+impl NativeAbiCodec for CameraDeviceHandle {
+    type Value = CameraDeviceHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CameraDeviceHandle {
+    type Value = CameraDeviceHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for CameraStreamHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CameraStreamHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CameraStreamHandleVm = CameraStreamHandle;
+
+impl VmValueCodec for CameraStreamHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for CameraStreamHandle.
+pub type CameraStreamHandleValue = CameraStreamHandle;
+
+impl NativeAbiCodec for CameraStreamHandle {
+    type Value = CameraStreamHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CameraStreamHandle {
+    type Value = CameraStreamHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for CompletionHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CompletionHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CompletionHandleVm = CompletionHandle;
+
+impl VmValueCodec for CompletionHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for CompletionHandle.
+pub type CompletionHandleValue = CompletionHandle;
+
+impl NativeAbiCodec for CompletionHandle {
+    type Value = CompletionHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CompletionHandle {
+    type Value = CompletionHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for CondVarHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CondVarHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CondVarHandleVm = CondVarHandle;
+
+impl VmValueCodec for CondVarHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for CondVarHandle.
+pub type CondVarHandleValue = CondVarHandle;
+
+impl NativeAbiCodec for CondVarHandle {
+    type Value = CondVarHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CondVarHandle {
+    type Value = CondVarHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for CryptoCertificateHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CryptoCertificateHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CryptoCertificateHandleVm = CryptoCertificateHandle;
+
+impl VmValueCodec for CryptoCertificateHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for CryptoCertificateHandle.
+pub type CryptoCertificateHandleValue = CryptoCertificateHandle;
+
+impl NativeAbiCodec for CryptoCertificateHandle {
+    type Value = CryptoCertificateHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CryptoCertificateHandle {
+    type Value = CryptoCertificateHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for CryptoCipherHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CryptoCipherHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CryptoCipherHandleVm = CryptoCipherHandle;
+
+impl VmValueCodec for CryptoCipherHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for CryptoCipherHandle.
+pub type CryptoCipherHandleValue = CryptoCipherHandle;
+
+impl NativeAbiCodec for CryptoCipherHandle {
+    type Value = CryptoCipherHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CryptoCipherHandle {
+    type Value = CryptoCipherHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for CryptoDigestHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CryptoDigestHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CryptoDigestHandleVm = CryptoDigestHandle;
+
+impl VmValueCodec for CryptoDigestHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for CryptoDigestHandle.
+pub type CryptoDigestHandleValue = CryptoDigestHandle;
+
+impl NativeAbiCodec for CryptoDigestHandle {
+    type Value = CryptoDigestHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CryptoDigestHandle {
+    type Value = CryptoDigestHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for CryptoKeyHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CryptoKeyHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CryptoKeyHandleVm = CryptoKeyHandle;
+
+impl VmValueCodec for CryptoKeyHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for CryptoKeyHandle.
+pub type CryptoKeyHandleValue = CryptoKeyHandle;
+
+impl NativeAbiCodec for CryptoKeyHandle {
+    type Value = CryptoKeyHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CryptoKeyHandle {
+    type Value = CryptoKeyHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for CryptoMacHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CryptoMacHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CryptoMacHandleVm = CryptoMacHandle;
+
+impl VmValueCodec for CryptoMacHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for CryptoMacHandle.
+pub type CryptoMacHandleValue = CryptoMacHandle;
+
+impl NativeAbiCodec for CryptoMacHandle {
+    type Value = CryptoMacHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CryptoMacHandle {
+    type Value = CryptoMacHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for CryptoStoreHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CryptoStoreHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CryptoStoreHandleVm = CryptoStoreHandle;
+
+impl VmValueCodec for CryptoStoreHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for CryptoStoreHandle.
+pub type CryptoStoreHandleValue = CryptoStoreHandle;
+
+impl NativeAbiCodec for CryptoStoreHandle {
+    type Value = CryptoStoreHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CryptoStoreHandle {
+    type Value = CryptoStoreHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for DeviceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DeviceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type DeviceHandleVm = DeviceHandle;
+
+impl VmValueCodec for DeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for DeviceHandle.
+pub type DeviceHandleValue = DeviceHandle;
+
+impl NativeAbiCodec for DeviceHandle {
+    type Value = DeviceHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DeviceHandle {
+    type Value = DeviceHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for DirectoryHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DirectoryHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type DirectoryHandleVm = DirectoryHandle;
+
+impl VmValueCodec for DirectoryHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for DirectoryHandle.
+pub type DirectoryHandleValue = DirectoryHandle;
+
+impl NativeAbiCodec for DirectoryHandle {
+    type Value = DirectoryHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DirectoryHandle {
+    type Value = DirectoryHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for DisplayEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DisplayEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type DisplayEventHandleVm = DisplayEventHandle;
+
+impl VmValueCodec for DisplayEventHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for DisplayEventHandle.
+pub type DisplayEventHandleValue = DisplayEventHandle;
+
+impl NativeAbiCodec for DisplayEventHandle {
+    type Value = DisplayEventHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DisplayEventHandle {
+    type Value = DisplayEventHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for DisplayHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DisplayHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type DisplayHandleVm = DisplayHandle;
+
+impl VmValueCodec for DisplayHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for DisplayHandle.
+pub type DisplayHandleValue = DisplayHandle;
+
+impl NativeAbiCodec for DisplayHandle {
+    type Value = DisplayHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DisplayHandle {
+    type Value = DisplayHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for DocumentHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DocumentHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type DocumentHandleVm = DocumentHandle;
+
+impl VmValueCodec for DocumentHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for DocumentHandle.
+pub type DocumentHandleValue = DocumentHandle;
+
+impl NativeAbiCodec for DocumentHandle {
+    type Value = DocumentHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DocumentHandle {
+    type Value = DocumentHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for FileHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FileHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type FileHandleVm = FileHandle;
+
+impl VmValueCodec for FileHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for FileHandle.
+pub type FileHandleValue = FileHandle;
+
+impl NativeAbiCodec for FileHandle {
+    type Value = FileHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for FileHandle {
+    type Value = FileHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuAdapterHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuAdapterHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuAdapterHandleVm = GpuAdapterHandle;
+
+impl VmValueCodec for GpuAdapterHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuAdapterHandle.
+pub type GpuAdapterHandleValue = GpuAdapterHandle;
+
+impl NativeAbiCodec for GpuAdapterHandle {
+    type Value = GpuAdapterHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuAdapterHandle {
+    type Value = GpuAdapterHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuBindGroupHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuBindGroupHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuBindGroupHandleVm = GpuBindGroupHandle;
+
+impl VmValueCodec for GpuBindGroupHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuBindGroupHandle.
+pub type GpuBindGroupHandleValue = GpuBindGroupHandle;
+
+impl NativeAbiCodec for GpuBindGroupHandle {
+    type Value = GpuBindGroupHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuBindGroupHandle {
+    type Value = GpuBindGroupHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuBindGroupLayoutHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuBindGroupLayoutHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuBindGroupLayoutHandleVm = GpuBindGroupLayoutHandle;
+
+impl VmValueCodec for GpuBindGroupLayoutHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuBindGroupLayoutHandle.
+pub type GpuBindGroupLayoutHandleValue = GpuBindGroupLayoutHandle;
+
+impl NativeAbiCodec for GpuBindGroupLayoutHandle {
+    type Value = GpuBindGroupLayoutHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuBindGroupLayoutHandle {
+    type Value = GpuBindGroupLayoutHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuBufferHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuBufferHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuBufferHandleVm = GpuBufferHandle;
+
+impl VmValueCodec for GpuBufferHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuBufferHandle.
+pub type GpuBufferHandleValue = GpuBufferHandle;
+
+impl NativeAbiCodec for GpuBufferHandle {
+    type Value = GpuBufferHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuBufferHandle {
+    type Value = GpuBufferHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuCommandListHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuCommandListHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuCommandListHandleVm = GpuCommandListHandle;
+
+impl VmValueCodec for GpuCommandListHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuCommandListHandle.
+pub type GpuCommandListHandleValue = GpuCommandListHandle;
+
+impl NativeAbiCodec for GpuCommandListHandle {
+    type Value = GpuCommandListHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuCommandListHandle {
+    type Value = GpuCommandListHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuComputePassHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuComputePassHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuComputePassHandleVm = GpuComputePassHandle;
+
+impl VmValueCodec for GpuComputePassHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuComputePassHandle.
+pub type GpuComputePassHandleValue = GpuComputePassHandle;
+
+impl NativeAbiCodec for GpuComputePassHandle {
+    type Value = GpuComputePassHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuComputePassHandle {
+    type Value = GpuComputePassHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuDeviceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuDeviceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuDeviceHandleVm = GpuDeviceHandle;
+
+impl VmValueCodec for GpuDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuDeviceHandle.
+pub type GpuDeviceHandleValue = GpuDeviceHandle;
+
+impl NativeAbiCodec for GpuDeviceHandle {
+    type Value = GpuDeviceHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuDeviceHandle {
+    type Value = GpuDeviceHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuFenceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuFenceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuFenceHandleVm = GpuFenceHandle;
+
+impl VmValueCodec for GpuFenceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuFenceHandle.
+pub type GpuFenceHandleValue = GpuFenceHandle;
+
+impl NativeAbiCodec for GpuFenceHandle {
+    type Value = GpuFenceHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuFenceHandle {
+    type Value = GpuFenceHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuMemoryHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuMemoryHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuMemoryHandleVm = GpuMemoryHandle;
+
+impl VmValueCodec for GpuMemoryHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuMemoryHandle.
+pub type GpuMemoryHandleValue = GpuMemoryHandle;
+
+impl NativeAbiCodec for GpuMemoryHandle {
+    type Value = GpuMemoryHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuMemoryHandle {
+    type Value = GpuMemoryHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuPipelineHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuPipelineHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuPipelineHandleVm = GpuPipelineHandle;
+
+impl VmValueCodec for GpuPipelineHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuPipelineHandle.
+pub type GpuPipelineHandleValue = GpuPipelineHandle;
+
+impl NativeAbiCodec for GpuPipelineHandle {
+    type Value = GpuPipelineHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuPipelineHandle {
+    type Value = GpuPipelineHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuPipelineLayoutHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuPipelineLayoutHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuPipelineLayoutHandleVm = GpuPipelineLayoutHandle;
+
+impl VmValueCodec for GpuPipelineLayoutHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuPipelineLayoutHandle.
+pub type GpuPipelineLayoutHandleValue = GpuPipelineLayoutHandle;
+
+impl NativeAbiCodec for GpuPipelineLayoutHandle {
+    type Value = GpuPipelineLayoutHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuPipelineLayoutHandle {
+    type Value = GpuPipelineLayoutHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuQuerySetHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuQuerySetHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuQuerySetHandleVm = GpuQuerySetHandle;
+
+impl VmValueCodec for GpuQuerySetHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuQuerySetHandle.
+pub type GpuQuerySetHandleValue = GpuQuerySetHandle;
+
+impl NativeAbiCodec for GpuQuerySetHandle {
+    type Value = GpuQuerySetHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuQuerySetHandle {
+    type Value = GpuQuerySetHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuQueueHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuQueueHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuQueueHandleVm = GpuQueueHandle;
+
+impl VmValueCodec for GpuQueueHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuQueueHandle.
+pub type GpuQueueHandleValue = GpuQueueHandle;
+
+impl NativeAbiCodec for GpuQueueHandle {
+    type Value = GpuQueueHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuQueueHandle {
+    type Value = GpuQueueHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuRenderBundleEncoderHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuRenderBundleEncoderHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuRenderBundleEncoderHandleVm = GpuRenderBundleEncoderHandle;
+
+impl VmValueCodec for GpuRenderBundleEncoderHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuRenderBundleEncoderHandle.
+pub type GpuRenderBundleEncoderHandleValue = GpuRenderBundleEncoderHandle;
+
+impl NativeAbiCodec for GpuRenderBundleEncoderHandle {
+    type Value = GpuRenderBundleEncoderHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuRenderBundleEncoderHandle {
+    type Value = GpuRenderBundleEncoderHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuRenderBundleHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuRenderBundleHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuRenderBundleHandleVm = GpuRenderBundleHandle;
+
+impl VmValueCodec for GpuRenderBundleHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuRenderBundleHandle.
+pub type GpuRenderBundleHandleValue = GpuRenderBundleHandle;
+
+impl NativeAbiCodec for GpuRenderBundleHandle {
+    type Value = GpuRenderBundleHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuRenderBundleHandle {
+    type Value = GpuRenderBundleHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuRenderPassHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuRenderPassHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuRenderPassHandleVm = GpuRenderPassHandle;
+
+impl VmValueCodec for GpuRenderPassHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuRenderPassHandle.
+pub type GpuRenderPassHandleValue = GpuRenderPassHandle;
+
+impl NativeAbiCodec for GpuRenderPassHandle {
+    type Value = GpuRenderPassHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuRenderPassHandle {
+    type Value = GpuRenderPassHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuSamplerHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuSamplerHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuSamplerHandleVm = GpuSamplerHandle;
+
+impl VmValueCodec for GpuSamplerHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuSamplerHandle.
+pub type GpuSamplerHandleValue = GpuSamplerHandle;
+
+impl NativeAbiCodec for GpuSamplerHandle {
+    type Value = GpuSamplerHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuSamplerHandle {
+    type Value = GpuSamplerHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuShaderHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuShaderHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuShaderHandleVm = GpuShaderHandle;
+
+impl VmValueCodec for GpuShaderHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuShaderHandle.
+pub type GpuShaderHandleValue = GpuShaderHandle;
+
+impl NativeAbiCodec for GpuShaderHandle {
+    type Value = GpuShaderHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuShaderHandle {
+    type Value = GpuShaderHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuSurfaceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuSurfaceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuSurfaceHandleVm = GpuSurfaceHandle;
+
+impl VmValueCodec for GpuSurfaceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuSurfaceHandle.
+pub type GpuSurfaceHandleValue = GpuSurfaceHandle;
+
+impl NativeAbiCodec for GpuSurfaceHandle {
+    type Value = GpuSurfaceHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuSurfaceHandle {
+    type Value = GpuSurfaceHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuTextureHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuTextureHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuTextureHandleVm = GpuTextureHandle;
+
+impl VmValueCodec for GpuTextureHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuTextureHandle.
+pub type GpuTextureHandleValue = GpuTextureHandle;
+
+impl NativeAbiCodec for GpuTextureHandle {
+    type Value = GpuTextureHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuTextureHandle {
+    type Value = GpuTextureHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuTextureViewHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuTextureViewHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuTextureViewHandleVm = GpuTextureViewHandle;
+
+impl VmValueCodec for GpuTextureViewHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for GpuTextureViewHandle.
+pub type GpuTextureViewHandleValue = GpuTextureViewHandle;
+
+impl NativeAbiCodec for GpuTextureViewHandle {
+    type Value = GpuTextureViewHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuTextureViewHandle {
+    type Value = GpuTextureViewHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for InputDeviceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct InputDeviceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type InputDeviceHandleVm = InputDeviceHandle;
+
+impl VmValueCodec for InputDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for InputDeviceHandle.
+pub type InputDeviceHandleValue = InputDeviceHandle;
+
+impl NativeAbiCodec for InputDeviceHandle {
+    type Value = InputDeviceHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputDeviceHandle {
+    type Value = InputDeviceHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for InputMonitorHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct InputMonitorHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type InputMonitorHandleVm = InputMonitorHandle;
+
+impl VmValueCodec for InputMonitorHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for InputMonitorHandle.
+pub type InputMonitorHandleValue = InputMonitorHandle;
+
+impl NativeAbiCodec for InputMonitorHandle {
+    type Value = InputMonitorHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputMonitorHandle {
+    type Value = InputMonitorHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for InspectorHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct InspectorHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type InspectorHandleVm = InspectorHandle;
+
+impl VmValueCodec for InspectorHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for InspectorHandle.
+pub type InspectorHandleValue = InspectorHandle;
+
+impl NativeAbiCodec for InspectorHandle {
+    type Value = InspectorHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InspectorHandle {
+    type Value = InspectorHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for IntentHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct IntentHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type IntentHandleVm = IntentHandle;
+
+impl VmValueCodec for IntentHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for IntentHandle.
+pub type IntentHandleValue = IntentHandle;
+
+impl NativeAbiCodec for IntentHandle {
+    type Value = IntentHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for IntentHandle {
+    type Value = IntentHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for LibraryHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LibraryHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type LibraryHandleVm = LibraryHandle;
+
+impl VmValueCodec for LibraryHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for LibraryHandle.
+pub type LibraryHandleValue = LibraryHandle;
+
+impl NativeAbiCodec for LibraryHandle {
+    type Value = LibraryHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for LibraryHandle {
+    type Value = LibraryHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for LifecycleEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LifecycleEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type LifecycleEventHandleVm = LifecycleEventHandle;
+
+impl VmValueCodec for LifecycleEventHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for LifecycleEventHandle.
+pub type LifecycleEventHandleValue = LifecycleEventHandle;
+
+impl NativeAbiCodec for LifecycleEventHandle {
+    type Value = LifecycleEventHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for LifecycleEventHandle {
+    type Value = LifecycleEventHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for ListenerHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ListenerHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type ListenerHandleVm = ListenerHandle;
+
+impl VmValueCodec for ListenerHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ListenerHandle.
+pub type ListenerHandleValue = ListenerHandle;
+
+impl NativeAbiCodec for ListenerHandle {
+    type Value = ListenerHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ListenerHandle {
+    type Value = ListenerHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for LocationWatchHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LocationWatchHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type LocationWatchHandleVm = LocationWatchHandle;
+
+impl VmValueCodec for LocationWatchHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for LocationWatchHandle.
+pub type LocationWatchHandleValue = LocationWatchHandle;
+
+impl NativeAbiCodec for LocationWatchHandle {
+    type Value = LocationWatchHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for LocationWatchHandle {
+    type Value = LocationWatchHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for MessageQueueHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MessageQueueHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type MessageQueueHandleVm = MessageQueueHandle;
+
+impl VmValueCodec for MessageQueueHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for MessageQueueHandle.
+pub type MessageQueueHandleValue = MessageQueueHandle;
+
+impl NativeAbiCodec for MessageQueueHandle {
+    type Value = MessageQueueHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for MessageQueueHandle {
+    type Value = MessageQueueHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
 
 /// ABI newtype for MidiEventHandle.
 #[repr(transparent)]
@@ -30,6 +2572,33 @@ impl VmValueCodec for MidiEventHandle {
 
     fn encode(self) -> vm::Value {
         <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for MidiEventHandle.
+pub type MidiEventHandleValue = MidiEventHandle;
+
+impl NativeAbiCodec for MidiEventHandle {
+    type Value = MidiEventHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for MidiEventHandle {
+    type Value = MidiEventHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -53,6 +2622,33 @@ impl VmValueCodec for MidiInputPortHandle {
     }
 }
 
+/// Value type for MidiInputPortHandle.
+pub type MidiInputPortHandleValue = MidiInputPortHandle;
+
+impl NativeAbiCodec for MidiInputPortHandle {
+    type Value = MidiInputPortHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for MidiInputPortHandle {
+    type Value = MidiInputPortHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for MidiOutputPortHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -70,6 +2666,456 @@ impl VmValueCodec for MidiOutputPortHandle {
 
     fn encode(self) -> vm::Value {
         <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for MidiOutputPortHandle.
+pub type MidiOutputPortHandleValue = MidiOutputPortHandle;
+
+impl NativeAbiCodec for MidiOutputPortHandle {
+    type Value = MidiOutputPortHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for MidiOutputPortHandle {
+    type Value = MidiOutputPortHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for MutexHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MutexHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type MutexHandleVm = MutexHandle;
+
+impl VmValueCodec for MutexHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for MutexHandle.
+pub type MutexHandleValue = MutexHandle;
+
+impl NativeAbiCodec for MutexHandle {
+    type Value = MutexHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for MutexHandle {
+    type Value = MutexHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for NetworkWatchHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NetworkWatchHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type NetworkWatchHandleVm = NetworkWatchHandle;
+
+impl VmValueCodec for NetworkWatchHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for NetworkWatchHandle.
+pub type NetworkWatchHandleValue = NetworkWatchHandle;
+
+impl NativeAbiCodec for NetworkWatchHandle {
+    type Value = NetworkWatchHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for NetworkWatchHandle {
+    type Value = NetworkWatchHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for NotificationEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NotificationEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type NotificationEventHandleVm = NotificationEventHandle;
+
+impl VmValueCodec for NotificationEventHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for NotificationEventHandle.
+pub type NotificationEventHandleValue = NotificationEventHandle;
+
+impl NativeAbiCodec for NotificationEventHandle {
+    type Value = NotificationEventHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for NotificationEventHandle {
+    type Value = NotificationEventHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for PipeHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PipeHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type PipeHandleVm = PipeHandle;
+
+impl VmValueCodec for PipeHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for PipeHandle.
+pub type PipeHandleValue = PipeHandle;
+
+impl NativeAbiCodec for PipeHandle {
+    type Value = PipeHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for PipeHandle {
+    type Value = PipeHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for PollHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PollHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type PollHandleVm = PollHandle;
+
+impl VmValueCodec for PollHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for PollHandle.
+pub type PollHandleValue = PollHandle;
+
+impl NativeAbiCodec for PollHandle {
+    type Value = PollHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for PollHandle {
+    type Value = PollHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for ProcessFdHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ProcessFdHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type ProcessFdHandleVm = ProcessFdHandle;
+
+impl VmValueCodec for ProcessFdHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ProcessFdHandle.
+pub type ProcessFdHandleValue = ProcessFdHandle;
+
+impl NativeAbiCodec for ProcessFdHandle {
+    type Value = ProcessFdHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessFdHandle {
+    type Value = ProcessFdHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for ProcessHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ProcessHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type ProcessHandleVm = ProcessHandle;
+
+impl VmValueCodec for ProcessHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ProcessHandle.
+pub type ProcessHandleValue = ProcessHandle;
+
+impl NativeAbiCodec for ProcessHandle {
+    type Value = ProcessHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProcessHandle {
+    type Value = ProcessHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for ProfileHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ProfileHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type ProfileHandleVm = ProfileHandle;
+
+impl VmValueCodec for ProfileHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ProfileHandle.
+pub type ProfileHandleValue = ProfileHandle;
+
+impl NativeAbiCodec for ProfileHandle {
+    type Value = ProfileHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ProfileHandle {
+    type Value = ProfileHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for PtyHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PtyHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type PtyHandleVm = PtyHandle;
+
+impl VmValueCodec for PtyHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for PtyHandle.
+pub type PtyHandleValue = PtyHandle;
+
+impl NativeAbiCodec for PtyHandle {
+    type Value = PtyHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for PtyHandle {
+    type Value = PtyHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -93,6 +3139,33 @@ impl VmValueCodec for ResourceId {
     }
 }
 
+/// Value type for ResourceId.
+pub type ResourceIdValue = ResourceId;
+
+impl NativeAbiCodec for ResourceId {
+    type Value = ResourceIdValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ResourceId {
+    type Value = ResourceIdValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for ResourceKind.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -105,20 +3178,1219 @@ pub type ResourceKind = ResourceKindAbi<NativeAbi>;
 pub type ResourceKindVm = ResourceKindAbi<VmAbi>;
 
 impl VmAggregateCodec for ResourceKindAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self(
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, value)?,
-        ))
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<vm::StringHandle as VmAggregateCodec>::decode_with_context(context, value)?))
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.0, context)
+    }
+}
+
+/// Value type for ResourceKind.
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ResourceKindValue(
+    /// Inner value.
+    pub String,
+);
+
+impl NativeAbiCodec for ResourceKindAbi<NativeAbi> {
+    type Value = ResourceKindValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ResourceKindValue(unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.0)? }))
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self(<NativeStringRef as NativeAbiCodec>::from_value(binding, value.0))
+    }
+}
+
+impl VmAbiCodec for ResourceKindAbi<VmAbi> {
+    type Value = ResourceKindValue;
+
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ResourceKindValue(<vm::StringHandle as VmAbiCodec>::into_value(self.0, context)?))
+    }
+
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(Self(<vm::StringHandle as VmAbiCodec>::from_value(context, value.0)?))
+    }
+}
+
+/// ABI newtype for RwLockHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RwLockHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type RwLockHandleVm = RwLockHandle;
+
+impl VmValueCodec for RwLockHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for RwLockHandle.
+pub type RwLockHandleValue = RwLockHandle;
+
+impl NativeAbiCodec for RwLockHandle {
+    type Value = RwLockHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for RwLockHandle {
+    type Value = RwLockHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for SandboxHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SandboxHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type SandboxHandleVm = SandboxHandle;
+
+impl VmValueCodec for SandboxHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for SandboxHandle.
+pub type SandboxHandleValue = SandboxHandle;
+
+impl NativeAbiCodec for SandboxHandle {
+    type Value = SandboxHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SandboxHandle {
+    type Value = SandboxHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for SemaphoreHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SemaphoreHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type SemaphoreHandleVm = SemaphoreHandle;
+
+impl VmValueCodec for SemaphoreHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for SemaphoreHandle.
+pub type SemaphoreHandleValue = SemaphoreHandle;
+
+impl NativeAbiCodec for SemaphoreHandle {
+    type Value = SemaphoreHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SemaphoreHandle {
+    type Value = SemaphoreHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for SerialPortHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SerialPortHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type SerialPortHandleVm = SerialPortHandle;
+
+impl VmValueCodec for SerialPortHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for SerialPortHandle.
+pub type SerialPortHandleValue = SerialPortHandle;
+
+impl NativeAbiCodec for SerialPortHandle {
+    type Value = SerialPortHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SerialPortHandle {
+    type Value = SerialPortHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for SharedMemoryHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SharedMemoryHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type SharedMemoryHandleVm = SharedMemoryHandle;
+
+impl VmValueCodec for SharedMemoryHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for SharedMemoryHandle.
+pub type SharedMemoryHandleValue = SharedMemoryHandle;
+
+impl NativeAbiCodec for SharedMemoryHandle {
+    type Value = SharedMemoryHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SharedMemoryHandle {
+    type Value = SharedMemoryHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for SignalFdHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SignalFdHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type SignalFdHandleVm = SignalFdHandle;
+
+impl VmValueCodec for SignalFdHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for SignalFdHandle.
+pub type SignalFdHandleValue = SignalFdHandle;
+
+impl NativeAbiCodec for SignalFdHandle {
+    type Value = SignalFdHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SignalFdHandle {
+    type Value = SignalFdHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for SignalHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SignalHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type SignalHandleVm = SignalHandle;
+
+impl VmValueCodec for SignalHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for SignalHandle.
+pub type SignalHandleValue = SignalHandle;
+
+impl NativeAbiCodec for SignalHandle {
+    type Value = SignalHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SignalHandle {
+    type Value = SignalHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for SocketHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SocketHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type SocketHandleVm = SocketHandle;
+
+impl VmValueCodec for SocketHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for SocketHandle.
+pub type SocketHandleValue = SocketHandle;
+
+impl NativeAbiCodec for SocketHandle {
+    type Value = SocketHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SocketHandle {
+    type Value = SocketHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for SymbolHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SymbolHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type SymbolHandleVm = SymbolHandle;
+
+impl VmValueCodec for SymbolHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for SymbolHandle.
+pub type SymbolHandleValue = SymbolHandle;
+
+impl NativeAbiCodec for SymbolHandle {
+    type Value = SymbolHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SymbolHandle {
+    type Value = SymbolHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for ThreadHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ThreadHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type ThreadHandleVm = ThreadHandle;
+
+impl VmValueCodec for ThreadHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ThreadHandle.
+pub type ThreadHandleValue = ThreadHandle;
+
+impl NativeAbiCodec for ThreadHandle {
+    type Value = ThreadHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ThreadHandle {
+    type Value = ThreadHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for ThreadLocalKey.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ThreadLocalKey(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type ThreadLocalKeyVm = ThreadLocalKey;
+
+impl VmValueCodec for ThreadLocalKey {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ThreadLocalKey.
+pub type ThreadLocalKeyValue = ThreadLocalKey;
+
+impl NativeAbiCodec for ThreadLocalKey {
+    type Value = ThreadLocalKeyValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ThreadLocalKey {
+    type Value = ThreadLocalKeyValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for ThreadSemaphoreHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ThreadSemaphoreHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type ThreadSemaphoreHandleVm = ThreadSemaphoreHandle;
+
+impl VmValueCodec for ThreadSemaphoreHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ThreadSemaphoreHandle.
+pub type ThreadSemaphoreHandleValue = ThreadSemaphoreHandle;
+
+impl NativeAbiCodec for ThreadSemaphoreHandle {
+    type Value = ThreadSemaphoreHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ThreadSemaphoreHandle {
+    type Value = ThreadSemaphoreHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for TimerFdHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TimerFdHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type TimerFdHandleVm = TimerFdHandle;
+
+impl VmValueCodec for TimerFdHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for TimerFdHandle.
+pub type TimerFdHandleValue = TimerFdHandle;
+
+impl NativeAbiCodec for TimerFdHandle {
+    type Value = TimerFdHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TimerFdHandle {
+    type Value = TimerFdHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for TimerHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TimerHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type TimerHandleVm = TimerHandle;
+
+impl VmValueCodec for TimerHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for TimerHandle.
+pub type TimerHandleValue = TimerHandle;
+
+impl NativeAbiCodec for TimerHandle {
+    type Value = TimerHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TimerHandle {
+    type Value = TimerHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for TlsContextHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TlsContextHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type TlsContextHandleVm = TlsContextHandle;
+
+impl VmValueCodec for TlsContextHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for TlsContextHandle.
+pub type TlsContextHandleValue = TlsContextHandle;
+
+impl NativeAbiCodec for TlsContextHandle {
+    type Value = TlsContextHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TlsContextHandle {
+    type Value = TlsContextHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for TlsSessionHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TlsSessionHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type TlsSessionHandleVm = TlsSessionHandle;
+
+impl VmValueCodec for TlsSessionHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for TlsSessionHandle.
+pub type TlsSessionHandleValue = TlsSessionHandle;
+
+impl NativeAbiCodec for TlsSessionHandle {
+    type Value = TlsSessionHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TlsSessionHandle {
+    type Value = TlsSessionHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for TraceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TraceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type TraceHandleVm = TraceHandle;
+
+impl VmValueCodec for TraceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for TraceHandle.
+pub type TraceHandleValue = TraceHandle;
+
+impl NativeAbiCodec for TraceHandle {
+    type Value = TraceHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TraceHandle {
+    type Value = TraceHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for TransferredHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TransferredHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type TransferredHandleVm = TransferredHandle;
+
+impl VmValueCodec for TransferredHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for TransferredHandle.
+pub type TransferredHandleValue = TransferredHandle;
+
+impl NativeAbiCodec for TransferredHandle {
+    type Value = TransferredHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TransferredHandle {
+    type Value = TransferredHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for TtyHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TtyHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type TtyHandleVm = TtyHandle;
+
+impl VmValueCodec for TtyHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for TtyHandle.
+pub type TtyHandleValue = TtyHandle;
+
+impl NativeAbiCodec for TtyHandle {
+    type Value = TtyHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for TtyHandle {
+    type Value = TtyHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for UringHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct UringHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type UringHandleVm = UringHandle;
+
+impl VmValueCodec for UringHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for UringHandle.
+pub type UringHandleValue = UringHandle;
+
+impl NativeAbiCodec for UringHandle {
+    type Value = UringHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UringHandle {
+    type Value = UringHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for UsbDeviceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct UsbDeviceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type UsbDeviceHandleVm = UsbDeviceHandle;
+
+impl VmValueCodec for UsbDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for UsbDeviceHandle.
+pub type UsbDeviceHandleValue = UsbDeviceHandle;
+
+impl NativeAbiCodec for UsbDeviceHandle {
+    type Value = UsbDeviceHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UsbDeviceHandle {
+    type Value = UsbDeviceHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for UsbWatchHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct UsbWatchHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type UsbWatchHandleVm = UsbWatchHandle;
+
+impl VmValueCodec for UsbWatchHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for UsbWatchHandle.
+pub type UsbWatchHandleValue = UsbWatchHandle;
+
+impl NativeAbiCodec for UsbWatchHandle {
+    type Value = UsbWatchHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UsbWatchHandle {
+    type Value = UsbWatchHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for WatchHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct WatchHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type WatchHandleVm = WatchHandle;
+
+impl VmValueCodec for WatchHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for WatchHandle.
+pub type WatchHandleValue = WatchHandle;
+
+impl NativeAbiCodec for WatchHandle {
+    type Value = WatchHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for WatchHandle {
+    type Value = WatchHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for WindowEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct WindowEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type WindowEventHandleVm = WindowEventHandle;
+
+impl VmValueCodec for WindowEventHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for WindowEventHandle.
+pub type WindowEventHandleValue = WindowEventHandle;
+
+impl NativeAbiCodec for WindowEventHandle {
+    type Value = WindowEventHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for WindowEventHandle {
+    type Value = WindowEventHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for WindowHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct WindowHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type WindowHandleVm = WindowHandle;
+
+impl VmValueCodec for WindowHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for WindowHandle.
+pub type WindowHandleValue = WindowHandle;
+
+impl NativeAbiCodec for WindowHandle {
+    type Value = WindowHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for WindowHandle {
+    type Value = WindowHandleValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -136,15 +4408,8 @@ impl VmValueCodec for ResourceOwnership {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Borrowed,
-            2u8 => Self::Owned,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown ResourceOwnership value",
-                ))
-                .boxed());
-            }
+            1u8 => Self::Borrowed, 2u8 => Self::Owned,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown ResourceOwnership value")).boxed()),
         };
         Ok(decoded)
     }
@@ -153,3 +4418,31 @@ impl VmValueCodec for ResourceOwnership {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
+
+/// Value type for ResourceOwnership.
+pub type ResourceOwnershipValue = ResourceOwnership;
+
+impl NativeAbiCodec for ResourceOwnership {
+    type Value = ResourceOwnershipValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ResourceOwnership {
+    type Value = ResourceOwnershipValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+

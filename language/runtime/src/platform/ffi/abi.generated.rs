@@ -4,10 +4,15 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, ffi as platform_ffi};
+use crate::diagnostic::RuntimeError;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::PlatformError as AbiPlatformError;
+use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::runtime::BindingCallContext;
+use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::ffi as platform_ffi;
 
 /// ABI newtype for FfiPointer.
 #[repr(transparent)]
@@ -28,3 +33,31 @@ impl VmValueCodec for FfiPointer {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+/// Value type for FfiPointer.
+pub type FfiPointerValue = FfiPointer;
+
+impl NativeAbiCodec for FfiPointer {
+    type Value = FfiPointerValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for FfiPointer {
+    type Value = FfiPointerValue;
+
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+

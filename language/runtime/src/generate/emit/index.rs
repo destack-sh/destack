@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use super::bindings::{native_set_name_for_domain, sanitize_module_name, vm_set_name_for_domain};
+use super::codegen::ModuleCodegen;
 
 /// Render the generated platform binding lists.
 pub(crate) fn render_platform_bindings_index(domains: &BTreeSet<String>) -> String {
@@ -11,7 +11,7 @@ pub(crate) fn render_platform_bindings_index(domains: &BTreeSet<String>) -> Stri
     if !domains.is_empty() {
         let imports = domains
             .iter()
-            .map(|domain| sanitize_module_name(domain))
+            .map(|domain| ModuleCodegen::sanitize_module_name(domain))
             .collect::<Vec<_>>()
             .join(", ");
         output.push_str(&format!("use crate::platform::{{{imports}}};\n\n"));
@@ -22,8 +22,9 @@ pub(crate) fn render_platform_bindings_index(domains: &BTreeSet<String>) -> Stri
     output.push_str("/// Native binding sets for all platform domains.\n");
     output.push_str("pub const PLATFORM_NATIVE_BINDINGS: &[NativeBindingSet] = &[\n");
     for domain in domains {
-        let module = sanitize_module_name(domain);
-        let set_name = native_set_name_for_domain(domain);
+        let codegen = ModuleCodegen::new(domain);
+        let module = ModuleCodegen::sanitize_module_name(domain);
+        let set_name = codegen.native_set_name();
         output.push_str(&format!("    {module}::{set_name},\n"));
     }
     output.push_str("];\n\n");
@@ -31,8 +32,9 @@ pub(crate) fn render_platform_bindings_index(domains: &BTreeSet<String>) -> Stri
     output.push_str("/// VM binding sets for all platform domains.\n");
     output.push_str("pub const PLATFORM_VM_BINDINGS: &[VmBindingSet] = &[\n");
     for domain in domains {
-        let module = sanitize_module_name(domain);
-        let set_name = vm_set_name_for_domain(domain);
+        let codegen = ModuleCodegen::new(domain);
+        let module = ModuleCodegen::sanitize_module_name(domain);
+        let set_name = codegen.vm_set_name();
         output.push_str(&format!("    {module}::{set_name},\n"));
     }
     output.push_str("];\n");

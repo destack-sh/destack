@@ -1,17 +1,1029 @@
+use crate::analyze::{
+    BindingEntry, BindingType, CatalogBindingReplayKind, CatalogBindingScope,
+    CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
+};
 use std::collections::BTreeSet;
 
-use crate::model::{
-    BindingEntry, BindingType, CatalogBindingReplayKind, CatalogBindingSimulation,
-    CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
-};
+use super::bindings::BindingWriter;
+use super::codegen::ModuleCodegen;
+use super::{binding_type_requires_abi, *};
 
-use super::*;
+impl<'a> ModuleCodegen<'a> {
+    /// Render the replay result type for one binding entry.
+    fn replay_result_type(&self, entry: &BindingEntry) -> String {
+        let inner = self.replay_type_for_binding(&entry.return_binding);
 
-impl<'a> DomainWriter<'a> {
+        format!("Result<{inner}, TraceError>")
+    }
+
+    /// Collect named types referenced by replay payloads.
+    fn collect_replay_type_names(&self, binding_type: &BindingType, names: &mut BTreeSet<String>) {
+        match binding_type {
+            BindingType::Slice(inner) | BindingType::Array(inner) => {
+                self.collect_replay_type_names(inner, names);
+            }
+            BindingType::Optional(inner) => {
+                self.collect_replay_type_names(inner, names);
+            }
+            BindingType::Newtype { inner, .. } => {
+                if binding_type_requires_abi(inner) {
+                    self.collect_replay_type_names(inner, names);
+                } else if let BindingType::Newtype {
+                    name,
+                    domain: type_domain,
+                    ..
+                } = binding_type
+                {
+                    names.insert(self.named_type_path(type_domain, name));
+                }
+            }
+            BindingType::Struct {
+                name,
+                domain: type_domain,
+                fields,
+            } => {
+                if binding_type_requires_abi(binding_type) {
+                    let replay_name = self.replay_named_struct_name(name);
+                    names.insert(self.named_type_path(type_domain, replay_name.as_str()));
+                } else {
+                    names.insert(self.named_type_path(type_domain, name));
+                }
+
+                for field in fields {
+                    self.collect_replay_type_names(&field.binding_type, names);
+                }
+            }
+            BindingType::Enum {
+                name,
+                domain: type_domain,
+                ..
+            } => {
+                names.insert(self.named_type_path(type_domain, name));
+            }
+            BindingType::TaggedUnion {
+                name,
+                domain: type_domain,
+                variants,
+            } => {
+                let replay_name = self.replay_named_struct_name(name);
+                names.insert(self.named_type_path(type_domain, replay_name.as_str()));
+
+                for variant in variants {
+                    self.collect_replay_type_names(&variant.binding_type, names);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Build the generated replay struct name for one named ABI struct.
+    fn replay_named_struct_name(&self, name: &str) -> String {
+        let name = self.to_pascal_case(name);
+
+        format!("{name}ReplayRecord")
+    }
+
+    /// Render replay comparison lines for one binding value.
+    pub(super) fn render_replay_compare_lines(
+        &self,
+        binding_type: &BindingType,
+        left_expr: &str,
+        right_expr: &str,
+        mismatch_stmt: &str,
+        counter: &mut usize,
+    ) -> Vec<String> {
+        match binding_type {
+            BindingType::Void => Vec::new(),
+            BindingType::Bool
+            | BindingType::Int(_)
+            | BindingType::UInt(_)
+            | BindingType::Float(_)
+            | BindingType::Enum { .. }
+            | BindingType::String => vec![format!(
+                "if {left_expr} != {right_expr} {{ {mismatch_stmt} }}"
+            )],
+            BindingType::Optional(inner) => {
+                let mut lines = Vec::new();
+                let left_value = self.next_compare_ident("left_value", counter);
+                let right_value = self.next_compare_ident("right_value", counter);
+
+                lines.push(format!(
+                    "if {left_expr}.is_some() != {right_expr}.is_some() {{ {mismatch_stmt} }}"
+                ));
+                lines.push(format!(
+                    "if let (Some({left_value}), Some({right_value})) = ({left_expr}.as_ref(), {right_expr}.as_ref()) {{"
+                ));
+                lines.extend(
+                    self.render_replay_compare_lines(
+                        inner,
+                        left_value.as_str(),
+                        right_value.as_str(),
+                        mismatch_stmt,
+                        counter,
+                    )
+                    .into_iter()
+                    .map(|line| format!("    {line}")),
+                );
+                lines.push("}".to_string());
+
+                lines
+            }
+            BindingType::StringSlice => self.render_replay_compare_collection_lines(
+                &BindingType::String,
+                left_expr,
+                right_expr,
+                mismatch_stmt,
+                counter,
+            ),
+            BindingType::Slice(inner) | BindingType::Array(inner) => self
+                .render_replay_compare_collection_lines(
+                    inner,
+                    left_expr,
+                    right_expr,
+                    mismatch_stmt,
+                    counter,
+                ),
+            BindingType::Newtype { inner, .. } => self.render_replay_compare_lines(
+                inner,
+                left_expr,
+                right_expr,
+                mismatch_stmt,
+                counter,
+            ),
+            BindingType::Struct { fields, .. } => {
+                let mut lines = Vec::new();
+
+                // compare each field
+                for field in fields {
+                    let field_name = self.to_snake_case(&field.name);
+                    let left_field = format!("{left_expr}.{field_name}");
+                    let right_field = format!("{right_expr}.{field_name}");
+                    lines.extend(self.render_replay_compare_lines(
+                        &field.binding_type,
+                        left_field.as_str(),
+                        right_field.as_str(),
+                        mismatch_stmt,
+                        counter,
+                    ));
+                }
+
+                lines
+            }
+            BindingType::TaggedUnion { .. } => vec![
+                format!("if {left_expr} != {right_expr} {{"),
+                format!("    {mismatch_stmt}"),
+                "}".to_string(),
+            ],
+        }
+    }
+
+    /// Render replay comparison lines for one collection binding value.
+    fn render_replay_compare_collection_lines(
+        &self,
+        inner: &BindingType,
+        left_expr: &str,
+        right_expr: &str,
+        mismatch_stmt: &str,
+        counter: &mut usize,
+    ) -> Vec<String> {
+        let index_var = self.next_compare_ident("index", counter);
+        let left_item = self.next_compare_ident("left_item", counter);
+        let right_item = self.next_compare_ident("right_item", counter);
+        let mut lines = Vec::new();
+
+        lines.push(format!("if {left_expr}.len() != {right_expr}.len() {{"));
+        lines.push(format!("    {mismatch_stmt}"));
+        lines.push("}".to_string());
+        lines.push(format!(
+            "for ({index_var}, {left_item}) in {left_expr}.iter().enumerate() {{"
+        ));
+        lines.push(format!(
+            "    let {right_item} = &{right_expr}[{index_var}];"
+        ));
+        lines.extend(
+            self.render_replay_compare_lines(
+                inner,
+                &left_item,
+                &right_item,
+                mismatch_stmt,
+                counter,
+            )
+            .into_iter()
+            .map(|line| format!("    {line}")),
+        );
+        lines.push("}".to_string());
+
+        lines
+    }
+
+    /// Generate one unique comparison identifier.
+    fn next_compare_ident(&self, prefix: &str, counter: &mut usize) -> String {
+        let name = format!("{prefix}_{counter}");
+        *counter += 1;
+
+        name
+    }
+
+    /// Render replay encoding lines for one binding value.
+    fn render_replay_encode_lines(
+        &self,
+        binding_type: &BindingType,
+        name: &str,
+        value_expr: &str,
+    ) -> Vec<String> {
+        match binding_type {
+            BindingType::Void => vec![format!("let {name} = ();")],
+            BindingType::Bool
+            | BindingType::Int(_)
+            | BindingType::UInt(_)
+            | BindingType::Float(_)
+            | BindingType::Enum { .. } => vec![format!("let {name} = {value_expr};")],
+            BindingType::Optional(inner) => {
+                let mut lines = Vec::new();
+                let inner_name = format!("{name}_inner");
+
+                lines.push(format!("let {name} = if let Some(value) = {value_expr} {{"));
+                lines.extend(
+                    self.render_replay_encode_lines(inner, &inner_name, "value")
+                        .into_iter()
+                        .map(|line| format!("    {line}")),
+                );
+                lines.push(format!("    Some({inner_name})"));
+                lines.push("} else {".to_string());
+                lines.push("    None".to_string());
+                lines.push("};".to_string());
+
+                lines
+            }
+            BindingType::Newtype { inner, .. } => {
+                if binding_type_requires_abi(inner) {
+                    let inner_name = format!("{name}_inner");
+                    let inner_expr = format!("{value_expr}.0");
+                    let mut lines =
+                        self.render_replay_encode_lines(inner, &inner_name, inner_expr.as_str());
+
+                    lines.push(format!("let {name} = {inner_name};"));
+
+                    lines
+                } else {
+                    vec![format!("let {name} = {value_expr};")]
+                }
+            }
+            BindingType::String => vec![
+                format!("let {name} = {{"),
+                format!(
+                    "    let {name}_ref = context.string_ref({value_expr}).map_err(|error| RuntimeError::from(error).boxed())?;"
+                ),
+                format!("    {name}_ref.as_str().to_string()"),
+                "};".to_string(),
+            ],
+            BindingType::StringSlice => {
+                self.render_replay_encode_collection_lines(&BindingType::String, name, value_expr)
+            }
+            BindingType::Slice(inner) => {
+                if matches!(**inner, BindingType::UInt(8)) {
+                    vec![format!("let {name} = {value_expr}.read_bytes(context)?;")]
+                } else {
+                    self.render_replay_encode_collection_lines(inner, name, value_expr)
+                }
+            }
+            BindingType::Array(inner) => {
+                if matches!(**inner, BindingType::UInt(8)) {
+                    vec![format!("let {name} = {value_expr}.read_bytes(context)?;")]
+                } else {
+                    self.render_replay_encode_collection_lines(inner, name, value_expr)
+                }
+            }
+            BindingType::Struct {
+                name: struct_name,
+                domain: struct_domain,
+                fields,
+            } => {
+                let mut lines = Vec::new();
+                let struct_type = if binding_type_requires_abi(binding_type) {
+                    self.replay_struct_name(struct_name)
+                } else {
+                    struct_name.clone()
+                };
+                let mut field_names = Vec::new();
+
+                for field in fields {
+                    let field_name = self.to_snake_case(&field.name);
+                    let field_value = format!("{value_expr}.{field_name}");
+                    let field_var = format!("{name}_{field_name}");
+
+                    lines.extend(self.render_replay_encode_lines(
+                        &field.binding_type,
+                        &field_var,
+                        &field_value,
+                    ));
+                    field_names.push((field_name, field_var));
+                }
+
+                let struct_path = self.named_type_path(struct_domain, struct_type.as_str());
+                lines.push(format!("let {name} = {struct_path} {{"));
+
+                for (field_name, field_var) in field_names {
+                    lines.push(format!("    {field_name}: {field_var},"));
+                }
+
+                lines.push("};".to_string());
+
+                lines
+            }
+            BindingType::TaggedUnion {
+                name: union_name,
+                domain: union_domain,
+                variants,
+            } => {
+                let mut lines = Vec::new();
+                let source_union = if binding_type_requires_abi(binding_type) {
+                    self.tagged_union_vm_path(union_domain, union_name)
+                } else {
+                    self.named_type_path(union_domain, union_name)
+                };
+                let target_union = if binding_type_requires_abi(binding_type) {
+                    let replay_name = self.replay_tagged_union_name(union_name);
+                    self.named_type_path(union_domain, replay_name.as_str())
+                } else {
+                    self.named_type_path(union_domain, union_name)
+                };
+
+                lines.push(format!("let {name} = match {value_expr} {{"));
+
+                for variant in variants {
+                    let inner_name =
+                        format!("{name}_{}", self.to_snake_case(variant.name.as_str()));
+                    lines.push(format!("    {source_union}::{}(value) => {{", variant.name));
+                    lines.extend(
+                        self.render_replay_encode_lines(
+                            &variant.binding_type,
+                            &inner_name,
+                            "value",
+                        )
+                        .into_iter()
+                        .map(|line| format!("        {line}")),
+                    );
+                    lines.push(format!(
+                        "        {target_union}::{}({inner_name})",
+                        variant.name
+                    ));
+                    lines.push("    }".to_string());
+                }
+
+                lines.push("};".to_string());
+
+                lines
+            }
+        }
+    }
+
+    /// Render replay encoding for one slice or array value.
+    fn render_replay_encode_collection_lines(
+        &self,
+        inner: &BindingType,
+        name: &str,
+        value_expr: &str,
+    ) -> Vec<String> {
+        let mut lines = Vec::new();
+        let raw_var = format!("{name}_raw");
+        let item_var = format!("{name}_item");
+        let item_recorded_var = format!("{name}_item_recorded");
+
+        lines.push(format!(
+            "let {raw_var} = {value_expr}.raw_values(context)?;"
+        ));
+        lines.push(format!(
+            "let mut {name} = Vec::with_capacity({raw_var}.len());"
+        ));
+        lines.push(format!("for {item_var}_value in {raw_var} {{"));
+        lines.extend(
+            self.render_decode_value_lines(&item_var, inner, &format!("{item_var}_value"), "item")
+                .into_iter()
+                .map(|line| format!("    {line}")),
+        );
+        lines.extend(
+            self.render_replay_encode_lines(inner, &item_recorded_var, &item_var)
+                .into_iter()
+                .map(|line| format!("    {line}")),
+        );
+        lines.push(format!("    {name}.push({item_recorded_var});"));
+        lines.push("}".to_string());
+
+        lines
+    }
+
+    /// Render replay decoding lines into one VM binding type.
+    fn render_replay_to_vm_binding_lines(
+        &self,
+        binding_type: &BindingType,
+        name: &str,
+        value_expr: &str,
+    ) -> Vec<String> {
+        match binding_type {
+            BindingType::Void => vec![format!("let {name} = ();")],
+            BindingType::Bool
+            | BindingType::Int(_)
+            | BindingType::UInt(_)
+            | BindingType::Float(_)
+            | BindingType::Enum { .. } => vec![format!("let {name} = {value_expr};")],
+            BindingType::Optional(inner) => {
+                let mut lines = Vec::new();
+                let inner_name = format!("{name}_inner");
+
+                lines.push(format!("let {name} = if let Some(value) = {value_expr} {{"));
+                lines.extend(
+                    self.render_replay_to_vm_binding_lines(inner, &inner_name, "value")
+                        .into_iter()
+                        .map(|line| format!("    {line}")),
+                );
+                lines.push(format!("    Some({inner_name})"));
+                lines.push("} else {".to_string());
+                lines.push("    None".to_string());
+                lines.push("};".to_string());
+
+                lines
+            }
+            BindingType::Newtype {
+                name: type_name,
+                domain: type_domain,
+                inner,
+            } => {
+                if binding_type_requires_abi(inner) {
+                    let inner_name = format!("{name}_inner");
+                    let mut lines =
+                        self.render_replay_to_vm_binding_lines(inner, &inner_name, value_expr);
+                    let type_path = self.newtype_abi_constructor_path(
+                        type_domain,
+                        type_name,
+                        "platform_abi::VmAbi",
+                    );
+
+                    lines.push(format!("let {name} = {type_path}({inner_name});"));
+
+                    lines
+                } else {
+                    vec![format!("let {name} = {value_expr};")]
+                }
+            }
+            BindingType::String => vec![
+                format!("let {name}_value = context.intern_string({value_expr}.as_str());"),
+                format!("let {name} = vm::StringHandle::new({name}_value);"),
+            ],
+            BindingType::StringSlice => self.render_replay_to_vm_binding_collection_lines(
+                &BindingType::String,
+                name,
+                value_expr,
+                false,
+                false,
+            ),
+            BindingType::Slice(inner) => {
+                let is_bytes = matches!(**inner, BindingType::UInt(8));
+                self.render_replay_to_vm_binding_collection_lines(
+                    inner, name, value_expr, is_bytes, false,
+                )
+            }
+            BindingType::Array(inner) => {
+                let is_bytes = matches!(**inner, BindingType::UInt(8));
+                self.render_replay_to_vm_binding_collection_lines(
+                    inner, name, value_expr, is_bytes, true,
+                )
+            }
+            BindingType::Struct {
+                name: struct_name,
+                domain: struct_domain,
+                fields,
+            } => {
+                let mut lines = Vec::new();
+                let mut field_values = Vec::new();
+
+                for field in fields {
+                    let field_name = self.to_snake_case(&field.name);
+                    let field_var = format!("{name}_{field_name}");
+                    let field_expr = format!("{value_expr}.{field_name}");
+
+                    lines.extend(self.render_replay_to_vm_binding_lines(
+                        &field.binding_type,
+                        &field_var,
+                        &field_expr,
+                    ));
+                    field_values.push((field_name, field_var));
+                }
+
+                // vm-facing ABI structs rebuild through their VM alias
+                let struct_path = if binding_type_requires_abi(binding_type) {
+                    self.struct_vm_path(struct_domain, struct_name)
+                } else {
+                    self.named_type_path(struct_domain, struct_name)
+                };
+                lines.push(format!("let {name} = {struct_path} {{"));
+
+                for (field_name, field_var) in field_values {
+                    lines.push(format!("    {field_name}: {field_var},"));
+                }
+
+                lines.push("};".to_string());
+
+                lines
+            }
+            BindingType::TaggedUnion {
+                name: union_name,
+                domain: union_domain,
+                variants,
+            } => {
+                let mut lines = Vec::new();
+                let source_union = if binding_type_requires_abi(binding_type) {
+                    let replay_name = self.replay_tagged_union_name(union_name);
+                    self.named_type_path(union_domain, replay_name.as_str())
+                } else {
+                    self.named_type_path(union_domain, union_name)
+                };
+                let target_union = if binding_type_requires_abi(binding_type) {
+                    self.tagged_union_vm_path(union_domain, union_name)
+                } else {
+                    self.named_type_path(union_domain, union_name)
+                };
+
+                lines.push(format!("let {name} = match {value_expr} {{"));
+
+                for variant in variants {
+                    let inner_name =
+                        format!("{name}_{}", self.to_snake_case(variant.name.as_str()));
+                    lines.push(format!("    {source_union}::{}(value) => {{", variant.name));
+                    lines.extend(
+                        self.render_replay_to_vm_binding_lines(
+                            &variant.binding_type,
+                            &inner_name,
+                            "value",
+                        )
+                        .into_iter()
+                        .map(|line| format!("        {line}")),
+                    );
+                    lines.push(format!(
+                        "        {target_union}::{}({inner_name})",
+                        variant.name
+                    ));
+                    lines.push("    }".to_string());
+                }
+
+                lines.push("};".to_string());
+
+                lines
+            }
+        }
+    }
+
+    /// Render replay decoding for one slice or array into one VM binding type.
+    fn render_replay_to_vm_binding_collection_lines(
+        &self,
+        inner: &BindingType,
+        name: &str,
+        value_expr: &str,
+        is_bytes: bool,
+        is_array: bool,
+    ) -> Vec<String> {
+        let mut lines = Vec::new();
+
+        if is_bytes {
+            if is_array {
+                lines.push(format!(
+                    "let {name} = VmArray::<u8>::from_bytes(context, &{value_expr});"
+                ));
+            } else {
+                lines.push(format!(
+                    "let {name} = VmSlice::<u8>::from_bytes(context, &{value_expr});"
+                ));
+            }
+
+            return lines;
+        }
+
+        let values_var = format!("{name}_values");
+        let item_var = format!("{name}_item");
+        let item_value_var = format!("{name}_item_value");
+
+        // replay payloads are owned, so rebuild VM collections from owned items
+        lines.push(format!(
+            "let mut {values_var} = Vec::with_capacity({value_expr}.len());"
+        ));
+        lines.push(format!("for {item_var} in {value_expr}.iter().cloned() {{"));
+        lines.extend(
+            self.render_replay_to_vm_binding_lines(inner, &item_value_var, &item_var)
+                .into_iter()
+                .map(|line| format!("    {line}")),
+        );
+        lines.push(format!("    {values_var}.push({item_value_var});"));
+        lines.push("}".to_string());
+
+        if is_array {
+            lines.push(format!(
+                "let {name} = VmArray::from_values(context, &{values_var})?;"
+            ));
+        } else {
+            lines.push(format!(
+                "let {name} = VmSlice::from_values(context, &{values_var})?;"
+            ));
+        }
+
+        lines
+    }
+
+    /// Render native replay encoding lines for one binding value.
+    fn render_native_replay_encode_lines(
+        &self,
+        binding_type: &BindingType,
+        name: &str,
+        value_expr: &str,
+    ) -> Vec<String> {
+        match binding_type {
+            BindingType::Void => vec![format!("let {name} = ();")],
+            BindingType::Bool
+            | BindingType::Int(_)
+            | BindingType::UInt(_)
+            | BindingType::Float(_)
+            | BindingType::Enum { .. } => vec![format!("let {name} = {value_expr};")],
+            BindingType::String => vec![format!(
+                "let {name} = unsafe {{ {value_expr}.as_str()? }}.to_string();"
+            )],
+            BindingType::StringSlice => {
+                self.render_native_replay_encode_string_slice_lines(name, value_expr)
+            }
+            BindingType::Slice(inner) | BindingType::Array(inner) => {
+                self.render_native_replay_encode_collection_lines(inner, name, value_expr)
+            }
+            BindingType::Optional(inner) => {
+                let mut lines = Vec::new();
+                let inner_name = format!("{name}_inner");
+
+                lines.push(format!("let {name} = if let Some(value) = {value_expr} {{"));
+                lines.extend(
+                    self.render_native_replay_encode_lines(inner, &inner_name, "value")
+                        .into_iter()
+                        .map(|line| format!("    {line}")),
+                );
+                lines.push(format!("    Some({inner_name})"));
+                lines.push("} else {".to_string());
+                lines.push("    None".to_string());
+                lines.push("};".to_string());
+
+                lines
+            }
+            BindingType::Newtype { inner, .. } => {
+                if binding_type_requires_abi(inner) {
+                    let inner_name = format!("{name}_inner");
+                    let mut lines =
+                        self.render_native_replay_encode_lines(inner, &inner_name, value_expr);
+
+                    lines.push(format!("let {name} = {inner_name};"));
+
+                    lines
+                } else {
+                    vec![format!("let {name} = {value_expr}.0;")]
+                }
+            }
+            BindingType::Struct {
+                name: struct_name,
+                domain: struct_domain,
+                fields,
+            } => {
+                let mut lines = Vec::new();
+                let struct_type = if binding_type_requires_abi(binding_type) {
+                    self.value_type_path(struct_domain, struct_name)
+                } else {
+                    self.named_type_path(struct_domain, struct_name)
+                };
+                let mut field_names = Vec::new();
+
+                // encode each field
+                for field in fields {
+                    let field_name = self.to_snake_case(&field.name);
+                    let field_value = format!("{value_expr}.{field_name}");
+                    let field_var = format!("{name}_{field_name}");
+
+                    lines.extend(self.render_native_replay_encode_lines(
+                        &field.binding_type,
+                        &field_var,
+                        &field_value,
+                    ));
+                    field_names.push((field_name, field_var));
+                }
+
+                lines.push(format!("let {name} = {struct_type} {{"));
+
+                for (field_name, field_var) in field_names {
+                    lines.push(format!("    {field_name}: {field_var},"));
+                }
+
+                lines.push("};".to_string());
+
+                lines
+            }
+            BindingType::TaggedUnion {
+                name: union_name,
+                domain: union_domain,
+                variants,
+            } => {
+                let mut lines = Vec::new();
+                let source_union = self.named_type_path(union_domain, union_name);
+                let target_union = if binding_type_requires_abi(binding_type) {
+                    self.value_type_path(union_domain, union_name)
+                } else {
+                    self.named_type_path(union_domain, union_name)
+                };
+
+                lines.push(format!("let {name} = match {value_expr} {{"));
+
+                // encode each union variant
+                for variant in variants {
+                    let inner_name = format!("{name}_{}", self.to_snake_case(&variant.name));
+                    lines.push(format!("    {source_union}::{}(value) => {{", variant.name));
+                    lines.extend(
+                        self.render_native_replay_encode_lines(
+                            &variant.binding_type,
+                            &inner_name,
+                            "value",
+                        )
+                        .into_iter()
+                        .map(|line| format!("        {line}")),
+                    );
+                    lines.push(format!(
+                        "        {target_union}::{}({inner_name})",
+                        variant.name
+                    ));
+                    lines.push("    }".to_string());
+                }
+
+                lines.push("};".to_string());
+
+                lines
+            }
+        }
+    }
+
+    /// Render native replay encoding lines for one string slice.
+    fn render_native_replay_encode_string_slice_lines(
+        &self,
+        name: &str,
+        value_expr: &str,
+    ) -> Vec<String> {
+        let item_var = format!("{name}_item");
+        let item_recorded_var = format!("{name}_item_recorded");
+        let mut lines = Vec::new();
+
+        lines.push(format!("let mut {name} = Vec::new();"));
+        lines.push(format!(
+            "for {item_var} in unsafe {{ {value_expr}.as_slice()? }} {{"
+        ));
+        lines.push(format!(
+            "    let {item_recorded_var} = unsafe {{ {item_var}.as_str()? }}.to_string();"
+        ));
+        lines.push(format!("    {name}.push({item_recorded_var});"));
+        lines.push("}".to_string());
+
+        lines
+    }
+
+    /// Render native replay encoding lines for one collection binding value.
+    fn render_native_replay_encode_collection_lines(
+        &self,
+        inner: &BindingType,
+        name: &str,
+        value_expr: &str,
+    ) -> Vec<String> {
+        let item_var = format!("{name}_item");
+        let item_recorded_var = format!("{name}_item_recorded");
+        let mut lines = Vec::new();
+
+        lines.push(format!("let mut {name} = Vec::new();"));
+        lines.push(format!(
+            "for {item_var} in unsafe {{ {value_expr}.as_slice()? }} {{"
+        ));
+        lines.extend(
+            self.render_native_replay_encode_lines(inner, &item_recorded_var, item_var.as_str())
+                .into_iter()
+                .map(|line| format!("    {line}")),
+        );
+        lines.push(format!("    {name}.push({item_recorded_var});"));
+        lines.push("}".to_string());
+
+        lines
+    }
+
+    /// Render native replay read out lines for one binding value.
+    fn render_native_replay_read_out_lines(
+        &self,
+        binding_type: &BindingType,
+        out_expr: &str,
+        name: &str,
+    ) -> Vec<String> {
+        match binding_type {
+            BindingType::Void => vec![],
+            _ => {
+                let native_type = self.native_type_for_binding(binding_type);
+                vec![format!(
+                    "let {name}: {native_type} = unsafe {{ {out_expr}.read() }};"
+                )]
+            }
+        }
+    }
+
+    /// Render native replay out-store lines for one binding value.
+    fn render_native_replay_store_lines(
+        &self,
+        binding_type: &BindingType,
+        out_expr: &str,
+        value_expr: &str,
+        name: &str,
+    ) -> Vec<String> {
+        if Self::binding_type_is_copy(binding_type) {
+            return vec![format!("unsafe {{ {out_expr}.write({value_expr}) }};")];
+        }
+
+        if matches!(binding_type, BindingType::Void) {
+            return Vec::new();
+        }
+
+        let mut lines = self.render_native_replay_decode_lines(binding_type, name, value_expr);
+        lines.push(format!("unsafe {{ {out_expr}.write({name}) }};"));
+
+        lines
+    }
+
+    /// Render native replay decode lines for one replay payload value.
+    fn render_native_replay_decode_lines(
+        &self,
+        binding_type: &BindingType,
+        name: &str,
+        value_expr: &str,
+    ) -> Vec<String> {
+        match binding_type {
+            BindingType::Void => vec![format!("let {name} = ();")],
+            BindingType::Bool
+            | BindingType::Int(_)
+            | BindingType::UInt(_)
+            | BindingType::Float(_)
+            | BindingType::Enum { .. } => vec![format!("let {name} = {value_expr};")],
+            BindingType::String => vec![format!(
+                "let {name} = binding.store_string({value_expr}.as_str());"
+            )],
+            BindingType::StringSlice => {
+                let mut lines = Vec::new();
+                lines.push(format!("let mut {name}_values = Vec::new();"));
+                lines.push(format!("for value in {value_expr}.iter() {{"));
+                lines.push(format!(
+                    "    let value = binding.store_string(value.as_str());"
+                ));
+                lines.push(format!("    {name}_values.push(value);"));
+                lines.push("}".to_string());
+                lines.push(format!(
+                    "let {name} = binding.store_string_slice({name}_values);"
+                ));
+                lines
+            }
+            BindingType::Slice(inner) | BindingType::Array(inner) => {
+                self.render_native_replay_decode_collection_lines(inner, name, value_expr)
+            }
+            BindingType::Optional(inner) => {
+                let mut lines = Vec::new();
+                let inner_name = format!("{name}_inner");
+
+                lines.push(format!("let {name} = if let Some(value) = {value_expr} {{"));
+                lines.extend(
+                    self.render_native_replay_decode_lines(inner, &inner_name, "value")
+                        .into_iter()
+                        .map(|line| format!("    {line}")),
+                );
+                lines.push(format!("    Some({inner_name})"));
+                lines.push("} else {".to_string());
+                lines.push("    None".to_string());
+                lines.push("};".to_string());
+
+                lines
+            }
+            BindingType::Newtype {
+                name: type_name,
+                domain: type_domain,
+                inner,
+            } => {
+                if binding_type_requires_abi(inner) {
+                    let inner_name = format!("{name}_inner");
+                    let mut lines =
+                        self.render_native_replay_decode_lines(inner, &inner_name, value_expr);
+                    let type_path = self.named_type_path(type_domain, type_name);
+                    lines.push(format!("let {name} = {type_path}({inner_name});"));
+                    lines
+                } else {
+                    let type_path = self.named_type_path(type_domain, type_name);
+                    vec![format!("let {name} = {type_path}({value_expr});")]
+                }
+            }
+            BindingType::Struct {
+                name: struct_name,
+                domain: struct_domain,
+                fields,
+            } => {
+                let mut lines = Vec::new();
+                let struct_type = self.named_type_path(struct_domain, struct_name);
+                let mut field_names = Vec::new();
+
+                // decode each field
+                for field in fields {
+                    let field_name = self.to_snake_case(&field.name);
+                    let field_value = format!("{value_expr}.{field_name}");
+                    let field_var = format!("{name}_{field_name}");
+
+                    lines.extend(self.render_native_replay_decode_lines(
+                        &field.binding_type,
+                        &field_var,
+                        &field_value,
+                    ));
+                    field_names.push((field_name, field_var));
+                }
+
+                lines.push(format!("let {name} = {struct_type} {{"));
+
+                for (field_name, field_var) in field_names {
+                    lines.push(format!("    {field_name}: {field_var},"));
+                }
+
+                lines.push("};".to_string());
+
+                lines
+            }
+            BindingType::TaggedUnion {
+                name: union_name,
+                domain: union_domain,
+                variants,
+            } => {
+                let mut lines = Vec::new();
+                let source_union = if binding_type_requires_abi(binding_type) {
+                    self.value_type_path(union_domain, union_name)
+                } else {
+                    self.named_type_path(union_domain, union_name)
+                };
+                let target_union = self.named_type_path(union_domain, union_name);
+
+                lines.push(format!("let {name} = match {value_expr} {{"));
+
+                // decode each union variant
+                for variant in variants {
+                    let inner_name = format!("{name}_{}", self.to_snake_case(&variant.name));
+                    lines.push(format!("    {source_union}::{}(value) => {{", variant.name));
+                    lines.extend(
+                        self.render_native_replay_decode_lines(
+                            &variant.binding_type,
+                            &inner_name,
+                            "value",
+                        )
+                        .into_iter()
+                        .map(|line| format!("        {line}")),
+                    );
+                    lines.push(format!(
+                        "        {target_union}::{}({inner_name})",
+                        variant.name
+                    ));
+                    lines.push("    }".to_string());
+                }
+
+                lines.push("};".to_string());
+
+                lines
+            }
+        }
+    }
+
+    /// Render native replay decode lines for one collection payload.
+    fn render_native_replay_decode_collection_lines(
+        &self,
+        inner: &BindingType,
+        name: &str,
+        value_expr: &str,
+    ) -> Vec<String> {
+        let item_var = format!("{name}_item");
+        let item_decoded_var = format!("{name}_decoded");
+        let mut lines = Vec::new();
+
+        lines.push(format!("let mut {name}_values = Vec::new();"));
+        lines.push(format!("for {item_var} in {value_expr}.iter() {{"));
+        lines.extend(
+            self.render_native_replay_decode_lines(inner, &item_decoded_var, item_var.as_str())
+                .into_iter()
+                .map(|line| format!("    {line}")),
+        );
+        lines.push(format!("    {name}_values.push({item_decoded_var});"));
+        lines.push("}".to_string());
+
+        lines.push(format!("let {name} = binding.store_array({name}_values);"));
+
+        lines
+    }
+}
+
+impl<'spec, 'output> BindingWriter<'spec, 'output> {
     /// Render replay payload structs for bindings.
     pub(super) fn write_replay_payloads(&mut self) {
         let output = &mut self.output;
-        let domain = self.spec.domain;
+        let codegen = self.spec.codegen();
         let consts = &self.spec.consts;
 
         let mut wrote = false;
@@ -27,9 +1039,9 @@ impl<'a> DomainWriter<'a> {
                 continue;
             }
 
-            let struct_name = replay_struct_name(&binding.const_name);
+            let struct_name = codegen.replay_struct_name(&binding.const_name);
             let args_struct_name = format!("{struct_name}Args");
-            let result_type = replay_result_type(domain, entry);
+            let result_type = codegen.replay_result_type(entry);
             let supports_args = matches!(
                 entry.replay_payload,
                 CatalogReplayPayload::ArgumentsAndResults
@@ -42,8 +1054,8 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]\n");
                 output.push_str(&format!("struct {args_struct_name} {{\n"));
                 for (index, param) in entry.parameters.iter().enumerate() {
-                    let name = sanitize_param_name(&param.name, index);
-                    let field_type = replay_type_for_binding(domain, &param.binding_type);
+                    let name = codegen.sanitize_param_name(&param.name, index);
+                    let field_type = codegen.replay_type_for_binding(&param.binding_type);
                     output.push_str(&format!("    /// Replay value for {name}.\n"));
                     output.push_str(&format!("    pub {name}: {field_type},\n"));
                 }
@@ -70,10 +1082,258 @@ impl<'a> DomainWriter<'a> {
         }
     }
 
-    /// Render native replay helpers for a domain.
-    pub(super) fn write_native_replay_helpers(&mut self) {
+    /// Render the VM replay helpers for bindings.
+    pub(super) fn write_vm_replay_helpers(&mut self) {
         let output = &mut self.output;
-        let domain = self.spec.domain;
+        let domain = self.spec.module;
+        let consts = &self.spec.consts;
+
+        let bindings = consts.iter().filter(|binding| {
+            matches!(
+                binding.entry.effect_class,
+                CatalogEffectClass::External {
+                    replay: CatalogReplayPolicy::Recordable
+                }
+            ) && binding.entry.replay_kind == CatalogBindingReplayKind::BindingCall
+        });
+
+        let mut emitted_header = false;
+        for binding in bindings {
+            if !emitted_header {
+                output.push_str(&format!(
+                    "/// VM replay implementations for {domain} bindings.\n"
+                ));
+                emitted_header = true;
+            }
+
+            let entry = binding.entry;
+            let codegen = ModuleCodegen::new(domain);
+            let fn_name = codegen.vm_replay_fn_name(binding.extern_name);
+            let helper_base = codegen.vm_fn_name(binding.extern_name);
+            let implementation_fn_name = &binding.implementation_fn_name;
+            let encode_helper = codegen.encode_helper_name(&helper_base);
+            let supports_args = matches!(
+                entry.replay_payload,
+                CatalogReplayPayload::ArgumentsAndResults
+            );
+            let replay_struct = codegen.replay_struct_name(&binding.const_name);
+            let replay_args_struct = format!("{replay_struct}Args");
+            let invoke_args = codegen.render_invoke_args_with_prefix(entry);
+
+            let mut params = Vec::new();
+            for (index, param) in entry.parameters.iter().enumerate() {
+                let name = codegen.sanitize_param_name(&param.name, index);
+                let ty = codegen.vm_type_for_binding(&param.binding_type);
+                params.push(format!("{name}: {ty}"));
+            }
+
+            output.push_str("#[inline]\n");
+            output.push_str(&format!("fn {fn_name}(\n"));
+            output.push_str("    binding: &BindingCallContext,\n");
+            output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
+            if entry.scope != CatalogBindingScope::Runtime {
+                output.push_str("    world: RuntimeWorld,\n");
+            }
+            for param in &params {
+                output.push_str(&format!("    {param},\n"));
+            }
+            output.push_str(") -> RuntimeResult<vm::Value> {\n");
+
+            output.push_str("    let result = binding.trace().run_binding(\n");
+            output.push_str(&format!("        {},\n", binding.const_name));
+            output.push_str(&format!(
+                "        binding.replay_payload_for({})?,\n",
+                binding.const_name
+            ));
+            output.push_str("        context,\n");
+            if entry.scope == CatalogBindingScope::Runtime {
+                output.push_str(&format!(
+                    "        |context| platform_runtime_vm::{}(binding, context{invoke_args}),\n",
+                    implementation_fn_name
+                ));
+            } else {
+                let simulation_call = match entry.simulation {
+                    CatalogBindingSimulation::Unsupported => format!(
+                        "Err(RuntimeError::from(PlatformError::not_supported({}.name)).boxed())",
+                        binding.const_name
+                    ),
+                    CatalogBindingSimulation::Stub | CatalogBindingSimulation::Model => {
+                        format!(
+                            "platform_simulation_vm::{}(binding, context{invoke_args})",
+                            implementation_fn_name
+                        )
+                    }
+                };
+                output.push_str("        |context| {\n");
+                output.push_str("            match world {\n");
+                output.push_str(&format!(
+                    "                RuntimeWorld::Host => platform_vm::{}(binding, context{invoke_args}),\n",
+                    implementation_fn_name
+                ));
+                output.push_str(&format!(
+                    "                RuntimeWorld::Simulation => {simulation_call},\n"
+                ));
+                output.push_str("            }\n");
+                output.push_str("        },\n");
+            }
+            output.push_str("        |context, result| {\n");
+            output.push_str("            let _ = &context;\n");
+            if supports_args {
+                output.push_str("            let record_args = matches!(\n");
+                output.push_str(&format!(
+                    "                binding.replay_payload_for({})?,\n",
+                    binding.const_name
+                ));
+                output.push_str("                BindingReplayPayload::ArgumentsAndResults,\n");
+                output.push_str("            );\n");
+                output.push_str("            let args = if record_args {\n");
+                output.push_str("                // replay args\n");
+                for (index, param) in entry.parameters.iter().enumerate() {
+                    let name = codegen.sanitize_param_name(&param.name, index);
+                    let recorded_name = format!("{name}_recorded");
+                    for line in codegen.render_replay_encode_lines(
+                        &param.binding_type,
+                        &recorded_name,
+                        &name,
+                    ) {
+                        output.push_str(&format!("                {line}\n"));
+                    }
+                }
+                output.push_str(&format!("                Some({replay_args_struct} {{\n"));
+                for (index, param) in entry.parameters.iter().enumerate() {
+                    let name = codegen.sanitize_param_name(&param.name, index);
+                    let recorded_name = format!("{name}_recorded");
+                    output.push_str(&format!("                    {name}: {recorded_name},\n"));
+                }
+                output.push_str("                })\n");
+                output.push_str("            } else {\n");
+                output.push_str("                None\n");
+                output.push_str("            };\n\n");
+            }
+
+            if matches!(entry.return_binding, BindingType::Void) {
+                output.push_str("            if let Ok(()) = result {\n");
+                output.push_str("                let result_recorded = ();\n");
+            } else {
+                output.push_str("            if let Ok(value) = result {\n");
+                let vm_result_type = codegen.vm_type_for_binding(&entry.return_binding);
+                output.push_str(&format!(
+                    "                let result_value: {vm_result_type} = value.clone();\n"
+                ));
+                for line in codegen.render_replay_encode_lines(
+                    &entry.return_binding,
+                    "result_recorded",
+                    "result_value",
+                ) {
+                    output.push_str(&format!("                {line}\n"));
+                }
+            }
+            output.push_str(&format!(
+                "                let payload = {replay_struct} {{\n"
+            ));
+            if supports_args {
+                output.push_str("                    args,\n");
+            }
+            output.push_str("                    result: Ok(result_recorded),\n");
+            output.push_str("                };\n");
+            output.push_str("                return Ok(Some(payload));\n");
+            output.push_str("            }\n\n");
+
+            output.push_str("            if let Err(error) = result {\n");
+            output.push_str("                let payload = {\n");
+            output.push_str(
+                "                    let result = Err(TraceError::from(error.as_ref()));\n",
+            );
+            output.push_str(&format!("                    {replay_struct} {{\n"));
+            if supports_args {
+                output.push_str("                        args,\n");
+            }
+            output.push_str("                        result,\n");
+            output.push_str("                    }\n");
+            output.push_str("                };\n");
+            output.push_str("                return Ok(Some(payload));\n");
+            output.push_str("            }\n\n");
+
+            output.push_str("            Ok(None)\n");
+            output.push_str("        },\n");
+            output.push_str("        |context, payload| {\n");
+            output.push_str("            let _ = &context;\n");
+            if supports_args {
+                output.push_str("            if let Some(args) = payload.args.as_ref() {\n");
+                output.push_str("                // replay arg verification\n");
+                for (index, param) in entry.parameters.iter().enumerate() {
+                    let name = codegen.sanitize_param_name(&param.name, index);
+                    let recorded_name = format!("{name}_recorded");
+                    for line in codegen.render_replay_encode_lines(
+                        &param.binding_type,
+                        &recorded_name,
+                        &name,
+                    ) {
+                        output.push_str(&format!("                {line}\n"));
+                    }
+                }
+                let mut compare_counter = 0usize;
+                for (index, param) in entry.parameters.iter().enumerate() {
+                    let name = codegen.sanitize_param_name(&param.name, index);
+                    let recorded_name = format!("{name}_recorded");
+                    output.push_str(&format!(
+                        "                let {name}_payload = &args.{name};\n"
+                    ));
+                    output.push_str(&format!(
+                        "                let {name}_current = &{recorded_name};\n"
+                    ));
+                    let mismatch_stmt = format!(
+                        "return Err(RuntimeError::TraceMismatch {{ name: {}.name.to_string() }}.boxed());",
+                        binding.const_name
+                    );
+                    let compare_lines = codegen.render_replay_compare_lines(
+                        &param.binding_type,
+                        &format!("{name}_payload"),
+                        &format!("{name}_current"),
+                        &mismatch_stmt,
+                        &mut compare_counter,
+                    );
+                    for line in compare_lines {
+                        output.push_str(&format!("                {line}\n"));
+                    }
+                }
+                output.push_str("            }\n\n");
+            }
+
+            output.push_str("            // replay result\n");
+            output.push_str("            match payload.result {\n");
+            if entry.return_binding != BindingType::Void {
+                output.push_str("                Ok(value) => {\n");
+                for line in codegen.render_replay_to_vm_binding_lines(
+                    &entry.return_binding,
+                    "vm_result",
+                    "value",
+                ) {
+                    output.push_str(&format!("                    {line}\n"));
+                }
+                output.push_str("                    Ok(vm_result)\n");
+                output.push_str("                }\n");
+            } else {
+                output.push_str("                Ok(()) => Ok(()),\n");
+            }
+            output
+                .push_str("                Err(error) => Err(Box::<RuntimeError>::from(error)),\n");
+            output.push_str("            }\n");
+            output.push_str("        },\n");
+            output.push_str("    );\n");
+            output.push_str(&format!(
+                "    let result = {encode_helper}(context, result)?;\n"
+            ));
+            output.push_str("    Ok(result)\n");
+            output.push_str("}\n\n");
+        }
+    }
+
+    /// Render native replay helpers for a domain.
+    pub(crate) fn write_native_replay_helpers(&mut self) {
+        let output = &mut self.output;
+        let codegen = self.spec.codegen();
+        let domain = codegen.module();
         let consts = &self.spec.consts;
 
         let bindings = consts.iter().filter(|binding| {
@@ -95,25 +1355,25 @@ impl<'a> DomainWriter<'a> {
             }
 
             let entry = binding.entry;
-            let fn_name = native_replay_fn_name(domain, binding.extern_name);
+            let fn_name = codegen.native_replay_fn_name(binding.extern_name);
             let implementation_fn_name = &binding.implementation_fn_name;
             let supports_args = matches!(
                 entry.replay_payload,
                 CatalogReplayPayload::ArgumentsAndResults
             );
-            let replay_struct = replay_struct_name(&binding.const_name);
+            let replay_struct = codegen.replay_struct_name(&binding.const_name);
             let replay_args_struct = format!("{replay_struct}Args");
 
             let mut params = Vec::new();
             let mut args = Vec::new();
             if entry.return_binding != BindingType::Void {
-                let out_type = native_type_for_binding(domain, &entry.return_binding);
+                let out_type = codegen.native_type_for_binding(&entry.return_binding);
                 params.push(format!("out: *mut {out_type}"));
                 args.push("out".to_string());
             }
             for (index, param) in entry.parameters.iter().enumerate() {
-                let name = sanitize_param_name(&param.name, index);
-                let ty = native_type_for_binding(domain, &param.binding_type);
+                let name = codegen.sanitize_param_name(&param.name, index);
+                let ty = codegen.native_type_for_binding(&param.binding_type);
                 params.push(format!("{name}: {ty}"));
                 args.push(name);
             }
@@ -121,7 +1381,7 @@ impl<'a> DomainWriter<'a> {
             output.push_str("#[inline]\n");
             output.push_str(&format!("fn {fn_name}(\n"));
             output.push_str("    binding: &BindingCallContext,\n");
-            if entry.scope != crate::model::CatalogBindingScope::Runtime {
+            if entry.scope != CatalogBindingScope::Runtime {
                 output.push_str("    world: RuntimeWorld,\n");
             }
             for param in &params {
@@ -134,7 +1394,7 @@ impl<'a> DomainWriter<'a> {
                     .parameters
                     .iter()
                     .enumerate()
-                    .map(|(index, param)| sanitize_param_name(&param.name, index))
+                    .map(|(index, param)| codegen.sanitize_param_name(&param.name, index))
                     .collect::<Vec<_>>();
                 if unused.len() == 1 {
                     output.push_str(&format!("    let _ = &{};\n\n", unused[0]));
@@ -181,7 +1441,7 @@ impl<'a> DomainWriter<'a> {
                     args.join(", ")
                 )
             };
-            if entry.scope == crate::model::CatalogBindingScope::Runtime {
+            if entry.scope == CatalogBindingScope::Runtime {
                 output.push_str(&format!("        || {runtime_call},\n"));
             } else {
                 let simulation_call = match entry.simulation {
@@ -224,10 +1484,9 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("            let args = if record_args {\n");
                 output.push_str("                // replay args\n");
                 for (index, param) in entry.parameters.iter().enumerate() {
-                    let name = sanitize_param_name(&param.name, index);
+                    let name = codegen.sanitize_param_name(&param.name, index);
                     let recorded_name = format!("{name}_recorded");
-                    for line in render_native_replay_encode_lines(
-                        domain,
+                    for line in codegen.render_native_replay_encode_lines(
                         &param.binding_type,
                         &recorded_name,
                         &name,
@@ -237,7 +1496,7 @@ impl<'a> DomainWriter<'a> {
                 }
                 output.push_str(&format!("                Some({replay_args_struct} {{\n"));
                 for (index, param) in entry.parameters.iter().enumerate() {
-                    let name = sanitize_param_name(&param.name, index);
+                    let name = codegen.sanitize_param_name(&param.name, index);
                     let recorded_name = format!("{name}_recorded");
                     output.push_str(&format!("                    {name}: {recorded_name},\n"));
                 }
@@ -249,16 +1508,14 @@ impl<'a> DomainWriter<'a> {
 
             output.push_str("            if let Ok(()) = result {\n");
             if entry.return_binding != BindingType::Void {
-                for line in render_native_replay_read_out_lines(
-                    domain,
+                for line in codegen.render_native_replay_read_out_lines(
                     &entry.return_binding,
                     "out",
                     "result_value",
                 ) {
                     output.push_str(&format!("                {line}\n"));
                 }
-                for line in render_native_replay_encode_lines(
-                    domain,
+                for line in codegen.render_native_replay_encode_lines(
                     &entry.return_binding,
                     "result_recorded",
                     "result_value",
@@ -302,10 +1559,9 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("            if let Some(args) = payload.args.as_ref() {\n");
                 output.push_str("                // replay arg verification\n");
                 for (index, param) in entry.parameters.iter().enumerate() {
-                    let name = sanitize_param_name(&param.name, index);
+                    let name = codegen.sanitize_param_name(&param.name, index);
                     let recorded_name = format!("{name}_recorded");
-                    for line in render_native_replay_encode_lines(
-                        domain,
+                    for line in codegen.render_native_replay_encode_lines(
                         &param.binding_type,
                         &recorded_name,
                         &name,
@@ -315,7 +1571,7 @@ impl<'a> DomainWriter<'a> {
                 }
                 let mut compare_counter = 0usize;
                 for (index, param) in entry.parameters.iter().enumerate() {
-                    let name = sanitize_param_name(&param.name, index);
+                    let name = codegen.sanitize_param_name(&param.name, index);
                     let recorded_name = format!("{name}_recorded");
                     output.push_str(&format!(
                         "                let {name}_payload = &args.{name};\n"
@@ -327,8 +1583,7 @@ impl<'a> DomainWriter<'a> {
                         "return Err(RuntimeError::TraceMismatch {{ name: {}.name.to_string() }}.boxed());",
                         binding.const_name
                     );
-                    let compare_lines = render_replay_compare_lines(
-                        domain,
+                    let compare_lines = codegen.render_replay_compare_lines(
                         &param.binding_type,
                         &format!("{name}_payload"),
                         &format!("{name}_current"),
@@ -346,8 +1601,7 @@ impl<'a> DomainWriter<'a> {
             output.push_str("            match payload.result {\n");
             if entry.return_binding != BindingType::Void {
                 output.push_str("                Ok(value) => {\n");
-                for line in render_native_replay_store_lines(
-                    domain,
+                for line in codegen.render_native_replay_store_lines(
                     &entry.return_binding,
                     "out",
                     "value",
@@ -370,294 +1624,14 @@ impl<'a> DomainWriter<'a> {
     }
 }
 
-/// Render the replay payload struct name for a binding.
-fn replay_struct_name(const_name: &str) -> String {
-    let mut out = String::new();
-    let mut upper = true;
-    for ch in const_name.chars() {
-        if ch == '_' {
-            upper = true;
-            continue;
-        }
-        if upper {
-            out.push(ch.to_ascii_uppercase());
-            upper = false;
-        } else {
-            out.push(ch.to_ascii_lowercase());
-        }
-    }
-    if out.is_empty() {
-        out.push_str("Binding");
-    }
-    out.push_str("Replay");
-    out
-}
-
-/// Render the replay result type for a binding entry.
-fn replay_result_type(domain: &str, entry: &BindingEntry) -> String {
-    let inner = replay_type_for_binding(domain, &entry.return_binding);
-    format!("Result<{inner}, TraceError>")
-}
-
-impl<'a> DomainWriter<'a> {
-    /// Render the VM replay helpers for bindings.
-    pub(super) fn write_vm_replay_helpers(&mut self) {
-        let output = &mut self.output;
-        let domain = self.spec.domain;
-        let consts = &self.spec.consts;
-
-        let bindings = consts.iter().filter(|binding| {
-            matches!(
-                binding.entry.effect_class,
-                CatalogEffectClass::External {
-                    replay: CatalogReplayPolicy::Recordable
-                }
-            ) && binding.entry.replay_kind == CatalogBindingReplayKind::BindingCall
-        });
-
-        let mut emitted_header = false;
-        for binding in bindings {
-            if !emitted_header {
-                output.push_str(&format!(
-                    "/// VM replay implementations for {domain} bindings.\n"
-                ));
-                emitted_header = true;
-            }
-
-            let entry = binding.entry;
-            let fn_name = vm_replay_fn_name(domain, binding.extern_name);
-            let helper_base = vm_fn_name(domain, binding.extern_name);
-            let implementation_fn_name = &binding.implementation_fn_name;
-            let encode_helper = encode_helper_name(&helper_base);
-            let supports_args = matches!(
-                entry.replay_payload,
-                CatalogReplayPayload::ArgumentsAndResults
-            );
-            let replay_struct = replay_struct_name(&binding.const_name);
-            let replay_args_struct = format!("{replay_struct}Args");
-            let invoke_args = render_invoke_args_with_prefix(entry);
-
-            let mut params = Vec::new();
-            for (index, param) in entry.parameters.iter().enumerate() {
-                let name = sanitize_param_name(&param.name, index);
-                let ty = vm_type_for_binding(domain, &param.binding_type);
-                params.push(format!("{name}: {ty}"));
-            }
-
-            output.push_str("#[inline]\n");
-            output.push_str(&format!("fn {fn_name}(\n"));
-            output.push_str("    binding: &BindingCallContext,\n");
-            output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
-            if entry.scope != crate::model::CatalogBindingScope::Runtime {
-                output.push_str("    world: RuntimeWorld,\n");
-            }
-            for param in &params {
-                output.push_str(&format!("    {param},\n"));
-            }
-            output.push_str(") -> RuntimeResult<vm::Value> {\n");
-
-            output.push_str("    let result = binding.trace().run_binding(\n");
-            output.push_str(&format!("        {},\n", binding.const_name));
-            output.push_str(&format!(
-                "        binding.replay_payload_for({})?,\n",
-                binding.const_name
-            ));
-            output.push_str("        context,\n");
-            if entry.scope == crate::model::CatalogBindingScope::Runtime {
-                output.push_str(&format!(
-                    "        |context| platform_runtime_vm::{}(binding, context{invoke_args}),\n",
-                    implementation_fn_name
-                ));
-            } else {
-                let simulation_call = match entry.simulation {
-                    CatalogBindingSimulation::Unsupported => format!(
-                        "Err(RuntimeError::from(PlatformError::not_supported({}.name)).boxed())",
-                        binding.const_name
-                    ),
-                    CatalogBindingSimulation::Stub | CatalogBindingSimulation::Model => {
-                        format!(
-                            "platform_simulation_vm::{}(binding, context{invoke_args})",
-                            implementation_fn_name
-                        )
-                    }
-                };
-                output.push_str("        |context| {\n");
-                output.push_str("            match world {\n");
-                output.push_str(&format!(
-                    "                RuntimeWorld::Host => platform_vm::{}(binding, context{invoke_args}),\n",
-                    implementation_fn_name
-                ));
-                output.push_str(&format!(
-                    "                RuntimeWorld::Simulation => {simulation_call},\n"
-                ));
-                output.push_str("            }\n");
-                output.push_str("        },\n");
-            }
-            output.push_str("        |context, result| {\n");
-            output.push_str("            let _ = &context;\n");
-            if supports_args {
-                output.push_str("            let record_args = matches!(\n");
-                output.push_str(&format!(
-                    "                binding.replay_payload_for({})?,\n",
-                    binding.const_name
-                ));
-                output.push_str("                BindingReplayPayload::ArgumentsAndResults,\n");
-                output.push_str("            );\n");
-                output.push_str("            let args = if record_args {\n");
-                output.push_str("                // replay args\n");
-                for (index, param) in entry.parameters.iter().enumerate() {
-                    let name = sanitize_param_name(&param.name, index);
-                    let recorded_name = format!("{name}_recorded");
-                    for line in render_replay_encode_lines(
-                        domain,
-                        &param.binding_type,
-                        &recorded_name,
-                        &name,
-                    ) {
-                        output.push_str(&format!("                {line}\n"));
-                    }
-                }
-                output.push_str(&format!("                Some({replay_args_struct} {{\n"));
-                for (index, param) in entry.parameters.iter().enumerate() {
-                    let name = sanitize_param_name(&param.name, index);
-                    let recorded_name = format!("{name}_recorded");
-                    output.push_str(&format!("                    {name}: {recorded_name},\n"));
-                }
-                output.push_str("                })\n");
-                output.push_str("            } else {\n");
-                output.push_str("                None\n");
-                output.push_str("            };\n\n");
-            }
-
-            if matches!(entry.return_binding, BindingType::Void) {
-                output.push_str("            if let Ok(()) = result {\n");
-                output.push_str("                let result_recorded = ();\n");
-            } else {
-                output.push_str("            if let Ok(value) = result {\n");
-                let vm_result_type = vm_type_for_binding(domain, &entry.return_binding);
-                output.push_str(&format!(
-                    "                let result_value: {vm_result_type} = value.clone();\n"
-                ));
-                for line in render_replay_encode_lines(
-                    domain,
-                    &entry.return_binding,
-                    "result_recorded",
-                    "result_value",
-                ) {
-                    output.push_str(&format!("                {line}\n"));
-                }
-            }
-            output.push_str(&format!(
-                "                let payload = {replay_struct} {{\n"
-            ));
-            if supports_args {
-                output.push_str("                    args,\n");
-            }
-            output.push_str("                    result: Ok(result_recorded),\n");
-            output.push_str("                };\n");
-            output.push_str("                return Ok(Some(payload));\n");
-            output.push_str("            }\n\n");
-
-            output.push_str("            if let Err(error) = result {\n");
-            output.push_str("                let payload = {\n");
-            output.push_str(
-                "                    let result = Err(TraceError::from(error.as_ref()));\n",
-            );
-            output.push_str(&format!("                    {replay_struct} {{\n"));
-            if supports_args {
-                output.push_str("                        args,\n");
-            }
-            output.push_str("                        result,\n");
-            output.push_str("                    }\n");
-            output.push_str("                };\n");
-            output.push_str("                return Ok(Some(payload));\n");
-            output.push_str("            }\n\n");
-
-            output.push_str("            Ok(None)\n");
-            output.push_str("        },\n");
-            output.push_str("        |context, payload| {\n");
-            output.push_str("            let _ = &context;\n");
-            if supports_args {
-                output.push_str("            if let Some(args) = payload.args.as_ref() {\n");
-                output.push_str("                // replay arg verification\n");
-                for (index, param) in entry.parameters.iter().enumerate() {
-                    let name = sanitize_param_name(&param.name, index);
-                    let recorded_name = format!("{name}_recorded");
-                    for line in render_replay_encode_lines(
-                        domain,
-                        &param.binding_type,
-                        &recorded_name,
-                        &name,
-                    ) {
-                        output.push_str(&format!("                {line}\n"));
-                    }
-                }
-                let mut compare_counter = 0usize;
-                for (index, param) in entry.parameters.iter().enumerate() {
-                    let name = sanitize_param_name(&param.name, index);
-                    let recorded_name = format!("{name}_recorded");
-                    output.push_str(&format!(
-                        "                let {name}_payload = &args.{name};\n"
-                    ));
-                    output.push_str(&format!(
-                        "                let {name}_current = &{recorded_name};\n"
-                    ));
-                    let mismatch_stmt = format!(
-                        "return Err(RuntimeError::TraceMismatch {{ name: {}.name.to_string() }}.boxed());",
-                        binding.const_name
-                    );
-                    let compare_lines = render_replay_compare_lines(
-                        domain,
-                        &param.binding_type,
-                        &format!("{name}_payload"),
-                        &format!("{name}_current"),
-                        &mismatch_stmt,
-                        &mut compare_counter,
-                    );
-                    for line in compare_lines {
-                        output.push_str(&format!("                {line}\n"));
-                    }
-                }
-                output.push_str("            }\n\n");
-            }
-
-            output.push_str("            // replay result\n");
-            output.push_str("            match payload.result {\n");
-            if entry.return_binding != BindingType::Void {
-                output.push_str("                Ok(value) => {\n");
-                for line in render_replay_to_vm_binding_lines(
-                    domain,
-                    &entry.return_binding,
-                    "vm_result",
-                    "value",
-                ) {
-                    output.push_str(&format!("                    {line}\n"));
-                }
-                output.push_str("                    Ok(vm_result)\n");
-                output.push_str("                }\n");
-            } else {
-                output.push_str("                Ok(()) => Ok(()),\n");
-            }
-            output
-                .push_str("                Err(error) => Err(Box::<RuntimeError>::from(error)),\n");
-            output.push_str("            }\n");
-            output.push_str("        },\n");
-            output.push_str("    );\n");
-            output.push_str(&format!(
-                "    let result = {encode_helper}(context, result)?;\n"
-            ));
-            output.push_str("    Ok(result)\n");
-            output.push_str("}\n\n");
-        }
-    }
-}
-
 /// Collect named types referenced by replay payloads.
-pub(super) fn collect_replay_named_types(
+pub(crate) fn collect_replay_named_types(
     domain: &str,
-    bindings: &BindingCatalogEntry,
+    bindings: &ModuleBindings,
 ) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
+    let codegen = ModuleCodegen::new(domain);
+
     for entry in bindings.values() {
         let CatalogEffectClass::External {
             replay: CatalogReplayPolicy::Recordable,
@@ -674,19 +1648,19 @@ pub(super) fn collect_replay_named_types(
             CatalogReplayPayload::ArgumentsAndResults
         ) {
             for param in &entry.parameters {
-                collect_replay_type_names(domain, &param.binding_type, &mut names);
+                codegen.collect_replay_type_names(&param.binding_type, &mut names);
             }
         }
-        collect_replay_type_names(domain, &entry.return_binding, &mut names);
+        codegen.collect_replay_type_names(&entry.return_binding, &mut names);
     }
 
     names
 }
 
 /// Collect VM-visible named types referenced by replay collection decoding.
-pub(super) fn collect_replay_vm_named_types(
+pub(crate) fn collect_replay_vm_named_types(
     domain: &str,
-    bindings: &BindingCatalogEntry,
+    bindings: &ModuleBindings,
 ) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
     for entry in bindings.values() {
@@ -712,81 +1686,4 @@ pub(super) fn collect_replay_vm_named_types(
     }
 
     names
-}
-
-/// Walk a binding type and record named types referenced by replay payloads.
-fn collect_replay_type_names(
-    domain: &str,
-    binding_type: &BindingType,
-    names: &mut BTreeSet<String>,
-) {
-    match binding_type {
-        BindingType::Slice(inner) | BindingType::Array(inner) => {
-            collect_replay_type_names(domain, inner, names);
-        }
-        BindingType::Optional(inner) => {
-            collect_replay_type_names(domain, inner, names);
-        }
-        BindingType::Newtype { inner, .. } => {
-            if binding_type_requires_abi(inner) {
-                collect_replay_type_names(domain, inner, names);
-            } else if let BindingType::Newtype {
-                name,
-                domain: type_domain,
-                ..
-            } = binding_type
-            {
-                names.insert(named_type_path(domain, type_domain.as_str(), name.as_str()));
-            }
-        }
-        BindingType::Struct {
-            name,
-            domain: type_domain,
-            fields,
-        } => {
-            if binding_type_requires_abi(binding_type) {
-                let replay_name = replay_named_struct_name(name);
-                names.insert(named_type_path(
-                    domain,
-                    type_domain.as_str(),
-                    replay_name.as_str(),
-                ));
-            } else {
-                names.insert(named_type_path(domain, type_domain.as_str(), name.as_str()));
-            }
-
-            for field in fields {
-                collect_replay_type_names(domain, &field.binding_type, names);
-            }
-        }
-        BindingType::Enum {
-            name,
-            domain: type_domain,
-            ..
-        } => {
-            names.insert(named_type_path(domain, type_domain.as_str(), name.as_str()));
-        }
-        BindingType::TaggedUnion {
-            name,
-            domain: type_domain,
-            variants,
-        } => {
-            let replay_name = replay_named_struct_name(name);
-            names.insert(named_type_path(
-                domain,
-                type_domain.as_str(),
-                replay_name.as_str(),
-            ));
-
-            for variant in variants {
-                collect_replay_type_names(domain, &variant.binding_type, names);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// Build the generated replay struct name for one named ABI struct.
-fn replay_named_struct_name(name: &str) -> String {
-    format!("{name}ReplayRecord")
 }

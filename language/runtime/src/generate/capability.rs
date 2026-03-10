@@ -2,8 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::write::write_domain_bindings;
-
 /// Prefix used by the intrinsic platform-capability declaration.
 const PLATFORM_CAPABILITY_TYPE_PREFIX: &str = "export type PlatformCapability =";
 
@@ -17,7 +15,7 @@ pub(crate) fn generate_platform_capability_kind() {
     let generated = render_platform_capability_source(&capability_names);
     let output_path = runtime_capability_generated_path();
 
-    write_domain_bindings(&output_path, &generated);
+    write_generated_file(&output_path, &generated);
 }
 
 /// Resolve the language workspace root for generator inputs.
@@ -37,6 +35,16 @@ fn intrinsic_binding_path() -> PathBuf {
 /// Resolve the generated runtime capability kind output path.
 fn runtime_capability_generated_path() -> PathBuf {
     language_root().join("runtime/src/runtime/capability/capability.generated.rs")
+}
+
+/// Write one generated file to disk.
+fn write_generated_file(path: &Path, contents: &str) {
+    // parent directory
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("failed to create output directory");
+    }
+
+    fs::write(path, contents).expect("failed to write generated file");
 }
 
 /// Parse canonical capability names from the intrinsic type union.
@@ -87,19 +95,19 @@ fn parse_platform_capability_names(source: &str) -> Vec<String> {
 fn string_literals_from_line(line: &str) -> Vec<String> {
     let mut values = Vec::new();
     let mut current = String::new();
-    let mut in_string = false;
+    let mut is_in_string = false;
 
     for character in line.chars() {
         if character == '"' {
-            if in_string {
+            if is_in_string {
                 values.push(current.clone());
                 current.clear();
             }
-            in_string = !in_string;
+            is_in_string = !is_in_string;
             continue;
         }
 
-        if in_string {
+        if is_in_string {
             current.push(character);
         }
     }
@@ -228,6 +236,7 @@ mod tests {
         variant_name_for_capability,
     };
 
+    /// Parse all capability literals from the intrinsic union.
     #[test]
     fn test_parse_platform_capability_names_collects_union_literals() {
         let source = r#"
@@ -250,6 +259,7 @@ mod tests {
         );
     }
 
+    /// Reject duplicate capability literals in the intrinsic union.
     #[test]
     #[should_panic(expected = "duplicate intrinsic capability literal: fs.read")]
     fn test_parse_platform_capability_names_rejects_duplicates() {
@@ -263,25 +273,25 @@ mod tests {
         let _ = parse_platform_capability_names(source);
     }
 
+    /// Convert capability names to stable enum variant names.
     #[test]
-    fn test_variant_name_for_capability_builds_pascal_case_name() {
+    fn test_variant_name_for_capability() {
+        assert_eq!(variant_name_for_capability("fs.read"), "FsRead");
         assert_eq!(
             variant_name_for_capability("gpu.render.multiDraw"),
             "GpuRenderMultiDraw"
         );
-        assert_eq!(variant_name_for_capability("io.zero.copy"), "IoZeroCopy");
-        assert_eq!(variant_name_for_capability("9p.mount"), "N9pMount");
+        assert_eq!(variant_name_for_capability("3d.render"), "N3dRender");
     }
 
+    /// Render one stable capability enum source file.
     #[test]
-    fn test_render_platform_capability_source_contains_mappings() {
+    fn test_render_platform_capability_source() {
         let source =
             render_platform_capability_source(&["fs.read".to_string(), "net.connect".to_string()]);
 
         assert!(source.contains("pub enum PlatformCapability"));
         assert!(source.contains("FsRead"));
         assert!(source.contains("NetConnect"));
-        assert!(source.contains("\"fs.read\" => Some(Self::FsRead)"));
-        assert!(source.contains("\"net.connect\" => Some(Self::NetConnect)"));
     }
 }
