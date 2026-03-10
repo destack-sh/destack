@@ -214,11 +214,13 @@ impl World {
     pub fn runtime_labels(&self, runtime_id: RuntimeId) -> RuntimeResult<BTreeMap<String, String>> {
         let entity_id = format!("runtime.{}", runtime_id.0);
         let topology = self.topology.read();
-        let entity = topology.entities().get(entity_id.as_str()).ok_or_else(|| {
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            }
-        })?;
+        let entity =
+            topology
+                .entities()
+                .get(entity_id.as_str())
+                .ok_or(RuntimeError::RuntimeNotFound {
+                    runtime_id: runtime_id.0,
+                })?;
 
         Ok(entity.labels.clone())
     }
@@ -227,11 +229,13 @@ impl World {
     pub fn agent_labels(&self, agent_id: AgentId) -> RuntimeResult<BTreeMap<String, String>> {
         let entity_id = format!("agent.{}", agent_id.0);
         let topology = self.topology.read();
-        let entity = topology.entities().get(entity_id.as_str()).ok_or_else(|| {
-            RuntimeError::AgentNotFound {
-                agent_id: agent_id.0,
-            }
-        })?;
+        let entity =
+            topology
+                .entities()
+                .get(entity_id.as_str())
+                .ok_or(RuntimeError::AgentNotFound {
+                    agent_id: agent_id.0,
+                })?;
 
         Ok(entity.labels.clone())
     }

@@ -443,13 +443,7 @@ fn encode_revision_descriptor(
             .parent_revision_id
             .map(encode_revision_id)
             .transpose()?,
-        sequence: TraceSequence(u64::try_from(revision.sequence.get()).map_err(|_| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "sequence",
-                "world trace sequence exceeds uint64",
-            ))
-            .boxed()
-        })?),
+        sequence: TraceSequence(revision.sequence.get()),
         wall_ns: revision.wall.get(),
         mono_ns: revision.mono.get(),
         virtual_ns: image.clock.virtual_wall.get(),
@@ -1058,9 +1052,11 @@ pub(crate) fn destack_runtime_runtime_create(
         name: None,
         labels: None,
     });
-    let mut runtime_options = RuntimeOptions::default();
-    runtime_options.name = decode_runtime_name(context, options.name)?;
-    runtime_options.labels = decode_runtime_labels(context, options.labels)?;
+    let runtime_options = RuntimeOptions {
+        name: decode_runtime_name(context, options.name)?,
+        labels: decode_runtime_labels(context, options.labels)?,
+        ..RuntimeOptions::default()
+    };
 
     // spawn one runtime in the live world
     let mut table = control_table().write();
@@ -1375,15 +1371,7 @@ pub(crate) fn destack_runtime_trace_view(
 
     Ok(TraceDescriptorVm {
         branch_id: encode_branch_id(world_view.revision.branch_id)?,
-        sequence: TraceSequence(u64::try_from(world_view.revision.sequence.get()).map_err(
-            |_| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "sequence",
-                    "world trace sequence exceeds uint64",
-                ))
-                .boxed()
-            },
-        )?),
+        sequence: TraceSequence(world_view.revision.sequence.get()),
     })
 }
 
@@ -2589,7 +2577,6 @@ pub(crate) fn destack_runtime_snapshot_list(
                 handle::encode_snapshot_entry(entry),
             )
         })
-        .into_iter()
         .map(|(snapshot_id, entry)| encode_snapshot_descriptor(snapshot_id, &entry))
         .collect::<RuntimeResult<Vec<_>>>()?;
 
@@ -2739,15 +2726,7 @@ pub(crate) fn destack_runtime_trace_describe(
 
     Ok(TraceDescriptorVm {
         branch_id: encode_branch_id(world.branch_id())?,
-        sequence: TraceSequence(
-            u64::try_from(world.trace().log().next_sequence().get()).map_err(|_| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "sequence",
-                    "world trace sequence exceeds uint64",
-                ))
-                .boxed()
-            })?,
-        ),
+        sequence: TraceSequence(world.trace().log().next_sequence().get()),
     })
 }
 
@@ -2819,16 +2798,7 @@ pub(crate) fn destack_runtime_trace_next(
             break;
         };
 
-        records.push((
-            TraceSequence(u64::try_from(sequence.get()).map_err(|_| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "sequence",
-                    "world trace sequence exceeds uint64",
-                ))
-                .boxed()
-            })?),
-            event,
-        ));
+        records.push((TraceSequence(sequence.get()), event));
     }
 
     encode_trace_records(context, records)
@@ -2971,13 +2941,5 @@ pub(crate) fn destack_runtime_trace_tell(
     let (_world, cursor) = table.trace_cursor(handle::decode_trace_cursor_handle(cursor))?;
     let sequence = cursor.tell();
 
-    Ok(TraceSequence(u64::try_from(sequence.get()).map_err(
-        |_| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "sequence",
-                "world trace sequence exceeds uint64",
-            ))
-            .boxed()
-        },
-    )?))
+    Ok(TraceSequence(sequence.get()))
 }

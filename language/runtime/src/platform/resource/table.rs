@@ -387,6 +387,11 @@ impl ResourceTable {
         self.entries.read().len()
     }
 
+    /// Return whether the table holds no resources.
+    pub fn is_empty(&self) -> bool {
+        self.entries.read().is_empty()
+    }
+
     /// Allocate and insert a resource entry.
     pub fn insert(
         &self,

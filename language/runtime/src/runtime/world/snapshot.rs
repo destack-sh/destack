@@ -144,13 +144,11 @@ impl Image {
         runtime_id: RuntimeId,
     ) -> RuntimeResult<&BTreeMap<String, String>> {
         let entity_id = format!("runtime.{}", runtime_id.0);
-        let entity = self
-            .topology
-            .entities()
-            .get(entity_id.as_str())
-            .ok_or_else(|| RuntimeError::RuntimeNotFound {
+        let entity = self.topology.entities().get(entity_id.as_str()).ok_or(
+            RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
-            })?;
+            },
+        )?;
 
         Ok(&entity.labels)
     }
@@ -168,13 +166,11 @@ impl Image {
     /// Return labels for one agent image.
     pub fn agent_labels(&self, agent_id: AgentId) -> RuntimeResult<&BTreeMap<String, String>> {
         let entity_id = format!("agent.{}", agent_id.0);
-        let entity = self
-            .topology
-            .entities()
-            .get(entity_id.as_str())
-            .ok_or_else(|| RuntimeError::AgentNotFound {
+        let entity = self.topology.entities().get(entity_id.as_str()).ok_or(
+            RuntimeError::AgentNotFound {
                 agent_id: agent_id.0,
-            })?;
+            },
+        )?;
 
         Ok(&entity.labels)
     }

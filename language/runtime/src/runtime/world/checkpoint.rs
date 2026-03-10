@@ -353,6 +353,7 @@ impl World {
     }
 
     /// Build one fresh child-world shell for one forked branch.
+    #[allow(clippy::arc_with_non_send_sync)] // NOTE #Architecture: worlds are intentionally thread-affine and still reference counted
     fn fork_child_world(&self, branch_id: BranchId, trace_header: TraceHeader) -> Arc<World> {
         Arc::new(World {
             branch_id,
