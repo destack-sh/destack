@@ -21,7 +21,8 @@ use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(target_os = "macos")]
 use super::abi::{
     AudioDeviceID, AudioQueueDispose, AudioQueueRef, AudioQueueSetProperty, AudioQueueStop,
-    CFRelease, CFStringRef, CFTypeRef, CoreAudioQueueHandle,
+    CFRelease, CFStringRef, CFTypeRef, CoreAudioCallbackContextToken, CoreAudioQueueHandle,
+    CoreAudioStreamContext,
 };
 #[cfg(target_os = "macos")]
 use super::constants::{
@@ -74,6 +75,21 @@ pub(super) fn bind_queue_device(
     Ok(())
 }
 
+/// Release one retained CoreAudio callback context token.
+#[cfg(target_os = "macos")]
+pub(super) fn release_queue_callback_context(
+    callback_context_token: CoreAudioCallbackContextToken,
+) {
+    if callback_context_token.0 == 0 {
+        return;
+    }
+
+    let callback_context = callback_context_token.0 as *const CoreAudioStreamContext;
+    unsafe {
+        drop(Arc::from_raw(callback_context));
+    }
+}
+
 /// Compute the stream buffer size in bytes for a stream period.
 #[cfg(target_os = "macos")]
 pub(super) fn buffer_bytes(stream: &Arc<AudioStreamHostState>) -> RuntimeResult<u32> {
@@ -90,8 +106,8 @@ pub(super) fn dispose_queue_handle(queue_handle: CoreAudioQueueHandle) {
     unsafe {
         let _ = AudioQueueStop(queue_handle.queue, 1);
         let _ = AudioQueueDispose(queue_handle.queue, 1);
-
-        // release the callback-owned strong reference from raw pointer storage
-        Arc::decrement_strong_count(queue_handle.context_raw);
     }
+
+    // release the callback-owned strong reference from queue-owned token storage
+    release_queue_callback_context(queue_handle.callback_context_token);
 }

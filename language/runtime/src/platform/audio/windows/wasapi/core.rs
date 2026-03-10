@@ -1,13 +1,12 @@
 use std::ffi::c_void;
 use std::ptr;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use super::abi::{audio_client_reset, audio_client_start, audio_client_stop, release_com_pointer};
 use super::constants::{
     DEFAULT_MAX_PERIOD_FRAMES, DEFAULT_MAX_SAMPLE_RATE, DEFAULT_MIN_SAMPLE_RATE,
-    DEFAULT_PREFERRED_PERIOD_FRAMES, HUNDRED_NANOS_PER_SECOND, NANOS_PER_HUNDRED_NANOS,
-    WASAPI_MAX_PROBED_CHANNELS,
+    DEFAULT_PREFERRED_PERIOD_FRAMES, WASAPI_MAX_PROBED_CHANNELS,
 };
 use super::host::{channel_layout, channel_mask, failed, hresult_error, initialize_com};
 
@@ -30,56 +29,14 @@ pub(crate) fn is_stream_supported() -> bool {
     true
 }
 
-/// One stable offset that maps QPC time into runtime monotonic nanoseconds.
-static WASAPI_QPC_TO_MONO_OFFSET_NS: OnceLock<i128> = OnceLock::new();
-
-/// Convert one raw QPC tick value into 100ns units.
-pub(super) fn qpc_ticks_to_hundred_nanos(qpc_ticks: u64) -> Option<u64> {
-    let frequency = core_platform::qpc_frequency_hz();
-    if frequency == 0 {
-        return None;
-    }
-
-    Some(
-        ((u128::from(qpc_ticks).saturating_mul(HUNDRED_NANOS_PER_SECOND)) / u128::from(frequency))
-            as u64,
-    )
-}
-
-/// Sample current QPC time in 100ns units.
-pub(super) fn qpc_now_hundred_nanos() -> Option<u64> {
-    let counter = core_platform::qpc_now_ticks()?;
-    qpc_ticks_to_hundred_nanos(counter)
-}
-
 /// Convert one WASAPI QPC timestamp in 100ns units into runtime monotonic nanoseconds.
 pub(super) fn qpc_hundred_nanos_to_mono_ns(qpc_hundred_nanos: u64) -> Option<u64> {
-    let qpc_now_hundred_nanos = qpc_now_hundred_nanos()?;
-    let offset = WASAPI_QPC_TO_MONO_OFFSET_NS.get_or_init(|| {
-        let mono_now = audio_core::host_monotonic_nanos() as i128;
-        let qpc_now_ns =
-            (qpc_now_hundred_nanos as i128).saturating_mul(NANOS_PER_HUNDRED_NANOS as i128);
-        mono_now - qpc_now_ns
-    });
-
-    let qpc_ns = (qpc_hundred_nanos as i128).saturating_mul(NANOS_PER_HUNDRED_NANOS as i128);
-    let mapped_ns = qpc_ns + *offset;
-    if mapped_ns <= 0 {
-        return Some(0);
-    }
-
-    Some(mapped_ns.min(u64::MAX as i128) as u64)
+    core_platform::qpc_hundred_nanos_to_process_nanos(qpc_hundred_nanos)
 }
 
 /// Return one best-effort monotonic timestamp from WASAPI QPC correlation.
 pub(super) fn qpc_now_mono_ns() -> u64 {
-    if let Some(qpc_now_hundred_nanos) = qpc_now_hundred_nanos()
-        && let Some(mapped_ns) = qpc_hundred_nanos_to_mono_ns(qpc_now_hundred_nanos)
-    {
-        return mapped_ns;
-    }
-
-    audio_core::host_monotonic_nanos()
+    core_platform::qpc_process_monotonic_nanos().unwrap_or_else(audio_core::host_monotonic_nanos)
 }
 
 /// One endpoint flow lane for stable-id encoding.

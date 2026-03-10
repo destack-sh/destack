@@ -14,8 +14,9 @@ use crate::platform::audio::core::model::{AudioHostStreamOps, AudioStreamHostSta
 use super::abi::{
     AudioDeviceID, AudioQueueAllocateBuffer, AudioQueueEnqueueBuffer, AudioQueueNewInput,
     AudioQueueNewOutput, AudioQueuePause, AudioQueueRef, AudioQueueReset, AudioQueueStart,
-    AudioQueueStop, AudioStreamBasicDescription, CoreAudioHostStreamOps, CoreAudioQueueHandle,
-    CoreAudioStreamContext, CoreAudioStreamRuntime, OSStatus,
+    AudioQueueStop, AudioStreamBasicDescription, CoreAudioCallbackContextToken,
+    CoreAudioHostStreamOps, CoreAudioQueueHandle, CoreAudioStreamContext, CoreAudioStreamRuntime,
+    OSStatus,
 };
 #[cfg(target_os = "macos")]
 use super::callback::{fill_playback_bytes, input_callback, output_callback};
@@ -26,7 +27,9 @@ use super::constants::{
 #[cfg(target_os = "macos")]
 use super::property::{error, release_hog_mode, stream_description};
 #[cfg(target_os = "macos")]
-use super::queue::{bind_queue_device, buffer_bytes, dispose_queue_handle};
+use super::queue::{
+    bind_queue_device, buffer_bytes, dispose_queue_handle, release_queue_callback_context,
+};
 
 /// Dispose all queue handles in a queue-handle list.
 #[cfg(target_os = "macos")]
@@ -136,12 +139,22 @@ impl AudioHostStreamOps for CoreAudioHostStreamOps {
 #[cfg(target_os = "macos")]
 fn build_queue_context(
     stream: &Arc<AudioStreamHostState>,
-) -> (Arc<CoreAudioStreamContext>, *const CoreAudioStreamContext) {
+) -> (
+    Arc<CoreAudioStreamContext>,
+    *mut c_void,
+    CoreAudioCallbackContextToken,
+) {
     let context_owner = Arc::new(CoreAudioStreamContext {
         stream: stream.clone(),
     });
-    let context_raw = Arc::into_raw(context_owner.clone());
-    (context_owner, context_raw)
+    let callback_context = Arc::into_raw(context_owner.clone());
+    let callback_context_user_data = callback_context.cast_mut().cast::<c_void>();
+
+    (
+        context_owner,
+        callback_context_user_data,
+        CoreAudioCallbackContextToken(callback_context as usize),
+    )
 }
 
 /// Build a queue handle from a queue pointer and callback context owner.
@@ -149,12 +162,12 @@ fn build_queue_context(
 fn build_queue_handle(
     queue: AudioQueueRef,
     context_owner: &Arc<CoreAudioStreamContext>,
-    context_raw: *const CoreAudioStreamContext,
+    callback_context_token: CoreAudioCallbackContextToken,
 ) -> CoreAudioQueueHandle {
     CoreAudioQueueHandle {
         queue,
         _context_owner: context_owner.clone(),
-        context_raw,
+        callback_context_token,
     }
 }
 
@@ -164,7 +177,7 @@ fn initialize_queue_buffers(
     stream: &Arc<AudioStreamHostState>,
     queue: AudioQueueRef,
     context_owner: &Arc<CoreAudioStreamContext>,
-    context_raw: *const CoreAudioStreamContext,
+    callback_context_token: CoreAudioCallbackContextToken,
     prefill_playback: bool,
     allocate_error_message: &'static str,
     enqueue_error_message: &'static str,
@@ -175,7 +188,11 @@ fn initialize_queue_buffers(
         let mut buffer = ptr::null_mut();
         let allocate_status = unsafe { AudioQueueAllocateBuffer(queue, buffer_bytes, &mut buffer) };
         if allocate_status != K_NO_ERR {
-            dispose_queue_handle(build_queue_handle(queue, context_owner, context_raw));
+            dispose_queue_handle(build_queue_handle(
+                queue,
+                context_owner,
+                callback_context_token,
+            ));
             return Err(error(
                 "destack.audio.stream.open",
                 allocate_status,
@@ -205,7 +222,11 @@ fn initialize_queue_buffers(
 
         let enqueue_status = unsafe { AudioQueueEnqueueBuffer(queue, buffer, 0, ptr::null()) };
         if enqueue_status != K_NO_ERR {
-            dispose_queue_handle(build_queue_handle(queue, context_owner, context_raw));
+            dispose_queue_handle(build_queue_handle(
+                queue,
+                context_owner,
+                callback_context_token,
+            ));
             return Err(error(
                 "destack.audio.stream.open",
                 enqueue_status,
@@ -222,11 +243,7 @@ fn initialize_queue_buffers(
 fn create_queue(
     stream: &Arc<AudioStreamHostState>,
     device_id: AudioDeviceID,
-    create_queue: impl FnOnce(
-        &AudioStreamBasicDescription,
-        *const CoreAudioStreamContext,
-        &mut AudioQueueRef,
-    ) -> OSStatus,
+    create_queue: impl FnOnce(&AudioStreamBasicDescription, *mut c_void, &mut AudioQueueRef) -> OSStatus,
     create_error_message: &'static str,
     allocate_error_message: &'static str,
     enqueue_error_message: &'static str,
@@ -234,13 +251,12 @@ fn create_queue(
 ) -> RuntimeResult<CoreAudioQueueHandle> {
     let stream_description = stream_description(stream.requested)?;
     let mut queue = ptr::null_mut();
-    let (context_owner, context_raw) = build_queue_context(stream);
+    let (context_owner, callback_context_user_data, callback_context_token) =
+        build_queue_context(stream);
 
-    let create_status = create_queue(&stream_description, context_raw, &mut queue);
+    let create_status = create_queue(&stream_description, callback_context_user_data, &mut queue);
     if create_status != K_NO_ERR {
-        unsafe {
-            Arc::decrement_strong_count(context_raw);
-        }
+        release_queue_callback_context(callback_context_token);
         return Err(error(
             "destack.audio.stream.open",
             create_status,
@@ -249,7 +265,11 @@ fn create_queue(
     }
 
     if let Err(error) = bind_queue_device(queue, device_id) {
-        dispose_queue_handle(build_queue_handle(queue, &context_owner, context_raw));
+        dispose_queue_handle(build_queue_handle(
+            queue,
+            &context_owner,
+            callback_context_token,
+        ));
         return Err(error);
     }
 
@@ -257,13 +277,17 @@ fn create_queue(
         stream,
         queue,
         &context_owner,
-        context_raw,
+        callback_context_token,
         prefill_playback,
         allocate_error_message,
         enqueue_error_message,
     )?;
 
-    Ok(build_queue_handle(queue, &context_owner, context_raw))
+    Ok(build_queue_handle(
+        queue,
+        &context_owner,
+        callback_context_token,
+    ))
 }
 
 /// Create and prime a CoreAudio playback queue.
@@ -279,7 +303,7 @@ pub(super) fn create_playback_queue(
             AudioQueueNewOutput(
                 stream_description,
                 Some(output_callback),
-                context_raw as *mut c_void,
+                context_raw,
                 ptr::null_mut(),
                 ptr::null_mut(),
                 0,
@@ -306,7 +330,7 @@ pub(super) fn create_capture_queue(
             AudioQueueNewInput(
                 stream_description,
                 Some(input_callback),
-                context_raw as *mut c_void,
+                context_raw,
                 ptr::null_mut(),
                 ptr::null_mut(),
                 0,

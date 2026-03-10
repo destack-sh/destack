@@ -77,6 +77,16 @@ pub(crate) fn apple_host_time_to_process_nanos(host_time: u64) -> u64 {
     apple_host_time_to_nanos(delta)
 }
 
+/// Convert process-relative monotonic nanoseconds into an Apple host-time tick value.
+pub(crate) fn apple_process_nanos_to_host_time(nanos: u64) -> u64 {
+    let epoch = *APPLE_HOST_TIME_EPOCH.get_or_init(apple_host_time_now);
+    let info = apple_timebase_info();
+    let ticks = u128::from(nanos).saturating_mul(u128::from(info.denom)) / u128::from(info.numer);
+    let ticks = ticks.min(u64::MAX as u128) as u64;
+
+    epoch.saturating_add(ticks)
+}
+
 /// Return the current Apple process-relative monotonic timestamp in nanoseconds.
 pub(crate) fn apple_process_monotonic_nanos() -> u64 {
     apple_host_time_to_process_nanos(apple_host_time_now())

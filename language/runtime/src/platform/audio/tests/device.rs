@@ -15,8 +15,9 @@ use super::super::{
 use super::core::{
     backend_availability_rows, backend_availability_rows_with_capabilities,
     backend_descriptor_summaries, descriptor_count, device_descriptor_direction_from_value,
-    device_descriptor_stream_clock_domains_from_value, device_direction_capability_rows,
-    harness_device_options, harness_list_request, harness_string, string_from_harness_value,
+    device_descriptor_identity_from_value, device_descriptor_stream_clock_domains_from_value,
+    device_direction_capability_rows, harness_device_options, harness_list_request, harness_string,
+    string_from_harness_value,
 };
 use super::{
     assert_code_is_not_not_supported, assert_not_supported_result, assert_platform_error_code,
@@ -709,6 +710,41 @@ fn test_audio_jack_device_default_uses_stable_prefix_when_available() {
 
 #[cfg(any(unix, windows))]
 #[test]
+fn test_audio_coreaudio_device_default_uses_stable_prefix_when_available() {
+    with_harness_context(|mut context| {
+        let rows = context.destack_audio_backend_list()?;
+        let rows = backend_availability_rows(&mut context, rows)?;
+        let coreaudio_available = rows
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::CoreAudio && *available);
+        if !coreaudio_available {
+            return Ok(());
+        }
+
+        let default_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::CoreAudio,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error_code_from_runtime_error(&error);
+                assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
+                return Ok(());
+            }
+        };
+
+        assert!(
+            default_id.starts_with("coreaudio:"),
+            "coreaudio default ids should use the stable coreaudio prefix",
+        );
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
 fn test_audio_device_default_returns_stable_null_ids() {
     with_harness_context(|mut context| {
         let playback = context.destack_audio_device_default(
@@ -1221,6 +1257,80 @@ fn test_audio_device_descriptor_reports_opened_direction() {
         assert_eq!(descriptor_direction, AudioDeviceDirection::Capture);
 
         context.destack_audio_device_close(device)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_coreaudio_opened_device_descriptor_uses_stable_identity_prefixes() {
+    with_harness_context(|mut context| {
+        let rows = context.destack_audio_backend_list()?;
+        let rows = backend_availability_rows(&mut context, rows)?;
+        let coreaudio_available = rows
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::CoreAudio && *available);
+        if !coreaudio_available {
+            return Ok(());
+        }
+
+        let default_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::CoreAudio,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error_code_from_runtime_error(&error);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::CoreAudio,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+        };
+
+        let device_id = harness_string(&mut context, &default_id);
+        let options = harness_device_options(&mut context, options);
+        let device = match context.destack_audio_device_open(device_id, options) {
+            Ok(device) => device,
+            Err(error) => {
+                let code = error_code_from_runtime_error(&error);
+                if code == Some(PlatformErrorCode::AudioUnavailable)
+                    || code == Some(PlatformErrorCode::DeviceUnavailable)
+                    || code == Some(PlatformErrorCode::IoPermissionDenied)
+                {
+                    return Ok(());
+                }
+
+                return Err(error);
+            }
+        };
+
+        let descriptor = context.destack_audio_device_descriptor(device)?;
+        let (device_id, group_id) =
+            device_descriptor_identity_from_value(&mut context, descriptor)?;
+
+        // coreaudio descriptors should expose stable backend-prefixed identities
+        assert!(
+            device_id.starts_with("coreaudio:"),
+            "coreaudio device ids should use the stable coreaudio prefix",
+        );
+        assert!(
+            group_id.starts_with("coreaudio-group:"),
+            "coreaudio group ids should use the stable coreaudio group prefix",
+        );
+
+        context.destack_audio_device_close(device)?;
+
         Ok(())
     });
 }

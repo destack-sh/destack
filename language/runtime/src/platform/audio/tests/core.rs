@@ -490,6 +490,31 @@ pub(super) fn device_descriptor_direction_from_value(
     }
 }
 
+/// Decode one device descriptor payload into stable id and group id strings.
+pub(super) fn device_descriptor_identity_from_value(
+    context: &mut AudioHarnessContext<'_>,
+    value: HarnessValue<AudioDeviceDescriptor, AudioDeviceDescriptorVm>,
+) -> RuntimeResult<(String, String)> {
+    match value {
+        HarnessValue::Native(value) => Ok((
+            unsafe { value.id.as_str()? }.to_string(),
+            unsafe { value.group_id.as_str()? }.to_string(),
+        )),
+        HarnessValue::Vm(value) => {
+            let vm_context = vm_context_mut(context)
+                .expect("vm payload requires vm context to decode device descriptor");
+            let id = vm_context
+                .string_ref(value.id)
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            let group_id = vm_context
+                .string_ref(value.group_id)
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+
+            Ok((id.as_str().to_string(), group_id.as_str().to_string()))
+        }
+    }
+}
+
 /// Decode one device descriptor payload into one stream-clock support mask.
 pub(super) fn device_descriptor_stream_clock_domains_from_value(
     value: HarnessValue<AudioDeviceDescriptor, AudioDeviceDescriptorVm>,
