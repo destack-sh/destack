@@ -32,6 +32,8 @@ pub mod io;
 pub mod ipc;
 /// Memory bindings.
 pub mod memory;
+/// MIDI bindings.
+pub mod midi;
 /// Network bindings.
 pub mod net;
 /// OS bindings.

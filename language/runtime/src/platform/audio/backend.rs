@@ -1,13 +1,12 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::audio::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendDescriptor, AudioBackendSelectionPolicy,
     AudioDeviceListFlags, AudioDeviceOpenFlags, AudioSupportedEventSubscriptionFlags,
     AudioSupportedStreamClockDomains, AudioSupportedStreamFlags,
-    AudioSupportedStreamRequirementFlags, MidiMessage, MidiPortDescriptor, MidiPortDirection,
-    core as audio_core,
+    AudioSupportedStreamRequirementFlags, core as audio_core,
 };
 use crate::platform::core::{BackendSupport, aggregate_backend_support, backend_support_error};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 use super::native as native_audio;
@@ -392,89 +391,4 @@ pub(crate) fn enumerate_host_devices(
     backend: AudioBackend,
 ) -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
     native_audio::enumerate_host_devices(backend)
-}
-
-/// Return one standardized unsupported error for host MIDI lanes.
-fn unsupported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
-}
-
-/// Flush queued MIDI output.
-pub(crate) unsafe fn destack_audio_midi_flush(
-    _ctx: &BindingCallContext,
-    handle: resource::MidiPortHandle,
-) -> RuntimeResult<()> {
-    let _ = handle;
-
-    Err(unsupported("destack.audio.midi.flush"))
-}
-
-/// Close one MIDI endpoint.
-pub(crate) unsafe fn destack_audio_midi_port_close(
-    _ctx: &BindingCallContext,
-    handle: resource::MidiPortHandle,
-) -> RuntimeResult<()> {
-    let _ = handle;
-
-    Err(unsupported("destack.audio.midi.portClose"))
-}
-
-/// List available MIDI endpoints.
-pub(crate) unsafe fn destack_audio_midi_port_list(
-    _ctx: &BindingCallContext,
-    out: *mut NativeSlice<MidiPortDescriptor>,
-    direction: MidiPortDirection,
-) -> RuntimeResult<()> {
-    let _ = (out, direction);
-
-    Err(unsupported("destack.audio.midi.portList"))
-}
-
-/// Open one MIDI endpoint.
-pub(crate) unsafe fn destack_audio_midi_port_open(
-    _ctx: &BindingCallContext,
-    out: *mut resource::MidiPortHandle,
-    id: NativeStringRef,
-    direction: MidiPortDirection,
-) -> RuntimeResult<()> {
-    let _ = (out, id, direction);
-
-    Err(unsupported("destack.audio.midi.portOpen"))
-}
-
-/// Read MIDI messages.
-pub(crate) unsafe fn destack_audio_midi_read(
-    _ctx: &BindingCallContext,
-    out: *mut NativeArray<MidiMessage>,
-    handle: resource::MidiPortHandle,
-    max_messages: u32,
-    timeout_ns: u64,
-) -> RuntimeResult<()> {
-    let _ = (out, handle, max_messages, timeout_ns);
-
-    Err(unsupported("destack.audio.midi.read"))
-}
-
-/// Poll MIDI messages without blocking.
-pub(crate) unsafe fn destack_audio_midi_try_read(
-    _ctx: &BindingCallContext,
-    out: *mut NativeArray<MidiMessage>,
-    handle: resource::MidiPortHandle,
-    max_messages: u32,
-) -> RuntimeResult<()> {
-    let _ = (out, handle, max_messages);
-
-    Err(unsupported("destack.audio.midi.tryRead"))
-}
-
-/// Write MIDI messages.
-pub(crate) unsafe fn destack_audio_midi_write(
-    _ctx: &BindingCallContext,
-    out: *mut u32,
-    handle: resource::MidiPortHandle,
-    messages: NativeArray<MidiMessage>,
-) -> RuntimeResult<()> {
-    let _ = (out, handle, messages);
-
-    Err(unsupported("destack.audio.midi.write"))
 }
