@@ -38,7 +38,6 @@ MIR is generated per-target with target-specific decisions:
 - Calling conventions (C, System, etc.)
 - Alignment requirements
 - Policy-controlled checks (bounds, overflow, etc.)
-
 ## Layout Map
 
 Lower treats layout as a queryable, cached graph so we can answer "what is the layout of this type?" at (almost) any point during lowering.
@@ -52,7 +51,7 @@ For the most part, layouts for each type are done exactly like how you would exp
 | Struct | named fields | packed/offset fields | nominal, value semantics |
 | Class | instance fields | pointer + optional vtable | reference semantics |
 | Array/Slice | element + length | header + data | policy: inline vs heap |
-| Function | signature | pointer or fat pointer | closure values pair fn pointer with env pointer |
+| Function | signature | function pointer or function value | closure values pair fn pointer with env pointer |
 | Tagged Union | tag + payload | inline or boxed | tag value + payload layout |
 | Untagged Union | set of layouts | external discrimination | RTTI or caller-provided tag |
 | Interface | dispatch surface | itab/vtable + data | separate dispatch layout |
@@ -244,10 +243,11 @@ node.update(delta)  // static resolution { target: Node::update }, but virtual
 
 Lowers to explicit virtual dispatch:
 ```mir
-call.virtual v0, @Node, 2, @Node.update(delta) -> fn(i32) -> void
+call.virtual v0, @Node, 2(delta) -> fn(i32) -> void
 ```
 
 Lower keeps dispatch as `call.virtual` so optimizer and devirtualization passes can reason about it directly.
+Declared and resolved dispatch targets are tracked in MIR dispatch metadata, not in call syntax.
 Codegen legalization can later rewrite to direct calls or explicit `call.indirect` sequences.
 
 The key: static resolution means we know *which method signature* (Node::update), but if it's virtual, the actual implementation depends on the concrete type.
@@ -1023,7 +1023,7 @@ This inheritance-preserving order ensures:
 **Virtual call lowering:**
 ```mir
 ; node.update(delta) where node could be Node or Sprite
-call.virtual v0, @Node, 2, @Node.update(delta) -> fn(i32) -> void
+call.virtual v0, @Node, 2(delta) -> fn(i32) -> void
 ```
 
 Lower preserves this as virtual dispatch in MIR.
@@ -1091,22 +1091,14 @@ struct InterfaceRef<I> {
 The layout is `(objectPtr, itab)` with no padding.
 This preserves Go's two word footprint, but uses an `ItabId` handle instead of an itab pointer.
 
-Each (Type, Interface) pair generates its own itab:
+Each (Type, Interface) pair generates its own itab metadata entry:
 
 ```ds
-// circle as Drawable
-const Circle_Drawable_itab: InterfaceItab<Drawable> = {
-    typeTag: @Circle_TypeTag,
-    color: 0,
-    draw: @Circle.draw,
-};
+itab_id Circle_Drawable = 12
+itab_id Rectangle_Drawable = 13
 
-// rectangle as Drawable
-const Rectangle_Drawable_itab: InterfaceItab<Drawable> = {
-    typeTag: @Rectangle_TypeTag,
-    color: 0,
-    draw: @Rectangle.draw,
-};
+itab[12] = { typeTag: @Circle_TypeTag, color: 0, draw: @Circle.draw }
+itab[13] = { typeTag: @Rectangle_TypeTag, color: 0, draw: @Rectangle.draw }
 ```
 
 **Interface call lowering:**
@@ -1543,13 +1535,15 @@ const x = 10
 const f = (y: int) => x + y  // captures x
 ```
 
-Lowers to a closure struct plus a function pointer to the original function.
-The closure struct (MIR-level) captures the environment:
+Lowers to a closure environment plus a function pointer to the original function.
+The captured environment stores:
 - `x: int64`
 
-The closure value pairs the function pointer with the environment:
+The MIR function value pairs the function pointer with the environment:
 - `fnPtr: FunctionPointer`
 - `env: ManagedReference<ClosureEnv>`
+
+In MIR text this uses `fnvalue<fn(...) -> ..., env_type>` for the callable value type.
 
 **Capture semantics:**
 - `const` bindings are captured by value (copied into closure struct)

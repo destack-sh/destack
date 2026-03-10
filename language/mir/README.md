@@ -38,7 +38,7 @@ block1(v2: i32):          // v2 comes from predecessor
     return v3
 ```
 
-When a block has multiple predecessors, each provides arguments:
+When a block has multiple predecessors, each can provide its own arguments:
 
 ```mir
 block0:
@@ -50,16 +50,17 @@ block2(v3: i32):          // v3 is v1 or v2 depending on which edge
 
 ### Values
 
-Values are literally just numbered "slots" in the function's value table, numbered sequentially from 0 through the end of the block (running through all blocks).
+Values are literally just numbered "slots" in the function's "value table" (`Function.values`), numbered sequentially from 0 through the end of the block (running through all blocks).
 
 ### Terminators
 
 Every block ends with a single terminator; this is what makes it a "basic" block.
-The terminators themselves are also quite straightforward: essentially, you can either return out of the function or jump to another block maybe with some checks.
-There are a few nuances to terminators for performance and features:
+The terminators themselves are also quite straightforward: essentially, control flow can either return out of the function, jump to another block, suspend, or abruptly exit by throwing:
  - `branch`, `check`, `switch` are all just different ways to conditionally jump to another block, with `check` being the most optimisable because it explicitly encodes the condition (which we can later optimize out).
  - `return` jumps back to the caller's frame, while `tailcall` (and `tailcall.indirect`, `tailcall.virtual`, `tailcall.interface`) supersede the _current_ frame.
+ - potentially-unwinding calls are also terminators: `call`, `call.indirect`, `call.virtual`, and `call.interface` branch to explicit `normal` and `unwind` successors.
  - `yield` is a special `return` that remembers some values for resuming execution later in a "resume block".
+ - `throw` abruptly exits through the exception path and carries a managed exception object.
  - `unreachable` is just a way of signaling "trust me, I can't prove it, but we'll never get here"
 
 ## Instructions
@@ -95,10 +96,12 @@ Blocks end with a terminator that transfers control:
 | `branch` | Conditional branch (if-then-else) |
 | `switch` | Multi-way branch on integer |
 | `yield` | Suspend coroutine (generators, async) |
+| `call*` terminators | Potentially-unwinding call with explicit `normal` and `unwind` successors |
+| `throw` | Abrupt exceptional exit with a managed exception object |
 | `check` | Checked branch with semantic constraint |
 | `unreachable` | UB if reached (traps/panics somehow) |
 
-`check` carries a semantic constraint (bounds, null, division, shift, overflow, etc.) and splits control flow into success and failure paths.
+`check` carries a semantic constraint (`bounds`, `null`, `div_zero`, `shift`, `overflow`, `type`, `receiver_type`, `implements`, etc.) and splits control flow into success and failure paths.
 
 ### Memory
 
@@ -122,6 +125,8 @@ Typed destinations are required for Core MIR and enable precise alias and owners
 These instructions model ownership lifetime ends, not `using` protocol disposal.
 `using` lowering is handled separately through disposable protocol calls.
 Source language ownership and `using` rules are specified in [language/SPECIFICATION.md](../SPECIFICATION.md).
+In Canonical MIR, aggregate addressing should prefer `field.addr` and `element.addr` over raw pointer arithmetic.
+Raw pointer arithmetic and pointer reinterpretation should be confined to explicit unsafe boundaries and Lowered MIR legalization.
 
 ## Memory Semantics and Metadata
 
@@ -130,9 +135,8 @@ MIR carries callsite and access metadata through inline `CallEffects` on call in
 Atomic operations and barriers carry explicit execution scope, memory scope, and memory semantics for GPU and parallel targets.
 Optimizations use it to reason about aliasing, effects, and access sizes (without having to re-derive them).
 The memory metadata includes:
-- **Function memory effects**: `readnone`, `readonly`, `writeonly`, or `readwrite`, plus a location set indicating which memory regions may be accessed (`arguments`, `heap`, `stack`, `global`, `shared`, `local`, `constant`, `inaccessible`, `io`), an optional address space mask when known, and flags for `argmemonly`, `inaccessibleMemOnly`, and `nosync`.
-- **Function behaviors**: `repeatability` (`pure`, `repeatable`, `non_repeatable`), `may_suspend`, `no_reorder`, `no_deopt_across`, `no_replay`, `noreturn`, `will_return`, `convergent`, plus `allocates`/`frees` with optional location and address space refinements.
-- The `no_deopt_across` flag forbids deoptimization that would cross a call boundary, but it still permits deoptimization before or after the call.
+- **Function memory effects**: `readnone`, `readonly`, `writeonly`, or `readwrite`, plus a location set indicating which memory regions may be accessed (`arguments`, `managed_heap`, `immortal_heap`, `raw_heap`, `stack`, `global`, `shared`, `local`, `constant`, `inaccessible`, `io`), an optional address space mask when known, and flags for `argmemonly`, `inaccessibleMemOnly`, and `nosync`.
+- **Function behaviors**: `repeatability` (`pure`, `repeatable`, `non_repeatable`), `unwind_behavior` (`cannot_unwind`, `may_unwind`), `may_suspend`, `noreturn`, `will_return`, `convergent`, plus `allocates`/`frees` with optional location and address space refinements.
 - **Allocator size metadata**: `alloc_size` ties allocator returns to parameter sizes for more precise aliasing and bounds reasoning.
 - **Pointer attributes** for parameters and returns: `noalias`, `capture`, `readonly`, `writeonly`, `nonnull`, `noundef`, `dereferenceable`, `dereferenceable_or_null`, `align`, and `returned`.
 - `capture` is one of `nocapture`, `return_only`, `store`, or `escape`.
@@ -146,10 +150,15 @@ Callsite effects live on call instructions.
 Per-access metadata live in the memory table.
 Backends and optimizers query the metadata directly.
 Call effects remain optional and refine effects, dispatch, and profiling data.
+Destack does not have surface `noexcept` syntax.
+Instead, unwind behavior is inferred into MIR function and call metadata so ordinary non-throwing calls stay cheap even when exceptions are enabled elsewhere.
+Calls that may unwind leave the block through exceptional call terminators with explicit `normal` and `unwind` continuations.
 
 ### Layout metadata
 
 Layout tables live in MIR metadata, not in the MIR text format.
+Module data layout metadata also lives in MIR metadata (`NodeTree.data_layout`), including native pointer size and managed reference representation.
+The parser option for pointer size initializes this module metadata and is not the canonical source of truth.
 The layout table stores concrete size, alignment, and field offsets for aggregate types.
 The layout table is the single source of truth for physical layout across optimizer, VM, and codegen.
 Union metadata describes logical union semantics, while the layout table describes physical offsets.
@@ -167,7 +176,7 @@ They have no function body; hosts implement intrinsics however they like.
 | Unchecked arithmetic | `add.unchecked`, `sub.unchecked`, `mul.unchecked`, `div.unchecked`, `rem.unchecked`, `shl.unchecked`, `shr.unchecked` |
 | Saturating arithmetic | `add.sat`, `sub.sat` |
 | Pointer ops | `transmute`, `addrspace.cast`, `ptr_offset_from`, `raw_eq` |
-| Memory | `memcpy`, `memmove`, `memset`, `memcmp`, `volatile.load`, `volatile.store`, `prefetch.read`, `prefetch.write` |
+| Memory | `memcpy`, `memmove`, `memset`, `memcmp`, `prefetch.read`, `prefetch.write` |
 | Atomics | `atomic.load`, `atomic.store`, `atomic.cas`, `atomic.xchg`, `atomic.fetch.add`, `atomic.fetch.sub`, `atomic.fetch.and`, `atomic.fetch.or`, `atomic.fetch.xor`, `atomic.fetch.min`, `atomic.fetch.max`, `atomic.fetch.fadd`, etc. |
 | Barriers | `atomic.fence`, `barrier` |
 | Float math | `sqrt`, `abs`, `fma`, `copysign`, `min`, `max`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `exp`, `exp2`, `log`, `log2`, `log10`, `pow`, `floor`, `ceil`, `trunc`, `round` |
@@ -180,7 +189,7 @@ They have no function body; hosts implement intrinsics however they like.
 ## Types
 
 MIR types are concrete and fully resolved (no generics, no inference).
-Structs include byte offsets for each field.
+Struct type nodes carry field order and field types, and canonical physical layout lives in the layout table metadata.
 Layout is computed against a target data layout.
 This makes MIR machine-level while remaining target flexible.
 
@@ -221,7 +230,14 @@ The `readonly` marker and `addrspace(...)` clause follow the same rules as `ref<
 Pointer sized integer types are modeled explicitly.
 `isize` is a signed integer with the target pointer width.
 `usize` is an unsigned integer with the target pointer width.
-Their concrete widths are resolved from the target data layout.
+Their concrete widths are resolved from module data layout metadata.
+
+### Function Values
+
+Bare code pointers use `fn(...) -> ...`.
+Callable closure values use `fnvalue<fn(...) -> ..., env_type>`.
+The signature operand is always a bare function pointer type, and the environment operand carries the captured context reference.
+Canonical MIR treats function values as a dedicated two field aggregate rather than an anonymous struct convention.
 
 ### References
 
@@ -247,12 +263,15 @@ Borrowed references are safe aliases verified by the borrow check pass.
 Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
 A borrow ends when the reference value is no longer live.
 Borrow checking uses liveness and alias analysis to detect conflicts and invalidations.
-Derived borrows carry provenance so dropping any origin invalidates derived borrows.
+Derived borrows preserve provenance roots from their base value.
+Merged borrows may carry the union of multiple provenance roots.
+The MIR `Lifetime` model summarizes borrow provenance roots for function contracts rather than encoding the full internal borrow graph directly.
+Dropping, freeing, or moving an origin invalidates every borrow rooted in it.
 Dropping or freeing a value while it is borrowed is always an error.
-In strict mode, conflicting borrows and invalidating stores are errors.
-In lenient mode, the same situations produce warnings.
+Conflicting borrows and invalidating stores are MIR errors.
 Raw references are unsafe pointers with no borrow tracking.
 Raw references may be null or dangling and allow pointer arithmetic.
+Crossing through raw pointers may force conservative provenance and liveness reasoning.
 Deref and mutation use explicit `load` and `store` instructions.
 
 Nullable references use `ref?<...>` with the same kind and mutability rules.
@@ -262,7 +281,7 @@ Mutability is preserved as part of MIR type identity for all reference kinds.
 Canonical formatting preserves mutable versus readonly spellings and does not force managed or owned references to readonly.
 
 Address spaces describe where the reference points:
-`generic`, `stack`, `global`, `heap`, `shared`, `local`, `constant`, or a target-specific id.
+`generic`, `stack`, `global`, `shared`, `local`, `constant`, or a target-specific id.
 Use `addrspace(name)` or `addrspace(7)` in the reference syntax:
 
 ```mir
@@ -270,8 +289,10 @@ ref<raw addrspace(shared) i32>
 ref<raw addrspace(7) readonly i32>
 ```
 
-Non generic address spaces are only valid for borrowed and raw references, including tensor references.
+`managed` references always use `addrspace(generic)`.
+`borrowed`, `raw`, and `owned` references may use non generic address spaces when the target and allocator semantics define them.
 `addrspace(constant)` references are always immutable.
+`owned` references cannot use `addrspace(constant)`.
 `addrspace(generic)` is the default and is omitted in canonical MIR formatting.
 Address space changes are explicit and use the `addrspace.cast` intrinsic.
 
@@ -283,28 +304,40 @@ type @Point = { x: f32, y: f32 }
 
 ### Type Metadata and Dispatch
 
-Type metadata captures layout, lineage, and dispatch structure for nominal types.
-Type metadata is stored in `NodeTree.type_table.type_metadata_by_id`.
+Type facts capture layout, lineage, runtime identity, and dispatch structure for nominal types.
+These facts are stored explicitly on `NodeTree.type_table` rather than in one metadata bag.
 Layouts store size, alignment, stride, and field offsets in declaration order.
 Lineage tracks parent types, interfaces, and sealed or final flags.
+`TypeDescriptor` is the canonical runtime type identity object in MIR.
+`TypeId` is a compact runtime identity token for lowered fast paths and runtime representations.
+Canonical MIR uses `type_of` to produce `TypeDescriptor` values.
+`TypeTable.layout_by_type`, `lineage_by_type`, `union_layout_by_type`, `descriptor_by_type`, `vtable_by_type`, and `itabs_by_type` are the canonical per-type fact maps.
+`display_name_by_type` and `field_map_by_type` are convenience lookup maps, not semantic sources of truth.
 
 Dispatch tables describe vtables and itabs with slot ordering and targets.
-Dispatch tables are stored in `NodeTree.type_table.vtables` and `NodeTree.type_table.itabs`.
+Dispatch tables are stored in `NodeTree.dispatch_table.vtables` and `NodeTree.dispatch_table.itabs`.
+Interface slot schemas are stored in `NodeTree.dispatch_table.interface_dispatch_shapes`.
 VTables are only emitted for classes that require virtual dispatch.
 Interface dispatch uses itabs for both struct and class implementations.
 Each itab is specific to a (Type, Interface) pair.
-Concrete type metadata stores a direct interface to itab map for fast lookup.
+Concrete type facts store a direct interface to itab map for fast lookup.
 Itab slots include field offsets and method targets in interface declaration order.
-Dynamic dispatch is represented explicitly as `call.virtual` and `call.interface` (and tailcall variants).
+Dynamic dispatch is represented explicitly as `call.virtual` and `call.interface` in both instruction and terminator form, plus tailcall variants.
 Lowering those operations to `call` or `call.indirect` is a later optimization and codegen legalization decision.
+Additional devirtualization facts are stored out of line in `NodeTree.dispatch_table.callsite_metadata`.
+Callsites are keyed by `CallSite::Instruction` and `CallSite::Terminator`.
+This metadata is sparse and optional.
 VTables currently use global backing storage.
 ITabs currently use immediate handle storage keyed by `ItabId`.
 
 Interface inheritance flattens base interfaces in extends list order before local members.
 Members inherited with the same name and signature reuse the first slot.
+Vtables and itabs carry a `TypeDescriptor` entry as their canonical runtime type identity prefix.
 Type descriptors link types to runtime metadata globals when needed.
 Field maps provide name to field lookups for property access specialization.
 Struct layouts describe value payloads with no identity semantics.
+
+Volatile memory behavior is modeled on memory access metadata attached to `load`, `store`, and other memory-touching operations rather than through dedicated volatile intrinsics.
 Class instance types are represented as `ref<managed @Payload>` or `ref<managed readonly @Payload>` where `@Payload` is the class field layout.
 Dispatch metadata is stored out of line, and polymorphic classes include a vtable pointer in the payload layout when dynamic dispatch remains.
 Boxing a value is represented as `managed.alloc` of the payload layout followed by `store` of the value.

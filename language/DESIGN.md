@@ -39,7 +39,7 @@ Unlike with C++, our "C" - both JavaScript/TypeScript -- still work with Destack
 |---------|-------------|-----|
 | [**Expressions**](#expressions) | Expression extensions: "as values", patterns, `loop`, `using` | Better ergonomics |
 | [**Trees**](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data | TSX is great |
-| [**Annotations**](#annotations) | Annotations: decorators and tags (`@`) for _any_ expression | Annotate metadata |\| [Errors](#errors) | `Result`-first error handling with `?` and `??` propagation, no exceptions | |
+| [**Annotations**](#annotations) | Annotations: decorators and tags (`@`) for _any_ expression | Annotate metadata |\| [Errors](#errors) | `Result`-first error handling with `?` and `??` | |
 | [**Types**](#types) | Type system extensions: newtypes, primitives, structs, tuples, constraints | Soundness, memory, precision |
 | [**Comptime**](#comptime) | Compile-time evaluation: precomputation, conditional compilation | Metaprogramming |
 | [**Reflection**](#reflection) | Types as values, runtime type descriptors, schema validation | Metaprogramming |
@@ -209,8 +209,8 @@ TypeScript decorators copy-pasted into Destack work as expected.
 
 ## Errors
 
-Destack uses **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, while `throw` is reserved for unrecoverable panics (bugs, invariant violations).
-We still support `throw` and classic JS exceptions for compatibility with existing JS/TS code, but only on JS targets.
+Destack strongly encourages **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, while exceptions exist for compatibility, interop, and migration.
+`Result<T, E>` with `?` and `??` remains the preferred everyday style.
 
 ### Result Types
 
@@ -233,11 +233,10 @@ TypeScript's `??` coalescing operator then supports a convenient default value f
 const config = loadConfig() ?? defaultConfig;  // use default on error
 ```
 
-### Panic (throw)
+### throw and native exceptions
 
-<!-- FUGU: revisit throw - optional exceptions even in native maybe..? -->
-`throw` is for **unrecoverable errors**: assertion failures, invariant violations, bugs.
-Unlike exceptions in Java or Python, panics are not meant to be caught and recovered from.
+Detack also supports exceptions and `throw` for compatibility with classical JS/TS and other exception-oriented ecosystems like Java and C#.
+Destack still prefers `Result` for ordinary recoverable errors, especially in performance-critical code.
 
 ```ds
 function assertPositive(n: int) {
@@ -247,14 +246,9 @@ function assertPositive(n: int) {
 }
 ```
 
-**Native targets:** `throw` aborts the process. No stack unwinding, no catching.
-This enables zero-cost error handling for the common (non-error) path.
-
-**JS targets:** `throw` behaves as normal JavaScript throw for compatibility.
-
 ### try/catch with Result and exceptions
 
-The `try`/`catch` syntax handles exceptions and explicit `Try` propagation:
+The `try`/`catch` syntax handles both exceptions and explicit `Try` propagation:
 
 ```ds
 try {
@@ -265,12 +259,13 @@ try {
 }
 ```
 
-The example uses `Result`, but any type implementing `Try` behaves the same.
-`try` does not implicitly unwrap `Result` values.
-Use `?` or `??` inside the block to propagate `Try` errors into the catch.
-When a `?` is inside a `try` with a catch, `Try.fromError` is not required.
-Exceptions still propagate into the catch on JS targets, or are rejected by `no_exceptions` on native.
-A try expression must include a catch or finally block.
+The example uses `Result`, but any type implementing `Try` behaves the same:
+ - Note that `try` does not implicitly unwrap `Result` values
+ - Use `?` or `??` inside the block to propagate `Try` errors into the catch
+ - When a `?` is inside a `try` with a catch, `Try.fromError` is not required
+
+Thrown exceptions propagate into the catch in the usual way when exceptions are enabled (i.e., no `no_exceptions`).
+As usual, a `try` expression must include a `catch` or `finally` block.
 
 ```ds
 try {
@@ -564,7 +559,7 @@ Structural compatibility alone doesn't satisfy the constraint.
 Nominal interfaces (often represented as `traits`) are used for:
 
 - **Operator interfaces**: `Add`, `Compare`, etc.
-- **Marker traits**: `Send`, `Sync`, `Copy`
+- **Capability traits**: `Send`, `Sync`, `Copy`, `Clone`
 
 The `newtype` modifier on `interface` follows the same pattern as `newtype` on type aliases.
 
@@ -617,9 +612,13 @@ Raw pointers are separate from ownership modifiers:
 *T           // raw pointer (mutable, unsafe)
 ```
 
-Passing `^T` transfers ownership, so the previous binding becomes invalid.
+Passing `^T` transfers ownership, that is, the previous binding becomes invalid.
 Owned values are cleaned up at their last proven use, not only at lexical scope end.
 Borrowed references must stay valid for their full lifetime, and strict mode rejects borrows held across suspension points like `await` and `yield`.
+
+Borrow checking is provenance based: every borrow has an origin root, derived borrows preserve that root, and merged borrows may carry multiple possible roots.
+Dropping, freeing, or moving an owner invalidates every borrow rooted in that owner.
+Converting a borrow or owner to a raw pointer is always explicit and may force the compiler to become conservative about provenance and destruction timing.
 
 ## Module Imports
 
