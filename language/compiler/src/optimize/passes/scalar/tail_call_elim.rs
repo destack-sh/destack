@@ -4,7 +4,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use mir::{BinaryOperator, Constant, Instruction};
 
-use destack_base::StringPool;
+use destack_core::StringPool;
 
 use crate::optimize::common::{build_signature_type, clone_instruction_metadata};
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
@@ -331,7 +331,7 @@ fn try_accumulator_transform_exported(
 fn clone_function_as_impl(
     original: &mir::Function,
     tree: &mut mir::NodeTree,
-    impl_name: destack_base::StringId,
+    impl_name: destack_core::StringId,
 ) -> (
     mir::LocalNodeId<mir::Function>,
     mir::LocalNodeId<mir::Block>,

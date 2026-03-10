@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use destack_ast as ast;
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 

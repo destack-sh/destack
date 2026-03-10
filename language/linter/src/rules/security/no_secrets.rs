@@ -1,6 +1,6 @@
 use aho_corasick::{AhoCorasick, MatchKind};
 use destack_ast as ast;
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_workspace::LintSeverity;
 use indexmap::IndexMap;
 use regex::bytes::{

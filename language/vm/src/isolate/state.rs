@@ -3,7 +3,7 @@ use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_base::ImmutableStringPool;
+use destack_core::ImmutableStringPool;
 use destack_mir as mir;
 
 use super::string::StringInterner;

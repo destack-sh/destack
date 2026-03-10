@@ -15,7 +15,7 @@ use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, CanonicalSymbolMode, Compiler,
     InferState,
 };
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration,
     DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem,

@@ -1,7 +1,7 @@
 use crate::timing::tags;
 use crate::{Compiler, ImportError, ImportResult};
 
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{CacheKind, File, FileType, LanguageType, ModuleId, ModuleVersion, Span};
 use destack_workspace::{Loader, ModuleAst, ModuleContent, ModuleDir};

@@ -1,6 +1,6 @@
 use crate::Compiler;
 use crate::analyze::common::ModuleTreeView;
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     Annotation, Argument, Expression, LifetimeAnnotation, LocalNodeId, ScalarLiteral,
 };

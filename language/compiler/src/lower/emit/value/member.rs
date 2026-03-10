@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{Expression, GlobalSymbolId, LocalNodeId, Resolution, Type};
 use {destack_dir as dir, destack_mir as mir};
 

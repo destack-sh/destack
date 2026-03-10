@@ -1,18 +1,34 @@
 # workspace
 
-Core data structures for managing Destack projects.
-The workspace crate provides three main things:
- 1. **Configuration**: unified configuration
- 2. **Containers**: container types (Session, Workspace, Program)
- 3. **Queries**: query infrastructure for IDE features
+The workspace crate owns most of the shared Destack language toolchain state.
+We don't define (much) logic here, it's mostly about defining the containers and registries that make compiler, daemon, tests, and language tools work.
+
+## State
+
+The workspace crate exists to make one ownership split explicit:
+
+- input state lives on long-lived containers such as `Workspace`, `Program`, `Package`, and `Module`
+- derived semantic truth lives in `ArtifactRegistry`
+- generated and linked outputs live in `OutputRegistry`
+
+This distinction is the backbone of the incremental model.
+
+`Module` owns input state only.
+That includes things like identity, source linkage, source metadata, and versioned input-side facts.
+It does not own current DIR, analyzed state, comptime state, MIR state, or any other derived semantic phase state.
+
+`Program` is the semantic world.
+It owns the registries, profiles, diagnostics, and the set of packages and modules that participate in one coherent compilation world.
 
 ## Configuration
 
-The `config/` module defines unified configuration for the toolchain.
+The `config/` module defines unified toolchain configuration.
+That includes compiler, runtime, formatter, linter, cache, daemon, and target options.
 
 ### dsconfig.json
 
-Destack's project configuration, similar to `tsconfig.json` but with Destack-specific options.
+Destack's project configuration is similar to `tsconfig.json`, but `dsconfig.json` covers the full integrated toolchain.
+(We do still read and respesct `tsconfig.json` for compatibility where an equivalent Destack option exists.)
 
 ```json
 {
@@ -55,118 +71,159 @@ Destack's project configuration, similar to `tsconfig.json` but with Destack-spe
 }
 ```
 
-Daemon options control idle shutdown for background services, and `idleShutdownMs` may be set to `0` to disable it.
-Child packages inherit from parent `dsconfig.json` with "most restrictive wins" semantics.
-
-### Incremental Compilation And Caching
-
-The workspace owns the module graph and version tracking used for incremental compilation.
-File edits bump `FileVersion` and are propagated to `ModuleVersion`.
-Module versions also advance when any imported module signature changes.
-Profile-specific module signatures are stored on the program after Analyze.
-Downstream modules are re analyzed only when the signatures they import change.
-Caching policies are part of dsconfig and are folded into cache keys.
-Cache keys include the module file version, profile version, canonical config hash, and target hash.
-Cache format mismatches are treated as cache misses and do not fail compilation.
-The workspace uses the canonical cache format shared by compiler, daemon, and LSP.
-Consumer-specific metadata is stored in sidecar files keyed by the same cache key.
-
-### File Watching
-
-File watching is abstracted by `FileWatcher` in `destack_source`.
-The workspace consumes watcher events and updates `FileVersion` and module graph state.
-Daemon and tests can provide different watcher implementations through this trait.
-
-### Target
-
-Targets define what we build and where the code ultimately runs.
-Runtime and platform define semantics and APIs.
-Target triples define native ABI and architecture.
-(Codegen backends actually generate the code for some specific target.)
-
-
-### Formatter / Linter
-
-Unified options that flow through the entire toolchain.
-These are parsed from `dsconfig.json` and passed to formatter and linter.
-
+Child packages inherit from parent `dsconfig.json` with restrictive merge semantics where appropriate.
 
 ## Containers
 
-Outside of tests, we need to actually put the Program and Modules *somewhere*.
-The workspace crate defines three levels of "containment":
+The containment model is intentionally simple.
 
 ```text
-Session (daemon/LSP lifetime)
+Session
     │
-    ├── Workspace (monorepo or single package)
+    ├── Workspace
     │       │
-    │       └── Program (compilation unit)
+    │       └── Program
     │               │
-    │               ├── Package (npm package with package.json)
-    │               │       └── Module (single source file)
+    │               ├── Package
+    │               │       └── Module
     │               │
-    │               └── Artifact (generated outputs)
+    │               ├── ArtifactRegistry
+    │               └── OutputRegistry
 ```
 
 ### Session
 
-Long-lived state for daemon/LSP use cases.
-A session manages file watching, program caching, and shared registries.
+`Session` is long-lived process state for daemon, editor, and multi-root workflows.
+It owns shared input-side resources such as:
 
-```ds
-struct Session {
-    workspace: Workspace,
-    cwd: Path,
-    fs: FileSystem,
-    files: FileRegistry,
-    programs: Map<Path, Program>,
-    builtins: LanguageBuiltins,
-    // ...
-}
-```
+- filesystems
+- file registries
+- cache stores
+- builtin sources
+- program lookup and reuse
 
-Multiple programs can exist in a session (e.g., different build targets).
-The session shares file and module registries across programs.
+`Session` is not a semantic owner.
+Semantic truth belongs to each `Program`.
 
 ### Workspace
 
-Organizational structure discovered from disk.
-Represents either a real monorepo (npm/pnpm workspaces) or just a single-package project.
-
-```ds
-struct Workspace {
-    root: Path,
-    kind: WorkspaceKind,
-    config: DsConfig | null,
-    // ...
-}
-```
+`Workspace` is the discovered project and monorepo structure from disk.
+It describes roots, config, package relationships, and workspace-level organization.
 
 ### Program
 
-The main compilation unit.
-Contains all packages, modules, and artifacts for a single compilation context.
+`Program` is the semantic world for one compilation context.
+It owns packages, modules, profiles, diagnostics, the semantic artifact registry, and the output registry.
 
-```ds
-struct Program {
-    cwd: Path,
-    files: FileRegistry,
-    packages: PackageRegistry,
-    modules: ModuleRegistry,
-    artifacts: ArtifactRegistry,
-    diagnostics: DiagnosticCollector,
-    // ...
-}
-```
+### Package
 
-A program holds the AST, DIR, and MIR for each module, plus generated artifacts from codegen.
+`Package` is the package-level input container within a program.
+It participates in package metadata, module membership, and workspace structure.
 
-## Queries
+### Module
 
-The `query/` module provides common "queries" for IDE features.
-These handlers power editor integrations and map directly to LSP (without depending on it, like rust-analyzer).
-The same query layer is also used by daemon backed workflows.
+`Module` is the source-level input container.
+It owns input identity and input metadata.
+It does not own derived semantic phase state.
+
+## Semantic And Output State
+
+### ArtifactRegistry
+
+`ArtifactRegistry` owns published semantic artifacts for one program.
+The long-term semantic artifact vocabulary is:
+
+- `Ast`
+- `DirBase`
+- `DirResolved`
+- `DirDeclared`
+- `DirInterface`
+- `DirAnalyzed`
+- `DirElaborated`
+- `DirComptime`
+- `Mir`
+
+These are immutable snapshots built from shared substructures.
+They are compiler facts.
+
+### OutputRegistry
+
+`OutputRegistry` owns generated and linked outputs.
+These are build products rather than semantic facts.
+
+Keeping outputs separate from semantic artifacts avoids conflating compiler truth with generated files.
+
+## Incremental State
+
+The incremental model separates input state from derived state.
+
+Input state still uses mutable versions and stamps.
+Examples include:
+
+- file versions
+- module versions
+- package versions
+- profile and configuration stamps
+
+Derived semantic artifacts are immutable snapshots.
+Each published artifact stores:
+
+- an `ArtifactDependency`
+- an `ArtifactDigest`
+- an immutable artifact value
+
+Correctness invalidation is lazy.
+An artifact is stale when its stored dependency no longer matches the expected dependency.
+The workspace should not need broad eager downstream invalidation walks for correctness.
+
+## Caching And Persistence
+
+The workspace crate owns the cache root and the persistence layering used by compiler, daemon, and LSP.
+
+The intended stack is:
+
+1. `FileSystem` for source files and user-visible emitted files
+2. `CacheStore` for shared cached byte persistence
+3. `ArtifactStore` for typed semantic artifact persistence
+4. `OutputStore` for typed output persistence
+5. `ArtifactRegistry` and `OutputRegistry` for authoritative in-memory state
+
+The in-memory registries are authoritative.
+Persistent cache is hydration and persistence for published artifacts and outputs.
+
+The cache flow is:
+
+1. check the in-memory registry
+2. try to hydrate the requested artifact or output
+3. if still missing, build it
+4. on successful commit, persist it
+
+This keeps file IO, low-level cached bytes, typed cached state, and in-memory truth cleanly separated.
+
+## `.destack`
+
+The workspace crate participates in the repository-wide state layout:
+
+- `~/.destack` for install-level shared resources
+- `repo/.destack` for workspace-local mutable state
+
+Workspace-owned language state should live under:
+
+- `repo/.destack/language/workspace`
+
+That root is the natural home for workspace-owned cached persistence.
+It keeps the path layout aligned with semantic ownership rather than splitting cache paths by artifact category first.
+
+## File Watching
+
+File watching is abstracted by `FileWatcher` in `destack_source`.
+The workspace consumes watcher events and updates input versions and input-side graph state.
+
+## Targets
+
+Targets define build outputs and runtime placement.
+Runtime and platform define semantics and APIs.
+Target triples define native ABI and architecture.
 
 ## Testing
 

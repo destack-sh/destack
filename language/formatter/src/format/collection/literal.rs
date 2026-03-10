@@ -7,7 +7,7 @@ use destack_ast::{
     Argument, Expression, FloatType, IfKind, IntType, LiteralType, LocalNodeId, Path,
     ScalarLiteral, TemplateLiteral, TypeLiteral,
 };
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_fir::format::{Format, FormatResult, text, token};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};

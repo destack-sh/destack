@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
-use destack_base::ImmutableStringPool;
+use destack_core::ImmutableStringPool;
 use destack_dir::InferTable;
 use destack_resolver::Resolver;
 use destack_source::{DiagnosticCollector, DiagnosticOptions, DiagnosticSeverity, ModuleId, Uri};

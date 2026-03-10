@@ -55,9 +55,9 @@ required-features = ["affinity"]
 [dependencies]
 # language
 destack_ast = { workspace = true }
-destack_base = { workspace = true }
 destack_builtin = { workspace = true, optional = true }
 destack_compiler = { workspace = true, optional = true }
+destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_heap = { workspace = true }

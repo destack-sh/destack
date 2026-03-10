@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_base::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
+use destack_core::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
 use destack_mir as mir;
 
 use super::{ExternalCallContext, ExternalHandler, IsolateState, StringRef};

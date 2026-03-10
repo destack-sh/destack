@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_base::{StringId, StringPool};
+use destack_core::{StringId, StringPool};
 use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Program, WellKnownIntrinsics};
@@ -74,9 +74,9 @@ pub(crate) struct FunctionEnv<'a> {
     /// Resolve vtable globals for class allocations.
     pub(crate) vtable_globals_by_symbol: &'a HashMap<GlobalSymbolId, VtableGlobal>,
     /// Synthetic name for call signatures in dispatch tables.
-    pub(crate) dispatch_call_name: destack_base::StringId,
+    pub(crate) dispatch_call_name: destack_core::StringId,
     /// Synthetic name for construct signatures in dispatch tables.
-    pub(crate) dispatch_construct_name: destack_base::StringId,
+    pub(crate) dispatch_construct_name: destack_core::StringId,
     /// Resolve closure environment layouts by function symbol.
     pub(crate) closure_env_layouts: &'a HashMap<GlobalSymbolId, ClosureEnvLayout>,
     /// Fallback environment pointer type for non-capturing closures.

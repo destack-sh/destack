@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::str::FromStr;
 
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     self as dir, Annotation, Argument, BinaryOperator, Declaration, Expression, GlobalSymbolId,

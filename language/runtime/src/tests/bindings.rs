@@ -9,7 +9,7 @@ use crate::tests::runtime::TestRuntime;
 fn build_random_call_module(
     extern_name: &str,
     stream_arg: Option<u64>,
-) -> (destack_mir::NodeTree, destack_base::ImmutableStringPool) {
+) -> (destack_mir::NodeTree, destack_core::ImmutableStringPool) {
     // core types
     let mut module = ModuleBuilder::checked();
     let u64_type = module.type_u64();

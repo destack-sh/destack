@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, DynamicKey, EnumField, Expression,
     GlobalSymbolId, LocalNodeIdAny, Member, NodeType, Parameter, Pattern, PatternField,

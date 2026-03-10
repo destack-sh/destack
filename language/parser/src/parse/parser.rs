@@ -4,7 +4,7 @@ use destack_ast::{
     BlockFormat, Expression, Keyword, LocalNodeId, NodeTree, NodeTreeMark, StringId, Token,
     TokenSpan, TokenType,
 };
-use destack_base::LocalStringPool;
+use destack_core::LocalStringPool;
 use destack_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode, Span,
 };

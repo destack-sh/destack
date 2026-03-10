@@ -39,7 +39,7 @@ pub trait TypeVisitor {
 
     /// Visit a type.
     fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
-        destack_base::ensure_sufficient_stack(|| walk_type(self, types, id, ty));
+        destack_core::ensure_sufficient_stack(|| walk_type(self, types, id, ty));
     }
 
     /// Visit a static argument.
@@ -49,7 +49,7 @@ pub trait TypeVisitor {
 
     /// Visit a static expression.
     fn visit_static_expression(&mut self, types: &TypeTable, expression: &StaticExpression) {
-        destack_base::ensure_sufficient_stack(|| walk_static_expression(self, types, expression));
+        destack_core::ensure_sufficient_stack(|| walk_static_expression(self, types, expression));
     }
 
     /// Visit a static property.

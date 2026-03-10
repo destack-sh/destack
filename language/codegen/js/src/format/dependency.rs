@@ -1,7 +1,7 @@
 use crate::{
     DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId, Name, ScalarLiteral,
 };
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;

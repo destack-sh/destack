@@ -13,8 +13,8 @@ doctest = false
 [dependencies]
 # language
 destack_ast = { workspace = true }
-destack_base = { workspace = true }
 destack_codegen_lib = { workspace = true }
+destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_mir = { workspace = true }
@@ -37,4 +37,3 @@ smallvec = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-

@@ -1,5 +1,5 @@
 use destack_ast::{DependencyItem, Expression, ImportSource, ImportTarget, LocalNodeId, NodeTree};
-use destack_base::ImmutableStringPool;
+use destack_core::ImmutableStringPool;
 use destack_query::common::{
     ImportDeclarationKey, categorize_import, sort_dependency_items as sort_items,
     sort_import_declaration_indices,

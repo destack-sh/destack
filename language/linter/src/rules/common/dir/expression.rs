@@ -1,4 +1,4 @@
-use destack_base::{StringId, StringPool};
+use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 use destack_workspace::{ProfileId, Program};

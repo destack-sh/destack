@@ -276,7 +276,7 @@ impl Parser {
 
         // parse with stack guard
         let result = if should_check_stack {
-            destack_base::ensure_sufficient_stack(|| {
+            destack_core::ensure_sufficient_stack(|| {
                 self.eat_statement_expression_from_token_kind_inner(token_type)
             })
         } else {

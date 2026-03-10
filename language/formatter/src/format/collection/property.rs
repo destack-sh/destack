@@ -17,7 +17,7 @@ use destack_ast::{
     FunctionSignature, Key, Keyword, LocalNodeId, Member, Mutability, Name, Node, NodeTree,
     NodeTreeImpl, NodeType, Parameter, Property, Timing, VarianceModifier, is_identifier,
 };
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};

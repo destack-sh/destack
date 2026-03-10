@@ -1,7 +1,7 @@
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use std::sync::{Arc, OnceLock};
 
-use destack_base::{Capture, CaptureMode};
+use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]

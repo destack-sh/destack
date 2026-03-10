@@ -1139,7 +1139,7 @@ name = "destack_ast"
 version = "0.55.4"
 dependencies = [
  "criterion",
- "destack_base",
+ "destack_core",
  "destack_fir",
  "destack_source",
  "destack_unicode",
@@ -1147,16 +1147,6 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "smallvec",
-]
-
-[[package]]
-name = "destack_base"
-version = "0.55.4"
-dependencies = [
- "parking_lot",
- "rustc-hash 2.1.1",
- "serde",
- "stacker",
 ]
 
 [[package]]
@@ -1215,8 +1205,8 @@ version = "0.55.4"
 dependencies = [
  "dashmap",
  "destack_ast",
- "destack_base",
  "destack_codegen_lib",
+ "destack_core",
  "destack_dir",
  "destack_fir",
  "destack_mir",
@@ -1254,8 +1244,8 @@ dependencies = [
  "cranelift-object",
  "dashmap",
  "destack_ast",
- "destack_base",
  "destack_codegen_lib",
+ "destack_core",
  "destack_dir",
  "destack_fir",
  "destack_mir",
@@ -1278,12 +1268,12 @@ dependencies = [
  "crossbeam-deque",
  "dashmap",
  "destack_ast",
- "destack_base",
  "destack_builtin",
  "destack_codegen_js",
  "destack_codegen_lib",
  "destack_codegen_native",
  "destack_compiler_macros",
+ "destack_core",
  "destack_dir",
  "destack_fir",
  "destack_formatter",
@@ -1317,6 +1307,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "destack_core"
+version = "0.55.4"
+dependencies = [
+ "parking_lot",
+ "rustc-hash 2.1.1",
+ "serde",
+ "stacker",
 ]
 
 [[package]]
@@ -1359,7 +1359,7 @@ name = "destack_dir"
 version = "0.55.4"
 dependencies = [
  "dashmap",
- "destack_base",
+ "destack_core",
  "destack_fir",
  "destack_source",
  "destack_unicode",
@@ -1386,7 +1386,7 @@ version = "0.55.4"
 dependencies = [
  "clap",
  "destack_ast",
- "destack_base",
+ "destack_core",
  "destack_fir",
  "destack_parser",
  "destack_query",
@@ -1401,7 +1401,7 @@ dependencies = [
 name = "destack_heap"
 version = "0.55.4"
 dependencies = [
- "destack_base",
+ "destack_core",
  "destack_mir",
  "serde",
 ]
@@ -1423,9 +1423,9 @@ dependencies = [
  "aho-corasick",
  "clap",
  "destack_ast",
- "destack_base",
  "destack_builtin",
  "destack_compiler",
+ "destack_core",
  "destack_dir",
  "destack_fir",
  "destack_formatter",
@@ -1513,7 +1513,7 @@ dependencies = [
 name = "destack_mir"
 version = "0.55.4"
 dependencies = [
- "destack_base",
+ "destack_core",
  "destack_fir",
  "destack_source",
  "destack_unicode",
@@ -1537,7 +1537,7 @@ version = "0.55.4"
 dependencies = [
  "criterion",
  "destack_ast",
- "destack_base",
+ "destack_core",
  "destack_source",
  "destack_unicode",
  "memchr",
@@ -1561,7 +1561,7 @@ name = "destack_query"
 version = "0.55.4"
 dependencies = [
  "destack_ast",
- "destack_base",
+ "destack_core",
  "destack_dir",
  "destack_source",
  "destack_workspace",
@@ -1601,9 +1601,9 @@ dependencies = [
  "base64",
  "core-foundation-sys",
  "destack_ast",
- "destack_base",
  "destack_builtin",
  "destack_compiler",
+ "destack_core",
  "destack_dir",
  "destack_fir",
  "destack_heap",
@@ -1668,7 +1668,7 @@ dependencies = [
  "cfg-if",
  "crossbeam-channel",
  "dashmap",
- "destack_base",
+ "destack_core",
  "indexmap",
  "notify",
  "parking_lot",
@@ -1688,10 +1688,10 @@ version = "0.55.4"
 dependencies = [
  "clap",
  "destack_ast",
- "destack_base",
  "destack_codegen_js",
  "destack_codegen_lib",
  "destack_compiler",
+ "destack_core",
  "destack_dir",
  "destack_fir",
  "destack_formatter",
@@ -1738,7 +1738,7 @@ version = "0.55.4"
 dependencies = [
  "clap",
  "criterion",
- "destack_base",
+ "destack_core",
  "destack_heap",
  "destack_mir",
  "destack_source",
@@ -1768,8 +1768,8 @@ version = "0.55.4"
 dependencies = [
  "dashmap",
  "destack_ast",
- "destack_base",
  "destack_builtin",
+ "destack_core",
  "destack_dir",
  "destack_mir",
  "destack_source",

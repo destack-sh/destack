@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_dir as dir;
 
 /// The default relation cache key used for flow normalization.

@@ -1,4 +1,4 @@
-use destack_base::{ImmutableStringPool, StringId, StringPool};
+use destack_core::{ImmutableStringPool, StringId, StringPool};
 
 #[cfg(any(test, debug_assertions))]
 use crate::validate::{Validator, ValidatorOptions};

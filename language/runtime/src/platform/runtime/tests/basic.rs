@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_base::LocalStringPool;
+use destack_core::LocalStringPool;
 use destack_mir::NodeTree;
 use destack_vm as vm;
 use destack_workspace::RuntimeOptions;

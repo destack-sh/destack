@@ -1,4 +1,4 @@
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_source::FileId;
 
 use crate::parse::{ParseOptions, Parser};

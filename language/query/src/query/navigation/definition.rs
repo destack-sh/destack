@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_source::{FileId, ModuleId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 

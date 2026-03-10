@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_base::CaptureMode;
+use destack_core::CaptureMode;
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 

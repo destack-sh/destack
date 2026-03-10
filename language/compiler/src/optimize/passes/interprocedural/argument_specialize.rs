@@ -428,7 +428,7 @@ fn specialized_suffix(spec_index: usize) -> String {
 /// Clone a function body for specialization.
 fn clone_function(
     function_id: mir::LocalNodeId<mir::Function>,
-    name: destack_base::StringId,
+    name: destack_core::StringId,
     tree: &mut mir::NodeTree,
 ) -> mir::LocalNodeId<mir::Function> {
     // read the original function

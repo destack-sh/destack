@@ -1,5 +1,5 @@
 use super::{TraceSegmentHeader, TraceSequence};
-use destack_base::{FNV_OFFSET_BASIS_64, fnv1a_64_update};
+use destack_core::{FNV_OFFSET_BASIS_64, fnv1a_64_update};
 use serde::{Deserialize, Serialize};
 
 /// Trace segment payload.

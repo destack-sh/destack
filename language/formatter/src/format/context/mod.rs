@@ -17,7 +17,7 @@ pub(crate) use ast::{
     PatternField, Property, TokenSpan, TokenType, WhereClause, normalize_comment_payload,
 };
 pub(crate) use destack_ast as ast;
-pub(crate) use destack_base::ImmutableStringPool;
+pub(crate) use destack_core::ImmutableStringPool;
 pub(crate) use destack_fir::format::{Format, FormatContext, FormatResult, Formatter, GroupId};
 pub(crate) use destack_source::{File, MultiSpan, NodeSourceMap, Span};
 pub(crate) use rustc_hash::FxHashMap;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_mir::{self as mir};
 use destack_source::{ModuleId, ModuleVersion};
 use parking_lot::RwLock;

@@ -1,7 +1,7 @@
 use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{Expression, Keyword, LiteralType, LocalNodeId, NumberBase, TokenType};
-use destack_base::StringId;
+use destack_core::StringId;
 
 impl Parser {
     /// Return true when an expression is a decimal integer token directly before `.`.

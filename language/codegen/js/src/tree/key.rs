@@ -1,5 +1,5 @@
 use crate::{Expression, LocalNodeId};
-use destack_base::StringId;
+use destack_core::StringId;
 
 /// A Name is a regular or string identifier.
 #[derive(Debug, Clone, Copy, PartialEq)]

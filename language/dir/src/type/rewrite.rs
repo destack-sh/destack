@@ -44,7 +44,7 @@ pub trait TypeRewriter {
 
     /// Rewrite a type.
     fn rewrite_type(&mut self, types: &mut TypeTable, id: LocalTypeId, ty: &Type) -> LocalTypeId {
-        destack_base::ensure_sufficient_stack(|| rewrite_type(self, types, id, ty))
+        destack_core::ensure_sufficient_stack(|| rewrite_type(self, types, id, ty))
     }
 
     /// Rewrite a static argument.
@@ -62,7 +62,7 @@ pub trait TypeRewriter {
         types: &mut TypeTable,
         expression: &StaticExpression,
     ) -> StaticExpression {
-        destack_base::ensure_sufficient_stack(|| rewrite_static_expression(self, types, expression))
+        destack_core::ensure_sufficient_stack(|| rewrite_static_expression(self, types, expression))
     }
 
     /// Rewrite a static property.

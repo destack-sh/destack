@@ -1,4 +1,4 @@
-use destack_base::ImmutableStringPool;
+use destack_core::ImmutableStringPool;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 

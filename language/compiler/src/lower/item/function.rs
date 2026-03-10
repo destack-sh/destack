@@ -61,7 +61,7 @@ impl NodeVisitor for ExpressionTypeCollector {
             self.callee_expression_ids.insert(left.id);
         }
         self.expression_ids.push(id);
-        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        destack_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
     }
 }
 
@@ -189,7 +189,7 @@ impl NodeVisitor for AddressTakenCollector<'_> {
         if let Expression::ReferenceOf { right, .. } = expression {
             self.record_reference_target(tree, *right);
         }
-        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        destack_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
     }
 }
 

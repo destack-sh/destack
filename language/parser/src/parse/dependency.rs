@@ -6,7 +6,7 @@ use destack_ast::{
     Expression, ImportAliasTarget, ImportSource, ImportTarget, Keyword, LiteralType, LocalNodeId,
     Name, TokenType,
 };
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_source::{NodeSpanType, Span};
 
 /// One leading TypeScript triple slash directive.

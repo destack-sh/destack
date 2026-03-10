@@ -1,4 +1,4 @@
-use destack_base::{Capture, CaptureMode};
+use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;

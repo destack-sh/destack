@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_ast::TokenType;
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir as dir;
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};

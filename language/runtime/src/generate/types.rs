@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use destack_base::{StringPool, fnv1a_64};
+use destack_core::{StringPool, fnv1a_64};
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     self as dir, Annotation, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId,
@@ -1583,7 +1583,7 @@ fn format_type_checked(
 mod tests {
     use std::num::NonZeroU32;
 
-    use destack_base::StringPool;
+    use destack_core::StringPool;
     use destack_dir as dir;
 
     use crate::model::BindingType;
@@ -1594,7 +1594,7 @@ mod tests {
     #[test]
     fn test_binding_type_from_scalar_literal_string() {
         let strings = StringPool::new();
-        let literal = dir::ScalarLiteral::String(destack_base::StringId(
+        let literal = dir::ScalarLiteral::String(destack_core::StringId(
             NonZeroU32::new(1).expect("nonzero"),
         ));
         let binding_type = binding_type_from_scalar_literal(&literal, &strings);

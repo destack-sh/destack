@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_mir as mir;
 use destack_source::{FileId, ModuleId, ModuleVersion, PackageId};
 use destack_workspace::{ModuleMir, TargetId};

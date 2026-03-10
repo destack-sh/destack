@@ -7,7 +7,7 @@ use cranelift_codegen::isa::TargetIsa;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Switch};
 use cranelift_module::{DataId, FuncId, Module};
 use cranelift_object::ObjectModule;
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_mir as mir;
 
 use super::layout::{compute_tuple_element_offset, compute_type_layout};

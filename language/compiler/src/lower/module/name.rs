@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
-use destack_base::{StringId, StringPool};
+use destack_core::{StringId, StringPool};
 use destack_workspace::{Module, Package};
 use rustc_hash::FxHasher;
 use {destack_dir as dir, destack_mir as mir};

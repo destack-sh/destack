@@ -1,4 +1,4 @@
-use destack_base::ImmutableStringPool;
+use destack_core::ImmutableStringPool;
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 

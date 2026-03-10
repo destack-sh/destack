@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{ExportKind, GlobalSymbolId, StaticKey, SymbolKind, SymbolSpace, SymbolType};
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;

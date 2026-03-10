@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_ast::Keyword;
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression,
     LocalNodeId, LocalNodeIdAny, NodeTree, NodeType, Pattern, PatternField, StaticKey, SymbolTable,

@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     self as dir, Argument, Declaration, NodeVisitor, NodeVisitorOptions, Property, WellKnownSymbol,
     walk_expression,

@@ -3,7 +3,7 @@ use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use destack_base::{CaptureMode, fnv1a_128};
+use destack_core::{CaptureMode, fnv1a_128};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};

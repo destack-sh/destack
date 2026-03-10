@@ -1,4 +1,4 @@
-use destack_base::StringId;
+use destack_core::StringId;
 
 use crate::{
     AddressSpace, Attribute, Copyability, Field, LocalNodeId, Mutability, ReferenceKind,

@@ -1,6 +1,6 @@
 [package]
-name = "destack_base"
-description = "Destack Base Primitives"
+name = "destack_core"
+description = "Destack Core Primitives"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

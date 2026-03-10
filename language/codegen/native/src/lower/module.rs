@@ -5,7 +5,7 @@ use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::{Context, ir as cir};
 use cranelift_module::{DataId, FuncId, Linkage, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule};
-use destack_base::StringPool;
+use destack_core::StringPool;
 use destack_mir as mir;
 
 use super::FunctionLowerer;

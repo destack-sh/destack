@@ -2291,7 +2291,7 @@ fn scope_mark_for_scope_at_offset(
 fn extract_property_names(
     dir_tree: &dir::NodeTree,
     properties: &[dir::LocalNodeId<dir::Property>],
-    strings: &destack_base::StringPool,
+    strings: &destack_core::StringPool,
 ) -> Vec<String> {
     // collect property names
     let mut names = Vec::new();

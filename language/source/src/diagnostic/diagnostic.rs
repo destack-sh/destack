@@ -1,4 +1,4 @@
-use destack_base::Color;
+use destack_core::Color;
 use serde::{Deserialize, Serialize};
 
 use crate::{FileId, LabeledSpan, Suggestion};

@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use super::r#type::TypeGuardTarget;
 use crate::analyze::common::{NormalizationMode, TreeSymbolView, TypeContext};
 use crate::analyze::infer::RemoteValueTypeReadDomain;
-use destack_base::StringId;
+use destack_core::StringId;
 use destack_dir::{
     Argument, BinaryOperator, Declaration, DynamicKey, Expression, FlowBlock, FlowEdge,
     FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard, FlowTable, FunctionSignature,
