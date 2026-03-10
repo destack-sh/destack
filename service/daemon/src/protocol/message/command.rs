@@ -36,8 +36,8 @@ pub struct CommandResponse {
     pub messages: Vec<DaemonMessageRecord>,
     /// Output captured from the command.
     pub output: Vec<CommandOutputChunk>,
-    /// Artifact metadata produced.
-    pub artifacts: Vec<ArtifactInfo>,
+    /// Output metadata produced.
+    pub outputs: Vec<OutputInfo>,
     /// Count of modules involved.
     pub module_count: usize,
     /// Count of profiles involved.
@@ -81,16 +81,16 @@ pub struct CommandOutputNotification {
     pub done: bool,
 }
 
-/// Artifact metadata produced by commands.
+/// Output metadata produced by commands.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ArtifactInfo {
-    /// Artifact id.
+pub struct OutputInfo {
+    /// Output id.
     pub id: u64,
     /// Target id.
     pub target: TargetId,
-    /// File type for the artifact.
+    /// File type for the output.
     pub file_type: FileType,
-    /// Output path for the artifact.
+    /// Output path for the generated file.
     pub path: PathBuf,
     /// Size in bytes.
     pub size_bytes: u64,

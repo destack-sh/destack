@@ -81,7 +81,7 @@ impl Compiler {
             return Err(LinkError::Yield { dependency });
         }
 
-        // NOTE #Incomplete: single-file targets require combining artifacts
+        // NOTE #Incomplete: single-file targets require combining outputs
         if target.is_single_file() {
             return Err(LinkError::Internal {
                 package: package_id,

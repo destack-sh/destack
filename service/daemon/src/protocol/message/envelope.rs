@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use super::super::handshake::{HandshakeRequest, HandshakeResponse};
 use super::{
-    AnalyzeRequest, AnalyzeResponse, ArtifactRequest, ArtifactResponse, CacheRequest,
-    CacheResponse, CloseWorkspaceRequest, CommandRequest, CommandResponse, DaemonNotification,
-    DaemonQuery, DaemonQueryResponse, FileUpdateRequest, FileUpdateResponse, OpenWorkspaceRequest,
+    AnalyzeRequest, AnalyzeResponse, CacheRequest, CacheResponse, CloseWorkspaceRequest,
+    CommandRequest, CommandResponse, DaemonNotification, DaemonQuery, DaemonQueryResponse,
+    FileUpdateRequest, FileUpdateResponse, OpenWorkspaceRequest, OutputRequest, OutputResponse,
     ReplRequest, ReplResponse, RescanWorkspaceRequest, RuntimeRequest, RuntimeResponse,
     WatchBatchRequest, WatchBatchResponse, WorkspaceClosedResponse, WorkspaceOpenedResponse,
     WorkspaceRescanResponse,
@@ -213,8 +213,8 @@ pub enum DaemonRequest {
     Runtime(RuntimeRequest),
     /// Control cache behavior.
     Cache(CacheRequest),
-    /// Fetch artifact content.
-    Artifact(ArtifactRequest),
+    /// Fetch generated output content.
+    Output(OutputRequest),
 }
 
 /// Responses emitted by the daemon.
@@ -251,8 +251,8 @@ pub enum DaemonResponse {
     RuntimeResult(RuntimeResponse),
     /// Cache control response.
     CacheResult(CacheResponse),
-    /// Artifact fetch response.
-    ArtifactResult(ArtifactResponse),
+    /// Output fetch response.
+    OutputResult(OutputResponse),
     /// Error response.
     Error(ProtocolError),
 }

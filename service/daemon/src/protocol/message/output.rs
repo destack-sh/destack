@@ -2,22 +2,22 @@ use serde::{Deserialize, Serialize};
 
 use super::WorkspaceHandleId;
 
-/// Artifact fetch request payloads.
+/// Output fetch request payloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ArtifactRequest {
-    /// Fetch artifact content by id.
+pub enum OutputRequest {
+    /// Fetch output content by id.
     Fetch {
         handle: WorkspaceHandleId,
-        artifact_id: u64,
+        output_id: u64,
     },
 }
 
-/// Artifact fetch response payloads.
+/// Output fetch response payloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ArtifactResponse {
-    /// Artifact fetch accepted.
+pub enum OutputResponse {
+    /// Output fetch accepted.
     FetchAccepted {
         handle: WorkspaceHandleId,
-        artifact_id: u64,
+        output_id: u64,
     },
 }

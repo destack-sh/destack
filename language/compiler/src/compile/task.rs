@@ -67,9 +67,9 @@ pub enum TaskPhase {
     /// Optimize MIR.
     Optimize = 7,
     // --------------------------------------------------
-    /// Generate DIR or MIR into artifacts.
+    /// Generate DIR or MIR into outputs.
     Generate = 8,
-    /// Link artifacts into final output.
+    /// Link outputs into final output.
     Link = 9,
     /// Emit linked output to disk.
     Emit = 10,
@@ -127,8 +127,8 @@ impl TaskPhase {
             Self::Execute => "execute comptime code and patch DIR",
             Self::Lower => "lower DIR into MIR",
             Self::Optimize => "optimize MIR",
-            Self::Generate => "generate DIR or MIR into artifacts",
-            Self::Link => "link artifacts into final output",
+            Self::Generate => "generate DIR or MIR into outputs",
+            Self::Link => "link outputs into final output",
             Self::Emit => "emit linked output to disk",
             Self::Lint => "lint the program",
         }
@@ -191,9 +191,9 @@ pub enum Task {
     /// Optimize MIR.
     Optimize(OptimizeTask),
     // --------------------------------------------------
-    /// Generate DIR or MIR into artifacts.
+    /// Generate DIR or MIR into outputs.
     Generate(GenerateTask),
-    /// Link artifacts into final output.
+    /// Link outputs into final output.
     Link(LinkTask),
     /// Emit linked output to disk.
     Emit(EmitTask),

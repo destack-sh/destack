@@ -36,24 +36,24 @@ impl Compiler {
         // ensure linking is complete
         self.require_link_module(package_id, target_id)?;
 
-        // get artifacts for this module + target
-        let artifacts = self
+        // get outputs for this module + target
+        let outputs = self
             .program
-            .artifacts
+            .outputs
             .get_by_module_target(module_id, target_id);
 
-        // emit each artifact using its precomputed output path
-        for artifact in artifacts {
+        // emit each output using its precomputed output path
+        for output in outputs {
             let output_path =
-                artifact
+                output
                     .uri
                     .to_path_buf()
                     .ok_or_else(|| EmitError::InvalidOutputPath {
-                        artifact: artifact.id,
-                        uri: artifact.uri.clone(),
+                        output: output.id,
+                        uri: output.uri.clone(),
                     })?;
 
-            self.write_artifact(&artifact, &output_path)?;
+            self.write_output(&output, &output_path)?;
         }
 
         Ok(())

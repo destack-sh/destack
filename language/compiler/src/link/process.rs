@@ -5,7 +5,7 @@ use destack_compiler_macros::DefineTask;
 use destack_source::{PackageId, PackageStamp};
 use destack_workspace::TargetId;
 
-/// Task to link generated artifacts.
+/// Task to link generated outputs.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
 #[phase(Link)]
 pub enum LinkTask {

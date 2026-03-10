@@ -1,6 +1,6 @@
-mod artifact;
 mod error;
 mod module;
+mod output;
 mod package;
 mod process;
 mod program;

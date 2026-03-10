@@ -410,7 +410,7 @@ impl ProtocolServer {
             DaemonRequest::Repl(_) => self.not_ready("repl requests are not ready"),
             DaemonRequest::Runtime(_) => self.not_ready("runtime requests are not ready"),
             DaemonRequest::Cache(_) => self.not_ready("cache control is not ready"),
-            DaemonRequest::Artifact(_) => self.not_ready("artifact requests are not ready"),
+            DaemonRequest::Output(_) => self.not_ready("output requests are not ready"),
         };
 
         match payload {
@@ -680,7 +680,7 @@ impl ProtocolServer {
             files,
             messages: Vec::new(),
             output: command_output_to_protocol(&result.output),
-            artifacts: Vec::new(),
+            outputs: Vec::new(),
             module_count: result.module_count,
             profile_count: result.profile_count,
             target_count: result.target_count,

@@ -561,7 +561,7 @@ mod tests {
             files: Vec::new(),
             messages: Vec::new(),
             output: Vec::new(),
-            artifacts: Vec::new(),
+            outputs: Vec::new(),
             module_count: 1,
             profile_count: 1,
             target_count: 0,

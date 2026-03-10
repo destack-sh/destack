@@ -7,8 +7,8 @@ use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 use parking_lot::RwLock;
 
 use crate::{
-    ArtifactRegistry, Builtins, CacheStore, DiskCacheStore, FormatterOptions, LinterOptions,
-    ModuleRegistry, PackageRegistry, ProfileId, ProfileKey, Program, SessionOptions,
+    Builtins, CacheStore, DiskCacheStore, FormatterOptions, LinterOptions, ModuleRegistry,
+    OutputRegistry, PackageRegistry, ProfileId, ProfileKey, Program, SessionOptions,
     TsConfigRegistry, Workspace, resolve_workspace_cache_root,
 };
 
@@ -38,8 +38,8 @@ pub struct Session {
     pub tsconfigs: Arc<TsConfigRegistry>,
     /// The combined string pool.
     pub strings: Arc<StringPool>,
-    /// The artifact registry (for generated artifacts from codegen).
-    pub artifacts: Arc<ArtifactRegistry>,
+    /// The output registry.
+    pub outputs: Arc<OutputRegistry>,
     /// Compiled builtins (always loaded).
     pub builtins: Arc<Builtins>,
 }
@@ -70,7 +70,7 @@ impl Session {
             modules,
             builtins,
             strings: Arc::new(StringPool::new()),
-            artifacts: Arc::new(ArtifactRegistry::new()),
+            outputs: Arc::new(OutputRegistry::new()),
             tsconfigs: Arc::new(TsConfigRegistry::new()),
         }
     }
@@ -102,7 +102,7 @@ impl Session {
             modules,
             tsconfigs: Arc::new(TsConfigRegistry::new()),
             strings: Arc::new(StringPool::new()),
-            artifacts: Arc::new(ArtifactRegistry::new()),
+            outputs: Arc::new(OutputRegistry::new()),
             builtins,
         }
     }
@@ -202,7 +202,7 @@ impl Session {
             self.packages.clone(),
             self.tsconfigs.clone(),
             self.strings.clone(),
-            self.artifacts.clone(),
+            self.outputs.clone(),
             Some(self.builtins.clone()),
         ));
         self.programs.insert(root.clone(), program.clone());
