@@ -1,0 +1,378 @@
+use crate::build::FunctionBuilder;
+use crate::{
+    AtomicScope, BinaryOperator, CastOperator, Constant, Instruction, Intrinsic, LocalNodeId,
+    MemoryOrdering, MemoryScope, MemorySemantics, Type, UnaryOperator, Value,
+};
+
+#[allow(clippy::too_many_arguments)]
+impl<'a> FunctionBuilder<'a> {
+    /// Insert a null reference constant.
+    pub fn null(&mut self, reference_type: LocalNodeId<Type>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Const {
+            destination,
+            value: Constant::Null,
+        });
+        self.define_value(destination, reference_type);
+        destination
+    }
+
+    /// Insert an integer constant.
+    pub fn iconst(&mut self, value: i64, width: u8, signed: bool) -> Value {
+        let destination = self.allocate_value();
+        let constant = if signed {
+            Constant::Int {
+                value,
+                width,
+                is_signed: true,
+            }
+        } else {
+            Constant::UInt {
+                value: value as u64,
+                width,
+            }
+        };
+        let ty = Type::Int {
+            width: width.into(),
+            is_signed: signed,
+        };
+        let ty_id = self.tree.insert_type(ty);
+        self.insert_instruction(Instruction::Const {
+            destination,
+            value: constant,
+        });
+        self.define_value(destination, ty_id);
+        destination
+    }
+
+    /// Insert a 32-bit signed integer constant.
+    pub fn iconst_i32(&mut self, value: i32) -> Value {
+        self.iconst(value as i64, 32, true)
+    }
+
+    /// Insert a 64-bit signed integer constant.
+    pub fn iconst_i64(&mut self, value: i64) -> Value {
+        self.iconst(value, 64, true)
+    }
+
+    /// Insert a boolean constant.
+    pub fn bconst(&mut self, value: bool) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Const {
+            destination,
+            value: Constant::Boolean { value },
+        });
+        let ty_id = self.tree.insert_type(Type::Boolean);
+        self.define_value(destination, ty_id);
+        destination
+    }
+
+    /// Insert a floating point constant.
+    pub fn fconst(&mut self, value: f64, width: u8) -> Value {
+        let destination = self.allocate_value();
+        let bits = if width == 32 {
+            f32::to_bits(value as f32) as u64
+        } else {
+            value.to_bits()
+        };
+        self.insert_instruction(Instruction::Const {
+            destination,
+            value: Constant::Float { bits, width },
+        });
+        let ty_id = self.tree.insert_type(Type::Float {
+            width: width.into(),
+        });
+        self.define_value(destination, ty_id);
+        destination
+    }
+
+    // instruction builders: binary operations
+
+    /// Insert a binary operation.
+    fn binary(&mut self, operator: BinaryOperator, left_value: Value, right_value: Value) -> Value {
+        let destination = self.allocate_value();
+        let left_type_id = self.value_type_or_panic(left_value, "binary left");
+        let right_type_id = self.value_type_or_panic(right_value, "binary right");
+        let left_type = self.tree.get(left_type_id);
+        let right_type = self.tree.get(right_type_id);
+        if left_type != right_type {
+            panic!(
+                "binary operator expects matching operand types: op {operator:?} left {left_type:?} right {right_type:?}"
+            );
+        }
+        self.insert_instruction(Instruction::Binary {
+            destination,
+            operator,
+            left: left_value,
+            right: right_value,
+        });
+        if operator.is_comparison() {
+            let bool_type = self.tree.insert_type(Type::Boolean);
+            self.define_value(destination, bool_type);
+        } else {
+            self.define_value(destination, left_type_id);
+        }
+        destination
+    }
+
+    /// Insert a binary operation with an explicit operator.
+    pub fn binary_op(
+        &mut self,
+        operator: BinaryOperator,
+        left_value: Value,
+        right_value: Value,
+    ) -> Value {
+        self.binary(operator, left_value, right_value)
+    }
+
+    /// Integer addition.
+    pub fn iadd(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::Add, left_value, right_value)
+    }
+
+    /// Integer subtraction.
+    pub fn isub(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::Subtract, left_value, right_value)
+    }
+
+    /// Integer multiplication.
+    pub fn imul(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::Multiply, left_value, right_value)
+    }
+
+    /// Signed integer division.
+    pub fn sdiv(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::SignedDivide, left_value, right_value)
+    }
+
+    /// Unsigned integer division.
+    pub fn udiv(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::UnsignedDivide, left_value, right_value)
+    }
+
+    /// Bitwise AND.
+    pub fn band(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::And, left_value, right_value)
+    }
+
+    /// Bitwise OR.
+    pub fn bor(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::Or, left_value, right_value)
+    }
+
+    /// Bitwise XOR.
+    pub fn bxor(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::Xor, left_value, right_value)
+    }
+
+    /// Integer comparison: equal.
+    pub fn icmp_eq(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::Equal, left_value, right_value)
+    }
+
+    /// Integer comparison: not equal.
+    pub fn icmp_ne(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::NotEqual, left_value, right_value)
+    }
+
+    /// Signed integer comparison: less than.
+    pub fn icmp_slt(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::SignedLessThan, left_value, right_value)
+    }
+
+    /// Signed integer comparison: less than or equal.
+    pub fn icmp_sle(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::SignedLessEqual, left_value, right_value)
+    }
+
+    /// Signed integer comparison: greater than.
+    pub fn icmp_sgt(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::SignedGreaterThan, left_value, right_value)
+    }
+
+    /// Signed integer comparison: greater than or equal.
+    pub fn icmp_sge(&mut self, left_value: Value, right_value: Value) -> Value {
+        self.binary(BinaryOperator::SignedGreaterEqual, left_value, right_value)
+    }
+
+    // instruction builders: unary operations
+
+    /// Insert a unary operation with an explicit operator.
+    pub fn unary_op(&mut self, operator: UnaryOperator, argument_value: Value) -> Value {
+        self.unary(operator, argument_value)
+    }
+
+    /// Insert a unary operation.
+    fn unary(&mut self, operator: UnaryOperator, argument_value: Value) -> Value {
+        let destination = self.allocate_value();
+        let argument_type = self.value_type_or_panic(argument_value, "unary argument");
+        self.insert_instruction(Instruction::Unary {
+            destination,
+            operator,
+            argument: argument_value,
+        });
+        self.define_value(destination, argument_type);
+        destination
+    }
+
+    /// Integer negation.
+    pub fn ineg(&mut self, argument_value: Value) -> Value {
+        self.unary(UnaryOperator::Negate, argument_value)
+    }
+
+    /// Bitwise NOT.
+    pub fn bnot(&mut self, argument_value: Value) -> Value {
+        self.unary(UnaryOperator::Not, argument_value)
+    }
+
+    // instruction builders: casts
+
+    /// Cast a value to a different type.
+    pub fn cast(
+        &mut self,
+        operator: CastOperator,
+        argument: Value,
+        to_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Cast {
+            destination,
+            operator,
+            argument,
+            to_type,
+        });
+        self.define_value(destination, to_type);
+        destination
+    }
+
+    /// Bitcast (reinterpret bits, same size).
+    pub fn bitcast(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+        self.cast(CastOperator::Bitcast, argument, to_type)
+    }
+
+    /// Truncate integer to smaller width.
+    pub fn trunc(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+        self.cast(CastOperator::Truncate, argument, to_type)
+    }
+
+    /// Zero-extend integer to larger width.
+    pub fn zext(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+        self.cast(CastOperator::ZeroExtend, argument, to_type)
+    }
+
+    /// Sign-extend integer to larger width.
+    pub fn sext(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+        self.cast(CastOperator::SignExtend, argument, to_type)
+    }
+
+    // instruction builders: selection
+
+    /// Select between two values based on a boolean condition.
+    ///
+    /// Returns `then_value` if `condition` is true, `else_value` otherwise.
+    /// Both values must have the same type.
+    pub fn select(&mut self, condition: Value, then_value: Value, else_value: Value) -> Value {
+        let destination = self.allocate_value();
+        let then_type = self.value_type_or_panic(then_value, "select then");
+        let else_type = self.value_type_or_panic(else_value, "select else");
+        let then_ty = self.tree.get(then_type);
+        let else_ty = self.tree.get(else_type);
+        if then_ty != else_ty {
+            panic!("select expects matching value types");
+        }
+        self.insert_instruction(Instruction::Select {
+            destination,
+            condition,
+            then_value,
+            else_value,
+        });
+        self.define_value(destination, then_type);
+        destination
+    }
+
+    // instruction builders: intrinsics
+
+    /// Call an intrinsic that returns a value.
+    pub fn intrinsic(
+        &mut self,
+        intrinsic: Intrinsic,
+        result_type: LocalNodeId<Type>,
+        args: Vec<Value>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        let arguments = self.tree.add_arguments(&args);
+        self.insert_instruction(Instruction::Intrinsic {
+            destination: Some(destination),
+            intrinsic,
+            arguments,
+            ordering: None,
+            scope: None,
+            memory_scope: None,
+            semantics: None,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Call an intrinsic with no return value.
+    pub fn intrinsic_void(&mut self, intrinsic: Intrinsic, args: Vec<Value>) {
+        let arguments = self.tree.add_arguments(&args);
+        self.insert_instruction(Instruction::Intrinsic {
+            destination: None,
+            intrinsic,
+            arguments,
+            ordering: None,
+            scope: None,
+            memory_scope: None,
+            semantics: None,
+        });
+    }
+
+    /// Call an atomic intrinsic that returns a value.
+    pub fn atomic_intrinsic(
+        &mut self,
+        intrinsic: Intrinsic,
+        args: Vec<Value>,
+        ordering: MemoryOrdering,
+        scope: AtomicScope,
+        memory_scope: MemoryScope,
+        semantics: MemorySemantics,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        let arguments = self.tree.add_arguments(&args);
+        self.insert_instruction(Instruction::Intrinsic {
+            destination: Some(destination),
+            intrinsic,
+            arguments,
+            ordering: Some(ordering),
+            scope: Some(scope),
+            memory_scope: Some(memory_scope),
+            semantics: Some(semantics),
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Call an atomic intrinsic with no return value.
+    pub fn atomic_intrinsic_void(
+        &mut self,
+        intrinsic: Intrinsic,
+        args: Vec<Value>,
+        ordering: MemoryOrdering,
+        scope: AtomicScope,
+        memory_scope: MemoryScope,
+        semantics: MemorySemantics,
+    ) {
+        let arguments = self.tree.add_arguments(&args);
+        self.insert_instruction(Instruction::Intrinsic {
+            destination: None,
+            intrinsic,
+            arguments,
+            ordering: Some(ordering),
+            scope: Some(scope),
+            memory_scope: Some(memory_scope),
+            semantics: Some(semantics),
+        });
+    }
+}

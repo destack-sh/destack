@@ -1,0 +1,274 @@
+use crate::build::FunctionBuilder;
+use crate::{
+    AddressSpace, Global, Instruction, Local, LocalNodeId, Mutability, Ownership, ReferenceKind,
+    Type, Value,
+};
+
+#[allow(clippy::too_many_arguments)]
+impl<'a> FunctionBuilder<'a> {
+    /// Create a local variable (stack slot).
+    pub fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability) -> LocalNodeId<Local> {
+        let local = self
+            .tree
+            .insert(Local::new(ty, mutability, Ownership::Owned));
+        let function = self.tree.get_mut(self.function_id);
+        function.locals.push(local);
+        local
+    }
+
+    /// Create a reference type for inline instruction typing.
+    pub fn type_reference(
+        &mut self,
+        kind: ReferenceKind,
+        pointee: LocalNodeId<Type>,
+        mutability: Mutability,
+        address_space: AddressSpace,
+        is_nullable: bool,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert_type(Type::Reference {
+            kind,
+            address_space,
+            mutability,
+            pointee,
+            is_nullable,
+        })
+    }
+
+    /// Load from a local variable.
+    pub fn local_get(&mut self, local: LocalNodeId<Local>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::LocalGet { destination, local });
+        let local_ty = self.tree.get(local).ty;
+        self.define_value(destination, local_ty);
+        destination
+    }
+
+    /// Get the address of a local variable.
+    pub fn local_addr(
+        &mut self,
+        local: LocalNodeId<Local>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::LocalAddr {
+            destination,
+            local,
+            result_type,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Store to a local variable.
+    pub fn local_set(&mut self, local: LocalNodeId<Local>, value: Value) {
+        self.insert_instruction(Instruction::LocalSet { local, value });
+    }
+
+    /// Get the address of a mutable global variable.
+    pub fn global_addr(
+        &mut self,
+        global: LocalNodeId<Global>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::GlobalAddr {
+            destination,
+            global,
+            result_type,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Load the value of an immutable global constant.
+    pub fn global_const(&mut self, global: LocalNodeId<Global>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::GlobalConst {
+            destination,
+            global,
+        });
+        let global_ty = self.tree.get(global).ty;
+        self.define_value(destination, global_ty);
+        destination
+    }
+
+    /// Load from a pointer.
+    pub fn load(&mut self, pointer_value: Value, result_type: LocalNodeId<Type>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Load {
+            destination,
+            pointer: pointer_value,
+            result_type,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Store to a pointer.
+    pub fn store(&mut self, pointer_value: Value, value: Value) {
+        self.insert_instruction(Instruction::Store {
+            pointer: pointer_value,
+            value,
+        });
+    }
+
+    /// Resolve a field type for a struct, tuple, or function value aggregate.
+    pub(super) fn field_type_for_aggregate(
+        &self,
+        aggregate_type: LocalNodeId<Type>,
+        index: u32,
+    ) -> LocalNodeId<Type> {
+        let aggregate = self.tree.get(aggregate_type);
+        match aggregate {
+            Type::Struct { fields, .. } => fields
+                .get(index as usize)
+                .map(|field_id| self.tree.get(*field_id).ty)
+                .unwrap_or_else(|| panic!("field index out of bounds")),
+            Type::Tuple { elements, .. } => elements
+                .get(index as usize)
+                .copied()
+                .unwrap_or_else(|| panic!("field index out of bounds")),
+            Type::FunctionValue {
+                signature,
+                environment,
+            } => match index {
+                0 => *signature,
+                1 => *environment,
+                _ => panic!("field index out of bounds"),
+            },
+            _ => panic!("field access expects struct, tuple, or fnvalue"),
+        }
+    }
+
+    /// Resolve the element type for an array aggregate.
+    pub(super) fn element_type_for_array(
+        &self,
+        array_type: LocalNodeId<Type>,
+    ) -> LocalNodeId<Type> {
+        let array = self.tree.get(array_type);
+        match array {
+            Type::Array { element, .. } => *element,
+            _ => panic!("element access expects array type"),
+        }
+    }
+
+    /// Resolve the element type for a vector type.
+    pub(super) fn element_type_for_vector(
+        &self,
+        vector_type: LocalNodeId<Type>,
+    ) -> LocalNodeId<Type> {
+        let vector = self.tree.get(vector_type);
+        match vector {
+            Type::Vector { element, .. } => *element,
+            _ => panic!("vector access expects vector type"),
+        }
+    }
+
+    /// Resolve the element type for a tensor reference.
+    pub(super) fn element_type_for_tensor_reference(
+        &self,
+        reference_type: LocalNodeId<Type>,
+    ) -> LocalNodeId<Type> {
+        let reference_type = self.tree.get(reference_type);
+        match reference_type {
+            Type::TensorReference { element, .. } => *element,
+            _ => panic!("tensor access expects tensor reference type"),
+        }
+    }
+
+    /// Convert a list length into u16 for instruction metadata.
+    pub(super) fn to_u16_count(&self, count: usize, context: &str) -> u16 {
+        u16::try_from(count).unwrap_or_else(|_| panic!("{context} is too large"))
+    }
+
+    /// Resolve the return type for a function signature.
+    pub(super) fn signature_result_type(&self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        let signature_type = self.tree.get(signature);
+        match signature_type {
+            Type::FunctionPointer { result, .. } => *result,
+            _ => panic!("call expects function pointer signature"),
+        }
+    }
+
+    /// Allocate a managed (runtime-tracked) struct.
+    /// Returns a managed reference type (`ref<managed ...>`).
+    pub fn managed_alloc(
+        &mut self,
+        layout: LocalNodeId<Type>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::ManagedAlloc {
+            destination,
+            layout,
+            result_type,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Allocate a managed array.
+    /// Returns a managed reference type (`ref<managed ...>`).
+    pub fn managed_alloc_array(
+        &mut self,
+        element: LocalNodeId<Type>,
+        length: Value,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::ManagedAllocArray {
+            destination,
+            element,
+            length,
+            result_type,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Allocate raw memory on the heap.
+    /// Returns a raw or owned reference type. Caller must free with `raw.free`.
+    pub fn raw_alloc(
+        &mut self,
+        layout: LocalNodeId<Type>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::RawAlloc {
+            destination,
+            layout,
+            result_type,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Free raw heap memory previously allocated with `raw.alloc`.
+    pub fn raw_free(&mut self, pointer: Value) {
+        self.insert_instruction(Instruction::RawFree { pointer });
+    }
+
+    /// Allocate on the stack (lives until function returns).
+    /// Returns a raw stack reference type.
+    pub fn stack_alloc(
+        &mut self,
+        layout: LocalNodeId<Type>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::StackAlloc {
+            destination,
+            layout,
+            result_type,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    // instruction builders: assumptions
+
+    /// Assume a condition is true (UB if false).
+    pub fn assume(&mut self, condition: Value) {
+        self.insert_instruction(Instruction::Assume { condition });
+    }
+}
