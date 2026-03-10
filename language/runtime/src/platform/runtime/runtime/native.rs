@@ -367,13 +367,7 @@ fn encode_revision_descriptor(
             .parent_revision_id
             .map(encode_revision_id)
             .transpose()?,
-        sequence: TraceSequence(u64::try_from(revision.sequence.get()).map_err(|_| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "sequence",
-                "world trace sequence exceeds uint64",
-            ))
-            .boxed()
-        })?),
+        sequence: TraceSequence(revision.sequence.get()),
         wall_ns: revision.wall.get(),
         mono_ns: revision.mono.get(),
         virtual_ns: image.clock.virtual_wall.get(),
@@ -994,9 +988,11 @@ pub(crate) unsafe fn destack_runtime_runtime_create(
         name: None,
         labels: None,
     });
-    let mut runtime_options = RuntimeOptions::default();
-    runtime_options.name = unsafe { decode_runtime_name(options.name)? };
-    runtime_options.labels = unsafe { decode_runtime_labels(options.labels)? };
+    let runtime_options = RuntimeOptions {
+        name: unsafe { decode_runtime_name(options.name)? },
+        labels: unsafe { decode_runtime_labels(options.labels)? },
+        ..RuntimeOptions::default()
+    };
 
     // clear call-local output storage
     binding.clear_values();
@@ -1380,15 +1376,7 @@ pub(crate) unsafe fn destack_runtime_trace_view(
         handle::encode_world_view_entry(table.world_view(handle::decode_world_view_handle(view))?);
     let descriptor = TraceDescriptor {
         branch_id: encode_branch_id(world_view.revision.branch_id)?,
-        sequence: TraceSequence(u64::try_from(world_view.revision.sequence.get()).map_err(
-            |_| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "sequence",
-                    "world trace sequence exceeds uint64",
-                ))
-                .boxed()
-            },
-        )?),
+        sequence: TraceSequence(world_view.revision.sequence.get()),
     };
 
     unsafe { out.write(descriptor) };
@@ -2826,7 +2814,6 @@ pub(crate) unsafe fn destack_runtime_snapshot_list(
                 handle::encode_snapshot_entry(entry),
             )
         })
-        .into_iter()
         .map(|(snapshot_id, entry)| encode_snapshot_descriptor(snapshot_id, &entry))
         .collect::<RuntimeResult<Vec<_>>>()?;
 
@@ -2990,15 +2977,7 @@ pub(crate) unsafe fn destack_runtime_trace_describe(
     let world = table.world(handle::decode_world_handle(argument_world))?;
     let descriptor = TraceDescriptor {
         branch_id: encode_branch_id(world.branch_id())?,
-        sequence: TraceSequence(
-            u64::try_from(world.trace().log().next_sequence().get()).map_err(|_| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "sequence",
-                    "world trace sequence exceeds uint64",
-                ))
-                .boxed()
-            })?,
-        ),
+        sequence: TraceSequence(world.trace().log().next_sequence().get()),
     };
 
     unsafe { out.write(descriptor) };
@@ -3084,16 +3063,7 @@ pub(crate) unsafe fn destack_runtime_trace_next(
             break;
         };
 
-        records.push((
-            TraceSequence(u64::try_from(sequence.get()).map_err(|_| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "sequence",
-                    "world trace sequence exceeds uint64",
-                ))
-                .boxed()
-            })?),
-            event,
-        ));
+        records.push((TraceSequence(sequence.get()), event));
     }
 
     unsafe { out.write(encode_trace_records(binding, records)?) };
@@ -3253,13 +3223,7 @@ pub(crate) unsafe fn destack_runtime_trace_tell(
     let table = control_table().read();
     let (_world, cursor) = table.trace_cursor(handle::decode_trace_cursor_handle(cursor))?;
     let sequence = cursor.tell();
-    let sequence = TraceSequence(u64::try_from(sequence.get()).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "sequence",
-            "world trace sequence exceeds uint64",
-        ))
-        .boxed()
-    })?);
+    let sequence = TraceSequence(sequence.get());
 
     unsafe { out.write(sequence) };
 

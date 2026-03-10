@@ -129,6 +129,7 @@ impl World {
     }
 
     /// Run one closure with one stored runtime mutably borrowed.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn with_runtime_mut<R>(
         &self,
         runtime_id: RuntimeId,

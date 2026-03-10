@@ -189,6 +189,7 @@ struct ControlStore {
 
 /// One owner-thread control object stored under one external handle.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: snapshot handles stay inline until the control table settles
 enum ControlObject {
     /// One live world handle.
     World(WorldEntry),

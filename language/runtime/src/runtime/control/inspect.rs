@@ -293,10 +293,10 @@ pub(crate) fn list_resources<'a>(
 }
 
 /// Resolve one logical resource from one pinned image.
-pub(crate) fn resource_in_image<'a>(
-    image: &'a Image,
+pub(crate) fn resource_in_image(
+    image: &Image,
     resource_id: WorldResourceId,
-) -> RuntimeResult<&'a WorldResource> {
+) -> RuntimeResult<&WorldResource> {
     image.resource(resource_id).ok_or_else(|| {
         RuntimeError::ResourceNotFound {
             resource_id: resource_id.resource_id.0,
