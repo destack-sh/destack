@@ -144,11 +144,11 @@ if rg -n "CC_[A-Za-z0-9_]+.*zig cc -target" "${repository_root}/justfile" "${rep
 fi
 
 # scheduled and release runtime workflow files should exist
-if [ ! -f "${repository_root}/.github/workflows/runtime-linux-check.yml" ] \
-	|| [ ! -f "${repository_root}/.github/workflows/runtime-macos-check.yml" ] \
-	|| [ ! -f "${repository_root}/.github/workflows/runtime-windows-check.yml" ] \
-	|| [ ! -f "${repository_root}/.github/workflows/runtime-ios-check.yml" ] \
-	|| [ ! -f "${repository_root}/.github/workflows/runtime-android-check.yml" ]; then
+if [ ! -f "${repository_root}/.github/workflows/runtime-linux-check.yml" ] ||
+	[ ! -f "${repository_root}/.github/workflows/runtime-macos-check.yml" ] ||
+	[ ! -f "${repository_root}/.github/workflows/runtime-windows-check.yml" ] ||
+	[ ! -f "${repository_root}/.github/workflows/runtime-ios-check.yml" ] ||
+	[ ! -f "${repository_root}/.github/workflows/runtime-android-check.yml" ]; then
 	echo "missing required runtime workflows" >&2
 	exit 1
 fi
