@@ -83,14 +83,7 @@ fn test_analyze_evaluate_type_on_let_expression() {
 
     let tree = view.tree();
     let types = view.types();
-    let let_expr_id = view.roots()[0];
-    let expression = tree.get(let_expr_id);
-    let &Expression::Statement {
-        statement: let_expr_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    let let_expr_id = view.root_expression_id(0);
     let let_expression = tree.get(let_expr_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
@@ -117,14 +110,7 @@ fn test_analyze_evaluate_type_on_let_expression_int() {
 
     let tree = view.tree();
     let types = view.types();
-    let let_expr_id = view.roots()[0];
-    let expression = tree.get(let_expr_id);
-    let &Expression::Statement {
-        statement: let_expr_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    let let_expr_id = view.root_expression_id(0);
     let let_expression = tree.get(let_expr_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
@@ -339,11 +325,8 @@ declare const grid: float32[16][16];
     };
 
     // ensure the type expression tree remains addressable for diagnostics
-    let statement_id = view.roots()[0];
-    let Expression::Statement { statement } = tree.get(statement_id) else {
-        panic!("expected statement root");
-    };
-    let Expression::Let { declarators, .. } = tree.get(*statement) else {
+    let let_expression_id = view.root_expression_id(0);
+    let Expression::Let { declarators, .. } = tree.get(let_expression_id) else {
         panic!("expected let declaration");
     };
     let declarator_id = declarators[0];
