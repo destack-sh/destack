@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_compiler::CompilerOptions;
-use destack_service::query;
+use destack_query as query;
 use destack_source::{FileContent, FileSystem, TemporaryPhysicalFileSystem};
 use destack_workspace::{MemoryCacheStore, ModuleGraphKey, Session};
 

@@ -18,10 +18,9 @@ required-features = ["schema"]
 
 [features]
 default = ["full"]
-query = []
 builtin-full = ["destack_builtin/full"]
 builtin-core = ["destack_builtin/core"]
-full = ["query", "builtin-full"]
+full = ["builtin-full"]
 core = ["builtin-core"]
 schema = ["schemars"]
 

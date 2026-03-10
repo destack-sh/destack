@@ -1,5 +1,5 @@
-use destack_workspace::query;
-use destack_workspace::query::SignatureHelp;
+use destack_query as query;
+use destack_query::SignatureHelp;
 
 use crate::harness::TestResult;
 use crate::query::runner::position::resolve_query_position;

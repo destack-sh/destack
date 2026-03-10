@@ -1,5 +1,6 @@
+use crate::LanguageServiceError;
 use crate::tests::harness::TestLanguageService;
-use crate::{LanguageServiceError, query};
+use destack_query as query;
 
 /// Resolve document symbols through workspace queries.
 #[test]

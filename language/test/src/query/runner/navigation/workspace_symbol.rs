@@ -1,6 +1,6 @@
+use destack_query as query;
+use destack_query::{SymbolKind, WorkspaceSymbol};
 use destack_source::Span;
-use destack_workspace::query;
-use destack_workspace::query::{SymbolKind, WorkspaceSymbol};
 
 use crate::harness::TestResult;
 use crate::query::runner::snapshot::normalize_expected_snapshot;

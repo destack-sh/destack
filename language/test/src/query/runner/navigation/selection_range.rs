@@ -1,6 +1,6 @@
+use destack_query as query;
+use destack_query::SelectionRange;
 use destack_source::{FileId, Span};
-use destack_workspace::query;
-use destack_workspace::query::SelectionRange;
 
 use crate::harness::TestResult;
 use crate::query::runner::position::resolve_query_position;

@@ -17,7 +17,7 @@ use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
     connect_in_process_daemon, connect_ipc_daemon,
 };
-use destack_service::query::{QueryRequestEnvelope, QueryResponseEnvelope};
+use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_source::{
     DiagnosticCollection, DiagnosticOptions, File, FileRegistry, FileType, FileWatchStatus,
 };

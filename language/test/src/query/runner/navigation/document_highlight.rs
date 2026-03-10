@@ -1,6 +1,6 @@
+use destack_query as query;
+use destack_query::{DocumentHighlight, HighlightKind};
 use destack_source::{FileId, Span};
-use destack_workspace::query;
-use destack_workspace::query::{DocumentHighlight, HighlightKind};
 
 use crate::harness::TestResult;
 use crate::query::runner::snapshot::normalize_expected_snapshot;

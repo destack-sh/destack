@@ -128,7 +128,6 @@ impl LanguageService {
     }
 
     /// Resolve the workspace handle id for a path.
-    #[cfg(feature = "query")]
     pub(crate) fn workspace_handle_id_for_path(
         &self,
         path: &Path,
@@ -226,7 +225,6 @@ impl LanguageService {
     }
 
     /// Return the session backing this service.
-    #[cfg(feature = "query")]
     pub(crate) fn session_ref(&self) -> &Session {
         self.session.as_ref()
     }

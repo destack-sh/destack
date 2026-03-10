@@ -6,14 +6,9 @@ use std::time::{Duration, Instant};
 
 use destack_source::{ModuleId, ProfileId};
 use parking_lot::Mutex;
+use {destack_query as query, destack_service as service, destack_workspace as workspace};
 
-use destack_service::{
-    LanguageServiceError as ServiceLanguageServiceError,
-    WorkspaceHandleId as ServiceWorkspaceHandleId, query,
-};
-use destack_workspace::{
-    FileUpdate as WorkspaceFileUpdate, ModuleGraphKey, ModuleSignatureKey, Program,
-};
+use workspace::{ModuleGraphKey, ModuleSignatureKey, Program};
 
 use crate::{Daemon, DaemonError, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
@@ -920,12 +915,12 @@ impl ProtocolServer {
     }
 
     /// Convert a protocol workspace handle id into a service workspace handle id.
-    fn service_handle_id(&self, handle: WorkspaceHandleId) -> ServiceWorkspaceHandleId {
-        ServiceWorkspaceHandleId(handle.0)
+    fn service_handle_id(&self, handle: WorkspaceHandleId) -> service::WorkspaceHandleId {
+        service::WorkspaceHandleId(handle.0)
     }
 
     /// Convert a service workspace handle id into a protocol workspace handle id.
-    fn protocol_handle_id(&self, handle: ServiceWorkspaceHandleId) -> WorkspaceHandleId {
+    fn protocol_handle_id(&self, handle: service::WorkspaceHandleId) -> WorkspaceHandleId {
         WorkspaceHandleId::new(handle.0)
     }
 
@@ -943,31 +938,33 @@ impl ProtocolServer {
     fn protocol_error_from_service(
         &self,
         context: &str,
-        error: ServiceLanguageServiceError,
+        error: service::LanguageServiceError,
     ) -> ProtocolError {
         // map workspace service errors into protocol domain errors
         let code = match error {
-            ServiceLanguageServiceError::UnknownWorkspaceHandle { .. }
-            | ServiceLanguageServiceError::WorkspaceHandleMissingAfterOpen { .. }
-            | ServiceLanguageServiceError::FileNotTracked { .. }
-            | ServiceLanguageServiceError::FileIdNotTracked { .. }
-            | ServiceLanguageServiceError::PathNotInWorkspace { .. }
-            | ServiceLanguageServiceError::RevisionNotTracked { .. } => ProtocolErrorCode::NotFound,
-            ServiceLanguageServiceError::MissingExpectedRevision => {
+            service::LanguageServiceError::UnknownWorkspaceHandle { .. }
+            | service::LanguageServiceError::WorkspaceHandleMissingAfterOpen { .. }
+            | service::LanguageServiceError::FileNotTracked { .. }
+            | service::LanguageServiceError::FileIdNotTracked { .. }
+            | service::LanguageServiceError::PathNotInWorkspace { .. }
+            | service::LanguageServiceError::RevisionNotTracked { .. } => {
+                ProtocolErrorCode::NotFound
+            }
+            service::LanguageServiceError::MissingExpectedRevision => {
                 ProtocolErrorCode::InvalidRequest
             }
-            ServiceLanguageServiceError::UnexpectedExpectedRevisionOnRead { .. }
-            | ServiceLanguageServiceError::QueryExecutionModeMismatch { .. } => {
+            service::LanguageServiceError::UnexpectedExpectedRevisionOnRead { .. }
+            | service::LanguageServiceError::QueryExecutionModeMismatch { .. } => {
                 ProtocolErrorCode::InvalidRequest
             }
-            ServiceLanguageServiceError::StaleRevision { .. } => ProtocolErrorCode::Conflict,
-            ServiceLanguageServiceError::QueryBusy { .. }
-            | ServiceLanguageServiceError::SemanticQueryNotReady { .. }
-            | ServiceLanguageServiceError::AnalyzeFailed { .. } => ProtocolErrorCode::NotReady,
-            ServiceLanguageServiceError::CacheClearFailed { .. }
-            | ServiceLanguageServiceError::ResolvePathFailed { .. }
-            | ServiceLanguageServiceError::InvalidatePathFailed { .. }
-            | ServiceLanguageServiceError::Internal { .. } => ProtocolErrorCode::Internal,
+            service::LanguageServiceError::StaleRevision { .. } => ProtocolErrorCode::Conflict,
+            service::LanguageServiceError::QueryBusy { .. }
+            | service::LanguageServiceError::SemanticQueryNotReady { .. }
+            | service::LanguageServiceError::AnalyzeFailed { .. } => ProtocolErrorCode::NotReady,
+            service::LanguageServiceError::CacheClearFailed { .. }
+            | service::LanguageServiceError::ResolvePathFailed { .. }
+            | service::LanguageServiceError::InvalidatePathFailed { .. }
+            | service::LanguageServiceError::Internal { .. } => ProtocolErrorCode::Internal,
         };
 
         self.protocol_error(code, &format!("{context} failed: {error}"))
@@ -1268,16 +1265,16 @@ fn diagnostics_from_updates(updates: &[DaemonUpdate]) -> Vec<DiagnosticBatch> {
 /// Build a workspace update from a protocol payload.
 fn workspace_update_from_request(
     update: &FileUpdate,
-) -> Result<WorkspaceFileUpdate, ProtocolError> {
+) -> Result<workspace::FileUpdate, ProtocolError> {
     let content = match &update.update {
-        FileUpdateKind::Text { content } => WorkspaceFileUpdate::Text {
+        FileUpdateKind::Text { content } => workspace::FileUpdate::Text {
             content: content.clone(),
         },
-        FileUpdateKind::Bytes { content } => WorkspaceFileUpdate::Bytes {
+        FileUpdateKind::Bytes { content } => workspace::FileUpdate::Bytes {
             content: content.clone(),
         },
-        FileUpdateKind::Touch => WorkspaceFileUpdate::Touch,
-        FileUpdateKind::Removed => WorkspaceFileUpdate::Removed,
+        FileUpdateKind::Touch => workspace::FileUpdate::Touch,
+        FileUpdateKind::Removed => workspace::FileUpdate::Removed,
     };
     Ok(content)
 }

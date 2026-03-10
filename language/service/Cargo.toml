@@ -14,6 +14,7 @@ doctest = false
 [dependencies]
 # language
 destack_compiler = { path = "../compiler", default-features = false }
+destack_query = { workspace = true }
 destack_resolver = { workspace = true }
 destack_source = { workspace = true }
 destack_workspace = { path = "../workspace", default-features = false }
@@ -26,7 +27,6 @@ serde_json = { workspace = true }
 
 [features]
 default = ["full"]
-query = ["destack_workspace/query"]
 parallel = ["destack_compiler/parallel"]
 native-codegen = ["destack_compiler/native-codegen"]
 deadlock-detection = ["destack_compiler/deadlock-detection"]
@@ -38,7 +38,6 @@ builtin-core = [
     "destack_workspace/builtin-core",
 ]
 full = [
-    "query",
     "parallel",
     "native-codegen",
     "deadlock-detection",

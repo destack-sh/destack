@@ -1,8 +1,8 @@
-use destack_source::{FileId, Span};
-use destack_workspace::query;
-use destack_workspace::query::{
+use destack_query as query;
+use destack_query::{
     CallHierarchyIncomingCall, CallHierarchyItem, CallHierarchyKind, CallHierarchyOutgoingCall,
 };
+use destack_source::{FileId, Span};
 
 use crate::harness::TestResult;
 use crate::query::runner::position::resolve_query_position;

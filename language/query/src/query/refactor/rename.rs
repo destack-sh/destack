@@ -1,0 +1,586 @@
+use std::collections::HashMap;
+use std::str::FromStr;
+
+use destack_ast::Keyword;
+use destack_dir as dir;
+use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
+use serde::{Deserialize, Serialize};
+
+use crate::common::{
+    ReferenceCollectionOptions, SymbolAtOffset, collect_symbol_references_in_context,
+    find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span,
+    get_symbol_local_definition_span, is_simple_identifier, member_key_name,
+    resolve_local_import_alias_name, resolve_symbol_name, sort_and_dedup_spans, token_at_offset,
+};
+use destack_workspace::Session;
+
+/// Result of a prepare rename query.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PrepareRenameResult {
+    /// The range of the symbol to rename.
+    pub range: Span,
+    /// The current name (placeholder for rename dialog).
+    pub placeholder: String,
+}
+
+/// Result of a rename query.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RenameResult {
+    /// All edits to apply.
+    pub edits: BatchEdit,
+}
+
+impl RenameResult {
+    /// Create an empty rename result.
+    pub fn empty() -> Self {
+        Self {
+            edits: BatchEdit::new(),
+        }
+    }
+
+    /// Create a rename result from a batch edit.
+    pub fn from_edits(edits: BatchEdit) -> Self {
+        Self { edits }
+    }
+
+    /// Whether there are any edits.
+    pub fn is_empty(&self) -> bool {
+        self.edits.is_empty()
+    }
+
+    /// Total number of edits.
+    pub fn edit_count(&self) -> usize {
+        self.edits.total_edits()
+    }
+
+    /// Number of files affected.
+    pub fn file_count(&self) -> usize {
+        self.edits.file_count()
+    }
+}
+
+/// Request prepare rename at a cursor position.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PrepareRenameRequest {
+    /// The document URI.
+    pub uri: Uri,
+    /// The byte offset in the document.
+    pub offset: u32,
+}
+
+/// Response payload for prepare rename queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PrepareRenameResponse {
+    /// Prepare rename result, if available.
+    pub result: Option<PrepareRenameResult>,
+}
+
+/// Request rename edits at a cursor position.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RenameRequest {
+    /// The document URI.
+    pub uri: Uri,
+    /// The byte offset in the document.
+    pub offset: u32,
+    /// The new name for the symbol.
+    pub new_name: String,
+}
+
+/// Response payload for rename queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RenameResponse {
+    /// Rename result, if available.
+    pub result: Option<RenameResult>,
+}
+
+/// Check if the symbol at the given position can be renamed.
+///
+/// Returns the range and current name if renameable.
+pub fn prepare_rename(session: &Session, file: FileId, offset: u32) -> Option<PrepareRenameResult> {
+    // resolve the rename target at the cursor
+    let (symbol_at, _, name) = resolve_rename_target(session, file, offset)?;
+
+    // return the range and current name
+    Some(PrepareRenameResult {
+        range: symbol_at.span,
+        placeholder: name,
+    })
+}
+
+/// Rename the symbol at the given position.
+///
+/// Returns edits for all files that need to be modified.
+pub fn rename(
+    session: &Session,
+    file: FileId,
+    offset: u32,
+    new_name: &str,
+) -> Option<RenameResult> {
+    // validate new_name is a valid identifier
+    if !is_simple_identifier(new_name) {
+        return None;
+    }
+
+    // resolve the rename target at the cursor
+    let (_, canonical_id, old_name) = resolve_rename_target(session, file, offset)?;
+    let interface_member_target = resolve_interface_member_target(session, canonical_id);
+    let preserve_local_definition =
+        resolve_local_import_alias_name(session, canonical_id).is_some();
+
+    // collect primary symbol spans and group by file
+    let mut edits_by_file: HashMap<FileId, Vec<Span>> = HashMap::new();
+    let primary_spans =
+        collect_symbol_rename_spans(session, canonical_id, &old_name, preserve_local_definition);
+    extend_spans_by_file(&mut edits_by_file, primary_spans);
+
+    // include implementation member spans when renaming interface members
+    if let Some(interface_member_target) = interface_member_target {
+        let implementation_members =
+            collect_interface_member_implementations(session, &interface_member_target, &old_name);
+
+        for member_symbol in implementation_members {
+            if member_symbol == canonical_id {
+                continue;
+            }
+
+            let spans = collect_symbol_rename_spans(session, member_symbol, &old_name, false);
+            extend_spans_by_file(&mut edits_by_file, spans);
+        }
+    }
+
+    // normalize span ordering and remove duplicates per file
+    for spans in edits_by_file.values_mut() {
+        sort_and_dedup_spans(spans);
+        prune_overlapping_spans(spans);
+    }
+
+    // create BatchEdit from collected spans
+    let mut batch_edit = BatchEdit::new();
+    for (file_id, spans) in edits_by_file {
+        let edits: Vec<Edit> = spans
+            .into_iter()
+            .map(|span| Edit::replace(span, new_name.to_string()))
+            .collect();
+        batch_edit.push(FileEdit::with_edits(file_id, edits));
+    }
+
+    Some(RenameResult::from_edits(batch_edit))
+}
+
+/// Resolve the symbol targeted by rename at a file offset.
+fn resolve_rename_target(
+    session: &Session,
+    file: FileId,
+    offset: u32,
+) -> Option<(SymbolAtOffset, dir::GlobalSymbolId, String)> {
+    // find the symbol at offset
+    let symbol_at = find_symbol_at_offset(session, file, offset)?;
+
+    // reject non modifier keywords at the cursor
+    let token = token_at_offset(session, file, offset);
+    if token.is_some_and(|token| is_keyword(&token) && !is_modifier_keyword(&token)) {
+        return None;
+    }
+
+    let symbol_id = symbol_at.symbol_id;
+
+    // keep explicit local import aliases as local rename targets
+    if let Some(local_alias_name) = resolve_local_import_alias_name(session, symbol_id) {
+        return Some((symbol_at, symbol_id, local_alias_name));
+    }
+
+    // resolve canonical symbol and stable rename name
+    let canonical_id = get_canonical_symbol(session, symbol_id);
+    let name = resolve_rename_name(session, canonical_id)?;
+
+    Some((symbol_at, canonical_id, name))
+}
+
+/// Build reference collection options used by rename.
+fn rename_reference_options<'a>(target_name: &'a str) -> ReferenceCollectionOptions<'a> {
+    ReferenceCollectionOptions {
+        include_expressions: true,
+        include_members: true,
+        include_dependencies: true,
+        include_namespace_members: true,
+        skip_dependency_aliases: true,
+        use_dependency_name_spans: true,
+        target_name: Some(target_name),
+        limit_to_file: None,
+    }
+}
+
+/// Collect all rename spans for one canonical symbol.
+fn collect_symbol_rename_spans(
+    session: &Session,
+    canonical_id: dir::GlobalSymbolId,
+    target_name: &str,
+    preserve_local_definition: bool,
+) -> Vec<Span> {
+    // seed spans with the declaration site
+    let mut spans = Vec::new();
+    let definition_span = if preserve_local_definition {
+        get_symbol_local_definition_span(session, canonical_id)
+            .or_else(|| get_symbol_definition_span(session, canonical_id))
+    } else {
+        get_symbol_definition_span(session, canonical_id)
+    };
+    if let Some(definition_span) = definition_span {
+        spans.push(definition_span);
+    }
+
+    // collect references across user modules
+    let reference_options = rename_reference_options(target_name);
+    let reference_spans = collect_symbol_reference_spans_across_user_modules(
+        session,
+        canonical_id,
+        reference_options,
+    );
+    spans.extend(reference_spans);
+
+    // normalize for deterministic edits
+    sort_and_dedup_spans(&mut spans);
+    spans
+}
+
+/// Collect symbol reference spans across user modules.
+fn collect_symbol_reference_spans_across_user_modules(
+    session: &Session,
+    canonical_id: dir::GlobalSymbolId,
+    options: ReferenceCollectionOptions<'_>,
+) -> Vec<Span> {
+    let mut spans = Vec::new();
+
+    for module in session.modules.iter() {
+        let module = module.read();
+        if !module.is_user() {
+            continue;
+        }
+
+        let Some(ctx) = crate::query_context(session, &module) else {
+            continue;
+        };
+
+        let module_spans =
+            collect_symbol_references_in_context(session, &ctx, canonical_id, options);
+        spans.extend(module_spans);
+    }
+
+    spans
+}
+
+/// Append spans into a per-file span map.
+fn extend_spans_by_file(edits_by_file: &mut HashMap<FileId, Vec<Span>>, spans: Vec<Span>) {
+    for span in spans {
+        edits_by_file.entry(span.file).or_default().push(span);
+    }
+}
+
+/// Remove overlapping spans by keeping the most specific span at each overlap.
+fn prune_overlapping_spans(spans: &mut Vec<Span>) {
+    if spans.len() < 2 {
+        return;
+    }
+
+    let mut filtered = Vec::with_capacity(spans.len());
+    for span in spans.iter().copied() {
+        let Some(last_span) = filtered.last_mut() else {
+            filtered.push(span);
+            continue;
+        };
+
+        if !last_span.intersects(span) {
+            filtered.push(span);
+            continue;
+        }
+
+        if span.len() < last_span.len()
+            || (span.len() == last_span.len() && span.start >= last_span.start)
+        {
+            *last_span = span;
+        }
+    }
+
+    *spans = filtered;
+}
+
+/// Resolve the stable rename source name for a symbol.
+fn resolve_rename_name(session: &Session, canonical_id: dir::GlobalSymbolId) -> Option<String> {
+    // prefer the canonical symbol metadata name when present
+    if let Some(name) = resolve_symbol_name(session, canonical_id) {
+        return Some(name);
+    }
+
+    // fall back to declaration based name extraction
+    resolve_name_from_primary_declaration(session, canonical_id)
+}
+
+/// Resolve a symbol name from its primary declaration when symbol metadata has no name.
+fn resolve_name_from_primary_declaration(
+    session: &Session,
+    canonical_id: dir::GlobalSymbolId,
+) -> Option<String> {
+    // resolve query context for the symbol module
+    let module = session.modules.get(canonical_id.module_id);
+    let module = module.read();
+    let ctx = crate::query_context(session, &module)?;
+
+    // resolve the primary declaration node id
+    let symbols = ctx.symbols();
+    let symbol = symbols.get_symbol(canonical_id.local_id);
+    let declaration = symbol.primary_declaration?;
+    drop(symbols);
+
+    let dir_tree = ctx.tree();
+    match declaration.local_id.ty {
+        dir::NodeType::Member => {
+            let member_id = declaration.local_id.try_into().ok()?;
+            let member = dir_tree.get::<dir::Member>(member_id);
+            let key = member.key()?;
+            member_key_name(session, key)
+        }
+        dir::NodeType::EnumField => {
+            let field_id = declaration.local_id.try_into().ok()?;
+            let field = dir_tree.get::<dir::EnumField>(field_id);
+            Some(session.strings.get(field.name).to_string())
+        }
+        dir::NodeType::Declaration => {
+            let declaration_id = declaration.local_id.try_into().ok()?;
+            let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
+            declaration
+                .descriptor()
+                .name
+                .map(|name| session.strings.get(name.string()).to_string())
+        }
+        dir::NodeType::Parameter => {
+            let parameter_id = declaration.local_id.try_into().ok()?;
+            let parameter = dir_tree.get::<dir::Parameter>(parameter_id);
+            match parameter {
+                dir::Parameter::Named { name, .. } => Some(session.strings.get(*name).to_string()),
+                dir::Parameter::VariadicNamed { name, .. } => {
+                    Some(session.strings.get(*name).to_string())
+                }
+                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
+            }
+        }
+        dir::NodeType::Pattern => {
+            let pattern_id = declaration.local_id.try_into().ok()?;
+            let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
+            match pattern {
+                dir::Pattern::Binding { name, .. } => Some(session.strings.get(*name).to_string()),
+                _ => None,
+            }
+        }
+        dir::NodeType::PatternField => {
+            let field_id = declaration.local_id.try_into().ok()?;
+            let field = dir_tree.get::<dir::PatternField>(field_id);
+            match field {
+                dir::PatternField::Alias { alias, .. } => {
+                    Some(session.strings.get(*alias).to_string())
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Interface member kind used for implementation matching.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InterfaceMemberKind {
+    /// A callable member declaration.
+    Method,
+    /// A field-like member declaration.
+    Field,
+}
+
+/// Interface member information used for implementation propagation.
+#[derive(Debug, Clone)]
+struct InterfaceMemberTarget {
+    /// The canonical interface symbol.
+    interface_symbol: dir::GlobalSymbolId,
+    /// The member name to propagate.
+    member_name: String,
+    /// The member shape to match.
+    member_kind: InterfaceMemberKind,
+}
+
+/// Resolve the interface member target for an interface member symbol.
+fn resolve_interface_member_target(
+    session: &Session,
+    canonical_id: dir::GlobalSymbolId,
+) -> Option<InterfaceMemberTarget> {
+    // resolve query context for the symbol module
+    let module = session.modules.get(canonical_id.module_id);
+    let module = module.read();
+    let ctx = crate::query_context(session, &module)?;
+
+    // resolve the member declaration node
+    let symbols = ctx.symbols();
+    let symbol = symbols.get_symbol(canonical_id.local_id);
+    let declaration = symbol.primary_declaration?;
+    drop(symbols);
+
+    if declaration.local_id.ty != dir::NodeType::Member {
+        return None;
+    }
+
+    let dir_tree = ctx.tree();
+    let Ok(member_id) = declaration.local_id.try_into() else {
+        return None;
+    };
+    let member = dir_tree.get::<dir::Member>(member_id);
+    let (member_kind, member_key) = match member {
+        dir::Member::Method { key, .. } => (InterfaceMemberKind::Method, key.as_ref()?),
+        dir::Member::Field { key, .. } => (InterfaceMemberKind::Field, key.as_ref()?),
+        _ => return None,
+    };
+    let member_name = member_key_name(session, member_key)?;
+
+    // resolve the parent declaration and ensure it is an interface
+    let parent = dir_tree.get_parent(member_id.id)?;
+    if parent.ty != dir::NodeType::Declaration {
+        return None;
+    }
+    let Ok(declaration_id) = parent.try_into() else {
+        return None;
+    };
+    let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
+    let descriptor = match declaration {
+        dir::Declaration::Interface { descriptor, .. } => descriptor,
+        _ => return None,
+    };
+
+    let interface_symbol = get_canonical_symbol(
+        session,
+        dir::GlobalSymbolId::new(ctx.module_id, descriptor.symbol),
+    );
+
+    Some(InterfaceMemberTarget {
+        interface_symbol,
+        member_name,
+        member_kind,
+    })
+}
+
+/// Collect implementation member symbols for a resolved interface member target.
+fn collect_interface_member_implementations(
+    session: &Session,
+    target: &InterfaceMemberTarget,
+    expected_name: &str,
+) -> Vec<dir::GlobalSymbolId> {
+    let mut members = Vec::new();
+
+    for module in session.modules.iter() {
+        let module = module.read();
+        let Some(ctx) = crate::query_context(session, &module) else {
+            continue;
+        };
+
+        let types = ctx.types();
+        let mut implementing_symbols = Vec::new();
+        for (symbol_id, lineage) in types.iter_lineages() {
+            let implements = lineage.implements.iter().any(|symbol| {
+                let canonical = get_canonical_symbol(session, *symbol);
+                canonical == target.interface_symbol
+            });
+            if !implements {
+                continue;
+            }
+            if symbol_id.module_id != ctx.module_id {
+                continue;
+            }
+            implementing_symbols.push(symbol_id.local_id);
+        }
+        drop(types);
+
+        if implementing_symbols.is_empty() {
+            continue;
+        }
+
+        let dir_tree = ctx.tree();
+        for (member_id, member) in dir_tree.iter_nodes_of_type::<dir::Member>() {
+            let Some(parent) = dir_tree.get_parent(member_id.id) else {
+                continue;
+            };
+            if parent.ty != dir::NodeType::Declaration {
+                continue;
+            }
+            let Ok(declaration_id) = parent.try_into() else {
+                continue;
+            };
+            let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
+            let descriptor = match declaration {
+                dir::Declaration::Class { descriptor, .. }
+                | dir::Declaration::Struct { descriptor, .. }
+                | dir::Declaration::Interface { descriptor, .. } => descriptor,
+                _ => continue,
+            };
+            if !implementing_symbols.contains(&descriptor.symbol) {
+                continue;
+            }
+
+            let (member_kind, member_key) = match member {
+                dir::Member::Method { key, .. } => {
+                    let Some(key) = key.as_ref() else {
+                        continue;
+                    };
+                    (InterfaceMemberKind::Method, key)
+                }
+                dir::Member::Field { key, .. } => {
+                    let Some(key) = key.as_ref() else {
+                        continue;
+                    };
+                    (InterfaceMemberKind::Field, key)
+                }
+                _ => continue,
+            };
+            if member_kind != target.member_kind {
+                continue;
+            }
+
+            let Some(member_name) = member_key_name(session, member_key) else {
+                continue;
+            };
+            if member_name != expected_name && member_name != target.member_name {
+                continue;
+            }
+
+            let symbol_id = dir::GlobalSymbolId::new(ctx.module_id, member.symbol());
+            members.push(get_canonical_symbol(session, symbol_id));
+        }
+    }
+
+    members.sort();
+    members.dedup();
+    members
+}
+
+/// Check whether a keyword can participate in rename as a declaration modifier.
+fn is_modifier_keyword(token: &str) -> bool {
+    let Ok(keyword) = Keyword::from_str(token) else {
+        return false;
+    };
+
+    matches!(
+        keyword,
+        Keyword::Export
+            | Keyword::Declare
+            | Keyword::Abstract
+            | Keyword::Async
+            | Keyword::Static
+            | Keyword::Public
+            | Keyword::Protected
+            | Keyword::Private
+            | Keyword::Readonly
+            | Keyword::Final
+            | Keyword::Accessor
+            | Keyword::Default
+            | Keyword::Override
+    )
+}
+
+/// Check whether a token is any language keyword.
+fn is_keyword(token: &str) -> bool {
+    Keyword::from_str(token).is_ok()
+}

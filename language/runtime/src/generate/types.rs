@@ -6,8 +6,8 @@ use destack_dir::{
     self as dir, Annotation, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId,
     PrimitiveType, StaticArgument, StaticExpression, TypeLiteral, WellKnownSymbol,
 };
+use destack_query::format::{format_local_type, format_type_literal};
 use destack_source::ModuleId;
-use destack_workspace::format::{format_local_type, format_type_literal};
 use destack_workspace::{Module, ModuleRegistry, ProfileId, Program};
 
 use crate::model::{

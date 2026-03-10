@@ -1,5 +1,3 @@
-#[cfg(feature = "query")]
-pub mod query;
 pub mod service;
 
 pub use service::{

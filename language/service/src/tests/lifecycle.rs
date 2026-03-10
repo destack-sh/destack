@@ -3,8 +3,8 @@ use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::Duration;
 
-use crate::query;
 use crate::tests::harness::TestLanguageService;
+use destack_query as query;
 
 /// Route file queries across multiple workspace roots.
 #[test]

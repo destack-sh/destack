@@ -1,6 +1,6 @@
+use destack_query as query;
+use destack_query::{CodeAction, CodeActionKind};
 use destack_source::{Edit, FileEdit, FileId, Span};
-use destack_workspace::query;
-use destack_workspace::query::{CodeAction, CodeActionKind};
 
 use crate::harness::TestResult;
 use crate::query::runner::position::resolve_query_position;

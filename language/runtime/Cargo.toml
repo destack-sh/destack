@@ -62,6 +62,7 @@ destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_heap = { workspace = true }
 destack_mir = { workspace = true }
+destack_query = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 destack_vm = { workspace = true }
