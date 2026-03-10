@@ -39,15 +39,25 @@ fi
 # runtime target matrix
 runtime_ensure_rust_target aarch64-linux-android
 runtime_ensure_rust_target aarch64-unknown-linux-gnu
+runtime_ensure_rust_target x86_64-pc-windows-gnu
 
 if [ "${host_kernel}" = "Darwin" ]; then
 	runtime_ensure_rust_target aarch64-apple-ios
 fi
 
-if [ "${host_kernel}" != "Linux" ] && [ -z "$(runtime_command_path zig)" ]; then
-	echo "missing zig: install zig to cross check the runtime linux aarch64 lane" >&2
-	echo "install zig, then re-run: just language/install-toolchain" >&2
-	exit 1
+if [ -z "$(runtime_command_path zig)" ]; then
+	if [ "${host_kernel}" = "Linux" ]; then
+		echo "installing zig for runtime cross target lanes"
+		if ! runtime_linux_install_package zig; then
+			echo "failed to install zig automatically" >&2
+			echo "install zig manually, then re-run: just language/install-toolchain" >&2
+			exit 1
+		fi
+	else
+		echo "missing zig: install zig to cross check the runtime linux aarch64 and windows gnu lanes" >&2
+		echo "install zig, then re-run: just language/install-toolchain" >&2
+		exit 1
+	fi
 fi
 
 # android sdk and ndk

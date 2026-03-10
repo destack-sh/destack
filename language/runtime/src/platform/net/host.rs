@@ -18,13 +18,15 @@ pub(crate) use unsupported::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use crate::platform::net::PACKET_BACKEND_CAP_TIMESTAMP;
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 use crate::platform::net::{
     PACKET_BACKEND_CAP_CAPTURE, PACKET_BACKEND_CAP_FILTER, PACKET_BACKEND_CAP_SEND,
-    PACKET_BACKEND_CAP_TIMESTAMP, PacketBackend, PacketBackendCapabilityFlags,
-    PacketBackendDescriptor,
 };
 #[cfg(target_os = "linux")]
 use crate::platform::net::{PACKET_BACKEND_CAP_FANOUT, PACKET_BACKEND_CAP_RING};
+use crate::platform::net::{PacketBackend, PacketBackendCapabilityFlags, PacketBackendDescriptor};
 use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// List host packet backends.

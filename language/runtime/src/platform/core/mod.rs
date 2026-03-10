@@ -47,6 +47,7 @@ pub(crate) use unix::load_dynamic_symbol_named;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 pub(crate) use unix::unix_process_monotonic_nanos;
 #[cfg(target_vendor = "apple")]
+#[allow(unused_imports)]
 pub(crate) use unix::{
     apple_host_time_resolution_nanos, apple_host_time_to_process_nanos,
     apple_process_monotonic_nanos, apple_process_nanos_to_host_time,
@@ -63,7 +64,7 @@ pub(crate) use windows::{
     define_com_iunknown_methods, ensure_winsock, error_message, io_error, io_error_with_code,
     io_error_with_platform_code, last_error_code, last_wsa_error_code, net_error,
     net_error_with_code, pathbuf_from_utf8, pathbuf_from_utf16, qpc_frequency_hz,
-    qpc_hundred_nanos_to_process_nanos, qpc_now_ns, qpc_now_ticks, qpc_process_monotonic_nanos,
+    qpc_hundred_nanos_to_process_nanos, qpc_now_ticks, qpc_process_monotonic_nanos,
     qpc_ticks_to_hundred_nanos, qpc_ticks_to_ns, string_from_utf8, string_from_wide, wide_from_str,
     wide_from_utf8, wide_from_utf16, wide_with_nul,
 };
@@ -75,7 +76,7 @@ pub(crate) fn monotonic_now_ns() -> u64 {
     // use the native Apple host-time domain
     #[cfg(target_vendor = "apple")]
     {
-        return apple_process_monotonic_nanos();
+        apple_process_monotonic_nanos()
     }
 
     // use process-relative CLOCK_MONOTONIC on non-Apple Unix hosts
@@ -87,7 +88,7 @@ pub(crate) fn monotonic_now_ns() -> u64 {
     // use process-relative QPC on Windows hosts
     #[cfg(windows)]
     {
-        return qpc_process_monotonic_nanos()
-            .unwrap_or_else(|| panic!("QueryPerformanceCounter monotonic clock unavailable"));
+        qpc_process_monotonic_nanos()
+            .unwrap_or_else(|| panic!("QueryPerformanceCounter monotonic clock unavailable"))
     }
 }

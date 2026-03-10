@@ -83,6 +83,7 @@ fn packet_not_supported(operation: &'static str) -> RuntimeResult<()> {
 }
 
 /// Runtime packet metadata for one Unix packet endpoint.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 #[derive(Clone, Copy)]
 struct UnixPacketState {
     /// Timestamp mode for packet capture records.
@@ -90,12 +91,14 @@ struct UnixPacketState {
 }
 
 /// Finalizer for packet endpoints that also clears packet metadata rows.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 #[derive(Debug)]
 struct UnixPacketFinalizer {
     /// Raw Unix packet descriptor.
     fd: RawFd,
 }
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 impl ResourceFinalizer for UnixPacketFinalizer {
     /// Close the packet descriptor and clear packet metadata for the resource.
     fn finalize(self: Box<Self>, resource_id: ResourceId) {
@@ -110,10 +113,12 @@ impl ResourceFinalizer for UnixPacketFinalizer {
 }
 
 /// Packet-state table for Unix packet endpoints.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 static PACKET_SOCKET_STATES: LazyLock<Mutex<HashMap<ResourceId, UnixPacketState>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Resolve one packet-state row for one packet endpoint handle.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn packet_socket_state(handle: SocketHandle) -> RuntimeResult<UnixPacketState> {
     PACKET_SOCKET_STATES
         .lock()
@@ -129,6 +134,7 @@ fn packet_socket_state(handle: SocketHandle) -> RuntimeResult<UnixPacketState> {
 }
 
 /// Update one packet-state row in place.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn update_packet_socket_state(
     handle: SocketHandle,
     update: impl FnOnce(&mut UnixPacketState),

@@ -1,3 +1,4 @@
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 use std::sync::{Arc, OnceLock};
 
 use destack_core::{Capture, CaptureMode};
