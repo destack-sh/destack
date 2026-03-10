@@ -1,4 +1,4 @@
-pub(super) use crate::TestProgram;
+pub(super) use crate::{TestProgram, root_expression_id};
 pub(super) use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalScopeMark, LocalTypeId, NodeTree,
     StaticKey, SymbolTable, TypeTable,
@@ -58,9 +58,9 @@ impl TestProgram {
 }
 
 impl<'a> DeclareTestView<'a> {
-    /// Read root expressions.
-    pub(super) fn roots(&self) -> &[LocalNodeId<Expression>] {
-        &self.roots
+    /// Resolve the root expression for the view.
+    pub(super) fn root_expression_id(&self, index: usize) -> LocalNodeId<Expression> {
+        root_expression_id(&self.roots, &self.tree, index)
     }
 
     /// Read the node tree.

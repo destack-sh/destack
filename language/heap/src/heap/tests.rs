@@ -100,7 +100,7 @@ fn test_roundtrip_raw_heap_image() {
     let reused_pointer = heap.allocate_with_bytes(&[0xFE, 0xED]);
     assert_eq!(reused_pointer.id(), freed_pointer.id());
 
-    let image = heap.image().expect("heap image should capture");
+    let image = heap.image();
     let restored = RawHeap::from_image(&image);
 
     // verify preserved live cells and allocator state
