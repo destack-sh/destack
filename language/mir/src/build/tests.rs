@@ -1,9 +1,8 @@
+use crate::build::ModuleBuilder;
 use crate::{
     AddressSpace, AtomicScope, Copyability, MemoryOrdering, MemoryScope, MemorySemantics,
     MirFormatOptions, Mutability, ReferenceKind, Type, format_mir,
 };
-
-use super::ModuleBuilder;
 
 /// Empty function with void return.
 #[test]
@@ -154,6 +153,63 @@ block2:
     jump block3
 block3:
     return v1
+}";
+    assert_eq!(output, expected);
+}
+
+/// Exceptional call terminators carry explicit normal and unwind continuations.
+#[test]
+fn test_build_function_with_exceptional_call_terminator() {
+    // setup
+    let mut module = ModuleBuilder::unchecked();
+    let i32_type = module.type_i32();
+    let exception_type = module.type_managed_reference(i32_type);
+    let callee = module.extern_function("callee", &[i32_type], i32_type);
+
+    // build function
+    let mut builder = module.function("caller", &[i32_type], i32_type);
+    let entry_block = builder.block();
+    let normal_block = builder.block();
+    let unwind_block = builder.block();
+
+    // entry: branch through the exceptional call
+    builder.switch_to_block(entry_block);
+    let argument = builder.function_parameter(0);
+    let result = builder.add_block_parameter(normal_block, i32_type);
+    let exception = builder.add_block_parameter(unwind_block, exception_type);
+    builder.call_branch(
+        callee,
+        vec![argument],
+        normal_block,
+        Vec::new(),
+        unwind_block,
+        Vec::new(),
+    );
+    builder.seal_block(entry_block);
+
+    // normal continuation
+    builder.switch_to_block(normal_block);
+    builder.return_(Some(result));
+    builder.seal_block(normal_block);
+
+    // unwind continuation
+    builder.switch_to_block(unwind_block);
+    builder.throw(exception);
+    builder.seal_block(unwind_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+extern function @callee(i32) -> i32
+function @caller(v0: i32) -> i32 {
+block0(v0: i32):
+    call @callee(v0) normal block1 unwind block2
+block1(v1: i32):
+    return v1
+block2(v2: ref<managed readonly i32>):
+    throw v2
 }";
     assert_eq!(output, expected);
 }
@@ -522,6 +578,7 @@ fn test_type_construction() {
     let array_type = module.type_array(i32_type, 10, Copyability::Trivial);
     let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copyability::Trivial);
     let function_pointer_type = module.type_function_pointer(vec![i32_type], i32_type);
+    let function_value_type = module.type_function_value(function_pointer_type, pointer_type);
 
     // verify types
     let (tree, _strings) = module.finish_immutable();
@@ -558,6 +615,10 @@ fn test_type_construction() {
     assert!(matches!(
         tree.get(function_pointer_type),
         Type::FunctionPointer { .. }
+    ));
+    assert!(matches!(
+        tree.get(function_value_type),
+        Type::FunctionValue { .. }
     ));
 }
 
@@ -913,8 +974,8 @@ fn test_build_struct() {
     let f64_type = module.type_f64();
 
     // create a struct type {i32, f64}
-    let field0 = module.field(None, i32_type, 0);
-    let field1 = module.field(None, f64_type, 8);
+    let field0 = module.field(None, i32_type);
+    let field1 = module.field(None, f64_type);
     let struct_type = module.type_struct(vec![field0, field1], Copyability::Trivial);
 
     // build function that constructs a struct
@@ -1017,8 +1078,8 @@ fn test_build_field_get_struct() {
     let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let f64_type = module.type_f64();
-    let field0 = module.field(None, i32_type, 0);
-    let field1 = module.field(None, f64_type, 8);
+    let field0 = module.field(None, i32_type);
+    let field1 = module.field(None, f64_type);
     let struct_type = module.type_struct(vec![field0, field1], Copyability::Trivial);
 
     // build function that extracts the second field
