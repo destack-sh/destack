@@ -909,13 +909,12 @@ fn compute_separator_line_comment_source(
         )
     };
 
-    if ctx.has_postfix_annotation(argument_id) || ctx.has_boundary_comment_annotation(argument_id) {
-        if let Some(comment_source) = ctx
+    if (ctx.has_postfix_annotation(argument_id) || ctx.has_boundary_comment_annotation(argument_id))
+        && let Some(comment_source) = ctx
             .visit_annotations(argument_id, resolve_from_annotations)
             .flatten()
-        {
-            return Some(comment_source);
-        }
+    {
+        return Some(comment_source);
     }
 
     let value_id = argument_value_id(ctx.tree, argument_id);
@@ -1010,8 +1009,8 @@ fn compute_separator_line_comment_source(
 
     let following_argument_id = following_argument_id?;
     let following_argument_span = ctx.span(following_argument_id);
-    if ctx.has_prefix_annotation(following_argument_id) {
-        if let Some(comment_source) = ctx
+    if ctx.has_prefix_annotation(following_argument_id)
+        && let Some(comment_source) = ctx
             .visit_annotations(following_argument_id, |annotations| {
                 separator_line_comment_source_from_following_prefix_annotations(
                     ctx,
@@ -1024,9 +1023,8 @@ fn compute_separator_line_comment_source(
                 )
             })
             .flatten()
-        {
-            return Some(comment_source);
-        }
+    {
+        return Some(comment_source);
     }
 
     let following_value_id = argument_value_id(ctx.tree, following_argument_id);
@@ -1610,15 +1608,13 @@ fn preserve_blank_line_before_argument_with_separator_comments(
     // preserve blank lines only between that rendered comment cluster and the next argument
     if let Some(previous_separator_source) =
         separator_line_comment_sources[argument_index - 1].as_ref()
+        && previous_separator_source.is_own_line
+        && let Some(last_comment_id) = previous_separator_source.comment_ids.last().copied()
     {
-        if previous_separator_source.is_own_line {
-            if let Some(last_comment_id) = previous_separator_source.comment_ids.last().copied() {
-                let last_comment_span = ctx.span(last_comment_id);
-                let right_argument_span = ctx.span(right_argument_id);
-                if let Some(between_span) = last_comment_span.gap_to(right_argument_span) {
-                    return ctx.has_blank_line(between_span);
-                }
-            }
+        let last_comment_span = ctx.span(last_comment_id);
+        let right_argument_span = ctx.span(right_argument_id);
+        if let Some(between_span) = last_comment_span.gap_to(right_argument_span) {
+            return ctx.has_blank_line(between_span);
         }
     }
 
@@ -1658,11 +1654,10 @@ fn write_separator_comment_multiline_arguments<'ast>(
             }
         }
 
-        if index > 0 {
-            if let Some(detached_separator_source) =
+        if index > 0
+            && let Some(detached_separator_source) =
                 separator_line_comment_sources[index - 1].as_ref()
-            {
-                if detached_separator_source.detached_from_following_prefix
+                && detached_separator_source.detached_from_following_prefix
                     && write_argument_without_separator_line_comment_with_prefix_filter_and_postfix_blank_policy(
                         f,
                         *argument_id,
@@ -1675,11 +1670,9 @@ fn write_separator_comment_multiline_arguments<'ast>(
                     }
                     continue;
                 }
-            }
-        }
 
-        if let Some(comment_source) = separator_line_comment_sources[index].as_ref() {
-            if write_argument_without_separator_line_comment_with_prefix_filter_and_postfix_blank_policy(
+        if let Some(comment_source) = separator_line_comment_sources[index].as_ref()
+            && write_argument_without_separator_line_comment_with_prefix_filter_and_postfix_blank_policy(
                 f,
                 *argument_id,
                 None,
@@ -1688,7 +1681,6 @@ fn write_separator_comment_multiline_arguments<'ast>(
                 write_separator_line_comment_after_comma(f, comment_source)?;
                 continue;
             }
-        }
 
         write!(f, [group(argument_id)])?;
 
