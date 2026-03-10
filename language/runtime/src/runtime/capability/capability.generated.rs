@@ -13,8 +13,6 @@ pub enum PlatformCapability {
     AudioDevice,
     /// `audio.device.monitor`.
     AudioDeviceMonitor,
-    /// `audio.midi`.
-    AudioMidi,
     /// `audio.playback`.
     AudioPlayback,
     /// `audio.playback.schedule`.
@@ -241,6 +239,16 @@ pub enum PlatformCapability {
     MemoryNuma,
     /// `memory.protect`.
     MemoryProtect,
+    /// `midi.port`.
+    MidiPort,
+    /// `midi.observe`.
+    MidiObserve,
+    /// `midi.read`.
+    MidiRead,
+    /// `midi.virtual`.
+    MidiVirtual,
+    /// `midi.write`.
+    MidiWrite,
     /// `memory.query`.
     MemoryQuery,
     /// `net.accept`.
@@ -456,7 +464,6 @@ impl PlatformCapability {
         Self::AudioControl,
         Self::AudioDevice,
         Self::AudioDeviceMonitor,
-        Self::AudioMidi,
         Self::AudioPlayback,
         Self::AudioPlaybackSchedule,
         Self::AudioStream,
@@ -570,6 +577,11 @@ impl PlatformCapability {
         Self::MemoryMap,
         Self::MemoryNuma,
         Self::MemoryProtect,
+        Self::MidiPort,
+        Self::MidiObserve,
+        Self::MidiRead,
+        Self::MidiVirtual,
+        Self::MidiWrite,
         Self::MemoryQuery,
         Self::NetAccept,
         Self::NetClose,
@@ -682,7 +694,6 @@ impl PlatformCapability {
             Self::AudioControl => "audio.control",
             Self::AudioDevice => "audio.device",
             Self::AudioDeviceMonitor => "audio.device.monitor",
-            Self::AudioMidi => "audio.midi",
             Self::AudioPlayback => "audio.playback",
             Self::AudioPlaybackSchedule => "audio.playback.schedule",
             Self::AudioStream => "audio.stream",
@@ -796,6 +807,11 @@ impl PlatformCapability {
             Self::MemoryMap => "memory.map",
             Self::MemoryNuma => "memory.numa",
             Self::MemoryProtect => "memory.protect",
+            Self::MidiPort => "midi.port",
+            Self::MidiObserve => "midi.observe",
+            Self::MidiRead => "midi.read",
+            Self::MidiVirtual => "midi.virtual",
+            Self::MidiWrite => "midi.write",
             Self::MemoryQuery => "memory.query",
             Self::NetAccept => "net.accept",
             Self::NetClose => "net.close",
@@ -914,7 +930,6 @@ impl PlatformCapability {
             "audio.control" => Some(Self::AudioControl),
             "audio.device" => Some(Self::AudioDevice),
             "audio.device.monitor" => Some(Self::AudioDeviceMonitor),
-            "audio.midi" => Some(Self::AudioMidi),
             "audio.playback" => Some(Self::AudioPlayback),
             "audio.playback.schedule" => Some(Self::AudioPlaybackSchedule),
             "audio.stream" => Some(Self::AudioStream),
@@ -1028,6 +1043,11 @@ impl PlatformCapability {
             "memory.map" => Some(Self::MemoryMap),
             "memory.numa" => Some(Self::MemoryNuma),
             "memory.protect" => Some(Self::MemoryProtect),
+            "midi.port" => Some(Self::MidiPort),
+            "midi.observe" => Some(Self::MidiObserve),
+            "midi.read" => Some(Self::MidiRead),
+            "midi.virtual" => Some(Self::MidiVirtual),
+            "midi.write" => Some(Self::MidiWrite),
             "memory.query" => Some(Self::MemoryQuery),
             "net.accept" => Some(Self::NetAccept),
             "net.close" => Some(Self::NetClose),

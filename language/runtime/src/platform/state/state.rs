@@ -6,6 +6,7 @@ use crate::platform::audio::{PlatformAudioImage, PlatformAudioState};
 use crate::platform::display::{PlatformDisplayImage, PlatformDisplayState};
 use crate::platform::fs::{PlatformFsImage, PlatformFsState};
 use crate::platform::input::{PlatformInputImage, PlatformInputState};
+use crate::platform::midi::{PlatformMidiImage, PlatformMidiState};
 use crate::platform::net::{PlatformNetImage, PlatformNetState};
 use crate::platform::os::{PlatformOsImage, PlatformOsState};
 
@@ -21,6 +22,8 @@ pub(crate) struct PlatformState {
     pub fs: PlatformFsState,
     /// Input module state.
     pub input: PlatformInputState,
+    /// MIDI module state.
+    pub midi: PlatformMidiState,
     /// Network module state.
     pub net: PlatformNetState,
     /// OS module state.
@@ -38,6 +41,8 @@ pub struct PlatformStateImage {
     pub fs: PlatformFsImage,
     /// Input platform-state image.
     pub input: PlatformInputImage,
+    /// MIDI platform-state image.
+    pub midi: PlatformMidiImage,
     /// Network platform-state image.
     pub net: PlatformNetImage,
     /// OS platform-state image.
@@ -61,6 +66,7 @@ impl Capture for PlatformState {
             display: self.display.capture_image(mode, ())?,
             fs: self.fs.capture_image(mode, ())?,
             input: self.input.capture_image(mode, ())?,
+            midi: self.midi.capture_image(mode, ())?,
             net: self.net.capture_image(mode, ())?,
             os: self.os.capture_image(mode, ())?,
         })
@@ -76,6 +82,7 @@ impl Capture for PlatformState {
         self.display.restore_image(&image.display, ())?;
         self.fs.restore_image(&image.fs, ())?;
         self.input.restore_image(&image.input, ())?;
+        self.midi.restore_image(&image.midi, ())?;
         self.net.restore_image(&image.net, ())?;
         self.os.restore_image(&image.os, ())?;
 

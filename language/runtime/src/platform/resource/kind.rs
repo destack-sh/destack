@@ -107,7 +107,9 @@ macro_rules! for_each_resource_handle_kind {
             (IntentHandle, Intent, "resource.intent", "intent", "The handle for one intent session."),
             (LifecycleEventHandle, LifecycleEvent, "resource.lifecycle.event", "lifecycle_event", "The handle for one lifecycle event stream."),
             (LocationWatchHandle, LocationWatch, "resource.location.watch", "location_watch", "The handle for one location watch stream."),
-            (MidiPortHandle, MidiPort, "resource.midi.port", "midi_port", "The handle for one MIDI port session."),
+            (MidiEventHandle, MidiEvent, "resource.midi.event", "midi_event", "The handle for one MIDI topology event stream."),
+            (MidiInputPortHandle, MidiInputPort, "resource.midi.input.port", "midi_input_port", "The handle for one opened MIDI input endpoint."),
+            (MidiOutputPortHandle, MidiOutputPort, "resource.midi.output.port", "midi_output_port", "The handle for one opened MIDI output endpoint."),
             (NetworkWatchHandle, NetworkWatch, "resource.network.watch", "network_watch", "The handle for one network watch stream."),
             (NotificationEventHandle, NotificationEvent, "resource.notification.event", "notification_event", "The handle for one notification event stream."),
             (SerialPortHandle, SerialPort, "resource.serial.port", "serial_port", "The handle for one serial port session."),
@@ -172,6 +174,7 @@ macro_rules! define_resource_kind {
                     | Self::SignalFd
                     | Self::MessageQueue
                     | Self::AudioEvent
+                    | Self::MidiEvent
                     | Self::InputMonitor
                     | Self::BackgroundEvent
                     | Self::BluetoothSubscription
@@ -212,6 +215,8 @@ macro_rules! define_resource_kind {
                     | Self::Trace
                     | Self::Transferred
                     | Self::AudioDevice
+                    | Self::MidiInputPort
+                    | Self::MidiOutputPort
                     | Self::Display
                     | Self::Window
                     | Self::InputDevice
@@ -248,7 +253,6 @@ macro_rules! define_resource_kind {
                     | Self::Document
                     | Self::Intent
                     | Self::LifecycleEvent
-                    | Self::MidiPort
                     | Self::SerialPort
                     | Self::UsbDevice => &[],
                 }

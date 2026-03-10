@@ -400,7 +400,7 @@ fn collect_vm_decode_usage_for_binding(
         BindingType::Int(_) | BindingType::UInt(_) | BindingType::Float(_) => {}
         BindingType::String => usage.uses_string = true,
         BindingType::StringSlice => {
-            if include_collection_decoders {
+            if include_collection_decoders || deep_collections {
                 usage.uses_slice = true;
             }
             if deep_collections {
@@ -408,7 +408,7 @@ fn collect_vm_decode_usage_for_binding(
             }
         }
         BindingType::Slice(inner) => {
-            if include_collection_decoders {
+            if include_collection_decoders || deep_collections {
                 usage.uses_slice = true;
             }
             if deep_collections {
@@ -416,7 +416,7 @@ fn collect_vm_decode_usage_for_binding(
             }
         }
         BindingType::Array(inner) => {
-            if include_collection_decoders {
+            if include_collection_decoders || deep_collections {
                 usage.uses_array = true;
             }
             if deep_collections {
@@ -599,10 +599,10 @@ impl<'a> DomainWriter<'a> {
         self.output
             .push_str("use crate::diagnostic::RuntimeResult;\n");
         let mut vm_imports = Vec::new();
-        if usage.vm_types.uses_vm_slice {
+        if usage.vm_types.uses_vm_slice || usage.vm_usage.uses_slice {
             vm_imports.push("VmSlice");
         }
-        if usage.vm_types.uses_vm_array {
+        if usage.vm_types.uses_vm_array || usage.vm_usage.uses_array {
             vm_imports.push("VmArray");
         }
         if !vm_imports.is_empty() {
