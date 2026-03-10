@@ -1,5 +1,5 @@
 use destack_lsp_types as lsp;
-use destack_service::query;
+use destack_query as query;
 use destack_source::{Diagnostic, DiagnosticSeverity, File};
 use destack_workspace::Session;
 use serde_json::Value;

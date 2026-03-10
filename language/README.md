@@ -15,6 +15,7 @@ The language toolchain is split into several Rust crates, each handling a specif
 | [`compiler`](compiler/README.md) | Experimental | End-to-end compiler from AST through DIR to MIR |
 | [`formatter`](formatter/README.md) | Alpha | Canonical source formatter |
 | [`linter`](linter/README.md) | Experimental | Linter rules and linting interface |
+| [`lsp`](lsp/README.md) | Experimental | Language Server Protocol service implementation |
 | [`parser`](parser/README.md) | Alpha | Lexer and parser for `.ds`, `.ts`, `.tsx`, `.js`, and `.jsx` |
 | [`query`](query/README.md) | Experimental | Semantic tooling queries and presentation formatting |
 | [`resolver`](resolver/README.md) | Alpha | JS and TS style module and package resolution |

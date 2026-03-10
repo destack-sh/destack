@@ -55,19 +55,6 @@ Use conventional commits for all repository changes.
 
 If you find a security issue, please follow [SECURITY.md](SECURITY.md).
 
-## Structure
-
-This is the open source monorepo containing the language, library, service, app, bridge, and template layers:
-
-| Directory | Description | README |
-|--------------|----------------------------------------------------------------|-------------------------------|
-| `language/`  | Language toolchain (parser, compiler, formatter, LSP, etc.)    | [language/README](language/README.md)  |
-| `library/`   | Standard library (entity, telemetry, math, physics, UI, etc.)  | [library/README](library/README.md)   |
-| `service/`   | Runtime and developer services (daemon, lsp, lsp-server, lsp-types) | [service/README](service/README.md) |
-| `app/`       | First-party applications and operator tools (cli, future apps) | [app/README](app/README.md) |
-| `bridge/`    | SDKs and external integrations (napi, wasm, rust, python, vscode, zed, bun, vite) | [bridge/README](bridge/README.md) |
-| `template/`  | Project templates and initializer package | [template/README](template/README.md) |
-
 ## Setup
 
 Destack is *developed* primarily using Rust and TypeScript (and Destack itself, of course).

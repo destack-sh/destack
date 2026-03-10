@@ -1,6 +1,6 @@
 use destack_dir::GlobalSymbolId;
 use destack_lsp_types as lsp;
-use destack_service::query;
+use destack_query as query;
 use destack_source::{File, ModuleId, PackageId};
 use destack_workspace::Session;
 use serde_json::{from_value, json, to_value};
@@ -17,7 +17,7 @@ fn symbol_id_from_lsp_data(session: &Session, data: &serde_json::Value) -> Optio
     let module_id = ModuleId::new(PackageId(package), module);
     let module = session.modules.get(module_id);
     let module = module.read();
-    let ctx = session.query_context(&module)?;
+    let ctx = query::common::query_context(session, &module)?;
     let symbols = ctx.symbols();
     let symbol_entry = symbols.get_symbol_by_id(symbol);
 

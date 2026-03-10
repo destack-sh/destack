@@ -4,9 +4,9 @@ set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
 # all service crates
-packages := "-p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types"
-format-packages := "-p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types"
-test-packages := "-p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types"
+packages := "-p destack_daemon"
+format-packages := "-p destack_daemon"
+test-packages := "-p destack_daemon"
 
 _default:
     @just --list --unsorted
