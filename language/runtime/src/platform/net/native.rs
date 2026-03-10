@@ -1,17 +1,21 @@
 use super::host;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{OsPath, OsPathBytes, PathBytesAbi};
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use crate::platform::net::PACKET_BACKEND_CAP_TIMESTAMP;
 use crate::platform::net::{
-    KeepAliveConfig, Linger, NetInterface, PACKET_BACKEND_CAP_CAPTURE, PACKET_BACKEND_CAP_FILTER,
-    PACKET_BACKEND_CAP_SEND, PACKET_BACKEND_CAP_TIMESTAMP, PacketBackend,
-    PacketBackendCapabilityFlags, PacketBackendDescriptor, PacketCaptureOptions,
-    PacketCaptureRecord, PacketCaptureStats, PacketFanoutOptions, PacketRingOptions,
-    PacketTimestampMode, ResolveQuery, ReverseLookupFlags, ReverseLookupName, RouteEntry,
-    SocketAddress, SocketFamily, SocketMessageFlags, SocketOptionLevel, SocketOptionName,
-    SocketPair, SocketProtocol, SocketRecvBatchRequest, SocketRecvFrom, SocketRecvMessage,
-    SocketSendBatchEntry, SocketSendTo, SocketTimestampingMode, SocketType, UdpMessageFlags,
-    UdpReceive, UdpSourceMembershipV4, UdpSourceMembershipV6, UdsAbstractAddress, UdsAddress,
-    UdsPathAddress, UdsUnnamedAddress, host as host_net,
+    KeepAliveConfig, Linger, NetInterface, PacketBackend, PacketBackendCapabilityFlags,
+    PacketBackendDescriptor, PacketCaptureOptions, PacketCaptureRecord, PacketCaptureStats,
+    PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, ResolveQuery, ReverseLookupFlags,
+    ReverseLookupName, RouteEntry, SocketAddress, SocketFamily, SocketMessageFlags,
+    SocketOptionLevel, SocketOptionName, SocketPair, SocketProtocol, SocketRecvBatchRequest,
+    SocketRecvFrom, SocketRecvMessage, SocketSendBatchEntry, SocketSendTo, SocketTimestampingMode,
+    SocketType, UdpMessageFlags, UdpReceive, UdpSourceMembershipV4, UdpSourceMembershipV6,
+    UdsAbstractAddress, UdsAddress, UdsPathAddress, UdsUnnamedAddress, host as host_net,
+};
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+use crate::platform::net::{
+    PACKET_BACKEND_CAP_CAPTURE, PACKET_BACKEND_CAP_FILTER, PACKET_BACKEND_CAP_SEND,
 };
 #[cfg(target_os = "linux")]
 use crate::platform::net::{PACKET_BACKEND_CAP_FANOUT, PACKET_BACKEND_CAP_RING};

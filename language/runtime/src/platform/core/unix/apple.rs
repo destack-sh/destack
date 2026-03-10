@@ -78,6 +78,8 @@ pub(crate) fn apple_host_time_to_process_nanos(host_time: u64) -> u64 {
 }
 
 /// Convert process-relative monotonic nanoseconds into an Apple host-time tick value.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+#[cfg_attr(target_os = "ios", allow(dead_code))]
 pub(crate) fn apple_process_nanos_to_host_time(nanos: u64) -> u64 {
     let epoch = *APPLE_HOST_TIME_EPOCH.get_or_init(apple_host_time_now);
     let info = apple_timebase_info();

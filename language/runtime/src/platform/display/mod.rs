@@ -12,7 +12,6 @@ pub mod native;
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 pub(crate) mod options;
 pub(crate) mod simulation;
-#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 mod state;
 #[cfg(any(test, feature = "affinity"))]
 pub(crate) mod tests;
@@ -23,5 +22,4 @@ pub mod vm;
 #[cfg(windows)]
 mod windows;
 
-#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 pub(crate) use state::*;

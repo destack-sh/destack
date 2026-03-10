@@ -30,8 +30,16 @@ jobs:
         with:
           rust_components: clippy
 
+      - name: Install Zig
+        if: matrix.arch == 'x86_64'
+        uses: ./.github/actions/setup-zig
+
       - name: Check Runtime (Linux)
         run: just language/check-runtime-linux
+
+      - name: Check Runtime (Windows GNU)
+        if: matrix.arch == 'x86_64'
+        run: just language/check-runtime-windows-gnu
 
       - name: Check Runtime (Linux Wayland)
         run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just language/check-runtime-linux-wayland

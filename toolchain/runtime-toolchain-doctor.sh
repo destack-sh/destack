@@ -87,6 +87,7 @@ fi
 # rust targets used by runtime lanes
 check_rust_target aarch64-linux-android required
 check_rust_target aarch64-unknown-linux-gnu required
+check_rust_target x86_64-pc-windows-gnu required
 
 # ios checks only apply on macos hosts
 if [ "${host_kernel}" = "Darwin" ]; then
@@ -98,21 +99,18 @@ fi
 # linux host checks apply on linux hosts
 if [ "${host_kernel}" = "Linux" ]; then
 	check_command weston required "weston wayland compositor"
+else
+	check_command weston optional "weston wayland compositor"
 fi
+
+# zig powers the runtime cross target lanes on all supported hosts
+check_command zig required "zig cross compiler"
 
 # android ndk resolution
 if ndk_root="$("${script_directory}"/resolve-android-ndk-root.sh 2>/dev/null)"; then
 	print_ok "android ndk root: ${ndk_root}"
 else
 	print_error "android ndk root: not found, run just language/install-toolchain"
-fi
-
-if [ "${host_kernel}" != "Linux" ]; then
-	check_command weston optional "weston wayland compositor"
-fi
-
-if [ "${host_kernel}" != "Linux" ]; then
-	check_command zig required "zig cross compiler"
 fi
 
 if [ "${has_error}" = "1" ]; then

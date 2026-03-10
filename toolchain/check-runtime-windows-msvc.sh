@@ -43,11 +43,8 @@ command -v nasm >/dev/null
 LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" check -p destack_runtime
 LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" clippy -p destack_runtime --all-targets -- -D warnings
 
-# run windows host adapter tests
-LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" test -p destack_runtime host::windows:: -- --nocapture
-
-# run windows audio tests
-LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" test -p destack_runtime platform::audio::tests:: -- --nocapture
+# run the full runtime crate test suite on one real windows host
+LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" test -p destack_runtime -- --nocapture
 
 # run runtime smoke executable on host
 LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" run -p destack_runtime --bin runtime-smoke --quiet
