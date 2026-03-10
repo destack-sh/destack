@@ -91,6 +91,14 @@ rustls = { workspace = true, features = ["ring", "std"] }
 rustls-pemfile = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Devices_Enumeration",
+    "Devices_Midi",
+    "Foundation",
+    "Storage_Streams",
+    "Win32_Foundation",
+    "Win32_System_WinRT",
+] }
 windows-sys = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_NetworkManagement_IpHelper",
@@ -154,6 +162,7 @@ wayland-protocols-wlr = { workspace = true }
 x11rb = { workspace = true, features = ["randr", "shape", "xfixes"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+block2 = { workspace = true }
 dispatch2 = { workspace = true }
 objc2 = { workspace = true }
 objc2-app-kit = { workspace = true }

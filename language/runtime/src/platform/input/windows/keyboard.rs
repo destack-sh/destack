@@ -2,7 +2,7 @@ use super::{core as input_core, xinput as xinput_input};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{InputDeviceKind, InputKeyboardState};
-use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Return whether one resolved binding supports keyboard state queries.
