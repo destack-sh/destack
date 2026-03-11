@@ -4,20 +4,16 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::diagnostic::RuntimeError;
-use crate::diagnostic::RuntimeResult;
-use crate::platform::PlatformError as AbiPlatformError;
-use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::platform::{
+    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
+    VmValueCodec, resource, resource as platform_resource, tty as platform_tty,
+};
 use crate::runtime::BindingCallContext;
-use crate::platform::VmValueCodec;
-use crate::platform::VmAggregateCodec;
-use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::{resource};
-use crate::platform::resource as platform_resource;
-use crate::platform::tty as platform_tty;
 
 /// ABI newtype for PtyHandle.
 #[repr(transparent)]
@@ -57,11 +53,17 @@ impl NativeAbiCodec for PtyHandle {
 impl VmAbiCodec for PtyHandle {
     type Value = PtyHandleValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -104,11 +106,17 @@ impl NativeAbiCodec for ResourceId {
 impl VmAbiCodec for ResourceId {
     type Value = ResourceIdValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -151,11 +159,17 @@ impl NativeAbiCodec for TtyHandle {
 impl VmAbiCodec for TtyHandle {
     type Value = TtyHandleValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -178,8 +192,17 @@ impl VmValueCodec for TtyTermiosFlowAction {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::SuspendOutput, 2u8 => Self::ResumeOutput, 3u8 => Self::SuspendInput, 4u8 => Self::ResumeInput,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown TtyTermiosFlowAction value")).boxed()),
+            1u8 => Self::SuspendOutput,
+            2u8 => Self::ResumeOutput,
+            3u8 => Self::SuspendInput,
+            4u8 => Self::ResumeInput,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TtyTermiosFlowAction value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -207,11 +230,17 @@ impl NativeAbiCodec for TtyTermiosFlowAction {
 impl VmAbiCodec for TtyTermiosFlowAction {
     type Value = TtyTermiosFlowActionValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -232,8 +261,16 @@ impl VmValueCodec for TtyTermiosQueue {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Input, 2u8 => Self::Output, 3u8 => Self::InputAndOutput,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown TtyTermiosQueue value")).boxed()),
+            1u8 => Self::Input,
+            2u8 => Self::Output,
+            3u8 => Self::InputAndOutput,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TtyTermiosQueue value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -261,11 +298,17 @@ impl NativeAbiCodec for TtyTermiosQueue {
 impl VmAbiCodec for TtyTermiosQueue {
     type Value = TtyTermiosQueueValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -286,8 +329,16 @@ impl VmValueCodec for TtyTermiosSetAction {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Now, 2u8 => Self::Drain, 3u8 => Self::Flush,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown TtyTermiosSetAction value")).boxed()),
+            1u8 => Self::Now,
+            2u8 => Self::Drain,
+            3u8 => Self::Flush,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TtyTermiosSetAction value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -315,11 +366,17 @@ impl NativeAbiCodec for TtyTermiosSetAction {
 impl VmAbiCodec for TtyTermiosSetAction {
     type Value = TtyTermiosSetActionValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -337,25 +394,45 @@ pub struct PtyPair {
 pub type PtyPairVm = PtyPair;
 
 impl VmAggregateCodec for PtyPair {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PtyPair")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "PtyPair",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_controller = <resource::PtyHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_worker = <resource::TtyHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_controller =
+            <resource::PtyHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_worker =
+            <resource::TtyHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             controller: field_controller,
             worker: field_worker,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <resource::PtyHandle as VmAggregateCodec>::encode_with_context(self.controller, context)?,
+            <resource::PtyHandle as VmAggregateCodec>::encode_with_context(
+                self.controller,
+                context,
+            )?,
             <resource::TtyHandle as VmAggregateCodec>::encode_with_context(self.worker, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -380,11 +457,17 @@ impl NativeAbiCodec for PtyPair {
 impl VmAbiCodec for PtyPair {
     type Value = PtyPairValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -406,17 +489,30 @@ pub struct TtyMode {
 pub type TtyModeVm = TtyMode;
 
 impl VmAggregateCodec for TtyMode {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "TtyMode")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "TtyMode",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
         let field_input_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_output_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_control_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_control_flags =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_local_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             input_flags: field_input_flags,
@@ -426,7 +522,10 @@ impl VmAggregateCodec for TtyMode {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.input_flags, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.output_flags, context)?,
@@ -455,11 +554,17 @@ impl NativeAbiCodec for TtyMode {
 impl VmAbiCodec for TtyMode {
     type Value = TtyModeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -481,13 +586,25 @@ pub struct TtySize {
 pub type TtySizeVm = TtySize;
 
 impl VmAggregateCodec for TtySize {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "TtySize")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "TtySize",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
         let field_rows = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_columns = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -501,7 +618,10 @@ impl VmAggregateCodec for TtySize {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.rows, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.columns, context)?,
@@ -530,11 +650,17 @@ impl NativeAbiCodec for TtySize {
 impl VmAbiCodec for TtySize {
     type Value = TtySizeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -563,35 +689,58 @@ pub type TtyTermiosAttributesVm = TtyTermiosAttributesAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for TtyTermiosAttributesAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("TtyTermiosAttributesAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("TtyTermiosAttributesAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for TtyTermiosAttributesAbi<NativeAbi> {}
 impl Clone for TtyTermiosAttributesAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for TtyTermiosAttributesAbi<VmAbi> {}
 impl Clone for TtyTermiosAttributesAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "TtyTermiosAttributes")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "TtyTermiosAttributes",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 7 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 7 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
         }
         let field_input_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_output_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_control_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_control_flags =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_local_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_control_characters = <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_input_speed_code = <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_output_speed_code = <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_control_characters =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_input_speed_code =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_output_speed_code =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
             input_flags: field_input_flags,
             output_flags: field_output_flags,
@@ -603,13 +752,19 @@ impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.input_flags, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.output_flags, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.control_flags, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.local_flags, context)?,
-            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.control_characters, context)?,
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(
+                self.control_characters,
+                context,
+            )?,
             <u64 as VmAggregateCodec>::encode_with_context(self.input_speed_code, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.output_speed_code, context)?,
         ];
@@ -645,9 +800,15 @@ impl NativeAbiCodec for TtyTermiosAttributesAbi<NativeAbi> {
             output_flags: unsafe { <u64 as NativeAbiCodec>::into_value(self.output_flags)? },
             control_flags: unsafe { <u64 as NativeAbiCodec>::into_value(self.control_flags)? },
             local_flags: unsafe { <u64 as NativeAbiCodec>::into_value(self.local_flags)? },
-            control_characters: unsafe { <NativeSlice<u8> as NativeAbiCodec>::into_value(self.control_characters)? },
-            input_speed_code: unsafe { <u64 as NativeAbiCodec>::into_value(self.input_speed_code)? },
-            output_speed_code: unsafe { <u64 as NativeAbiCodec>::into_value(self.output_speed_code)? },
+            control_characters: unsafe {
+                <NativeSlice<u8> as NativeAbiCodec>::into_value(self.control_characters)?
+            },
+            input_speed_code: unsafe {
+                <u64 as NativeAbiCodec>::into_value(self.input_speed_code)?
+            },
+            output_speed_code: unsafe {
+                <u64 as NativeAbiCodec>::into_value(self.output_speed_code)?
+            },
         })
     }
 
@@ -657,9 +818,15 @@ impl NativeAbiCodec for TtyTermiosAttributesAbi<NativeAbi> {
             output_flags: <u64 as NativeAbiCodec>::from_value(binding, value.output_flags),
             control_flags: <u64 as NativeAbiCodec>::from_value(binding, value.control_flags),
             local_flags: <u64 as NativeAbiCodec>::from_value(binding, value.local_flags),
-            control_characters: <NativeSlice<u8> as NativeAbiCodec>::from_value(binding, value.control_characters),
+            control_characters: <NativeSlice<u8> as NativeAbiCodec>::from_value(
+                binding,
+                value.control_characters,
+            ),
             input_speed_code: <u64 as NativeAbiCodec>::from_value(binding, value.input_speed_code),
-            output_speed_code: <u64 as NativeAbiCodec>::from_value(binding, value.output_speed_code),
+            output_speed_code: <u64 as NativeAbiCodec>::from_value(
+                binding,
+                value.output_speed_code,
+            ),
         }
     }
 }
@@ -667,25 +834,37 @@ impl NativeAbiCodec for TtyTermiosAttributesAbi<NativeAbi> {
 impl VmAbiCodec for TtyTermiosAttributesAbi<VmAbi> {
     type Value = TtyTermiosAttributesValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(TtyTermiosAttributesValue {
             input_flags: <u64 as VmAbiCodec>::into_value(self.input_flags, context)?,
             output_flags: <u64 as VmAbiCodec>::into_value(self.output_flags, context)?,
             control_flags: <u64 as VmAbiCodec>::into_value(self.control_flags, context)?,
             local_flags: <u64 as VmAbiCodec>::into_value(self.local_flags, context)?,
-            control_characters: <VmSlice<u8> as VmAbiCodec>::into_value(self.control_characters, context)?,
+            control_characters: <VmSlice<u8> as VmAbiCodec>::into_value(
+                self.control_characters,
+                context,
+            )?,
             input_speed_code: <u64 as VmAbiCodec>::into_value(self.input_speed_code, context)?,
             output_speed_code: <u64 as VmAbiCodec>::into_value(self.output_speed_code, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             input_flags: <u64 as VmAbiCodec>::from_value(context, value.input_flags)?,
             output_flags: <u64 as VmAbiCodec>::from_value(context, value.output_flags)?,
             control_flags: <u64 as VmAbiCodec>::from_value(context, value.control_flags)?,
             local_flags: <u64 as VmAbiCodec>::from_value(context, value.local_flags)?,
-            control_characters: <VmSlice<u8> as VmAbiCodec>::from_value(context, value.control_characters)?,
+            control_characters: <VmSlice<u8> as VmAbiCodec>::from_value(
+                context,
+                value.control_characters,
+            )?,
             input_speed_code: <u64 as VmAbiCodec>::from_value(context, value.input_speed_code)?,
             output_speed_code: <u64 as VmAbiCodec>::from_value(context, value.output_speed_code)?,
         })
@@ -710,4 +889,3 @@ pub struct TtytermiosattributesReplayRecord {
     /// Output speed code from host termios representation.
     pub output_speed_code: u64,
 }
-

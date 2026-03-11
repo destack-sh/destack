@@ -748,30 +748,6 @@ impl<'a> ModuleCodegen<'a> {
         format!("{name}ReplayRecord")
     }
 
-    /// Report whether one binding type can be copied directly.
-    pub(super) fn binding_type_is_copy(binding_type: &BindingType) -> bool {
-        match binding_type {
-            BindingType::Void
-            | BindingType::Bool
-            | BindingType::Int(_)
-            | BindingType::UInt(_)
-            | BindingType::Float(_)
-            | BindingType::Enum { .. }
-            | BindingType::StringSlice
-            | BindingType::Slice(_)
-            | BindingType::Array(_) => true,
-            BindingType::Optional(inner) => Self::binding_type_is_copy(inner),
-            BindingType::Newtype { inner, .. } => Self::binding_type_is_copy(inner),
-            BindingType::Struct { fields, .. } => fields
-                .iter()
-                .all(|field| Self::binding_type_is_copy(&field.binding_type)),
-            BindingType::TaggedUnion { variants, .. } => variants
-                .iter()
-                .all(|variant| Self::binding_type_is_copy(&variant.binding_type)),
-            BindingType::String => false,
-        }
-    }
-
     /// Render the argument list for invoking one binding handler.
     pub(super) fn render_invoke_args(&self, entry: &BindingEntry) -> String {
         entry

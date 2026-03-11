@@ -4,18 +4,16 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::diagnostic::RuntimeError;
-use crate::diagnostic::RuntimeResult;
-use crate::platform::PlatformError as AbiPlatformError;
-use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::platform::{
+    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
+    VmValueCodec, random as platform_random,
+};
 use crate::runtime::BindingCallContext;
-use crate::platform::VmValueCodec;
-use crate::platform::VmAggregateCodec;
-use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::random as platform_random;
 
 /// ABI newtype for RandomStream.
 #[repr(transparent)]
@@ -55,11 +53,17 @@ impl NativeAbiCodec for RandomStream {
 impl VmAbiCodec for RandomStream {
     type Value = RandomStreamValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -78,8 +82,15 @@ impl VmValueCodec for RandomStreamDomain {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Process, 2u8 => Self::Task,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown RandomStreamDomain value")).boxed()),
+            1u8 => Self::Process,
+            2u8 => Self::Task,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown RandomStreamDomain value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -107,11 +118,17 @@ impl NativeAbiCodec for RandomStreamDomain {
 impl VmAbiCodec for RandomStreamDomain {
     type Value = RandomStreamDomainValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -136,8 +153,18 @@ impl VmValueCodec for SecureRandomSource {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Kernel, 2u8 => Self::SystemCryptoProvider, 3u8 => Self::Hardware, 4u8 => Self::Virtualized, 5u8 => Self::Unknown,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown SecureRandomSource value")).boxed()),
+            1u8 => Self::Kernel,
+            2u8 => Self::SystemCryptoProvider,
+            3u8 => Self::Hardware,
+            4u8 => Self::Virtualized,
+            5u8 => Self::Unknown,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SecureRandomSource value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -165,11 +192,17 @@ impl NativeAbiCodec for SecureRandomSource {
 impl VmAbiCodec for SecureRandomSource {
     type Value = SecureRandomSourceValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -188,37 +221,60 @@ pub type RandomStreamStateVm = RandomStreamStateAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for RandomStreamStateAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("RandomStreamStateAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("RandomStreamStateAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for RandomStreamStateAbi<NativeAbi> {}
 impl Clone for RandomStreamStateAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for RandomStreamStateAbi<VmAbi> {}
 impl Clone for RandomStreamStateAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for RandomStreamStateAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "RandomStreamState")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "RandomStreamState",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let field_version = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_bytes = <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_bytes =
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             version: field_version,
             bytes: field_bytes,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.version, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
@@ -257,14 +313,20 @@ impl NativeAbiCodec for RandomStreamStateAbi<NativeAbi> {
 impl VmAbiCodec for RandomStreamStateAbi<VmAbi> {
     type Value = RandomStreamStateValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(RandomStreamStateValue {
             version: <u32 as VmAbiCodec>::into_value(self.version, context)?,
             bytes: <VmArray<u8> as VmAbiCodec>::into_value(self.bytes, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             version: <u32 as VmAbiCodec>::from_value(context, value.version)?,
             bytes: <VmArray<u8> as VmAbiCodec>::from_value(context, value.bytes)?,
@@ -296,35 +358,59 @@ pub type SecureRandomMetadataVm = SecureRandomMetadataAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SecureRandomMetadataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SecureRandomMetadataAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SecureRandomMetadataAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SecureRandomMetadataAbi<NativeAbi> {}
 impl Clone for SecureRandomMetadataAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SecureRandomMetadataAbi<VmAbi> {}
 impl Clone for SecureRandomMetadataAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for SecureRandomMetadataAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SecureRandomMetadata")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SecureRandomMetadata",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 7 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 7 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
         }
-        let field_source = <SecureRandomSource as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_name = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_source =
+            <SecureRandomSource as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_may_block = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_is_cryptographic = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_is_cryptographic =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_is_seeded = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_is_fips_approved = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_entropy_bits_per_byte = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_is_fips_approved =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_entropy_bits_per_byte =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
             source: field_source,
             backend_name: field_backend_name,
@@ -336,10 +422,16 @@ impl VmAggregateCodec for SecureRandomMetadataAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <SecureRandomSource as VmAggregateCodec>::encode_with_context(self.source, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.backend_name, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.backend_name,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.may_block, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_cryptographic, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_seeded, context)?,
@@ -375,24 +467,38 @@ impl NativeAbiCodec for SecureRandomMetadataAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(SecureRandomMetadataValue {
             source: unsafe { <SecureRandomSource as NativeAbiCodec>::into_value(self.source)? },
-            backend_name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.backend_name)? },
+            backend_name: unsafe {
+                <NativeStringRef as NativeAbiCodec>::into_value(self.backend_name)?
+            },
             may_block: unsafe { <bool as NativeAbiCodec>::into_value(self.may_block)? },
-            is_cryptographic: unsafe { <bool as NativeAbiCodec>::into_value(self.is_cryptographic)? },
+            is_cryptographic: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.is_cryptographic)?
+            },
             is_seeded: unsafe { <bool as NativeAbiCodec>::into_value(self.is_seeded)? },
-            is_fips_approved: unsafe { <bool as NativeAbiCodec>::into_value(self.is_fips_approved)? },
-            entropy_bits_per_byte: unsafe { <f64 as NativeAbiCodec>::into_value(self.entropy_bits_per_byte)? },
+            is_fips_approved: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.is_fips_approved)?
+            },
+            entropy_bits_per_byte: unsafe {
+                <f64 as NativeAbiCodec>::into_value(self.entropy_bits_per_byte)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             source: <SecureRandomSource as NativeAbiCodec>::from_value(binding, value.source),
-            backend_name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.backend_name),
+            backend_name: <NativeStringRef as NativeAbiCodec>::from_value(
+                binding,
+                value.backend_name,
+            ),
             may_block: <bool as NativeAbiCodec>::from_value(binding, value.may_block),
             is_cryptographic: <bool as NativeAbiCodec>::from_value(binding, value.is_cryptographic),
             is_seeded: <bool as NativeAbiCodec>::from_value(binding, value.is_seeded),
             is_fips_approved: <bool as NativeAbiCodec>::from_value(binding, value.is_fips_approved),
-            entropy_bits_per_byte: <f64 as NativeAbiCodec>::from_value(binding, value.entropy_bits_per_byte),
+            entropy_bits_per_byte: <f64 as NativeAbiCodec>::from_value(
+                binding,
+                value.entropy_bits_per_byte,
+            ),
         }
     }
 }
@@ -400,7 +506,10 @@ impl NativeAbiCodec for SecureRandomMetadataAbi<NativeAbi> {
 impl VmAbiCodec for SecureRandomMetadataAbi<VmAbi> {
     type Value = SecureRandomMetadataValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SecureRandomMetadataValue {
             source: <SecureRandomSource as VmAbiCodec>::into_value(self.source, context)?,
             backend_name: <vm::StringHandle as VmAbiCodec>::into_value(self.backend_name, context)?,
@@ -408,19 +517,31 @@ impl VmAbiCodec for SecureRandomMetadataAbi<VmAbi> {
             is_cryptographic: <bool as VmAbiCodec>::into_value(self.is_cryptographic, context)?,
             is_seeded: <bool as VmAbiCodec>::into_value(self.is_seeded, context)?,
             is_fips_approved: <bool as VmAbiCodec>::into_value(self.is_fips_approved, context)?,
-            entropy_bits_per_byte: <f64 as VmAbiCodec>::into_value(self.entropy_bits_per_byte, context)?,
+            entropy_bits_per_byte: <f64 as VmAbiCodec>::into_value(
+                self.entropy_bits_per_byte,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             source: <SecureRandomSource as VmAbiCodec>::from_value(context, value.source)?,
-            backend_name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.backend_name)?,
+            backend_name: <vm::StringHandle as VmAbiCodec>::from_value(
+                context,
+                value.backend_name,
+            )?,
             may_block: <bool as VmAbiCodec>::from_value(context, value.may_block)?,
             is_cryptographic: <bool as VmAbiCodec>::from_value(context, value.is_cryptographic)?,
             is_seeded: <bool as VmAbiCodec>::from_value(context, value.is_seeded)?,
             is_fips_approved: <bool as VmAbiCodec>::from_value(context, value.is_fips_approved)?,
-            entropy_bits_per_byte: <f64 as VmAbiCodec>::from_value(context, value.entropy_bits_per_byte)?,
+            entropy_bits_per_byte: <f64 as VmAbiCodec>::from_value(
+                context,
+                value.entropy_bits_per_byte,
+            )?,
         })
     }
 }
@@ -452,4 +573,3 @@ pub struct SecurerandommetadataReplayRecord {
     /// Estimated entropy bits per output byte.
     pub entropy_bits_per_byte: f64,
 }
-
