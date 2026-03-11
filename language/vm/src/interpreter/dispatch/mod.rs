@@ -1177,7 +1177,7 @@ fn check_reference_address_space(
         ValueTag::StackPointer => ReferenceAddressSpace::Stack,
         ValueTag::LocalPointer => ReferenceAddressSpace::Stack,
         ValueTag::GlobalPointer => ReferenceAddressSpace::Global,
-        ValueTag::ManagedReference | ValueTag::RawPointer => ReferenceAddressSpace::Heap,
+        ValueTag::ManagedReference | ValueTag::RawPointer => ReferenceAddressSpace::Generic,
         _ => {
             return Err(Error::InvalidPointerType {
                 actual: format!("{pointer:?}"),
@@ -1190,7 +1190,6 @@ fn check_reference_address_space(
         ReferenceAddressSpace::Global | ReferenceAddressSpace::Constant => {
             matches!(actual_space, ReferenceAddressSpace::Global)
         }
-        ReferenceAddressSpace::Heap => matches!(actual_space, ReferenceAddressSpace::Heap),
         ReferenceAddressSpace::Generic => true,
         ReferenceAddressSpace::Shared
         | ReferenceAddressSpace::Local

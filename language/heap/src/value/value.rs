@@ -177,7 +177,7 @@ impl Value {
         ReferenceMeta::from_bits(bits)
     }
 
-    /// Get the type tag.
+    /// Get the value tag.
     #[inline(always)]
     pub fn tag(&self) -> ValueTag {
         // SAFETY: we only construct valid tags

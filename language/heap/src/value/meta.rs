@@ -10,8 +10,6 @@ pub enum ReferenceAddressSpace {
     Stack,
     /// Global or module-static memory.
     Global,
-    /// Heap-allocated memory.
-    Heap,
     /// Constant or read-only memory.
     Constant,
     /// Shared or workgroup memory.
@@ -29,7 +27,6 @@ impl ReferenceAddressSpace {
             mir::AddressSpace::Generic => ReferenceAddressSpace::Generic,
             mir::AddressSpace::Stack => ReferenceAddressSpace::Stack,
             mir::AddressSpace::Global => ReferenceAddressSpace::Global,
-            mir::AddressSpace::Heap => ReferenceAddressSpace::Heap,
             mir::AddressSpace::Shared => ReferenceAddressSpace::Shared,
             mir::AddressSpace::Local => ReferenceAddressSpace::Local,
             mir::AddressSpace::Constant => ReferenceAddressSpace::Constant,
@@ -43,10 +40,9 @@ impl ReferenceAddressSpace {
             0 => ReferenceAddressSpace::Generic,
             1 => ReferenceAddressSpace::Stack,
             2 => ReferenceAddressSpace::Global,
-            3 => ReferenceAddressSpace::Heap,
-            4 => ReferenceAddressSpace::Constant,
-            5 => ReferenceAddressSpace::Shared,
-            6 => ReferenceAddressSpace::Local,
+            3 => ReferenceAddressSpace::Constant,
+            4 => ReferenceAddressSpace::Shared,
+            5 => ReferenceAddressSpace::Local,
             _ => ReferenceAddressSpace::Target,
         }
     }
@@ -57,11 +53,10 @@ impl ReferenceAddressSpace {
             ReferenceAddressSpace::Generic => 0,
             ReferenceAddressSpace::Stack => 1,
             ReferenceAddressSpace::Global => 2,
-            ReferenceAddressSpace::Heap => 3,
-            ReferenceAddressSpace::Constant => 4,
-            ReferenceAddressSpace::Shared => 5,
-            ReferenceAddressSpace::Local => 6,
-            ReferenceAddressSpace::Target => 7,
+            ReferenceAddressSpace::Constant => 3,
+            ReferenceAddressSpace::Shared => 4,
+            ReferenceAddressSpace::Local => 5,
+            ReferenceAddressSpace::Target => 6,
         }
     }
 
@@ -72,7 +67,6 @@ impl ReferenceAddressSpace {
             ReferenceAddressSpace::Generic
                 | ReferenceAddressSpace::Stack
                 | ReferenceAddressSpace::Global
-                | ReferenceAddressSpace::Heap
                 | ReferenceAddressSpace::Constant
         )
     }
@@ -83,7 +77,6 @@ impl ReferenceAddressSpace {
             ReferenceAddressSpace::Generic => "generic",
             ReferenceAddressSpace::Stack => "stack",
             ReferenceAddressSpace::Global => "global",
-            ReferenceAddressSpace::Heap => "heap",
             ReferenceAddressSpace::Constant => "constant",
             ReferenceAddressSpace::Shared => "shared",
             ReferenceAddressSpace::Local => "local",
