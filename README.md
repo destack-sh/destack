@@ -101,7 +101,7 @@ Conceptually, Destack is a new kind of thing: a fully integrated computing stack
 
 2. **Why is Destack built around TypeScript and not some other language like Python or Rust?**
 Both Python and Rust are great languages, and both fail the "universal language" test for surprisingly symmetrical reasons:
-Python is pathological to optimize, but great for scripting, while Rust is great to optimize, but awful for scripting.
+Python is pathological to optimize, but great for scripting, while Rust is great to optimize, but cumbersome for scripting.
 Both Python and Rust are bad at "UI stuff", and both are structurally difficult to deploy well in a browser, which is the most popular, most universal software platform.
 
 3. **Which JavaScript/TypeScript features are supported on Destack?** 
@@ -113,12 +113,12 @@ Destack also doesn't support legacy features like duck-typing thenables (we do e
 4. **Why not support both a JavaScript "slow mode" and a TypeScript "fast mode"?**
 Running "regular" Javascript _well_ is complex as it's essentially a whole second lane alongside the strict TypeScript AOT model. 
 Further, _just_ supporting untyped JS is not that useful - we would also need a full web surface for the many frontend JS libraries.
-Modern "backend" code uses TypeScript and Node APIs already, while "frontend" stuff doesn't work well natively anyway (without implementing a new browser).
+Modern "backend" code uses TypeScript and Node APIs already, while "frontend" stuff doesn't work well natively anyway without also implementing a whole browser.
 
 5. **How does Destack interact with the existing JavaScript/TypeScript/Node/web ecosystem?**
 Destack runs TS directly, and "TS++" (`.ds` files) can transpile into `.js`/`.ts` for browsers and other JS-only runtimes. 
 Destack is not a browser, and has no renderer (yet).
-On the backend, Destack supports Node APIs, similar to other Node-derived runtimes (Bun/Deno).
+On the backend, Destack supports Node APIs, similar to other Node-derived runtimes like Bun or Deno.
 However, Destack does _not_ fully support arbitrary JS/TS code *on the native path*, and it also does not fully support _all_ web standards.
 
 6. **Why can't we just use TypeScript/web for frontend and Rust/C++/Go for backend?** 
