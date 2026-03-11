@@ -7,8 +7,8 @@ use crate::common::{
     report_error,
 };
 use crate::pipeline::daemon::{
-    CommandOptionsBuilder, finish_daemon_message_command, run_workspace_command_with_session,
-    target_overrides_from_args,
+    CommandOptionsBuilder, finish_daemon_message_command,
+    run_workspace_command_with_session_or_report, target_overrides_from_args,
 };
 use crate::pipeline::target::target_name_from_args;
 use crate::pipeline::workspace::default_target_for_session;
@@ -61,16 +61,17 @@ pub fn run(args: &ReplArgs) -> i32 {
     let payload = CommandPayload::Repl(CommandReplOptions::default());
 
     // execute the daemon command
-    let result = match run_workspace_command_with_session(
+    let result = match run_workspace_command_with_session_or_report(
+        "repl",
+        &args.report,
         session,
         &args.program,
         diagnostic_options,
         common,
         payload,
-        None,
     ) {
         Ok(result) => result,
-        Err(error) => return report_error("repl", &args.report, &error.to_string()),
+        Err(code) => return code,
     };
 
     // emit command output based on the report format

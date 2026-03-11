@@ -1,9 +1,9 @@
 use clap::Args;
 use destack_daemon::protocol::{CommandBenchOptions, CommandPayload};
 
-use crate::common::{ProgramArgs, ReportArgs, ensure_no_watch_or_dev, report_error};
+use crate::common::{ProgramArgs, ReportArgs, ensure_no_watch_or_dev};
 use crate::pipeline::daemon::{
-    CommandOptionsBuilder, finish_daemon_message_command, run_workspace_command_once,
+    CommandOptionsBuilder, finish_daemon_message_command, run_workspace_command_or_report,
 };
 
 /// Arguments for the bench command.
@@ -29,9 +29,16 @@ pub fn run(args: &BenchArgs) -> i32 {
     let payload = CommandPayload::Bench(CommandBenchOptions::default());
 
     // execute the daemon command
-    let result = match run_workspace_command_once(&args.program, None, common, payload, None) {
+    let result = match run_workspace_command_or_report(
+        "bench",
+        &args.report,
+        &args.program,
+        None,
+        common,
+        payload,
+    ) {
         Ok(result) => result,
-        Err(error) => return report_error("bench", &args.report, &error.to_string()),
+        Err(code) => return code,
     };
 
     // emit command output based on the report format

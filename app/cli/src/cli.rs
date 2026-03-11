@@ -2,7 +2,10 @@ use clap::builder::StyledStr;
 use clap::builder::styling::{AnsiColor, Style, Styles};
 use clap::{CommandFactory, Parser};
 
-use crate::console;
+use crate::{
+    bench, build, cache, check, clean, completions, config, console, daemon, doc, doctor, eval,
+    explain, fmt, info, init, lint, lsp, query, repl, run, targets, task, test, update, version,
+};
 
 #[cfg(feature = "dev")]
 use crate::command::DevCommand;
@@ -134,6 +137,63 @@ pub enum Command {
     Dev(DevCommand),
 }
 
+impl Command {
+    /// Execute the selected CLI command.
+    pub fn run(self) -> i32 {
+        match self {
+            Self::Check(args) => check::run(&args),
+            Self::Build(args) => build::run(&args),
+            Self::Run(args) => run::run(&args),
+            Self::Eval(args) => eval::run(&args),
+            Self::Lint(args) => lint::run(&args),
+            Self::Format(args) => fmt::run(&args),
+            Self::Init(args) => init::run(&args),
+            Self::Clean(args) => clean::run(&args),
+            Self::Cache(args) => cache::run(&args),
+            Self::Info(args) => info::run(&args),
+            Self::Config(args) => config::run(&args),
+            Self::Targets(args) => targets::run(&args),
+            Self::Version(args) => version::run(&args),
+            Self::Update(args) => update::run(&args),
+            Self::Completions(args) => completions::run(&args),
+            Self::Explain(args) => explain::run(&args),
+            Self::Doctor(args) => doctor::run(&args),
+            Self::Test(args) => test::run(&args),
+            Self::Bench(args) => bench::run(&args),
+            Self::Doc(args) => doc::run(&args),
+            Self::Task(args) => task::run(&args),
+            Self::Lsp(args) => lsp::run(&args),
+            Self::Daemon(args) => daemon::run(&args),
+            Self::Query(args) => query::run(&args),
+            Self::Repl(args) => repl::run(&args),
+            #[cfg(feature = "dev")]
+            Self::Dev(subcommand) => match subcommand {
+                DevCommand::Resolve(args) => crate::command::dev::resolve::run(&args),
+                DevCommand::Stats(args) => crate::command::dev::stats::run(&args),
+                DevCommand::Release(args) => crate::command::dev::release::run(&args),
+                DevCommand::Version(cmd) => match cmd {
+                    crate::command::dev::VersionCommands::Show => {
+                        crate::command::dev::version::show()
+                    }
+                    crate::command::dev::VersionCommands::Check => {
+                        crate::command::dev::version::check()
+                    }
+                    cmd => crate::command::dev::version::bump(&cmd),
+                },
+            },
+        }
+    }
+
+    /// Return whether an argument matches a known subcommand or alias.
+    pub fn is_known_subcommand(arg: &str) -> bool {
+        if matches!(arg, "--help" | "-h" | "--version" | "-V" | "help") {
+            return true;
+        }
+
+        Cli::command().find_subcommand(arg).is_some()
+    }
+}
+
 /// Help verbosity for the CLI output.
 #[derive(Clone, Copy, Debug)]
 pub enum HelpMode {
@@ -182,177 +242,184 @@ struct CommandEntry {
     /// Example argument string for display.
     example: &'static str,
     /// Command description text.
-    help: &'static str,
+    help: Option<&'static str>,
     /// Group ordering bucket.
     group: usize,
 }
 
 /// Build grouped command help output.
 fn build_commands_help(color_enabled: bool) -> String {
-    let entries = [
+    let mut entries = vec![
         CommandEntry {
             name: "run",
             example: "./src/main.ds",
-            help: "Compile and run a source file or script",
+            help: None,
             group: 0,
         },
         CommandEntry {
             name: "eval",
             example: "1 + 2",
-            help: "Evaluate inline code",
+            help: None,
             group: 0,
         },
         CommandEntry {
             name: "repl",
             example: "",
-            help: "Start a REPL session",
+            help: None,
             group: 0,
         },
         CommandEntry {
             name: "build",
             example: "./src/main.ds",
-            help: "Compile sources for a target",
+            help: None,
             group: 0,
         },
         CommandEntry {
             name: "check",
             example: "src/",
-            help: "Check source files for type errors and lint issues",
+            help: None,
             group: 0,
         },
         CommandEntry {
             name: "lint",
             example: "src/",
-            help: "Lint source files (alias for check)",
+            help: None,
             group: 0,
         },
         CommandEntry {
             name: "format",
             example: "src/",
-            help: "Format source files",
+            help: None,
             group: 0,
         },
         CommandEntry {
             name: "test",
             example: "",
-            help: "Run tests",
+            help: None,
             group: 1,
         },
         CommandEntry {
             name: "bench",
             example: "",
-            help: "Run benchmarks",
+            help: None,
             group: 1,
         },
         CommandEntry {
             name: "doc",
             example: "",
-            help: "Generate documentation",
+            help: None,
             group: 1,
         },
         CommandEntry {
             name: "init",
             example: "",
-            help: "Initialize a new project",
+            help: None,
             group: 2,
         },
         CommandEntry {
             name: "clean",
             example: "",
-            help: "Remove build outputs and caches",
+            help: None,
             group: 2,
         },
         CommandEntry {
             name: "cache",
             example: "",
-            help: "Show cache locations and settings",
+            help: None,
             group: 2,
         },
         CommandEntry {
             name: "info",
             example: "",
-            help: "Show workspace and target information",
+            help: None,
             group: 2,
         },
         CommandEntry {
             name: "config",
             example: "dsconfig.json",
-            help: "Show the resolved configuration",
+            help: None,
             group: 2,
         },
         CommandEntry {
             name: "targets",
             example: "",
-            help: "List configured build targets",
+            help: None,
             group: 2,
         },
         CommandEntry {
             name: "task",
             example: "<task>",
-            help: "Run workspace tasks",
+            help: None,
             group: 2,
         },
         CommandEntry {
             name: "doctor",
             example: "",
-            help: "Show environment and workspace diagnostics",
+            help: None,
             group: 3,
         },
         CommandEntry {
             name: "explain",
             example: "ER100",
-            help: "Explain a diagnostic or lint rule",
+            help: None,
             group: 3,
         },
         CommandEntry {
             name: "completions",
             example: "zsh",
-            help: "Generate shell completions",
+            help: None,
             group: 3,
         },
         CommandEntry {
             name: "lsp",
             example: "",
-            help: "Start the language server (for editor integration)",
+            help: None,
             group: 3,
         },
         CommandEntry {
             name: "query",
             example: "",
-            help: "Execute workspace queries",
+            help: None,
             group: 3,
         },
         CommandEntry {
             name: "daemon",
             example: "",
-            help: "Start the daemon service (for CLI integration)",
+            help: None,
             group: 3,
         },
         CommandEntry {
             name: "version",
             example: "",
-            help: "Show version information",
+            help: None,
             group: 3,
         },
         CommandEntry {
             name: "update",
             example: "",
-            help: "Update installed Destack CLI binaries",
-            group: 3,
-        },
-        CommandEntry {
-            name: "dev",
-            example: "",
-            help: "Developer commands (compiler inspection, version management)",
+            help: None,
             group: 3,
         },
         CommandEntry {
             name: "<command>",
             example: "--help",
-            help: "Print help text for command",
+            help: Some("Print help text for command"),
             group: 3,
         },
     ];
+
+    #[cfg(feature = "dev")]
+    entries.insert(
+        entries.len() - 1,
+        CommandEntry {
+            name: "dev",
+            example: "",
+            help: None,
+            group: 3,
+        },
+    );
+
+    let command_definition = Cli::command();
 
     let command_width = entries
         .iter()
@@ -391,12 +458,12 @@ fn build_commands_help(color_enabled: bool) -> String {
             current_group = entry.group;
         }
 
-        let command = format!("{:width$}", entry.name, width = command_width);
+        let command_label = format!("{:width$}", entry.name, width = command_width);
         let example = format!("{:width$}", entry.example, width = example_width);
-        let command = if let Some(style) = command_style {
-            format!("{style}{command}{style:#}")
+        let command_label = if let Some(style) = command_style {
+            format!("{style}{command_label}{style:#}")
         } else {
-            command
+            command_label
         };
         let example = if let Some(style) = example_style {
             if entry.example.is_empty() {
@@ -407,8 +474,15 @@ fn build_commands_help(color_enabled: bool) -> String {
         } else {
             example
         };
+        let help = entry.help.map(str::to_string).unwrap_or_else(|| {
+            command_definition
+                .find_subcommand(entry.name)
+                .and_then(|subcommand| subcommand.get_about())
+                .map(ToString::to_string)
+                .unwrap_or_default()
+        });
 
-        output.push_str(&format!("  {command}  {example}  {}\n", entry.help));
+        output.push_str(&format!("  {command_label}  {example}  {help}\n"));
     }
 
     output

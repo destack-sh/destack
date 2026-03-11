@@ -1,12 +1,9 @@
 use crate::common::{
-    CommandError, CommandReport, ListEntry, ListPrinter, ListSpacing, ProgramArgs, ReportArgs,
-    ensure_no_watch_or_dev, list_payload, parse_required_command_payload, print_list_with,
-    print_report, report_error,
+    CommandError, ListEntry, ListPrinter, ListSpacing, ProgramArgs, ReportArgs,
+    ensure_no_watch_or_dev, list_payload, print_list_with, report_from_payload,
 };
 use crate::console;
-use crate::pipeline::daemon::{
-    CommandOptionsBuilder, emit_daemon_text_output, run_workspace_command_once,
-};
+use crate::pipeline::daemon::{CommandOptionsBuilder, run_workspace_payload_command_or_report};
 use clap::{Args, Subcommand};
 use destack_daemon::protocol::{
     CommandPayload, CommandTaskAction, CommandTaskOptions, CommandTaskPayload,
@@ -68,87 +65,72 @@ pub fn run(args: &TaskArgs) -> i32 {
     let common = CommandOptionsBuilder::new(&args.program, None).build();
     let payload = CommandPayload::Task(CommandTaskOptions { action });
 
-    // execute the daemon command
-    let result = match run_workspace_command_once(&args.program, None, common, payload, None) {
-        Ok(result) => result,
-        Err(error) => return report_error("task", &args.report, &error.to_string()),
-    };
-
-    // decode daemon payload
-    let (payload, _) = match parse_required_command_payload::<CommandTaskPayload>(
+    run_workspace_payload_command_or_report::<CommandTaskPayload, _, _>(
         "task",
         &args.report,
-        result.response.data.as_ref(),
+        &args.program,
+        None,
+        common,
+        payload,
         "task",
-    ) {
-        Ok(payload) => payload,
-        Err(code) => return code,
-    };
+        |default_exit_code, payload, _| {
+            if let Some(tasks) = payload.tasks {
+                return report_from_payload(
+                    "task",
+                    default_exit_code,
+                    Some(list_payload(tasks)),
+                    None,
+                    None,
+                );
+            }
 
-    // emit daemon messages and output for text mode
-    emit_daemon_text_output(
-        &args.report,
-        &result.response.messages,
-        &result.response.output,
-    );
+            let exit_code = payload.exit_code.unwrap_or(default_exit_code);
+            let data = serde_json::json!({
+                "task": payload.task.unwrap_or_default(),
+                "command": payload.command.unwrap_or_default(),
+                "cwd": payload.cwd,
+                "exit_code": exit_code,
+                "dry_run": payload.dry_run.unwrap_or(false),
+            });
+            if exit_code == 0 {
+                return report_from_payload("task", exit_code, Some(data), None, None);
+            }
 
-    // handle list output
-    if let Some(tasks) = payload.tasks {
-        if args.report.is_json() {
-            let mut report = CommandReport::success("task", result.response.exit_code);
-            report.data = Some(list_payload(tasks));
-            print_report(&report, args.report.format());
-            return result.response.exit_code;
-        }
-
-        if tasks.is_empty() {
-            console::info("task: no tasks defined");
-        } else {
-            let list_entries = tasks
-                .iter()
-                .map(|task| {
-                    let entry = ListEntry::new(task.name.clone());
-                    if let Some(description) = task.description.as_ref() {
-                        entry.line(description.clone())
-                    } else {
-                        entry
-                    }
-                })
-                .collect::<Vec<_>>();
-            let printer = ListPrinter::info();
-            print_list_with(&list_entries, ListSpacing::Compact, &printer);
-        }
-        return result.response.exit_code;
-    }
-
-    // handle run output
-    let exit_code = payload.exit_code.unwrap_or(result.response.exit_code);
-    if args.report.is_json() {
-        let mut report = if exit_code == 0 {
-            CommandReport::success("task", exit_code)
-        } else {
             let message = format!("task exited with code {exit_code}");
-            let mut report = CommandReport::failure("task", exit_code);
-            report.summary = Some(message.clone());
-            report.error = Some(CommandError::new("task_exit", "task", message));
-            report
-        };
-        let task_name = payload.task.unwrap_or_default();
-        let command = payload.command.unwrap_or_default();
-        report.data = Some(serde_json::json!({
-            "task": task_name,
-            "command": command,
-            "cwd": payload.cwd,
-            "exit_code": exit_code,
-            "dry_run": payload.dry_run.unwrap_or(false),
-        }));
-        print_report(&report, args.report.format());
-        return exit_code;
-    }
+            report_from_payload(
+                "task",
+                exit_code,
+                Some(data),
+                Some(message.clone()),
+                Some(CommandError::new("task_exit", "task", message)),
+            )
+        },
+        |default_exit_code, payload| {
+            if let Some(tasks) = payload.tasks {
+                if tasks.is_empty() {
+                    console::info("task: no tasks defined");
+                } else {
+                    let list_entries = tasks
+                        .iter()
+                        .map(|task| {
+                            let entry = ListEntry::new(task.name.clone());
+                            if let Some(description) = task.description.as_ref() {
+                                entry.line(description.clone())
+                            } else {
+                                entry
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let printer = ListPrinter::info();
+                    print_list_with(&list_entries, ListSpacing::Compact, &printer);
+                }
+                return;
+            }
 
-    if exit_code != 0 {
-        console::warn(&format!("process exited with code {exit_code}"));
-    }
-
-    exit_code
+            let exit_code = payload.exit_code.unwrap_or(default_exit_code);
+            if exit_code != 0 {
+                console::warn(&format!("process exited with code {exit_code}"));
+            }
+        },
+    )
 }

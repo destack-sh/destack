@@ -1,12 +1,9 @@
 use crate::common::{
-    CommandReport, ListEntry, ListPrinter, ListSpacing, ProgramArgs, ReportArgs,
-    ensure_no_watch_or_dev, list_payload, parse_required_command_payload, print_list_with,
-    print_report, report_error,
+    ListEntry, ListPrinter, ListSpacing, ProgramArgs, ReportArgs, ensure_no_watch_or_dev,
+    list_payload, print_list_with, report_from_payload,
 };
 use crate::console;
-use crate::pipeline::daemon::{
-    CommandOptionsBuilder, emit_daemon_text_output, run_workspace_command_once,
-};
+use crate::pipeline::daemon::{CommandOptionsBuilder, run_workspace_payload_command_or_report};
 use clap::Args;
 use destack_daemon::protocol::{CommandCacheOptions, CommandCachePayload, CommandPayload};
 
@@ -38,54 +35,41 @@ pub fn run(args: &CacheArgs) -> i32 {
         all_packages: args.all_packages,
     });
 
-    // execute the daemon command
-    let result = match run_workspace_command_once(&args.program, None, common, payload, None) {
-        Ok(result) => result,
-        Err(error) => return report_error("cache", &args.report, &error.to_string()),
-    };
-
-    // decode daemon payload
-    let (payload, _) = match parse_required_command_payload::<CommandCachePayload>(
+    run_workspace_payload_command_or_report::<CommandCachePayload, _, _>(
         "cache",
         &args.report,
-        result.response.data.as_ref(),
+        &args.program,
+        None,
+        common,
+        payload,
         "cache",
-    ) {
-        Ok(payload) => payload,
-        Err(code) => return code,
-    };
-
-    // emit daemon output for text mode
-    emit_daemon_text_output(
-        &args.report,
-        &result.response.messages,
-        &result.response.output,
-    );
-
-    if args.report.is_json() {
-        let mut report = CommandReport::success("cache", result.response.exit_code);
-        report.data = Some(list_payload(payload.caches));
-        print_report(&report, args.report.format());
-        return result.response.exit_code;
-    }
-
-    let list_entries = payload.caches.into_iter().map(|entry| {
-        let location = entry.dir;
-        let source = entry.source;
-        let title = if let Some(package_dir) = entry.package_dir {
-            format!("{location} ({source}, package: {package_dir})")
-        } else {
-            format!("{location} ({source})")
-        };
-        ListEntry::new(title)
-    });
-    let list_entries: Vec<ListEntry> = list_entries.collect();
-    if list_entries.is_empty() {
-        console::info("cache: no entries");
-        return result.response.exit_code;
-    }
-    let printer = ListPrinter::info();
-    print_list_with(&list_entries, ListSpacing::Compact, &printer);
-
-    result.response.exit_code
+        |exit_code, payload, _| {
+            report_from_payload(
+                "cache",
+                exit_code,
+                Some(list_payload(payload.caches)),
+                None,
+                None,
+            )
+        },
+        |_, payload| {
+            let list_entries = payload.caches.into_iter().map(|entry| {
+                let location = entry.dir;
+                let source = entry.source;
+                let title = if let Some(package_dir) = entry.package_dir {
+                    format!("{location} ({source}, package: {package_dir})")
+                } else {
+                    format!("{location} ({source})")
+                };
+                ListEntry::new(title)
+            });
+            let list_entries: Vec<ListEntry> = list_entries.collect();
+            if list_entries.is_empty() {
+                console::info("cache: no entries");
+                return;
+            }
+            let printer = ListPrinter::info();
+            print_list_with(&list_entries, ListSpacing::Compact, &printer);
+        },
+    )
 }
