@@ -1,17 +1,13 @@
-mod binding;
 mod declaration;
 mod directive;
-mod dispatch;
-mod external;
-mod interface;
-mod intrinsic;
+mod function;
+mod global;
+mod key;
 mod lower;
 mod name;
 mod root;
-mod string;
 mod symbol;
 
-pub(crate) use binding::RuntimeStatusLayout;
+pub(crate) use global::lower_mutability;
 pub(crate) use lower::*;
 pub(crate) use name::{static_key_to_field_name, string_literal_global_name_for_content};
-pub(crate) use string::collect_expression_string_literals;

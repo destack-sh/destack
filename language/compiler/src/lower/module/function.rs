@@ -1,0 +1,1228 @@
+use std::collections::{HashMap, HashSet};
+
+use destack_dir::{
+    Declaration, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Member,
+    NodeVisitor, NodeVisitorOptions, walk_expression,
+};
+use {destack_dir as dir, destack_mir as mir};
+
+use crate::{
+    AddressTakenBindings, FunctionEnv, FunctionLowerer, FunctionState, LowerError, LowerResult,
+    Terminates,
+};
+
+use crate::lower::ModuleLowerer;
+
+/// Visitor that collects expression ids from a subtree.
+#[derive(Default)]
+struct ExpressionTypeCollector {
+    /// Expression ids encountered during traversal.
+    expression_ids: Vec<LocalNodeId<Expression>>,
+    /// Expression ids used as call or constructor callees.
+    callee_expression_ids: HashSet<u32>,
+    /// Options for the node visitor.
+    options: NodeVisitorOptions,
+}
+
+impl ExpressionTypeCollector {
+    /// Create a new collector.
+    fn new() -> Self {
+        Self {
+            expression_ids: Vec::new(),
+            callee_expression_ids: HashSet::new(),
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Return collected expression ids.
+    fn expression_ids(&self) -> &[LocalNodeId<Expression>] {
+        &self.expression_ids
+    }
+
+    /// Return expression ids used as callees.
+    fn callee_expression_ids(&self) -> &HashSet<u32> {
+        &self.callee_expression_ids
+    }
+}
+
+impl NodeVisitor for ExpressionTypeCollector {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: LocalNodeId<Expression>,
+        expression: &Expression,
+    ) {
+        // skip lowering callee types for direct calls
+        if let Expression::Call { left, .. } | Expression::New { left, .. } = expression {
+            self.callee_expression_ids.insert(left.id);
+        }
+        self.expression_ids.push(id);
+        destack_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+    }
+}
+
+/// Visitor that collects address taken bindings.
+struct AddressTakenCollector<'a> {
+    /// Provide access to inferred type information.
+    types: &'a dir::TypeTable,
+    /// Identify the module for expression lookups.
+    module_id: destack_source::ModuleId,
+    /// Symbols that require addressable locals.
+    locals: HashSet<GlobalSymbolId>,
+    /// Whether `this` is address taken.
+    takes_this: bool,
+    /// Options for the node visitor.
+    options: NodeVisitorOptions,
+}
+
+impl<'a> AddressTakenCollector<'a> {
+    /// Create a new address-taken collector.
+    fn new(types: &'a dir::TypeTable, module_id: destack_source::ModuleId) -> Self {
+        Self {
+            types,
+            module_id,
+            locals: HashSet::new(),
+            takes_this: false,
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Convert the collector into address taken bindings.
+    fn into_bindings(self) -> AddressTakenBindings {
+        AddressTakenBindings {
+            locals: self.locals,
+            takes_this: self.takes_this,
+        }
+    }
+
+    /// Record a reference target for address taken tracking.
+    fn record_reference_target(
+        &mut self,
+        tree: &dir::NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        // unwrap reference targets that can yield addressable bases
+        let expression = tree.get(expression_id);
+        match expression {
+            Expression::Parenthesized { expression } => {
+                self.record_reference_target(tree, *expression);
+            }
+            Expression::Cast { value, .. } => {
+                self.record_reference_target(tree, *value);
+            }
+            Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
+                if !self.expression_is_reference_like(*left) {
+                    self.record_reference_target(tree, *left);
+                }
+            }
+            Expression::Index { left, .. } => {
+                if !self.expression_is_reference_like(*left) {
+                    self.record_reference_target(tree, *left);
+                }
+            }
+            Expression::LocalReference { target_symbol, .. } => {
+                self.locals.insert(*target_symbol);
+            }
+            Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => {
+                self.locals.insert(*target_symbol);
+            }
+            Expression::This => {
+                self.takes_this = true;
+            }
+            _ => {}
+        }
+    }
+
+    /// Check whether an expression lowers to a reference-like value.
+    fn expression_is_reference_like(&self, expression_id: LocalNodeId<Expression>) -> bool {
+        let node_id = expression_id.into_global_any(self.module_id);
+        let Some(type_id) = self.types.get_declared_or_inferred_type_id(node_id) else {
+            return false;
+        };
+        let mut visited = HashSet::new();
+        self.type_is_reference_like(type_id, &mut visited)
+    }
+
+    /// Check whether a type id lowers to a reference-like MIR value.
+    fn type_is_reference_like(
+        &self,
+        type_id: dir::LocalTypeId,
+        visited: &mut HashSet<dir::LocalTypeId>,
+    ) -> bool {
+        if !visited.insert(type_id) {
+            return false;
+        }
+
+        let ty = self.types.get_type(type_id);
+        match ty {
+            dir::Type::Value { value } => self.type_is_reference_like(*value, visited),
+            dir::Type::ReferenceOf { .. } | dir::Type::PointerOf { .. } => true,
+            dir::Type::Reference { symbol, .. } => match symbol.ty() {
+                dir::SymbolType::Class | dir::SymbolType::Interface => true,
+                dir::SymbolType::TypeAlias => self
+                    .types
+                    .get_alias_target_type_id(*symbol)
+                    .is_some_and(|target| self.type_is_reference_like(target, visited)),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+}
+
+impl NodeVisitor for AddressTakenCollector<'_> {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: LocalNodeId<Expression>,
+        expression: &Expression,
+    ) {
+        if let Expression::ReferenceOf { right, .. } = expression {
+            self.record_reference_target(tree, *right);
+        }
+        destack_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+    }
+}
+
+impl ModuleLowerer<'_> {
+    /// Declare all function declarations in the module.
+    pub(crate) fn declare_functions(&mut self) -> LowerResult<()> {
+        // scan function declarations
+        for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
+        {
+            // skip non function declarations
+            let Declaration::Function {
+                descriptor,
+                signature,
+                body,
+                ..
+            } = declaration
+            else {
+                continue;
+            };
+
+            // skip type-only lambda signatures
+            if body.is_none() && signature.kind == dir::FunctionKind::Lambda {
+                continue;
+            }
+
+            // predeclare the function binding
+            self.declare_function(declaration_id, declaration)?;
+
+            // resolve capture layouts early for closure values
+            if body.is_some() {
+                let symbol_id = descriptor.symbol.into_global(self.module_id);
+                self.closure_env_layout_for_symbol(symbol_id)?;
+                self.enqueue_function_declaration(declaration_id);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Lower any queued function declarations that do not yet have bodies.
+    pub(crate) fn lower_pending_functions(&mut self) -> LowerResult<()> {
+        // drain the pending declaration queue to fixpoint
+        while let Some(declaration_id) = self.pending_function_bodies.pop_front() {
+            self.queued_function_bodies.remove(&declaration_id.id);
+
+            // require a function declaration
+            let declaration = self.dir_tree.get(declaration_id);
+            let Declaration::Function {
+                descriptor, body, ..
+            } = declaration
+            else {
+                continue;
+            };
+
+            // skip declaration-only functions
+            if body.is_none() {
+                continue;
+            }
+
+            // skip functions without bindings
+            let symbol_id = descriptor.symbol.into_global(self.module_id);
+            let Some(function_id) = self.function_for_symbol(symbol_id) else {
+                continue;
+            };
+
+            // skip functions already lowered
+            let function = self.builder.tree().get(function_id);
+            if function.entry.is_some() {
+                continue;
+            }
+
+            // lower the queued body
+            self.lower_function(declaration_id, declaration)?;
+        }
+
+        Ok(())
+    }
+
+    /// Predeclare a function declaration and register it for call resolution.
+    pub(crate) fn declare_function(
+        &mut self,
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &Declaration,
+    ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
+        // require a function declaration
+        let Declaration::Function {
+            descriptor,
+            signature,
+            ..
+        } = declaration
+        else {
+            return Err(LowerError::UnsupportedConstruct {
+                node: declaration_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+                message: format!(
+                    "unsupported non-function declaration '{}'",
+                    declaration.kind_name()
+                ),
+            })?;
+        };
+
+        // resolve function name and symbol
+        let symbol_id = descriptor.symbol.into_global(self.module_id);
+        let name = self.function_name_for_descriptor(descriptor)?;
+
+        // skip when the function is already registered
+        if let Some(function_id) = self.function_for_symbol(symbol_id) {
+            return Ok(function_id);
+        }
+
+        // resolve return type
+        let return_type = self.resolve_function_return_type(declaration_id)?;
+
+        // resolve parameter types
+        let mut parameter_types = Vec::new();
+        let mut parameter_names = Vec::new();
+        for parameter_id in &signature.dynamic_parameters {
+            let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
+            let parameter_ty =
+                self.declared_or_inferred_type_id_for_node_or_error(parameter_node)?;
+            let parameter_ty = self.lower_type(
+                parameter_ty,
+                parameter_node.into_anchored(Some(self.profile)),
+            )?;
+            parameter_types.push(parameter_ty);
+
+            // track parameter names for diagnostics
+            let parameter = self.dir_tree.get(*parameter_id);
+            let name = match parameter {
+                dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
+                    Some(*name)
+                }
+                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
+            };
+            parameter_names.push(name);
+        }
+
+        // extract return lifetime from @lifetime decorator
+        let return_lifetime = self.extract_lifetime_annotation(descriptor.symbol, signature);
+
+        // build a MIR signature type aligned with the lowered parameters
+        let signature_type = self
+            .builder
+            .type_function_pointer(parameter_types.clone(), return_type);
+
+        // declare the function and register bindings
+        let allocation_mode = self.allocation_mode_for_symbol(symbol_id);
+        let function_id = self
+            .builder
+            .declare_function(&name, &parameter_types, return_type);
+        {
+            let function = self.builder.tree_mut().get_mut(function_id);
+            function.parameter_names = parameter_names.clone();
+            function.return_lifetime = return_lifetime;
+            function.allocation = allocation_mode;
+        }
+
+        self.register_function_binding_for_symbol(symbol_id, function_id, signature_type)?;
+
+        Ok(function_id)
+    }
+
+    /// Queue a function declaration for later body lowering.
+    fn enqueue_function_declaration(&mut self, declaration_id: dir::LocalNodeId<dir::Declaration>) {
+        // deduplicate queued declarations
+        if !self.queued_function_bodies.insert(declaration_id.id) {
+            return;
+        }
+
+        // enqueue the declaration once
+        self.pending_function_bodies.push_back(declaration_id);
+    }
+
+    /// Prelower types required by a function body expression.
+    fn prelower_expression_types(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> LowerResult<()> {
+        // collect expression ids for this subtree
+        let mut collector = ExpressionTypeCollector::new();
+        let expression = self.dir_tree.get(expression_id);
+        collector.visit_expression(self.dir_tree, expression_id, expression);
+
+        // collect type ids referenced by expressions
+        let mut type_sources: HashMap<dir::LocalTypeId, dir::GlobalNodeIdAny> = HashMap::new();
+        for expression_id in collector.expression_ids() {
+            if collector
+                .callee_expression_ids()
+                .contains(&expression_id.id)
+            {
+                continue;
+            }
+            let node_id = expression_id.into_global_any(self.module_id);
+            if let Some(type_id) = self.types.get_declared_or_inferred_type_id(node_id) {
+                let dir_type = self.types.get_type(type_id);
+                if matches!(
+                    dir_type,
+                    dir::Type::TypeLiteral {
+                        value: dir::TypeLiteral::Never
+                    } | dir::Type::Value { .. }
+                ) {
+                    continue;
+                }
+                type_sources.entry(type_id).or_insert(node_id);
+            }
+
+            if let Expression::Type { value } = self.dir_tree.get(*expression_id) {
+                let dir_type = self.types.get_type(*value);
+                if matches!(
+                    dir_type,
+                    dir::Type::TypeLiteral {
+                        value: dir::TypeLiteral::Never
+                    } | dir::Type::Value { .. }
+                ) {
+                    continue;
+                }
+                type_sources.entry(*value).or_insert(node_id);
+            }
+
+            // include local binding symbol types for uninitialized lets
+            if let Expression::Let { declarators, .. } | Expression::Using { declarators, .. } =
+                self.dir_tree.get(*expression_id)
+            {
+                for declarator_id in declarators {
+                    let declarator = self.dir_tree.get(*declarator_id);
+                    let Some(symbol_id) = self.dir_tree.get(declarator.pattern).symbol() else {
+                        continue;
+                    };
+
+                    let symbol = symbol_id.into_global(self.module_id);
+                    let Some(type_id) = self.types.get_value_type_id(symbol) else {
+                        continue;
+                    };
+                    let type_id = self.types.unwrap_value_type_id(type_id);
+                    let dir_type = self.types.get_type(type_id);
+                    if matches!(
+                        dir_type,
+                        dir::Type::TypeLiteral {
+                            value: dir::TypeLiteral::Never
+                        } | dir::Type::Value { .. }
+                    ) {
+                        continue;
+                    }
+
+                    let type_node = declarator.pattern.into_global_any(self.module_id);
+                    type_sources.entry(type_id).or_insert(type_node);
+                }
+            }
+        }
+
+        // lower each type in deterministic order
+        let mut type_entries: Vec<_> = type_sources.into_iter().collect();
+        type_entries.sort_by_key(|(type_id, _)| type_id.0);
+        for (type_id, node_id) in type_entries {
+            let anchor = node_id.into_anchored(Some(self.profile));
+            self.lower_type(type_id, anchor)?;
+        }
+
+        Ok(())
+    }
+
+    /// Collect address taken bindings within a function body.
+    fn collect_address_taken_bindings(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> AddressTakenBindings {
+        // walk the function body to find reference targets
+        let mut collector = AddressTakenCollector::new(self.types, self.module_id);
+        let expression = self.dir_tree.get(expression_id);
+        collector.visit_expression(self.dir_tree, expression_id, expression);
+        collector.into_bindings()
+    }
+
+    /// Resolve the signature type id for a declaration or member node.
+    pub(crate) fn signature_type_id_for_node(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> LowerResult<dir::LocalTypeId> {
+        // resolve the signature type id
+        self.types
+            .get_signature_type_for_node(node_id)
+            .ok_or_else(|| self.missing_type_error(node_id))
+    }
+
+    /// Lower a function declaration to a MIR function.
+    pub(crate) fn lower_function(
+        &mut self,
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &Declaration,
+    ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
+        // require a function declaration
+        let Declaration::Function {
+            descriptor,
+            signature,
+            body,
+            ..
+        } = declaration
+        else {
+            return Err(LowerError::UnsupportedConstruct {
+                node: declaration_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+                message: format!(
+                    "unsupported non-function declaration '{}'",
+                    declaration.kind_name()
+                ),
+            })?;
+        };
+
+        // resolve function name and symbol
+        let symbol_id = descriptor.symbol.into_global(self.module_id);
+        let name = self.function_name_for_descriptor(descriptor)?;
+
+        // resolve capture layout
+        let capture_layout = self.closure_env_layout_for_symbol(symbol_id)?;
+
+        // resolve return type
+        let return_type = self.resolve_function_return_type(declaration_id)?;
+
+        // resolve parameter types
+        let mut parameter_types = Vec::new();
+        let mut parameter_names = Vec::new();
+        for parameter_id in &signature.dynamic_parameters {
+            let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
+            let parameter_ty =
+                self.declared_or_inferred_type_id_for_node_or_error(parameter_node)?;
+            let parameter_ty = self.lower_type(
+                parameter_ty,
+                parameter_node.into_anchored(Some(self.profile)),
+            )?;
+            parameter_types.push(parameter_ty);
+
+            // track parameter names for diagnostics
+            let parameter = self.dir_tree.get(*parameter_id);
+            let name = match parameter {
+                dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
+                    Some(*name)
+                }
+                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
+            };
+            parameter_names.push(name);
+        }
+
+        // extract return lifetime from @lifetime decorator
+        let return_lifetime = self.extract_lifetime_annotation(descriptor.symbol, signature);
+
+        // build a MIR signature type aligned with the lowered parameters
+        let signature_type = self
+            .builder
+            .type_function_pointer(parameter_types.clone(), return_type);
+
+        // prelower body expression types
+        if let Some(body_id) = body {
+            self.declare_call_targets_for_expression(*body_id)?;
+            self.prelower_expression_types(*body_id)?;
+        }
+
+        // collect address taken locals
+        let address_taken = body
+            .map(|body_id| self.collect_address_taken_bindings(body_id))
+            .unwrap_or_else(AddressTakenBindings::empty);
+
+        // resolve the implicit this symbol
+        let this_symbol = self.resolve_this_symbol_for_function(symbol_id, signature);
+
+        // resolve allocation mode
+        let allocation_mode = self.allocation_mode_for_symbol(symbol_id);
+
+        // declare or reuse the function id
+        let function_id = if let Some(function_id) = self.function_for_symbol(symbol_id) {
+            function_id
+        } else {
+            let function_id = self
+                .builder
+                .declare_function(&name, &parameter_types, return_type);
+            {
+                let function = self.builder.tree_mut().get_mut(function_id);
+                function.parameter_names = parameter_names.clone();
+                function.return_lifetime = return_lifetime.clone();
+                function.allocation = allocation_mode;
+            }
+
+            self.register_function_binding_for_symbol(symbol_id, function_id, signature_type)?;
+
+            function_id
+        };
+
+        // skip declared functions without bodies
+        if body.is_none() {
+            return Ok(function_id);
+        }
+
+        // resolve shared closure environment metadata
+        let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
+
+        // build the function body
+        let mut builder = self.builder.function_body(function_id);
+        for (index, name) in parameter_names.iter().enumerate() {
+            if let Some(name_id) = name {
+                builder.set_parameter_name(index, *name_id);
+            }
+        }
+        builder.set_return_lifetime(return_lifetime);
+        builder.set_allocation_mode(allocation_mode);
+
+        // build function env
+        let env = FunctionEnv {
+            module_id: self.module_id,
+            profile: self.profile,
+            program: &self.compiler.program,
+            dir_tree: self.dir_tree,
+            symbols: self.symbols,
+            types: self.types,
+            captures: self.captures,
+            strings: &self.compiler.program.strings,
+            well_known_intrinsics: self.well_known_intrinsics.as_ref(),
+            functions_by_instance: &self.functions_by_instance,
+            function_signature_types: &self.function_signature_types,
+            binding_symbols: &self.binding_symbols,
+            binding_abi_lowering: self.binding_abi_lowering,
+            runtime_status_layout: self.runtime_status_layout,
+            take_platform_error_function: self.take_platform_error_function,
+            globals_by_symbol: &self.globals_by_symbol,
+            string_literal_globals: &self.string_literal_globals,
+            interface_slots_by_symbol: &self.interface_slots_by_symbol,
+            interface_itab_ids: &self.interface_itab_ids,
+            virtual_method_slots_by_key: &self.virtual_method_slots_by_key,
+            vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
+            dispatch_call_name: self.dispatch_call_name,
+            dispatch_construct_name: self.dispatch_construct_name,
+            checks: self.runtime_checks,
+            type_lowerer: &self.type_lowerer,
+            return_type,
+            symbol: symbol_id,
+            closure_env_layouts: &self.closure_env_layouts,
+            empty_closure_env_pointer_type,
+        };
+        let state = FunctionState::new(builder, address_taken);
+        let mut function_lowerer = FunctionLowerer::new(env, state);
+
+        // capture explicit or captured this symbols when present
+        function_lowerer.state.bindings.this_symbol = this_symbol;
+
+        // track locals captured by reference
+        let reference_locals = self
+            .captures
+            .reference_locals(symbol_id)
+            .unwrap_or(&[])
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>();
+        function_lowerer.state.bindings.reference_locals = reference_locals;
+
+        // create entry block
+        let entry_block = function_lowerer.state.builder.block();
+        function_lowerer.state.builder.switch_to_block(entry_block);
+
+        // seed closure environment when captured
+        if let Some(layout) = capture_layout {
+            let env_ref_type = layout.env_pointer_type;
+            let env_value = function_lowerer.state.builder.function_env(env_ref_type);
+            function_lowerer.state.bindings.closure_env = Some(env_value);
+        }
+
+        // add parameter locals
+        for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
+            let parameter = self.dir_tree.get(*parameter_id);
+            let ty = parameter_types[index];
+            let value = function_lowerer.state.builder.function_parameter(index);
+            let mutability = parameter
+                .modifiers()
+                .and_then(|modifier| modifier.mutability);
+            function_lowerer.define_local_binding(
+                parameter_id.into_any(),
+                parameter.symbol(),
+                mutability,
+                value,
+                ty,
+            )?;
+        }
+
+        // lower body
+        if let Some(body_id) = body {
+            let terminated = function_lowerer.lower_body(*body_id)?;
+            if terminated == Terminates::No {
+                if return_type == self.type_lowerer.ty_void {
+                    function_lowerer.state.builder.return_(None);
+                } else {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: declaration_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "missing terminator".to_string(),
+                    })?;
+                }
+            }
+        } else {
+            function_lowerer.state.builder.return_(None);
+        }
+
+        // finish the function builder
+        function_lowerer.state.builder.finish();
+        Ok(function_id)
+    }
+
+    /// Resolve the name used for MIR functions, including anonymous lambdas.
+    fn function_name_for_descriptor(
+        &self,
+        descriptor: &dir::DeclarationDescriptor,
+    ) -> LowerResult<String> {
+        // prefer explicit declaration names
+        let symbol_id = descriptor.symbol.into_global(self.module_id);
+        let symbol_data = self.symbols.get_symbol(symbol_id.local_id);
+        let name_id = descriptor
+            .name
+            .map(|name| name.string())
+            .or_else(|| symbol_data.name());
+        if let Some(name_id) = name_id {
+            let name = self.compiler.program.strings.get(name_id).to_string();
+            return Ok(name);
+        }
+
+        // synthesize a deterministic name for anonymous lambdas
+        let owner_name = self.lambda_owner_name(symbol_id);
+        let suffix = symbol_id.local_id.id;
+        let name = if let Some(owner_name) = owner_name {
+            format!("{owner_name}.lambda#{suffix}")
+        } else {
+            format!("lambda#{suffix}")
+        };
+
+        Ok(name)
+    }
+
+    /// Resolve a `this` symbol for explicit parameters or captured bindings.
+    fn resolve_this_symbol_for_function(
+        &self,
+        symbol_id: GlobalSymbolId,
+        signature: &dir::FunctionSignature,
+    ) -> Option<GlobalSymbolId> {
+        // prefer explicit this parameters
+        if let Some(parameter_id) = signature.this_parameter {
+            let parameter = self.dir_tree.get(parameter_id);
+            return Some(parameter.symbol().into_global(self.module_id));
+        }
+
+        // resolve implicit this for member methods
+        let symbol_data = self.symbols.get_symbol(symbol_id.local_id);
+        let is_member = symbol_data
+            .primary_declaration
+            .is_some_and(|primary| primary.local_id.ty == dir::NodeType::Member);
+        if is_member {
+            let scope = self.symbols.get_scope_by_id(symbol_data.scope.0);
+            let this_name = self.compiler.program.strings.intern("this");
+            if let Some(symbol) = self
+                .symbols
+                .find_active_symbol(scope, dir::StaticKey::Name(this_name))
+            {
+                return Some(symbol.into_global(self.module_id));
+            }
+        }
+
+        // fall back to captured this bindings
+        self.captures
+            .capture_set(symbol_id)
+            .and_then(|set| set.this_symbol)
+    }
+
+    /// Resolve the module-local owner path for an anonymous lambda.
+    fn lambda_owner_name(&self, symbol_id: GlobalSymbolId) -> Option<String> {
+        let symbol_data = self.symbols.get_symbol(symbol_id.local_id);
+        let mut scope_id = symbol_data.scope.0;
+        let mut seen_scopes = HashSet::new();
+        loop {
+            if !seen_scopes.insert(scope_id) {
+                return None;
+            }
+
+            let scope = self.symbols.get_scope_by_id(scope_id);
+            if let Some(owner_id) = scope.owner_id {
+                let owner_symbol = owner_id.into_global(self.module_id);
+                if let Some(owner_path) = self.symbol_path_name(owner_symbol) {
+                    return Some(owner_path);
+                }
+            }
+
+            let (parent_id, _) = scope.parent?;
+            scope_id = parent_id;
+        }
+    }
+
+    /// Resolve a function return type for lowering.
+    fn resolve_function_return_type(
+        &mut self,
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // resolve the declaration node id
+        let node_id = declaration_id.into_global_any(self.module_id);
+
+        // resolve the function signature type
+        let signature_type_id = self.signature_type_id_for_node(node_id)?;
+
+        // extract the return type id from the signature
+        let return_type_id = match self.types.get_type(signature_type_id) {
+            dir::Type::Function { return_type, .. } => {
+                return_type.ok_or_else(|| self.missing_type_error(node_id))?
+            }
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: node_id.into_anchored(Some(self.profile)),
+                    message: "missing function signature type".to_string(),
+                })?;
+            }
+        };
+
+        // lower the return type
+        self.lower_type(return_type_id, node_id.into_anchored(Some(self.profile)))
+    }
+
+    /// Lower a method member to a MIR function.
+    pub(crate) fn lower_method(
+        &mut self,
+        member_id: LocalNodeId<Member>,
+        member: &Member,
+        this_type: Option<mir::LocalNodeId<mir::Type>>,
+        owner_symbol: GlobalSymbolId,
+        parent_declaration_id: LocalNodeId<Declaration>,
+    ) -> LowerResult<()> {
+        // require a method member
+        let Member::Method {
+            modifiers,
+            key,
+            signature,
+            body,
+            symbol,
+            ..
+        } = member
+        else {
+            return Ok(());
+        };
+        let is_constructor = matches!(
+            signature.mode,
+            Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
+        );
+        let is_static = self.member_is_static(modifiers.as_ref());
+
+        // track constructor declaration symbol when needed
+        let mut constructor_symbol = None;
+
+        // resolve the method symbol
+        let method_symbol = symbol.into_global(self.module_id);
+
+        // resolve the method name
+        let name_str = if is_constructor {
+            // reject constructor keys
+            if key.is_some() {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "constructor cannot have a name".to_string(),
+                });
+            }
+
+            // resolve the nominal declaration descriptor
+            let declaration = self.dir_tree.get(parent_declaration_id);
+            let descriptor =
+                self.descriptor_for_declaration_or_error(parent_declaration_id, declaration)?;
+            constructor_symbol = Some(descriptor.symbol.into_global(self.module_id));
+
+            // require a declaration name for constructor
+            let name = descriptor
+                .name
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: parent_declaration_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "constructor must have a declaration name".to_string(),
+                })?;
+
+            // format the constructor name
+            let type_name = self.compiler.program.strings.get(name.string()).to_string();
+            format!("{type_name}.constructor")
+        } else if is_static {
+            self.static_member_name(owner_symbol, *key).ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
+                    node: member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "static method requires a static member name".to_string(),
+                }
+            })?
+        } else {
+            // resolve the static method key or dispatch name
+            let method_name =
+                self.member_dispatch_name_or_error(key.as_ref(), signature.mode, member_id)?;
+            let method_name = self.compiler.program.strings.get(method_name).to_string();
+
+            // prefix instance methods with the owner type name when available
+            if let Some(owner_name) = self.symbol_path_name(owner_symbol) {
+                format!("{owner_name}.{method_name}")
+            } else {
+                method_name
+            }
+        };
+
+        // capture 'this' type for constructor initialization
+        let constructor_this_type = if is_constructor {
+            // require an instance type for constructors
+            Some(this_type.ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
+                    node: member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "constructor missing instance type".to_string(),
+                }
+            })?)
+        }
+        // skip constructor state for non constructors
+        else {
+            None
+        };
+
+        // drop 'this' type for static methods
+        let method_this_type = if is_constructor {
+            this_type
+        } else if is_static {
+            None
+        } else {
+            this_type
+        };
+
+        // resolve parameter types
+        let parameter_types = self.method_parameter_types(signature, method_this_type)?;
+
+        // resolve return type from the method's inferred signature
+        let member_node = member_id.into_global_any(self.module_id);
+        let return_type = if let Some(constructor_type) = constructor_this_type {
+            constructor_type
+        } else {
+            self.resolve_method_return_type(member_id, member_node)?
+        };
+
+        // build a MIR signature type aligned with the lowered parameters
+        let signature_type = self
+            .builder
+            .type_function_pointer(parameter_types.clone(), return_type);
+
+        // prelower body expression types
+        if let Some(body_id) = body {
+            self.prelower_expression_types(*body_id)?;
+        }
+
+        // collect address taken locals
+        let address_taken = body
+            .map(|body_id| self.collect_address_taken_bindings(body_id))
+            .unwrap_or_else(AddressTakenBindings::empty);
+
+        // resolve the implicit this symbol
+        let this_symbol = self.resolve_this_symbol_for_function(method_symbol, signature);
+
+        // resolve shared closure environment metadata
+        let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
+        let instance = self.symbol_instance_key(method_symbol);
+
+        // build the function and register bindings
+        let builder = {
+            let functions_by_instance = &mut self.functions_by_instance;
+            let function_signature_types = &mut self.function_signature_types;
+            let mut builder = self
+                .builder
+                .function(&name_str, &parameter_types, return_type);
+
+            // track parameter names for diagnostics
+            let mut parameter_names = Vec::new();
+            if !is_constructor && this_type.is_some() {
+                let name_id = self.compiler.program.strings.intern("this");
+                parameter_names.push(Some(name_id));
+            }
+            for parameter_id in &signature.dynamic_parameters {
+                let parameter = self.dir_tree.get(*parameter_id);
+                let name = match parameter {
+                    dir::Parameter::Named { name, .. }
+                    | dir::Parameter::VariadicNamed { name, .. } => Some(*name),
+                    dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
+                };
+                parameter_names.push(name);
+            }
+
+            // apply parameter names to the MIR function
+            for (index, name) in parameter_names.iter().enumerate() {
+                if let Some(name_id) = name {
+                    builder.set_parameter_name(index, *name_id);
+                }
+            }
+            let function_id = builder.function_id();
+
+            // register function bindings
+            Self::register_function_binding_in_maps(
+                self.module_id,
+                functions_by_instance,
+                function_signature_types,
+                instance,
+                function_id,
+                signature_type,
+            )?;
+
+            builder
+        };
+
+        // create function lowerer
+        let env = FunctionEnv {
+            module_id: self.module_id,
+            profile: self.profile,
+            program: &self.compiler.program,
+            dir_tree: self.dir_tree,
+            symbols: self.symbols,
+            types: self.types,
+            captures: self.captures,
+            strings: &self.compiler.program.strings,
+            well_known_intrinsics: self.well_known_intrinsics.as_ref(),
+            functions_by_instance: &self.functions_by_instance,
+            function_signature_types: &self.function_signature_types,
+            binding_symbols: &self.binding_symbols,
+            binding_abi_lowering: self.binding_abi_lowering,
+            runtime_status_layout: self.runtime_status_layout,
+            take_platform_error_function: self.take_platform_error_function,
+            globals_by_symbol: &self.globals_by_symbol,
+            string_literal_globals: &self.string_literal_globals,
+            interface_slots_by_symbol: &self.interface_slots_by_symbol,
+            interface_itab_ids: &self.interface_itab_ids,
+            virtual_method_slots_by_key: &self.virtual_method_slots_by_key,
+            vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
+            dispatch_call_name: self.dispatch_call_name,
+            dispatch_construct_name: self.dispatch_construct_name,
+            checks: self.runtime_checks,
+            type_lowerer: &self.type_lowerer,
+            return_type,
+            symbol: method_symbol,
+            closure_env_layouts: &self.closure_env_layouts,
+            empty_closure_env_pointer_type,
+        };
+        let state = FunctionState::new(builder, address_taken);
+        let mut function_lowerer = FunctionLowerer::new(env, state);
+
+        // capture explicit or captured this symbols when present
+        function_lowerer.state.bindings.this_symbol = this_symbol;
+
+        // track locals captured by reference
+        let reference_locals = self
+            .captures
+            .reference_locals(method_symbol)
+            .unwrap_or(&[])
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>();
+        function_lowerer.state.bindings.reference_locals = reference_locals;
+
+        // create entry block
+        let entry_block = function_lowerer.state.builder.block();
+        function_lowerer.state.builder.switch_to_block(entry_block);
+
+        // initialize constructor state before parameter locals
+        if let Some(this_ty) = constructor_this_type {
+            // resolve the constructor anchor
+            let node = member_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile));
+
+            // select the layout type
+            let layout_type = match function_lowerer.state.builder.tree().get(this_ty) {
+                mir::Type::Reference { pointee, .. } => *pointee,
+                _ => this_ty,
+            };
+
+            // initialize constructor state
+            let layout = self
+                .type_lowerer
+                .layout_for_type_or_error(layout_type, node)?;
+            let class_symbol =
+                constructor_symbol.filter(|symbol| symbol.ty() == dir::SymbolType::Class);
+            function_lowerer.initialize_constructor(this_ty, layout.clone(), node, class_symbol)?;
+        }
+
+        // track parameter index for locals
+        let mut param_index = 0;
+
+        // add 'this' parameter as first local for instance methods
+        if let Some(this_ty) = method_this_type
+            && !is_constructor
+        {
+            function_lowerer.bind_this_parameter(member_id.into_any(), this_symbol, this_ty)?;
+            param_index += 1;
+        }
+
+        // add declared parameter locals
+        for parameter_id in &signature.dynamic_parameters {
+            // resolve the parameter symbol
+            let parameter = self.dir_tree.get(*parameter_id);
+
+            // bind the parameter local
+            let ty = parameter_types[param_index];
+            let value = function_lowerer
+                .state
+                .builder
+                .function_parameter(param_index);
+            let mutability = parameter
+                .modifiers()
+                .and_then(|modifier| modifier.mutability);
+            function_lowerer.define_local_binding(
+                parameter_id.into_any(),
+                parameter.symbol(),
+                mutability,
+                value,
+                ty,
+            )?;
+
+            // advance the parameter index
+            param_index += 1;
+        }
+
+        // lower the body when present
+        if let Some(body_id) = body {
+            // lower the body and handle fallthrough
+            let terminated = function_lowerer.lower_body(*body_id)?;
+            if terminated == Terminates::No {
+                // return constructed value when constructor falls through
+                if is_constructor {
+                    let node = member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile));
+                    function_lowerer.return_constructor_value(node)?;
+                }
+                // return void when allowed
+                else if return_type == self.type_lowerer.ty_void {
+                    function_lowerer.state.builder.return_(None);
+                }
+                // error on missing terminator
+                else {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: parent_declaration_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "method body missing terminator".to_string(),
+                    });
+                }
+            }
+        }
+        // synthesize constructor return when body is missing
+        else if is_constructor {
+            let node = member_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile));
+            function_lowerer.return_constructor_value(node)?;
+        }
+        // synthesize void return when body is missing
+        else {
+            function_lowerer.state.builder.return_(None);
+        }
+
+        // finish the function builder
+        function_lowerer.state.builder.finish();
+
+        Ok(())
+    }
+
+    /// Resolve a method return type for lowering.
+    pub(crate) fn resolve_method_return_type(
+        &mut self,
+        member_id: LocalNodeId<Member>,
+        member_node: dir::GlobalNodeIdAny,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // get signature type from analyzed metadata
+        let signature_type_id = self.signature_type_id_for_node(member_node)?;
+
+        // extract return type from function signature
+        let dir::Type::Function { return_type, .. } = self.types.get_type(signature_type_id) else {
+            return Err(LowerError::UnsupportedConstruct {
+                node: member_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+                message: "method signature is not a function type".to_string(),
+            });
+        };
+
+        // lower return type or default to void
+        let Some(return_type_id) = return_type else {
+            return Ok(self.type_lowerer.ty_void);
+        };
+
+        // lower the return type
+        self.lower_type(
+            *return_type_id,
+            member_node.into_anchored(Some(self.profile)),
+        )
+    }
+
+    /// Resolve parameter types for a method signature.
+    pub(crate) fn method_parameter_types(
+        &mut self,
+        signature: &dir::FunctionSignature,
+        this_type: Option<mir::LocalNodeId<mir::Type>>,
+    ) -> LowerResult<Vec<mir::LocalNodeId<mir::Type>>> {
+        // decide whether this method is a constructor
+        let is_constructor = matches!(
+            signature.mode,
+            Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
+        );
+
+        // initialize parameter types
+        let mut parameter_types = Vec::new();
+
+        // add this parameter when lowering an instance method
+        if !is_constructor && let Some(this_ty) = this_type {
+            parameter_types.push(this_ty);
+        }
+
+        // lower declared parameter types
+        for parameter_id in &signature.dynamic_parameters {
+            // resolve the parameter type id
+            let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
+            let parameter_ty_id =
+                self.declared_or_inferred_type_id_for_node_or_error(parameter_node)?;
+
+            // lower the parameter type
+            let parameter_ty = self.lower_type(
+                parameter_ty_id,
+                parameter_node.into_anchored(Some(self.profile)),
+            )?;
+            parameter_types.push(parameter_ty);
+        }
+
+        Ok(parameter_types)
+    }
+}

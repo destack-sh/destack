@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::lower::module::ModuleLowerer;
+use crate::lower::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Extract return lifetime from @lifetime decorator metadata on a function.

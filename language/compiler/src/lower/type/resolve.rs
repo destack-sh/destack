@@ -3,11 +3,11 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::super::FunctionContext;
+use super::super::FunctionLowerer;
 use super::ScalarType;
-use crate::lower::item::{GlobalBinding, LocalBinding};
+use crate::lower::{GlobalBinding, LocalBinding};
 
-impl FunctionContext<'_> {
+impl FunctionLowerer<'_> {
     /// Create a MissingType error for the given expression.
     pub(crate) fn missing_type_error(&self, expression_id: LocalNodeId<Expression>) -> LowerError {
         LowerError::MissingType {

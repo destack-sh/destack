@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 use destack_ast::StringId;
 use destack_core::StringPool;
@@ -12,11 +12,11 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{Compiler, LowerError, LowerResult};
 
-use crate::lower::emit::{RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig};
-use crate::lower::item::GlobalBinding;
-use crate::lower::table::interface::InterfaceSlot;
-use crate::lower::table::{ClosureEnvLayout, VirtualMethodKey, VtableGlobal};
-use crate::lower::{BuiltinTypeLayouts, RuntimeStatusLayout, TypeCacheEntry, TypeLowerer};
+use crate::lower::{
+    BuiltinTypeLayouts, ClosureEnvLayout, GlobalBinding, InstanceKey, InterfaceEntry, MethodKey,
+    RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig, RuntimeStatusLayout, TypeCacheEntry, TypeLowerer,
+    VtableGlobal,
+};
 
 /// Context for lowering a DIR module to MIR.
 #[derive(Debug)]
@@ -40,8 +40,6 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) types: &'a dir::TypeTable,
     /// Provide access to capture metadata for closures.
     pub(crate) captures: &'a dir::CaptureTable,
-    /// Identify the target backend for lowering.
-    pub(crate) target: &'a TargetId,
     /// Runtime check configuration for this target.
     pub(crate) runtime_checks: RuntimeCheckConfig,
     /// Well-known intrinsic bindings for this profile.
@@ -49,8 +47,8 @@ pub(crate) struct ModuleLowerer<'a> {
 
     /// Build MIR nodes for this module.
     pub(crate) builder: mir::ModuleBuilder,
-    /// Map DIR symbols to MIR function ids.
-    pub(crate) functions_by_symbol: HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
+    /// Map lowered instances to MIR function ids.
+    pub(crate) functions_by_instance: HashMap<InstanceKey, mir::LocalNodeId<mir::Function>>,
     /// Map MIR function ids to their signature types.
     pub(crate) function_signature_types:
         HashMap<mir::LocalNodeId<mir::Function>, mir::LocalNodeId<mir::Type>>,
@@ -74,7 +72,7 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) vtable_field_name: StringId,
 
     /// Track interface slot data for dispatch lowering.
-    pub(crate) interface_slots_by_symbol: HashMap<GlobalSymbolId, Vec<InterfaceSlot>>,
+    pub(crate) interface_slots_by_symbol: HashMap<GlobalSymbolId, Vec<InterfaceEntry>>,
     /// Track canonical interface dispatch field nodes by interface member.
     pub(crate) interface_dispatch_fields_by_member: HashMap<u32, mir::LocalNodeId<mir::Field>>,
     /// Track interface slot lowering in progress.
@@ -99,10 +97,10 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Track itab lowering in progress.
     pub(crate) itab_in_progress: IndexSet<(GlobalSymbolId, GlobalSymbolId)>,
 
-    /// Track whether dispatch tables are initialized.
-    pub(crate) dispatch_tables_ready: bool,
+    /// Track whether dispatch declarations are initialized.
+    pub(crate) dispatch_declared: bool,
     /// Virtual dispatch slot ids keyed by method symbol.
-    pub(crate) virtual_method_slots_by_key: HashMap<(GlobalSymbolId, VirtualMethodKey), u32>,
+    pub(crate) virtual_method_slots_by_key: HashMap<(GlobalSymbolId, MethodKey), u32>,
 
     /// Ordered list of class symbols that require vtables.
     pub(crate) vtable_class_symbols: Vec<GlobalSymbolId>,
@@ -122,6 +120,10 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) runtime_status_layout: Option<RuntimeStatusLayout>,
     /// Cached binding function for taking runtime errors.
     pub(crate) take_platform_error_function: Option<mir::LocalNodeId<mir::Function>>,
+    /// Function declarations waiting for body lowering.
+    pub(crate) pending_function_bodies: VecDeque<LocalNodeId<dir::Declaration>>,
+    /// Function declarations already queued for body lowering.
+    pub(crate) queued_function_bodies: HashSet<u32>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -190,11 +192,10 @@ impl<'a> ModuleLowerer<'a> {
             symbols,
             types,
             captures,
-            target,
             runtime_checks,
             well_known_intrinsics,
             builder,
-            functions_by_symbol: HashMap::new(),
+            functions_by_instance: HashMap::new(),
             function_signature_types: HashMap::new(),
             globals_by_symbol: HashMap::new(),
             string_literal_globals: HashMap::new(),
@@ -216,7 +217,7 @@ impl<'a> ModuleLowerer<'a> {
             vtable_ids_by_symbol: HashMap::new(),
             itab_by_pair: HashMap::new(),
             itab_in_progress: IndexSet::new(),
-            dispatch_tables_ready: false,
+            dispatch_declared: false,
             virtual_method_slots_by_key: HashMap::new(),
             vtable_class_symbols: Vec::new(),
             vtable_globals_by_symbol: HashMap::new(),
@@ -226,6 +227,8 @@ impl<'a> ModuleLowerer<'a> {
             binding_abi_lowering,
             runtime_status_layout: None,
             take_platform_error_function: None,
+            pending_function_bodies: VecDeque::new(),
+            queued_function_bodies: HashSet::new(),
         }
     }
 
@@ -309,6 +312,20 @@ impl<'a> ModuleLowerer<'a> {
         )
     }
 
+    /// Return the canonical instance key for a symbol-backed item.
+    pub(crate) fn symbol_instance_key(&self, symbol: GlobalSymbolId) -> InstanceKey {
+        InstanceKey::symbol(symbol)
+    }
+
+    /// Return the lowered function id for a symbol-backed instance.
+    pub(crate) fn function_for_symbol(
+        &self,
+        symbol: GlobalSymbolId,
+    ) -> Option<mir::LocalNodeId<mir::Function>> {
+        let instance = self.symbol_instance_key(symbol);
+        self.functions_by_instance.get(&instance).copied()
+    }
+
     /// Register a function binding and signature type for a symbol.
     pub(crate) fn register_function_binding_for_symbol(
         &mut self,
@@ -316,35 +333,36 @@ impl<'a> ModuleLowerer<'a> {
         function_id: mir::LocalNodeId<mir::Function>,
         signature_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<()> {
+        let instance = self.symbol_instance_key(symbol);
         Self::register_function_binding_in_maps(
             self.module_id,
-            &mut self.functions_by_symbol,
+            &mut self.functions_by_instance,
             &mut self.function_signature_types,
-            symbol,
+            instance,
             function_id,
             signature_type,
         )
     }
 
-    /// Register a function binding and signature type for a symbol.
+    /// Register a function binding and signature type for an instance.
     pub(crate) fn register_function_binding_in_maps(
         module_id: ModuleId,
-        functions_by_symbol: &mut HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
+        functions_by_instance: &mut HashMap<InstanceKey, mir::LocalNodeId<mir::Function>>,
         function_signature_types: &mut HashMap<
             mir::LocalNodeId<mir::Function>,
             mir::LocalNodeId<mir::Type>,
         >,
-        symbol: GlobalSymbolId,
+        instance: InstanceKey,
         function_id: mir::LocalNodeId<mir::Function>,
         signature_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<()> {
         // register the function binding
         Self::insert_unique_entry(
             module_id,
-            functions_by_symbol,
-            symbol,
+            functions_by_instance,
+            instance,
             function_id,
-            "function binding",
+            "function instance",
         )?;
 
         // register the function signature type
@@ -361,7 +379,7 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn insert_interface_slots(
         &mut self,
         symbol: GlobalSymbolId,
-        slots: Vec<InterfaceSlot>,
+        slots: Vec<InterfaceEntry>,
     ) -> LowerResult<()> {
         // record interface slots once
         Self::insert_unique_entry(
@@ -425,7 +443,7 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn insert_virtual_method_slot(
         &mut self,
         class_symbol: GlobalSymbolId,
-        key: VirtualMethodKey,
+        key: MethodKey,
         slot_id: u32,
         member_id: LocalNodeId<dir::Member>,
     ) -> LowerResult<()> {
@@ -501,7 +519,6 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Insert a key into a map and reject duplicates.
-    /// Insert a key into a map and reject duplicates.
     pub(crate) fn insert_unique_entry<K, V>(
         module_id: ModuleId,
         map: &mut HashMap<K, V>,
@@ -527,45 +544,64 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Lower this entire DIR module to MIR (in-place).
     pub(crate) fn lower_module(&mut self) -> LowerResult<()> {
+        // declare module level artifacts and initial lowering state
+        self.declare()?;
+
+        // lower reachable bodies and lazily realize types to fixpoint
+        self.lower()?;
+
+        // finish deferred tables and metadata
+        self.finish_lowering()?;
+
+        Ok(())
+    }
+
+    /// Declare module-level artifacts before body lowering.
+    fn declare(&mut self) -> LowerResult<()> {
         // initialize builtin layouts
         self.initialize_string_type()?;
 
-        // predeclare string literal globals
-        self.predeclare_string_literal_globals()?;
-        self.ensure_string_type_alias()?;
+        // declare runtime string globals and aliases
+        self.declare_string_literal_globals()?;
+        self.declare_string_type_alias()?;
 
-        // build dispatch tables
-        self.lower_dispatch_tables()?;
+        // declare dispatch ids and slots
+        self.declare_dispatch()?;
 
-        // predeclare function bindings before body lowering
-        self.predeclare_functions()?;
+        // declare function shells before body lowering
+        self.declare_functions()?;
 
-        // lower external calls
-        self.lower_external_calls()?;
+        Ok(())
+    }
 
-        // lower root expressions
+    /// Lower root and queued function bodies.
+    fn lower(&mut self) -> LowerResult<()> {
+        // lower root expressions first
         for expression_id in self.dir_roots.iter().copied() {
             self.lower_root_expression(expression_id)?;
         }
 
-        // lower nested functions and lambdas
-        self.lower_queued_functions()?;
+        // lower queued nested functions and lambdas
+        self.lower_pending_functions()?;
 
-        // finalize nominal types so layouts are cached
-        self.finalize_declared_types()?;
-        self.ensure_newtype_aliases()?;
+        Ok(())
+    }
 
-        // emit dispatch tables (vtables, itabs)
-        self.dispatch_tables()?;
+    /// Finish deferred module artifacts after body lowering.
+    fn finish_lowering(&mut self) -> LowerResult<()> {
+        // realize nominal types so layouts are cached
+        self.lower_declared_types()?;
+        self.declare_newtype_aliases()?;
 
-        // finalize metadata for all cached types
-        self.finalize_type_metadata()?;
+        // emit final dispatch tables and type metadata
+        self.emit_dispatch()?;
+        self.emit_type_metadata()?;
 
         Ok(())
     }
 
     /// Predeclare globals for string literals used in this module.
-    fn predeclare_string_literal_globals(&mut self) -> LowerResult<()> {
+    fn declare_string_literal_globals(&mut self) -> LowerResult<()> {
         // collect literal values and a representative anchor
         let mut literals = BTreeSet::new();
         let mut anchor = None;
@@ -706,7 +742,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Ensure all nominal types are lowered into the type cache.
-    fn finalize_declared_types(&mut self) -> LowerResult<()> {
+    fn lower_declared_types(&mut self) -> LowerResult<()> {
         // track symbols we've already finalized
         let mut seen = HashSet::new();
         for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
@@ -750,7 +786,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Finalize metadata for all cached types.
-    fn finalize_type_metadata(&mut self) -> LowerResult<()> {
+    fn emit_type_metadata(&mut self) -> LowerResult<()> {
         // collect cached types
         let mut cached_types = Vec::new();
         for (type_id, entry) in &self.type_lowerer.type_cache {
@@ -812,8 +848,8 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Ensure the canonical string type alias exists in the MIR tree.
-    fn ensure_string_type_alias(&mut self) -> LowerResult<()> {
+    /// Declare the canonical string type alias in the MIR tree.
+    fn declare_string_type_alias(&mut self) -> LowerResult<()> {
         // skip when no string literal globals exist
         if self.string_literal_globals.is_empty() {
             return Ok(());
@@ -857,8 +893,8 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Ensure newtype aliases are registered in the MIR tree.
-    fn ensure_newtype_aliases(&mut self) -> LowerResult<()> {
+    /// Declare newtype aliases in the MIR tree.
+    fn declare_newtype_aliases(&mut self) -> LowerResult<()> {
         // collect existing aliases by name
         let mut existing_aliases = HashSet::new();
         for (_, alias) in self.builder.tree().iter_nodes::<mir::TypeAlias>() {
