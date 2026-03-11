@@ -5,7 +5,7 @@
 > This document describes the motivation and tradeoffs in choosing TypeScript and why we added what.
 
 Destack is designed as a superset of TypeScript. 
-Destack also supports compiling to JS/TS targets, and works with regular JS/TS dependencies (when compatible even for AOT targets).
+Destack also supports compiling to JS/TS targets, and works with regular JS/TS dependencies when they fit Destack's strict typed model.
 So, if you don't need or want any additional features you can ignore the "++" part of Destack entirely, write completely standard `.ts` and `.tsx` files, and just stop reading right here.
 For most use cases, most of the time, the "++" is happily out of sight and out of mind.
 
