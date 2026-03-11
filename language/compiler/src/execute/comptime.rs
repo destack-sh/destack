@@ -6,11 +6,11 @@ use destack_workspace::{CheckFailurePolicy, Module, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::{
-    AddressTakenBindings, BuiltinTypeLayouts, FunctionEnv, FunctionState, RuntimeCheckConfig,
-    StructLayout, TypeLowerer, collect_expression_string_literals,
+    AddressTakenBindings, BuiltinTypeLayouts, FunctionEnv, FunctionLowerer, FunctionState,
+    InstanceKey, RuntimeCheckConfig, StructLayout, TypeLowerer, collect_expression_string_literals,
     string_literal_global_name_for_content,
 };
-use crate::{Compiler, ExecuteError, ExecuteResult, FunctionContext, LowerError, ModuleLowerer};
+use crate::{Compiler, ExecuteError, ExecuteResult, LowerError, ModuleLowerer};
 
 #[allow(dead_code)]
 impl Compiler {
@@ -234,7 +234,8 @@ impl<'a> ComptimeLowerer<'a> {
 
         // create empty lookup tables for standalone expressions
         // TODO #Incomplete: hoist comptime environment into comptime lowering
-        let functions_by_symbol = HashMap::new();
+        let functions_by_instance: HashMap<InstanceKey, mir::LocalNodeId<mir::Function>> =
+            HashMap::new();
         let globals_by_symbol = HashMap::new();
         let interface_slots_by_symbol = HashMap::new();
         let interface_itab_ids = HashMap::new();
@@ -260,7 +261,7 @@ impl<'a> ComptimeLowerer<'a> {
             dir::LocalSymbolId::new_typed(0, dir::SymbolType::Function).into_global(self.module.id);
         let function_builder = self.builder.function("comptime", &[], return_type);
 
-        // create function context
+        // create function lowerer
         let env = FunctionEnv {
             module_id: self.module.id,
             profile: self.profile,
@@ -271,7 +272,7 @@ impl<'a> ComptimeLowerer<'a> {
             captures: &self.captures,
             strings: &self.compiler.program.strings,
             well_known_intrinsics: well_known_intrinsics.as_ref(),
-            functions_by_symbol: &functions_by_symbol,
+            functions_by_instance: &functions_by_instance,
             function_signature_types: &function_signature_types,
             binding_symbols: &binding_symbols,
             binding_abi_lowering: false,
@@ -300,14 +301,14 @@ impl<'a> ComptimeLowerer<'a> {
             empty_closure_env_pointer_type,
         };
         let state = FunctionState::new(function_builder, AddressTakenBindings::empty());
-        let mut function_ctx = FunctionContext::new(env, state);
+        let mut function_lowerer = FunctionLowerer::new(env, state);
 
         // create entry block
-        let entry_block = function_ctx.state.builder.block();
-        function_ctx.state.builder.switch_to_block(entry_block);
+        let entry_block = function_lowerer.state.builder.block();
+        function_lowerer.state.builder.switch_to_block(entry_block);
 
         // lower the expression
-        let (value, _) = function_ctx
+        let (value, _) = function_lowerer
             .lower_value_expression(expression_id)
             .map_err(|error| ExecuteError::FailedLower {
                 module: self.module.id,
@@ -316,8 +317,8 @@ impl<'a> ComptimeLowerer<'a> {
             })?;
 
         // return and finish
-        function_ctx.state.builder.return_(Some(value));
-        let function_id = function_ctx.state.builder.finish();
+        function_lowerer.state.builder.return_(Some(value));
+        let function_id = function_lowerer.state.builder.finish();
 
         let (tree, strings) = self.builder.finish_mutable();
         Ok((tree, strings, function_id))

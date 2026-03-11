@@ -1,47 +1,93 @@
 # Lower
 
-Lower runs after Elaborate and turns high-level "canonical" DIR into low-level, target-specific MIR.
+Lower turns elaborated, executed, typed DIR into canonical target-conditioned MIR.
+This is the phase where semantic DIR becomes executable representation.
 
 ## Objectives
 
-The _dream_ is **Rust performance with TypeScript ergonomics**.
-Of course, performance and ergonomics are in some tension, so this isn't fully achievable without breaking the things that make TypeScript great.
-We want to enable *up to* Rust performance with some additional constructs while improving and stabilizing TS performance to be _predictable_ at the level of Go, C# or Java without _requiring_ additional changes.
-So, basically the dream is:
-- **Best case (target):** Rust-tier performance (zero-cost abstractions, no GC pauses)
-- **Average case (target):** Go-tier performance (efficient GC, good concurrency)
-- **Worst case (target):** Competitive with optimized JS runtimes (V8, JSC, SpiderMonkey)
+The performance target is straightforward:
 
-AOT compilation provides predictable performance without warmup; however, astounding engineering efforts have already gone into making modern JS engines' speculative optimization approximate (or even beat!) static compilation on common "dynamic" patterns.
-That said, today nobody would seriously consider writing "systems software" in JS/TS, which is a shame, because modern TS is actually a fantastic language for _full_-stack software.
+- Rust-tier performance for explicit ownership and manual control paths
+- Go-tier predictability for ordinary managed code
+- competitive TypeScript compatibility without speculative runtime warmup
+
+Lower is not an optimizer.
+Lower is not a generic metadata repair pass.
+Lower's job is to commit to representation.
 
 ## Pipeline
 
-Lower receives (patched) canonical profile-specific DIR post-Execute and produces target-specific MIR.
+Lower receives canonical profile-specific DIR after Analyze, Elaborate, and Execute.
+Lower produces canonical MIR with target-conditioned representation decisions.
 
 ### Input: Canonical DIR
 
-Lower receives "canonical" typed DIR after Analyze and Elaborate (and Execute).
-(Canonical here just means fully elaborated and reified, that's basically it.)
-- Desugaring complete (e.g., `+=` → `+` and assign)
-- Patterns expanded to decision trees
-- Types fully inferred for all expressions ("Types")
-- Resolutions resolved ("Resolutions")
-- Static parameters resolved to values ("StaticExpression")
-- Polymorphic instances created ("Instances")
-- Comptime blocks executed and results patched in ("Execute")
+By the time Lower runs:
 
-### Output: Target-Specific MIR
+- desugaring is complete
+- patterns are expanded
+- types are inferred
+- resolutions are attached
+- static arguments are reified
+- comptime execution has patched the tree
 
-MIR is generated per-target with target-specific decisions:
-- Memory layout (LP64, ILP32, etc.)
-- Calling conventions (C, System, etc.)
-- Alignment requirements
-- Policy-controlled checks (bounds, overflow, etc.)
-## Layout Map
+Lower should not have to rediscover frontend semantics.
+It should only have to choose executable representation.
 
-Lower treats layout as a queryable, cached graph so we can answer "what is the layout of this type?" at (almost) any point during lowering.
-For the most part, layouts for each type are done exactly like how you would expect.
+### Output: Target-Conditioned MIR
+
+Lower commits to concrete decisions such as:
+
+- data layout and alignment
+- calling convention shape
+- managed reference representation
+- concrete type and layout realization
+- runtime type identity links
+- dispatch structures
+- policy-controlled checks
+
+## Architecture
+
+The intended Lower model is deliberately small.
+The main architectural nouns are:
+
+1. `ModuleLowerer`
+2. `FunctionLowerer`
+3. `InstanceKey`
+
+`ModuleLowerer` owns module orchestration, declaration state, instance queues, imports, literals, dispatch emission, and final MIR assembly.
+`FunctionLowerer` owns body emission.
+`InstanceKey` is the architectural home for concrete callable and type instantiation.
+
+`TypeLowerer` remains an important helper owned by `ModuleLowerer`.
+`TypeLowerer` answers representation questions:
+
+- what MIR type represents this DIR type
+- what the concrete layout is
+- what `TypeDescriptor` metadata exists
+- what scan and field metadata exist
+
+The top-level flow stays intentionally simple:
+
+1. `declare`
+2. `lower`
+3. `finish`
+
+`declare` registers roots, globals, literals, imports, and initial callable shells.
+`lower` drains the function-body work queue while realizing types and call targets lazily on demand.
+`finish` emits final dispatch tables and metadata, then finishes MIR.
+
+Lower is also responsible for the remaining major representation commitments:
+
+- native monomorphization over concrete instances
+- `TypeDescriptor` emission and attachment
+- scan-shape realization for managed layouts
+- exception lowering over MIR exceptional control flow
+
+## Representation Overview
+
+Lower treats layout as a queryable cached graph so it can answer representation questions at any point during lowering.
+Most types lower exactly the way their surface semantics suggest.
 
 | Category | Shape | Placement | Notes |
 | --- | --- | --- | --- |
@@ -53,101 +99,91 @@ For the most part, layouts for each type are done exactly like how you would exp
 | Array/Slice | element + length | header + data | policy: inline vs heap |
 | Function | signature | function pointer or function value | closure values pair fn pointer with env pointer |
 | Tagged Union | tag + payload | inline or boxed | tag value + payload layout |
-| Untagged Union | set of layouts | external discrimination | RTTI or caller-provided tag |
+| Untagged Union | set of layouts | external discrimination | type checks or caller-provided discrimination |
 | Interface | dispatch surface | itab/vtable + data | separate dispatch layout |
 | Intersection | composed view | no new storage | layout = primary + itabs |
 
 ### Unions
 
 Union layout is chosen per union:
-- **Inline tagged**: tag + payload in one block (size ≤ 2×ptr size)
+
+- **Inline tagged**: tag + payload in one block
 - **Boxed tagged**: tag + pointer to payload
-- **Untagged**: no tag, relies on RTTI or external discriminant
+- **Untagged**: no tag, relies on explicit runtime type identity or external discrimination
 
 `null` and `undefined` are distinct union elements with distinct tags.
 The only special case is a union of a single reference type plus `null`, which lowers to a nullable reference.
 
-### Dispatch Tables (VTables/ITabs)
+### Dispatch
 
 Dispatch layout is modeled separately from data layout.
-- **Vtable**: class method table for virtual dispatch.
-- **ITab**: interface table for structural or nominal interface dispatch.
+Vtables are class method tables for virtual dispatch.
+Itabs are interface tables for structural or nominal interface dispatch.
 
-A type layout can reference zero or more dispatch layouts, but dispatch layouts never alter the data placement.
-VTables are only emitted for classes that still require virtual dispatch after devirtualization.
+A type layout can reference zero or more dispatch layouts, but dispatch layouts never alter data placement.
+Vtables are only emitted for classes that still require virtual dispatch after devirtualization.
 Interface dispatch always uses itabs, even when the concrete type is a class.
 
 ### String Identity
 
-`===` on strings is **value equality** (content comparison), not reference equality.
+`===` on strings is value equality, not reference equality.
 
 ```ds
 const a = "hello";
 const b = "hel" + "lo";
-a === b  // true (same content)
+a === b  // true
 ```
 
 ### Symbol Identity
 
-- `Symbol("desc")` creates a **unique** symbol each call
-- `Symbol.for("key")` returns the **same** symbol for a given key (global registry)
-- `===` compares symbol identity (interned integer comparison)
+- `Symbol("desc")` creates a unique symbol each call
+- `Symbol.for("key")` returns the same symbol for a given key
+- `===` compares symbol identity
 
 ```ds
-Symbol("a") === Symbol("a")        // false (unique each call)
-Symbol.for("a") === Symbol.for("a") // true (same from registry)
+Symbol("a") === Symbol("a")         // false
+Symbol.for("a") === Symbol.for("a") // true
 ```
 
-**Symbol scope:** The `Symbol.for()` registry is global across all modules in a compilation unit.
-If module A calls `Symbol.for("key")` and module B calls `Symbol.for("key")`, they get the same symbol.
-This matches JavaScript's global symbol registry behavior.
+The `Symbol.for()` registry is global across all modules in a compilation unit.
 
 ### Property Enumeration
 
-Object properties enumerate in **declaration order**.
-This applies to `Object.keys()`, `for...in`, and RTTI field iteration.
+Object properties enumerate in declaration order.
+This applies to `Object.keys()`, `for...in`, and runtime property reflection.
 
 ### Default Arguments
 
-Default argument expressions evaluate **per-call** when the argument is `undefined`.
+Default argument expressions evaluate per call when the argument is `undefined`.
 Evaluation occurs in the function's scope.
 
 ```ds
 function log(timestamp = Date.now()) { ... }
 log()  // evaluates Date.now() on this call
-log()  // evaluates Date.now() again (different value)
+log()  // evaluates Date.now() again
 ```
 
-## Native Runtime Library
+## Runtime Boundary
 
-Lower doesn't special-case types like `String` or `Array<T>`.
-These are defined in `language/builtin/lib/native/` as regular Destack structs (with some intrinsics).
-Lower treats them basically like any other user-defined type.
-The native and JS builtins live here:
+Lower does not special-case types like `String` or `Array<T>` as compiler-only concepts.
+These are defined in `language/builtin/lib/native/` as regular Destack types with builtin or intrinsic support where needed.
 
-<pre>
-language/builtin/
-├── core/       # Operator interfaces (Add, Index, etc.) - compiler desugars to these
-├── std/        # Universal extensions
-└── lib/
-    ├── native/ # Native target types: String, Array, Map, etc.
-    ├── es/     # JS target types (uses JS-defined built-ins)
-    └── ...
-</pre>
-
----
-
-## Data Model
-
-This section defines the semantic model for lowering: how high-level concepts map to low-level representations.
-
-## Lowering Model
+## Instantiation and Resolution
 
 ### Monomorphization
 
-DIR has Instance-level information from Analysis, but is still polymorphic.
-For native targets, we fully monomorphize these Instances into concrete types with known sizes and offsets.
-(Thus, each generic instantiation gets its own specialized MIR logic.)
+DIR already carries `Instance` information from analysis, but Lower is still catching up to that model.
+The intended native strategy is instance-driven monomorphization:
+
+1. start from root callable instances
+2. declare callable shells
+3. lower reachable bodies
+4. discover new concrete instances while lowering
+5. continue until no new instances are discovered
+
+That fixpoint model is the intended shape.
+The current implementation only partially realizes it.
+`InstanceKey` exists today as the architectural home for this work, but full generic callable instantiation is still incomplete.
 
 ```ds
 function identity<T>(x: T): T { x }
@@ -165,10 +201,8 @@ Monomorphization trades code size for runtime performance:
 | Inlining | Cross-generic optimization | Longer compile times |
 | Register allocation | Optimal per-instantiation | More codegen work |
 
-The DIR `Instance` type tracks generic instantiations with their static arguments.
-Lower receives these `Instance`s and generates specialized MIR for each instantiation.
-(For JS/TS codegen, we preserve polymorphic code with no monomorphization needed, except for
-non-erasable value parameters like `const N: int`.)
+For JS and TS targets, polymorphism can remain erased where the target supports it.
+For native targets, concrete instance lowering is required for layout, dispatch, and calling convention decisions.
 
 ### Name Mangling
 
@@ -492,7 +526,7 @@ We also support fixed-size arrays which are more like Rust arrays / slices:
 | `TypedArray` | `Type::Reference(kind: Raw)` to buffer | Direct memory access |
 
 **Important:** `T[]` is NOT `Array<unknown>`. After monomorphization, we know T.
-`Array<unknown>` boxes elements and uses RTTI for type checks.
+`Array<unknown>` boxes elements and uses runtime type identity for type checks.
 
 **Array operations:**
 ```mir
@@ -582,23 +616,23 @@ The `final` keyword on methods or classes is an API contract ("you may not overr
 For whole-program compilation, the optimizer already knows what's overridden.
 `final` matters for libraries where downstream users could extend classes.
 
-Both lower to nominal instance layouts with computed property offsets. The key difference is **reference identity**: classes have it (two instances with same data are still different objects), structs don't (two structs with same data are equal). Both can have **type identity** (RTTI) when needed for `instanceof`, `T.is`, or `typeOf`.
+Both lower to nominal instance layouts with computed property offsets. The key difference is **reference identity**: classes have it, structs do not. Both can have **runtime type identity** when needed for `instanceof`, `T.is`, or `typeOf`.
 
-#### RTTI and Type Descriptors
+#### Runtime Type Identity
 
-RTTI (runtime type identity) is unified via `TypeDescriptor` handles, with `TypeId` available as a compact lowered identity token when needed.
+Runtime type identity is unified via `TypeDescriptor` handles, with `TypeId` available as a compact lowered identity token when needed.
 Polymorphic classes store a vtable pointer in the object layout for virtual dispatch.
 If any class in a lineage requires virtual dispatch, every class in that lineage includes a vtable pointer at offset 0 so upcasts need no pointer adjustment.
 Vtable slot 0 stores the `TypeDescriptor` for fast `instanceof`, `T.is`, and `typeOf`.
 Structs remain headerless and never store a vtable pointer.
-Thin-pointer checks on structs recover `TypeDescriptor` from GC metadata when needed.
+Thin-pointer checks on structs recover `TypeDescriptor` from metadata when needed.
 Interface and `unknown` values carry `TypeDescriptor` in fat pointers.
 Class references are thin pointers, so the vtable pointer must live in the object layout when present.
 
-GC metadata lookup only applies to managed references.
-Non-managed values require explicit tags (union tags or fat pointers) or compile-time type knowledge.
+Metadata lookup only applies to managed references.
+Non-managed values require explicit tags, fat pointers, or compile-time type knowledge.
 
-RTTI is only emitted when runtime type checks are possible:
+TypeDescriptor records are only emitted when runtime type checks are possible:
 - Used with `instanceof`, `T.is`, or `typeOf` on unknown values
 - Stored in `unknown`
 - Used in runtime reflection
@@ -608,7 +642,7 @@ RTTI is only emitted when runtime type checks are possible:
 #### Struct Layout
 
 Structs have no **reference identity** (no `===`).
-Structs are always headerless and use metadata or fat pointers for RTTI.
+Structs are always headerless and use metadata or fat pointers for runtime type identity.
 
 ```ds
 struct Point { x: float32, y: float32 }
@@ -623,7 +657,7 @@ struct PointLayout {
 Structs are data-oriented: two structs with the same properties are equal by value (`==`) by default.
 (Reference comparison (`===`) on structs is a compile error.)
 
-**Prefer discriminated unions** for performance-critical code to avoid runtime RTTI lookups:
+**Prefer discriminated unions** for performance-critical code to avoid runtime type identity lookups:
 
 ```ds
 struct Circle { kind: "circle" = "circle", radius: float };
@@ -642,7 +676,7 @@ String tags are interned to integers (see [String Equality](#string-equality)).
 
 #### Class Layout
 
-Polymorphic classes have vtable pointers for virtual dispatch and RTTI:
+Polymorphic classes have vtable pointers for virtual dispatch and runtime type identity:
 
 ```ds
 class Node {
@@ -662,7 +696,7 @@ struct NodeLayout {
 Classes have both reference identity (`===` compares pointers) and type identity (via vtable or metadata).
 Polymorphic classes store their vtable pointer because class references are thin pointers and dynamic dispatch is required.
 (This is consistent with Java and C++ class objects while keeping struct layouts headerless like Go.)
-Non-polymorphic classes omit the vtable pointer and use metadata or fat pointers for RTTI when needed.
+Non-polymorphic classes omit the vtable pointer and use metadata or fat pointers for runtime type identity when needed.
 
 Class layouts are static on native targets.
 There are no hidden classes or runtime shape transitions.
@@ -682,11 +716,11 @@ Per span metadata includes:
 - A TypeDescriptor per object for scanning and type queries
 
 Polymorphic classes store a vtable pointer in the object for virtual dispatch and fast `instanceof`/`T.is`.
-Structs remain headerless and rely on metadata or fat pointers for RTTI.
+Structs remain headerless and rely on metadata or fat pointers for runtime type identity.
 
 Tradeoffs:
 - Predictable object layouts and smaller per object overhead
-- Thin pointer RTTI queries require a metadata lookup
+- Thin pointer runtime type identity queries require a metadata lookup
 
 **Explicit ownership semantics:**
 Use `^T` to request an owned reference (move-only):
@@ -828,7 +862,7 @@ When contextual typing assigns the union type to a concrete expression, Lower us
    ```
 
 3. **Boxed** - Large or heterogeneous unions, or when runtime discrimination
-   needs RTTI but the variants are not tagged.
+   needs runtime type identity but the variants are not tagged.
    Examples:
 
    ```ds
@@ -841,12 +875,12 @@ When contextual typing assigns the union type to a concrete expression, Lower us
 
 The inline size threshold is fixed per target for ABI stability.
 **Owned unions** (`^(A | B)`) prefer inline representation when the variant is known at runtime
-without additional RTTI. If RTTI is required for drop, the union is boxed with an explicit tag.
-The `typeDescriptor` in boxed unions points at the RTTI descriptor.
+without additional runtime type identity. If runtime type identity is required for drop or inspection, the union is boxed with an explicit tag.
+The `typeDescriptor` in boxed unions points at the runtime type descriptor.
 
 ### Dynamic Types (unknown)
 
-**Native targets do not support `any`.** Only `unknown` is available, requiring explicit type checks via RTTI before use. This matches Rust's approach: dynamic typing requires explicit casts and runtime checks.
+**Native targets do not support `any`.** Only `unknown` is available, requiring explicit type checks via runtime type identity before use. This matches Rust's approach: dynamic typing requires explicit casts and runtime checks.
 
 ```ds
 const value: unknown = getUnknownValue();
@@ -905,10 +939,8 @@ if (comptime User.properties.some(p => p.type == string)) {
 }
 ```
 
-**Runtime:** When type information is needed at runtime, we generate RTTI.
-The RTTI table is a static array embedded in the binary.
-The native RTTI representation is a compact binary format that maps to the high-level
-`Type<T>` API from `language/builtin/core/reflect/type.ds`:
+**Runtime:** When type information is needed at runtime, Lower emits `TypeDescriptor` records.
+The exact native representation is still an implementation detail, but the semantic contract is stable: runtime type values are `TypeDescriptor` handles that map to the high-level `Type<T>` API from `language/builtin/core/reflect/type.ds`:
 
 ```ds
 // high level API
@@ -923,9 +955,9 @@ struct StructType<T> {
     description?: string
 }
 
-// native RTTI: binary format, used by runtime
+// intended native type descriptor shape
 struct TypeDescriptor {
-    id: uint32                  // index into RTTI table
+    id: uint32                  // index into the type descriptor table
     typeIdOffset: uint32        // offset to TypeId string ("myapp/models:User")
     nameOffset: uint32          // offset to name string ("User")
     size: uint32                // sizeof(T) in bytes
@@ -933,7 +965,7 @@ struct TypeDescriptor {
 }
 ```
 
-At runtime, when user code accesses `User.properties` or `typeOf(value)`, the `TypeDescriptor` data is accessed directly.
+At runtime, when user code accesses `User.properties` or `typeOf(value)`, the `TypeDescriptor` records are accessed directly.
 (Comptime and runtime share the same MIR representation, so no synthesis or conversion step is needed.)
 Runtime `Type<T>` values are represented as `TypeDescriptor` handles.
 When a vtable exists, slot 0 stores the `TypeDescriptor` handle.
@@ -944,8 +976,8 @@ Interface and `unknown` values carry it in fat pointers, and thin pointers recov
 | Source | Comptime | Runtime (if needed) |
 |--------|----------|---------------------|
 | `User` (in type position) | Type check | N/A |
-| `User` (in value position) | Constant TypeDescriptor | Load from RTTI table |
-| `User.name` | Constant "User" | `rtti[user_id].name` |
+| `User` (in value position) | Constant TypeDescriptor | Load from the type descriptor table |
+| `User.name` | Constant "User" | `type_descriptor_table[user_id].name` |
 | `User.properties` | Constant array | Load property descriptors |
 | `value instanceof User` | Eliminated if type known | Compare `value.typeDescriptor == @User_TypeDescriptor` |
 | `User.is(value)` | Eliminated if type known | Compare `value.typeDescriptor == @User_TypeDescriptor` |
@@ -953,22 +985,22 @@ Interface and `unknown` values carry it in fat pointers, and thin pointers recov
 
 When a value is a thin pointer without an embedded type descriptor, we get the `TypeDescriptor` handle from GC metadata for comparison.
 
-**RTTI generation rules:**
-RTTI (TypeDescriptor records) are only emitted for types that need runtime type checks.
-Lower conservatively emits RTTI for any type that might need it:
+**TypeDescriptor emission rules:**
+TypeDescriptor records are only emitted for types that need runtime type checks or runtime metadata queries.
+Lower conservatively emits TypeDescriptor records for any type that might need them:
 - Types used with `instanceof` or `T.is` on values of unknown concrete type
 - Types used with `typeOf()` on values of unknown concrete type
-- Types stored in `unknown` (need RTTI for later extraction)
+- Types stored in `unknown` (need runtime type identity for later extraction)
 - Types with runtime reflection (non-comptime `.properties`, `.name`, etc.)
 - Types used in untagged unions that require runtime discrimination
 
-Lower does NOT emit RTTI for:
+Lower does not emit TypeDescriptor records for:
 - Types only used with statically-known concrete types
 - Types where all `instanceof`/`T.is` checks are eliminated by type narrowing
 - Primitives (handled by tag bits, not full TypeDescriptor)
 
-Dead code elimination in the Optimize phase removes unused RTTI entries.
-If all type operations resolve at comptime, no RTTI overhead appears in the binary.
+Dead code elimination in Optimize can remove unused runtime type metadata.
+If all type operations resolve at comptime, no runtime type identity overhead appears in the final binary.
 
 ## Dispatch
 
@@ -1184,7 +1216,7 @@ For each (Type, Interface) pair where the type implements the interface:
 ```ds
 struct InterfaceItab<I> {
     typeDescriptor: TypeDescriptor;  // for T.is on interface refs
-    slots: [InterfaceSlot]; // field offsets and method pointers in declaration order
+    slots: [InterfaceEntry]; // field offsets and method pointers in declaration order
 }
 ```
 

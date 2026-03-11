@@ -8,7 +8,7 @@ use destack_workspace::{ModuleRegistry, PackageRegistry};
 use {destack_dir as dir, destack_mir as mir};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutPolicy};
-use crate::lower::item::lower_mutability;
+use crate::lower::lower_mutability;
 use crate::{InterfaceRefLayout, LowerError, LowerResult, UnionLayout};
 
 // synthetic field names for function value layouts

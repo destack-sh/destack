@@ -1,20 +1,24 @@
-mod emit;
+mod common;
+mod dispatch;
 mod error;
-mod item;
+mod function;
+mod instance;
 mod module;
 mod process;
-mod result;
-mod table;
+mod runtime;
 mod r#type;
 mod warning;
 
-pub(crate) use emit::*;
+pub(crate) use common::*;
+pub(crate) use dispatch::*;
 pub use error::*;
+pub(crate) use function::*;
+pub(crate) use instance::*;
 pub(crate) use module::{
-    ModuleLowerer, RuntimeStatusLayout, collect_expression_string_literals,
-    static_key_to_field_name, string_literal_global_name_for_content,
+    ModuleLowerer, lower_mutability, static_key_to_field_name,
+    string_literal_global_name_for_content,
 };
-pub(crate) use result::*;
+pub(crate) use runtime::*;
 pub(crate) use r#type::*;
 pub use warning::*;
 
