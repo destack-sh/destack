@@ -321,7 +321,7 @@ function acceptUnion(value: Circle | null | undefined): Circle | null | undefine
         module_id,
         "native",
         r#"
-type @Struct0 = { @tag: u8, @payload: ref<managed readonly void> }
+ type @Struct0 = { @tag: u8, @payload: [usize; 1] }
 
 function @acceptUnion(v0: @Struct0) -> @Struct0 {
 block0(v0: @Struct0):
@@ -789,7 +789,7 @@ function isA(value: { kind: "b", value: int32 } | { kind: "a", value: int32 }): 
 
     // assert the lowered mir
     let expected = r#"
-type @isA#parameter:value#union = { @tag: u8, @payload: ref<managed readonly void> }
+type @isA#parameter:value#union = { @tag: u8, @payload: [usize; 2] }
 ${string_alias}
 global @${string_a}: ref<managed readonly @String> = "a" ; readonly
 global @${string_b}: ref<managed readonly @String> = "b" ; readonly

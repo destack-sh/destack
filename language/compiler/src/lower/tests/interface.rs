@@ -37,7 +37,7 @@ struct Circle implements Drawable {
         r#"
 type @Circle = { color: i32, radius: i32 }
 
-extern function @Drawable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed void> }, color: i32 }) -> i32
+extern function @Drawable.draw({ draw: fnvalue<fn() -> i32, ref?<managed void>>, color: i32 }) -> i32
 
 function @Circle.draw(v0: @Circle) -> i32 {
 block0(v0: @Circle):
@@ -99,7 +99,7 @@ struct Circle implements Drawable {
         r#"
 type @Circle = { color: i32, radius: i32 }
 
-extern function @Drawable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed void> }, color: i32 }) -> i32
+extern function @Drawable.draw({ draw: fnvalue<fn() -> i32, ref?<managed void>>, color: i32 }) -> i32
 
 function @Circle.draw(v0: @Circle) -> i32 {
 block0(v0: @Circle):
@@ -289,9 +289,9 @@ struct Widget implements Shape, Paint {
         r#"
 type @Widget = { width: i32, color: i32 }
 
-extern function @Shape.area({ area: { @function_ptr: fn() -> i32, @env: ref?<managed void> }, width: i32 }) -> i32
+extern function @Shape.area({ area: fnvalue<fn() -> i32, ref?<managed void>>, width: i32 }) -> i32
 
-extern function @Paint.paint({ paint: { @function_ptr: fn() -> i32, @env: ref?<managed void> }, color: i32 }) -> i32
+extern function @Paint.paint({ paint: fnvalue<fn() -> i32, ref?<managed void>>, color: i32 }) -> i32
 function @Widget.area(v0: @Widget) -> i32 {
 block0(v0: @Widget):
     v1: i32 = field.get v0, 0
@@ -406,7 +406,7 @@ function useDrawable(d: Drawable): int32 {
         module_id,
         "native",
         r#"
-type @Drawable#method:draw#function = { @function_ptr: fn() -> i32, @env: ref?<managed void> }
+type @Drawable#method:draw#function = fnvalue<fn() -> i32, ref?<managed void>>
 type @Drawable = { @object: ref<managed readonly void>, @itab: usize }
 type @Circle = { color: i32, radius: i32 }
 type @Drawable#object = { draw: @Drawable#method:draw#function, color: i32 }
@@ -474,7 +474,7 @@ function castRenderable(value: int32): Renderable {
 type @Renderable = { @object: ref<managed readonly void>, @itab: usize }
 type @Sprite = { value: i32 }
 
-extern function @Renderable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed void> } }) -> i32
+extern function @Renderable.draw({ draw: fnvalue<fn() -> i32, ref?<managed void>> }) -> i32
 
 function @castRenderable(v0: i32) -> @Renderable {
 block0(v0: i32):

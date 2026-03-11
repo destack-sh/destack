@@ -1181,7 +1181,7 @@ block1:
         test.assert_output(expected);
     }
 
-    /// Volatile load acts as memory barrier: kills all forwarding.
+    /// Volatile load only blocks forwarding for the accessed location.
     #[test]
     fn test_volatile_load_is_barrier() {
         let input = r#"function @test() -> i32 {
@@ -1195,7 +1195,16 @@ block0:
     v5: i32 = iadd v3, v4
     return v5
 }"#;
-        let expected = input;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
+    store v0, v2
+    v3: i32 = load v1
+    v4: i32 = iadd v3, v2
+    return v4
+}"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
@@ -1217,7 +1226,7 @@ block0:
         test.assert_output(expected);
     }
 
-    /// Volatile store acts as memory barrier.
+    /// Volatile store only blocks forwarding for the accessed location.
     #[test]
     fn test_volatile_store_is_barrier() {
         let input = r#"function @test() -> i32 {
@@ -1231,7 +1240,16 @@ block0:
     v4: i32 = load v0
     return v4
 }"#;
-        let expected = input;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
+    v3: i32 = iconst 99i32
+    store v0, v2
+    store v1, v3
+    return v2
+}"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();

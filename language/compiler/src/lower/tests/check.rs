@@ -258,7 +258,7 @@ block0(v0: i32, v1: i32):
     v3: bool = icmp_ne v1, v2
     check v3, div_zero v1, block2, block1
 block1:
-    unreachable
+    trap abort
 block2:
     v4: i32 = iconst -2147483648i32
     v5: i32 = iconst -1i32
@@ -268,7 +268,7 @@ block2:
     v9: bool = bnot v8
     check v9, overflow.signed.sdiv v0, v1, block4, block3
 block3:
-    unreachable
+    trap abort
 block4:
     v10: i32 = sdiv v0, v1
     return v10
@@ -538,7 +538,7 @@ block0(v0: [i32; 4], v1: i32):
     v6: bool = band v4, v5
     check v6, bounds.signed v1, v2, v0, block2, block1
 block1:
-    unreachable
+    trap abort
 block2:
     v7: i32 = element.get v0, v1
     return v7

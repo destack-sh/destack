@@ -284,9 +284,8 @@ impl<'a> Parser<'a> {
             && !self.peek_token(TokenType::CloseBrace)
             && !self.peek_token(TokenType::End)
         {
-            // terminator check
+            // direct terminators
             if self.peek_token(TokenType::Return)
-                || self.peek_token(TokenType::Call)
                 || self.peek_token(TokenType::Jump)
                 || self.peek_token(TokenType::Branch)
                 || self.peek_token(TokenType::Check)
@@ -295,9 +294,6 @@ impl<'a> Parser<'a> {
                 || self.peek_token(TokenType::Throw)
                 || self.peek_token(TokenType::Trap)
                 || self.peek_token(TokenType::Unreachable)
-                || self.peek_token(TokenType::CallIndirect)
-                || self.peek_token(TokenType::CallVirtual)
-                || self.peek_token(TokenType::CallInterface)
                 || self.peek_token(TokenType::TailCall)
                 || self.peek_token(TokenType::TailCallIndirect)
                 || self.peek_token(TokenType::TailCallVirtual)
@@ -307,6 +303,29 @@ impl<'a> Parser<'a> {
                 terminator = Some(parsed_terminator);
                 terminator_dispatch_facts = dispatch_facts;
                 break;
+            }
+
+            // exceptional call terminators
+            if self.peek_token(TokenType::Call)
+                || self.peek_token(TokenType::CallIndirect)
+                || self.peek_token(TokenType::CallVirtual)
+                || self.peek_token(TokenType::CallInterface)
+            {
+                let checkpoint = self.pos;
+
+                match self.parse_terminator() {
+                    Ok((parsed_terminator, dispatch_facts)) => {
+                        terminator = Some(parsed_terminator);
+                        terminator_dispatch_facts = dispatch_facts;
+                        break;
+                    }
+                    Err(error) if self.is_call_instruction_error(&error) => {
+                        self.pos = checkpoint;
+                    }
+                    Err(error) => {
+                        return Err(error);
+                    }
+                }
             }
 
             // instruction
@@ -331,6 +350,15 @@ impl<'a> Parser<'a> {
         self.block_map.insert(block_name, id);
 
         Ok((id, source_idx))
+    }
+
+    /// Return whether a call-terminator parse error should fall back to a call instruction.
+    fn is_call_instruction_error(&self, error: &super::error::ParseError) -> bool {
+        error.message.starts_with("expected Identifier, got Arrow")
+            || error.message.starts_with("expected Identifier, got Fn")
+            || error.message.starts_with("expected Identifier, got Return")
+            || error.message == "invalid normal"
+            || error.message == "invalid unwind"
     }
 
     /// Fix block references in terminators after parsing blocks.
