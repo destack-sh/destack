@@ -4,76 +4,22 @@ use crate::{Block, Function, Local, LocalNodeId, NodeTree, NodeType, Type, Value
 
 use super::{ValidateAnchor, ValidateError, ValidateResult};
 
-/// Configuration for MIR validation.
-#[derive(Debug, Clone, Copy)]
-pub struct ValidatorOptions {
-    /// Validate argument slices against the shared buffer.
-    pub validate_argument_slices: bool,
-    /// Validate local references against the function's locals.
-    pub validate_local_references: bool,
-    /// Validate node ids against their expected node types.
-    pub validate_node_types: bool,
-    /// Validate aggregate constructor argument counts.
-    pub validate_type_shapes: bool,
-    /// Validate metadata table invariants.
-    pub validate_metadata: bool,
-    /// Validate instruction ids are unique within a function.
-    pub validate_instruction_uniqueness: bool,
-}
-
-impl ValidatorOptions {
-    /// Basic validation for structural MIR correctness.
-    pub const fn basic() -> Self {
-        Self {
-            validate_argument_slices: true,
-            validate_local_references: true,
-            validate_node_types: true,
-            validate_type_shapes: true,
-            validate_metadata: false,
-            validate_instruction_uniqueness: true,
-        }
-    }
-
-    /// Strict validation including metadata invariants.
-    pub const fn strict() -> Self {
-        Self {
-            validate_metadata: true,
-            ..Self::basic()
-        }
-    }
-}
-
 /// Validates MIR invariants for a tree or function.
 #[derive(Debug)]
 pub struct Validator<'a> {
     /// The MIR tree to validate.
     pub(super) tree: &'a NodeTree,
-    /// Validator options.
-    pub(super) options: ValidatorOptions,
 }
 
 #[allow(clippy::type_complexity)]
 impl<'a> Validator<'a> {
     /// Create a new validator for a tree.
     pub fn new(tree: &'a NodeTree) -> Self {
-        Self {
-            tree,
-            options: ValidatorOptions::basic(),
-        }
-    }
-
-    /// Create a new validator with explicit options.
-    pub fn new_with_options(tree: &'a NodeTree, options: ValidatorOptions) -> Self {
-        Self { tree, options }
-    }
-
-    /// Validate all functions in a MIR tree.
-    pub fn validate_tree(&self) -> ValidateResult<()> {
-        self.validate_module()
+        Self { tree }
     }
 
     /// Validate a full MIR module.
-    pub fn validate_module(&self) -> ValidateResult<()> {
+    pub fn validate(&self) -> ValidateResult<()> {
         // collect function ids
         let function_ids = self.collect_function_ids();
 
@@ -83,11 +29,19 @@ impl<'a> Validator<'a> {
         }
 
         // validate module metadata tables
-        if self.options.validate_metadata {
-            self.validate_metadata_tables()?;
-        }
+        self.validate_metadata_tables()?;
 
         Ok(())
+    }
+
+    /// Validate all functions in a MIR tree.
+    pub fn validate_tree(&self) -> ValidateResult<()> {
+        self.validate()
+    }
+
+    /// Validate a full MIR module.
+    pub fn validate_module(&self) -> ValidateResult<()> {
+        self.validate()
     }
 
     /// Validate a single MIR function.
@@ -129,9 +83,7 @@ impl<'a> Validator<'a> {
         self.validate_entry_block(function, entry)?;
 
         // validate function metadata
-        if self.options.validate_metadata {
-            self.validate_function_metadata(function_id, function)?;
-        }
+        self.validate_function_metadata(function_id, function)?;
 
         // collect defined values and ensure uniqueness
         let defined_values = self.collect_defined_values(function_id, function, entry)?;
@@ -359,9 +311,7 @@ impl<'a> Validator<'a> {
                 )?;
 
                 // reject duplicate instruction ids
-                if self.options.validate_instruction_uniqueness
-                    && !seen_instructions.insert(instruction_id)
-                {
+                if !seen_instructions.insert(instruction_id) {
                     return Err(ValidateError::DuplicateInstructionId {
                         instruction_id,
                         anchor: ValidateAnchor::node(block_id),
@@ -403,7 +353,8 @@ impl<'a> Validator<'a> {
             Type::Isize => "isize",
             Type::Usize => "usize",
             Type::Float { .. } => "float",
-            Type::Type => "type",
+            Type::TypeDescriptor => "type_descriptor",
+            Type::TypeId => "type_id",
             Type::Reference { .. } => "ref",
             Type::Array { .. } => "array",
             Type::Tuple { .. } => "tuple",
@@ -413,6 +364,7 @@ impl<'a> Validator<'a> {
             Type::Tensor { .. } => "tensor",
             Type::TensorReference { .. } => "tensor_ref",
             Type::FunctionPointer { .. } => "fn",
+            Type::FunctionValue { .. } => "fnvalue",
         }
     }
 

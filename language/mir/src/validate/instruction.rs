@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
 use crate::{
-    AddressSpace, ArgumentSlice, Constant, Function, Instruction, Local, LocalNodeId, Mutability,
-    NodeType, ReferenceKind, TensorDimension, Type, Value,
+    AllocationMode, ArgumentSlice, CastOperator, Constant, Function, Instruction, Intrinsic, Local,
+    LocalNodeId, Mutability, NodeType, ReferenceKind, TensorDimension, Type, Value,
+    compute_type_layout,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -62,7 +63,6 @@ impl<'a> Validator<'a> {
                     slot_id,
                     signature,
                     effects,
-                    declared_target,
                     ..
                 } => {
                     self.validate_call_signature(
@@ -71,21 +71,12 @@ impl<'a> Validator<'a> {
                         arguments.len(),
                         *signature,
                     )?;
-                    if let Some(target) = declared_target {
-                        self.validate_call_signature_matches_function(
-                            ValidateAnchor::node(instruction_id),
-                            *signature,
-                            *target,
-                        )?;
-                    }
                     self.validate_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
-                    if self.options.validate_metadata {
-                        self.validate_virtual_dispatch_slot(
-                            *declaring_type,
-                            *slot_id,
-                            ValidateAnchor::node(instruction_id),
-                        )?;
-                    }
+                    self.validate_virtual_dispatch_slot(
+                        *declaring_type,
+                        *slot_id,
+                        ValidateAnchor::node(instruction_id),
+                    )?;
                 }
                 Instruction::CallInterface {
                     destination,
@@ -93,7 +84,6 @@ impl<'a> Validator<'a> {
                     slot_id,
                     signature,
                     effects,
-                    declared_target,
                     ..
                 } => {
                     self.validate_call_signature(
@@ -102,21 +92,12 @@ impl<'a> Validator<'a> {
                         arguments.len(),
                         *signature,
                     )?;
-                    if let Some(target) = declared_target {
-                        self.validate_call_signature_matches_function(
-                            ValidateAnchor::node(instruction_id),
-                            *signature,
-                            *target,
-                        )?;
-                    }
                     self.validate_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
-                    if self.options.validate_metadata {
-                        self.validate_interface_dispatch_slot(
-                            *declaring_type,
-                            *slot_id,
-                            ValidateAnchor::node(instruction_id),
-                        )?;
-                    }
+                    self.validate_interface_dispatch_slot(
+                        *declaring_type,
+                        *slot_id,
+                        ValidateAnchor::node(instruction_id),
+                    )?;
                 }
                 Instruction::CallIndirect {
                     destination,
@@ -167,7 +148,57 @@ impl<'a> Validator<'a> {
         // validate inline types
         self.validate_instruction_inline_types(function, instruction, instruction_id)?;
 
+        // validate function allocation policy
+        self.validate_allocation_mode(function, instruction, instruction_id)?;
+
         Ok(())
+    }
+
+    /// Validate function allocation policy against allocation instructions.
+    fn validate_allocation_mode(
+        &self,
+        function: &Function,
+        instruction: &Instruction,
+        instruction_id: LocalNodeId<Instruction>,
+    ) -> ValidateResult<()> {
+        // classify allocation instructions
+        let allocation_instruction = match instruction {
+            Instruction::ManagedAlloc { .. } => Some("managed.alloc"),
+            Instruction::ManagedAllocArray { .. } => Some("managed.alloc_array"),
+            Instruction::RawAlloc { .. } => Some("raw.alloc"),
+            Instruction::StackAlloc { .. } => Some("stack.alloc"),
+            _ => None,
+        };
+        let Some(allocation_instruction) = allocation_instruction else {
+            return Ok(());
+        };
+
+        // enforce allocation mode policy
+        let violation = match function.allocation {
+            AllocationMode::Any => None,
+            AllocationMode::NoManaged => matches!(
+                instruction,
+                Instruction::ManagedAlloc { .. } | Instruction::ManagedAllocArray { .. }
+            )
+            .then_some("no_managed forbids managed allocations"),
+            AllocationMode::StackOnly => matches!(
+                instruction,
+                Instruction::ManagedAlloc { .. }
+                    | Instruction::ManagedAllocArray { .. }
+                    | Instruction::RawAlloc { .. }
+            )
+            .then_some("stack_only forbids non-stack allocations"),
+        };
+        let Some(violation) = violation else {
+            return Ok(());
+        };
+
+        Err(ValidateError::MetadataInvariantViolation {
+            message: format!(
+                "allocation mode violation: '{allocation_instruction}' is invalid because {violation}"
+            ),
+            anchor: ValidateAnchor::node(instruction_id),
+        })
     }
 
     /// Resolve a value type for validation.
@@ -1099,11 +1130,6 @@ impl<'a> Validator<'a> {
         node_id: u32,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
-        // skip node type checks when disabled
-        if !self.options.validate_node_types {
-            return Ok(());
-        }
-
         // resolve the node type
         let found = self
             .tree
@@ -1130,11 +1156,6 @@ impl<'a> Validator<'a> {
         slice: ArgumentSlice,
         instruction_id: LocalNodeId<Instruction>,
     ) -> ValidateResult<()> {
-        // skip argument slice checks when disabled
-        if !self.options.validate_argument_slices {
-            return Ok(());
-        }
-
         // compute slice bounds
         let start = slice.start as usize;
         let end = start + slice.count as usize;
@@ -1160,11 +1181,6 @@ impl<'a> Validator<'a> {
         locals: &HashSet<LocalNodeId<Local>>,
         instruction_id: LocalNodeId<Instruction>,
     ) -> ValidateResult<()> {
-        // skip local reference checks when disabled
-        if !self.options.validate_local_references {
-            return Ok(());
-        }
-
         // validate local references
         match instruction {
             Instruction::LocalGet { local, .. }
@@ -1190,11 +1206,6 @@ impl<'a> Validator<'a> {
         instruction: &Instruction,
         instruction_id: LocalNodeId<Instruction>,
     ) -> ValidateResult<()> {
-        // skip node checks when disabled
-        if !self.options.validate_node_types {
-            return Ok(());
-        }
-
         // prepare anchor for node checks
         let anchor = ValidateAnchor::node(instruction_id);
 
@@ -1223,17 +1234,7 @@ impl<'a> Validator<'a> {
                 // ensure function ids resolve
                 self.ensure_node_type(NodeType::Function, function.id, anchor)?;
             }
-            Instruction::CallVirtual {
-                declared_target, ..
-            }
-            | Instruction::CallInterface {
-                declared_target, ..
-            } => {
-                // ensure declared targets resolve
-                if let Some(target) = declared_target {
-                    self.ensure_node_type(NodeType::Function, target.id, anchor)?;
-                }
-            }
+            Instruction::CallVirtual { .. } | Instruction::CallInterface { .. } => {}
             Instruction::Cast { to_type, .. }
             | Instruction::Struct { ty: to_type, .. }
             | Instruction::Tuple { ty: to_type, .. }
@@ -1265,11 +1266,6 @@ impl<'a> Validator<'a> {
         instruction: &Instruction,
         instruction_id: LocalNodeId<Instruction>,
     ) -> ValidateResult<()> {
-        // skip type shape checks when disabled
-        if !self.options.validate_type_shapes {
-            return Ok(());
-        }
-
         // prepare anchor for shape validation
         let anchor = ValidateAnchor::node(instruction_id);
 
@@ -1280,9 +1276,10 @@ impl<'a> Validator<'a> {
                 let ty = self.tree.get(*ty);
                 let expected = match ty {
                     Type::Struct { fields, .. } => fields.len(),
+                    Type::FunctionValue { .. } => 2,
                     other => {
                         return Err(ValidateError::AggregateTypeMismatch {
-                            expected: "struct",
+                            expected: "struct or fnvalue",
                             found: self.type_kind(other),
                             anchor,
                         });
@@ -1430,7 +1427,7 @@ impl<'a> Validator<'a> {
                 let destination_type_id =
                     self.value_type_or_error(function, *destination, anchor, "null constant")?;
                 let destination_type = self.tree.get(destination_type_id);
-                let (kind, address_space, is_nullable) = match destination_type {
+                let (kind, _address_space, is_nullable) = match destination_type {
                     Type::Reference {
                         kind,
                         address_space,
@@ -1448,14 +1445,6 @@ impl<'a> Validator<'a> {
                 if !is_nullable {
                     return Err(ValidateError::MetadataInvariantViolation {
                         message: "null constant requires a nullable reference type".to_string(),
-                        anchor,
-                    });
-                }
-
-                if !matches!(address_space, AddressSpace::Generic | AddressSpace::Heap) {
-                    return Err(ValidateError::MetadataInvariantViolation {
-                        message: "null constant requires a generic or heap address space"
-                            .to_string(),
                         anchor,
                     });
                 }
@@ -1634,10 +1623,518 @@ impl<'a> Validator<'a> {
                     anchor,
                 )?;
             }
-            Instruction::FieldAddr { result_type, .. }
-            | Instruction::ElementAddr { result_type, .. } => {
+            Instruction::AtomicLoad {
+                destination,
+                pointer,
+                result_type,
+                ..
+            } => {
+                let pointer_type =
+                    self.value_type_or_error(function, *pointer, anchor, "atomic.load pointer")?;
+                let destination_type =
+                    self.value_type_or_error(function, *destination, anchor, "atomic.load result")?;
+
+                let Type::Reference { pointee, .. } = self.tree.get(pointer_type) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "atomic.load pointer must be a reference type".to_string(),
+                        anchor,
+                    });
+                };
+
+                if !self.types_equivalent(*pointee, *result_type)
+                    || !self.types_equivalent(destination_type, *result_type)
+                {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "atomic.load result type must match the pointer pointee"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::AtomicStore { pointer, value, .. } => {
+                let pointer_type =
+                    self.value_type_or_error(function, *pointer, anchor, "atomic.store pointer")?;
+                let value_type =
+                    self.value_type_or_error(function, *value, anchor, "atomic.store value")?;
+
+                let Type::Reference { pointee, .. } = self.tree.get(pointer_type) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "atomic.store pointer must be a reference type".to_string(),
+                        anchor,
+                    });
+                };
+
+                if !self.is_store_compatible_type(value_type, *pointee) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "atomic.store value type must match the pointer pointee"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::AtomicCompareExchange {
+                destination,
+                pointer,
+                expected,
+                new_value,
+                ..
+            } => {
+                let pointer_type = self.value_type_or_error(
+                    function,
+                    *pointer,
+                    anchor,
+                    "atomic.compare_exchange pointer",
+                )?;
+                let expected_type = self.value_type_or_error(
+                    function,
+                    *expected,
+                    anchor,
+                    "atomic.compare_exchange expected",
+                )?;
+                let new_value_type = self.value_type_or_error(
+                    function,
+                    *new_value,
+                    anchor,
+                    "atomic.compare_exchange new value",
+                )?;
+                let destination_type = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "atomic.compare_exchange result",
+                )?;
+
+                let Type::Reference { pointee, .. } = self.tree.get(pointer_type) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "atomic.compare_exchange pointer must be a reference type"
+                            .to_string(),
+                        anchor,
+                    });
+                };
+
+                if !self.types_equivalent(expected_type, *pointee)
+                    || !self.types_equivalent(new_value_type, *pointee)
+                {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "atomic.compare_exchange values must match the pointer pointee"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+
+                let Type::Tuple { elements, .. } = self.tree.get(destination_type) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message:
+                            "atomic.compare_exchange result must be a tuple of (old_value, bool)"
+                                .to_string(),
+                        anchor,
+                    });
+                };
+
+                if elements.len() != 2
+                    || !self.types_equivalent(elements[0], *pointee)
+                    || !matches!(self.tree.get(elements[1]), Type::Boolean)
+                {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message:
+                            "atomic.compare_exchange result must be a tuple of (old_value, bool)"
+                                .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::AtomicRmw {
+                destination,
+                pointer,
+                value,
+                ..
+            } => {
+                let pointer_type =
+                    self.value_type_or_error(function, *pointer, anchor, "atomic.rmw pointer")?;
+                let value_type =
+                    self.value_type_or_error(function, *value, anchor, "atomic.rmw value")?;
+                let destination_type =
+                    self.value_type_or_error(function, *destination, anchor, "atomic.rmw result")?;
+
+                let Type::Reference { pointee, .. } = self.tree.get(pointer_type) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "atomic.rmw pointer must be a reference type".to_string(),
+                        anchor,
+                    });
+                };
+
+                if !self.types_equivalent(value_type, *pointee)
+                    || !self.types_equivalent(destination_type, *pointee)
+                {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "atomic.rmw value and result must match the pointer pointee"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::AtomicFence { .. } | Instruction::Barrier { .. } => {}
+            Instruction::FieldGet {
+                destination,
+                aggregate,
+                index,
+            } => {
+                let aggregate_type =
+                    self.value_type_or_error(function, *aggregate, anchor, "field.get aggregate")?;
+                let destination_type = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "field.get destination",
+                )?;
+
+                let field_type =
+                    self.field_type_for_aggregate(aggregate_type, *index, anchor, "field.get")?;
+                if !self.types_equivalent(destination_type, field_type) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "field.get destination type mismatches projected field type"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::FieldSet {
+                destination,
+                aggregate,
+                index,
+                value,
+            } => {
+                let aggregate_type =
+                    self.value_type_or_error(function, *aggregate, anchor, "field.set aggregate")?;
+                let destination_type = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "field.set destination",
+                )?;
+                let value_type =
+                    self.value_type_or_error(function, *value, anchor, "field.set value")?;
+
+                if !self.types_equivalent(destination_type, aggregate_type) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "field.set destination type mismatches aggregate type".to_string(),
+                        anchor,
+                    });
+                }
+
+                let field_type =
+                    self.field_type_for_aggregate(aggregate_type, *index, anchor, "field.set")?;
+                if !self.is_store_compatible_type(value_type, field_type) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "field.set value type mismatches projected field type".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::FieldAddr {
+                aggregate,
+                index,
+                result_type,
+                ..
+            } => {
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
+
+                let aggregate_type =
+                    self.value_type_or_error(function, *aggregate, anchor, "field.addr aggregate")?;
+                let _ =
+                    self.field_type_for_aggregate(aggregate_type, *index, anchor, "field.addr")?;
                 self.validate_reference_result_type(*result_type, None, None, None, anchor)?;
+            }
+            Instruction::ElementGet {
+                destination,
+                array,
+                index,
+            } => {
+                let array_type =
+                    self.value_type_or_error(function, *array, anchor, "element.get array")?;
+                let destination_type = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "element.get destination",
+                )?;
+                let index_type =
+                    self.value_type_or_error(function, *index, anchor, "element.get index")?;
+
+                let element_type =
+                    self.element_type_for_array(array_type, anchor, "element.get")?;
+                if !self.types_equivalent(destination_type, element_type) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "element.get destination type mismatches array element type"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+
+                if !matches!(
+                    self.tree.get(index_type),
+                    Type::Int { .. } | Type::Isize | Type::Usize
+                ) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "element.get index must be an integer type".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::ElementSet {
+                destination,
+                array,
+                index,
+                value,
+            } => {
+                let array_type =
+                    self.value_type_or_error(function, *array, anchor, "element.set array")?;
+                let destination_type = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "element.set destination",
+                )?;
+                let index_type =
+                    self.value_type_or_error(function, *index, anchor, "element.set index")?;
+                let value_type =
+                    self.value_type_or_error(function, *value, anchor, "element.set value")?;
+
+                if !self.types_equivalent(destination_type, array_type) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "element.set destination type mismatches array type".to_string(),
+                        anchor,
+                    });
+                }
+
+                let element_type =
+                    self.element_type_for_array(array_type, anchor, "element.set")?;
+                if !self.is_store_compatible_type(value_type, element_type) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "element.set value type mismatches array element type".to_string(),
+                        anchor,
+                    });
+                }
+
+                if !matches!(
+                    self.tree.get(index_type),
+                    Type::Int { .. } | Type::Isize | Type::Usize
+                ) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "element.set index must be an integer type".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::ElementAddr {
+                array,
+                index,
+                result_type,
+                ..
+            } => {
+                self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
+
+                let array_type =
+                    self.value_type_or_error(function, *array, anchor, "element.addr array")?;
+                let index_type =
+                    self.value_type_or_error(function, *index, anchor, "element.addr index")?;
+                let _ = self.element_type_for_array(array_type, anchor, "element.addr")?;
+                self.validate_reference_result_type(*result_type, None, None, None, anchor)?;
+
+                if !matches!(
+                    self.tree.get(index_type),
+                    Type::Int { .. } | Type::Isize | Type::Usize
+                ) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "element.addr index must be an integer type".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::Cast {
+                operator,
+                argument,
+                to_type,
+                ..
+            } => {
+                let argument_type =
+                    self.value_type_or_error(function, *argument, anchor, "cast argument")?;
+                self.validate_cast_legality(*operator, argument_type, *to_type, anchor)?;
+            }
+            Instruction::Intrinsic {
+                destination,
+                intrinsic,
+                arguments,
+            } => {
+                let arguments = self.tree.get_arguments(*arguments);
+                match intrinsic {
+                    Intrinsic::AddrSpaceCast => {
+                        if arguments.len() != 1 {
+                            return Err(ValidateError::MetadataInvariantViolation {
+                                message: "addrspace.cast requires one argument".to_string(),
+                                anchor,
+                            });
+                        }
+                        let Some(destination) = destination else {
+                            return Err(ValidateError::MetadataInvariantViolation {
+                                message: "addrspace.cast requires a destination value".to_string(),
+                                anchor,
+                            });
+                        };
+
+                        let source_type = self.value_type_or_error(
+                            function,
+                            arguments[0],
+                            anchor,
+                            "addrspace.cast source",
+                        )?;
+                        let destination_type = self.value_type_or_error(
+                            function,
+                            *destination,
+                            anchor,
+                            "addrspace.cast destination",
+                        )?;
+                        let source = self.tree.get(source_type);
+                        let destination = self.tree.get(destination_type);
+
+                        match (source, destination) {
+                            (
+                                Type::Reference {
+                                    kind: source_kind,
+                                    mutability: source_mutability,
+                                    pointee: source_pointee,
+                                    ..
+                                },
+                                Type::Reference {
+                                    kind: destination_kind,
+                                    mutability: destination_mutability,
+                                    pointee: destination_pointee,
+                                    ..
+                                },
+                            ) => {
+                                if source_kind != destination_kind
+                                    || source_mutability != destination_mutability
+                                    || source_pointee != destination_pointee
+                                {
+                                    return Err(ValidateError::MetadataInvariantViolation {
+                                        message: "addrspace.cast requires matching reference kind, mutability, and pointee".to_string(),
+                                        anchor,
+                                    });
+                                }
+                            }
+                            (
+                                Type::TensorReference {
+                                    kind: source_kind,
+                                    mutability: source_mutability,
+                                    element: source_element,
+                                    shape: source_shape,
+                                    layout: source_layout,
+                                    ..
+                                },
+                                Type::TensorReference {
+                                    kind: destination_kind,
+                                    mutability: destination_mutability,
+                                    element: destination_element,
+                                    shape: destination_shape,
+                                    layout: destination_layout,
+                                    ..
+                                },
+                            ) => {
+                                if source_kind != destination_kind
+                                    || source_mutability != destination_mutability
+                                    || source_element != destination_element
+                                    || source_shape != destination_shape
+                                    || source_layout != destination_layout
+                                {
+                                    return Err(ValidateError::MetadataInvariantViolation {
+                                        message: "addrspace.cast requires matching tensor reference kind, mutability, element, shape, and layout".to_string(),
+                                        anchor,
+                                    });
+                                }
+                            }
+                            _ => {
+                                return Err(ValidateError::MetadataInvariantViolation {
+                                    message:
+                                        "addrspace.cast requires reference or tensor reference types"
+                                            .to_string(),
+                                    anchor,
+                                });
+                            }
+                        }
+                    }
+                    Intrinsic::PtrOffsetFrom => {
+                        if arguments.len() != 2 {
+                            return Err(ValidateError::MetadataInvariantViolation {
+                                message: "ptr_offset_from requires two pointer arguments"
+                                    .to_string(),
+                                anchor,
+                            });
+                        }
+                        let Some(destination) = destination else {
+                            return Err(ValidateError::MetadataInvariantViolation {
+                                message: "ptr_offset_from requires a destination value".to_string(),
+                                anchor,
+                            });
+                        };
+
+                        let left_type = self.value_type_or_error(
+                            function,
+                            arguments[0],
+                            anchor,
+                            "ptr_offset_from left",
+                        )?;
+                        let right_type = self.value_type_or_error(
+                            function,
+                            arguments[1],
+                            anchor,
+                            "ptr_offset_from right",
+                        )?;
+                        let destination_type = self.value_type_or_error(
+                            function,
+                            *destination,
+                            anchor,
+                            "ptr_offset_from destination",
+                        )?;
+                        let left = self.tree.get(left_type);
+                        let right = self.tree.get(right_type);
+                        let destination = self.tree.get(destination_type);
+
+                        if !matches!(
+                            left,
+                            Type::Reference {
+                                kind: ReferenceKind::Raw,
+                                ..
+                            } | Type::TensorReference {
+                                kind: ReferenceKind::Raw,
+                                ..
+                            }
+                        ) || !matches!(
+                            right,
+                            Type::Reference {
+                                kind: ReferenceKind::Raw,
+                                ..
+                            } | Type::TensorReference {
+                                kind: ReferenceKind::Raw,
+                                ..
+                            }
+                        ) {
+                            return Err(ValidateError::MetadataInvariantViolation {
+                                message: "ptr_offset_from requires raw pointer arguments"
+                                    .to_string(),
+                                anchor,
+                            });
+                        }
+
+                        if !matches!(destination, Type::Int { .. } | Type::Isize | Type::Usize) {
+                            return Err(ValidateError::MetadataInvariantViolation {
+                                message: "ptr_offset_from destination must be an integer type"
+                                    .to_string(),
+                                anchor,
+                            });
+                        }
+                    }
+                    _ => {}
+                }
             }
             Instruction::Call { signature, .. } | Instruction::CallIndirect { signature, .. } => {
                 self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
@@ -1675,6 +2172,712 @@ impl<'a> Validator<'a> {
         Ok(())
     }
 
+    /// Resolve the projected field type for a struct, tuple, or function value aggregate.
+    fn field_type_for_aggregate(
+        &self,
+        aggregate_type: LocalNodeId<Type>,
+        index: u32,
+        anchor: ValidateAnchor,
+        operation: &'static str,
+    ) -> ValidateResult<LocalNodeId<Type>> {
+        let index = index as usize;
+        match self.tree.get(aggregate_type) {
+            Type::Struct { fields, .. } => {
+                let Some(field_id) = fields.get(index) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: format!(
+                            "{operation} field index {index} out of bounds for struct with {} fields",
+                            fields.len()
+                        ),
+                        anchor,
+                    });
+                };
+
+                Ok(self.tree.get(*field_id).ty)
+            }
+            Type::Tuple { elements, .. } => {
+                let Some(element_type) = elements.get(index) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: format!(
+                            "{operation} field index {index} out of bounds for tuple with {} elements",
+                            elements.len()
+                        ),
+                        anchor,
+                    });
+                };
+
+                Ok(*element_type)
+            }
+            Type::FunctionValue {
+                signature,
+                environment,
+            } => match index {
+                0 => Ok(*signature),
+                1 => Ok(*environment),
+                _ => Err(ValidateError::MetadataInvariantViolation {
+                    message: format!(
+                        "{operation} field index {index} out of bounds for fnvalue with 2 fields"
+                    ),
+                    anchor,
+                }),
+            },
+            Type::Reference { pointee, .. } => match self.tree.get(*pointee) {
+                Type::Struct { fields, .. } => {
+                    let Some(field_id) = fields.get(index) else {
+                        return Err(ValidateError::MetadataInvariantViolation {
+                            message: format!(
+                                "{operation} field index {index} out of bounds for struct with {} fields",
+                                fields.len()
+                            ),
+                            anchor,
+                        });
+                    };
+
+                    Ok(self.tree.get(*field_id).ty)
+                }
+                Type::Tuple { elements, .. } => {
+                    let Some(element_type) = elements.get(index) else {
+                        return Err(ValidateError::MetadataInvariantViolation {
+                            message: format!(
+                                "{operation} field index {index} out of bounds for tuple with {} elements",
+                                elements.len()
+                            ),
+                            anchor,
+                        });
+                    };
+
+                    Ok(*element_type)
+                }
+                Type::FunctionValue {
+                    signature,
+                    environment,
+                } => match index {
+                    0 => Ok(*signature),
+                    1 => Ok(*environment),
+                    _ => Err(ValidateError::MetadataInvariantViolation {
+                        message: format!(
+                            "{operation} field index {index} out of bounds for fnvalue with 2 fields"
+                        ),
+                        anchor,
+                    }),
+                },
+                _ => {
+                    if index != 0 {
+                        return Err(ValidateError::MetadataInvariantViolation {
+                            message: format!(
+                                "{operation} field index {index} out of bounds for scalar pointee"
+                            ),
+                            anchor,
+                        });
+                    }
+
+                    Ok(*pointee)
+                }
+            },
+            _ => Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{operation} expects a struct, tuple, or fnvalue aggregate"),
+                anchor,
+            }),
+        }
+    }
+
+    /// Resolve the element type for an array or pointer aggregate.
+    fn element_type_for_array(
+        &self,
+        array_type: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+        operation: &'static str,
+    ) -> ValidateResult<LocalNodeId<Type>> {
+        match self.tree.get(array_type) {
+            Type::Array { element, .. } => Ok(*element),
+            Type::Reference { pointee, .. } => match self.tree.get(*pointee) {
+                Type::Array { element, .. } => Ok(*element),
+                _ => Ok(*pointee),
+            },
+            Type::TensorReference { element, .. } => Ok(*element),
+            _ => Err(ValidateError::MetadataInvariantViolation {
+                message: format!("{operation} expects an array aggregate"),
+                anchor,
+            }),
+        }
+    }
+
+    /// Check whether a stored value type is compatible with a projected slot type.
+    fn is_store_compatible_type(
+        &self,
+        value_type: LocalNodeId<Type>,
+        slot_type: LocalNodeId<Type>,
+    ) -> bool {
+        if self.types_equivalent(value_type, slot_type) {
+            return true;
+        }
+
+        match (self.tree.get(value_type), self.tree.get(slot_type)) {
+            (
+                Type::Reference {
+                    pointee: value_pointee,
+                    ..
+                },
+                Type::Reference {
+                    pointee: slot_pointee,
+                    ..
+                },
+            ) => self.types_equivalent(*value_pointee, *slot_pointee),
+            (
+                Type::TensorReference {
+                    element: value_element,
+                    shape: value_shape,
+                    layout: value_layout,
+                    ..
+                },
+                Type::TensorReference {
+                    element: slot_element,
+                    shape: slot_shape,
+                    layout: slot_layout,
+                    ..
+                },
+            ) => {
+                value_element == slot_element
+                    && value_shape == slot_shape
+                    && value_layout == slot_layout
+            }
+            (
+                Type::Reference {
+                    pointee: value_pointee,
+                    ..
+                },
+                _,
+            ) => self.types_equivalent(*value_pointee, slot_type),
+            (
+                _,
+                Type::Reference {
+                    pointee: slot_pointee,
+                    ..
+                },
+            ) => self.types_equivalent(value_type, *slot_pointee),
+            (
+                Type::TensorReference {
+                    element: value_element,
+                    shape: value_shape,
+                    layout: value_layout,
+                    ..
+                },
+                Type::Tensor {
+                    element: slot_element,
+                    shape: slot_shape,
+                    layout: slot_layout,
+                    ..
+                },
+            ) => {
+                value_element == slot_element
+                    && value_shape == slot_shape
+                    && value_layout == slot_layout
+            }
+            (
+                Type::Tensor {
+                    element: value_element,
+                    shape: value_shape,
+                    layout: value_layout,
+                    ..
+                },
+                Type::TensorReference {
+                    element: slot_element,
+                    shape: slot_shape,
+                    layout: slot_layout,
+                    ..
+                },
+            ) => {
+                value_element == slot_element
+                    && value_shape == slot_shape
+                    && value_layout == slot_layout
+            }
+            _ => false,
+        }
+    }
+
+    /// Check whether two type ids are structurally equivalent.
+    fn types_equivalent(
+        &self,
+        left_type: LocalNodeId<Type>,
+        right_type: LocalNodeId<Type>,
+    ) -> bool {
+        let mut seen_pairs = HashSet::new();
+        self.types_equivalent_inner(left_type, right_type, &mut seen_pairs)
+    }
+
+    /// Compare two type ids recursively while tolerating distinct but equivalent node ids.
+    fn types_equivalent_inner(
+        &self,
+        left_type: LocalNodeId<Type>,
+        right_type: LocalNodeId<Type>,
+        seen_pairs: &mut HashSet<(u32, u32)>,
+    ) -> bool {
+        if left_type == right_type {
+            return true;
+        }
+
+        if !seen_pairs.insert((left_type.id, right_type.id)) {
+            return true;
+        }
+
+        match (self.tree.get(left_type), self.tree.get(right_type)) {
+            (Type::Void, Type::Void)
+            | (Type::Boolean, Type::Boolean)
+            | (Type::Isize, Type::Isize)
+            | (Type::Usize, Type::Usize)
+            | (Type::TypeDescriptor, Type::TypeDescriptor)
+            | (Type::TypeId, Type::TypeId) => true,
+            (
+                Type::Int {
+                    width: left_width,
+                    is_signed: left_signed,
+                },
+                Type::Int {
+                    width: right_width,
+                    is_signed: right_signed,
+                },
+            ) => left_width == right_width && left_signed == right_signed,
+            (Type::Float { width: left_width }, Type::Float { width: right_width }) => {
+                left_width == right_width
+            }
+            (
+                Type::Reference {
+                    kind: left_kind,
+                    address_space: left_space,
+                    mutability: left_mutability,
+                    pointee: left_pointee,
+                    is_nullable: left_nullable,
+                },
+                Type::Reference {
+                    kind: right_kind,
+                    address_space: right_space,
+                    mutability: right_mutability,
+                    pointee: right_pointee,
+                    is_nullable: right_nullable,
+                },
+            ) => {
+                left_kind == right_kind
+                    && left_space == right_space
+                    && left_mutability == right_mutability
+                    && left_nullable == right_nullable
+                    && self.types_equivalent_inner(*left_pointee, *right_pointee, seen_pairs)
+            }
+            (
+                Type::Array {
+                    element: left_element,
+                    length: left_length,
+                    copyability: left_copyability,
+                },
+                Type::Array {
+                    element: right_element,
+                    length: right_length,
+                    copyability: right_copyability,
+                },
+            ) => {
+                left_length == right_length
+                    && left_copyability == right_copyability
+                    && self.types_equivalent_inner(*left_element, *right_element, seen_pairs)
+            }
+            (
+                Type::Tuple {
+                    elements: left_elements,
+                    copyability: left_copyability,
+                },
+                Type::Tuple {
+                    elements: right_elements,
+                    copyability: right_copyability,
+                },
+            ) => {
+                left_copyability == right_copyability
+                    && left_elements.len() == right_elements.len()
+                    && left_elements.iter().zip(right_elements).all(
+                        |(left_element, right_element)| {
+                            self.types_equivalent_inner(*left_element, *right_element, seen_pairs)
+                        },
+                    )
+            }
+            (
+                Type::Struct {
+                    fields: left_fields,
+                    copyability: left_copyability,
+                },
+                Type::Struct {
+                    fields: right_fields,
+                    copyability: right_copyability,
+                },
+            ) => {
+                left_copyability == right_copyability
+                    && left_fields.len() == right_fields.len()
+                    && left_fields
+                        .iter()
+                        .zip(right_fields)
+                        .all(|(left_field, right_field)| {
+                            let left_field = self.tree.get(*left_field);
+                            let right_field = self.tree.get(*right_field);
+
+                            left_field.name == right_field.name
+                                && self.types_equivalent_inner(
+                                    left_field.ty,
+                                    right_field.ty,
+                                    seen_pairs,
+                                )
+                        })
+            }
+            (
+                Type::Newtype {
+                    inner: left_inner,
+                    copyability: left_copyability,
+                },
+                Type::Newtype {
+                    inner: right_inner,
+                    copyability: right_copyability,
+                },
+            ) => {
+                left_copyability == right_copyability
+                    && self.types_equivalent_inner(*left_inner, *right_inner, seen_pairs)
+            }
+            (
+                Type::Vector {
+                    element: left_element,
+                    lanes: left_lanes,
+                    copyability: left_copyability,
+                },
+                Type::Vector {
+                    element: right_element,
+                    lanes: right_lanes,
+                    copyability: right_copyability,
+                },
+            ) => {
+                left_lanes == right_lanes
+                    && left_copyability == right_copyability
+                    && self.types_equivalent_inner(*left_element, *right_element, seen_pairs)
+            }
+            (
+                Type::Tensor {
+                    element: left_element,
+                    shape: left_shape,
+                    layout: left_layout,
+                    copyability: left_copyability,
+                },
+                Type::Tensor {
+                    element: right_element,
+                    shape: right_shape,
+                    layout: right_layout,
+                    copyability: right_copyability,
+                },
+            ) => {
+                left_shape == right_shape
+                    && left_layout == right_layout
+                    && left_copyability == right_copyability
+                    && self.types_equivalent_inner(*left_element, *right_element, seen_pairs)
+            }
+            (
+                Type::TensorReference {
+                    kind: left_kind,
+                    address_space: left_space,
+                    mutability: left_mutability,
+                    element: left_element,
+                    shape: left_shape,
+                    layout: left_layout,
+                    is_nullable: left_nullable,
+                },
+                Type::TensorReference {
+                    kind: right_kind,
+                    address_space: right_space,
+                    mutability: right_mutability,
+                    element: right_element,
+                    shape: right_shape,
+                    layout: right_layout,
+                    is_nullable: right_nullable,
+                },
+            ) => {
+                left_kind == right_kind
+                    && left_space == right_space
+                    && left_mutability == right_mutability
+                    && left_shape == right_shape
+                    && left_layout == right_layout
+                    && left_nullable == right_nullable
+                    && self.types_equivalent_inner(*left_element, *right_element, seen_pairs)
+            }
+            (
+                Type::FunctionPointer {
+                    parameters: left_parameters,
+                    result: left_result,
+                },
+                Type::FunctionPointer {
+                    parameters: right_parameters,
+                    result: right_result,
+                },
+            ) => {
+                left_parameters.len() == right_parameters.len()
+                    && left_parameters.iter().zip(right_parameters).all(
+                        |(left_parameter, right_parameter)| {
+                            self.types_equivalent_inner(
+                                *left_parameter,
+                                *right_parameter,
+                                seen_pairs,
+                            )
+                        },
+                    )
+                    && self.types_equivalent_inner(*left_result, *right_result, seen_pairs)
+            }
+            (
+                Type::FunctionValue {
+                    signature: left_signature,
+                    environment: left_environment,
+                },
+                Type::FunctionValue {
+                    signature: right_signature,
+                    environment: right_environment,
+                },
+            ) => {
+                self.types_equivalent_inner(*left_signature, *right_signature, seen_pairs)
+                    && self.types_equivalent_inner(
+                        *left_environment,
+                        *right_environment,
+                        seen_pairs,
+                    )
+            }
+            _ => false,
+        }
+    }
+
+    /// Validate cast operator legality for canonical storage representations.
+    fn validate_cast_legality(
+        &self,
+        operator: CastOperator,
+        argument_type: LocalNodeId<Type>,
+        result_type: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        let argument_storage_type = self.storage_type_id(argument_type);
+        let result_storage_type = self.storage_type_id(result_type);
+        let argument = self.tree.get(argument_storage_type);
+        let result = self.tree.get(result_storage_type);
+        let argument_integer_width = self.integer_bit_width(argument);
+        let result_integer_width = self.integer_bit_width(result);
+        let argument_is_integer = argument_integer_width.is_some();
+        let result_is_integer = result_integer_width.is_some();
+        let argument_float_width = self.float_bit_width(argument);
+        let result_float_width = self.float_bit_width(result);
+        let argument_is_float = matches!(argument, Type::Float { .. });
+        let result_is_float = matches!(result, Type::Float { .. });
+        let argument_is_pointer = self.pointer_bit_width(argument).is_some();
+        let result_is_pointer = self.pointer_bit_width(result).is_some();
+        let argument_is_raw_pointer = self.is_raw_pointer_like(argument);
+
+        match operator {
+            CastOperator::PointerToInt => {
+                if !argument_is_raw_pointer || !result_is_integer {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "ptr_to_int requires raw pointer source and integer destination"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+
+                if let Some(result_width) = result_integer_width
+                    && result_width < self.tree.pointer_bits()
+                {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "ptr_to_int destination must be at least pointer width"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            CastOperator::IntToPointer => {
+                if !argument_is_integer || !result_is_pointer {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "int_to_ptr requires integer source and pointer destination"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+
+                if let Some(argument_width) = argument_integer_width
+                    && argument_width < self.tree.pointer_bits()
+                {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "int_to_ptr source must be at least pointer width".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            CastOperator::Bitcast => {
+                if argument_is_pointer != result_is_pointer {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "bitcast cannot cast between pointer and non pointer categories"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+
+                let argument_layout = compute_type_layout(
+                    self.tree,
+                    argument_storage_type,
+                    self.tree.pointer_bytes(),
+                );
+                let result_layout =
+                    compute_type_layout(self.tree, result_storage_type, self.tree.pointer_bytes());
+                if argument_layout.size != result_layout.size {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: format!(
+                            "bitcast requires equal storage size, got {} and {} bytes",
+                            argument_layout.size, result_layout.size
+                        ),
+                        anchor,
+                    });
+                }
+            }
+            CastOperator::Truncate => {
+                if !argument_is_integer || !result_is_integer {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "integer cast requires integer source and destination".to_string(),
+                        anchor,
+                    });
+                }
+
+                if let (Some(argument_width), Some(result_width)) =
+                    (argument_integer_width, result_integer_width)
+                    && result_width > argument_width
+                {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "trunc requires destination integer no wider than source"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            CastOperator::ZeroExtend | CastOperator::SignExtend => {
+                if !argument_is_integer || !result_is_integer {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "integer cast requires integer source and destination".to_string(),
+                        anchor,
+                    });
+                }
+
+                if let (Some(argument_width), Some(result_width)) =
+                    (argument_integer_width, result_integer_width)
+                    && result_width < argument_width
+                {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "integer extend requires destination no narrower than source"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            CastOperator::FloatToSignedInt
+            | CastOperator::FloatToUnsignedInt
+            | CastOperator::FloatToSignedIntSaturating
+            | CastOperator::FloatToUnsignedIntSaturating => {
+                if !argument_is_float || !result_is_integer {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "float to int cast requires float source and integer destination"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            CastOperator::SignedIntToFloat | CastOperator::UnsignedIntToFloat => {
+                if !argument_is_integer || !result_is_float {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "int to float cast requires integer source and float destination"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            CastOperator::FloatTruncate | CastOperator::FloatExtend => {
+                if !argument_is_float || !result_is_float {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "float cast requires float source and destination".to_string(),
+                        anchor,
+                    });
+                }
+
+                if let (Some(argument_width), Some(result_width)) =
+                    (argument_float_width, result_float_width)
+                {
+                    if matches!(operator, CastOperator::FloatTruncate)
+                        && result_width > argument_width
+                    {
+                        return Err(ValidateError::MetadataInvariantViolation {
+                            message: "fnarrow requires destination float no wider than source"
+                                .to_string(),
+                            anchor,
+                        });
+                    }
+                    if matches!(operator, CastOperator::FloatExtend)
+                        && result_width < argument_width
+                    {
+                        return Err(ValidateError::MetadataInvariantViolation {
+                            message: "fwiden requires destination float no narrower than source"
+                                .to_string(),
+                            anchor,
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Resolve the canonical storage type by unwrapping transparent newtype wrappers.
+    fn storage_type_id(&self, mut type_id: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        loop {
+            match self.tree.get(type_id) {
+                Type::Newtype { inner, .. } => {
+                    type_id = *inner;
+                }
+                _ => return type_id,
+            }
+        }
+    }
+
+    /// Return integer bit width for integer-like MIR types.
+    fn integer_bit_width(&self, ty: &Type) -> Option<u16> {
+        match ty {
+            Type::Int { width, .. } => Some(*width),
+            Type::Isize | Type::Usize => Some(self.tree.pointer_bits()),
+            _ => None,
+        }
+    }
+
+    /// Return float bit width for float MIR types.
+    fn float_bit_width(&self, ty: &Type) -> Option<u16> {
+        match ty {
+            Type::Float { width } => Some(*width),
+            _ => None,
+        }
+    }
+
+    /// Return pointer bit width for pointer-like MIR types.
+    fn pointer_bit_width(&self, ty: &Type) -> Option<u16> {
+        match ty {
+            Type::Reference { .. }
+            | Type::TensorReference { .. }
+            | Type::FunctionPointer { .. } => Some(self.tree.pointer_bits()),
+            _ => None,
+        }
+    }
+
+    /// Return whether a type is raw-pointer-like for integer and pointer casts.
+    fn is_raw_pointer_like(&self, ty: &Type) -> bool {
+        matches!(
+            ty,
+            Type::Reference {
+                kind: ReferenceKind::Raw,
+                ..
+            } | Type::TensorReference {
+                kind: ReferenceKind::Raw,
+                ..
+            } | Type::FunctionPointer { .. }
+        )
+    }
+
     /// Validate a reference result type.
     fn validate_reference_result_type(
         &self,
@@ -1698,7 +2901,7 @@ impl<'a> Validator<'a> {
         };
 
         if let Some(expected) = expected_pointee
-            && *pointee != expected
+            && !self.types_equivalent(*pointee, expected)
         {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: "pointer-producing instruction result type mismatches pointee".to_string(),
