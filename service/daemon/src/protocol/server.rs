@@ -21,9 +21,8 @@ use super::{
     ProtocolNotification, ProtocolRange, ProtocolRequest, ProtocolResponse, QueryRequestPayload,
     QueryResponsePayload, RescanWorkspaceRequest, ServerInfo, SessionId, Transport, TransportError,
     WatchBatchRequest, WatchBatchResponse, WorkspaceHandleId, WorkspaceOpenedResponse,
-    WorkspaceRescanResponse, command_output_to_protocol, command_stats_to_protocol,
-    daemon_messages_to_records, daemon_updates_to_records, diagnostics_to_batches,
-    files_to_snapshots, inline_payload_max_bytes, payload_chunk_bytes,
+    WorkspaceRescanResponse, daemon_messages_to_records, daemon_updates_to_records,
+    diagnostics_to_batches, files_to_snapshots, inline_payload_max_bytes, payload_chunk_bytes,
 };
 
 /// Server side protocol handler for daemon requests.
@@ -679,12 +678,12 @@ impl ProtocolServer {
             diagnostics,
             files,
             messages: Vec::new(),
-            output: command_output_to_protocol(&result.output),
+            output: result.output,
             outputs: Vec::new(),
             module_count: result.module_count,
             profile_count: result.profile_count,
             target_count: result.target_count,
-            stats: result.stats.as_ref().map(command_stats_to_protocol),
+            stats: result.stats,
             data,
         }))
     }

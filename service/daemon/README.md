@@ -4,6 +4,9 @@ Destack background daemon service.
 The daemon is a per workspace, long lived coordinator for toolchain services.
 It owns incremental compiler state today, and is the integration point for runtime, REPL, notebook, and hot reload services as they land.
 
+The daemon is intentionally local and workspace scoped.
+It should remain the coordinator for local language and runtime workflows, not the place where remote deployment, CI, or broader platform orchestration logic accumulates.
+
 ## Responsibilities
 
 The daemon owns the long lived workspace session and all incremental state.

@@ -11,6 +11,9 @@ rust-version.workspace = true
 path = "src/lib.rs"
 doctest = false
 
+[features]
+schema = ["schemars"]
+
 [dependencies]
 # language
 destack_ast = { workspace = true }
@@ -43,6 +46,7 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 postcard = { workspace = true }
 smallvec = { workspace = true }
 tracing = { workspace = true }
+schemars = { workspace = true, optional = true }
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }

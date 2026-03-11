@@ -8,16 +8,12 @@ use destack_source::{
 };
 use destack_workspace::{InvalidationKind, InvalidationPlan, Program};
 
-use crate::command::{
-    DaemonCommandOutputChunk, DaemonCommandStats, DaemonOutputStream as CommandOutputStream,
-};
 use crate::{DaemonMessage, DaemonMessageKind, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
 use super::{
-    CommandOutputChunk, CommandStats, CommandTimingTagStats,
     DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord,
     DiagnosticBatch, FileSnapshot, InvalidationKind as ProtocolInvalidationKind,
-    InvalidationSummary, OutputStream, RescanReason, WatchBatch as ProtocolWatchBatch,
+    InvalidationSummary, RescanReason, WatchBatch as ProtocolWatchBatch,
     WatchEvent as ProtocolWatchEvent, WatchEventKind as ProtocolWatchEventKind,
     WatchStatus as ProtocolWatchStatus,
 };
@@ -278,52 +274,6 @@ pub fn files_to_snapshots(program: &Program, diagnostics: &[Diagnostic]) -> Vec<
     // keep snapshots stable by file id
     snapshots.sort_by_key(|snapshot| snapshot.id.0);
     snapshots
-}
-
-/// Convert daemon command output chunks into protocol records.
-pub fn command_output_to_protocol(chunks: &[DaemonCommandOutputChunk]) -> Vec<CommandOutputChunk> {
-    chunks
-        .iter()
-        .map(|chunk| CommandOutputChunk {
-            stream: match chunk.stream {
-                CommandOutputStream::Stdout => OutputStream::Stdout,
-                CommandOutputStream::Stderr => OutputStream::Stderr,
-            },
-            bytes: chunk.bytes.clone(),
-        })
-        .collect()
-}
-
-/// Convert daemon command stats into protocol shape.
-pub fn command_stats_to_protocol(stats: &DaemonCommandStats) -> CommandStats {
-    CommandStats {
-        elapsed_ms: stats.elapsed_ms,
-        tasks_completed: stats.tasks_completed,
-        tasks_failed: stats.tasks_failed,
-        tasks_skipped: stats.tasks_skipped,
-        modules_processed: stats.modules_processed,
-        lines_processed: stats.lines_processed,
-        slow_tasks: stats.slow_tasks,
-        cache: stats.cache.as_ref().map(|cache| super::CommandCacheStats {
-            hits_memory: cache.hits_memory,
-            hits_disk: cache.hits_disk,
-            misses: cache.misses,
-            writes_memory: cache.writes_memory,
-            writes_disk: cache.writes_disk,
-            errors: cache.errors,
-            hit_rate: cache.hit_rate,
-        }),
-        timings: stats.timings.as_ref().map(|timings| {
-            timings
-                .iter()
-                .map(|entry| CommandTimingTagStats {
-                    name: entry.name.clone(),
-                    duration_ms: entry.duration_ms,
-                    sample_count: entry.sample_count,
-                })
-                .collect()
-        }),
-    }
 }
 
 /// Build a snapshot for a file id.
