@@ -51,6 +51,25 @@ pub enum CallSiteRef {
     Terminator(mir::LocalNodeId<mir::Block>),
 }
 
+impl CallSiteRef {
+    /// Convert this optimizer callsite reference to a MIR dispatch callsite key.
+    fn mir_callsite(self) -> mir::CallSite {
+        match self {
+            Self::Instruction(instruction_id) => mir::CallSite::Instruction(instruction_id),
+            Self::Terminator(block_id) => mir::CallSite::Terminator(block_id),
+        }
+    }
+
+    /// Resolve sparse declared-target metadata for this callsite when present.
+    fn declared_dynamic_target(
+        self,
+        tree: &mir::NodeTree,
+    ) -> Option<mir::LocalNodeId<mir::Function>> {
+        tree.dispatch_metadata(self.mir_callsite())
+            .and_then(|facts| facts.declared_target)
+    }
+}
+
 /// Callsite identifier for cross module graphs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CallSiteId {
@@ -162,7 +181,9 @@ enum SignatureType {
         width: u16,
     },
     /// Runtime type descriptor handle signature.
-    TypeTag,
+    TypeDescriptor,
+    /// Compact runtime type id signature.
+    TypeId,
     /// Reference type signature.
     Reference {
         /// Reference kind for the pointer.
@@ -194,8 +215,8 @@ enum SignatureType {
     },
     /// Struct type signature.
     Struct {
-        /// Field signatures in layout order.
-        fields: Vec<SignatureField>,
+        /// Field type signatures in declaration order.
+        fields: Vec<SignatureType>,
         /// Copyability of the struct.
         copyability: mir::Copyability,
     },
@@ -250,6 +271,13 @@ enum SignatureType {
         /// Result type signature.
         result: Box<SignatureType>,
     },
+    /// Callable closure value signature.
+    FunctionValue {
+        /// The bare function pointer signature.
+        signature: Box<SignatureType>,
+        /// The captured environment type.
+        environment: Box<SignatureType>,
+    },
 }
 
 impl SignatureType {
@@ -272,7 +300,8 @@ impl SignatureType {
             mir::Type::Isize => SignatureType::Isize,
             mir::Type::Usize => SignatureType::Usize,
             mir::Type::Float { width } => SignatureType::Float { width: *width },
-            mir::Type::Type => SignatureType::TypeTag,
+            mir::Type::TypeDescriptor => SignatureType::TypeDescriptor,
+            mir::Type::TypeId => SignatureType::TypeId,
             mir::Type::Reference {
                 kind,
                 address_space,
@@ -314,16 +343,12 @@ impl SignatureType {
                 fields,
                 copyability,
             } => {
-                // convert struct fields to signature fields
+                // convert struct fields to signature types
                 let fields = fields
                     .iter()
                     .map(|field_id| {
                         let field = tree.get(*field_id);
-
-                        SignatureField {
-                            offset: field.offset,
-                            ty: SignatureType::from_type(tree, field.ty),
-                        }
+                        SignatureType::from_type(tree, field.ty)
                     })
                     .collect();
 
@@ -385,17 +410,15 @@ impl SignatureType {
 
                 SignatureType::FunctionPointer { parameters, result }
             }
+            mir::Type::FunctionValue {
+                signature,
+                environment,
+            } => SignatureType::FunctionValue {
+                signature: Box::new(SignatureType::from_type(tree, *signature)),
+                environment: Box::new(SignatureType::from_type(tree, *environment)),
+            },
         }
     }
-}
-
-/// Field signature for struct types.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct SignatureField {
-    /// Byte offset within the struct.
-    offset: u32,
-    /// Field type signature.
-    ty: SignatureType,
 }
 
 /// Directed edge in a symbol call graph.
@@ -1092,12 +1115,15 @@ impl SymbolCallSite {
             block: block_id,
             instruction: Some(instruction_id),
         };
+        let callsite_ref = CallSiteRef::Instruction(instruction_id);
 
         // resolve the dispatch kind
         let dispatch = instruction.call_dispatch_kind()?;
 
         // resolve the declared target when present
-        let declared_target = instruction.call_declared_target();
+        let declared_target = callsite_ref
+            .declared_dynamic_target(tree)
+            .or_else(|| instruction.call_declared_target());
         let callee = declared_target.and_then(|target| symbols_by_function.get(&target).cloned());
         let callee_linkage = declared_target.map(|target| tree.get(target).linkage);
 
@@ -1121,7 +1147,7 @@ impl SymbolCallSite {
         })
     }
 
-    /// Build a symbol callsite from a terminator when it represents a tail call.
+    /// Build a symbol callsite from a terminator when it represents a call.
     fn from_terminator(
         module_id: ModuleId,
         block_id: mir::LocalNodeId<mir::Block>,
@@ -1135,8 +1161,73 @@ impl SymbolCallSite {
             block: block_id,
             instruction: None,
         };
+        let callsite_ref = CallSiteRef::Terminator(block_id);
 
         match terminator {
+            mir::Terminator::Call { function, .. } => {
+                let callee = symbols_by_function.get(function).cloned();
+                let callee_linkage = Some(tree.get(*function).linkage);
+                let signature = Some(SignatureKey::from_function(tree, tree.get(*function)));
+
+                Some(Self {
+                    callsite,
+                    dispatch: CallDispatchKind::Direct,
+                    callee,
+                    callee_linkage,
+                    signature,
+                    is_precise: true,
+                })
+            }
+            mir::Terminator::CallIndirect { signature, .. } => Some(Self {
+                callsite,
+                dispatch: CallDispatchKind::Indirect,
+                callee: None,
+                callee_linkage: None,
+                signature: SignatureKey::from_function_type(tree, *signature),
+                is_precise: false,
+            }),
+            mir::Terminator::CallVirtual {
+                slot_id, signature, ..
+            } => {
+                let declared_target = callsite_ref.declared_dynamic_target(tree);
+                let callee =
+                    declared_target.and_then(|target| symbols_by_function.get(&target).cloned());
+                let callee_linkage = declared_target.map(|target| tree.get(target).linkage);
+                let signature = SignatureKey::from_function_type(tree, *signature).or_else(|| {
+                    declared_target
+                        .map(|target| SignatureKey::from_function(tree, tree.get(target)))
+                });
+
+                Some(Self {
+                    callsite,
+                    dispatch: CallDispatchKind::Virtual { slot_id: *slot_id },
+                    callee,
+                    callee_linkage,
+                    signature,
+                    is_precise: false,
+                })
+            }
+            mir::Terminator::CallInterface {
+                slot_id, signature, ..
+            } => {
+                let declared_target = callsite_ref.declared_dynamic_target(tree);
+                let callee =
+                    declared_target.and_then(|target| symbols_by_function.get(&target).cloned());
+                let callee_linkage = declared_target.map(|target| tree.get(target).linkage);
+                let signature = SignatureKey::from_function_type(tree, *signature).or_else(|| {
+                    declared_target
+                        .map(|target| SignatureKey::from_function(tree, tree.get(target)))
+                });
+
+                Some(Self {
+                    callsite,
+                    dispatch: CallDispatchKind::Interface { slot_id: *slot_id },
+                    callee,
+                    callee_linkage,
+                    signature,
+                    is_precise: false,
+                })
+            }
             mir::Terminator::TailCall { function, .. } => {
                 let callee = symbols_by_function.get(function).cloned();
                 let callee_linkage = Some(tree.get(*function).linkage);
@@ -1160,11 +1251,9 @@ impl SymbolCallSite {
                 is_precise: false,
             }),
             mir::Terminator::TailCallVirtual {
-                slot_id,
-                declared_target,
-                signature,
-                ..
+                slot_id, signature, ..
             } => {
+                let declared_target = callsite_ref.declared_dynamic_target(tree);
                 let callee =
                     declared_target.and_then(|target| symbols_by_function.get(&target).cloned());
                 let callee_linkage = declared_target.map(|target| tree.get(target).linkage);
@@ -1183,11 +1272,9 @@ impl SymbolCallSite {
                 })
             }
             mir::Terminator::TailCallInterface {
-                slot_id,
-                declared_target,
-                signature,
-                ..
+                slot_id, signature, ..
             } => {
+                let declared_target = callsite_ref.declared_dynamic_target(tree);
                 let callee =
                     declared_target.and_then(|target| symbols_by_function.get(&target).cloned());
                 let callee_linkage = declared_target.map(|target| tree.get(target).linkage);
@@ -1367,10 +1454,13 @@ impl CallSite {
         caller: mir::LocalNodeId<mir::Function>,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
-        _tree: &mir::NodeTree,
+        tree: &mir::NodeTree,
     ) -> Option<Self> {
         let dispatch = instruction.call_dispatch_kind()?;
-        let callee = instruction.call_declared_target();
+        let callsite = CallSiteRef::Instruction(instruction_id);
+        let callee = callsite
+            .declared_dynamic_target(tree)
+            .or_else(|| instruction.call_declared_target());
         let is_precise = matches!(dispatch, CallDispatchKind::Direct);
 
         Some(Self {
@@ -1382,48 +1472,70 @@ impl CallSite {
         })
     }
 
-    /// Build a callsite from a terminator when it represents a tail call.
+    /// Build a callsite from a terminator when it represents a call.
     fn from_terminator(
         caller: mir::LocalNodeId<mir::Function>,
         block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
-        _tree: &mir::NodeTree,
+        tree: &mir::NodeTree,
     ) -> Option<Self> {
+        let callsite = CallSiteRef::Terminator(block_id);
+
         match terminator {
+            mir::Terminator::Call { function, .. } => Some(Self {
+                caller,
+                callsite,
+                dispatch: CallDispatchKind::Direct,
+                callee: Some(*function),
+                is_precise: true,
+            }),
+            mir::Terminator::CallIndirect { .. } => Some(Self {
+                caller,
+                callsite,
+                dispatch: CallDispatchKind::Indirect,
+                callee: None,
+                is_precise: false,
+            }),
+            mir::Terminator::CallVirtual { slot_id, .. } => Some(Self {
+                caller,
+                callsite,
+                dispatch: CallDispatchKind::Virtual { slot_id: *slot_id },
+                callee: callsite.declared_dynamic_target(tree),
+                is_precise: false,
+            }),
+            mir::Terminator::CallInterface { slot_id, .. } => Some(Self {
+                caller,
+                callsite,
+                dispatch: CallDispatchKind::Interface { slot_id: *slot_id },
+                callee: callsite.declared_dynamic_target(tree),
+                is_precise: false,
+            }),
             mir::Terminator::TailCall { function, .. } => Some(Self {
                 caller,
-                callsite: CallSiteRef::Terminator(block_id),
+                callsite,
                 dispatch: CallDispatchKind::Direct,
                 callee: Some(*function),
                 is_precise: true,
             }),
             mir::Terminator::TailCallIndirect { .. } => Some(Self {
                 caller,
-                callsite: CallSiteRef::Terminator(block_id),
+                callsite,
                 dispatch: CallDispatchKind::Indirect,
                 callee: None,
                 is_precise: false,
             }),
-            mir::Terminator::TailCallVirtual {
-                slot_id,
-                declared_target,
-                ..
-            } => Some(Self {
+            mir::Terminator::TailCallVirtual { slot_id, .. } => Some(Self {
                 caller,
-                callsite: CallSiteRef::Terminator(block_id),
+                callsite,
                 dispatch: CallDispatchKind::Virtual { slot_id: *slot_id },
-                callee: *declared_target,
+                callee: callsite.declared_dynamic_target(tree),
                 is_precise: false,
             }),
-            mir::Terminator::TailCallInterface {
-                slot_id,
-                declared_target,
-                ..
-            } => Some(Self {
+            mir::Terminator::TailCallInterface { slot_id, .. } => Some(Self {
                 caller,
-                callsite: CallSiteRef::Terminator(block_id),
+                callsite,
                 dispatch: CallDispatchKind::Interface { slot_id: *slot_id },
-                callee: *declared_target,
+                callee: callsite.declared_dynamic_target(tree),
                 is_precise: false,
             }),
             _ => None,
@@ -1659,9 +1771,9 @@ block0(v0: fn(i32) -> i32, v1: i32):
         assert_eq!(unknown[0].dispatch, CallDispatchKind::Indirect);
     }
 
-    /// Virtual dispatch keeps a call edge and records an unknown target.
+    /// Exceptional direct call terminators still produce precise call edges.
     #[test]
-    fn test_call_graph_virtual_dispatch_is_partial() {
+    fn test_call_graph_call_terminator_direct() {
         let test = TestProgram::new(
             r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
@@ -1669,8 +1781,11 @@ block0(v0: i32):
 }
 function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1: i32 = call.virtual v0, i32, 1, @callee(v0) -> fn(i32) -> i32
+    call @callee(v0) normal block1 unwind block2
+block1(v1: i32):
     return v1
+block2(v2: ref<managed readonly i32>):
+    throw v2
 }"#,
         );
 
@@ -1680,12 +1795,116 @@ block0(v0: i32):
         let analyses = ModuleAnalyses::new(&test.tree);
         let callgraph = analyses.get::<CallGraph>();
 
+        let outgoing = callgraph.outgoing(test_id);
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(outgoing[0].callee, callee_id);
+        assert_eq!(outgoing[0].dispatch, CallDispatchKind::Direct);
+        assert!(matches!(outgoing[0].callsite, CallSiteRef::Terminator(_)));
+        assert!(callgraph.unknown_calls(test_id).is_empty());
+    }
+
+    /// Virtual dispatch keeps a call edge and records an unknown target.
+    #[test]
+    fn test_call_graph_virtual_dispatch_is_partial() {
+        let mut test = TestProgram::new(
+            r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1: i32 = call.virtual v0, i32, 1(v0) -> fn(i32) -> i32
+    return v1
+}"#,
+        );
+
+        let callee_id = test.function_id_by_name("callee");
+        let test_id = test.function_id_by_name("test");
+
+        let function = test.tree.get(test_id);
+        let mut call_id = None;
+        for &block_id in &function.blocks {
+            let block = test.tree.get(block_id);
+            for &instruction_id in &block.instructions {
+                if matches!(
+                    test.tree.get(instruction_id),
+                    mir::Instruction::CallVirtual { .. }
+                ) {
+                    call_id = Some(instruction_id);
+                    break;
+                }
+            }
+            if call_id.is_some() {
+                break;
+            }
+        }
+        let call_id = call_id.expect("missing virtual call instruction");
+
+        test.tree.dispatch_table.insert_callsite_metadata(
+            mir::CallSite::Instruction(call_id),
+            mir::DevirtualizationMetadata {
+                declared_target: Some(callee_id),
+            },
+        );
+
+        let analyses = ModuleAnalyses::new(&test.tree);
+        let callgraph = analyses.get::<CallGraph>();
+
         assert_eq!(callgraph.outgoing(test_id).len(), 1);
         assert_eq!(callgraph.outgoing(test_id)[0].callee, callee_id);
         assert_eq!(
             callgraph.outgoing(test_id)[0].dispatch,
-            CallDispatchKind::Virtual { slot_id: 1 }
+            CallDispatchKind::Virtual {
+                slot_id: mir::VtableSlotId::new(1),
+            }
         );
+        assert_eq!(callgraph.unknown_calls(test_id).len(), 1);
+        assert_eq!(callgraph.unknown_calls(test_id)[0].callee, Some(callee_id));
+    }
+
+    /// Exceptional virtual call terminators keep the declared target and unknown edge.
+    #[test]
+    fn test_call_graph_call_virtual_terminator_is_partial() {
+        let mut test = TestProgram::new(
+            r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    call.virtual v0, i32, 1(v0) -> fn(i32) -> i32 normal block1 unwind block2
+block1(v1: i32):
+    return v1
+block2(v2: ref<managed readonly i32>):
+    throw v2
+}"#,
+        );
+
+        let callee_id = test.function_id_by_name("callee");
+        let test_id = test.function_id_by_name("test");
+        let function = test.tree.get(test_id);
+        let block_id = *function.blocks.first().expect("missing entry block");
+
+        test.tree.dispatch_table.insert_callsite_metadata(
+            mir::CallSite::Terminator(block_id),
+            mir::DevirtualizationMetadata {
+                declared_target: Some(callee_id),
+            },
+        );
+
+        let analyses = ModuleAnalyses::new(&test.tree);
+        let callgraph = analyses.get::<CallGraph>();
+
+        let outgoing = callgraph.outgoing(test_id);
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(outgoing[0].callee, callee_id);
+        assert_eq!(
+            outgoing[0].dispatch,
+            CallDispatchKind::Virtual {
+                slot_id: mir::VtableSlotId::new(1),
+            }
+        );
+        assert!(matches!(outgoing[0].callsite, CallSiteRef::Terminator(_)));
         assert_eq!(callgraph.unknown_calls(test_id).len(), 1);
         assert_eq!(callgraph.unknown_calls(test_id)[0].callee, Some(callee_id));
     }

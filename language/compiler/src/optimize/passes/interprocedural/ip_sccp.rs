@@ -622,8 +622,28 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                 }
             }
 
-            // record tailcall sites
+            // record call terminators
             match &block.terminator {
+                mir::Terminator::Call {
+                    function: callee,
+                    arguments,
+                    ..
+                } => {
+                    data.callsites.push(DirectCallSite {
+                        caller: caller_id,
+                        callee: *callee,
+                        block: block_id,
+                        call_instruction: None,
+                        arguments: arguments.clone(),
+                    });
+                }
+                mir::Terminator::CallIndirect { signature, .. }
+                | mir::Terminator::CallVirtual { signature, .. }
+                | mir::Terminator::CallInterface { signature, .. } => {
+                    if let Some(signature) = SignatureKey::from_signature_type(tree, *signature) {
+                        data.indirect_signatures.insert(signature);
+                    }
+                }
                 mir::Terminator::TailCall {
                     function: callee,
                     arguments,
@@ -663,10 +683,10 @@ fn call_is_pure(
     // resolve callsite effects when present
     let effects = call_effects
         .and_then(|meta| meta.memory_effects.clone())
-        .or_else(|| tree.get(callee).memory_effects.clone());
+        .or_else(|| Some(tree.get(callee).memory_effects.clone()));
     let behavior = call_effects
         .and_then(|meta| meta.behavior.clone())
-        .or_else(|| tree.get(callee).call_behavior.clone());
+        .or_else(|| Some(tree.get(callee).call_behavior.clone()));
 
     // reject calls with no effect metadata
     let Some(effects) = effects else {
@@ -682,7 +702,12 @@ fn call_is_pure(
     }
 
     // reject calls with non local behavior
-    if behavior.noreturn || behavior.convergent || behavior.allocates || behavior.frees {
+    if behavior.unwind_behavior.may_unwind()
+        || behavior.noreturn
+        || behavior.convergent
+        || behavior.allocates
+        || behavior.frees
+    {
         return false;
     }
 
@@ -752,8 +777,8 @@ block0:
 
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("pure");
-        test.tree.get_mut(callee_id).memory_effects = Some(mir::MemoryEffect::none());
-        test.tree.get_mut(callee_id).call_behavior = Some(mir::CallBehavior::none());
+        test.tree.get_mut(callee_id).memory_effects = mir::MemoryEffect::none();
+        test.tree.get_mut(callee_id).call_behavior = mir::CallBehavior::none();
 
         test.run_module_pass(&InterproceduralSccp);
         test.assert_output(expected);
@@ -826,6 +851,43 @@ function @root() -> i32 {
 block0:
     v0: i32 = iconst 9i32
     tailcall @callee(v0)
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralSccp);
+        test.assert_output(expected);
+    }
+
+    /// Exceptional direct call terminators participate in interprocedural SCCP.
+    #[test]
+    fn test_ip_sccp_propagates_call_terminator() {
+        let input = r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @root() -> i32 {
+block0:
+    v0: i32 = iconst 9i32
+    call @callee(v0) normal block1 unwind block2
+block1(v1: i32):
+    return v1
+block2(v2: ref<managed readonly i32>):
+    throw v2
+}"#;
+
+        let expected = r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    v1: i32 = iconst 9i32
+    return v1
+}
+function @root() -> i32 {
+block0:
+    v0: i32 = iconst 9i32
+    call @callee(v0) normal block1 unwind block2
+block1(v1: i32):
+    return v1
+block2(v2: ref<managed readonly i32>):
+    throw v2
 }"#;
 
         let mut test = TestProgram::new(input);
