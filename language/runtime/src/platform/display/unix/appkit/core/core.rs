@@ -1,12 +1,13 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform;
+use crate::platform::PlatformError;
 use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::display::{
-    self as display_platform, DisplayBackend, DisplayBackendCapabilityFlags,
-    DisplayMonitorEventKindMask, WindowEventKindMask,
+    DisplayBackend, DisplayBackendCapabilityFlags, DisplayMonitorEventKindMask, WindowEventKindMask,
 };
 use crate::platform::resource::{DisplayHandle, WindowHandle};
-use crate::platform::{PlatformError, core as core_platform};
+use crate::runtime::BindingCallContext;
 
 pub(crate) use crate::platform::display::unix::appkit::constants::*;
 
@@ -43,7 +44,7 @@ pub(crate) fn display_not_found(
     operation: &'static str,
     handle: DisplayHandle,
 ) -> Box<RuntimeError> {
-    core_platform::io_not_found(
+    platform::core::io_not_found(
         operation,
         format!("display handle {} was not found", handle.0.0),
     )
@@ -51,7 +52,7 @@ pub(crate) fn display_not_found(
 
 /// Build one missing window-handle error.
 pub(crate) fn window_not_found(operation: &'static str, handle: WindowHandle) -> Box<RuntimeError> {
-    core_platform::io_not_found(
+    platform::core::io_not_found(
         operation,
         format!("window handle {} was not found", handle.0.0),
     )
@@ -90,7 +91,7 @@ pub(crate) fn validate_monitor_event_kind_mask(
         return Ok(());
     }
 
-    Err(core_platform::invalid_argument(
+    Err(platform::core::invalid_argument(
         field,
         format!("unsupported monitor event kind bits: 0x{unsupported_bits:x}"),
     ))
@@ -108,7 +109,7 @@ pub(crate) fn validate_window_event_kind_mask(
         return Ok(());
     }
 
-    Err(core_platform::invalid_argument(
+    Err(platform::core::invalid_argument(
         field,
         format!("unsupported window event kind bits: 0x{unsupported_bits:x}"),
     ))
@@ -116,7 +117,7 @@ pub(crate) fn validate_window_event_kind_mask(
 
 /// Build one busy error for queued-event overflow with `Error` policy.
 pub(crate) fn overflow_error(operation: &'static str) -> Box<RuntimeError> {
-    core_platform::io_busy(
+    platform::core::io_busy(
         operation,
         "event queue overflowed while overflow policy is error",
     )
@@ -124,38 +125,38 @@ pub(crate) fn overflow_error(operation: &'static str) -> Box<RuntimeError> {
 
 /// Return backend descriptor support and capability flags for AppKit.
 pub(crate) fn backend_descriptor_state(
-    _binding: &crate::runtime::BindingCallContext,
+    _binding: &BindingCallContext,
 ) -> (BackendSupport, DisplayBackendCapabilityFlags) {
-    let capability_flags = display_platform::DISPLAY_BACKEND_CAP_WINDOW.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_STATE.0
-        | display_platform::DISPLAY_BACKEND_CAP_MONITOR.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_EVENTS.0
-        | display_platform::DISPLAY_BACKEND_CAP_MONITOR_EVENTS.0
-        | display_platform::DISPLAY_BACKEND_CAP_MONITOR_MODE_SET.0
-        | display_platform::DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL.0
-        | display_platform::DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN.0
-        | display_platform::DISPLAY_BACKEND_CAP_CURSOR_ICON.0
-        | display_platform::DISPLAY_BACKEND_CAP_CURSOR_VISIBILITY.0
-        | display_platform::DISPLAY_BACKEND_CAP_CURSOR_WARP.0
-        | display_platform::DISPLAY_BACKEND_CAP_TRANSPARENCY.0
-        | display_platform::DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP.0
-        | display_platform::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0
-        | display_platform::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
-        | display_platform::DISPLAY_BACKEND_CAP_SAFE_AREA.0
-        | display_platform::DISPLAY_BACKEND_CAP_THEME.0
-        | display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_OPACITY.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ICON.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_FOCUS.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_RAISE.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_HIT_TEST.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_PARENTING.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_CHROME.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP.0
-        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY.0;
+    let capability_flags = platform::display::DISPLAY_BACKEND_CAP_WINDOW.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_STATE.0
+        | platform::display::DISPLAY_BACKEND_CAP_MONITOR.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_EVENTS.0
+        | platform::display::DISPLAY_BACKEND_CAP_MONITOR_EVENTS.0
+        | platform::display::DISPLAY_BACKEND_CAP_MONITOR_MODE_SET.0
+        | platform::display::DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL.0
+        | platform::display::DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN.0
+        | platform::display::DISPLAY_BACKEND_CAP_CURSOR_ICON.0
+        | platform::display::DISPLAY_BACKEND_CAP_CURSOR_VISIBILITY.0
+        | platform::display::DISPLAY_BACKEND_CAP_CURSOR_WARP.0
+        | platform::display::DISPLAY_BACKEND_CAP_TRANSPARENCY.0
+        | platform::display::DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP.0
+        | platform::display::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0
+        | platform::display::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
+        | platform::display::DISPLAY_BACKEND_CAP_SAFE_AREA.0
+        | platform::display::DISPLAY_BACKEND_CAP_THEME.0
+        | platform::display::DISPLAY_BACKEND_CAP_OCCLUSION.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_OPACITY.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_ICON.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_FOCUS.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_RAISE.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_HIT_TEST.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_PARENTING.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_CHROME.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP.0
+        | platform::display::DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY.0;
 
     (
         if backend_available() {

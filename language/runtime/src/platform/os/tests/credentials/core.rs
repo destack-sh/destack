@@ -1,6 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use destack_vm as vm;
+use destack_vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::VmSlice;
@@ -44,11 +44,13 @@ pub(super) fn unique_suffix() -> u128 {
 pub(super) fn string_value(
     context: &mut OsHarnessContext<'_>,
     text: &str,
-) -> HarnessValue<NativeStringRef, vm::StringHandle> {
+) -> HarnessValue<NativeStringRef, destack_vm::StringHandle> {
     // build one vm string value for vm runs
     if let Some(vm_context) = vm_context_pointer(context) {
-        let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
-        return HarnessValue::Vm(vm::StringHandle::new(vm_context.intern_string(text)));
+        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
+        return HarnessValue::Vm(destack_vm::StringHandle::new(
+            vm_context.intern_string(text),
+        ));
     }
 
     // build one native string value for native runs
@@ -68,11 +70,13 @@ pub(super) fn credential_write_options_value(
 ) -> RuntimeResult<HarnessValue<CredentialWriteOptions, CredentialWriteOptionsVm>> {
     // build one vm write-options payload for vm runs
     if let Some(vm_context) = vm_context_pointer(context) {
-        let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
         let options = CredentialWriteOptionsVm {
-            service: vm::StringHandle::new(vm_context.intern_string(service)),
-            account: vm::StringHandle::new(vm_context.intern_string(account)),
-            access_group: Some(vm::StringHandle::new(vm_context.intern_string(access_group))),
+            service: destack_vm::StringHandle::new(vm_context.intern_string(service)),
+            account: destack_vm::StringHandle::new(vm_context.intern_string(account)),
+            access_group: Some(destack_vm::StringHandle::new(
+                vm_context.intern_string(access_group),
+            )),
             bytes: VmSlice::from_bytes(vm_context, bytes),
             accessibility,
             authentication,
@@ -106,11 +110,13 @@ pub(super) fn credential_query_value(
 ) -> HarnessValue<CredentialQuery, CredentialQueryVm> {
     // build one vm query payload for vm runs
     if let Some(vm_context) = vm_context_pointer(context) {
-        let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
         let query = CredentialQueryVm {
-            service: vm::StringHandle::new(vm_context.intern_string(service)),
-            account: vm::StringHandle::new(vm_context.intern_string(account)),
-            access_group: Some(vm::StringHandle::new(vm_context.intern_string(access_group))),
+            service: destack_vm::StringHandle::new(vm_context.intern_string(service)),
+            account: destack_vm::StringHandle::new(vm_context.intern_string(account)),
+            access_group: Some(destack_vm::StringHandle::new(
+                vm_context.intern_string(access_group),
+            )),
             require_authentication,
         };
 
@@ -138,11 +144,11 @@ pub(super) fn credential_authentication_options_value(
 ) -> HarnessValue<CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm> {
     // build one vm authentication-options payload for vm runs
     if let Some(vm_context) = vm_context_pointer(context) {
-        let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+        let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
         let options = CredentialAuthenticationOptionsVm {
-            title: vm::StringHandle::new(vm_context.intern_string(title)),
-            subtitle: vm::StringHandle::new(vm_context.intern_string(subtitle)),
-            message: vm::StringHandle::new(vm_context.intern_string(message)),
+            title: destack_vm::StringHandle::new(vm_context.intern_string(title)),
+            subtitle: destack_vm::StringHandle::new(vm_context.intern_string(subtitle)),
+            message: destack_vm::StringHandle::new(vm_context.intern_string(message)),
             requirement,
         };
 
@@ -176,7 +182,8 @@ pub(super) fn decode_credential_record_value(
         }
         HarnessValue::Vm(value) => {
             let vm_context = vm_context_pointer(context).expect("vm context should be available");
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context =
+                unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
             let service = vm_context
                 .string_ref(value.service)
                 .map_err(|error| RuntimeError::from(error).boxed())?

@@ -4,6 +4,8 @@ use std::sync::{Arc, OnceLock};
 use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostic::RuntimeError;
+
 #[cfg(target_os = "macos")]
 use super::host::MacosRouteRuntimeState;
 #[cfg(windows)]
@@ -45,15 +47,12 @@ impl PlatformNetState {
     }
 
     /// Capture one network-state image.
-    fn image(
-        &self,
-        mode: CaptureMode,
-    ) -> Result<PlatformNetImage, Box<crate::diagnostic::RuntimeError>> {
+    fn image(&self, mode: CaptureMode) -> Result<PlatformNetImage, Box<RuntimeError>> {
         if !self.has_runtime_state() {
             return Ok(PlatformNetImage);
         }
 
-        Err(crate::diagnostic::RuntimeError::CaptureBarrier {
+        Err(RuntimeError::CaptureBarrier {
             component: "platform.net".to_string(),
             mode: format!("{mode:?}"),
             detail: "runtime state is active".to_string(),
@@ -92,7 +91,7 @@ pub struct PlatformNetImage;
 
 impl Capture for PlatformNetState {
     type Image = PlatformNetImage;
-    type Error = Box<crate::diagnostic::RuntimeError>;
+    type Error = Box<RuntimeError>;
     type CaptureContext<'a> = ();
     type RestoreContext<'a> = ();
 

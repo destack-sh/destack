@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::display::unix::appkit::{core as appkit_core, resource as display_resource};
-use crate::platform::display::{WindowEvent, WindowEventOpenOptions, options as display_options};
+use crate::platform;
+use crate::platform::display::{WindowEvent, WindowEventOpenOptions};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeArray, core as core_platform, resource};
+use crate::platform::{NativeArray, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::bindings::BindingAffinity;
 
@@ -14,18 +14,20 @@ use crate::platform::display::unix::appkit::event::queue::{
     trim_window_events,
 };
 use crate::platform::display::unix::appkit::event::{
-    WindowEventFilterState, WindowEventState, WindowEventStream,
+    WindowEventFilterState, WindowEventRecord, WindowEventState, WindowEventStream,
 };
 
 /// Return the next window event available to one stream.
 fn next_visible_window_event(
-    runtime_state: &Arc<appkit_core::AppKitRuntimeState>,
+    runtime_state: &Arc<platform::display::unix::appkit::core::AppKitRuntimeState>,
     resolved_stream: &Arc<WindowEventStream>,
     operation: &'static str,
-) -> RuntimeResult<Option<crate::platform::display::unix::appkit::event::WindowEventRecord>> {
+) -> RuntimeResult<Option<WindowEventRecord>> {
     // surface queued overflow immediately
     if take_window_overflow_error(resolved_stream) {
-        return Err(appkit_core::overflow_error(operation));
+        return Err(platform::display::unix::appkit::core::overflow_error(
+            operation,
+        ));
     }
 
     // deliver seeded records before the live event log
@@ -40,7 +42,7 @@ fn next_visible_window_event(
 /// Return the next window event available to one stream.
 fn next_window_event(
     binding: &BindingCallContext,
-    runtime_state: &Arc<appkit_core::AppKitRuntimeState>,
+    runtime_state: &Arc<platform::display::unix::appkit::core::AppKitRuntimeState>,
     resolved_stream: &Arc<WindowEventStream>,
     operation: &'static str,
 ) -> RuntimeResult<Option<WindowEvent>> {
@@ -55,7 +57,7 @@ fn next_window_event(
 /// Drain up to `maxevents` window events for one stream.
 fn drain_window_events(
     binding: &BindingCallContext,
-    runtime_state: &Arc<appkit_core::AppKitRuntimeState>,
+    runtime_state: &Arc<platform::display::unix::appkit::core::AppKitRuntimeState>,
     resolved_stream: &Arc<WindowEventStream>,
     maxevents: usize,
     operation: &'static str,
@@ -85,11 +87,11 @@ pub(crate) unsafe fn window_event_open(
     options: WindowEventOpenOptions,
 ) -> RuntimeResult<()> {
     // validate out pointer and parse the filter payload
-    core_platform::ensure_out(out, "out")?;
+    platform::core::ensure_out(out, "out")?;
     let filter = WindowEventFilterState::from_open_options(options)?;
 
     // capture the current live frontier for this new subscription
-    let runtime_state = appkit_core::runtime_state(binding);
+    let runtime_state = platform::display::unix::appkit::core::runtime_state(binding);
     let next_live_sequence = {
         let window_events = runtime_state
             .window_events
@@ -102,7 +104,7 @@ pub(crate) unsafe fn window_event_open(
     let resolved_stream = Arc::new(WindowEventStream {
         stream_id: runtime_state.next_window_stream_id(),
         state: std::sync::Mutex::new(WindowEventState {
-            queue_capacity: display_options::resolved_event_queue_capacity(
+            queue_capacity: platform::display::options::resolved_event_queue_capacity(
                 binding,
                 options.queue.queue_capacity,
             ),
@@ -121,7 +123,7 @@ pub(crate) unsafe fn window_event_open(
     let resource_id = binding.agent().resources.insert(
         binding.world(),
         ResourceEntry::new(ResourceKind::Window)
-            .with_label(appkit_core::WINDOW_EVENT_RESOURCE_LABEL)
+            .with_label(platform::display::unix::appkit::core::WINDOW_EVENT_RESOURCE_LABEL)
             .with_binding_affinity(BindingAffinity::EventLoop, binding.execution_context())
             .with_payload(Arc::clone(&resolved_stream)),
         Some(binding.engine()),
@@ -142,12 +144,12 @@ pub(crate) unsafe fn window_event_close(
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
     // resolve the stream before removing it from the registry
-    let resolved_stream = display_resource::resolve_window_event_stream(
+    let resolved_stream = platform::display::unix::appkit::resource::resolve_window_event_stream(
         binding,
         handle,
         "destack.display.window.eventClose",
     )?;
-    let runtime_state = appkit_core::runtime_state(binding);
+    let runtime_state = platform::display::unix::appkit::core::runtime_state(binding);
 
     // remove the stream entry and trim any now-unreachable live records
     runtime_state.unregister_window_stream(resolved_stream.stream_id);
@@ -162,7 +164,7 @@ pub(crate) unsafe fn window_event_close(
 
     // reject unknown handles loudly
     if !removed {
-        return Err(core_platform::io_not_found(
+        return Err(platform::core::io_not_found(
             "destack.display.window.eventClose",
             format!("window event handle {} was not found", handle.0.0),
         ));
@@ -179,16 +181,16 @@ pub(crate) unsafe fn window_event_read(
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     // validate out pointer and resolve the stream payload
-    core_platform::ensure_out(out, "out")?;
-    let resolved_stream = display_resource::resolve_window_event_stream(
+    platform::core::ensure_out(out, "out")?;
+    let resolved_stream = platform::display::unix::appkit::resource::resolve_window_event_stream(
         binding,
         handle,
         "destack.display.window.eventRead",
     )?;
 
-    let runtime_state = appkit_core::runtime_state(binding);
-    let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
-    let wait_slice_ns = display_options::event_wait_slice_ns(binding);
+    let runtime_state = platform::display::unix::appkit::core::runtime_state(binding);
+    let deadline = platform::core::monotonic_now_ns().saturating_add(timeoutns);
+    let wait_slice_ns = platform::display::options::event_wait_slice_ns(binding);
 
     // wait until one seeded or live record becomes visible
     let event = binding.wait_for_binding_result(
@@ -233,17 +235,17 @@ pub(crate) unsafe fn window_event_read_batch(
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     // validate out pointer and batch size
-    core_platform::ensure_out(out, "out")?;
-    let maxevents = core_platform::u32_to_nonzero_usize("maxevents", maxevents)?;
-    let resolved_stream = display_resource::resolve_window_event_stream(
+    platform::core::ensure_out(out, "out")?;
+    let maxevents = platform::core::u32_to_nonzero_usize("maxevents", maxevents)?;
+    let resolved_stream = platform::display::unix::appkit::resource::resolve_window_event_stream(
         binding,
         handle,
         "destack.display.window.eventReadBatch",
     )?;
 
-    let runtime_state = appkit_core::runtime_state(binding);
-    let deadline = core_platform::monotonic_now_ns().saturating_add(timeoutns);
-    let wait_slice_ns = display_options::event_wait_slice_ns(binding);
+    let runtime_state = platform::display::unix::appkit::core::runtime_state(binding);
+    let deadline = platform::core::monotonic_now_ns().saturating_add(timeoutns);
+    let wait_slice_ns = platform::display::options::event_wait_slice_ns(binding);
 
     // wait until at least one event is available, then drain a bounded batch
     let events = binding.wait_for_binding_result(
@@ -293,15 +295,15 @@ pub(crate) unsafe fn window_event_try_read(
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
     // validate out pointer and resolve the stream payload
-    core_platform::ensure_out(out, "out")?;
-    let resolved_stream = display_resource::resolve_window_event_stream(
+    platform::core::ensure_out(out, "out")?;
+    let resolved_stream = platform::display::unix::appkit::resource::resolve_window_event_stream(
         binding,
         handle,
         "destack.display.window.eventTryRead",
     )?;
 
     // return one event when the stream already has work visible
-    let runtime_state = appkit_core::runtime_state(binding);
+    let runtime_state = platform::display::unix::appkit::core::runtime_state(binding);
     let Some(event) = next_window_event(
         binding,
         &runtime_state,
@@ -309,7 +311,7 @@ pub(crate) unsafe fn window_event_try_read(
         "destack.display.window.eventTryRead",
     )?
     else {
-        return Err(core_platform::io_would_block(
+        return Err(platform::core::io_would_block(
             "destack.display.window.eventTryRead",
             "no window event is currently queued",
         ));
@@ -329,16 +331,16 @@ pub(crate) unsafe fn window_event_try_read_batch(
     maxevents: u32,
 ) -> RuntimeResult<()> {
     // validate out pointer and batch size
-    core_platform::ensure_out(out, "out")?;
-    let maxevents = core_platform::u32_to_nonzero_usize("maxevents", maxevents)?;
-    let resolved_stream = display_resource::resolve_window_event_stream(
+    platform::core::ensure_out(out, "out")?;
+    let maxevents = platform::core::u32_to_nonzero_usize("maxevents", maxevents)?;
+    let resolved_stream = platform::display::unix::appkit::resource::resolve_window_event_stream(
         binding,
         handle,
         "destack.display.window.eventTryReadBatch",
     )?;
 
     // drain one bounded batch immediately
-    let runtime_state = appkit_core::runtime_state(binding);
+    let runtime_state = platform::display::unix::appkit::core::runtime_state(binding);
     let events = drain_window_events(
         binding,
         &runtime_state,
@@ -349,7 +351,7 @@ pub(crate) unsafe fn window_event_try_read_batch(
 
     // report would-block when the stream is currently empty
     if events.is_empty() {
-        return Err(core_platform::io_would_block(
+        return Err(platform::core::io_would_block(
             "destack.display.window.eventTryReadBatch",
             "no window event is currently queued",
         ));

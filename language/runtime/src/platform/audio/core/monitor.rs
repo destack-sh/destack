@@ -5,7 +5,9 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::audio::{AudioBackend, AudioEventDeliveryMode, backend as audio_backend};
+use crate::platform::audio::{
+    AudioBackend, AudioEventDeliveryMode, AudioEventSource, backend as audio_backend,
+};
 use crate::runtime::{AgentId, ProcessSubscriberRegistry};
 
 use super::constants::host_monotonic_nanos;
@@ -271,7 +273,7 @@ impl AudioMonitorServiceRegistry {
                 backend,
                 &snapshot,
                 now,
-                crate::platform::audio::AudioEventSource::Native,
+                AudioEventSource::Native,
             );
         }
     }
@@ -451,7 +453,7 @@ fn start_synthetic_monitor_worker(
                         backend,
                         &snapshot,
                         now,
-                        crate::platform::audio::AudioEventSource::SyntheticPoll,
+                        AudioEventSource::SyntheticPoll,
                     );
                 }
             }

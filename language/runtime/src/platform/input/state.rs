@@ -4,6 +4,8 @@ use std::sync::{Arc, OnceLock};
 use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostic::RuntimeError;
+
 #[cfg(windows)]
 use super::host::WindowsRawInputRuntimeState;
 
@@ -35,15 +37,12 @@ impl PlatformInputState {
     }
 
     /// Capture one input-state image.
-    fn image(
-        &self,
-        mode: CaptureMode,
-    ) -> Result<PlatformInputImage, Box<crate::diagnostic::RuntimeError>> {
+    fn image(&self, mode: CaptureMode) -> Result<PlatformInputImage, Box<RuntimeError>> {
         if !self.has_runtime_state() {
             return Ok(PlatformInputImage);
         }
 
-        Err(crate::diagnostic::RuntimeError::CaptureBarrier {
+        Err(RuntimeError::CaptureBarrier {
             component: "platform.input".to_string(),
             mode: format!("{mode:?}"),
             detail: "runtime state is active".to_string(),
@@ -70,7 +69,7 @@ pub struct PlatformInputImage;
 
 impl Capture for PlatformInputState {
     type Image = PlatformInputImage;
-    type Error = Box<crate::diagnostic::RuntimeError>;
+    type Error = Box<RuntimeError>;
     type CaptureContext<'a> = ();
     type RestoreContext<'a> = ();
 

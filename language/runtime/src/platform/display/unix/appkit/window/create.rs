@@ -11,16 +11,18 @@ use objc2_core_graphics::{kCGFloatingWindowLevel, kCGNormalWindowLevel};
 use objc2_foundation::{NSArray, NSSize, NSString};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::display::{WindowOptions, WindowRole, WindowVisibility};
-use crate::platform::{core as core_platform, resource};
+use crate::platform;
+use crate::platform::display::{WindowModeOptions, WindowOptions, WindowRole, WindowVisibility};
+use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 
 use super::constants::DEFAULT_WINDOW_OPACITY;
 use super::cursor::apply_cursor_policy;
 use super::{core, drop, geometry, mode, options, reconcile, relation};
+use crate::platform::display::unix::appkit;
+use crate::platform::display::unix::appkit::core::AppKitWindowHost;
 use crate::platform::display::unix::appkit::core::delegate::AppKitWindowDelegate;
-use crate::platform::display::unix::appkit::core::{self as appkit_core, AppKitWindowHost};
-use crate::platform::display::unix::appkit::{event, resource as display_resource};
+use crate::platform::display::unix::appkit::event;
 
 /// Create one native AppKit window object.
 fn create_native_window(
@@ -70,12 +72,12 @@ pub(crate) unsafe fn window_open(
     out: *mut resource::WindowHandle,
     options: WindowOptions,
 ) -> RuntimeResult<()> {
-    core_platform::ensure_out(out, "out")?;
+    platform::core::ensure_out(out, "out")?;
     let title = unsafe { options.title.as_str()? };
 
     // validate caller size inputs
     if options.size_logical.width <= 0.0 || options.size_logical.height <= 0.0 {
-        return Err(core_platform::invalid_argument(
+        return Err(platform::core::invalid_argument(
             "sizeLogical",
             "window logical width and height must be greater than zero",
         ));
@@ -89,7 +91,7 @@ pub(crate) unsafe fn window_open(
     let resolved_display = mode::mode_display(options.mode).or(options.display);
 
     if let Some(display) = resolved_display {
-        display_resource::resolve_display_id(context, display, "destack.display.window.open")?;
+        appkit::resource::resolve_display_id(context, display, "destack.display.window.open")?;
     }
 
     // apply role-specific host defaults
@@ -114,14 +116,14 @@ pub(crate) unsafe fn window_open(
         &resolved_options,
         title,
     )));
-    let entry = display_resource::window_resource_entry(context, Arc::clone(&host_state));
+    let entry = appkit::resource::window_resource_entry(context, Arc::clone(&host_state));
     let resource_id =
         context
             .agent()
             .resources
             .insert(context.world(), entry, Some(context.engine()));
     let window_handle = resource::WindowHandle(resource_id);
-    let runtime_state = appkit_core::runtime_state(context);
+    let runtime_state = appkit::core::runtime_state(context);
     let host_state_for_delegate = Arc::clone(&host_state);
     let runtime_state_for_delegate = Arc::clone(&runtime_state);
     let initial_display_frame = if let Some(display) = resolved_options.display {
@@ -195,7 +197,7 @@ pub(crate) unsafe fn window_open(
         if let Some(frame) = initial_display_frame {
             if matches!(
                 resolved_options.mode,
-                crate::platform::display::WindowModeOptions::WindowBorderlessModeOptions(_)
+                WindowModeOptions::WindowBorderlessModeOptions(_)
             ) {
                 window.setFrame_display(frame, true);
             } else if resolved_options.position.is_none() {
@@ -230,7 +232,7 @@ pub(crate) unsafe fn window_open(
         // apply initial borderless fullscreen after the window becomes known to AppKit
         if matches!(
             resolved_options.mode,
-            crate::platform::display::WindowModeOptions::WindowBorderlessModeOptions(_)
+            WindowModeOptions::WindowBorderlessModeOptions(_)
         ) {
             window.toggleFullScreen(None);
         }
@@ -275,7 +277,7 @@ pub(crate) unsafe fn window_open(
         initial_modal,
         "destack.display.window.open",
     ) {
-        appkit_core::with_main_thread_state(&runtime_state, |state| {
+        appkit::core::with_main_thread_state(&runtime_state, |state| {
             let mut state = state.borrow_mut();
 
             if let Some(host) = state.windows.remove(&window_handle) {

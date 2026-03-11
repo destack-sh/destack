@@ -16,7 +16,7 @@ use crate::analyze::{
     normalize_binding_catalog, validate_binding_catalog,
 };
 use crate::capability::generate_platform_capability_kind;
-use crate::emit::render_platform_bindings_index;
+use crate::emit::{RenderSpec, render_platform_bindings_index};
 use crate::model::{ModuleAbiTypes, ModuleSpec, WorkspaceLayout};
 use crate::option::parse_generator_options;
 
@@ -541,7 +541,7 @@ impl RuntimeGenerator {
         module: &ModuleSpec,
         bindings: &BTreeMap<String, BindingEntry>,
     ) {
-        let generated = crate::emit::RenderSpec::new(&module.name, bindings).render();
+        let generated = RenderSpec::new(&module.name, bindings).render();
 
         self.write_file(&module.layout.bindings_path, &generated);
     }

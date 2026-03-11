@@ -1,8 +1,8 @@
 use std::os::raw::c_void;
 use std::ptr;
 
-use crate::diagnostic::RuntimeResult;
-use crate::platform::core as core_platform;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
 };
@@ -216,13 +216,10 @@ pub(crate) fn create_dictionary(
 }
 
 /// Map one keychain status code into one runtime error.
-pub(crate) fn map_keychain_status(
-    operation: &'static str,
-    status: OSStatus,
-) -> Box<crate::diagnostic::RuntimeError> {
+pub(crate) fn map_keychain_status(operation: &'static str, status: OSStatus) -> Box<RuntimeError> {
     // map missing keychain records
     if status == errSecItemNotFound {
-        return core_platform::io_not_found(operation, "credential record not found");
+        return platform::core::io_not_found(operation, "credential record not found");
     }
 
     // map duplicate records for create-only writes
@@ -232,7 +229,7 @@ pub(crate) fn map_keychain_status(
 
     // map malformed request payloads
     if status == errSecParam {
-        return core_platform::invalid_argument(
+        return platform::core::invalid_argument(
             "credential",
             format!("keychain rejected credential request with status {status}"),
         );
@@ -240,7 +237,7 @@ pub(crate) fn map_keychain_status(
 
     // map backend argument and request-shape errors
     if status == errSecBadReq {
-        return core_platform::invalid_argument(
+        return platform::core::invalid_argument(
             "credential",
             format!("keychain rejected one malformed credential request with status {status}"),
         );
@@ -285,7 +282,7 @@ pub(crate) fn map_keychain_status(
 
     // map backend unavailability to notSupported
     if status == errSecUnimplemented {
-        return core_platform::not_supported(operation);
+        return platform::core::not_supported(operation);
     }
 
     // map internal security-framework component failures into ioInvalidData

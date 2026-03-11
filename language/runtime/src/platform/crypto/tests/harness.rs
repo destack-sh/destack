@@ -1,4 +1,4 @@
-use destack_vm as vm;
+use destack_vm;
 
 use super::CryptoHarnessContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -117,7 +117,7 @@ fn key_wrap_rows_from_native(
 
 /// Decode key-wrap capability rows from vm representation.
 fn key_wrap_rows_from_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     rows: &[CryptoStoreKeyWrapCapabilityVm],
 ) -> RuntimeResult<Vec<HarnessStoreKeyWrapCapability>> {
     let mut decoded = Vec::with_capacity(rows.len());
@@ -167,21 +167,21 @@ fn key_rows_from_vm(
 
 /// Convert one native string into one VM string handle.
 fn vm_string_from_native(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: NativeStringRef,
-) -> RuntimeResult<vm::StringHandle> {
+) -> RuntimeResult<destack_vm::StringHandle> {
     // decode native utf8 string
     let value = unsafe { value.as_str()? };
 
     // intern and return vm handle
-    Ok(vm::StringHandle::new(context.intern_string(value)))
+    Ok(destack_vm::StringHandle::new(context.intern_string(value)))
 }
 
 /// Convert one optional native string into one optional VM string handle.
 fn vm_optional_string_from_native(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: Option<NativeStringRef>,
-) -> RuntimeResult<Option<vm::StringHandle>> {
+) -> RuntimeResult<Option<destack_vm::StringHandle>> {
     // route absent values through unchanged
     let Some(value) = value else {
         return Ok(None);
@@ -195,7 +195,7 @@ fn vm_optional_string_from_native(
 
 /// Convert one native byte slice into one VM byte slice.
 fn vm_bytes_from_native(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: NativeSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
     // decode native byte slice
@@ -209,7 +209,7 @@ fn vm_bytes_from_native(
 
 /// Convert one optional native byte slice into one optional VM byte slice.
 fn vm_optional_bytes_from_native(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: Option<NativeSlice<u8>>,
 ) -> RuntimeResult<Option<VmSlice<u8>>> {
     // route absent values through unchanged
@@ -225,7 +225,7 @@ fn vm_optional_bytes_from_native(
 
 /// Convert one native typed slice into one VM typed slice.
 fn vm_slice_from_native<T: Copy + VmValueCodec>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: NativeSlice<T>,
 ) -> RuntimeResult<VmSlice<T>> {
     // decode native typed slice
@@ -252,8 +252,8 @@ fn optional_native_string_to_string(value: Option<NativeStringRef>) -> RuntimeRe
 
 /// Decode one optional vm string into owned text.
 fn optional_vm_string_to_string(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: Option<vm::StringHandle>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    value: Option<destack_vm::StringHandle>,
 ) -> RuntimeResult<String> {
     // decode absent values as empty strings for harness comparisons
     let Some(value) = value else {
@@ -278,21 +278,21 @@ fn store_provider_or_default(provider: Option<CryptoStoreProvider>) -> CryptoSto
 impl<'call> CryptoHarnessContext<'call> {
     /// Return one VM context for this harness call.
     #[allow(clippy::mut_from_ref)]
-    fn vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
+    fn vm_context_mut(&self) -> Option<&mut destack_vm::ExternalCallContext<'_>> {
         // project stored opaque vm pointer into a mutable vm context
         self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+            .map(|context| unsafe { &mut *(context as *mut destack_vm::ExternalCallContext<'_>) })
     }
 
     /// Build one backend-specific string value.
     pub(crate) fn string_value(
         &self,
         value: &str,
-    ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
+    ) -> HarnessValue<NativeStringRef, destack_vm::StringHandle> {
         // route string encoding to the active engine
         match self.vm_context_mut() {
             Some(context) => {
-                self.harness_value_vm(vm::StringHandle::new(context.intern_string(value)))
+                self.harness_value_vm(destack_vm::StringHandle::new(context.intern_string(value)))
             }
             None => self.harness_value(self.call_context.store_string(value)),
         }
@@ -518,8 +518,10 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let namespace =
-                    optional_vm_string_to_string(context, value.store_provenance.identity.namespace)?;
+                let namespace = optional_vm_string_to_string(
+                    context,
+                    value.store_provenance.identity.namespace,
+                )?;
                 Ok((
                     value.store_provenance.identity.kind,
                     store_provider_or_default(value.store_provenance.identity.provider),
@@ -1054,7 +1056,10 @@ pub(crate) trait CryptoHarnessRequestValue: Sized {
     type Vm;
 
     /// Convert one native request value into one VM request value.
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm>;
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm>;
 }
 
 macro_rules! impl_identity_request_value {
@@ -1065,7 +1070,7 @@ macro_rules! impl_identity_request_value {
 
                 fn into_vm_value(
                     self,
-                    _context: &mut vm::ExternalCallContext<'_>,
+                    _context: &mut destack_vm::ExternalCallContext<'_>,
                 ) -> RuntimeResult<Self::Vm> {
                     Ok(self)
                 }
@@ -1079,7 +1084,10 @@ impl_identity_request_value!(CryptoSignatureParameters, CryptoMacParameters,);
 impl CryptoHarnessRequestValue for CryptoStoreOptions {
     type Vm = CryptoStoreOptionsVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoStoreOptionsVm {
             kind: self.kind,
             provider: self.provider,
@@ -1091,7 +1099,10 @@ impl CryptoHarnessRequestValue for CryptoStoreOptions {
 impl CryptoHarnessRequestValue for CryptoAgreementDeriveKeyRequest {
     type Vm = CryptoAgreementDeriveKeyRequestVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoAgreementDeriveKeyRequestVm {
             algorithm: self.algorithm,
             digest: self.digest,
@@ -1105,7 +1116,10 @@ impl CryptoHarnessRequestValue for CryptoAgreementDeriveKeyRequest {
 impl CryptoHarnessRequestValue for CryptoArgon2idRequest {
     type Vm = CryptoArgon2idRequestVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoArgon2idRequestVm {
             password: vm_bytes_from_native(context, self.password)?,
             salt: vm_bytes_from_native(context, self.salt)?,
@@ -1122,7 +1136,10 @@ impl CryptoHarnessRequestValue for CryptoArgon2idRequest {
 impl CryptoHarnessRequestValue for CryptoAsymmetricEncryptionParameters {
     type Vm = CryptoAsymmetricEncryptionParametersVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoAsymmetricEncryptionParametersVm {
             algorithm: self.algorithm,
             digest: self.digest,
@@ -1134,7 +1151,10 @@ impl CryptoHarnessRequestValue for CryptoAsymmetricEncryptionParameters {
 impl CryptoHarnessRequestValue for CryptoCertificateVerifyRequest {
     type Vm = CryptoCertificateVerifyRequestVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoCertificateVerifyRequestVm {
             leaf: self.leaf,
             intermediates: vm_slice_from_native(context, self.intermediates)?,
@@ -1157,7 +1177,10 @@ impl CryptoHarnessRequestValue for CryptoCertificateVerifyRequest {
 impl CryptoHarnessRequestValue for CryptoCipherParameters {
     type Vm = CryptoCipherParametersVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoCipherParametersVm {
             algorithm: self.algorithm,
             nonce: vm_bytes_from_native(context, self.nonce)?,
@@ -1171,7 +1194,10 @@ impl CryptoHarnessRequestValue for CryptoCipherParameters {
 impl CryptoHarnessRequestValue for CryptoHkdfRequest {
     type Vm = CryptoHkdfRequestVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoHkdfRequestVm {
             digest: self.digest,
             input_key_material: vm_bytes_from_native(context, self.input_key_material)?,
@@ -1185,7 +1211,10 @@ impl CryptoHarnessRequestValue for CryptoHkdfRequest {
 impl CryptoHarnessRequestValue for CryptoKeyGenerationRequest {
     type Vm = CryptoKeyGenerationRequestVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         match self {
             CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(value) => {
                 Ok(CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestAes(
@@ -1319,7 +1348,10 @@ impl CryptoHarnessRequestValue for CryptoKeyGenerationRequest {
 impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
     type Vm = CryptoKeyImportRequestVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         match self {
             CryptoKeyImportRequest::CryptoKeyImportRequestAes(value) => {
                 Ok(CryptoKeyImportRequestVm::CryptoKeyImportRequestAes(
@@ -1466,7 +1498,10 @@ impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
 impl CryptoHarnessRequestValue for CryptoKeyWrapParameters {
     type Vm = CryptoKeyWrapParametersVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoKeyWrapParametersVm {
             algorithm: self.algorithm,
             digest: self.digest,
@@ -1478,7 +1513,10 @@ impl CryptoHarnessRequestValue for CryptoKeyWrapParameters {
 impl CryptoHarnessRequestValue for CryptoPrivateKeyExportRequest {
     type Vm = CryptoPrivateKeyExportRequestVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoPrivateKeyExportRequestVm {
             format: self.format,
             passphrase: vm_bytes_from_native(context, self.passphrase)?,
@@ -1489,7 +1527,10 @@ impl CryptoHarnessRequestValue for CryptoPrivateKeyExportRequest {
 impl CryptoHarnessRequestValue for CryptoKeyQuery {
     type Vm = CryptoKeyQueryVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoKeyQueryVm {
             label_prefix: vm_string_from_native(context, self.label_prefix)?,
             algorithm: self.algorithm,
@@ -1503,7 +1544,10 @@ impl CryptoHarnessRequestValue for CryptoKeyQuery {
 impl CryptoHarnessRequestValue for CryptoCertificateQuery {
     type Vm = CryptoCertificateQueryVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoCertificateQueryVm {
             subject_contains: vm_string_from_native(context, self.subject_contains)?,
             issuer_contains: vm_string_from_native(context, self.issuer_contains)?,
@@ -1520,7 +1564,10 @@ impl CryptoHarnessRequestValue for CryptoCertificateQuery {
 impl CryptoHarnessRequestValue for CryptoPbkdf2Request {
     type Vm = CryptoPbkdf2RequestVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoPbkdf2RequestVm {
             digest: self.digest,
             password: vm_bytes_from_native(context, self.password)?,
@@ -1534,7 +1581,10 @@ impl CryptoHarnessRequestValue for CryptoPbkdf2Request {
 impl CryptoHarnessRequestValue for CryptoScryptRequest {
     type Vm = CryptoScryptRequestVm;
 
-    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+    fn into_vm_value(
+        self,
+        context: &mut destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Vm> {
         Ok(CryptoScryptRequestVm {
             password: vm_bytes_from_native(context, self.password)?,
             salt: vm_bytes_from_native(context, self.salt)?,

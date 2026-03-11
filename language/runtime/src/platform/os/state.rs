@@ -4,6 +4,8 @@ use std::sync::{Arc, OnceLock};
 use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostic::RuntimeError;
+
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use super::credentials::NoReplaceWriteRuntimeState;
 
@@ -35,15 +37,12 @@ impl PlatformOsState {
     }
 
     /// Capture one OS-state image.
-    fn image(
-        &self,
-        mode: CaptureMode,
-    ) -> Result<PlatformOsImage, Box<crate::diagnostic::RuntimeError>> {
+    fn image(&self, mode: CaptureMode) -> Result<PlatformOsImage, Box<RuntimeError>> {
         if !self.has_runtime_state() {
             return Ok(PlatformOsImage);
         }
 
-        Err(crate::diagnostic::RuntimeError::CaptureBarrier {
+        Err(RuntimeError::CaptureBarrier {
             component: "platform.os".to_string(),
             mode: format!("{mode:?}"),
             detail: "runtime state is active".to_string(),
@@ -70,7 +69,7 @@ pub struct PlatformOsImage;
 
 impl Capture for PlatformOsState {
     type Image = PlatformOsImage;
-    type Error = Box<crate::diagnostic::RuntimeError>;
+    type Error = Box<RuntimeError>;
     type CaptureContext<'a> = ();
     type RestoreContext<'a> = ();
 

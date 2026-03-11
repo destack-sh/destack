@@ -1,4 +1,4 @@
-use destack_vm as vm;
+use destack_vm::{ExternalCallContext, StringHandle};
 
 use super::{
     AudioBackend, AudioBackendDescriptor, AudioBackendDescriptorVm, AudioBackendSelectionPolicy,
@@ -10,40 +10,30 @@ use super::{
     AudioStreamTimingVm, native as native_audio,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform;
 use crate::platform::core::{
     bytes_to_vm, call_out, intern_string_to_vm as string_to_vm, map_native_slice_to_vm,
     store_bytes_from_vm as bytes_from_vm, store_string_from_vm as string_from_vm,
     store_vm_byte_slices,
 };
-use crate::platform::{PlatformError, VmArray, VmSlice, audio as audio_platform, resource};
+use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::{BindingCallContext, NativeSlice};
 
 type NativeByteVectors = NativeSlice<NativeSlice<u8>>;
 type VmByteVectorList = Vec<VmSlice<u8>>;
 
-/// Convert one VM device-open options payload into one native payload.
-fn device_open_options_from_vm(
-    value: AudioDeviceOpenOptionsVm,
-) -> RuntimeResult<AudioDeviceOpenOptions> {
-    Ok(AudioDeviceOpenOptions {
-        direction: value.direction,
-        backend: value.backend,
-        backend_policy: value.backend_policy,
-        share_mode: value.share_mode,
-        flags: value.flags,
-    })
-}
-
 /// Convert one native descriptor payload into one vm descriptor payload.
 fn device_descriptor_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     value: AudioDeviceDescriptor,
 ) -> RuntimeResult<AudioDeviceDescriptorVm> {
     Ok(AudioDeviceDescriptorVm {
-        id: vm::StringHandle::new(context.intern_string(unsafe { value.id.as_str()? })),
-        group_id: vm::StringHandle::new(context.intern_string(unsafe { value.group_id.as_str()? })),
-        name: vm::StringHandle::new(context.intern_string(unsafe { value.name.as_str()? })),
-        transport: vm::StringHandle::new(
+        id: StringHandle::new(context.intern_string(unsafe { value.id.as_str()? })),
+        group_id: StringHandle::new(
+            context.intern_string(unsafe { value.group_id.as_str()? }),
+        ),
+        name: StringHandle::new(context.intern_string(unsafe { value.name.as_str()? })),
+        transport: StringHandle::new(
             context.intern_string(unsafe { value.transport.as_str()? }),
         ),
         backend: value.backend,
@@ -77,12 +67,12 @@ fn device_descriptor_to_vm(
 
 /// Convert one native backend descriptor payload into one vm descriptor payload.
 fn backend_descriptor_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     value: AudioBackendDescriptor,
 ) -> RuntimeResult<AudioBackendDescriptorVm> {
     Ok(AudioBackendDescriptorVm {
         backend: value.backend,
-        name: vm::StringHandle::new(context.intern_string(unsafe { value.name.as_str()? })),
+        name: StringHandle::new(context.intern_string(unsafe { value.name.as_str()? })),
         support: value.support,
         priority: value.priority,
         capability_flags: value.capability_flags,
@@ -97,14 +87,14 @@ fn backend_descriptor_to_vm(
 
 /// Convert one native event payload into one vm event payload.
 fn event_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     value: AudioEvent,
 ) -> RuntimeResult<AudioEventVm> {
     match value {
         AudioEvent::AudioBackendDisconnectedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             Ok(AudioEventVm::AudioBackendDisconnectedEvent(
-                audio_platform::AudioBackendDisconnectedEventVm {
+                platform::audio::AudioBackendDisconnectedEventVm {
                     kind,
                     metadata: event.metadata,
                     payload: event.payload,
@@ -114,7 +104,7 @@ fn event_to_vm(
         AudioEvent::AudioBackendResetEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             Ok(AudioEventVm::AudioBackendResetEvent(
-                audio_platform::AudioBackendResetEventVm {
+                platform::audio::AudioBackendResetEventVm {
                     kind,
                     metadata: event.metadata,
                     payload: event.payload,
@@ -129,10 +119,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDefaultCaptureChangedEvent(
-                audio_platform::AudioDefaultCaptureChangedEventVm {
+                platform::audio::AudioDefaultCaptureChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: audio_platform::AudioDefaultCaptureChangedPayloadVm { device_id },
+                    payload: platform::audio::AudioDefaultCaptureChangedPayloadVm { device_id },
                 },
             ))
         }
@@ -144,10 +134,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDefaultLoopbackChangedEvent(
-                audio_platform::AudioDefaultLoopbackChangedEventVm {
+                platform::audio::AudioDefaultLoopbackChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: audio_platform::AudioDefaultLoopbackChangedPayloadVm { device_id },
+                    payload: platform::audio::AudioDefaultLoopbackChangedPayloadVm { device_id },
                 },
             ))
         }
@@ -159,10 +149,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDefaultPlaybackChangedEvent(
-                audio_platform::AudioDefaultPlaybackChangedEventVm {
+                platform::audio::AudioDefaultPlaybackChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: audio_platform::AudioDefaultPlaybackChangedPayloadVm { device_id },
+                    payload: platform::audio::AudioDefaultPlaybackChangedPayloadVm { device_id },
                 },
             ))
         }
@@ -174,10 +164,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDeviceAddedEvent(
-                audio_platform::AudioDeviceAddedEventVm {
+                platform::audio::AudioDeviceAddedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: audio_platform::AudioDeviceAddedPayloadVm { device_id },
+                    payload: platform::audio::AudioDeviceAddedPayloadVm { device_id },
                 },
             ))
         }
@@ -189,10 +179,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDeviceFormatChangedEvent(
-                audio_platform::AudioDeviceFormatChangedEventVm {
+                platform::audio::AudioDeviceFormatChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: audio_platform::AudioDeviceFormatChangedPayloadVm { device_id },
+                    payload: platform::audio::AudioDeviceFormatChangedPayloadVm { device_id },
                 },
             ))
         }
@@ -204,10 +194,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDeviceRemovedEvent(
-                audio_platform::AudioDeviceRemovedEventVm {
+                platform::audio::AudioDeviceRemovedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: audio_platform::AudioDeviceRemovedPayloadVm { device_id },
+                    payload: platform::audio::AudioDeviceRemovedPayloadVm { device_id },
                 },
             ))
         }
@@ -219,17 +209,17 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioDeviceReroutedEvent(
-                audio_platform::AudioDeviceReroutedEventVm {
+                platform::audio::AudioDeviceReroutedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: audio_platform::AudioDeviceReroutedPayloadVm { device_id },
+                    payload: platform::audio::AudioDeviceReroutedPayloadVm { device_id },
                 },
             ))
         }
         AudioEvent::AudioInterruptionBeganEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             Ok(AudioEventVm::AudioInterruptionBeganEvent(
-                audio_platform::AudioInterruptionBeganEventVm {
+                platform::audio::AudioInterruptionBeganEventVm {
                     kind,
                     metadata: event.metadata,
                     payload: event.payload,
@@ -239,7 +229,7 @@ fn event_to_vm(
         AudioEvent::AudioInterruptionEndedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             Ok(AudioEventVm::AudioInterruptionEndedEvent(
-                audio_platform::AudioInterruptionEndedEventVm {
+                platform::audio::AudioInterruptionEndedEventVm {
                     kind,
                     metadata: event.metadata,
                     payload: event.payload,
@@ -254,10 +244,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioStreamDeviceChangedEvent(
-                audio_platform::AudioStreamDeviceChangedEventVm {
+                platform::audio::AudioStreamDeviceChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: audio_platform::AudioStreamDeviceChangedPayloadVm {
+                    payload: platform::audio::AudioStreamDeviceChangedPayloadVm {
                         stream: event.payload.stream,
                         status_flags: event.payload.status_flags,
                         device_id,
@@ -268,7 +258,7 @@ fn event_to_vm(
         AudioEvent::AudioStreamStateChangedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             Ok(AudioEventVm::AudioStreamStateChangedEvent(
-                audio_platform::AudioStreamStateChangedEventVm {
+                platform::audio::AudioStreamStateChangedEventVm {
                     kind,
                     metadata: event.metadata,
                     payload: event.payload,
@@ -283,10 +273,10 @@ fn event_to_vm(
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
             Ok(AudioEventVm::AudioStreamXRunEvent(
-                audio_platform::AudioStreamXRunEventVm {
+                platform::audio::AudioStreamXRunEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: audio_platform::AudioStreamXRunPayloadVm {
+                    payload: platform::audio::AudioStreamXRunPayloadVm {
                         stream: event.payload.stream,
                         status_flags: event.payload.status_flags,
                         xrun_count_delta: event.payload.xrun_count_delta,
@@ -300,15 +290,15 @@ fn event_to_vm(
 
 /// Convert one native stream snapshot payload into one vm payload.
 fn stream_descriptor_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     value: AudioStreamDescriptor,
 ) -> RuntimeResult<AudioStreamDescriptorVm> {
     Ok(AudioStreamDescriptorVm {
         backend: value.backend,
-        backend_id: vm::StringHandle::new(
+        backend_id: StringHandle::new(
             context.intern_string(unsafe { value.backend_id.as_str()? }),
         ),
-        device_id: vm::StringHandle::new(
+        device_id: StringHandle::new(
             context.intern_string(unsafe { value.device_id.as_str()? }),
         ),
         sample_rate: value.sample_rate,
@@ -334,40 +324,10 @@ fn stream_descriptor_to_vm(
     })
 }
 
-/// Convert one native descriptor slice into one vm slice.
-fn descriptor_slice_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeSlice<AudioDeviceDescriptor>,
-) -> RuntimeResult<VmSlice<AudioDeviceDescriptorVm>> {
-    map_native_slice_to_vm(context, values, |context, value| {
-        device_descriptor_to_vm(context, *value)
-    })
-}
-
-/// Convert one native backend-descriptor slice into one vm slice.
-fn backend_slice_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeSlice<AudioBackendDescriptor>,
-) -> RuntimeResult<VmSlice<AudioBackendDescriptorVm>> {
-    map_native_slice_to_vm(context, values, |context, value| {
-        backend_descriptor_to_vm(context, *value)
-    })
-}
-
-/// Convert one native event slice into one vm slice.
-fn event_slice_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeSlice<AudioEvent>,
-) -> RuntimeResult<VmSlice<AudioEventVm>> {
-    map_native_slice_to_vm(context, values, |context, value| {
-        event_to_vm(context, *value)
-    })
-}
-
 /// Convert one VM vectorized byte-slice payload into one runtime vectorized payload.
 fn byte_vectors_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     values: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<NativeSlice<NativeSlice<u8>>> {
     store_vm_byte_slices(binding, context, values, "buffers")
@@ -376,7 +336,7 @@ fn byte_vectors_from_vm(
 /// Prepare writable native vectorized buffers from one VM vectorized payload.
 fn writable_byte_vectors_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     values: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<(VmByteVectorList, NativeByteVectors)> {
     let vm_values = values.read_values(context)?;
@@ -390,7 +350,7 @@ fn writable_byte_vectors_from_vm(
 
 /// Copy written native vectorized bytes back into one VM vectorized payload.
 fn copy_written_vectors_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     vm_values: &[VmSlice<u8>],
     native_values: NativeSlice<NativeSlice<u8>>,
     written: u64,
@@ -433,7 +393,7 @@ fn copy_written_vectors_to_vm(
 /// External, recordable.
 pub(crate) fn destack_audio_clock_now(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     domain: AudioClockDomain,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe { native_audio::destack_audio_clock_now(binding, out, domain) })
@@ -458,10 +418,13 @@ pub(crate) fn destack_audio_clock_now(
 /// External, recordable.
 pub(crate) fn destack_audio_backend_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<AudioBackendDescriptorVm>> {
     let values = call_out(|out| unsafe { native_audio::destack_audio_backend_list(binding, out) })?;
-    backend_slice_to_vm(context, values)
+
+    map_native_slice_to_vm(context, values, |context, value| {
+        backend_descriptor_to_vm(context, *value)
+    })
 }
 
 /// Read one stream clock snapshot.
@@ -488,7 +451,7 @@ pub(crate) fn destack_audio_backend_list(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_clock(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     domain: AudioStreamClockDomain,
 ) -> RuntimeResult<AudioClockSnapshotVm> {
@@ -530,7 +493,7 @@ pub(crate) fn destack_audio_stream_clock(
 /// External, recordable.
 pub(crate) fn destack_audio_device_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
     unsafe { native_audio::destack_audio_device_close(binding, handle) }
@@ -556,11 +519,11 @@ pub(crate) fn destack_audio_device_close(
 /// External, recordable.
 pub(crate) fn destack_audio_device_default(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     direction: AudioDeviceDirection,
     backend: AudioBackend,
     backend_policy: AudioBackendSelectionPolicy,
-) -> RuntimeResult<vm::StringHandle> {
+) -> RuntimeResult<StringHandle> {
     let value = call_out(|out| unsafe {
         native_audio::destack_audio_device_default(binding, out, direction, backend, backend_policy)
     })?;
@@ -586,7 +549,7 @@ pub(crate) fn destack_audio_device_default(
 /// External, recordable.
 pub(crate) fn destack_audio_device_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<AudioDeviceDescriptorVm> {
     let value = call_out(|out| unsafe {
@@ -614,13 +577,15 @@ pub(crate) fn destack_audio_device_descriptor(
 /// External, recordable.
 pub(crate) fn destack_audio_device_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     request: AudioDeviceListRequestVm,
 ) -> RuntimeResult<VmSlice<AudioDeviceDescriptorVm>> {
     let values =
         call_out(|out| unsafe { native_audio::destack_audio_device_list(binding, out, request) })?;
 
-    descriptor_slice_to_vm(context, values)
+    map_native_slice_to_vm(context, values, |context, value| {
+        device_descriptor_to_vm(context, *value)
+    })
 }
 
 /// Trigger one backend rescan.
@@ -642,7 +607,7 @@ pub(crate) fn destack_audio_device_list(
 /// External, recordable.
 pub(crate) fn destack_audio_device_rescan(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     backend: AudioBackend,
     backend_policy: AudioBackendSelectionPolicy,
 ) -> RuntimeResult<()> {
@@ -668,12 +633,19 @@ pub(crate) fn destack_audio_device_rescan(
 /// External, recordable.
 pub(crate) fn destack_audio_device_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    id: vm::StringHandle,
+    context: &mut ExternalCallContext<'_>,
+    id: StringHandle,
     options: AudioDeviceOpenOptionsVm,
 ) -> RuntimeResult<resource::AudioDeviceHandle> {
     let id = string_from_vm(binding, context, id)?;
-    let options = device_open_options_from_vm(options)?;
+    let options = AudioDeviceOpenOptions {
+        direction: options.direction,
+        backend: options.backend,
+        backend_policy: options.backend_policy,
+        share_mode: options.share_mode,
+        flags: options.flags,
+    };
+
     call_out(|out| unsafe { native_audio::destack_audio_device_open(binding, out, id, options) })
 }
 
@@ -696,7 +668,7 @@ pub(crate) fn destack_audio_device_open(
 /// External, recordable.
 pub(crate) fn destack_audio_event_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<()> {
     unsafe { native_audio::destack_audio_event_close(binding, handle) }
@@ -723,7 +695,7 @@ pub(crate) fn destack_audio_event_close(
 /// External, recordable.
 pub(crate) fn destack_audio_event_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     options: AudioEventSubscriptionOptionsVm,
 ) -> RuntimeResult<resource::AudioEventHandle> {
     call_out(|out| unsafe { native_audio::destack_audio_event_open(binding, out, options) })
@@ -748,7 +720,7 @@ pub(crate) fn destack_audio_event_open(
 /// External, recordable.
 pub(crate) fn destack_audio_event_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<AudioEventVm> {
@@ -779,7 +751,7 @@ pub(crate) fn destack_audio_event_read(
 /// External, recordable.
 pub(crate) fn destack_audio_event_read_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioEventHandle,
     maxevents: u32,
     timeoutns: u64,
@@ -788,7 +760,9 @@ pub(crate) fn destack_audio_event_read_batch(
         native_audio::destack_audio_event_read_batch(binding, out, handle, maxevents, timeoutns)
     })?;
 
-    event_slice_to_vm(context, values)
+    map_native_slice_to_vm(context, values, |context, value| {
+        event_to_vm(context, *value)
+    })
 }
 
 /// Poll one audio event without blocking.
@@ -810,7 +784,7 @@ pub(crate) fn destack_audio_event_read_batch(
 /// External, recordable.
 pub(crate) fn destack_audio_event_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioEventHandle,
 ) -> RuntimeResult<AudioEventVm> {
     let value = call_out(|out| unsafe {
@@ -839,7 +813,7 @@ pub(crate) fn destack_audio_event_try_read(
 /// External, recordable.
 pub(crate) fn destack_audio_event_try_read_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<VmSlice<AudioEventVm>> {
@@ -847,7 +821,9 @@ pub(crate) fn destack_audio_event_try_read_batch(
         native_audio::destack_audio_event_try_read_batch(binding, out, handle, maxevents)
     })?;
 
-    event_slice_to_vm(context, values)
+    map_native_slice_to_vm(context, values, |context, value| {
+        event_to_vm(context, *value)
+    })
 }
 
 /// Read one stream immediate availability sample.
@@ -869,7 +845,7 @@ pub(crate) fn destack_audio_event_try_read_batch(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_availability(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamAvailabilityVm> {
     call_out(|out| unsafe { native_audio::destack_audio_stream_availability(binding, out, handle) })
@@ -894,7 +870,7 @@ pub(crate) fn destack_audio_stream_availability(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     unsafe { native_audio::destack_audio_stream_close(binding, handle) }
@@ -919,7 +895,7 @@ pub(crate) fn destack_audio_stream_close(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_drain(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
@@ -945,7 +921,7 @@ pub(crate) fn destack_audio_stream_drain(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_flush(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     unsafe { native_audio::destack_audio_stream_flush(binding, handle) }
@@ -970,7 +946,7 @@ pub(crate) fn destack_audio_stream_flush(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamDescriptorVm> {
     let value = call_out(|out| unsafe {
@@ -1001,7 +977,7 @@ pub(crate) fn destack_audio_stream_descriptor(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfigVm,
     options: AudioStreamOpenOptionsVm,
@@ -1030,7 +1006,7 @@ pub(crate) fn destack_audio_stream_open(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_support(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfigVm,
     options: AudioStreamOpenOptionsVm,
@@ -1067,7 +1043,7 @@ pub(crate) fn destack_audio_stream_support(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
 ) -> RuntimeResult<VmSlice<u8>> {
@@ -1096,7 +1072,7 @@ pub(crate) fn destack_audio_stream_read(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_readv(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
@@ -1128,7 +1104,7 @@ pub(crate) fn destack_audio_stream_readv(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_set_mute(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     muted: bool,
 ) -> RuntimeResult<()> {
@@ -1154,9 +1130,9 @@ pub(crate) fn destack_audio_stream_set_mute(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_set_name(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
-    name: vm::StringHandle,
+    name: StringHandle,
 ) -> RuntimeResult<()> {
     let name = string_from_vm(binding, context, name)?;
     unsafe { native_audio::destack_audio_stream_set_name(binding, handle, name) }
@@ -1181,7 +1157,7 @@ pub(crate) fn destack_audio_stream_set_name(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_set_volume(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     lineargain: f64,
 ) -> RuntimeResult<()> {
@@ -1207,7 +1183,7 @@ pub(crate) fn destack_audio_stream_set_volume(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_start(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     unsafe { native_audio::destack_audio_stream_start(binding, handle) }
@@ -1232,7 +1208,7 @@ pub(crate) fn destack_audio_stream_start(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_pause(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     pause: bool,
 ) -> RuntimeResult<()> {
@@ -1258,7 +1234,7 @@ pub(crate) fn destack_audio_stream_pause(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_abort(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     unsafe { native_audio::destack_audio_stream_abort(binding, handle) }
@@ -1283,7 +1259,7 @@ pub(crate) fn destack_audio_stream_abort(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_state(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamStateVm> {
     call_out(|out| unsafe { native_audio::destack_audio_stream_state(binding, out, handle) })
@@ -1308,7 +1284,7 @@ pub(crate) fn destack_audio_stream_state(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_stop(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     unsafe { native_audio::destack_audio_stream_stop(binding, handle) }
@@ -1334,7 +1310,7 @@ pub(crate) fn destack_audio_stream_stop(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_timing(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamTimingVm> {
     call_out(|out| unsafe { native_audio::destack_audio_stream_timing(binding, out, handle) })
@@ -1359,7 +1335,7 @@ pub(crate) fn destack_audio_stream_timing(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
 ) -> RuntimeResult<VmSlice<u8>> {
@@ -1388,7 +1364,7 @@ pub(crate) fn destack_audio_stream_try_read(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_try_readv(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
@@ -1420,7 +1396,7 @@ pub(crate) fn destack_audio_stream_try_readv(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_try_write(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -1449,7 +1425,7 @@ pub(crate) fn destack_audio_stream_try_write(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_try_writev(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
@@ -1478,7 +1454,7 @@ pub(crate) fn destack_audio_stream_try_writev(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_write(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -1505,7 +1481,7 @@ pub(crate) fn destack_audio_stream_write(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_writev(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
@@ -1535,7 +1511,7 @@ pub(crate) fn destack_audio_stream_writev(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_write_at(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     data: VmSlice<u8>,
     presentationtimens: u64,
@@ -1566,7 +1542,7 @@ pub(crate) fn destack_audio_stream_write_at(
 /// External, recordable.
 pub(crate) fn destack_audio_stream_write_atv(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
     buffers: VmSlice<VmSlice<u8>>,
     presentationtimens: u64,
@@ -1581,4 +1557,192 @@ pub(crate) fn destack_audio_stream_write_atv(
             presentationtimens,
         )
     })
+}
+/// Flush queued MIDI output.
+///
+/// Request immediate flush of queued outbound MIDI messages for one opened output endpoint.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific MIDI flush operations where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.midi`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_midi_flush(
+    _binding: &BindingCallContext,
+    _context: &mut ExternalCallContext<'_>,
+    handle: resource::MidiPortHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.flush")).boxed())
+}
+
+/// Close one MIDI endpoint.
+///
+/// Close one opened MIDI endpoint and release host resources.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific MIDI close operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.midi`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_midi_port_close(
+    _binding: &BindingCallContext,
+    _context: &mut ExternalCallContext<'_>,
+    handle: resource::MidiPortHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.portClose")).boxed())
+}
+
+/// List available MIDI endpoints.
+///
+/// Enumerate host MIDI endpoints for one selected direction.
+/// Endpoint visibility and ordering follow host MIDI subsystem behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses CoreMIDI or ALSA sequencer or WinMM or UWP MIDI APIs depending on backend availability.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.midi`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_midi_port_list(
+    _binding: &BindingCallContext,
+    _context: &mut ExternalCallContext<'_>,
+    direction: MidiPortDirection,
+) -> RuntimeResult<VmSlice<MidiPortDescriptorVm>> {
+    let _ = direction;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.portList")).boxed())
+}
+
+/// Open one MIDI endpoint.
+///
+/// Open one host MIDI endpoint for input or output operations.
+/// Endpoint open behavior follows host MIDI session policy and sharing semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific MIDI endpoint open operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.midi`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_midi_port_open(
+    _binding: &BindingCallContext,
+    _context: &mut ExternalCallContext<'_>,
+    id: StringHandle,
+    direction: MidiPortDirection,
+) -> RuntimeResult<resource::MidiPortHandle> {
+    let _ = (id, direction);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.portOpen")).boxed())
+}
+
+/// Read MIDI messages.
+///
+/// Read up to `maxMessages` queued MIDI messages from one opened input endpoint.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend MIDI queue receive operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `audio.midi`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_midi_read(
+    _binding: &BindingCallContext,
+    _context: &mut ExternalCallContext<'_>,
+    handle: resource::MidiPortHandle,
+    maxmessages: u32,
+    timeoutns: u64,
+) -> RuntimeResult<VmArray<MidiMessageVm>> {
+    let _ = (handle, maxmessages, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.read")).boxed())
+}
+
+/// Poll MIDI messages without blocking.
+///
+/// Read up to `maxMessages` queued MIDI messages from one opened input endpoint without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend nonblocking MIDI queue receive operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.midi`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_midi_try_read(
+    _binding: &BindingCallContext,
+    _context: &mut ExternalCallContext<'_>,
+    handle: resource::MidiPortHandle,
+    maxmessages: u32,
+) -> RuntimeResult<VmArray<MidiMessageVm>> {
+    let _ = (handle, maxmessages);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.tryRead")).boxed())
+}
+
+/// Write MIDI messages.
+///
+/// Submit one batch of MIDI messages to one opened output endpoint.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend MIDI queue send operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.midi`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_midi_write(
+    _binding: &BindingCallContext,
+    _context: &mut ExternalCallContext<'_>,
+    handle: resource::MidiPortHandle,
+    messages: VmArray<MidiMessageVm>,
+) -> RuntimeResult<u32> {
+    let _ = (handle, messages);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.write")).boxed())
 }
