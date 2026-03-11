@@ -7,6 +7,7 @@ mod event;
 mod execute;
 mod finalizers;
 mod poller;
+mod queue;
 mod runtime;
 mod service;
 
@@ -17,5 +18,6 @@ pub use context::*;
 pub use drop::*;
 pub use event::*;
 pub use finalizers::*;
+pub(crate) use queue::*;
 pub use runtime::*;
 pub use service::*;
