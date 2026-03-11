@@ -75,6 +75,8 @@ pub(crate) struct ModuleLowerer<'a> {
 
     /// Track interface slot data for dispatch lowering.
     pub(crate) interface_slots_by_symbol: HashMap<GlobalSymbolId, Vec<InterfaceSlot>>,
+    /// Track canonical interface dispatch field nodes by interface member.
+    pub(crate) interface_dispatch_fields_by_member: HashMap<u32, mir::LocalNodeId<mir::Field>>,
     /// Track interface slot lowering in progress.
     pub(crate) interface_slots_in_progress: IndexSet<GlobalSymbolId>,
 
@@ -139,6 +141,7 @@ impl<'a> ModuleLowerer<'a> {
     ) -> Self {
         // initialize the module builder
         let mut builder = mir::ModuleBuilder::new_with_verify(compiler.options.verify_mir);
+        builder.set_pointer_bytes(pointer_bytes);
 
         // seed the mir string pool with program strings
         let strings = compiler.program.strings.as_ref().clone().into_immutable();
@@ -202,6 +205,7 @@ impl<'a> ModuleLowerer<'a> {
             dispatch_construct_name,
             vtable_field_name,
             interface_slots_by_symbol: HashMap::new(),
+            interface_dispatch_fields_by_member: HashMap::new(),
             interface_slots_in_progress: IndexSet::new(),
             nominal_layouts_by_symbol: HashMap::new(),
             nominal_layouts_in_progress: IndexSet::new(),
@@ -256,16 +260,8 @@ impl<'a> ModuleLowerer<'a> {
             return mir::AllocationMode::StackOnly;
         }
 
-        // apply no managed when requested by decorators or profile flags
-        if decorators.is_no_managed
-            || self
-                .compiler
-                .program
-                .profile(self.profile)
-                .key
-                .flags
-                .no_managed
-        {
+        // apply no managed only when requested explicitly
+        if decorators.is_no_managed {
             return mir::AllocationMode::NoManaged;
         }
 

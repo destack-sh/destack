@@ -124,7 +124,7 @@ impl FunctionContext<'_> {
             resolution_receiver,
             dynamic_arguments,
         )? {
-            return Ok((Some(result.0), result.1));
+            return Ok(result);
         }
 
         // TODO #Incomplete: lower/monomorphize generic functions

@@ -14,7 +14,7 @@ pub(super) enum DispatchTarget {
         /// The declaring interface type id.
         declaring_type: mir::LocalNodeId<mir::Type>,
         /// The itab slot id for the method.
-        slot_id: u32,
+        slot_id: mir::InterfaceSlotId,
         /// The declared target function id for the method.
         function_id: mir::LocalNodeId<mir::Function>,
     },
@@ -23,7 +23,7 @@ pub(super) enum DispatchTarget {
         /// The declaring class type id.
         declaring_type: mir::LocalNodeId<mir::Type>,
         /// The vtable slot id for the method.
-        slot_id: u32,
+        slot_id: mir::VtableSlotId,
         /// The declared target function id for the method.
         function_id: mir::LocalNodeId<mir::Function>,
     },
@@ -55,7 +55,7 @@ impl FunctionContext<'_> {
             let declaring_type = self.interface_declaring_type(expression_id, interface_symbol)?;
             return Ok(Some(DispatchTarget::Interface {
                 declaring_type,
-                slot_id,
+                slot_id: mir::InterfaceSlotId::new(slot_id),
                 function_id,
             }));
         }
@@ -68,7 +68,7 @@ impl FunctionContext<'_> {
                 self.declaring_type_for_virtual_call(expression_id, receiver_type_id)?;
             return Ok(Some(DispatchTarget::Virtual {
                 declaring_type,
-                slot_id,
+                slot_id: mir::VtableSlotId::new(slot_id),
                 function_id,
             }));
         }

@@ -46,6 +46,85 @@ struct AtomicMetadata {
     semantics: mir::MemorySemantics,
 }
 
+/// The atomic instruction to emit for one intrinsic binding.
+#[derive(Clone, Copy)]
+enum AtomicIntrinsicKind {
+    /// Atomic load.
+    Load,
+    /// Atomic store.
+    Store,
+    /// Atomic compare exchange.
+    CompareExchange { is_weak: bool },
+    /// Atomic read modify write.
+    Rmw { operator: mir::AtomicRmwOperator },
+    /// Atomic fence.
+    Fence,
+}
+
+impl AtomicIntrinsicKind {
+    /// Parse an atomic intrinsic binding name.
+    fn parse(name: &str) -> Option<Self> {
+        match name {
+            "atomic.load" => Some(Self::Load),
+            "atomic.store" => Some(Self::Store),
+            "atomic.cas" => Some(Self::CompareExchange { is_weak: false }),
+            "atomic.cas.weak" => Some(Self::CompareExchange { is_weak: true }),
+            "atomic.xchg" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Exchange,
+            }),
+            "atomic.fetch.add" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Add,
+            }),
+            "atomic.fetch.sub" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Sub,
+            }),
+            "atomic.fetch.and" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::And,
+            }),
+            "atomic.fetch.or" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Or,
+            }),
+            "atomic.fetch.xor" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Xor,
+            }),
+            "atomic.fetch.min" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Min,
+            }),
+            "atomic.fetch.max" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Max,
+            }),
+            "atomic.fetch.umin" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Umin,
+            }),
+            "atomic.fetch.umax" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Umax,
+            }),
+            "atomic.fetch.fadd" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Fadd,
+            }),
+            "atomic.fetch.fmin" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Fmin,
+            }),
+            "atomic.fetch.fmax" => Some(Self::Rmw {
+                operator: mir::AtomicRmwOperator::Fmax,
+            }),
+            "atomic.fence" => Some(Self::Fence),
+            _ => None,
+        }
+    }
+
+    /// Return the number of non-metadata operands.
+    fn value_argument_count(self) -> usize {
+        match self {
+            Self::Load => 1,
+            Self::Store => 2,
+            Self::CompareExchange { .. } => 3,
+            Self::Rmw { .. } => 2,
+            Self::Fence => 0,
+        }
+    }
+}
+
 impl FunctionContext<'_> {
     /// Lower an intrinsic binding call when requested by decorators.
     pub(super) fn lower_intrinsic_binding_call(
@@ -54,7 +133,7 @@ impl FunctionContext<'_> {
         target_symbol: dir::GlobalSymbolId,
         resolution_receiver: Option<dir::LocalTypeId>,
         dynamic_arguments: &[LocalNodeId<dir::Argument>],
-    ) -> LowerResult<Option<(mir::Value, mir::LocalNodeId<mir::Type>)>> {
+    ) -> LowerResult<Option<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)>> {
         // resolve the intrinsic binding name
         let name_id = match self.resolve_intrinsic_binding_name_id(target_symbol)? {
             Some(name_id) => name_id,
@@ -87,52 +166,63 @@ impl FunctionContext<'_> {
         name: &str,
         result_type: mir::LocalNodeId<mir::Type>,
         dynamic_arguments: &[LocalNodeId<dir::Argument>],
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         // numeric cast intrinsics
         if name == "fcvt_to_sint.sat" {
-            return self.lower_saturating_cast_intrinsic(
-                expression_id,
-                dynamic_arguments,
-                result_type,
-                mir::CastOperator::FloatToSignedIntSaturating,
-                "fcvt_to_sint.sat",
-            );
+            return self
+                .lower_saturating_cast_intrinsic(
+                    expression_id,
+                    dynamic_arguments,
+                    result_type,
+                    mir::CastOperator::FloatToSignedIntSaturating,
+                    "fcvt_to_sint.sat",
+                )
+                .map(|(value, ty)| (Some(value), ty));
         }
         if name == "fcvt_to_uint.sat" {
-            return self.lower_saturating_cast_intrinsic(
-                expression_id,
-                dynamic_arguments,
-                result_type,
-                mir::CastOperator::FloatToUnsignedIntSaturating,
-                "fcvt_to_uint.sat",
-            );
+            return self
+                .lower_saturating_cast_intrinsic(
+                    expression_id,
+                    dynamic_arguments,
+                    result_type,
+                    mir::CastOperator::FloatToUnsignedIntSaturating,
+                    "fcvt_to_uint.sat",
+                )
+                .map(|(value, ty)| (Some(value), ty));
         }
 
         // vector intrinsics
         if name == "splat" {
-            return self.lower_vector_splat_intrinsic(
-                expression_id,
-                dynamic_arguments,
-                result_type,
-            );
+            return self
+                .lower_vector_splat_intrinsic(expression_id, dynamic_arguments, result_type)
+                .map(|(value, ty)| (Some(value), ty));
         }
         if name == "select" {
-            return self.lower_vector_select_intrinsic(
-                expression_id,
-                dynamic_arguments,
-                result_type,
-            );
+            return self
+                .lower_vector_select_intrinsic(expression_id, dynamic_arguments, result_type)
+                .map(|(value, ty)| (Some(value), ty));
         }
 
         // vector reductions are name-driven and otherwise fall through to MIR intrinsics
         if let Some(result) =
             self.lower_vector_reduce_intrinsic(expression_id, name, result_type, dynamic_arguments)?
         {
-            return Ok(result);
+            return Ok((Some(result.0), result.1));
+        }
+
+        // atomic intrinsics lower to first class MIR instructions
+        if let Some(kind) = AtomicIntrinsicKind::parse(name) {
+            return self.lower_atomic_intrinsic_binding_call(
+                expression_id,
+                kind,
+                dynamic_arguments,
+                result_type,
+            );
         }
 
         // remaining names map to MIR intrinsics
         self.lower_direct_intrinsic(expression_id, name, result_type, dynamic_arguments)
+            .map(|(value, ty)| (Some(value), ty))
     }
 
     /// Lower a saturating cast intrinsic.
@@ -296,15 +386,6 @@ impl FunctionContext<'_> {
             ));
         }
 
-        if intrinsic.requires_ordering() {
-            return self.lower_atomic_intrinsic_binding_call(
-                expression_id,
-                intrinsic,
-                dynamic_arguments,
-                result_type,
-            );
-        }
-
         let arguments = self.lower_positional_arguments(expression_id, dynamic_arguments)?;
         let value = self
             .state
@@ -392,11 +473,11 @@ impl FunctionContext<'_> {
     fn lower_atomic_intrinsic_binding_call(
         &mut self,
         expression_id: LocalNodeId<Expression>,
-        intrinsic: mir::Intrinsic,
+        kind: AtomicIntrinsicKind,
         dynamic_arguments: &[LocalNodeId<dir::Argument>],
         result_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        let base_args = usize::from(intrinsic.expected_arg_count());
+    ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
+        let base_args = kind.value_argument_count();
         let metadata_args = ATOMIC_METADATA_SLOTS.len();
 
         if dynamic_arguments.len() != base_args + metadata_args {
@@ -410,16 +491,82 @@ impl FunctionContext<'_> {
         let arguments = self.lower_positional_arguments(expression_id, value_args)?;
 
         let metadata = self.parse_atomic_metadata(expression_id, metadata_args)?;
+        let value = match kind {
+            AtomicIntrinsicKind::Load => {
+                let [pointer] = arguments.as_slice() else {
+                    return Err(self.error(expression_id, "atomic.load expects one pointer"));
+                };
 
-        let value = self.state.builder.atomic_intrinsic(
-            intrinsic,
-            arguments,
-            metadata.ordering,
-            metadata.scope,
-            metadata.memory_scope,
-            metadata.semantics,
-            result_type,
-        );
+                Some(self.state.builder.atomic_load(
+                    *pointer,
+                    metadata.ordering,
+                    metadata.scope,
+                    metadata.memory_scope,
+                    metadata.semantics,
+                    result_type,
+                ))
+            }
+            AtomicIntrinsicKind::Store => {
+                let [pointer, value] = arguments.as_slice() else {
+                    return Err(self.error(expression_id, "atomic.store expects pointer and value"));
+                };
+
+                self.state.builder.atomic_store(
+                    *pointer,
+                    *value,
+                    metadata.ordering,
+                    metadata.scope,
+                    metadata.memory_scope,
+                    metadata.semantics,
+                );
+                None
+            }
+            AtomicIntrinsicKind::CompareExchange { is_weak } => {
+                let [pointer, expected, new_value] = arguments.as_slice() else {
+                    return Err(self.error(
+                        expression_id,
+                        "atomic.cas expects pointer, expected, and new value",
+                    ));
+                };
+
+                Some(self.state.builder.atomic_compare_exchange(
+                    *pointer,
+                    *expected,
+                    *new_value,
+                    is_weak,
+                    metadata.ordering,
+                    metadata.scope,
+                    metadata.memory_scope,
+                    metadata.semantics,
+                    result_type,
+                ))
+            }
+            AtomicIntrinsicKind::Rmw { operator } => {
+                let [pointer, value] = arguments.as_slice() else {
+                    return Err(self.error(expression_id, "atomic.rmw expects pointer and value"));
+                };
+
+                Some(self.state.builder.atomic_rmw(
+                    operator,
+                    *pointer,
+                    *value,
+                    metadata.ordering,
+                    metadata.scope,
+                    metadata.memory_scope,
+                    metadata.semantics,
+                    result_type,
+                ))
+            }
+            AtomicIntrinsicKind::Fence => {
+                self.state.builder.atomic_fence(
+                    metadata.ordering,
+                    metadata.scope,
+                    metadata.memory_scope,
+                    metadata.semantics,
+                );
+                None
+            }
+        };
 
         Ok((value, result_type))
     }
@@ -571,14 +718,14 @@ impl FunctionContext<'_> {
         })
     }
 
-    /// Parse a MemoryLocationSet constant from an expression.
+    /// Parse a MemoryRegionSet constant from an expression.
     fn parse_memory_location_set(
         &self,
         expression_id: LocalNodeId<Expression>,
         argument_id: LocalNodeId<Expression>,
-    ) -> LowerResult<mir::MemoryLocationSet> {
+    ) -> LowerResult<mir::MemoryRegionSet> {
         let name = self.enum_member_name(expression_id, argument_id)?;
-        mir::MemoryLocationSet::try_from(name.as_ref()).map_err(|_| {
+        mir::MemoryRegionSet::try_from(name.as_ref()).map_err(|_| {
             self.error(
                 expression_id,
                 "unsupported memory location set for atomic intrinsic",

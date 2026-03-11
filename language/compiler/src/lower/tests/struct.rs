@@ -281,8 +281,10 @@ block0(v0: @FieldMapBox):
         let struct_type = test.type_by_metadata_name(tree, strings, "test/test:FieldMapBox");
 
         // resolve the field map metadata
-        let metadata = test.type_metadata(tree, struct_type);
-        let field_map = &metadata.field_map;
+        let field_map = tree
+            .type_table
+            .field_map(struct_type)
+            .expect("missing field map metadata");
         assert_eq!(field_map.len(), 2);
 
         // assert the left field mapping

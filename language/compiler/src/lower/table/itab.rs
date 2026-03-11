@@ -94,13 +94,18 @@ impl ModuleLowerer<'_> {
 
         // build itab entries with fixed prefix
         let mut entries = Vec::with_capacity(interface_slots.len() + 1);
-        entries.push(mir::ItabEntry::TypeTag);
+        entries.push(mir::ItabEntry::TypeDescriptor);
+        let mut shape_entries = Vec::with_capacity(interface_slots.len() + 1);
+        shape_entries.push(mir::InterfaceDispatchEntry::TypeDescriptor);
 
         // append interface slots
         for slot in interface_slots {
             match slot {
                 InterfaceSlot::Field {
-                    name, member_id, ..
+                    name,
+                    field,
+                    member_id,
+                    ..
                 } => {
                     // resolve field offset slot
                     let offset = self.interface_field_offset(
@@ -110,8 +115,13 @@ impl ModuleLowerer<'_> {
                         declaration_id,
                     )?;
                     entries.push(mir::ItabEntry::FieldOffset {
+                        field,
                         field_name: name,
                         offset,
+                    });
+                    shape_entries.push(mir::InterfaceDispatchEntry::FieldOffset {
+                        field,
+                        field_name: name,
                     });
                 }
                 InterfaceSlot::Method {
@@ -128,7 +138,28 @@ impl ModuleLowerer<'_> {
                         declared_method,
                         target_method,
                     });
+                    shape_entries.push(mir::InterfaceDispatchEntry::Method { declared_method });
                 }
+            }
+        }
+
+        // register the canonical interface dispatch shape
+        let dispatch_table = &mut self.builder.tree_mut().dispatch_table;
+        let shape = mir::InterfaceDispatchShape {
+            interface: interface_mir_type,
+            entries: shape_entries,
+        };
+        match dispatch_table.interface_dispatch_shape(interface_mir_type) {
+            Some(existing_shape) => {
+                if existing_shape != &shape {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: declaration_id,
+                        message: "inconsistent interface dispatch shape".to_string(),
+                    });
+                }
+            }
+            None => {
+                dispatch_table.insert_interface_dispatch_shape(interface_mir_type, shape);
             }
         }
 
@@ -143,20 +174,14 @@ impl ModuleLowerer<'_> {
             };
             self.builder
                 .tree_mut()
-                .type_table
+                .dispatch_table
                 .insert_itab_at(table_id, table);
             table_id
         };
 
         // attach the itab to type metadata
         let type_table = &mut self.builder.tree_mut().type_table;
-        let metadata = type_table
-            .type_metadata_by_id
-            .entry(concrete_mir_type)
-            .or_default();
-        metadata
-            .itab_by_interface
-            .insert(interface_mir_type, table_id);
+        type_table.set_itab_id(concrete_mir_type, interface_mir_type, table_id);
 
         // register the lowered itab table
         self.insert_itab_table((concrete, interface), table_id)?;

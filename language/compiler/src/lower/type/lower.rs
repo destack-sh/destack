@@ -245,9 +245,9 @@ impl TypeLowerer {
     ) -> mir::LocalNodeId<mir::Type> {
         let mut mir_fields = Vec::with_capacity(layout.fields.len());
 
-        // populate field nodes with computed offsets
+        // populate field nodes in declaration order
         for field in &layout.fields {
-            let mir_field = builder.field(Some(field.name), field.ty, field.offset);
+            let mir_field = builder.field(Some(field.name), field.ty);
             mir_fields.push(mir_field);
         }
 
@@ -586,7 +586,7 @@ impl TypeLowerer {
         ];
 
         let layout = self.compute_struct_layout(fields, LayoutPolicy::Optimized);
-        let mir_type = self.create_struct_type(&layout, builder);
+        let mir_type = builder.type_function_value(signature, env_pointer_type);
         self.set_layout(mir_type, layout);
         Ok(mir_type)
     }

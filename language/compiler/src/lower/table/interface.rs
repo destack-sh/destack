@@ -16,6 +16,8 @@ pub(crate) enum InterfaceSlot {
     Field {
         /// The interface field name.
         name: StringId,
+        /// The canonical interface dispatch field id.
+        field: mir::LocalNodeId<mir::Field>,
         /// The member node for diagnostics.
         member_id: LocalNodeId<Member>,
     },
@@ -215,8 +217,11 @@ impl ModuleLowerer<'_> {
                 }
 
                 seen_fields.insert(field_name, field_type);
+                let dispatch_field =
+                    self.interface_dispatch_field(member_id, field_name, field_type)?;
                 slots.push(InterfaceSlot::Field {
                     name: field_name,
+                    field: dispatch_field,
                     member_id,
                 });
             }
@@ -297,5 +302,35 @@ impl ModuleLowerer<'_> {
         };
 
         Ok(static_key_to_field_name(&key, &mut self.builder))
+    }
+
+    /// Return the canonical interface dispatch field node for a member.
+    fn interface_dispatch_field(
+        &mut self,
+        member_id: LocalNodeId<Member>,
+        field_name: StringId,
+        field_type: dir::LocalTypeId,
+    ) -> LowerResult<mir::LocalNodeId<mir::Field>> {
+        // reuse an existing field id when available
+        let member_key = member_id.id;
+        if let Some(field_id) = self.interface_dispatch_fields_by_member.get(&member_key) {
+            return Ok(*field_id);
+        }
+
+        // lower the field type for stable metadata typing
+        let anchor = member_id
+            .into_global_any(self.module_id)
+            .into_anchored(Some(self.profile));
+        let field_type = self.lower_type(field_type, anchor)?;
+
+        // create and cache the canonical field node
+        let field_id = self.builder.tree_mut().insert(mir::Field {
+            name: Some(field_name),
+            ty: field_type,
+        });
+        self.interface_dispatch_fields_by_member
+            .insert(member_key, field_id);
+
+        Ok(field_id)
     }
 }

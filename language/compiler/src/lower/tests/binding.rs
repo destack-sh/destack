@@ -257,8 +257,7 @@ block0(v0: [i32; 4]):
     check v7, bounds.signed v2, v3, v1, block2, block1
 block1:
     v8: ref<managed readonly @String> = global.const @${bounds_check_failed}
-    intrinsic.panic(v8)
-    unreachable
+    trap panic v8
 block2:
     v9: ref<borrowed i32> = element.addr v1, v2
     return v9
@@ -339,8 +338,7 @@ block0(v0: ref<borrowed [i32; 4]>):
     check v6, bounds.signed v1, v2, v0, block2, block1
 block1:
     v7: ref<managed readonly @String> = global.const @${bounds_check_failed}
-    intrinsic.panic(v7)
-    unreachable
+    trap panic v7
 block2:
     v8: ref<borrowed i32> = element.addr v0, v1
     return v8

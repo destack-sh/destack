@@ -16,10 +16,8 @@ impl ModuleLowerer<'_> {
         anchor: AnchoredGlobalNodeId,
     ) -> LowerResult<Option<mir::LayoutId>> {
         // skip if metadata already exists
-        if let Some(metadata) = self.builder.tree().type_table.type_metadata_by_id.get(&ty)
-            && metadata.layout_id.is_some()
-        {
-            return Ok(metadata.layout_id);
+        if let Some(layout_id) = self.builder.tree().type_table.layout_id(ty) {
+            return Ok(Some(layout_id));
         }
 
         // resolve the cached struct layout when available
@@ -114,9 +112,8 @@ impl ModuleLowerer<'_> {
 
         // attach layout metadata to the type table
         let type_table = &mut self.builder.tree_mut().type_table;
-        let metadata = type_table.type_metadata_by_id.entry(ty).or_default();
         let layout_id = type_table.layout_table.insert(layout_entry);
-        metadata.layout_id = Some(layout_id);
+        type_table.set_layout_id(ty, layout_id);
 
         layout_id
     }
@@ -213,13 +210,8 @@ impl ModuleLowerer<'_> {
         layout: &StructLayout,
     ) -> LowerResult<mir::LayoutType> {
         // prefer union layouts when present
-        let layout_type = if let Some(union_layout) = self
-            .builder
-            .tree()
-            .type_table
-            .type_metadata_by_id
-            .get(&mir_type)
-            .and_then(|metadata| metadata.union_layout.as_ref())
+        let layout_type = if let Some(union_layout) =
+            self.builder.tree().type_table.union_layout(mir_type)
         {
             let tag_index = layout
                 .field_index(union_layout.tag_field_name)
@@ -313,15 +305,10 @@ impl ModuleLowerer<'_> {
         }
 
         // skip if metadata already exists
-        if let Some(metadata) = self
-            .builder
-            .tree()
-            .type_table
-            .type_metadata_by_id
-            .get(&mir_type)
-            && !metadata.field_map.is_empty()
+        if let Some(field_map) = self.builder.tree().type_table.field_map(mir_type)
+            && !field_map.is_empty()
         {
-            return Ok(Some(metadata.field_map.clone()));
+            return Ok(Some(field_map.clone()));
         }
 
         // require a struct layout for field map generation
@@ -357,8 +344,7 @@ impl ModuleLowerer<'_> {
 
         // record the field map metadata
         let type_table = &mut self.builder.tree_mut().type_table;
-        let metadata = type_table.type_metadata_by_id.entry(mir_type).or_default();
-        metadata.field_map = field_map.clone();
+        type_table.set_field_map(mir_type, field_map.clone());
 
         Ok(Some(field_map))
     }

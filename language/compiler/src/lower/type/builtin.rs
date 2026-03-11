@@ -283,11 +283,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
         let name_id = static_key_to_field_name(&key, self.builder);
 
         // attach the name when missing
-        let type_table = &mut self.builder.tree_mut().type_table;
-        let metadata = type_table.type_metadata_by_id.entry(mir_type).or_default();
-        if metadata.name.is_none() {
-            metadata.name = Some(name_id);
-        }
+        self.builder
+            .tree_mut()
+            .type_table
+            .ensure_display_name(mir_type, name_id);
     }
 
     /// Resolve nominal aliases to their layout type.

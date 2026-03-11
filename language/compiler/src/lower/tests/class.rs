@@ -1,3 +1,4 @@
+use destack_mir::VtableSlotId;
 use destack_vm::Value;
 
 use crate::TestProgram;
@@ -295,7 +296,7 @@ global @Dog#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
 
 function @useDog(v0: ref<managed readonly @Dog>) -> i32 {
 block0(v0: ref<managed readonly @Dog>):
-    v1: i32 = call.virtual v0, @Dog, 2, @Dog.speak(v0) -> fn(ref<managed readonly @Dog>) -> i32
+    v1: i32 = call.virtual v0, @Dog, 2(v0) -> fn(ref<managed readonly @Dog>) -> i32
     return v1
 }
 
@@ -321,10 +322,10 @@ block0(v0: ref<managed readonly @Dog>):
         // resolve vtables by class metadata names
         let animal_type = test.type_by_metadata_name(tree, strings, "test/test:Animal");
         let animal_table_id = test.type_vtable_id(tree, animal_type);
-        let animal_table = tree.type_table.vtable(animal_table_id);
+        let animal_table = tree.dispatch_table.vtable(animal_table_id);
         let dog_type = test.type_by_metadata_name(tree, strings, "test/test:Dog");
         let dog_table_id = test.type_vtable_id(tree, dog_type);
-        let dog_table = tree.type_table.vtable(dog_table_id);
+        let dog_table = tree.dispatch_table.vtable(dog_table_id);
 
         // assert the fixed vtable prefix
         test.assert_vtable_prefix(animal_table);
@@ -404,8 +405,8 @@ block0(v0: ref<managed readonly @Struct0>):
 
         let base_table_id = test.type_vtable_id(tree, base_type);
         let derived_table_id = test.type_vtable_id(tree, derived_type);
-        let base_table = tree.type_table.vtable(base_table_id);
-        let derived_table = tree.type_table.vtable(derived_table_id);
+        let base_table = tree.dispatch_table.vtable(base_table_id);
+        let derived_table = tree.dispatch_table.vtable(derived_table_id);
 
         let base_methods = test.vtable_method_names(base_table, tree, strings);
         let derived_methods = test.vtable_method_names(derived_table, tree, strings);
@@ -466,7 +467,7 @@ global @FileLogger#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
 
 function @callLogger(v0: ref<managed readonly @Logger>) -> i32 {
 block0(v0: ref<managed readonly @Logger>):
-    v1: i32 = call.virtual v0, @Logger, 2, @Logger.log(v0) -> fn(ref<managed readonly @Logger>) -> i32
+    v1: i32 = call.virtual v0, @Logger, 2(v0) -> fn(ref<managed readonly @Logger>) -> i32
     return v1
 }
 
@@ -490,7 +491,7 @@ block0(v0: ref<managed readonly @FileLogger>):
         let base_type = test.type_parent(tree, derived_type);
 
         let call_logger_info = test.virtual_call_info_by_name(tree, strings, "callLogger");
-        assert_eq!(call_logger_info.slot_id, 2);
+        assert_eq!(call_logger_info.slot_id, VtableSlotId::new(2));
         assert_eq!(call_logger_info.declaring_type, base_type);
     });
 }
@@ -534,7 +535,7 @@ global @FileLogger#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
 
 function @callLogger(v0: ref<managed readonly @Struct0>) -> i32 {
 block0(v0: ref<managed readonly @Struct0>):
-    v1: i32 = call.virtual v0, @Struct0, 2, @Logger.log(v0) -> fn(ref<managed readonly @Struct0>) -> i32
+    v1: i32 = call.virtual v0, @Struct0, 2(v0) -> fn(ref<managed readonly @Struct0>) -> i32
     return v1
 }
 

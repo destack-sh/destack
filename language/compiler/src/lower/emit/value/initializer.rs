@@ -59,7 +59,7 @@ impl FunctionContext<'_> {
                 })?;
                 self.state.builder.fconst(0.0, width)
             }
-            mir::Type::Isize | mir::Type::Usize | mir::Type::Type => {
+            mir::Type::Isize | mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
                 let pointer_bits = self.env.type_lowerer.pointer_width_bits();
                 let width =
                     u8::try_from(pointer_bits).map_err(|_| LowerError::UnsupportedConstruct {
@@ -112,6 +112,17 @@ impl FunctionContext<'_> {
                     values.push(self.zero_value_for_type_inner(field.ty, node, visiting)?);
                 }
                 self.state.builder.struct_(ty, values)
+            }
+            mir::Type::FunctionValue {
+                signature,
+                environment,
+            } => {
+                let signature_value = self.zero_value_for_type_inner(signature, node, visiting)?;
+                let environment_value =
+                    self.zero_value_for_type_inner(environment, node, visiting)?;
+                self.state
+                    .builder
+                    .struct_(ty, vec![signature_value, environment_value])
             }
             mir::Type::Newtype { inner, .. } => {
                 let inner_value = self.zero_value_for_type_inner(inner, node, visiting)?;
