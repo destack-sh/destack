@@ -10,12 +10,12 @@ impl Compiler {
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve the enum field symbol entry
         let Some((is_enum_field, scope_owner)) = self
-            .with_module_symbols_base_or_local_at_stage(
+            .with_module_symbols_base_or_local_at_boundary(
                 view.module,
                 view.profile,
                 member_symbol.module_id,
                 view.symbols,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |_, owner_symbols| {
                     let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
                     let scope = owner_symbols.get_scope_by_symbol(member_symbol.local_id);
@@ -182,11 +182,11 @@ impl Compiler {
             return Ok(self.enum_field_symbol_for_member_key_in_tree(ctx, enum_symbol, member_key));
         }
 
-        self.with_module_tree_symbol_view_at_stage(
+        self.with_module_tree_symbol_view_at_boundary(
             ctx.module,
             ctx.profile,
             enum_symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |view| self.enum_field_symbol_for_member_key_in_tree(view, enum_symbol, member_key),
         )
         .map_err(AnalyzeError::from)

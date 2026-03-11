@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
     TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
@@ -13,15 +13,15 @@ use destack_workspace::{OutputId, Program, TargetId};
 #[phase(Emit)]
 pub enum EmitError {
     // -------------------------------------------------------------------------
-    // 0xx: Yield / dependency
+    // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Wait for task dependency.
+    /// Wait for build requirement.
     #[error(code = "EW000", r#yield)]
-    Yield { dependency: TaskDependency },
+    Yield { requirement: BuildRequirementSet },
 
-    /// Yield dependency has failed.
+    /// Yield requirement has failed.
     #[error(code = "EW001", yield_failed)]
-    UnsatisfiedDependency { dependency: TaskDependency },
+    UnsatisfiedRequirement { requirement: BuildRequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EW002", message = "task skipped")]

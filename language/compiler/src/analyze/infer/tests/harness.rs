@@ -92,7 +92,8 @@ impl TestProgram {
         let module = self.module(module_uri);
         let module = module.read();
         let profile = self.default_profile_id(module.id);
-        let symbols = module.dir(profile).symbols.read();
+        let dir = self.artifact_dir(module.id, profile);
+        let symbols = dir.symbols.read();
 
         // resolve the canonical symbol id
         canonical_symbol_id(
@@ -109,9 +110,7 @@ impl TestProgram {
     pub(crate) fn view(&self, module_id: ModuleId) -> TestModuleView<'_> {
         // load module state
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module_id, profile);
 
         // clone module dir data
         let roots = dir.roots.clone();

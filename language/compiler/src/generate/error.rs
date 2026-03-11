@@ -1,5 +1,5 @@
 use crate::{
-    DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
     TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
@@ -12,15 +12,15 @@ use destack_workspace::Program;
 #[phase(Generate)]
 pub enum GenerateError {
     // -------------------------------------------------------------------------
-    // 0xx: Yield / dependency
+    // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Wait for task dependency.
+    /// Wait for build requirement.
     #[error(code = "EG000", r#yield)]
-    Yield { dependency: TaskDependency },
+    Yield { requirement: BuildRequirementSet },
 
-    /// Yield dependency has failed.
+    /// Yield requirement has failed.
     #[error(code = "EG001", yield_failed)]
-    UnsatisfiedDependency { dependency: TaskDependency },
+    UnsatisfiedRequirement { requirement: BuildRequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EG002", message = "task skipped")]

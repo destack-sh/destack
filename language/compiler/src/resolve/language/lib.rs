@@ -4,130 +4,63 @@ use destack_builtin::builtin_lib;
 use destack_core::StringId;
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder};
 use destack_workspace::{
-    AmbientLibSymbolKey, Builtins, GlobalSymbolGroupKey, GlobalSymbolTable, ProfileId, ProfileKey,
-    SymbolGroup, WellKnownSymbols,
+    BuiltinLibSelection, Builtins, GlobalSymbolGroupKey, GlobalSymbolTable, LibEnvironment,
+    LibSymbolKey, ProfileId, ProfileKey, SymbolGroup, WellKnownSymbols,
 };
 use indexmap::IndexMap;
 
-use crate::resolve::dependency::cache::ResolveDependencyItemCache;
 use crate::timing::tags;
-use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
-
-/// Loaded builtin lib modules collected during resolve.
-#[derive(Debug)]
-struct LoadedLibModules {
-    /// Module batches in lib dependency order.
-    modules_to_resolve: Vec<Vec<destack_source::ModuleId>>,
-    /// All lib modules in load order without duplicates.
-    lib_modules: Vec<destack_source::ModuleId>,
-    /// Ambient lib modules in load order without duplicates.
-    ambient_modules: Vec<destack_source::ModuleId>,
-}
+use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve a profile's libraries.
-    pub fn resolve_libs(&self, profile_id: ProfileId) -> ResolveResult<()> {
-        if !self.options.load_libs {
+    /// Resolve the lib environment for one profile.
+    pub fn resolve_lib_environment(&self, profile_id: ProfileId) -> ResolveResult<()> {
+        if self.lib_environment(profile_id).is_some() {
             return Ok(());
         }
+
+        if !self.options.load_libs {
+            self.program
+                .artifacts
+                .set_lib_environment(profile_id, LibEnvironment::default());
+            return Ok(());
+        }
+
         let Some(builtins) = self.program.builtins.as_ref() else {
             return Ok(());
         };
         let _timing = self.timing_scope(tags::RESOLVE_LIBS);
 
-        self.require_resolve_builtins(profile_id)?;
+        self.require_language_environment(profile_id)
+            .map_err(ResolveError::from)?;
 
         // collect libs to resolve
-        let profile = self.program.profile(profile_id);
-        let profile_key = profile.key.clone();
-
-        // skip when this profile key already has resolved lib caches
-        if builtins.has_resolved_lib_state(&profile_key) {
-            return Ok(());
-        }
-
-        let mut libs = profile_key.lib.clone();
-
-        // always include std lib (?)
-        if !libs.contains(&"std".to_string()) {
-            libs.push("std".to_string());
-        }
-
-        // always include globals
-        if !libs.contains(&"globals".to_string()) {
-            libs.push("globals".to_string());
-        }
-
-        // build lib load order with dependencies first
-        let version_overrides = collect_lib_version_overrides(&libs)?;
-        let ordered_libs = {
-            let _timing = self.timing_scope(tags::RESOLVE_LIBS_DEPENDENCIES);
-            let mut ordered_libs = Vec::new();
-            let mut seen_libs = HashSet::new();
-            for lib_name in &libs {
-                self.collect_lib_dependencies(
-                    lib_name,
-                    &mut ordered_libs,
-                    &mut seen_libs,
-                    &version_overrides,
-                )?;
-            }
-            ordered_libs
-        };
-
-        // reject conflicting builtin lib versions before loading modules
-        {
-            let _timing = self.timing_scope(tags::RESOLVE_LIBS_CONFLICTS);
-            self.check_builtin_lib_version_conflicts(&ordered_libs)?;
-        }
-
-        // load libs in order
-        let loaded_modules = {
-            let _timing = self.timing_scope(tags::RESOLVE_LIBS_LOAD_MODULES);
-            self.load_lib_modules_in_order(builtins, &ordered_libs, &profile_key)?
-        };
-        let LoadedLibModules {
+        let profile_key = self.program.profile(profile_id).key.clone();
+        let BuiltinLibSelection {
+            ordered_libs,
             modules_to_resolve,
             lib_modules,
             ambient_modules,
-        } = loaded_modules;
-        builtins.set_ambient_libs(&profile_key, ambient_modules.clone());
+        } = {
+            let _timing = self.timing_scope(tags::RESOLVE_LIBS_DEPENDENCIES);
+            self.builtin_lib_selection(builtins, &profile_key)?
+        };
 
-        // prepare modules in order
-        let mut collector = TaskResultCollector::new();
+        // resolve selected lib surfaces in order
+        let mut collector = BuildRequirementCollector::new();
         for module_ids in &modules_to_resolve {
             for &module_id in module_ids {
-                if let Err(error) = self.require_resolve_module_prepare(module_id, profile_id)
+                if let Err(error) = self.require_dir_resolved(module_id, profile_id)
                     && let Some(error) = collector.try_collect::<(), _>(Err(error))
                 {
-                    let dependency = error.into_dependency();
-                    return Err(ResolveError::UnsatisfiedDependency { dependency });
+                    let requirement = error.into_requirement();
+                    return Err(ResolveError::UnsatisfiedRequirement { requirement });
                 }
             }
         }
-        if let Some(dependency) = collector.try_into_yield_all() {
-            return Err(ResolveError::Yield { dependency });
-        }
-
-        // resolve dependency items for lib modules
-        let mut collector = TaskResultCollector::new();
-        {
-            let _timing = self.timing_scope(tags::RESOLVE_LIBS_DEPENDENCY_ITEMS);
-            let mut dependency_cache = ResolveDependencyItemCache::default();
-            for &module_id in &lib_modules {
-                if let Err(error) = self.resolve_dependency_items_with_cache(
-                    module_id,
-                    profile_id,
-                    &mut dependency_cache,
-                ) && let Some(error) = collector.try_collect::<(), _>(Err(error))
-                {
-                    return Err(error);
-                }
-            }
-            if let Some(dependency) = collector.try_into_yield_all() {
-                return Err(ResolveError::Yield { dependency });
-            }
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(ResolveError::Yield { requirement });
         }
 
         // build global symbol cache for lib modules
@@ -145,32 +78,78 @@ impl Compiler {
             let _timing = self.timing_scope(tags::RESOLVE_LIBS_DECLARED_SYMBOLS);
             self.find_declared_lib_symbols(profile_id, &lib_modules, &global_cache, &declared_names)
         };
-
-        // collect all ambient lib symbols
-        let ambient_symbols = {
+        let symbols = {
             let _timing = self.timing_scope(tags::RESOLVE_LIBS_AMBIENT_SYMBOLS);
-            self.collect_ambient_lib_symbols(profile_id, &ambient_modules, &global_cache)
+            self.collect_lib_symbols(profile_id, &lib_modules, &global_cache)
         };
-        let ambient_symbol_sources = {
+        let symbol_sources = {
             let _timing = self.timing_scope(tags::RESOLVE_LIBS_AMBIENT_SOURCES);
-            self.collect_ambient_lib_symbol_sources(&ambient_modules, &global_cache)
+            self.collect_lib_symbol_sources(profile_id, &lib_modules, &global_cache)
         };
-
-        // cache declared lib symbols
-        builtins.set_declared_lib_symbols(&profile_key, declared_symbols.clone());
-
-        // cache ambient lib symbols
-        builtins.set_ambient_lib_symbols(&profile_key, ambient_symbols);
-        builtins.set_ambient_lib_symbol_sources(&profile_key, ambient_symbol_sources);
-
-        // cache well-known symbols
         let well_known_symbols = {
             let _timing = self.timing_scope(tags::RESOLVE_LIBS_WELL_KNOWN);
             WellKnownSymbols::build(&self.program.strings, &declared_symbols)
         };
-        builtins.set_well_known_symbols(&profile_key, well_known_symbols);
+
+        self.program.artifacts.set_lib_environment(
+            profile_id,
+            LibEnvironment {
+                modules: lib_modules,
+                ambient_modules,
+                declared_symbols,
+                symbols,
+                symbol_sources,
+                well_known_symbols,
+            },
+        );
 
         Ok(())
+    }
+
+    /// Collect selected builtin lib modules from profile input state.
+    pub(crate) fn selected_lib_modules_from_input(
+        &self,
+        profile_id: ProfileId,
+    ) -> ResolveResult<Vec<destack_source::ModuleId>> {
+        if let Some(environment) = self.lib_environment(profile_id) {
+            return Ok(environment.supporting_modules());
+        }
+
+        if !self.options.load_libs {
+            return Ok(Vec::new());
+        }
+
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            return Ok(Vec::new());
+        };
+
+        let profile_key = self.program.profile(profile_id).key.clone();
+        let selection = self.builtin_lib_selection(builtins, &profile_key)?;
+
+        Ok(selection.lib_modules)
+    }
+
+    /// Collect ambient builtin lib modules from profile input state.
+    pub(crate) fn ambient_lib_modules_from_input(
+        &self,
+        profile_id: ProfileId,
+    ) -> ResolveResult<Vec<destack_source::ModuleId>> {
+        if let Some(environment) = self.lib_environment(profile_id) {
+            return Ok(environment.ambient_modules.clone());
+        }
+
+        if !self.options.load_libs {
+            return Ok(Vec::new());
+        }
+
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            return Ok(Vec::new());
+        };
+
+        let profile_key = self.program.profile(profile_id).key.clone();
+        let selection = self.builtin_lib_selection(builtins, &profile_key)?;
+
+        Ok(selection.ambient_modules)
     }
 
     /// Collect the declared symbol names from builtin libs.
@@ -192,7 +171,7 @@ impl Compiler {
         Ok(declared_name_ids)
     }
 
-    /// Find declared lib symbols from the global cache, falling back to exports.
+    /// Find declared lib symbols from the global cache and direct lib surfaces.
     /// Returns a map with SymbolGroup entries containing both type and value symbols.
     fn find_declared_lib_symbols(
         &self,
@@ -240,7 +219,7 @@ impl Compiler {
                 continue;
             }
 
-            // fall back to exports, looking for both type and value
+            // read declared exports directly when the cache did not provide them
             let mut group = SymbolGroup::default();
             for &module_id in lib_modules {
                 // load the module
@@ -292,23 +271,21 @@ impl Compiler {
         declared_symbols
     }
 
-    /// Collect all exported symbols from ambient lib modules.
-    fn collect_ambient_lib_symbols(
+    /// Collect all exported symbols from selected lib modules.
+    fn collect_lib_symbols(
         &self,
         profile_id: ProfileId,
-        ambient_modules: &[destack_source::ModuleId],
+        lib_modules: &[destack_source::ModuleId],
         global_cache: &GlobalSymbolTable,
     ) -> IndexMap<StringId, SymbolGroup> {
-        let mut ambient_symbols = IndexMap::new();
+        let mut symbols = IndexMap::new();
 
         // first, collect from global cache (by space)
         for (group_key, &symbol_id) in &global_cache.symbols_by_space {
             let StaticKey::Name(name_id) = group_key.key else {
                 continue;
             };
-            let group = ambient_symbols
-                .entry(name_id)
-                .or_insert(SymbolGroup::default());
+            let group = symbols.entry(name_id).or_insert(SymbolGroup::default());
             match group_key.space {
                 SymbolSpace::Type => {
                     if group.ty.is_none() {
@@ -332,12 +309,81 @@ impl Compiler {
             }
         }
 
-        // then, supplement from module exports
-        for &module_id in ambient_modules {
+        // then, supplement from module scopes and exports
+        for &module_id in lib_modules {
             let module = self.program.modules.get(module_id);
             let module = module.read();
             let dir = module.dir(profile_id);
+            let symbols_table = dir.symbols.read();
             let exports = dir.exported_symbols.read();
+
+            // collect namespace scope declarations directly
+            let namespace_scope = symbols_table.get_scope_by_id(dir.namespace_scope);
+            for (key, symbol_id) in symbols_table.active_named_symbols(namespace_scope) {
+                let StaticKey::Name(name_id) = key else {
+                    continue;
+                };
+
+                let group = symbols.entry(name_id).or_insert(SymbolGroup::default());
+                let symbol = symbols_table.get_symbol(symbol_id);
+                let target_id = symbol_id.into_global(module_id);
+
+                match symbol.space {
+                    SymbolSpace::Type => {
+                        if group.ty.is_none() {
+                            group.ty = Some(target_id);
+                        }
+                    }
+                    SymbolSpace::Value => {
+                        if group.value.is_none() {
+                            group.value = Some(target_id);
+                        }
+                    }
+                    SymbolSpace::TypeValue => {
+                        if group.ty.is_none() {
+                            group.ty = Some(target_id);
+                        }
+                        if group.value.is_none() {
+                            group.value = Some(target_id);
+                        }
+                    }
+                    SymbolSpace::Label => {}
+                }
+            }
+
+            // collect global augmentation declarations directly
+            let global_scope = symbols_table.get_scope_by_id(dir.global_augmentation_scope);
+            for (key, symbol_id) in symbols_table.active_named_symbols(global_scope) {
+                let StaticKey::Name(name_id) = key else {
+                    continue;
+                };
+
+                let group = symbols.entry(name_id).or_insert(SymbolGroup::default());
+                let symbol = symbols_table.get_symbol(symbol_id);
+                let target_id = symbol_id.into_global(module_id);
+
+                match symbol.space {
+                    SymbolSpace::Type => {
+                        if group.ty.is_none() {
+                            group.ty = Some(target_id);
+                        }
+                    }
+                    SymbolSpace::Value => {
+                        if group.value.is_none() {
+                            group.value = Some(target_id);
+                        }
+                    }
+                    SymbolSpace::TypeValue => {
+                        if group.ty.is_none() {
+                            group.ty = Some(target_id);
+                        }
+                        if group.value.is_none() {
+                            group.value = Some(target_id);
+                        }
+                    }
+                    SymbolSpace::Label => {}
+                }
+            }
 
             // exported_symbols is IndexMap<(SymbolSpace, StaticKey), Export>
             for ((space, key), export) in exports.iter() {
@@ -351,9 +397,7 @@ impl Compiler {
                 };
 
                 // add to the appropriate slot in the group
-                let group = ambient_symbols
-                    .entry(name_id)
-                    .or_insert(SymbolGroup::default());
+                let group = symbols.entry(name_id).or_insert(SymbolGroup::default());
                 match space {
                     SymbolSpace::Type => {
                         if group.ty.is_none() {
@@ -378,22 +422,23 @@ impl Compiler {
             }
         }
 
-        ambient_symbols
+        symbols
     }
 
-    /// Collect ambient lib symbol sources grouped by key and space.
-    fn collect_ambient_lib_symbol_sources(
+    /// Collect selected lib symbol sources grouped by key and space.
+    fn collect_lib_symbol_sources(
         &self,
-        ambient_modules: &[destack_source::ModuleId],
+        profile_id: ProfileId,
+        lib_modules: &[destack_source::ModuleId],
         global_cache: &GlobalSymbolTable,
-    ) -> IndexMap<AmbientLibSymbolKey, Vec<GlobalSymbolId>> {
+    ) -> IndexMap<LibSymbolKey, Vec<GlobalSymbolId>> {
         let mut sources = IndexMap::new();
-        let ambient_set: HashSet<_> = ambient_modules.iter().copied().collect();
+        let lib_set: HashSet<_> = lib_modules.iter().copied().collect();
 
         for (group_key, group_sources) in &global_cache.sources_by_space {
             let mut filtered = Vec::new();
             for symbol in group_sources {
-                if ambient_set.contains(&symbol.module_id) {
+                if lib_set.contains(&symbol.module_id) {
                     filtered.push(*symbol);
                 }
             }
@@ -403,7 +448,7 @@ impl Compiler {
             }
 
             sources.insert(
-                AmbientLibSymbolKey {
+                LibSymbolKey {
                     key: group_key.key,
                     space: group_key.space,
                 },
@@ -411,23 +456,92 @@ impl Compiler {
             );
         }
 
+        // supplement merge sources from module scopes and exports
+        for &module_id in lib_modules {
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            let dir = module.dir(profile_id);
+            let symbols_table = dir.symbols.read();
+            let exports = dir.exported_symbols.read();
+
+            // collect namespace scope declarations directly
+            let namespace_scope = symbols_table.get_scope_by_id(dir.namespace_scope);
+            for (key, symbol_id) in symbols_table.active_named_symbols(namespace_scope) {
+                let symbol = symbols_table.get_symbol(symbol_id);
+                let group_key = LibSymbolKey {
+                    key,
+                    space: symbol.space,
+                };
+                let group_sources = sources.entry(group_key).or_default();
+                let target_id = symbol_id.into_global(module_id);
+
+                if !group_sources.contains(&target_id) {
+                    group_sources.push(target_id);
+                }
+            }
+
+            // collect global augmentation declarations directly
+            let global_scope = symbols_table.get_scope_by_id(dir.global_augmentation_scope);
+            for (key, symbol_id) in symbols_table.active_named_symbols(global_scope) {
+                let symbol = symbols_table.get_symbol(symbol_id);
+                let group_key = LibSymbolKey {
+                    key,
+                    space: symbol.space,
+                };
+                let group_sources = sources.entry(group_key).or_default();
+                let target_id = symbol_id.into_global(module_id);
+
+                if !group_sources.contains(&target_id) {
+                    group_sources.push(target_id);
+                }
+            }
+
+            for ((space, key), export) in exports.iter() {
+                let Some(symbol_id) = export.target.resolved() else {
+                    continue;
+                };
+
+                let group_key = LibSymbolKey {
+                    key: *key,
+                    space: *space,
+                };
+                let group_sources = sources.entry(group_key).or_default();
+
+                if !group_sources.contains(&symbol_id) {
+                    group_sources.push(symbol_id);
+                }
+            }
+        }
+
         sources
     }
 
-    /// Load lib modules in dependency order and collect module lists.
-    fn load_lib_modules_in_order(
+    /// Resolve the builtin lib selection for one profile key.
+    fn builtin_lib_selection(
         &self,
         builtins: &Builtins,
-        ordered_libs: &[String],
         profile_key: &ProfileKey,
-    ) -> ResolveResult<LoadedLibModules> {
+    ) -> ResolveResult<BuiltinLibSelection> {
+        if let Some(selection) = builtins.lib_selection(profile_key) {
+            return Ok(selection);
+        }
+
+        // dependency order
+        let ordered_libs = self.ordered_libs_for_profile_key(profile_key)?;
+        if self.check_builtin_lib_version_conflicts(&ordered_libs)? {
+            let selection = BuiltinLibSelection::default();
+            builtins.set_lib_selection(profile_key, selection.clone());
+            return Ok(selection);
+        }
+
+        // load libs in order
         let mut ambient_modules = Vec::new();
         let mut ambient_seen = HashSet::new();
         let mut all_modules = Vec::new();
         let mut all_seen = HashSet::new();
         let mut modules_to_resolve = Vec::new();
 
-        for lib_name in ordered_libs {
+        for lib_name in &ordered_libs {
             // load the lib definition
             let lib = builtin_lib(lib_name).ok_or_else(|| ResolveError::MissingBuiltinLib {
                 name: lib_name.clone(),
@@ -456,11 +570,46 @@ impl Compiler {
             }
         }
 
-        Ok(LoadedLibModules {
+        let selection = BuiltinLibSelection {
+            ordered_libs,
             modules_to_resolve,
             lib_modules: all_modules,
             ambient_modules,
-        })
+        };
+
+        builtins.set_lib_selection(profile_key, selection.clone());
+
+        Ok(selection)
+    }
+
+    /// Build the ordered builtin lib set for one profile key.
+    fn ordered_libs_for_profile_key(&self, profile_key: &ProfileKey) -> ResolveResult<Vec<String>> {
+        let mut libs = profile_key.lib.clone();
+
+        // always include std lib
+        if !libs.contains(&"std".to_string()) {
+            libs.push("std".to_string());
+        }
+
+        // always include globals
+        if !libs.contains(&"globals".to_string()) {
+            libs.push("globals".to_string());
+        }
+
+        // dependency order
+        let version_overrides = collect_lib_version_overrides(&libs)?;
+        let mut ordered_libs = Vec::new();
+        let mut seen_libs = HashSet::new();
+        for lib_name in &libs {
+            self.collect_lib_dependencies(
+                lib_name,
+                &mut ordered_libs,
+                &mut seen_libs,
+                &version_overrides,
+            )?;
+        }
+
+        Ok(ordered_libs)
     }
 
     /// Load builtin lib modules in dependency order for benchmark runs.
@@ -481,27 +630,14 @@ impl Compiler {
             lib_names.push("globals".to_string());
         }
 
-        let version_overrides = collect_lib_version_overrides(&lib_names)?;
-        let mut ordered_libs = Vec::new();
-        let mut seen_libs = HashSet::new();
-        for lib_name in &lib_names {
-            self.collect_lib_dependencies(
-                lib_name,
-                &mut ordered_libs,
-                &mut seen_libs,
-                &version_overrides,
-            )?;
-        }
-
         let default_profile_id = self
             .program
             .default_profile_id_for_module(self.program.root_module_id);
         let mut profile_key = self.program.profile(default_profile_id).key.clone();
         profile_key.lib = lib_names;
 
-        self.check_builtin_lib_version_conflicts(&ordered_libs)?;
-        let loaded = self.load_lib_modules_in_order(builtins, &ordered_libs, &profile_key)?;
-        Ok(loaded.lib_modules)
+        let selection = self.builtin_lib_selection(builtins, &profile_key)?;
+        Ok(selection.lib_modules)
     }
 
     /// Collect the dependencies of a lib and add them to the ordered list.
@@ -540,7 +676,7 @@ impl Compiler {
     }
 
     /// Reject multiple builtin lib versions in the same lib set.
-    fn check_builtin_lib_version_conflicts(&self, ordered_libs: &[String]) -> ResolveResult<()> {
+    fn check_builtin_lib_version_conflicts(&self, ordered_libs: &[String]) -> ResolveResult<bool> {
         // group libs by base and version
         let mut grouped = HashMap::<String, HashMap<String, HashSet<String>>>::new();
 
@@ -576,13 +712,14 @@ impl Compiler {
         // report the first conflict if any
         conflicts.sort_by(|left, right| left.0.cmp(&right.0));
         if let Some((base, libs)) = conflicts.first() {
-            return Err(ResolveError::ConflictingBuiltinLibVersions {
+            self.error(ResolveError::ConflictingBuiltinLibVersions {
                 base: base.clone(),
                 libs: libs.join(", "),
             });
+            return Ok(true);
         }
 
-        Ok(())
+        Ok(false)
     }
 }
 

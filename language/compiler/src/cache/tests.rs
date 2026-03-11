@@ -3,20 +3,21 @@ use std::sync::Arc;
 
 use destack_resolver::TypeScriptOptionsDiscovery;
 use destack_source::{
-    CacheKind, DiagnosticSeverity, File, FileId, FileType, FileVersion, ModuleId, ModuleStamp,
-    ModuleVersion, PackageId, ProfileStamp, TemporaryPhysicalFileSystem, Uri,
+    CacheKind, DiagnosticSeverity, File, FileId, FileType, FileVersion, ModuleId, ModuleVersion,
+    PackageId, TemporaryPhysicalFileSystem, Uri,
 };
 use destack_workspace::{
-    CacheMode, CachePolicy, CacheScope, CacheValidate, DiskCacheStore, DsConfig, FileUpdate,
-    MemoryCacheStore, ModuleAst, ModuleDir, ModuleGraphKey, ModuleMir, ModuleSignatureKey, Session,
-    TargetId, Workspace, WorkspaceIndexHeader, WorkspaceIndexStore, hash_workspace_config,
+    ArtifactKey, CacheMode, CachePolicy, CacheScope, CacheValidate, DiskCacheStore, DsConfig,
+    FileUpdate, MemoryCacheStore, ModuleAst, ModuleDir, ModuleGraphKey, ModuleMir,
+    ModuleSignatureKey, Session, TargetId, Workspace, WorkspaceIndexHeader, WorkspaceIndexStore,
+    hash_workspace_config,
 };
 use indexmap::IndexMap;
 
 use super::hasher::CacheHasher;
 use crate::{
-    AnalyzeTask, CacheContext, CacheKey, CacheOptions, CacheRegistry, Compiler, CompilerOptions,
-    ImportTask, TaskOutcome, TaskStatus, TestFileSystem, TestProgram,
+    BuildKey, CacheContext, CacheKey, CacheOptions, CacheRegistry, Compiler, CompilerOptions,
+    TaskOutcome, TaskStatus, TestFileSystem, TestProgram,
 };
 
 impl TestProgram {
@@ -32,17 +33,10 @@ impl TestProgram {
         // enqueue analyze tasks for the requested modules
         for module_id in modules {
             let profile = self.default_profile_id(*module_id);
-            let module_version = self.program.modules.get(*module_id).read().version;
-            let profile_version = self
-                .program
-                .profiles
-                .get(profile)
-                .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
-                .version;
-            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-                module: ModuleStamp::new(*module_id, module_version),
-                profile: ProfileStamp::new(profile, profile_version),
-            });
+            compiler.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+                module: *module_id,
+                profile,
+            }));
         }
 
         // run compilation and check diagnostics
@@ -89,13 +83,24 @@ impl TestProgram {
     }
 }
 
-/// Skip tasks when module versions are stale.
+/// Rebuild tasks when module versions change.
 #[test]
-fn test_task_skips_stale_module_version() {
+fn test_task_rebuilds_after_module_version_change() {
     // set up a program and register a module
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module("main.ts", "export const value = 1;");
-    let stale_version = test.module_version(module_id);
+    let build_key = BuildKey::Artifact(ArtifactKey::Ast { module: module_id });
+    let artifact_key = ArtifactKey::Ast { module: module_id };
+
+    // seed the initial artifact
+    let outcome = test.compiler.run_build_key(build_key.clone());
+    assert!(matches!(outcome, TaskOutcome::Complete));
+
+    let initial_dependency = test
+        .program
+        .artifacts
+        .dependency(&artifact_key)
+        .unwrap_or_else(|| panic!("missing dependency for {artifact_key:?}"));
 
     // invalidate the module to bump its version
     let file_id = test.program.modules.get(module_id).read().file_id;
@@ -103,19 +108,27 @@ fn test_task_skips_stale_module_version() {
         .invalidate_file(file_id, FileUpdate::Touch)
         .unwrap_or_else(|error| panic!("failed to invalidate file: {error}"));
 
-    // run the task with the stale version
-    let task = ImportTask::ImportModuleParse {
-        module: ModuleStamp::new(module_id, stale_version),
-    };
-    let outcome = test.compiler.run_task(task.clone());
+    // rebuild the same build key against the new input version
+    let outcome = test.compiler.run_build_key(build_key.clone());
 
-    // check that the task was skipped
-    assert!(matches!(outcome, TaskOutcome::Skipped { .. }));
+    // check that the task completed again under a new dependency
+    assert!(matches!(outcome, TaskOutcome::Complete));
     let status = test
         .compiler
-        .get_status(task)
+        .get_status(&build_key)
         .unwrap_or_else(|| panic!("missing task status"));
-    assert!(matches!(status, TaskStatus::Skipped { .. }));
+    assert!(matches!(status, TaskStatus::Complete));
+
+    let updated_dependency = test
+        .program
+        .artifacts
+        .dependency(&artifact_key)
+        .unwrap_or_else(|| panic!("missing dependency for {artifact_key:?}"));
+
+    assert_ne!(
+        updated_dependency, initial_dependency,
+        "expected artifact dependency to change after module invalidation"
+    );
 }
 
 /// Signature changes invalidate dependent modules.

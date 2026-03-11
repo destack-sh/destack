@@ -1,4 +1,4 @@
-use crate::{Compiler, ExecuteError, ExecuteResult, TaskResultCollector};
+use crate::{BuildRequirementCollector, Compiler, ExecuteError, ExecuteResult};
 
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ComptimeOutput, ModuleComptime, ModuleDir, ProfileId, TrustPolicy};
@@ -25,7 +25,7 @@ impl Compiler {
         )?;
 
         // ensure DIR exists
-        self.require_elaborate_module(module_id, profile_id)?;
+        self.require_dir_elaborated(module_id, profile_id)?;
         if !self.is_code_module(module_id) {
             return Ok(());
         }
@@ -113,8 +113,8 @@ impl Compiler {
             return Ok(());
         }
 
-        // ensure module comptime state exists
-        self.require_execute_module_prepare(module_id, profile_id)?;
+        // initialize module comptime state
+        self.execute_module_prepare(module_id, profile_id, module_version, profile_version)?;
         if !self.is_code_module(module_id) {
             return Ok(());
         }
@@ -137,7 +137,7 @@ impl Compiler {
         };
 
         // execute each comptime expression
-        let mut collector = TaskResultCollector::new();
+        let mut collector = BuildRequirementCollector::new();
         for expression_id in &comptime_nodes {
             self.collect(
                 &mut collector,
@@ -150,8 +150,8 @@ impl Compiler {
                 ),
             );
         }
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(ExecuteError::Yield { dependency });
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(ExecuteError::Yield { requirement });
         }
 
         // gather execute results for this module
@@ -248,8 +248,8 @@ impl Compiler {
                 node: expression.into_anchored(Some(profile_id)),
             })?;
 
-        // ensure module comptime state exists
-        self.require_execute_module_prepare(module_id, profile_id)?;
+        // initialize module comptime state
+        self.execute_module_prepare(module_id, profile_id, module_version, profile_version)?;
         if !self.is_code_module(module_id) {
             return Ok(());
         }
@@ -268,23 +268,16 @@ impl Compiler {
 
             // ensure nested comptime expressions are executed first
             let dependencies = collect_comptime_dependencies(&tree, *body);
-            let mut dependency_collector = TaskResultCollector::new();
             for dependency in dependencies {
-                // require each comptime dependency before execution
+                // execute each nested comptime dependency first
                 let dependency_id = dependency.into_global(module_id);
-                let error = dependency_collector.try_collect(self.require_execute_expression(
+                self.execute_expression(
                     module_id,
                     profile_id,
+                    module_version,
+                    profile_version,
                     dependency_id,
-                ));
-                if let Some(error) = error {
-                    return Err(ExecuteError::UnsatisfiedDependency {
-                        dependency: error.into_dependency(),
-                    });
-                }
-            }
-            if let Some(dependency) = dependency_collector.try_into_yield_any() {
-                return Err(ExecuteError::Yield { dependency });
+                )?;
             }
 
             // lower the comptime expression to MIR

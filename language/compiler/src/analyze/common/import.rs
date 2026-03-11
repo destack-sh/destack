@@ -1,5 +1,5 @@
 use crate::analyze::common::{ModuleTreeView, TypeContext};
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, ResolveError};
 use destack_dir::{
     DependencyKind, DependencySource, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Path,
     StaticArgument, StaticKey, StringId, SymbolSpaceOrder, Type,
@@ -34,6 +34,13 @@ impl Compiler {
         ) {
             Ok(target) => target,
             Err(error) => {
+                if matches!(
+                    error,
+                    ResolveError::Yield { .. } | ResolveError::UnsatisfiedRequirement { .. }
+                ) {
+                    return Err(AnalyzeError::from(error));
+                }
+
                 self.error(error);
                 return Ok(None);
             }
@@ -50,6 +57,13 @@ impl Compiler {
         ) {
             Ok(symbol) => symbol,
             Err(error) => {
+                if matches!(
+                    error,
+                    ResolveError::Yield { .. } | ResolveError::UnsatisfiedRequirement { .. }
+                ) {
+                    return Err(AnalyzeError::from(error));
+                }
+
                 self.error(error);
                 return Ok(None);
             }
@@ -59,7 +73,7 @@ impl Compiler {
         };
 
         // ensure exported types are available for the resolved symbol
-        self.require_analyze_module_interface(symbol.module_id, view.profile)?;
+        self.require_dir_interface(symbol.module_id, view.profile)?;
 
         Ok(Some(symbol))
     }

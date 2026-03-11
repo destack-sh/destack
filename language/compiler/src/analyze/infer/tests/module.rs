@@ -1,5 +1,5 @@
 use super::*;
-use crate::analyze::common::AnalyzeDependencyStage;
+use crate::analyze::common::DirReadBoundary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParallelValueKind {
@@ -169,7 +169,7 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     let module = test.program.modules.get(main_id);
     let module = module.read();
     let profile = view.profile_id();
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(main_id, profile);
     let thing_name = test.program.strings.intern("thing");
     let global_key = StaticKey::Name(test.program.strings.intern("GlobalThing"));
     let global_group = test
@@ -181,11 +181,11 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     for global_symbol in &global_group {
         let remote_profile = test.default_profile_id(global_symbol.module_id);
         test.compiler
-            .with_module_types_at_stage(
+            .with_module_types_at_boundary(
                 &module,
                 remote_profile,
                 global_symbol.module_id,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |_, remote_types| {
                     assert!(
                         remote_types.get_instance_type_id(*global_symbol).is_some(),
@@ -419,7 +419,7 @@ values.first() satisfies number | undefined;
         .expect("missing Array group");
     let ambient_merge_group = test
         .compiler
-        .get_ambient_lib_symbol_sources_for_merge(profile, key, SymbolSpace::Type)
+        .get_lib_symbol_sources_for_merge(profile, key, SymbolSpace::Type)
         .unwrap_or_default();
     let array_symbol = type_group
         .iter()
@@ -445,11 +445,11 @@ values.first() satisfies number | undefined;
     let module = module.read();
     let ambient_keys = test
         .compiler
-        .with_module_types_at_stage(
+        .with_module_types_at_boundary(
             &module,
             profile,
             ambient_symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |_, ambient_types| {
                 let ambient_instance = ambient_types
                     .get_instance_type_id(ambient_symbol)
@@ -1022,6 +1022,7 @@ fn test_analyze_cross_module_associated_comptime_projection_through_multi_hop_re
 export class PacketOwner<Row> {
     comptime const Width: number = Row extends string ? 8 : 2;
 }
+
 "#,
     );
     test.add_file(
@@ -1065,6 +1066,58 @@ let width = PacketOwner<string>.Width;
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
         }
     );
+}
+
+/// Preserve fixed-array disambiguation for namespace imported associated comptime lengths.
+#[test]
+fn test_analyze_namespace_import_associated_comptime_fixed_array_disambiguation() {
+    // arrange layout and namespace-import consumer modules
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "layout.ds",
+        r#"
+export class Segment<Row> {
+    comptime const Width: number = Row extends string ? 8 : 4;
+}
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+import * as api from "./layout";
+
+type Lane<Row> = uint8[api.Segment<Row>.Width as comptime];
+
+declare const lane: Lane<string>;
+lane satisfies uint8[8];
+"#,
+    );
+
+    // compile the namespace-imported associated comptime projection
+    test.analyze_module(module_id);
+    test.compile();
+
+    // preserve the fixed-array count after namespace-imported associated comptime materialization
+    let view = test.view(module_id);
+    let lane_symbol = test
+        .resolve_to_symbol("main.ds", "lane")
+        .expect("expected lane symbol");
+    let lane_type_id = view
+        .types()
+        .get_value_type_id(lane_symbol)
+        .expect("expected lane type");
+    let Type::Reference {
+        symbol: lane_alias_symbol,
+        static_arguments,
+    } = view.types().get_type(lane_type_id)
+    else {
+        panic!(
+            "expected namespace-imported lane to preserve its alias reference, got {:?}",
+            view.types().get_type(lane_type_id)
+        );
+    };
+    assert_eq!(lane_alias_symbol.module_id, module_id);
+    assert!(static_arguments.is_some());
 }
 
 /// Analyze multi-hop re-exported associated contract aliases through imported implementors.
@@ -1176,6 +1229,44 @@ tile satisfies uint8[16];
 
     // analyze should preserve associated comptime default substitution through barrels
     test.analyze_module_and_check_clean(module_id);
+}
+
+/// Analyze inherited class associated comptime aliases through concrete overrides.
+#[test]
+fn test_analyze_class_associated_comptime_alias_projection_through_abstract_owner() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.analyze_module_with_source(
+        "test.ds",
+        r#"
+abstract class BatchPlan<Row> {
+    abstract comptime const SegmentRows: number;
+    type SegmentRowsType = SegmentRows;
+}
+
+class LogBatch extends BatchPlan<string> {
+    comptime const SegmentRows: number = 256;
+}
+
+declare const segmentRows: LogBatch.SegmentRowsType;
+segmentRows satisfies 256;
+"#,
+    );
+    let view = test.view(module_id);
+    let types = view.types();
+    let segment_rows_name = test.program.strings.intern("segmentRows");
+    let segment_rows_symbol = view.expect_binding_symbol(segment_rows_name);
+    let segment_rows_type_id = view.expect_value_type_id(segment_rows_symbol);
+
+    let segment_rows_literal = test
+        .compiler
+        .integer_literal_value_for_type_id(segment_rows_type_id, types);
+
+    assert_eq!(
+        segment_rows_literal,
+        Some(256),
+        "expected inherited associated comptime alias to resolve to 256: segment_rows={:?}",
+        types.get_type(segment_rows_type_id),
+    );
 }
 
 /// Reject unresolved imported generic associated comptime projections in value position.

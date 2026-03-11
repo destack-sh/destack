@@ -1,4 +1,4 @@
-use crate::analyze::common::{AnalyzeDependencyStage, TypeContext};
+use crate::analyze::common::{DirReadBoundary, TypeContext};
 use crate::analyze::module::GlobalMergeCategory;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
@@ -195,11 +195,11 @@ impl Compiler {
         global_symbol: GlobalSymbolId,
         kind: RemoteMergeShapeKind,
     ) -> AnalyzeResult<Option<ObjectShape>> {
-        let remote_shape_type = self.with_module_tree_symbol_view_at_stage(
+        let remote_shape_type = self.with_module_tree_symbol_view_at_boundary(
             ctx.module,
             ctx.profile,
             global_symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |view| {
                 let remote_dir = view.module.dir(ctx.profile);
                 let remote_types = remote_dir.types.read();

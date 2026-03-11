@@ -359,8 +359,8 @@ impl TypeTable {
             .copied()
     }
 
-    /// Publish one declared static constant value for one symbol.
-    pub fn publish_static_constant_value(
+    /// Store one artifact static constant value for one symbol.
+    pub fn set_artifact_static_constant_value(
         &mut self,
         symbol_id: GlobalSymbolId,
         value: StaticExpression,
@@ -370,8 +370,8 @@ impl TypeTable {
             .insert(symbol_id, value);
     }
 
-    /// Query one declare-published static constant value for one symbol.
-    pub fn query_published_static_constant_value(
+    /// Query one artifact static constant value for one symbol.
+    pub fn query_artifact_static_constant_value(
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<StaticExpression> {

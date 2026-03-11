@@ -1,34 +1,213 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
-use destack_builtin::LanguageSymbol;
+use destack_builtin::{LanguageSymbol, builtin_lib};
 use destack_core::StringId;
-use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol};
-use destack_workspace::{ProfileId, WellKnownSymbols};
+use destack_dir::{
+    GlobalSymbolId, LocalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol,
+};
+use destack_source::ModuleId;
+use destack_workspace::{
+    ArtifactKey, LanguageEnvironment, LibEnvironment, ProfileId, WellKnownSymbols,
+};
 
 use crate::timing::tags;
-use crate::{Compiler, ResolveError, ResolveResult};
+use crate::{BuildKey, BuildRequirementError, Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve all builtin modules and required language items.
-    pub fn resolve_builtins(&self, profile: ProfileId) -> ResolveResult<()> {
+    /// Return true when one builtin lib module contributes to the early standard lib surface.
+    pub fn is_standard_lib_environment_module(&self, module_id: ModuleId) -> bool {
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            return false;
+        };
+        let Some(lib_name) = builtins.lib_name_for_module(module_id) else {
+            return false;
+        };
+        let Some(lib) = builtin_lib(lib_name) else {
+            return false;
+        };
+
+        lib.name.starts_with("es")
+            || matches!(
+                lib.name,
+                "js" | "native" | "std" | "globals" | "decorators" | "decorators.legacy"
+            )
+    }
+
+    /// Return one locally exported symbol from a module base DIR.
+    fn local_exported_symbol_from_base(
+        &self,
+        module_id: ModuleId,
+        export_name: StringId,
+        order: SymbolSpaceOrder,
+    ) -> Option<GlobalSymbolId> {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir_base();
+        let symbols = dir.symbols.read();
+
+        // collect the first exported symbol for each eligible space
+        let mut value_symbol = None;
+        let mut type_symbol = None;
+        let mut type_value_symbol = None;
+
+        for (index, symbol) in symbols.symbols().enumerate() {
+            if symbol.export.is_none() {
+                continue;
+            }
+
+            if symbol.name() != Some(export_name) {
+                continue;
+            }
+
+            let local_id = LocalSymbolId::new_typed(index as u32, symbol.ty);
+            let global_id = local_id.into_global(module_id);
+
+            match symbol.space {
+                SymbolSpace::Value if value_symbol.is_none() => {
+                    value_symbol = Some(global_id);
+                }
+                SymbolSpace::Type if type_symbol.is_none() => {
+                    type_symbol = Some(global_id);
+                }
+                SymbolSpace::TypeValue if type_value_symbol.is_none() => {
+                    type_value_symbol = Some(global_id);
+                }
+                _ => {}
+            }
+        }
+
+        // select the first matching export for the requested order
+        for space in order.spaces() {
+            match space {
+                SymbolSpace::Value => {
+                    if let Some(symbol_id) = value_symbol.or(type_value_symbol) {
+                        return Some(symbol_id);
+                    }
+                }
+                SymbolSpace::Type => {
+                    if let Some(symbol_id) = type_symbol.or(type_value_symbol) {
+                        return Some(symbol_id);
+                    }
+                }
+                SymbolSpace::TypeValue => {
+                    if let Some(symbol_id) = type_value_symbol.or(type_symbol).or(value_symbol) {
+                        return Some(symbol_id);
+                    }
+                }
+                SymbolSpace::Label => {}
+            }
+        }
+
+        None
+    }
+
+    /// Return the language environment for one profile.
+    pub fn language_environment(&self, profile: ProfileId) -> Option<Arc<LanguageEnvironment>> {
+        self.program.artifacts.language_environment(profile)
+    }
+
+    /// Return the lib environment for one profile.
+    pub fn lib_environment(&self, profile: ProfileId) -> Option<Arc<LibEnvironment>> {
+        self.program.artifacts.lib_environment(profile)
+    }
+
+    /// Return the selected lib modules for one profile.
+    pub fn selected_lib_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
+        if let Some(environment) = self.lib_environment(profile) {
+            return environment.supporting_modules();
+        }
+
+        self.selected_lib_modules_from_input(profile)
+            .unwrap_or_default()
+    }
+
+    /// Return the ambient lib modules for one profile.
+    pub fn ambient_lib_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
+        if let Some(environment) = self.lib_environment(profile) {
+            return environment.ambient_modules.clone();
+        }
+
+        self.ambient_lib_modules_from_input(profile)
+            .unwrap_or_default()
+    }
+
+    /// Return the modules that support one global environment.
+    pub fn lib_environment_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
+        self.lib_environment(profile)
+            .map(|environment| environment.supporting_modules())
+            .unwrap_or_default()
+    }
+
+    /// Return true when one module is ambient for one profile.
+    pub fn is_ambient_lib_module(&self, profile: ProfileId, module: ModuleId) -> bool {
+        self.lib_environment(profile)
+            .is_some_and(|environment| environment.ambient_modules.contains(&module))
+    }
+
+    /// Return true when one module is selected in the lib environment for one profile.
+    pub fn is_selected_lib_module(&self, profile: ProfileId, module: ModuleId) -> bool {
+        self.selected_lib_modules(profile).contains(&module)
+    }
+
+    /// Resolve the language environment for one profile.
+    pub fn resolve_language_environment(&self, profile: ProfileId) -> ResolveResult<()> {
+        if self.language_environment(profile).is_some() {
+            return Ok(());
+        }
+
         let Some(builtins) = self.program.builtins.as_ref() else {
             return Ok(());
         };
         let _timing = self.timing_scope(tags::RESOLVE_BUILTINS);
 
-        // resolve prelude/core modules
-        self.require_resolve_module(builtins.prelude_module_id, profile)?;
+        // bind builtin defining modules
         for &module_id in builtins.core_module_by_path.values() {
-            self.require_resolve_module(module_id, profile)?;
+            if module_id == builtins.prelude_module_id {
+                continue;
+            }
+            self.require_dir_base(module_id)
+                .map_err(ResolveError::from)?;
         }
 
-        // resolve all language items
+        // collect all language items from the builtin module local export surface
+        let mut items = indexmap::IndexMap::new();
+        let mut symbols = indexmap::IndexMap::new();
         for item in LanguageSymbol::all() {
-            self.require_language_symbol(profile, item)?;
+            let module_id = builtins.module_for_item(item);
+            let name_id = self.program.strings.intern(item.export_name());
+            let export_spaces = SymbolSpaceOrder::ValueThenType;
+            let Some(symbol_id) =
+                self.local_exported_symbol_from_base(module_id, name_id, export_spaces)
+            else {
+                return Err(ResolveError::MissingLanguageSymbol { item });
+            };
+
+            items.insert(item, symbol_id);
+            symbols.insert(name_id, symbol_id);
         }
+
+        self.program
+            .artifacts
+            .set_language_environment(profile, LanguageEnvironment { items, symbols });
 
         Ok(())
+    }
+
+    /// Ensure the language environment exists for one profile.
+    pub fn require_language_environment(
+        &self,
+        profile: ProfileId,
+    ) -> Result<(), BuildRequirementError> {
+        self.require_build_key(BuildKey::Artifact(ArtifactKey::LanguageEnvironment {
+            profile,
+        }))
+    }
+
+    /// Ensure the lib environment exists for one profile.
+    pub fn require_lib_environment(&self, profile: ProfileId) -> Result<(), BuildRequirementError> {
+        self.require_build_key(BuildKey::Artifact(ArtifactKey::LibEnvironment { profile }))
     }
 
     /// Get a required language item, returning an error if not found.
@@ -37,40 +216,11 @@ impl Compiler {
         profile: ProfileId,
         item: LanguageSymbol,
     ) -> ResolveResult<GlobalSymbolId> {
-        // check if builtins are available
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return Err(ResolveError::MissingLanguageSymbol { item });
-        };
+        self.require_language_environment(profile)
+            .map_err(ResolveError::from)?;
 
-        // check cache
-        if let Some(cached) = builtins.items.get(&(profile, item)) {
-            return Ok(*cached);
-        }
-
-        // resolve the module for this language item
-        let module_id = builtins.module_for_item(item);
-        self.require_resolve_module(module_id, profile)?;
-
-        // resolve the symbol in the module
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
-
-        // find the symbol in the module's export table
-        let name_id = self.program.strings.intern(item.export_name());
-        let key = StaticKey::Name(name_id);
-        let exports = dir.exported_symbols.read();
-        let tree = dir.tree.read();
-        let export_spaces = SymbolSpaceOrder::ValueThenType;
-        let Some(symbol_id) =
-            self.resolve_exported_symbol(&module, profile, &exports, &tree, export_spaces, key)
-        else {
-            return Err(ResolveError::MissingLanguageSymbol { item });
-        };
-
-        // result
-        builtins.items.insert((profile, item), symbol_id);
-        Ok(symbol_id)
+        self.get_language_symbol(profile, item)
+            .ok_or(ResolveError::MissingLanguageSymbol { item })
     }
 
     /// Get a language item from the cache, returning None if not found.
@@ -79,8 +229,12 @@ impl Compiler {
         profile: ProfileId,
         item: LanguageSymbol,
     ) -> Option<GlobalSymbolId> {
-        let builtins = self.program.builtins.as_ref()?;
-        builtins.items.get(&(profile, item)).map(|r| *r)
+        self.language_environment(profile)?.item(item)
+    }
+
+    /// Get one builtin symbol by export name.
+    pub fn get_builtin_symbol(&self, profile: ProfileId, name: StringId) -> Option<GlobalSymbolId> {
+        self.language_environment(profile)?.symbol(name)
     }
 
     /// Get a language item from the cache, panicking if not found.
@@ -105,25 +259,41 @@ impl Compiler {
         name: StringId,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
-        let builtins = self.program.builtins.as_ref()?;
-        let profile = self.program.profile(profile_id);
-        builtins.get_declared_lib_symbol_from(&profile.key, name, order)
+        self.lib_environment(profile_id)?
+            .declared_symbol_from(name, order)
     }
 
-    /// Get ambient lib symbol sources for a profile, key, and space.
-    pub fn get_ambient_lib_symbol_sources(
+    /// Get selected lib symbol sources for a profile, key, and space.
+    pub fn get_lib_symbol_sources(
         &self,
         profile_id: ProfileId,
         key: StaticKey,
         space: SymbolSpace,
     ) -> Option<Vec<GlobalSymbolId>> {
-        let builtins = self.program.builtins.as_ref()?;
-        let profile = self.program.profile(profile_id);
-        builtins.get_ambient_lib_symbol_sources(&profile.key, key, space)
+        self.lib_environment(profile_id)?
+            .symbol_sources(key, space)
+            .cloned()
     }
 
-    /// Get ambient lib symbol sources for merge (includes type-value sources).
-    pub fn get_ambient_lib_symbol_sources_for_merge(
+    /// Get one selected lib symbol using a space order.
+    pub fn get_lib_symbol_from(
+        &self,
+        profile_id: ProfileId,
+        name: StringId,
+        order: SymbolSpaceOrder,
+    ) -> Option<GlobalSymbolId> {
+        let environment = self.lib_environment(profile_id)?;
+
+        // prefer the declared lib surface first
+        if let Some(symbol) = environment.declared_symbol_from(name, order) {
+            return Some(symbol);
+        }
+
+        environment.symbol_from(name, order)
+    }
+
+    /// Get selected lib symbol sources for merge (includes type-value sources).
+    pub fn get_lib_symbol_sources_for_merge(
         &self,
         profile_id: ProfileId,
         key: StaticKey,
@@ -132,7 +302,7 @@ impl Compiler {
         let mut sources = Vec::new();
         let mut seen = HashSet::new();
         let mut push_sources = |space| {
-            if let Some(group) = self.get_ambient_lib_symbol_sources(profile_id, key, space) {
+            if let Some(group) = self.get_lib_symbol_sources(profile_id, key, space) {
                 for symbol in group {
                     if seen.insert(symbol) {
                         sources.push(symbol);
@@ -165,8 +335,8 @@ impl Compiler {
         }
     }
 
-    /// Get ambient lib symbol sources for a profile, key, and space order.
-    pub fn get_ambient_lib_symbol_sources_for_space_order(
+    /// Get selected lib symbol sources for a profile, key, and space order.
+    pub fn get_lib_symbol_sources_for_space_order(
         &self,
         profile_id: ProfileId,
         key: StaticKey,
@@ -175,7 +345,7 @@ impl Compiler {
         let mut sources = Vec::new();
         let mut seen = HashSet::new();
         let mut push_sources = |space| {
-            if let Some(group) = self.get_ambient_lib_symbol_sources(profile_id, key, space) {
+            if let Some(group) = self.get_lib_symbol_sources(profile_id, key, space) {
                 for symbol in group {
                     if seen.insert(symbol) {
                         sources.push(symbol);
@@ -209,9 +379,7 @@ impl Compiler {
 
     /// Get well-known symbols for a profile.
     pub fn get_well_known_symbols(&self, profile_id: ProfileId) -> Option<WellKnownSymbols> {
-        let builtins = self.program.builtins.as_ref()?;
-        let profile = self.program.profile(profile_id);
-        builtins.well_known_symbols(&profile.key)
+        Some(self.lib_environment(profile_id)?.well_known_symbols.clone())
     }
 
     /// Get well-known symbols for a profile, panicking if not found.

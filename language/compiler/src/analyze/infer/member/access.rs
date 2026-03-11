@@ -711,6 +711,33 @@ impl Compiler {
             member_ty_id,
         )?;
 
+        // project through the resolved nominal receiver, not just the original lookup context
+        let projection_receiver = self.unwrap_type_symbol(ctx.types, receiver.receiver_ty_id);
+        let (projection_receiver_symbol, projection_receiver_arguments) =
+            if let Some((symbol, arguments, _)) = projection_receiver {
+                let arguments = arguments.unwrap_or_else(|| lookup.inherited.arguments.clone());
+                let (symbol, arguments) = self.normalize_projection_receiver_reference(
+                    &mut ctx.type_context_reborrow(),
+                    expression_id.into_any(),
+                    symbol,
+                    &arguments,
+                )?;
+                (Some(symbol), arguments)
+            } else {
+                if let Some(symbol) = lookup.receiver_context.nominal_symbol {
+                    let arguments = lookup.inherited.arguments.clone();
+                    let (symbol, arguments) = self.normalize_projection_receiver_reference(
+                        &mut ctx.type_context_reborrow(),
+                        expression_id.into_any(),
+                        symbol,
+                        &arguments,
+                    )?;
+                    (Some(symbol), arguments)
+                } else {
+                    (None, lookup.inherited.arguments.clone())
+                }
+            };
+
         // resolve member type through symbol lookup and remaining lookup paths
         let mut resolved_member_ty_id = if let Some(enum_field_value_ty_id) =
             lookup.enum_field_value_ty_id
@@ -721,6 +748,8 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 expression_id,
                 lookup.member_symbol,
+                projection_receiver_symbol,
+                &projection_receiver_arguments,
                 member_ty_id,
                 static_arguments,
                 &lookup.substitutions,
@@ -789,6 +818,8 @@ impl Compiler {
             expression_id,
             resolved_member_ty_id,
             lookup,
+            projection_receiver_symbol,
+            &projection_receiver_arguments,
         )?;
 
         // register associated comptime obligations until post infer convergence
@@ -821,7 +852,7 @@ impl Compiler {
                     expression_id,
                     member_symbol: obligation_member_symbol,
                     member_type_id: resolved_member_ty_id,
-                    receiver_arguments: lookup.inherited.arguments.clone(),
+                    receiver_arguments: projection_receiver_arguments.clone(),
                     substitutions: lookup.substitutions.clone(),
                 },
             );
@@ -870,6 +901,8 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         member_ty_id: LocalTypeId,
         lookup: &MemberAccessLookup,
+        projection_receiver_symbol: Option<GlobalSymbolId>,
+        projection_receiver_arguments: &[StaticArgument],
     ) -> AnalyzeResult<LocalTypeId> {
         let Some(member_symbol) = lookup.member_symbol else {
             return Ok(member_ty_id);
@@ -895,8 +928,8 @@ impl Compiler {
             &mut ctx.type_context_reborrow(),
             expression_id.into_any(),
             member_symbol,
-            lookup.receiver_context.nominal_symbol,
-            &lookup.inherited.arguments,
+            projection_receiver_symbol,
+            projection_receiver_arguments,
             None,
             member_ty,
         )?;

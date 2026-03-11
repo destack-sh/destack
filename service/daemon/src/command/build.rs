@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use destack_compiler::{Compiler, GenerateTask};
+use destack_compiler::{BuildKey, Compiler};
 use destack_source::ModuleId;
-use destack_workspace::{Program, TargetId};
+use destack_workspace::{OutputKey, Program, TargetId};
 use serde::{Deserialize, Serialize};
 
 use super::context::CommandContext;
@@ -66,13 +66,10 @@ fn enqueue_build_tasks(
     module_targets: &[(ModuleId, TargetId)],
 ) {
     for (module_id, target_id) in module_targets {
-        let profile = program.profile_id_for_target_or_default(*module_id, target_id);
-        let module = compiler.module_stamp(*module_id);
-        let profile = compiler.profile_stamp(profile);
-        compiler.enqueue(GenerateTask::GenerateModule {
-            module,
-            profile,
-            target: target_id.clone(),
-        });
+        let _profile = program.profile_id_for_target_or_default(*module_id, target_id);
+        compiler.enqueue(BuildKey::Output(OutputKey::module(
+            *module_id,
+            target_id.clone(),
+        )));
     }
 }

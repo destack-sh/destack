@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
 use crate::analyze::common::{
-    AnalyzeDependencyStage, InferContext, ModuleSymbolView, SymbolTypeView, TreeSymbolView,
-    TypeContext, TypeRewriteCache, TypeView, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
+    DirReadBoundary, InferContext, ModuleSymbolView, SymbolTypeView, TreeSymbolView, TypeContext,
+    TypeRewriteCache, TypeView, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
 };
 use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::analyze::infer::member::MemberLookupMode;
@@ -150,13 +150,13 @@ impl<'a> OverrideAssociatedTypeRewriter<'a> {
             .declaration_symbol_id(self.module_symbol_view(), self.receiver_symbol)
             .unwrap_or(self.receiver_symbol);
         self.compiler
-            .with_module_tree_symbol_view_or_local_at_stage(
+            .with_module_tree_symbol_view_or_local_at_boundary(
                 self.module,
                 self.profile,
                 receiver_symbol.module_id,
                 self.tree,
                 self.symbols,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |view| {
                     let symbol_entry = view.symbols.get_symbol(receiver_symbol.local_id);
                     let mut declaration_ids = Vec::new();
@@ -988,13 +988,13 @@ impl Compiler {
         contract_symbol: GlobalSymbolId,
         member_key: StaticKey,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        self.with_module_tree_symbol_view_or_local_at_stage(
+        self.with_module_tree_symbol_view_or_local_at_boundary(
             view.module,
             view.profile,
             contract_symbol.module_id,
             view.tree,
             view.symbols,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |remote_view| {
                 self.query_static_member_symbol(
                     remote_view.module,
@@ -1051,12 +1051,12 @@ impl Compiler {
             };
             let contract_symbol = contract_context.contract_symbol;
             let contract_is_user_module = self
-                .with_module_types_or_local_at_stage(
+                .with_module_types_or_local_at_boundary(
                     ctx.module,
                     ctx.profile,
                     contract_symbol.module_id,
                     ctx.types,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |module, _| matches!(module.source, ModuleSource::User),
                 )
                 .map_err(AnalyzeError::from)?;
@@ -1224,11 +1224,11 @@ impl Compiler {
 
         // import declared types from remote modules
         let remote_declared = self
-            .with_module_types_at_stage(
+            .with_module_types_at_boundary(
                 ctx.module,
                 ctx.profile,
                 node_id.module_id,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |_, remote_types| {
                     let remote_ty_id = remote_types.get_declared_type_id(node_id)?;
                     let remote_ty = remote_types.get_type(remote_ty_id).clone();
@@ -1450,6 +1450,15 @@ impl Compiler {
             else {
                 continue;
             };
+
+            // defer relation checks until both sides are stable enough for static evaluation
+            let requirement_requires_convergence = self
+                .type_requires_static_evaluation_convergence(ctx.type_view(), requirement_type_id);
+            let declaration_requires_convergence = self
+                .type_requires_static_evaluation_convergence(ctx.type_view(), declaration_type_id);
+            if requirement_requires_convergence || declaration_requires_convergence {
+                continue;
+            }
 
             // enforce assignability from declaration member type to contract requirement
             let is_assignable = self.is_type_assignable(
@@ -2456,11 +2465,22 @@ impl Compiler {
 
                 // validate initializer against annotation
                 if let (Some(constraint_type), Some(value_type)) = (constraint_type, value_type) {
-                    // defer relation checks when the initializer type cannot be resolved yet
+                    // defer relation checks until the initializer type is stable enough
                     if matches!(
                         ctx.types.get_type(value_type),
                         Type::Unevaluated(_) | Type::Error
                     ) {
+                        return Ok(());
+                    }
+
+                    let value_requires_convergence = self
+                        .type_requires_static_evaluation_convergence(ctx.type_view(), value_type);
+                    let constraint_requires_convergence = self
+                        .type_requires_static_evaluation_convergence(
+                            ctx.type_view(),
+                            constraint_type,
+                        );
+                    if value_requires_convergence || constraint_requires_convergence {
                         return Ok(());
                     }
 

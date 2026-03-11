@@ -247,6 +247,7 @@ pub fn setup_test_environment_with_session(
     Arc<Session>,
     Arc<destack_workspace::program::Program>,
     PathBuf,
+    PathBuf,
 ) {
     // populate filesystem with test files
     let mut main_path: Option<PathBuf> = None;
@@ -265,7 +266,9 @@ pub fn setup_test_environment_with_session(
     let main_path = main_path.expect("test should have at least one file");
     let program = session.add_root(root);
 
-    (session, program, main_path)
+    let root = program.cwd.clone();
+
+    (session, program, root, main_path)
 }
 
 /// Set up an in memory test environment from a markdown test case.
@@ -274,6 +277,7 @@ pub fn setup_test_environment(
 ) -> (
     Arc<Session>,
     Arc<destack_workspace::program::Program>,
+    PathBuf,
     PathBuf,
 ) {
     // setup memory filesystem and session

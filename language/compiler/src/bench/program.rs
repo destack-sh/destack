@@ -4,9 +4,9 @@ use std::thread;
 use std::time::Duration;
 
 use destack_source::{DiagnosticSeverity, ModuleId, ProfileStamp, ProfileVersion};
-use destack_workspace::{CacheStore, MemoryCacheStore, ProfileId, Program, Session};
+use destack_workspace::{ArtifactKey, CacheStore, MemoryCacheStore, ProfileId, Program, Session};
 
-use crate::{AnalyzeTask, Compiler, CompilerOptions, ImportTask, ResolveTask, Task, TaskPhase};
+use crate::{BuildKey, Compiler, CompilerOptions, Task, TaskPhase};
 
 /// Program wrapper for compiler bench runs.
 pub(super) struct BenchProgram {
@@ -108,43 +108,42 @@ impl BenchProgram {
 
     /// Enqueue Import task for a module.
     pub(super) fn import_module(&self, module: ModuleId) {
-        let module_ref = self.program.modules.get(module);
-        let module = module_ref.read();
-        let stamp = destack_source::ModuleStamp::new(module.id, module.version);
-        self.enqueue(ImportTask::ImportModule { module: stamp });
-    }
-
-    /// Enqueue ResolveBuiltins task.
-    pub(super) fn resolve_builtins(&self) {
-        let profile = self.default_profile_id_for_root();
-        self.enqueue(ResolveTask::ResolveBuiltins {
-            profile: self.profile_stamp(profile),
-        });
-    }
-
-    /// Enqueue ResolveLibs task.
-    pub(super) fn resolve_libs(&self) {
-        let profile = self.default_profile_id_for_root();
-        self.enqueue(ResolveTask::ResolveLibs {
-            profile: self.profile_stamp(profile),
-        });
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirBase { module }));
     }
 
     /// Enqueue Analyze task for a module.
     pub(super) fn analyze_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        let module_ref = self.program.modules.get(module);
-        let module = module_ref.read();
-        let stamp = destack_source::ModuleStamp::new(module.id, module.version);
-        self.enqueue(AnalyzeTask::AnalyzeModule {
-            module: stamp,
-            profile: self.profile_stamp(profile),
-        });
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+            module,
+            profile,
+        }));
+    }
+
+    /// Resolve the language environment for the default root profile.
+    pub(super) fn resolve_language_environment(&self) {
+        let profile = self.default_profile_id_for_root();
+        self.compiler
+            .drive(|compiler| compiler.require_language_environment(profile))
+            .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
+    }
+
+    /// Resolve builtin libs for the default root profile.
+    pub(super) fn resolve_libs(&self) {
+        let profile = self.default_profile_id_for_root();
+        self.compiler
+            .drive(|compiler| compiler.require_lib_environment(profile))
+            .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
     }
 
     /// Enqueue a task (does not run it).
     pub(super) fn enqueue<T: Into<Task>>(&self, task: T) {
         self.compiler.enqueue(task);
+    }
+
+    /// Enqueue the producer task for one build key.
+    pub(super) fn enqueue_build_key(&self, build_key: BuildKey) {
+        self.compiler.enqueue_build_key(build_key);
     }
 
     /// Run all queued tasks to completion with a custom timeout.

@@ -1,13 +1,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ResolveTask};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions};
 use destack_parser::Parser;
 use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, ModuleStamp,
-    ProfileStamp, Uri,
+    File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
 };
-use destack_workspace::{FormatterOptions, LinterOptions, Program, Session};
+use destack_workspace::{ArtifactKey, FormatterOptions, LinterOptions, Program, Session};
 
 use crate::harness::{
     RunContext, Suite, TestCase, TestOptions, TestResult, discover_test_files, fixtures_dir,
@@ -191,18 +190,10 @@ fn run_resolver_stress(test: &TestCase) -> TestResult {
 
     // resolve schedules import + bind automatically
     let profile = program.default_profile_id_for_module(module_id);
-    let module_version = program.modules.get(module_id).read().version;
-    let profile_version = program
-        .profiles
-        .get(profile)
-        .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
-        .version;
-    let graph = compiler.module_graph_stamp(profile);
-    compiler.enqueue(ResolveTask::ResolveModule {
-        module: ModuleStamp::new(module_id, module_version),
-        profile: ProfileStamp::new(profile, profile_version),
-        graph,
-    });
+    compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirResolved {
+        module: module_id,
+        profile,
+    }));
     compiler.compile();
 
     let elapsed = start.elapsed();
@@ -280,16 +271,10 @@ fn run_checker_stress(test: &TestCase) -> TestResult {
 
     // analyze schedules import + bind + resolve automatically
     let profile = program.default_profile_id_for_module(module_id);
-    let module_version = program.modules.get(module_id).read().version;
-    let profile_version = program
-        .profiles
-        .get(profile)
-        .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
-        .version;
-    compiler.enqueue(AnalyzeTask::AnalyzeModule {
-        module: ModuleStamp::new(module_id, module_version),
-        profile: ProfileStamp::new(profile, profile_version),
-    });
+    compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+        module: module_id,
+        profile,
+    }));
     compiler.compile();
 
     let elapsed = start.elapsed();

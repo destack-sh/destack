@@ -12,7 +12,7 @@ impl Compiler {
         profile: ProfileId,
     ) -> GenerateResult<()> {
         // require module to be elaborated
-        self.require_elaborate_module(module_id, profile)?;
+        self.require_dir_elaborated(module_id, profile)?;
 
         // generate artifact
         let output =

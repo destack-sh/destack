@@ -273,7 +273,9 @@ impl Compiler {
             }
         }
 
-        // avoid recursive evaluation loops
+        // keep recursive reentry deferrable here
+        // direct and instantiated alias cycles are handled by declaration
+        // collection and alias normalization
         if ctx.types.is_expression_type_in_progress(global_node_id) {
             return Ok(Type::Unevaluated(expression_id));
         }

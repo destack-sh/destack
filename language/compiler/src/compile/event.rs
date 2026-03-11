@@ -36,7 +36,7 @@ pub enum CompilerEvent {
         reason: TaskSkipReason,
         description: String,
     },
-    /// Task yielded waiting for a dependency.
+    /// Task yielded waiting for one build requirement.
     TaskYielded {
         task_id: TaskId,
         task: Task,

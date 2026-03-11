@@ -1,6 +1,6 @@
 use crate::{
-    DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
-    TaskSkipReason,
+    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
+    ResolveError, TaskError, TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
 use destack_core::StringId;
@@ -15,15 +15,15 @@ use destack_workspace::Program;
 #[phase(Analyze)]
 pub enum AnalyzeError {
     // -------------------------------------------------------------------------
-    // 0xx: Yield / dependency
+    // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Wait for task dependency.
+    /// Wait for build requirement.
     #[error(code = "EA000", r#yield)]
-    Yield { dependency: TaskDependency },
+    Yield { requirement: BuildRequirementSet },
 
-    /// Yield dependency has failed.
+    /// Yield requirement has failed.
     #[error(code = "EA001", yield_failed)]
-    UnsatisfiedDependency { dependency: TaskDependency },
+    UnsatisfiedRequirement { requirement: BuildRequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EA002", message = "task skipped")]
@@ -893,6 +893,15 @@ pub enum AnalyzeError {
     /// Internal analyze error.
     #[error(code = "EA903", message = "internal error: {message}")]
     Internal { message: String },
+
+    /// A required resolve product failed while analyzing.
+    #[error(code = "EA904", message = "required resolve product failed: {message}")]
+    FailedResolve {
+        /// The underlying resolve error.
+        error: Box<ResolveError>,
+        /// Describe the resolve failure.
+        message: String,
+    },
 }
 
 impl AnalyzeError {
@@ -907,5 +916,21 @@ impl AnalyzeError {
                 | Self::MissingMember { .. }
                 | Self::NoOverload { .. }
         )
+    }
+}
+
+impl From<ResolveError> for AnalyzeError {
+    fn from(error: ResolveError) -> Self {
+        match error {
+            ResolveError::Yield { requirement } => Self::Yield { requirement },
+            ResolveError::UnsatisfiedRequirement { requirement } => {
+                Self::UnsatisfiedRequirement { requirement }
+            }
+            ResolveError::Skipped { reason } => Self::Skipped { reason },
+            error => Self::FailedResolve {
+                message: error.to_string(),
+                error: Box::new(error),
+            },
+        }
     }
 }

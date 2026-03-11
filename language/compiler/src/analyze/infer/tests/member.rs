@@ -15,7 +15,7 @@ let b = obj.y;
     );
 
     // run resolve and analyze pipeline
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.resolve_libs();
     test.analyze_module(module_id);
     test.compile();
@@ -38,7 +38,7 @@ let c = obj.z;
     );
 
     // run resolve and analyze pipeline
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.resolve_libs();
     test.analyze_module(module_id);
     test.compile();

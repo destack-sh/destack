@@ -1,8 +1,9 @@
-use crate::analyze::common::{SymbolTypeView, TypeContext, TypeView};
-use crate::{
-    AnalyzeError, AnalyzeResult, AnalyzeTask, AnalyzeWarning, Compiler, TaskDependencyError,
+use crate::analyze::common::{SymbolTypeView, TreeSymbolView, TypeView};
+use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler};
+use destack_dir::{
+    Declarator, Export, Expression, GlobalSymbolId, LocalNodeId, StaticKey, SymbolSpace, Type,
+    TypeLiteral, TypeTable,
 };
-use destack_dir::{Export, GlobalSymbolId, StaticKey, SymbolSpace, Type, TypeLiteral, TypeTable};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ModuleSource, ProfileId};
 use indexmap::IndexMap;
@@ -29,28 +30,31 @@ struct InterfaceValueSnapshot {
     state: InterfaceValueState,
 }
 
+/// One exported value that participates in interface cycle reporting.
+#[derive(Debug, Clone)]
+struct InterfaceCycleCandidate {
+    /// The module that owns the export.
+    module_id: ModuleId,
+    /// The exported symbol to report and overwrite on error.
+    export_symbol: GlobalSymbolId,
+    /// The local value symbol behind the export.
+    value_symbol: GlobalSymbolId,
+    /// The declarator that owns the export value.
+    declarator_id: LocalNodeId<Declarator>,
+    /// The initializer expression for the export value.
+    value_id: LocalNodeId<Expression>,
+    /// Whether the export has an explicit declared contract.
+    has_annotation: bool,
+    /// Referenced exported values inside the same interface component.
+    dependency_symbols: Vec<GlobalSymbolId>,
+}
+
+/// Return the cycle-graph identity for one symbol ignoring its view-specific type tag.
+fn interface_cycle_symbol_identity(symbol: GlobalSymbolId) -> (ModuleId, u32) {
+    (symbol.module_id, symbol.local_id.id)
+}
+
 impl Compiler {
-    /// Ensure one interface component task is scheduled for this module.
-    pub(crate) fn require_analyze_interface_component(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
-        // ensure forward dependency edges are available for component discovery
-        self.require_interface_forward_closure(module, profile)?;
-
-        // schedule the canonical anchor task for this component
-        let anchor_module_id = self.interface_component_anchor_module_id(module, profile);
-        let module = self.module_stamp(anchor_module_id);
-        let profile = self.profile_stamp(profile);
-        let graph = self.module_graph_stamp(profile.id);
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeInterfaceComponent {
-            module,
-            profile,
-            graph,
-        })
-    }
-
     /// Analyze one interface component.
     pub(crate) fn analyze_interface_component(
         &self,
@@ -74,13 +78,12 @@ impl Compiler {
 
         // ensure declarations are available for all component modules
         for component_module_id in component.component_modules.iter().copied() {
-            self.require_analyze_module_declare(component_module_id, profile)?;
+            self.require_dir_declared(component_module_id, profile)?;
         }
 
         // require already solved interface dependencies outside the component
         for dependency_module_id in component.dependency_modules.iter().copied() {
-            if let Err(error) = self.require_analyze_module_interface(dependency_module_id, profile)
-            {
+            if let Err(error) = self.require_dir_interface(dependency_module_id, profile) {
                 return Err(AnalyzeError::from(error));
             }
         }
@@ -311,94 +314,308 @@ impl Compiler {
         component_modules: &[ModuleId],
         component_set: &FxHashSet<ModuleId>,
     ) -> AnalyzeResult<()> {
+        let cycle_candidates =
+            self.collect_interface_cycle_candidates(profile, component_modules, component_set)?;
+        let cycle_candidates = self.unanchored_interface_cycle_candidates(cycle_candidates);
+
+        if cycle_candidates.is_empty() {
+            return Ok(());
+        }
+
+        let mut candidates_by_module =
+            FxHashMap::<ModuleId, Vec<InterfaceCycleCandidate>>::default();
+        for candidate in cycle_candidates {
+            candidates_by_module
+                .entry(candidate.module_id)
+                .or_default()
+                .push(candidate);
+        }
+
         for component_module_id in component_modules.iter().copied() {
+            let Some(cycle_candidates) = candidates_by_module.get(&component_module_id) else {
+                continue;
+            };
+
             let module = self.program.modules.get(component_module_id);
             let module = module.read();
             let dir = module.dir(profile);
-            let tree = dir.tree.read();
-            let symbols = dir.symbols.read();
             let mut types = dir.types.write();
-            let exported_symbols = dir.exported_symbols.read();
-            let binding_exports = dir.module_binding_exports.read();
-            let options = self.analyze_context_options_for_module(component_module_id);
-            let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
-            self.report_interface_cycle_exports_for_table(
-                &mut ctx.reborrow(),
-                &exported_symbols,
-                component_set,
-            )?;
 
-            for binding in binding_exports.values() {
-                self.report_interface_cycle_exports_for_table(
-                    &mut ctx.reborrow(),
-                    &binding.exports,
-                    component_set,
-                )?;
+            for candidate in cycle_candidates {
+                let error_node = candidate
+                    .value_id
+                    .into_global_any(candidate.module_id)
+                    .into_anchored(Some(profile));
+                self.error(AnalyzeError::InterfaceInferenceRequiresAnnotation { node: error_node });
+
+                let error_type_id =
+                    types.insert_type_from_any(Type::Error, candidate.declarator_id.into());
+                types.set_value_type(candidate.export_symbol, error_type_id);
+                if candidate.value_symbol != candidate.export_symbol {
+                    types.set_value_type(candidate.value_symbol, error_type_id);
+                }
             }
         }
 
         Ok(())
     }
 
-    /// Report unresolved interface cycles for one export table.
-    fn report_interface_cycle_exports_for_table(
+    /// Collect exported values that participate in this interface component.
+    fn collect_interface_cycle_candidates(
         &self,
-        ctx: &mut TypeContext<'_>,
-        exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
+        profile: ProfileId,
+        component_modules: &[ModuleId],
         component_set: &FxHashSet<ModuleId>,
+    ) -> AnalyzeResult<Vec<InterfaceCycleCandidate>> {
+        let mut cycle_candidates = Vec::new();
+        let mut seen_exports = FxHashSet::default();
+        let mut cycle_candidate_by_symbol = FxHashMap::default();
+
+        for component_module_id in component_modules.iter().copied() {
+            let module = self.program.modules.get(component_module_id);
+            let module = module.read();
+            let dir = module.dir(profile);
+            let tree = dir.tree.read();
+            let symbols = dir.symbols.read();
+            let exported_symbols = dir.exported_symbols.read();
+            let binding_exports = dir.module_binding_exports.read();
+
+            self.collect_interface_cycle_candidates_for_table(
+                &module,
+                profile,
+                &tree,
+                &symbols,
+                &exported_symbols,
+                &mut seen_exports,
+                &mut cycle_candidates,
+                &mut cycle_candidate_by_symbol,
+            )?;
+
+            for binding in binding_exports.values() {
+                self.collect_interface_cycle_candidates_for_table(
+                    &module,
+                    profile,
+                    &tree,
+                    &symbols,
+                    &binding.exports,
+                    &mut seen_exports,
+                    &mut cycle_candidates,
+                    &mut cycle_candidate_by_symbol,
+                )?;
+            }
+        }
+
+        for candidate_index in 0..cycle_candidates.len() {
+            let references = cycle_candidates[candidate_index].dependency_symbols.clone();
+            let mut dependency_symbols = FxHashSet::default();
+
+            for reference_symbol in references {
+                if !component_set.contains(&reference_symbol.module_id) {
+                    continue;
+                }
+
+                let dependency_key = interface_cycle_symbol_identity(reference_symbol);
+                let Some(dependency_index) =
+                    cycle_candidate_by_symbol.get(&dependency_key).copied()
+                else {
+                    continue;
+                };
+                let dependency_candidate = &cycle_candidates[dependency_index];
+                dependency_symbols.insert(dependency_candidate.export_symbol);
+            }
+
+            let candidate = &mut cycle_candidates[candidate_index];
+            candidate.dependency_symbols = dependency_symbols.into_iter().collect();
+            candidate.dependency_symbols.sort_unstable();
+        }
+
+        Ok(cycle_candidates)
+    }
+
+    /// Collect exported values from one export table for interface cycle reporting.
+    fn collect_interface_cycle_candidates_for_table(
+        &self,
+        module: &destack_workspace::Module,
+        profile: ProfileId,
+        tree: &destack_dir::NodeTree,
+        symbols: &destack_dir::SymbolTable,
+        exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
+        seen_exports: &mut FxHashSet<GlobalSymbolId>,
+        cycle_candidates: &mut Vec<InterfaceCycleCandidate>,
+        cycle_candidate_by_symbol: &mut FxHashMap<(ModuleId, u32), usize>,
     ) -> AnalyzeResult<()> {
+        let tree_symbol_view = TreeSymbolView::new(module, profile, tree, symbols);
+
         for export in exports.values() {
             let Some((export_symbol, value_symbol)) =
-                self.interface_value_symbol_for_export(ctx.symbols, ctx.module.id, export)
+                self.interface_value_symbol_for_export(symbols, module.id, export)
             else {
                 continue;
             };
-
-            let Some(value_type_id) = ctx.types.get_value_type_id(export_symbol) else {
-                continue;
-            };
-            if !self.interface_value_requires_solver(ctx.types, value_type_id)
-                && !self.interface_value_is_semantic_unknown(ctx.types, value_type_id)
-            {
+            if !seen_exports.insert(export_symbol) {
                 continue;
             }
 
             let Some(declarator_id) =
-                self.direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), value_symbol)
+                self.direct_binding_declarator_for_symbol(tree_symbol_view, value_symbol)
             else {
                 continue;
             };
-            let declarator = ctx.tree.get(declarator_id);
-
-            // explicit export contracts break cycle-inference requirements
-            if declarator.ty.is_some() {
-                continue;
-            }
-
+            let declarator = tree.get(declarator_id);
             let Some(value_id) = declarator.value else {
                 continue;
             };
 
-            let references = self.interface_value_references(ctx.tree_symbol_view(), value_id);
-            let has_component_dependency = references
-                .iter()
-                .any(|symbol_id| component_set.contains(&symbol_id.module_id));
-            if !has_component_dependency {
-                continue;
-            }
-
-            let error_node = value_id
-                .into_global_any(ctx.module.id)
-                .into_anchored(Some(ctx.profile));
-            self.error(AnalyzeError::InterfaceInferenceRequiresAnnotation { node: error_node });
-
-            let error_type_id = ctx
-                .types
-                .insert_type_from_any(Type::Error, declarator_id.into());
-            ctx.types.set_value_type(export_symbol, error_type_id);
+            let cycle_candidate_index = cycle_candidates.len();
+            cycle_candidate_by_symbol.insert(
+                interface_cycle_symbol_identity(export_symbol),
+                cycle_candidate_index,
+            );
+            cycle_candidate_by_symbol.insert(
+                interface_cycle_symbol_identity(value_symbol),
+                cycle_candidate_index,
+            );
+            cycle_candidates.push(InterfaceCycleCandidate {
+                module_id: module.id,
+                export_symbol,
+                value_symbol,
+                declarator_id,
+                value_id,
+                has_annotation: declarator.ty.is_some(),
+                dependency_symbols: export.dependencies.clone(),
+            });
         }
 
         Ok(())
+    }
+
+    /// Return the unanchored cycle candidates that still require interface diagnostics.
+    fn unanchored_interface_cycle_candidates(
+        &self,
+        cycle_candidates: Vec<InterfaceCycleCandidate>,
+    ) -> Vec<InterfaceCycleCandidate> {
+        let candidate_count = cycle_candidates.len();
+        let mut adjacency = vec![Vec::new(); candidate_count];
+        let mut reverse_adjacency = vec![Vec::new(); candidate_count];
+        let mut export_symbol_to_index = FxHashMap::default();
+
+        for (candidate_index, candidate) in cycle_candidates.iter().enumerate() {
+            export_symbol_to_index.insert(candidate.export_symbol, candidate_index);
+        }
+
+        for (candidate_index, candidate) in cycle_candidates.iter().enumerate() {
+            for dependency_symbol in &candidate.dependency_symbols {
+                let Some(dependency_index) = export_symbol_to_index.get(dependency_symbol).copied()
+                else {
+                    continue;
+                };
+                adjacency[candidate_index].push(dependency_index);
+                reverse_adjacency[dependency_index].push(candidate_index);
+            }
+        }
+
+        let mut order = Vec::with_capacity(candidate_count);
+        let mut visited = vec![false; candidate_count];
+        for candidate_index in 0..candidate_count {
+            self.visit_interface_cycle_order(candidate_index, &adjacency, &mut visited, &mut order);
+        }
+
+        let mut component_ids = vec![usize::MAX; candidate_count];
+        let mut component_count = 0usize;
+        for candidate_index in order.into_iter().rev() {
+            if component_ids[candidate_index] != usize::MAX {
+                continue;
+            }
+            self.assign_interface_cycle_component(
+                candidate_index,
+                component_count,
+                &reverse_adjacency,
+                &mut component_ids,
+            );
+            component_count += 1;
+        }
+
+        let mut component_members = vec![Vec::new(); component_count];
+        for (candidate_index, component_id) in component_ids.iter().copied().enumerate() {
+            component_members[component_id].push(candidate_index);
+        }
+
+        let mut rejected_candidates = FxHashSet::default();
+        for component_members in component_members {
+            let has_cycle = component_members.len() > 1
+                || component_members
+                    .iter()
+                    .copied()
+                    .any(|candidate_index| adjacency[candidate_index].contains(&candidate_index));
+            if !has_cycle {
+                continue;
+            }
+
+            let has_annotation = component_members
+                .iter()
+                .copied()
+                .any(|candidate_index| cycle_candidates[candidate_index].has_annotation);
+            if has_annotation {
+                continue;
+            }
+
+            for candidate_index in component_members {
+                rejected_candidates.insert(candidate_index);
+            }
+        }
+
+        cycle_candidates
+            .into_iter()
+            .enumerate()
+            .filter_map(|(candidate_index, candidate)| {
+                rejected_candidates
+                    .contains(&candidate_index)
+                    .then_some(candidate)
+            })
+            .collect()
+    }
+
+    /// Visit one candidate for SCC order construction.
+    fn visit_interface_cycle_order(
+        &self,
+        candidate_index: usize,
+        adjacency: &[Vec<usize>],
+        visited: &mut [bool],
+        order: &mut Vec<usize>,
+    ) {
+        if visited[candidate_index] {
+            return;
+        }
+        visited[candidate_index] = true;
+
+        for dependency_index in adjacency[candidate_index].iter().copied() {
+            self.visit_interface_cycle_order(dependency_index, adjacency, visited, order);
+        }
+
+        order.push(candidate_index);
+    }
+
+    /// Assign one SCC id through the reverse graph.
+    fn assign_interface_cycle_component(
+        &self,
+        candidate_index: usize,
+        component_id: usize,
+        reverse_adjacency: &[Vec<usize>],
+        component_ids: &mut [usize],
+    ) {
+        if component_ids[candidate_index] != usize::MAX {
+            return;
+        }
+        component_ids[candidate_index] = component_id;
+
+        for dependency_index in reverse_adjacency[candidate_index].iter().copied() {
+            self.assign_interface_cycle_component(
+                dependency_index,
+                component_id,
+                reverse_adjacency,
+                component_ids,
+            );
+        }
     }
 
     /// Report semantic-unknown interface exports after component convergence.

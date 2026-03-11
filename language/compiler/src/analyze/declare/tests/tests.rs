@@ -35,14 +35,12 @@ impl TestProgram {
     /// Create a cached declare view for a module default profile.
     pub(super) fn declare_view(&self, module_id: ModuleId) -> DeclareTestView<'_> {
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir_data(module_id, profile);
 
         let roots = dir.roots.clone();
-        let tree = dir.tree.read().clone();
-        let symbols = dir.symbols.read().clone();
-        let types = dir.types.read().clone();
+        let tree = dir.tree.clone();
+        let symbols = dir.symbols.clone();
+        let types = dir.types.clone();
         let namespace_scope = dir.namespace_scope;
 
         DeclareTestView {

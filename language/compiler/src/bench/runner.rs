@@ -201,7 +201,7 @@ pub(crate) fn run_resolve_builtin_lib_symbols(mode: BenchMode) {
     // resolve declared lib symbols for all builtin libs
     for lib in LIBS.iter() {
         let test = test_program_for_mode(mode).with_profile_libs(&[lib.name]);
-        test.resolve_builtins();
+        test.resolve_language_environment();
         test.resolve_libs();
         test.compile();
         test.check_no_diagnostics_up_to_including_phase(TaskPhase::Resolve);
@@ -230,7 +230,7 @@ pub(crate) fn run_resolve_all_builtin_libs(mode: BenchMode) {
 
     // resolve all libs in one program
     let test = test_program_for_mode(mode).with_profile_libs(&lib_names);
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.resolve_libs();
     test.compile();
 }
@@ -439,7 +439,7 @@ fn import_lib_modules(
 fn resolve_builtins_and_libs(test: &BenchProgram, timeout: Duration) -> Duration {
     // resolve builtins and libs with timing
     let resolve_start = Instant::now();
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.resolve_libs();
     compile_and_check(test, timeout);
     resolve_start.elapsed()

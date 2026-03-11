@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
-use destack_compiler::{AnalyzeTask, Compiler, LintTask};
+use destack_compiler::{BuildKey, Compiler};
+use destack_linter::Linter;
 use destack_source::ModuleId;
-use destack_workspace::Program;
+use destack_workspace::{ArtifactKey, Program};
 use serde::{Deserialize, Serialize};
 
 use super::context::CommandContext;
 use super::dispatch::CommandOutcome;
+use super::error::DaemonCommandError;
 
 /// Lint/fix options for commands.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -38,13 +40,16 @@ impl CommandContext<'_> {
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;
 
-        // enqueue analysis or lint tasks
+        // enqueue analysis tasks
         self.reset_diagnostics();
-        let use_lint_tasks = should_run_lint_tasks(options.lint, &options.lint_options);
-        enqueue_check_tasks(&self.program, &self.compiler, &modules, use_lint_tasks);
+        let lint_enabled = should_run_lint_tasks(options.lint, &options.lint_options);
+        enqueue_check_tasks(&self.program, &self.compiler, &modules);
 
         // compile and collect diagnostics
         self.compiler.compile();
+        if lint_enabled {
+            run_module_lints(&self.program, &modules)?;
+        }
         let raw_diagnostics = self.collect_raw_diagnostics();
         self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
         let diagnostics = raw_diagnostics.map(&self.diagnostic_options);
@@ -73,13 +78,16 @@ impl CommandContext<'_> {
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;
 
-        // enqueue lint tasks
+        // enqueue analysis tasks
         self.reset_diagnostics();
-        let use_lint_tasks = should_run_lint_tasks(true, options);
-        enqueue_check_tasks(&self.program, &self.compiler, &modules, use_lint_tasks);
+        let lint_enabled = should_run_lint_tasks(true, options);
+        enqueue_check_tasks(&self.program, &self.compiler, &modules);
 
         // compile and collect diagnostics
         self.compiler.compile();
+        if lint_enabled {
+            run_module_lints(&self.program, &modules)?;
+        }
         let raw_diagnostics = self.collect_raw_diagnostics();
         self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
         let diagnostics = raw_diagnostics.map(&self.diagnostic_options);
@@ -100,23 +108,33 @@ impl CommandContext<'_> {
     }
 }
 
-/// Enqueue analysis or lint tasks for the provided modules.
-fn enqueue_check_tasks(
-    program: &Arc<Program>,
-    compiler: &Arc<Compiler>,
-    modules: &[ModuleId],
-    lint: bool,
-) {
+/// Enqueue analysis tasks for the provided modules.
+fn enqueue_check_tasks(program: &Arc<Program>, compiler: &Arc<Compiler>, modules: &[ModuleId]) {
     for module_id in modules {
         let profile = program.default_profile_id_for_module(*module_id);
-        let module = compiler.module_stamp(*module_id);
-        let profile = compiler.profile_stamp(profile);
-        if lint {
-            compiler.enqueue(LintTask::LintModule { module, profile });
-        } else {
-            compiler.enqueue(AnalyzeTask::AnalyzeModule { module, profile });
-        }
+        compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+            module: *module_id,
+            profile,
+        }));
     }
+}
+
+/// Run module scoped lints over already-built compiler products.
+fn run_module_lints(
+    program: &Arc<Program>,
+    modules: &[ModuleId],
+) -> Result<(), DaemonCommandError> {
+    let linter = Linter::new(program.clone());
+
+    // lint each requested module against its default profile
+    for module_id in modules {
+        let profile_id = program.default_profile_id_for_module(*module_id);
+        linter
+            .lint_module(*module_id, profile_id)
+            .map_err(|error| DaemonCommandError::compiler(error.to_string()))?;
+    }
+
+    Ok(())
 }
 
 /// Determine if lint tasks should run.

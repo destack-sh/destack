@@ -1,4 +1,4 @@
-use crate::analyze::common::{AnalyzeDependencyStage, TypeContext};
+use crate::analyze::common::{DirReadBoundary, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, StaticParameterKind, SymbolSpace,
@@ -27,13 +27,13 @@ impl Compiler {
             return Ok(None);
         };
 
-        self.with_module_tree_symbol_view_or_local_at_stage(
+        self.with_module_tree_symbol_view_or_local_at_boundary(
             ctx.module,
             ctx.profile,
             target_symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |view| {
                 let owner_options = self.analyze_context_options_for_module(view.module.id);
                 let mut ctx = ctx.reborrow_for_module_with_options(

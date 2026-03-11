@@ -1,17 +1,17 @@
 use std::collections::VecDeque;
 
-use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
+use crate::{AnalyzeError, AnalyzeResult, BuildRequirementError, Compiler};
 use destack_source::ModuleId;
 use destack_workspace::{ModuleGraph, ModuleGraphKey, ProfileId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 /// One resolved interface component execution plan.
 #[derive(Debug)]
-pub(super) struct InterfaceComponentPlan {
+pub(crate) struct InterfaceComponentPlan {
     /// All modules that belong to the strongly connected component.
-    pub(super) component_modules: Vec<ModuleId>,
+    pub(crate) component_modules: Vec<ModuleId>,
     /// Dependency component anchors outside the component boundary.
-    pub(super) dependency_modules: Vec<ModuleId>,
+    pub(crate) dependency_modules: Vec<ModuleId>,
 }
 
 /// Canonical interface component index for one graph snapshot.
@@ -60,7 +60,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
+    ) -> Result<(), BuildRequirementError> {
         let key = ModuleGraphKey::new(profile);
         let mut pending = VecDeque::from([module_id]);
         let mut visited = FxHashSet::default();
@@ -70,7 +70,7 @@ impl Compiler {
                 continue;
             }
 
-            self.require_resolve_module_canonical(pending_module_id, profile)?;
+            self.require_dir_resolved(pending_module_id, profile)?;
 
             if let Some(graph) = self.program.index.module_graphs.get(&key) {
                 for dependency_module_id in graph.dependencies_for(pending_module_id) {
@@ -102,7 +102,7 @@ impl Compiler {
     }
 
     /// Resolve one strict execution plan for one interface component.
-    pub(super) fn interface_component_plan(
+    pub(crate) fn interface_component_plan(
         &self,
         module_id: ModuleId,
         profile: ProfileId,

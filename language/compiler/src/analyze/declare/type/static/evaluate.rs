@@ -2,7 +2,7 @@ use super::constant::StaticCycleDiagnosticMode;
 use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode, TypeContext, TypeRewriteCache,
+    CanonicalSymbolMode, DirReadBoundary, RelationMode, TypeContext, TypeRewriteCache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
@@ -33,7 +33,7 @@ impl Compiler {
             StaticEvaluationMode::Parametric,
             StaticEvaluationDiagnosticMode::Report,
             None,
-            AnalyzeDependencyStage::Infer,
+            DirReadBoundary::Analyzed,
             &mut visited,
         )
     }
@@ -57,7 +57,7 @@ impl Compiler {
             StaticEvaluationMode::Instantiated,
             StaticEvaluationDiagnosticMode::Report,
             Some(substitutions),
-            AnalyzeDependencyStage::Infer,
+            DirReadBoundary::Analyzed,
             &mut visited,
         )
     }
@@ -80,7 +80,7 @@ impl Compiler {
             StaticEvaluationMode::Parametric,
             StaticEvaluationDiagnosticMode::Suppress,
             None,
-            AnalyzeDependencyStage::Infer,
+            DirReadBoundary::Analyzed,
             &mut visited,
         )
     }
@@ -95,7 +95,7 @@ impl Compiler {
         mode: StaticEvaluationMode,
         diagnostic_mode: StaticEvaluationDiagnosticMode,
         substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        remote_dependency_stage: AnalyzeDependencyStage,
+        remote_dependency_boundary: DirReadBoundary,
         visited: &mut HashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<StaticExpression>> {
         let expression = ctx.tree.get(expression_id);
@@ -116,7 +116,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     visited,
                 );
             }
@@ -128,7 +128,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     visited,
                 );
             }
@@ -140,7 +140,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     visited,
                 );
             }
@@ -152,7 +152,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     visited,
                 )?;
                 let Some(StaticExpression::ScalarLiteral { value }) = right_value else {
@@ -183,7 +183,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     visited,
                 )?;
                 let right_value = self.evaluate_static_expression_value_inner(
@@ -193,7 +193,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     visited,
                 )?;
                 let (left_value, right_value) = match (left_value, right_value) {
@@ -325,7 +325,7 @@ impl Compiler {
                     lookup_symbol,
                     mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     if mode == StaticEvaluationMode::Instantiated {
                         StaticCycleDiagnosticMode::Report
                     } else {
@@ -420,6 +420,26 @@ impl Compiler {
                     true,
                 )?;
                 if let Some(selection) = projection_selection {
+                    // defer projections whose receiver arguments are not ready yet
+                    if mode == StaticEvaluationMode::Parametric
+                        && self.receiver_projection_arguments_require_deferral(
+                            ctx.type_view(),
+                            &selection.receiver_arguments,
+                        )
+                    {
+                        let receiver_arguments = if selection.receiver_arguments.is_empty() {
+                            None
+                        } else {
+                            Some(selection.receiver_arguments.clone())
+                        };
+                        let reference_type = Type::Reference {
+                            symbol: selection.target_symbol,
+                            static_arguments: receiver_arguments,
+                        };
+                        let ty = ctx.types.insert_type_from(reference_type, expression_id);
+                        return Ok(Some(StaticExpression::Type { ty }));
+                    }
+
                     let projection_environment = self.projection_environment_for_member(
                         &mut ctx.reborrow(),
                         expression_id.into_any(),
@@ -458,7 +478,7 @@ impl Compiler {
                         selection.target_symbol,
                         projected_mode,
                         merged_substitutions.as_ref(),
-                        remote_dependency_stage,
+                        remote_dependency_boundary,
                         if projected_mode == StaticEvaluationMode::Instantiated {
                             StaticCycleDiagnosticMode::Report
                         } else {
@@ -495,7 +515,7 @@ impl Compiler {
                             candidate_symbol,
                             mode,
                             substitutions,
-                            remote_dependency_stage,
+                            remote_dependency_boundary,
                             if mode == StaticEvaluationMode::Instantiated {
                                 StaticCycleDiagnosticMode::Report
                             } else {
@@ -659,7 +679,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     visited,
                 );
             }
@@ -762,7 +782,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     visited,
                 );
             }
@@ -787,7 +807,7 @@ impl Compiler {
                         mode,
                         diagnostic_mode,
                         substitutions,
-                        remote_dependency_stage,
+                        remote_dependency_boundary,
                         visited,
                     )?;
                     let Some(value) = value else {
@@ -810,7 +830,7 @@ impl Compiler {
                         mode,
                         diagnostic_mode,
                         substitutions,
-                        remote_dependency_stage,
+                        remote_dependency_boundary,
                         visited,
                     )?;
                     let Some(value) = value else {
@@ -843,7 +863,7 @@ impl Compiler {
                                 mode,
                                 diagnostic_mode,
                                 substitutions,
-                                remote_dependency_stage,
+                                remote_dependency_boundary,
                                 visited,
                             )?;
                             let Some(value) = value else {
@@ -857,7 +877,7 @@ impl Compiler {
                                     mode,
                                     diagnostic_mode,
                                     substitutions,
-                                    remote_dependency_stage,
+                                    remote_dependency_boundary,
                                     visited,
                                 )?;
                                 let Some(default_value) = default_value else {

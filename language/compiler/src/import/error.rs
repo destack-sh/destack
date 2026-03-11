@@ -1,5 +1,5 @@
 use crate::{
-    DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
     TaskSkipReason,
 };
 use destack_ast::StringId;
@@ -14,15 +14,15 @@ use destack_workspace::Program;
 #[phase(Import)]
 pub enum ImportError {
     // -------------------------------------------------------------------------
-    // 0xx: Yield / dependency
+    // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Yield to a dependency.
+    /// Yield to a build requirement.
     #[error(code = "EI000", r#yield)]
-    Yield { dependency: TaskDependency },
+    Yield { requirement: BuildRequirementSet },
 
-    /// Unsatisfied dependency (dependency failed).
+    /// Unsatisfied requirement (requirement failed).
     #[error(code = "EI001", yield_failed)]
-    UnsatisfiedDependency { dependency: TaskDependency },
+    UnsatisfiedRequirement { requirement: BuildRequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EI002", message = "task skipped")]

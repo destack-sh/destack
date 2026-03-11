@@ -43,11 +43,11 @@ impl Compiler {
         let actions =
             match self.collect_projection_obligation_actions(&mut ctx.reborrow(), &obligations) {
                 Ok(actions) => actions,
-                Err(AnalyzeError::Yield { dependency }) => {
+                Err(AnalyzeError::Yield { requirement }) => {
                     for obligation in obligations {
                         infer.push_associated_comptime_projection_obligation(obligation);
                     }
-                    return Err(AnalyzeError::Yield { dependency });
+                    return Err(AnalyzeError::Yield { requirement });
                 }
                 Err(error) => return Err(error),
             };
@@ -390,6 +390,11 @@ impl Compiler {
         member_symbol: GlobalSymbolId,
         provisional_type_id: LocalTypeId,
     ) -> AnalyzeResult<LocalTypeId> {
+        // preserve primary projection errors from static evaluation
+        if matches!(ctx.types.get_type(provisional_type_id), Type::Error) {
+            return Ok(provisional_type_id);
+        }
+
         // prefer existing value type ids when already available
         if let Some(value_type_id) = ctx.types.get_value_type_id(member_symbol) {
             return Ok(value_type_id);

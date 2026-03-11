@@ -971,6 +971,8 @@ declare const value: Box<int32>.Item;
 value satisfies int32;
 ```
 
+- contains: associated
+
 ### nominal interfaces support associated type defaults
 
 > Nominal interfaces can declare associated defaults used by explicit implementors.

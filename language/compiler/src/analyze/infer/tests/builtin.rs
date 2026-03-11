@@ -50,7 +50,7 @@ const bad: AgeOnly = { name: "Ada" };
     );
 
     // run analyze pipeline
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.resolve_libs();
     test.analyze_module(module_id);
     test.compile();
@@ -71,7 +71,8 @@ const bad: AgeOnly = { name: "Ada" };
     // normalize to the object shape and ensure it only contains the picked key
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir(profile).tree.read();
+    let dir = test.artifact_dir(module_id, profile);
+    let tree = dir.tree.read();
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
@@ -113,7 +114,7 @@ type Alias = Pick<Person, "name">;
     );
 
     // run analyze pipeline to populate ctx
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.resolve_libs();
     test.analyze_module(module_id);
     test.compile();
@@ -128,17 +129,26 @@ type Alias = Pick<Person, "name">;
 
     // locate the es5 lib module that owns Pick
     let builtins = test.program.builtins.as_ref().expect("expected builtins");
-    let profile_key = test.program.profile(profile).key.clone();
-    let es5_modules = builtins
-        .cached_lib_modules_for_profile(&profile_key, "es5")
-        .expect("expected es5 lib modules");
-    let es5_module_id = es5_modules[0];
+    let es5_module_id = test
+        .program
+        .modules
+        .iter()
+        .find_map(|module| {
+            let module = module.read();
+            if builtins.lib_name_for_module(module.id) != Some("es5") {
+                return None;
+            }
+
+            test.resolve_to_symbol(module.uri.as_ref(), "Pick")
+                .map(|_| module.id)
+        })
+        .expect("expected es5 module exporting Pick");
 
     // resolve Pick and its static parameter symbols from the lib module
     let es5_module = test.program.modules.get(es5_module_id);
     let es5_module = es5_module.read();
     let es5_profile = test.default_profile_id(es5_module_id);
-    let es5_dir = es5_module.dir(es5_profile);
+    let es5_dir = test.artifact_dir(es5_module_id, es5_profile);
     let es5_tree = es5_dir.tree.read();
     let es5_symbols = es5_dir.symbols.read();
     let es5_uri = es5_module.uri.to_string();
@@ -179,7 +189,8 @@ type Alias = Pick<Person, "name">;
         .expect("expected Person declaration");
     let source_id = person_declaration.local_id;
 
-    let tree = module.dir(profile).tree.read();
+    let dir = test.artifact_dir(module_id, profile);
+    let tree = dir.tree.read();
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     // import the K constraint into the local type table
@@ -252,7 +263,7 @@ type Bad = Pick<Person, "missing">;
     );
 
     // run analyze pipeline and expect a not assignable diagnostic
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.resolve_libs();
     test.analyze_module(module_id);
     test.compile();

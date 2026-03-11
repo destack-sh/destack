@@ -1,12 +1,12 @@
-use crate::{Compiler, EmitError, EmitResult, TaskResultCollector};
+use crate::{BuildRequirementCollector, Compiler, EmitError, EmitResult};
 
 use destack_source::PackageId;
 use destack_workspace::TargetId;
 
 impl Compiler {
     /// Emit all outputs for the entire program.
-    pub(super) fn emit_program(&self, target_id: &TargetId) -> EmitResult<()> {
-        let mut collector = TaskResultCollector::new();
+    pub fn emit_program(&self, target_id: &TargetId) -> EmitResult<()> {
+        let mut collector = BuildRequirementCollector::new();
 
         // collect all packages that have this target (by name)
         let target_name = &target_id.name;
@@ -31,8 +31,8 @@ impl Compiler {
         }
 
         // yield on any yield
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(EmitError::Yield { dependency });
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(EmitError::Yield { requirement });
         }
 
         Ok(())

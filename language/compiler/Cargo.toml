@@ -22,7 +22,6 @@ destack_compiler_macros = { workspace = true }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
-destack_linter = { workspace = true, optional = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
@@ -50,10 +49,11 @@ serde_yaml_ng = { workspace = true }
 toml = { workspace = true }
 
 [dev-dependencies]
-destack_formatter = { workspace = true }
-criterion = { workspace = true }
-pprof = { workspace = true }
 clap = { workspace = true }
+criterion = { workspace = true }
+destack_formatter = { workspace = true }
+destack_linter = { workspace = true }
+pprof = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [features]
@@ -61,7 +61,6 @@ default = ["full"]
 parallel = ["dep:crossbeam-deque"]
 native-codegen = ["dep:destack_codegen_native"]
 deadlock-detection = ["parking_lot/deadlock_detection"]
-lint = ["dep:destack_linter"]
 optimize = []
 builtin-full = ["destack_builtin/full", "destack_workspace/builtin-full"]
 builtin-core = ["destack_builtin/core", "destack_workspace/builtin-core"]
@@ -69,7 +68,6 @@ full = [
     "parallel",
     "native-codegen",
     "deadlock-detection",
-    "lint",
     "optimize",
     "builtin-full",
 ]

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_dir::{Dumper, NodeVisitor};
 use destack_parser::colorize_source;
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleDir};
 use parking_lot::RwLock;
 
 use crate::TestProgram;
@@ -53,12 +53,10 @@ impl TestProgram {
         let strings = (*self.program.strings).clone().into_immutable();
         let module = module.read();
         let profile = self.program.default_profile_id_for_module(module.id);
-        let Some(dir) = module.dir_maybe(profile) else {
-            println!("{}", "=".repeat(80));
-            println!("{} [NODE] (no DIR)", module.uri);
-            println!("{}", "=".repeat(80));
+        let Some(dir_data) = self.artifact_dir_data_maybe(module.id, profile) else {
             return;
         };
+        let dir = ModuleDir::from_data(dir_data);
         let tree = dir.tree.read();
         let mut dumper = Dumper::new(&strings, &tree, self.dumper_options);
         println!("{}", "=".repeat(80));
@@ -76,12 +74,10 @@ impl TestProgram {
         let strings = (*self.program.strings).clone().into_immutable();
         let module = module.read();
         let profile = self.program.default_profile_id_for_module(module.id);
-        let Some(dir) = module.dir_maybe(profile) else {
-            println!("{}", "=".repeat(80));
-            println!("{} [SYMBOL] (no DIR)", module.uri);
-            println!("{}", "=".repeat(80));
+        let Some(dir_data) = self.artifact_dir_data_maybe(module.id, profile) else {
             return;
         };
+        let dir = ModuleDir::from_data(dir_data);
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let mut dumper = Dumper::new(&strings, &tree, self.dumper_options);

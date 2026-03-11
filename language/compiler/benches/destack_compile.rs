@@ -1,8 +1,9 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, LintTask};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_linter::Linter;
 use destack_source::{FileType, ModuleId, ModuleStamp, ProfileStamp, Uri, glob};
-use destack_workspace::{ProfileId, Session};
+use destack_workspace::{ArtifactKey, ProfileId, Session};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use std::fs;
@@ -149,35 +150,32 @@ fn run_compile(compiler: &Compiler, modules: &[ModuleId], mode: CompileMode) {
     for module_id in modules.iter().copied() {
         // profile for module
         let profile_id: ProfileId = compiler.program.default_profile_id_for_module(module_id);
-        let module_version = compiler.program.modules.get(module_id).read().version;
-        let profile_version = compiler
-            .program
-            .profiles
-            .get(profile_id)
-            .unwrap_or_else(|| panic!("missing profile data for {profile_id:?}"))
-            .version;
-        let module_stamp = ModuleStamp::new(module_id, module_version);
-        let profile_stamp = ProfileStamp::new(profile_id, profile_version);
-
         // enqueue task
         match mode {
-            CompileMode::Check => {
-                compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-                    module: module_stamp,
-                    profile: profile_stamp,
-                });
-            }
-            CompileMode::Lint => {
-                compiler.enqueue(LintTask::LintModule {
-                    module: module_stamp,
-                    profile: profile_stamp,
-                });
+            CompileMode::Check | CompileMode::Lint => {
+                compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+                    module: module_id,
+                    profile: profile_id,
+                }))
             }
         }
     }
 
     // compile
     compiler.compile();
+
+    // lint after compiler products are ready
+    if matches!(mode, CompileMode::Lint) {
+        let linter = Linter::new(compiler.program.clone());
+        for module_id in modules.iter().copied() {
+            let profile_id = compiler.program.default_profile_id_for_module(module_id);
+            linter
+                .lint_module(module_id, profile_id)
+                .unwrap_or_else(|error| {
+                    panic!("failed to lint benchmark module {module_id:?}: {error}")
+                });
+        }
+    }
 }
 
 /// Benchmark compile workloads for the workspace.

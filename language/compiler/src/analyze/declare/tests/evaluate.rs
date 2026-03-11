@@ -1,12 +1,11 @@
+use super::TestProgram;
 use crate::analyze::common::{SymbolTypeView, TypeContext};
 use crate::analyze::declare::{StaticConstantResolutionMode, TypeMemberResolution};
 use destack_dir::{
-    Declarator, Expression, LocalScopeMark, LocalTypeId, Pattern, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
+    Declarator, Expression, FloatType, LocalScopeMark, LocalTypeId, Pattern, PrimitiveType,
+    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, Type, TypeLiteral, TypeTable,
+    TypeUnaryOperator,
 };
-use destack_source::ProfileId;
-
-use super::TestProgram;
 
 /// Assert a fixed-array count resolves to either an integer literal or a named symbol.
 fn assert_count_matches_integer_or_symbol_name(
@@ -131,6 +130,40 @@ fn test_analyze_evaluate_type_on_let_expression_int() {
 }
 
 #[test]
+fn test_recursive_type_alias_reports_recursion() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+type Loop<T> = Loop<T>;
+
+declare let value: Loop<number>;
+"#,
+    );
+
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostic("EA121");
+}
+
+#[test]
+fn test_mapped_recursive_type_alias_reports_recursion() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+type Remap<T> = { [K in keyof T]: Remap<T[K]> };
+
+declare let value: Remap<{ name: string }>;
+"#,
+    );
+
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostic("EA121");
+}
+
+#[test]
 fn test_type_index_integer_literal_reports_missing_property_and_keeps_index_access_when_not_admissible()
  {
     let test = TestProgram::memory_sequential();
@@ -215,81 +248,6 @@ fn test_type_index_as_comptime_forces_fixed_array_construction() {
     );
 }
 
-#[test]
-fn test_associated_comptime_projection_uses_member_value_type() {
-    let test = TestProgram::memory_sequential();
-    let module_id = test.analyze_declare_module_with_source(
-        "test.ds",
-        r#"
-class MessagePage {
-comptime const Rows: number = 128;
-}
-
-declare const rows: MessagePage.Rows;
-"#,
-    );
-
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let code = module.code();
-    assert!(
-        !code.dirs.is_empty(),
-        "expected at least one profile DIR after compile"
-    );
-
-    for (profile_index, dir) in code.dirs.iter().enumerate() {
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let types = dir.types.read();
-
-        let class_key = StaticKey::Name(test.program.strings.intern("MessagePage"));
-        let rows_key = StaticKey::Name(test.program.strings.intern("Rows"));
-        let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
-        let class_symbol = symbols
-            .find_active_symbol_up_to(namespace_scope, class_key, LocalScopeMark::end())
-            .map(|symbol| symbol.into_global(module.id))
-            .expect("expected MessagePage symbol");
-        let rows_symbol = test
-            .compiler
-            .query_static_member_symbol(
-                &module,
-                ProfileId::new(profile_index as u32),
-                class_symbol,
-                rows_key,
-                &tree,
-                &symbols,
-            )
-            .expect("expected MessagePage.Rows symbol");
-        let rows_type_id = types
-            .get_value_type_id(rows_symbol)
-            .expect("expected MessagePage.Rows value type");
-        let rows_type = types.get_type(rows_type_id).clone();
-        assert!(
-            matches!(
-                rows_type,
-                Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(128))
-                }
-            ),
-            "expected Rows value type to be 128 in profile #{profile_index}, got {rows_type:?}"
-        );
-
-        let binding_key = StaticKey::Name(test.program.strings.intern("rows"));
-        let binding_symbol = symbols
-            .find_active_symbol_up_to(namespace_scope, binding_key, LocalScopeMark::end())
-            .map(|symbol| symbol.into_global(module.id))
-            .expect("expected rows binding symbol");
-        let binding_type_id = types
-            .get_value_type_id(binding_symbol)
-            .expect("expected rows binding value type");
-        let binding_type = types.get_type(binding_type_id);
-        assert!(
-            !binding_type.is_unevaluated(),
-            "expected rows binding type to be evaluated in profile #{profile_index}, got {binding_type:?}"
-        );
-    }
-}
-
 /// Preserve nested fixed-size array literals in type positions.
 #[test]
 fn test_nested_fixed_array_literals_in_type_position() {
@@ -363,9 +321,9 @@ declare const segment: AuditStore.Segment;
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
-    let symbols = dir.symbols.read();
-    let types = dir.types.read();
+    let dir = test.artifact_dir_data(module_id, profile);
+    let symbols = &dir.symbols;
+    let types = &dir.types;
 
     let segment_key = StaticKey::Name(test.program.strings.intern("segment"));
     let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
@@ -383,7 +341,7 @@ declare const segment: AuditStore.Segment;
         other => panic!("expected fixed-size segment projection, got {other:?}"),
     };
     assert_count_matches_integer_or_symbol_name(
-        SymbolTypeView::new(&module, profile, &symbols, &types),
+        SymbolTypeView::new(&module, profile, symbols, types),
         count,
         1024,
         StaticKey::Name(test.program.strings.intern("SegmentBytes")),
@@ -445,10 +403,10 @@ comptime const Dependent: number = ProjectionPlan<Row>.Scalar;
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
-    let tree = dir.tree.read();
-    let symbols = dir.symbols.read();
-    let types = dir.types.read();
+    let dir = test.artifact_dir_data(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
+    let types = &dir.types;
 
     let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
     let owner_key = StaticKey::Name(test.program.strings.intern("ProjectionPlan"));
@@ -460,20 +418,13 @@ comptime const Dependent: number = ProjectionPlan<Row>.Scalar;
     let scalar_key = StaticKey::Name(test.program.strings.intern("Scalar"));
     let scalar_symbol = test
         .compiler
-        .query_static_member_symbol(&module, profile, owner_symbol, scalar_key, &tree, &symbols)
+        .query_static_member_symbol(&module, profile, owner_symbol, scalar_key, tree, symbols)
         .expect("expected Scalar member symbol");
 
     let dependent_key = StaticKey::Name(test.program.strings.intern("Dependent"));
     let dependent_symbol = test
         .compiler
-        .query_static_member_symbol(
-            &module,
-            profile,
-            owner_symbol,
-            dependent_key,
-            &tree,
-            &symbols,
-        )
+        .query_static_member_symbol(&module, profile, owner_symbol, dependent_key, tree, symbols)
         .expect("expected Dependent member symbol");
 
     assert!(
@@ -548,6 +499,62 @@ declare const tile: F32Kernel.Tile;
         "expected inner tile count to resolve to 32: inner_count={:?}",
         types.get_type(*inner_count),
     );
+}
+
+/// Materialize associated comptime arguments through generic interface alias roots.
+#[test]
+fn test_materialize_associated_comptime_arguments_through_generic_interface_alias_roots() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.analyze_declare_module_with_source(
+        "test.ds",
+        r#"
+newtype Vector<T, comptime N: int> = T;
+
+interface KernelProfile<T> {
+comptime const LaneWidth: int = T extends float32 ? 16 : 8;
+type Lane = Vector<T, this.LaneWidth>;
+}
+
+class F32Kernel implements KernelProfile<float32> {}
+
+declare const lane: F32Kernel.Lane;
+"#,
+    );
+    let view = test.declare_view(module_id);
+    let types = view.types();
+    let lane_type_id = view.expect_namespace_value_type_id("lane");
+
+    let Type::Reference {
+        symbol: _,
+        static_arguments: Some(arguments),
+    } = types.get_type(lane_type_id)
+    else {
+        panic!(
+            "expected projected vector reference, got {:?}",
+            types.get_type(lane_type_id)
+        );
+    };
+    let [
+        StaticArgument::Evaluated {
+            value:
+                StaticExpression::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float32)),
+                },
+            ..
+        },
+        StaticArgument::Evaluated {
+            value:
+                StaticExpression::ScalarLiteral {
+                    value: ScalarLiteral::Integer(lane_count),
+                },
+            ..
+        },
+    ] = arguments.as_slice()
+    else {
+        panic!("expected evaluated vector arguments, got {arguments:?}");
+    };
+
+    assert_eq!(*lane_count, 16, "expected lane width to resolve to 16");
 }
 
 /// Materialize extension-owned associated comptime counts through projected aliases.
@@ -638,10 +645,10 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
-    let tree = dir.tree.read();
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let dir = test.artifact_dir_data(module_id, profile);
+    let tree = dir.tree;
+    let symbols = dir.symbols;
+    let mut types = dir.types;
     let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
 
     let log_symbol = symbols

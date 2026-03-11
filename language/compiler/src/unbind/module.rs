@@ -62,7 +62,7 @@ impl Compiler {
     }
 
     /// Unbind module parts into an AST tree.
-    fn unbind_module_from_parts(
+    pub(crate) fn unbind_module_from_parts(
         &self,
         module: &Module,
         tree: &dir::NodeTree,

@@ -2,12 +2,9 @@ use std::fmt;
 use std::io::Read;
 use std::sync::Arc;
 
-use destack_compiler::{
-    AnalyzeTask, Compiler, CompilerEventHandler, CompilerOptions, GenerateTask, LintTask,
-    LowerTask, OptimizeTask, StatsSnapshot,
-};
+use destack_compiler::{BuildKey, Compiler, CompilerEventHandler, CompilerOptions, StatsSnapshot};
 use destack_source::{DiagnosticOptions, FileType, ModuleId, Uri};
-use destack_workspace::{Program, Session, TargetId};
+use destack_workspace::{ArtifactKey, OutputKey, Program, Session, TargetId};
 
 use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
 use crate::console;
@@ -40,8 +37,6 @@ pub enum CompilerMode {
     /// Type check only (parse, bind, resolve, analyze).
     #[default]
     Check,
-    /// Type check + lint rules.
-    Lint,
     /// Lower DIR to MIR for a target.
     Lower {
         /// The target name to lower for.
@@ -84,11 +79,6 @@ impl CompilerContext {
     /// Create a new compilation context for type checking.
     pub fn for_check(program_args: &ProgramArgs, diagnostic_args: &DiagnosticArgs) -> Self {
         Self::new(program_args, diagnostic_args, CompilerMode::Check, None)
-    }
-
-    /// Create a new compilation context for linting.
-    pub fn for_lint(program_args: &ProgramArgs, diagnostic_args: &DiagnosticArgs) -> Self {
-        Self::new(program_args, diagnostic_args, CompilerMode::Lint, None)
     }
 
     /// Create a new compilation context for building a target.
@@ -234,29 +224,23 @@ impl CompilerContext {
         match &self.mode {
             CompilerMode::Check => {
                 let profile = self.program.default_profile_id_for_module(module);
-                let module = self.compiler.module_stamp(module);
-                let profile = self.compiler.profile_stamp(profile);
                 self.compiler
-                    .enqueue(AnalyzeTask::AnalyzeModule { module, profile });
+                    .enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+                        module,
+                        profile,
+                    }));
 
                 // TODO #Cleanup: revisit this (?)
-                let diagnostic_target = self.program.ensure_target_for_module(module.id);
+                let diagnostic_target = self.program.ensure_target_for_module(module);
                 let diagnostic_profile = self
                     .program
-                    .profile_id_for_target_or_default(module.id, &diagnostic_target);
-                let diagnostic_profile = self.compiler.profile_stamp(diagnostic_profile);
-                self.compiler.enqueue(OptimizeTask::OptimizeModule {
-                    module,
-                    profile: diagnostic_profile,
-                    target: diagnostic_target,
-                });
-            }
-            CompilerMode::Lint => {
-                let profile = self.program.default_profile_id_for_module(module);
-                let module = self.compiler.module_stamp(module);
-                let profile = self.compiler.profile_stamp(profile);
+                    .profile_id_for_target_or_default(module, &diagnostic_target);
                 self.compiler
-                    .enqueue(LintTask::LintModule { module, profile });
+                    .enqueue(BuildKey::Artifact(ArtifactKey::MirOptimized {
+                        module,
+                        profile: diagnostic_profile,
+                        target: diagnostic_target,
+                    }));
             }
             CompilerMode::Lower { target } => {
                 let module_ref = self.program.modules.get(module);
@@ -265,28 +249,18 @@ impl CompilerContext {
                 let profile = self
                     .program
                     .profile_id_for_target_or_default(module, &target_id);
-                let module = self.compiler.module_stamp(module);
-                let profile = self.compiler.profile_stamp(profile);
-                self.compiler.enqueue(LowerTask::LowerModule {
+                self.compiler.enqueue(BuildKey::Artifact(ArtifactKey::Mir {
                     module,
                     profile,
                     target: target_id,
-                });
+                }));
             }
             CompilerMode::Build { target } => {
                 let module_ref = self.program.modules.get(module);
                 let package_id = module_ref.read().package_id;
                 let target_id = TargetId::new(package_id, target);
-                let profile = self
-                    .program
-                    .profile_id_for_target_or_default(module, &target_id);
-                let module = self.compiler.module_stamp(module);
-                let profile = self.compiler.profile_stamp(profile);
-                self.compiler.enqueue(GenerateTask::GenerateModule {
-                    module,
-                    profile,
-                    target: target_id,
-                });
+                self.compiler
+                    .enqueue(BuildKey::Output(OutputKey::module(module, target_id)));
             }
         }
     }

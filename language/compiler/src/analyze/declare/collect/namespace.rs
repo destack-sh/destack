@@ -186,7 +186,7 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module has interface surface inference
-                self.require_analyze_module_interface(module_id, ctx.profile)?;
+                self.require_dir_interface(module_id, ctx.profile)?;
 
                 // load the target module exports
                 let target_module = self.program.modules.get(module_id);

@@ -2,11 +2,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
-use destack_source::{
-    FileId, FileSystem, FileType, MemoryFileSystem, ModuleStamp, ProfileStamp, Uri,
-};
-use destack_workspace::{MemoryCacheStore, Session};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_source::{FileId, FileSystem, FileType, MemoryFileSystem, Uri};
+use destack_workspace::{ArtifactKey, MemoryCacheStore, Session};
 
 use super::{TestMarkers, parse_markers};
 use crate::mdtest::{MdTestCase, select_profile_for_mdtest};
@@ -230,18 +228,11 @@ impl QueryTestSession {
         module_ids.sort();
         module_ids.dedup();
 
-        let profile_version = program
-            .profiles
-            .get(profile)
-            .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
-            .version;
-
         for module_id in module_ids {
-            let module_version = program.modules.get(module_id).read().version;
-            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-                module: ModuleStamp::new(module_id, module_version),
-                profile: ProfileStamp::new(profile, profile_version),
-            });
+            compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+                module: module_id,
+                profile,
+            }));
         }
         compiler.compile();
         drop(compiler);

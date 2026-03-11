@@ -75,13 +75,13 @@ impl Compiler {
         ctx: TreeSymbolView<'_>,
         member_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<MemberVisibilityContext>> {
-        self.with_module_tree_symbol_view_or_local_at_stage(
+        self.with_module_tree_symbol_view_or_local_at_boundary(
             ctx.module,
             ctx.profile,
             member_symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |view| self.member_visibility_context_for_symbol_in_tree(view, member_symbol),
         )
         .map_err(AnalyzeError::from)
@@ -257,13 +257,13 @@ impl Compiler {
         let mut current_symbol = Some(receiver_symbol);
         while let Some(owner_symbol) = current_symbol {
             let context = self
-                .with_module_tree_symbol_view_or_local_at_stage(
+                .with_module_tree_symbol_view_or_local_at_boundary(
                     ctx.module,
                     ctx.profile,
                     owner_symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |view| {
                         let owner_entry = view.symbols.get_symbol(owner_symbol.local_id);
                         let declaration_id = owner_entry.primary_declaration?.local_id;
@@ -331,12 +331,12 @@ impl Compiler {
             }
 
             current_symbol = self
-                .with_module_types_or_local_at_stage(
+                .with_module_types_or_local_at_boundary(
                     ctx.module,
                     ctx.profile,
                     owner_symbol.module_id,
                     ctx.types,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |_, owner_types| {
                         owner_types
                             .get_lineage_for_symbol(owner_symbol)

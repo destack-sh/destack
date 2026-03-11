@@ -8,8 +8,14 @@ We don't define (much) logic here, it's mostly about defining the containers and
 The workspace crate exists to make one ownership split explicit:
 
 - input state lives on long-lived containers such as `Workspace`, `Program`, `Package`, and `Module`
-- derived semantic truth lives in `ArtifactRegistry`
+- derived semantic compiler products live in `ArtifactRegistry`
 - generated and linked outputs live in `OutputRegistry`
+
+Scheduling should still see one unified build graph.
+The right execution key space is:
+
+- `BuildKey::Artifact(ArtifactKey)`
+- `BuildKey::Output(OutputKey)`
 
 This distinction is the backbone of the incremental model.
 
@@ -113,7 +119,7 @@ It describes roots, config, package relationships, and workspace-level organizat
 ### Program
 
 `Program` is the semantic world for one compilation context.
-It owns packages, modules, profiles, diagnostics, the semantic artifact registry, and the output registry.
+It owns packages, modules, profiles, diagnostics, the semantic compiler product registry, and the output registry.
 
 ### Package
 
@@ -130,28 +136,63 @@ It does not own derived semantic phase state.
 
 ### ArtifactRegistry
 
-`ArtifactRegistry` owns published semantic artifacts for one program.
-The long-term semantic artifact vocabulary is:
+`ArtifactRegistry` owns published semantic compiler products for one program.
+The long-term semantic compiler product vocabulary is:
 
+- `LanguageEnvironment`
+- `IntrinsicEnvironment`
+- `LibEnvironment`
 - `Ast`
 - `DirBase`
+- `DirPrepared`
 - `DirResolved`
 - `DirDeclared`
 - `DirInterface`
 - `DirAnalyzed`
 - `DirElaborated`
-- `DirComptime`
+- `DirPatched`
 - `Mir`
+- `MirOptimized`
 
 These are immutable snapshots built from shared substructures.
 They are compiler facts.
 
+`LanguageEnvironment`, `IntrinsicEnvironment`, and `LibEnvironment` are profile-scoped semantic environments.
+They are not DIR artifacts.
+They are semantic environments derived from builtin and lib module surfaces.
+
 ### OutputRegistry
 
 `OutputRegistry` owns generated and linked outputs.
-These are build products rather than semantic facts.
+These are build products rather than semantic compiler facts.
 
-Keeping outputs separate from semantic artifacts avoids conflating compiler truth with generated files.
+Keeping outputs separate from semantic compiler products avoids conflating compiler truth with generated files.
+
+`OutputKey` identifies the logical output product.
+`OutputContent` is the payload stored for that key.
+
+That split matters because outputs can share one scheduling model without pretending they are semantic compiler products.
+The compiler should be able to drive:
+
+- output to artifact dependencies
+- output to output dependencies
+
+without ever letting artifacts depend on outputs.
+
+### Builtins
+
+`Builtins` should become immutable input-side catalog state.
+It should own builtin module ids, builtin lib metadata, and other builtin source identity.
+
+It should not own mutable per-profile derived semantic state like:
+
+- language item caches
+- declared lib symbol caches
+- ambient lib symbol caches
+- well-known symbol caches
+- intrinsic caches
+
+Those belong in `ArtifactRegistry` as `LanguageEnvironment(profile)`, `IntrinsicEnvironment(profile)`, and `LibEnvironment(profile)`.
 
 ## Incremental State
 
@@ -165,8 +206,8 @@ Examples include:
 - package versions
 - profile and configuration stamps
 
-Derived semantic artifacts are immutable snapshots.
-Each published artifact stores:
+Derived semantic compiler products are immutable snapshots.
+Each published semantic compiler product stores:
 
 - an `ArtifactDependency`
 - an `ArtifactDigest`
@@ -184,12 +225,15 @@ The intended stack is:
 
 1. `FileSystem` for source files and user-visible emitted files
 2. `CacheStore` for shared cached byte persistence
-3. `ArtifactStore` for typed semantic artifact persistence
+3. `ArtifactStore` for typed semantic compiler product persistence
 4. `OutputStore` for typed output persistence
 5. `ArtifactRegistry` and `OutputRegistry` for authoritative in-memory state
 
 The in-memory registries are authoritative.
-Persistent cache is hydration and persistence for published artifacts and outputs.
+Persistent cache is hydration and persistence for published semantic compiler products and outputs.
+
+The scheduler should operate over `BuildKey`, not directly over cache paths or phase tasks.
+That keeps persistence, execution, and semantic truth properly separated.
 
 The cache flow is:
 

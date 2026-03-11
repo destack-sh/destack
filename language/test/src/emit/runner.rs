@@ -2,9 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::{Compiler, CompilerOptions, EmitTask};
-use destack_source::{File, FileSystem, FileType, PackageStamp, PhysicalFileSystem, Uri};
-use destack_workspace::{DsConfig, Session, Target, TargetId};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_source::{File, FileSystem, FileType, PhysicalFileSystem, Uri};
+use destack_workspace::{DsConfig, OutputKey, Session, Target, TargetId};
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
@@ -145,14 +145,10 @@ fn run_emit_case(test: &TestCase) -> TestResult {
         };
     }
 
-    // emit
-    let package_version = program.packages.version(package_id);
+    // link
     for (target_name, _) in &targets {
         let target_id = TargetId::new(package_id, target_name);
-        compiler.enqueue(EmitTask::EmitPackage {
-            package: PackageStamp::new(package_id, package_version),
-            target: target_id,
-        });
+        compiler.enqueue(BuildKey::Output(OutputKey::package(package_id, target_id)));
     }
     compiler.compile();
 
@@ -160,6 +156,25 @@ fn run_emit_case(test: &TestCase) -> TestResult {
     let result = check_diagnostics(test, &program.files, &program.diagnostics);
     if result.is_failed() {
         return result;
+    }
+    drop(compiler);
+
+    // emit
+    let compiler = Compiler::new(
+        session.clone(),
+        program.clone(),
+        CompilerOptions {
+            workers: 1,
+            ..Default::default()
+        },
+    );
+    for (target_name, _) in &targets {
+        let target_id = TargetId::new(package_id, target_name);
+        if let Err(error) = compiler.emit_package(package_id, &target_id) {
+            return TestResult::Failed {
+                message: format!("failed to emit package output for {target_name}: {error:?}"),
+            };
+        }
     }
     drop(compiler);
 

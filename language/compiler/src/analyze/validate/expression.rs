@@ -3092,6 +3092,9 @@ impl Compiler {
         match resolved {
             Ok(Some(_)) => return,
             Ok(None) => {}
+            Err(AnalyzeError::Yield { .. } | AnalyzeError::UnsatisfiedRequirement { .. }) => {
+                return;
+            }
             Err(error) => {
                 self.error(error);
                 return;

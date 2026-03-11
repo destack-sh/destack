@@ -7,7 +7,7 @@ pub(crate) use destack_workspace::{ImplicitCollectionConversionPolicy, Module, P
 pub(crate) use std::collections::{HashMap, HashSet};
 
 pub(crate) use super::super::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, NormalizationMode, RelationMode,
+    CanonicalSymbolMode, DirReadBoundary, NormalizationMode, RelationMode,
 };
 pub(crate) use crate::timing::tags;
 pub(crate) use crate::{AnalyzeError, AnalyzeOptions, AnalyzeWarning, Compiler};

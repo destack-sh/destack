@@ -8,8 +8,8 @@ use destack_dir::{
 
 use super::key::KeySet;
 use super::template::TemplateLiteralKeyShape;
-use crate::Compiler;
 use crate::analyze::common::{CanonicalSymbolMode, RelationMode, TypeContext};
+use crate::{AnalyzeError, Compiler};
 
 /// A mapped key produced when expanding mapped types.
 #[derive(Debug, Clone)]
@@ -48,6 +48,20 @@ pub(crate) struct IndexAccessResolution {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Report one recursive type instantiation for alias-driven mapped traversal.
+    fn report_recursive_mapped_instantiation(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        type_id: LocalTypeId,
+    ) {
+        let node = ctx
+            .types
+            .get_type_source(type_id)
+            .into_global(ctx.module.id)
+            .into_anchored(Some(ctx.profile));
+        self.error(AnalyzeError::RecursiveTypeInstantiation { node });
+    }
+
     /// Normalize a `keyof` type expression.
     pub(crate) fn normalize_keyof_type(
         &self,
@@ -148,6 +162,7 @@ impl Compiler {
 
         // avoid cycles when traversing recursive types
         if !visited_keys.insert(type_id) {
+            self.report_recursive_mapped_instantiation(&mut ctx.reborrow(), type_id);
             return KeySet::default();
         }
 
@@ -922,6 +937,7 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         // stop when revisiting the same type
         if !visited.insert(type_id) {
+            self.report_recursive_mapped_instantiation(&mut ctx.reborrow(), type_id);
             return None;
         }
 
@@ -1064,6 +1080,7 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         // stop when revisiting the same type
         if !visited.insert(type_id) {
+            self.report_recursive_mapped_instantiation(&mut ctx.reborrow(), type_id);
             return None;
         }
 
@@ -1970,16 +1987,28 @@ impl Compiler {
                         keys,
                         visited,
                     );
-                } else if symbol.ty() == SymbolType::TypeAlias
-                    && !ctx.types.is_normalization_alias_in_progress(symbol)
-                {
+                } else if symbol.ty() == SymbolType::TypeAlias {
+                    let static_arguments = static_arguments
+                        .clone()
+                        .map(|arguments| self.canonicalize_instance_arguments_for_key(arguments));
+                    let static_arguments = static_arguments.unwrap_or_default();
+
+                    if ctx.types.is_normalization_alias_in_progress(
+                        symbol,
+                        NormalizationMode::Assign,
+                        relation_mode.cache_key(),
+                        &static_arguments,
+                    ) {
+                        return;
+                    }
+
                     // expand alias references to collect mapped keys from utility types
                     let mut normalize_visited = Vec::new();
                     let normalized = self.normalize_type_alias_reference_with_arguments(
                         &mut ctx.reborrow(),
                         source_id,
                         symbol,
-                        static_arguments.as_deref().unwrap_or(&[]),
+                        &static_arguments,
                         NormalizationMode::Assign,
                         relation_mode,
                         &mut normalize_visited,

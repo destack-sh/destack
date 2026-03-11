@@ -1,7 +1,7 @@
 use crate::resolve::binding::cache::ResolveExpressionCache;
 use crate::resolve::dependency::cache::ResolveDependencyItemCache;
 use crate::timing::tags;
-use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
+use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, Expression, GlobalSymbolId, LocalNodeId,
     LocalScopeId, NodeTree, SymbolSpace,
@@ -102,7 +102,7 @@ impl Compiler {
         )?;
         let _timing = self.timing_scope(tags::RESOLVE_MODULE_DIRECT);
 
-        self.require_resolve_module_prepare(module_id, profile)?;
+        self.require_dir_prepared(module_id, profile)?;
         if !self.is_code_module(module_id) {
             return Ok(());
         }
@@ -111,7 +111,13 @@ impl Compiler {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);
-        let skip_declaration_expressions = module.language_type.is_declaration()
+        let is_selected_lib_module = self.is_selected_lib_module(profile, module.id);
+        let is_standard_lib_environment_module = self.is_standard_lib_environment_module(module.id);
+        let skip_builtin_declaration_expressions = module.language_type.is_declaration()
+            && module.is_builtin()
+            && !self.options.validate_builtin_libs
+            && (!is_selected_lib_module || !is_standard_lib_environment_module);
+        let skip_builtin_global_symbol_table = module.language_type.is_declaration()
             && module.is_builtin()
             && !self.options.validate_builtin_libs;
         let worklist = {
@@ -125,10 +131,10 @@ impl Compiler {
 
             // resolve module dependency expressions
             {
-                if !skip_declaration_expressions {
+                if !skip_builtin_declaration_expressions {
                     let mut tree = dir.tree.write();
                     let symbols = dir.symbols.read();
-                    let mut collector = TaskResultCollector::new();
+                    let mut collector = BuildRequirementCollector::new();
                     for expression_id in &worklist.dependency_expression_ids {
                         if !self.is_node_active(&tree, &symbols, (*expression_id).into_any()) {
                             continue;
@@ -146,8 +152,8 @@ impl Compiler {
                             ),
                         );
                     }
-                    if let Some(dependency) = collector.try_into_yield_any() {
-                        return Err(ResolveError::Yield { dependency });
+                    if let Some(requirement) = collector.try_into_requirement() {
+                        return Err(ResolveError::Yield { requirement });
                     }
                 }
             }
@@ -155,50 +161,57 @@ impl Compiler {
             // resolve dependencies
             self.resolve_dependency_items(module_id, profile)?;
 
-            // build the global symbol table (after dependency resolution)
-            self.require_global_symbol_table(module.id, profile)?;
+            // build the global symbol table
+            if !skip_builtin_global_symbol_table {
+                self.require_global_symbol_table(module.id, profile)?;
+            }
         }
 
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_EXPRESSIONS);
 
             // resolve expressions
-            let mut tree = dir.tree.write();
-            let symbols = dir.symbols.read();
-            let mut collector = TaskResultCollector::new();
-            for expression_id in &worklist.resolve_expression_ids {
-                if !self.is_node_active(&tree, &symbols, (*expression_id).into_any()) {
-                    continue;
+            if !skip_builtin_declaration_expressions {
+                let mut tree = dir.tree.write();
+                let symbols = dir.symbols.read();
+                let mut collector = BuildRequirementCollector::new();
+                for expression_id in &worklist.resolve_expression_ids {
+                    if !self.is_node_active(&tree, &symbols, (*expression_id).into_any()) {
+                        continue;
+                    }
+
+                    self.collect(
+                        &mut collector,
+                        self.resolve_expression(
+                            &module,
+                            dir,
+                            profile,
+                            *expression_id,
+                            &mut tree,
+                            &symbols,
+                            &mut expression_cache,
+                        ),
+                    );
                 }
-                self.collect(
-                    &mut collector,
-                    self.resolve_expression(
-                        &module,
-                        dir,
-                        profile,
-                        *expression_id,
-                        &mut tree,
-                        &symbols,
-                        &mut expression_cache,
-                    ),
-                );
-            }
-            if let Some(dependency) = collector.try_into_yield_any() {
-                return Err(ResolveError::Yield { dependency });
+
+                if let Some(requirement) = collector.try_into_requirement() {
+                    return Err(ResolveError::Yield { requirement });
+                }
             }
         }
 
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_DECLARATIONS);
 
-            // resolve declarations (e.g., extensions, types/aliases)
+            // resolve declarations
             let mut tree = dir.tree.write();
             let mut symbols = dir.symbols.write();
-            let mut collector = TaskResultCollector::new();
+            let mut collector = BuildRequirementCollector::new();
             for declaration_id in &worklist.declaration_ids {
                 if !self.is_node_active(&tree, &symbols, (*declaration_id).into_any()) {
                     continue;
                 }
+
                 self.collect(
                     &mut collector,
                     self.resolve_declaration(
@@ -211,8 +224,9 @@ impl Compiler {
                     ),
                 );
             }
-            if let Some(dependency) = collector.try_into_yield_any() {
-                return Err(ResolveError::Yield { dependency });
+
+            if let Some(requirement) = collector.try_into_requirement() {
+                return Err(ResolveError::Yield { requirement });
             }
         }
 
@@ -222,8 +236,10 @@ impl Compiler {
             // finalize export targets (after dependency resolution)
             let tree = dir.tree.read();
             let mut symbols = dir.symbols.write();
-            self.finalize_module_exports(dir, &tree, &mut symbols);
+            self.finalize_module_exports(&module, profile, dir, &tree, &mut symbols);
             self.finalize_module_binding_exports(
+                &module,
+                profile,
                 dir,
                 &tree,
                 &mut symbols,
@@ -265,7 +281,7 @@ impl Compiler {
         };
 
         // resolve dependency items using read locks
-        let mut collector = TaskResultCollector::new();
+        let mut collector = BuildRequirementCollector::new();
         let mut resolved_items = Vec::new();
         for item_id in item_ids {
             let resolved_item = {
@@ -354,8 +370,8 @@ impl Compiler {
         }
 
         // yield unresolved dependency items after updates
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(ResolveError::Yield { dependency });
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(ResolveError::Yield { requirement });
         }
 
         Ok(())

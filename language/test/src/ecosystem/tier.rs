@@ -4,9 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 
-use destack_compiler::{
-    AnalyzeTask, Compiler, CompilerOptions, OptimizeTask, ResolveTask, StatsSnapshot,
-};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions, StatsSnapshot};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileRegistry, FileSystem,
@@ -14,8 +12,8 @@ use destack_source::{
     Uri, glob,
 };
 use destack_workspace::{
-    FormatterOptions, LinterOptions, PackageJson, Program, Session, TsConfig, TsConfigId,
-    select_manifest_entry_paths,
+    ArtifactKey, FormatterOptions, LinterOptions, PackageJson, Program, Session, TsConfig,
+    TsConfigId, select_manifest_entry_paths,
 };
 
 use crate::ecosystem::manifest::{
@@ -940,33 +938,30 @@ fn enqueue_phase_task(
     module_id: ModuleId,
     phase: EcosystemPhase,
 ) {
-    let module = compiler.module_stamp(module_id);
-
     match phase {
         EcosystemPhase::Parse => {}
         EcosystemPhase::Resolve => {
             let profile_id = program.default_profile_id_for_module(module_id);
-            let profile = compiler.profile_stamp(profile_id);
-            compiler.enqueue(ResolveTask::ResolveModule {
-                module,
-                profile,
-                graph: compiler.module_graph_stamp(profile_id),
-            });
+            compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirResolved {
+                module: module_id,
+                profile: profile_id,
+            }));
         }
         EcosystemPhase::Analyze => {
             let profile_id = program.default_profile_id_for_module(module_id);
-            let profile = compiler.profile_stamp(profile_id);
-            compiler.enqueue(AnalyzeTask::AnalyzeModule { module, profile });
+            compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+                module: module_id,
+                profile: profile_id,
+            }));
         }
         EcosystemPhase::Lower => {
             let target = program.ensure_target_for_module(module_id);
             let profile_id = program.profile_id_for_target_or_default(module_id, &target);
-            let profile = compiler.profile_stamp(profile_id);
-            compiler.enqueue(OptimizeTask::OptimizeModule {
-                module,
-                profile,
+            compiler.enqueue(BuildKey::Artifact(ArtifactKey::MirOptimized {
+                module: module_id,
+                profile: profile_id,
                 target,
-            });
+            }));
         }
     }
 }

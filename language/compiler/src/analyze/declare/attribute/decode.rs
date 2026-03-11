@@ -2,7 +2,7 @@ use crate::Compiler;
 use crate::analyze::common::ModuleTreeView;
 use destack_core::StringId;
 use destack_dir::{
-    Annotation, Argument, Expression, LifetimeAnnotation, LocalNodeId, ScalarLiteral,
+    Annotation, Argument, Binding, Expression, LifetimeAnnotation, LocalNodeId, ScalarLiteral,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -81,6 +81,65 @@ impl Compiler {
         };
 
         Some(Some(*string_id))
+    }
+
+    /// Parse binding decorator arguments.
+    pub(crate) fn decorator_binding_argument(
+        &self,
+        view: ModuleTreeView<'_>,
+        annotation_id: LocalNodeId<Annotation>,
+        values: &[LocalNodeId<Expression>],
+    ) -> Option<Binding> {
+        // allow empty bindings: defaults to the declaration name
+        if values.is_empty() {
+            return Some(Binding { name: None });
+        }
+
+        // validate arity
+        if values.len() > 2 {
+            self.report_invalid_well_known_decorator(
+                view.module,
+                view.profile,
+                annotation_id,
+                "binding decorator expects zero, one, or two arguments",
+            );
+            return None;
+        }
+
+        // parse the optional external binding name
+        let name = {
+            let expression = view.tree.get(values[0]);
+            let Expression::ScalarLiteral {
+                value: ScalarLiteral::String(string_id),
+            } = expression
+            else {
+                self.report_invalid_well_known_decorator(
+                    view.module,
+                    view.profile,
+                    annotation_id,
+                    "binding decorator first argument must be a string literal",
+                );
+                return None;
+            };
+
+            Some(*string_id)
+        };
+
+        // validate the optional binding options payload
+        if values.len() == 2 {
+            let expression = view.tree.get(values[1]);
+            if !matches!(expression, Expression::ObjectExpression { .. }) {
+                self.report_invalid_well_known_decorator(
+                    view.module,
+                    view.profile,
+                    annotation_id,
+                    "binding decorator second argument must be an object literal",
+                );
+                return None;
+            }
+        }
+
+        Some(Binding { name })
     }
 
     /// Parse zero or more string arguments for a decorator.

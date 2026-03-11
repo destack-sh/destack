@@ -154,7 +154,7 @@ impl Compiler {
             &extension_parameters,
             inherited_arguments,
             ctx.profile,
-        );
+        )?;
         if positional_arguments.is_empty() {
             positional_arguments = inherited_arguments.to_vec();
         }
@@ -198,27 +198,30 @@ impl Compiler {
         extension_parameters: &[GlobalSymbolId],
         inherited_arguments: &[StaticArgument],
         profile: ProfileId,
-    ) -> Vec<StaticArgument> {
+    ) -> AnalyzeResult<Vec<StaticArgument>> {
         // skip mapping when no parameters are declared
         if extension_parameters.is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
         // resolve the target type argument mapping from the extension declaration
-        let target_mapping =
-            self.extension_target_argument_mapping(extension_symbol, extension_parameters, profile);
+        let target_mapping = self.extension_target_argument_mapping(
+            extension_symbol,
+            extension_parameters,
+            profile,
+        )?;
         let Some(target_mapping) = target_mapping else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
 
         // map receiver arguments into extension parameter order
         let mut reordered = vec![None; extension_parameters.len()];
         for (target_index, parameter_index) in target_mapping.into_iter().enumerate() {
             if parameter_index >= reordered.len() {
-                return Vec::new();
+                return Ok(Vec::new());
             }
             if reordered[parameter_index].is_some() {
-                return Vec::new();
+                return Ok(Vec::new());
             }
 
             reordered[parameter_index] = Some(target_index);
@@ -227,17 +230,17 @@ impl Compiler {
         let mut mapped = Vec::with_capacity(reordered.len());
         for maybe_target_index in reordered {
             let Some(target_index) = maybe_target_index else {
-                return Vec::new();
+                return Ok(Vec::new());
             };
 
             if let Some(argument) = inherited_arguments.get(target_index) {
                 mapped.push(argument.clone());
             } else {
-                return Vec::new();
+                return Ok(Vec::new());
             }
         }
 
-        mapped
+        Ok(mapped)
     }
 
     /// Resolve the extension symbol that owns a member symbol.
@@ -247,12 +250,12 @@ impl Compiler {
         member_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // locate the scope owner for the member symbol
-        self.with_module_symbols_or_local_at_stage(
+        self.with_module_symbols_or_local_at_boundary(
             view.module,
             view.profile,
             member_symbol.module_id,
             view.symbols,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |owner_module, owner_symbols| {
                 let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
                 let scope = owner_symbols.get_scope_by_id(member_entry.scope.0);

@@ -13,7 +13,7 @@ impl Compiler {
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let _timing = self.timing_scope(tags::IMPORT_MODULE_VALIDATE);
 
-        self.require_import_module_desugar(module_id)?;
+        // syntax-only modules stop at AST
         if !self.is_code_module(module_id) {
             return Ok(());
         }

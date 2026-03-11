@@ -1,48 +1,29 @@
 use crate::timing::tags;
-use crate::{Compiler, LinkResult, TaskDependencyError};
+use crate::{BuildKey, BuildRequirementError, Compiler, LinkResult};
 
-use destack_compiler_macros::DefineTask;
-use destack_source::{PackageId, PackageStamp};
-use destack_workspace::TargetId;
-
-/// Task to link generated outputs.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
-#[phase(Link)]
-pub enum LinkTask {
-    /// Link all modules for a target and emit output.
-    #[task(code = 1, trace = "package={package} target={target}")]
-    LinkTarget {
-        /// The package containing the target.
-        package: PackageStamp,
-        /// The target id.
-        target: TargetId,
-    },
-}
+use destack_source::PackageId;
+use destack_workspace::{OutputKey, TargetId};
 
 impl Compiler {
-    /// Process a link task.
-    pub fn process_link(&self, task: LinkTask) -> LinkResult<()> {
-        match task {
-            LinkTask::LinkTarget { package, target } => {
-                if !self.package_version_matches(package.id, package.version) {
-                    return Ok(());
-                }
-                let _timing = self.timing_scope(tags::LINK_TARGET);
-                self.link_target(package.id, &target)
-            }
+    /// Build one package output.
+    pub fn process_package_output(&self, package: PackageId, target: TargetId) -> LinkResult<()> {
+        let package_stamp = self.package_stamp(package);
+        if !self.package_version_matches(package_stamp.id, package_stamp.version) {
+            return Ok(());
         }
+        let _timing = self.timing_scope(tags::LINK_TARGET);
+        self.link_target(package_stamp.id, &target)
     }
 
-    /// Ensure a target has been linked.
-    pub fn require_link_module(
+    /// Require one package output build product.
+    pub fn require_package_output(
         &self,
         package: PackageId,
         target: &TargetId,
-    ) -> Result<(), TaskDependencyError> {
-        let package = self.package_stamp(package);
-        self.do_require_task_internal_only(LinkTask::LinkTarget {
+    ) -> Result<(), BuildRequirementError> {
+        self.require_build_key(BuildKey::Output(OutputKey::package(
             package,
-            target: target.clone(),
-        })
+            target.clone(),
+        )))
     }
 }

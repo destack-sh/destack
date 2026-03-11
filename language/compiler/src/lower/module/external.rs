@@ -2,7 +2,7 @@ use destack_dir::{Expression, GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult, TaskDependencyError};
+use crate::{BuildRequirementError, LowerError, LowerResult};
 
 use crate::lower::ModuleLowerer;
 
@@ -220,18 +220,18 @@ impl ModuleLowerer<'_> {
     /// Ensure the module has been analyzed for this profile.
     pub(crate) fn require_analyzed_module(&self, module_id: ModuleId) -> LowerResult<()> {
         // request analysis for the target module
-        let result = self
-            .compiler
-            .require_analyze_module(module_id, self.profile);
+        let result = self.compiler.require_dir_analyzed(module_id, self.profile);
         let Err(error) = result else {
             return Ok(());
         };
 
         // map task errors to lowering diagnostics
         match error {
-            TaskDependencyError::NotReady { dependency } => Err(LowerError::Yield { dependency }),
-            TaskDependencyError::Failed { dependency } => {
-                Err(LowerError::UnsatisfiedDependency { dependency })
+            BuildRequirementError::NotReady { requirement } => {
+                Err(LowerError::Yield { requirement })
+            }
+            BuildRequirementError::Failed { requirement } => {
+                Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }
     }

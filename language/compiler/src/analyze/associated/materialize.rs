@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use super::resolve::AssociatedAliasProjectionRewriter;
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
-    AnalyzeDependencyStage, RelationMode, TreeSymbolView, TypeContext, TypeRewriteCache,
+    DirReadBoundary, RelationMode, TreeSymbolView, TypeContext, TypeRewriteCache,
 };
 use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
@@ -24,6 +24,19 @@ impl Compiler {
         static_arguments: Option<&[StaticArgument]>,
         member_ty: Type,
     ) -> AnalyzeResult<Type> {
+        // suppress cascading projection diagnostics when the receiver already failed
+        if let Some(receiver_symbol) = receiver_symbol {
+            let (receiver_symbol, _) = self.normalize_projection_receiver_reference(
+                &mut ctx.reborrow(),
+                source_id,
+                receiver_symbol,
+                receiver_arguments,
+            )?;
+            if self.symbol_has_missing_associated_requirements(ctx.type_view(), receiver_symbol)? {
+                return Ok(Type::Error);
+            }
+        }
+
         let projection_environment = self.projection_environment_for_member(
             &mut ctx.reborrow(),
             source_id,
@@ -36,19 +49,20 @@ impl Compiler {
         )?;
         let substitutions = projection_environment.substitutions;
         let owner_symbol = projection_environment.owner_symbol;
-
+        let projection_receiver_symbol = projection_environment.receiver_symbol;
+        let projection_receiver_arguments = projection_environment.receiver_arguments;
         // reject explicit static arguments on non-parameterized members
         if let Some(member_arguments) = static_arguments
             && !member_arguments.is_empty()
         {
             let parameter_count = self
-                .with_module_tree_symbol_view_or_local_at_stage(
+                .with_module_tree_symbol_view_or_local_at_boundary(
                     ctx.module,
                     ctx.profile,
                     target_symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |view| {
                         self.collect_static_parameter_symbols(
                             view.type_view(ctx.types),
@@ -131,7 +145,6 @@ impl Compiler {
             alias_target_id,
             &substitutions,
         )?;
-
         let alias_target_id = if let Some(owner_symbol) = owner_symbol {
             let mut rewriter = AssociatedAliasProjectionRewriter::new(
                 self,
@@ -139,6 +152,8 @@ impl Compiler {
                 ctx.profile,
                 source_id,
                 owner_symbol,
+                projection_receiver_symbol,
+                &projection_receiver_arguments,
                 &substitutions,
                 ctx.tree,
                 ctx.symbols,
@@ -147,7 +162,6 @@ impl Compiler {
         } else {
             alias_target_id
         };
-
         // apply projection substitutions before materialization so unresolved defaults stay symbolic
         let mapped_alias = if substitutions.is_empty() {
             alias_target_id
@@ -168,14 +182,12 @@ impl Compiler {
             mapped_alias,
             &mut materialize_cache,
         );
-
         let normalized_alias = self.normalize_type_with_relation(
             &mut ctx.reborrow(),
             mapped_alias,
             NormalizationMode::Assign,
             RelationMode::OBJECT_SHAPE,
         );
-
         Ok(ctx.types.get_type(normalized_alias).clone())
     }
 
@@ -186,13 +198,13 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<bool> {
         // only associated type aliases can require projection arguments
-        self.with_module_tree_symbol_view_or_local_at_stage(
+        self.with_module_tree_symbol_view_or_local_at_boundary(
             ctx.module,
             ctx.profile,
             symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |view| {
                 let symbol_entry = view.symbols.get_symbol(symbol.local_id);
                 if symbol_entry.ty != SymbolType::TypeAlias {

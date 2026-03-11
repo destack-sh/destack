@@ -1,4 +1,4 @@
-use crate::{Compiler, LinkError, LinkResult, TargetDiscoveryIssue, TaskResultCollector};
+use crate::{BuildRequirementCollector, Compiler, LinkError, LinkResult, TargetDiscoveryIssue};
 
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::{TargetDiscovery, TargetId};
@@ -63,7 +63,7 @@ impl Compiler {
         };
 
         // generate all discovered modules
-        let mut collector = TaskResultCollector::new();
+        let mut collector = BuildRequirementCollector::new();
         for module_id in modules {
             let profile_id = self
                 .program
@@ -72,13 +72,13 @@ impl Compiler {
                     package: package_id,
                     message: format!("profile not found for target '{}'", target_id.name),
                 })?;
-            let result = self.require_generate_module(module_id, profile_id, target_id);
+            let result = self.require_module_output(module_id, profile_id, target_id);
             collector.try_collect(result);
         }
 
         // yield if any dependencies are pending
-        if let Some(dependency) = collector.try_into_yield_all() {
-            return Err(LinkError::Yield { dependency });
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(LinkError::Yield { requirement });
         }
 
         // NOTE #Incomplete: single-file targets require combining outputs

@@ -294,12 +294,12 @@ impl Compiler {
             return None;
         };
         let symbol = self
-            .with_module_symbols_or_local_at_stage(
+            .with_module_symbols_or_local_at_boundary(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
                 ctx.symbols,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |owner_module, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
                     GlobalSymbolId::new(owner_module.id, symbol.local_id.with_type(symbol_entry.ty))
@@ -550,11 +550,11 @@ impl Compiler {
                     }
                 }
             } else {
-                match self.with_module_tree_symbol_view_at_stage(
+                match self.with_module_tree_symbol_view_at_boundary(
                     ctx.module,
                     ctx.profile,
                     symbol.module_id,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |view| {
                         if !view.tree.has_node_id(node.id) {
                             return Ok(None);
@@ -912,11 +912,11 @@ impl Compiler {
             return;
         }
 
-        if let Err(error) = self.with_module_tree_symbol_view_at_stage(
+        if let Err(error) = self.with_module_tree_symbol_view_at_boundary(
             ctx.module,
             ctx.profile,
             symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |view| {
                 let options = self.analyze_context_options_for_module(view.module.id);
                 let mut ctx = ctx.reborrow_for_module_with_options(

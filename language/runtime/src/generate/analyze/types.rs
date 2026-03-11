@@ -69,28 +69,21 @@ enum SliceKind {
 
 /// Resolve binding type symbols for a profile.
 pub(crate) fn binding_type_symbols(program: &Program, profile_id: ProfileId) -> BindingTypeSymbols {
-    // resolve builtins for the active profile
-    let builtins = program
-        .builtins
-        .as_ref()
-        .expect("builtins must be loaded for binding generation");
-    let result = builtins
-        .items
-        .get(&(profile_id, LanguageSymbol::Result))
-        .map(|item| *item)
+    // resolve semantic environments for the active profile
+    let language_environment = program
+        .artifacts
+        .language_environment(profile_id)
+        .unwrap_or_else(|| panic!("missing language environment for profile {profile_id:?}"));
+    let lib_environment = program
+        .artifacts
+        .lib_environment(profile_id)
+        .unwrap_or_else(|| panic!("missing lib environment for profile {profile_id:?}"));
+    let result = language_environment
+        .item(LanguageSymbol::Result)
         .unwrap_or_else(|| panic!("missing Result symbol for profile {profile_id:?}"));
-    let async_result = builtins
-        .items
-        .get(&(profile_id, LanguageSymbol::AsyncResult))
-        .map(|item| *item);
+    let async_result = language_environment.item(LanguageSymbol::AsyncResult);
 
-    let profile = program
-        .profiles
-        .get(profile_id)
-        .unwrap_or_else(|| panic!("missing profile {profile_id:?}"));
-    let well_known = builtins
-        .well_known_symbols(&profile.key)
-        .unwrap_or_else(|| panic!("missing well-known symbols for profile {profile_id:?}"));
+    let well_known = lib_environment.well_known_symbols.clone();
     let slice = well_known.get_type_symbol(WellKnownSymbol::Slice);
     let array = well_known.get_type_symbol(WellKnownSymbol::Array);
     let readonly_array = well_known.get_type_symbol(WellKnownSymbol::ReadonlyArray);

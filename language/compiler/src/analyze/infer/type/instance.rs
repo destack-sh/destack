@@ -433,12 +433,12 @@ impl Compiler {
 
         // ensure the defining module is declared before reading its types
         if symbol.module_id != ctx.module.id {
-            self.require_analyze_module_declare(symbol.module_id, ctx.profile)
+            self.require_dir_declared(symbol.module_id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
         }
 
         // ensure the global symbol table is available for this module
-        self.require_resolve_module_prepare(ctx.module.id, ctx.profile)
+        self.require_dir_resolved(ctx.module.id, ctx.profile)
             .map_err(AnalyzeError::from)?;
 
         // select the global merge group when the symbol participates
@@ -591,10 +591,10 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         let remote_instance = self
-            .with_module_tree_symbols_by_id_at_stage(
+            .with_module_tree_symbols_by_id_at_boundary(
                 profile,
                 symbol.module_id,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |remote_module, _remote_tree, _remote_symbols| {
                     let remote_dir = remote_module.dir(profile);
                     let remote_types = remote_dir.types.read();

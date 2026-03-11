@@ -1,9 +1,9 @@
 use destack_workspace::{ProfileId, Program};
 
 use crate::{
-    AnalyzeError, DiagnosticAnchor, ElaborateError, EmitError, ExecuteError, GenerateError,
-    ImportError, LinkError, LintError, LowerError, OptimizeError, ResolveError, Task, TaskDebug,
-    TaskDependency, TaskId, TaskPhase,
+    AnalyzeError, BuildRequirementSet, DiagnosticAnchor, ElaborateError, EmitError, ExecuteError,
+    GenerateError, ImportError, LinkError, LowerError, OptimizeError, ResolveError, Task, TaskId,
+    TaskPhase,
 };
 /// Error during compilation.
 #[derive(Debug, Clone, PartialEq)]
@@ -30,10 +30,6 @@ pub enum TaskError {
     Link(LinkError),
     /// Error during emitting.
     Emit(EmitError),
-    // --------------------------------------------------
-    /// Error during linting.
-    Lint(LintError),
-    // --------------------------------------------------
     /// Internal compiler error (bug).
     Internal(InternalError),
 }
@@ -41,19 +37,19 @@ pub enum TaskError {
 /// Internal compiler error (bug in the compiler).
 #[derive(Debug, Clone, PartialEq)]
 pub enum InternalError {
-    /// Task yielded to the same dependency twice in a row.
+    /// Task yielded to the same requirement twice in a row.
     SuspiciousYield {
         task_id: TaskId,
-        dependency: TaskDependency,
+        requirement: BuildRequirementSet,
     },
     /// Task exceeded maximum yield count.
     ExcessiveYield {
         task_id: TaskId,
         task: Task,
-        dependency: TaskDependency,
+        requirement: BuildRequirementSet,
         yield_count: u32,
     },
-    /// Circular dependency detected in task graph.
+    /// Circular build dependency detected in the scheduler.
     CircularDependency { task_id: TaskId, cycle: Vec<TaskId> },
     /// Missing profile data for a profile id.
     MissingProfile { profile_id: ProfileId },
@@ -81,30 +77,27 @@ impl InternalError {
     pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::SuspiciousYield { task_id, .. } => {
-                format!("internal error: task {task_id} yielded to the same dependency twice")
+                format!("internal error: task {task_id} yielded to the same requirement twice")
             }
             Self::ExcessiveYield {
                 task_id,
                 task,
-                dependency,
+                requirement,
                 yield_count,
                 ..
             } => {
-                let dependency_description = match dependency {
-                    TaskDependency::Complete { task, .. } => {
-                        let args = task.trace_args(_program);
-                        format!("{}.{} {args}", task.phase().name(), task.name())
+                let requirement_description = if let Some(first_requirement) = requirement.first() {
+                    if requirement.len() == 1 {
+                        format!("{:?}", first_requirement.key)
+                    } else {
+                        format!("all({} requirements)", requirement.len())
                     }
-                    TaskDependency::CompleteAll { dependencies } => {
-                        format!("all({} dependencies)", dependencies.len())
-                    }
-                    TaskDependency::CompleteAny { dependencies } => {
-                        format!("any({} dependencies)", dependencies.len())
-                    }
+                } else {
+                    "no requirements".to_string()
                 };
 
                 format!(
-                    "internal error: task {task_id} ({}) yielded {yield_count} times on {dependency_description}",
+                    "internal error: task {task_id} ({}) yielded {yield_count} times on {requirement_description}",
                     task.name(),
                 )
             }
@@ -115,7 +108,9 @@ impl InternalError {
                     .map(|id| format!("{id}"))
                     .collect::<Vec<_>>()
                     .join(" -> ");
-                format!("internal error: circular dependency involving {task_id}: {cycle_str}")
+                format!(
+                    "internal error: circular build requirement involving {task_id}: {cycle_str}"
+                )
             }
             Self::MissingProfile { profile_id } => {
                 format!("internal error: missing profile data for {profile_id:?}")
@@ -150,8 +145,7 @@ impl TaskError {
             Self::Optimize(_) => Some(TaskPhase::Optimize),
             Self::Generate(_) => Some(TaskPhase::Generate),
             Self::Link(_) => Some(TaskPhase::Link),
-            Self::Emit(_) => Some(TaskPhase::Emit),
-            Self::Lint(_) => Some(TaskPhase::Lint),
+            Self::Emit(_) => None,
             Self::Internal(_) => None,
         }
     }
@@ -178,7 +172,6 @@ impl TaskError {
             Self::Generate(error) => error.sub_code(),
             Self::Link(error) => error.sub_code(),
             Self::Emit(error) => error.sub_code(),
-            Self::Lint(error) => error.sub_code(),
             Self::Internal(error) => error.sub_code(),
         }
     }
@@ -196,7 +189,6 @@ impl TaskError {
             Self::Generate(error) => error.anchor(),
             Self::Link(error) => error.anchor(),
             Self::Emit(error) => error.anchor(),
-            Self::Lint(error) => error.anchor(),
             Self::Internal(error) => error.anchor(),
         }
     }
@@ -214,7 +206,6 @@ impl TaskError {
             Self::Generate(error) => error.message(program),
             Self::Link(error) => error.message(program),
             Self::Emit(error) => error.message(program),
-            Self::Lint(error) => error.message(program),
             Self::Internal(error) => error.message(program),
         }
     }
@@ -225,7 +216,7 @@ impl TaskError {
         format!("E{}{:03}", self.phase_letter(), self.sub_code())
     }
 
-    /// Check whether this error represents a failed dependency yield.
+    /// Check whether this error represents a failed requirement yield.
     pub fn is_yield_failed(&self) -> bool {
         match self {
             Self::Import(error) => error.is_yield_failed(),
@@ -238,25 +229,23 @@ impl TaskError {
             Self::Generate(error) => error.is_yield_failed(),
             Self::Link(error) => error.is_yield_failed(),
             Self::Emit(error) => error.is_yield_failed(),
-            Self::Lint(error) => error.is_yield_failed(),
             Self::Internal(_) => false,
         }
     }
 
-    /// Get the task dependency that was yielded to, if any.
-    pub fn yielded_to(&self) -> Option<&TaskDependency> {
+    /// Get the yielded build requirement, if any.
+    pub fn yielded_to(&self) -> Option<&BuildRequirementSet> {
         match self {
-            Self::Import(ImportError::Yield { dependency }) => Some(dependency),
-            Self::Resolve(ResolveError::Yield { dependency }) => Some(dependency),
-            Self::Analyze(AnalyzeError::Yield { dependency }) => Some(dependency),
-            Self::Elaborate(ElaborateError::Yield { dependency }) => Some(dependency),
-            Self::Execute(ExecuteError::Yield { dependency }) => Some(dependency),
-            Self::Lower(LowerError::Yield { dependency }) => Some(dependency),
-            Self::Optimize(OptimizeError::Yield { dependency }) => Some(dependency),
-            Self::Generate(GenerateError::Yield { dependency }) => Some(dependency),
-            Self::Link(LinkError::Yield { dependency }) => Some(dependency),
-            Self::Emit(EmitError::Yield { dependency }) => Some(dependency),
-            Self::Lint(LintError::Yield { dependency }) => Some(dependency),
+            Self::Import(ImportError::Yield { requirement }) => Some(requirement),
+            Self::Resolve(ResolveError::Yield { requirement }) => Some(requirement),
+            Self::Analyze(AnalyzeError::Yield { requirement }) => Some(requirement),
+            Self::Elaborate(ElaborateError::Yield { requirement }) => Some(requirement),
+            Self::Execute(ExecuteError::Yield { requirement }) => Some(requirement),
+            Self::Lower(LowerError::Yield { requirement }) => Some(requirement),
+            Self::Optimize(OptimizeError::Yield { requirement }) => Some(requirement),
+            Self::Generate(GenerateError::Yield { requirement }) => Some(requirement),
+            Self::Link(LinkError::Yield { requirement }) => Some(requirement),
+            Self::Emit(EmitError::Yield { requirement }) => Some(requirement),
             _ => None,
         }
     }

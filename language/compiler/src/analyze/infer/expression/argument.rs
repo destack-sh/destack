@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, ContextualTypingMode, InferContext, ModuleContext,
+    CanonicalSymbolMode, ContextualTypingMode, DirReadBoundary, InferContext, ModuleContext,
     SymbolTypeView, TreeSymbolTypeView, TypeContext, TypeView,
 };
 use crate::analyze::module::GlobalMergeCategory;
@@ -43,12 +43,12 @@ impl Compiler {
             return Ok(None);
         };
 
-        self.with_module_symbols_or_local_at_stage(
+        self.with_module_symbols_or_local_at_boundary(
             ctx.module,
             ctx.profile,
             target_symbol.module_id,
             ctx.symbols,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |owner_module, owner_symbols| {
                 if self.symbol_is_static_parameter(
                     SymbolTypeView::new(owner_module, ctx.profile, owner_symbols, ctx.types),
@@ -1328,13 +1328,13 @@ impl Compiler {
             let _ = self.enum_backing_type_for_symbol(&mut ctx.reborrow(), enum_symbol);
             self.enum_literal_matches_symbol(ctx.tree_symbol_type_view(), enum_symbol, literal)
         } else {
-            self.with_module_tree_symbols_types_by_id_at_stage(
+            self.with_module_tree_symbols_types_by_id_at_boundary(
                 ctx.profile,
                 enum_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
                 ctx.types,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |owner_tree, owner_symbols, owner_types| {
                     self.enum_literal_matches_symbol(
                         TreeSymbolTypeView::new(
@@ -1869,22 +1869,26 @@ impl Compiler {
         extension_symbol: GlobalSymbolId,
         extension_parameters: &[GlobalSymbolId],
         profile: ProfileId,
-    ) -> Option<Vec<usize>> {
-        // load the extension declaration
-        let module = self.program.modules.get(extension_symbol.module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
+    ) -> AnalyzeResult<Option<Vec<usize>>> {
+        // read the declared extension surface from artifact truth
+        let snapshot = self.require_artifact_dir_for_boundary(
+            extension_symbol.module_id,
+            profile,
+            DirReadBoundary::Declared,
+        )?;
+        let tree = &snapshot.tree;
+        let symbols = &snapshot.symbols;
 
         let symbol_entry = symbols.get_symbol(extension_symbol.local_id);
-        let declaration_id = symbol_entry
-            .primary_declaration?
-            .try_into_local_typed::<Declaration>()
-            .ok()?;
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return Ok(None);
+        };
+        let Ok(declaration_id) = primary_declaration.try_into_local_typed::<Declaration>() else {
+            return Ok(None);
+        };
         let declaration = tree.get(declaration_id);
         let Declaration::Extension { target_type, .. } = declaration else {
-            return None;
+            return Ok(None);
         };
 
         // read the target type arguments
@@ -1900,7 +1904,10 @@ impl Compiler {
                 static_arguments, ..
             } => static_arguments.as_ref(),
             _ => None,
-        }?;
+        };
+        let Some(static_arguments) = static_arguments else {
+            return Ok(None);
+        };
 
         // map target arguments to extension parameter indices
         let mut mapping = Vec::with_capacity(static_arguments.len());
@@ -1913,15 +1920,21 @@ impl Compiler {
                 | Expression::ModuleReference { target_symbol, .. }
                 | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
                 _ => None,
-            }?;
+            };
+            let Some(target_symbol) = target_symbol else {
+                return Ok(None);
+            };
 
             let parameter_index = extension_parameters
                 .iter()
-                .position(|parameter_symbol| *parameter_symbol == target_symbol)?;
+                .position(|parameter_symbol| *parameter_symbol == target_symbol);
+            let Some(parameter_index) = parameter_index else {
+                return Ok(None);
+            };
             mapping.push(parameter_index);
         }
 
-        Some(mapping)
+        Ok(Some(mapping))
     }
 
     /// Resolve a static argument constraint for validation.
@@ -2205,7 +2218,7 @@ impl Compiler {
 
         // ensure remote declarations are resolved before reading defaults
         if symbol.module_id != ctx.module.id {
-            self.require_resolve_module_direct(symbol.module_id, ctx.profile)
+            self.require_dir_resolved(symbol.module_id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
         }
 
@@ -2571,12 +2584,12 @@ impl Compiler {
         }
 
         let symbol_info = self
-            .with_module_symbols_or_local_at_stage(
+            .with_module_symbols_or_local_at_boundary(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
                 ctx.symbols,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |_, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
                     (symbol_entry.key, symbol_entry.space)
@@ -2770,7 +2783,7 @@ impl Compiler {
 
         // ensure enum declarations are available before scanning enum fields
         if enum_symbol.module_id != ctx.module.id {
-            self.require_analyze_module_declare(enum_symbol.module_id, ctx.profile)
+            self.require_dir_declared(enum_symbol.module_id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
         }
 

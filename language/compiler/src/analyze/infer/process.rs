@@ -4,8 +4,7 @@ use crate::analyze::common::{InferContext, ModuleTreeView, NormalizationMode, Ty
 use crate::analyze::r#type::json_value_to_type;
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, Compiler, FlowContext, InferSession, TaskDependencyError,
-    TaskResultCollector,
+    AnalyzeError, AnalyzeResult, BuildRequirementCollector, Compiler, FlowContext, InferSession,
 };
 use destack_dir::{
     Declaration, Declarator, Expression, FlowGraphBuilder, IntType, LocalNodeId, NodeTree,
@@ -16,18 +15,6 @@ use destack_workspace::{Module, ModuleContent, ModuleSource, ModuleType, Profile
 use std::collections::HashSet;
 
 impl Compiler {
-    /// Ensure a module's types have been inferred.
-    pub fn require_analyze_module_infer(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
-        use crate::AnalyzeTask;
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleInfer { module, profile })
-    }
-
     /// Phase 3: Infer expression types.
     pub(crate) fn analyze_module_infer(
         &self,
@@ -56,7 +43,7 @@ impl Compiler {
             return Ok(());
         }
 
-        self.require_analyze_module_declare(module_id, profile)?;
+        self.require_dir_declared(module_id, profile)?;
 
         let module = self.program.modules.get(module_id);
         let module = module.read();
@@ -101,8 +88,9 @@ impl Compiler {
         let runtime_roots = self.collect_runtime_roots(&module, &tree, &dir.roots);
         let infer_roots = runtime_roots.clone();
 
-        // require builtins before resolving type-import operator dependencies
-        self.require_resolve_builtins(profile)?;
+        // resolve builtins before resolving type-import operator dependencies
+        self.require_language_environment(profile)
+            .map_err(AnalyzeError::from)?;
         self.require_type_import_interface_dependencies(ModuleTreeView::new(
             &module, profile, &tree,
         ))?;
@@ -112,7 +100,7 @@ impl Compiler {
         drop(tree);
 
         // establish infer dependency preconditions
-        self.require_analyze_module_interface(module_id, profile)?;
+        self.require_dir_interface(module_id, profile)?;
         self.require_declare_dependencies_for_infer(module_id, profile)?;
         self.require_interface_dependencies(module_id, profile)?;
         self.require_interface_inference_for_ambient_libs(profile)?;
@@ -121,7 +109,7 @@ impl Compiler {
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
-        let mut collector = TaskResultCollector::new();
+        let mut collector = BuildRequirementCollector::new();
         let options = self.analyze_context_options_for_module(module.id);
 
         // initialize infer session state
@@ -197,11 +185,11 @@ impl Compiler {
         }
 
         // yield on any yields
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(AnalyzeError::Yield { dependency });
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(AnalyzeError::Yield { requirement });
         }
 
-        // publish infer-table state for solve and commit stages
+        // publish infer-table state for later solve and commit work
         self.publish_infer_table_for_module(module.id, profile, session.into_table());
 
         Ok(())

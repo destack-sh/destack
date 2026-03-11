@@ -1,224 +1,142 @@
-use crate::{Compiler, ResolveError, ResolveResult, TaskDependencyError};
+use crate::{BuildKey, BuildRequirementError, Compiler, ResolveError, ResolveResult};
 
-use destack_compiler_macros::DefineTask;
-use destack_source::{ModuleId, ModuleStamp, ProfileStamp};
-use destack_workspace::{ModuleGraphStamp, ProfileId};
-
-/// Task to statically resolve something in-place.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
-#[phase(Resolve)]
-pub enum ResolveTask {
-    /// Resolve all builtin modules and required language items.
-    #[task(code = 0, trace = "builtins profile={profile}")]
-    ResolveBuiltins { profile: ProfileStamp },
-
-    /// Resolve a profile's libraries.
-    #[task(code = 1, trace = "profile={profile}")]
-    ResolveLibs { profile: ProfileStamp },
-
-    /// Resolve a module completely (direct, canonical).
-    #[task(code = 2, trace = "module={module} profile={profile} graph={graph}")]
-    ResolveModule {
-        module: ModuleStamp,
-        profile: ProfileStamp,
-        graph: ModuleGraphStamp,
-    },
-
-    /// Resolve expressions and dependency items.
-    /// Sets target_symbol for imports and populates namespace_exports.
-    #[task(code = 3, trace = "module={module} profile={profile}")]
-    ResolveModuleDirect {
-        module: ModuleStamp,
-        profile: ProfileStamp,
-    },
-
-    /// Prepare the per profile DIR for a module.
-    #[task(code = 4, trace = "module={module} profile={profile}")]
-    ResolveModulePrepare {
-        module: ModuleStamp,
-        profile: ProfileStamp,
-    },
-
-    /// Compute canonical_symbol for all symbols.
-    /// Follows target_symbol chains to find the canonical symbol.
-    #[task(code = 5, trace = "module={module} profile={profile} graph={graph}")]
-    ResolveModuleCanonical {
-        module: ModuleStamp,
-        profile: ProfileStamp,
-        graph: ModuleGraphStamp,
-    },
-}
+use destack_builtin::BuiltinLibKind;
+use destack_source::ModuleId;
+use destack_workspace::{ArtifactKey, ModuleSource, ProfileId};
 
 impl Compiler {
-    /// Process a resolve task.
-    pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<()> {
-        match task {
-            ResolveTask::ResolveBuiltins { profile } => {
-                self.ensure_profile_version_matches::<ResolveError>(profile.id, profile.version)?;
-                self.resolve_builtins(profile.id)?;
-            }
-            ResolveTask::ResolveLibs { profile } => {
-                self.ensure_profile_version_matches::<ResolveError>(profile.id, profile.version)?;
-                self.resolve_libs(profile.id)?;
-            }
-            ResolveTask::ResolveModule {
-                module,
-                profile,
-                graph,
-            } => {
-                self.ensure_module_profile_matches::<ResolveError>(
-                    module.id,
-                    module.version,
-                    profile.id,
-                    profile.version,
-                )?;
-                self.ensure_module_graph_version_matches::<ResolveError>(
-                    graph.profile_id,
-                    graph.version,
-                )?;
-                self.require_resolve_module_canonical(module.id, profile.id)?;
-            }
-            ResolveTask::ResolveModuleDirect { module, profile } => {
-                self.ensure_module_profile_matches::<ResolveError>(
-                    module.id,
-                    module.version,
-                    profile.id,
-                    profile.version,
-                )?;
-                self.resolve_module_direct(module.id, profile.id, module.version, profile.version)?;
-            }
-            ResolveTask::ResolveModulePrepare { module, profile } => {
-                self.ensure_module_profile_matches::<ResolveError>(
-                    module.id,
-                    module.version,
-                    profile.id,
-                    profile.version,
-                )?;
-                self.resolve_module_prepare(
-                    module.id,
-                    profile.id,
-                    module.version,
-                    profile.version,
-                )?;
-            }
-            ResolveTask::ResolveModuleCanonical {
-                module,
-                profile,
-                graph,
-            } => {
-                self.ensure_module_profile_matches::<ResolveError>(
-                    module.id,
-                    module.version,
-                    profile.id,
-                    profile.version,
-                )?;
-                self.ensure_module_graph_version_matches::<ResolveError>(
-                    graph.profile_id,
-                    graph.version,
-                )?;
-                self.resolve_module_canonical(
-                    module.id,
-                    profile.id,
-                    module.version,
-                    profile.version,
-                )?;
-                if self.is_code_module(module.id) {
-                    self.stats.record_resolve();
-                }
-            }
-        }
+    /// Build the language environment for one profile.
+    pub fn process_language_environment(&self, profile: ProfileId) -> ResolveResult<()> {
+        self.resolve_language_environment(profile)?;
+
         Ok(())
     }
 
-    /// Ensure builtins have been resolved.
-    pub fn require_resolve_builtins(&self, profile: ProfileId) -> Result<(), TaskDependencyError> {
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(ResolveTask::ResolveBuiltins { profile })
+    /// Build the lib environment for one profile.
+    pub fn process_lib_environment(&self, profile: ProfileId) -> ResolveResult<()> {
+        self.resolve_lib_environment(profile)?;
+
+        Ok(())
     }
 
-    /// Ensure a profile's libraries have been resolved.
-    pub fn require_resolve_libs(&self, profile: ProfileId) -> Result<(), TaskDependencyError> {
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(ResolveTask::ResolveLibs { profile })
+    /// Build prepared DIR for one module.
+    pub fn process_dir_prepared(&self, module: ModuleId, profile: ProfileId) -> ResolveResult<()> {
+        let module_id = module;
+        let module_version = self.module_version(module);
+        let profile_version = self.profile_version(profile);
+        self.ensure_module_profile_matches::<ResolveError>(
+            module_id,
+            module_version,
+            profile,
+            profile_version,
+        )?;
+        self.resolve_module_prepare(module_id, profile, module_version, profile_version)?;
+
+        Ok(())
     }
 
-    /// Ensure a module's direct symbols have been resolved.
-    pub fn require_resolve_module_direct(
+    /// Build resolved DIR for one module.
+    pub fn process_dir_resolved(&self, module: ModuleId, profile: ProfileId) -> ResolveResult<()> {
+        let module_id = module;
+        let module_version = self.module_version(module);
+        let profile_version = self.profile_version(profile);
+        self.ensure_module_profile_matches::<ResolveError>(
+            module_id,
+            module_version,
+            profile,
+            profile_version,
+        )?;
+        self.require_dir_prepared(module_id, profile)
+            .map_err(ResolveError::from)?;
+
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+
+        // builtin language and lib modules bootstrap the shared environments themselves
+        if !matches!(
+            module.source,
+            ModuleSource::Builtin(BuiltinLibKind::Core | BuiltinLibKind::Std | BuiltinLibKind::Lib)
+        ) {
+            self.require_lib_environment(profile)
+                .map_err(ResolveError::from)?;
+        }
+
+        self.resolve_module_direct(module_id, profile, module_version, profile_version)?;
+        self.resolve_module_canonical(module_id, profile, module_version, profile_version)?;
+        if self.is_code_module(module_id) {
+            self.stats.record_resolve();
+        }
+
+        Ok(())
+    }
+
+    /// Ensure prepared DIR exists for a module.
+    pub fn require_dir_prepared(
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(ResolveTask::ResolveModuleDirect { module, profile })
+    ) -> Result<(), BuildRequirementError> {
+        if self.current_build_key()
+            == Some(BuildKey::Artifact(ArtifactKey::DirPrepared {
+                module,
+                profile,
+            }))
+        {
+            return Ok(());
+        }
+
+        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirPrepared {
+            module,
+            profile,
+        }))
     }
 
-    /// Ensure a module's per profile DIR exists.
-    pub fn require_resolve_module_prepare(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(ResolveTask::ResolveModulePrepare { module, profile })
-    }
-
-    /// Ensure another module's per profile DIR exists.
-    pub fn require_resolve_module_prepare_if_needed(
+    /// Ensure another module's prepared DIR exists.
+    pub fn require_dir_prepared_if_other(
         &self,
         module: ModuleId,
         other: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
+    ) -> Result<(), BuildRequirementError> {
         if module == other {
             return Ok(());
         }
-        self.require_resolve_module_prepare(other, profile)
+
+        self.require_dir_prepared(other, profile)
     }
 
-    /// Ensure a different module's direct symbols have been resolved.
-    pub fn require_resolve_module_direct_if_other(
+    /// Ensure resolved DIR exists for a module.
+    pub fn require_dir_resolved(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<(), BuildRequirementError> {
+        // avoid self dependency while resolving one module
+        if self.current_build_key()
+            == Some(BuildKey::Artifact(ArtifactKey::DirResolved {
+                module,
+                profile,
+            }))
+        {
+            return Ok(());
+        }
+
+        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirResolved {
+            module,
+            profile,
+        }))
+    }
+
+    /// Ensure another module's resolved DIR exists.
+    pub fn require_dir_resolved_if_other(
         &self,
         module: ModuleId,
         other: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
+    ) -> Result<(), BuildRequirementError> {
         if module == other {
             return Ok(());
         }
-        self.require_resolve_module_direct(other, profile)
-    }
-
-    /// Ensure a module's canonical symbols have been resolved.
-    pub fn require_resolve_module_canonical(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        let graph = self.module_graph_stamp(profile.id);
-        self.do_require_task_internal_only(ResolveTask::ResolveModuleCanonical {
-            module,
-            profile,
-            graph,
-        })
-    }
-
-    /// Ensure a module has been resolved.
-    pub fn require_resolve_module(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        let graph = self.module_graph_stamp(profile.id);
-        self.do_require_task_internal_only(ResolveTask::ResolveModule {
-            module,
-            profile,
-            graph,
-        })
+        self.require_dir_resolved(other, profile)
     }
 }

@@ -4,11 +4,12 @@ use std::sync::OnceLock;
 use std::thread;
 use std::time::{Duration, Instant};
 
+use destack_workspace::{ArtifactKey, OutputScope};
+
 use crate::{
-    AnalyzeError, Compiler, CompilerEvent, ElaborateError, EmitError, ExecuteError, GenerateError,
-    ImportError, InternalError, LinkError, LintError, LowerError, OptimizeError, ResolveError,
-    Task, TaskDebug, TaskDependency, TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase,
-    TaskSkipCheck, TaskStatus,
+    AnalyzeError, BuildKey, BuildRequirementSet, Compiler, CompilerEvent, ElaborateError,
+    ExecuteError, GenerateError, ImportError, InternalError, LinkError, LowerError, OptimizeError,
+    ResolveError, Task, TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase, TaskStatus,
 };
 
 #[cfg(feature = "parallel")]
@@ -30,12 +31,28 @@ impl Compiler {
     pub(crate) fn current_task(&self) -> Option<Task> {
         CURRENT_TASK.with(|current| current.borrow().clone())
     }
+
+    /// Return the build key currently executing on this worker thread.
+    pub(crate) fn current_build_key(&self) -> Option<BuildKey> {
+        self.current_task().map(|task| task.build_key().clone())
+    }
     /// Enqueue a task to the compiler.
     /// Noop if we already have the same task queued, returns the existing TaskId.
     pub fn enqueue<T: Into<Task>>(&self, task: T) -> (TaskId, bool) {
         let task: Task = task.into();
+        let build_key = task.build_key().clone();
         let event = format!("{}.{}.enqueue", task.phase().name(), task.name());
         let args = task.trace_args(&self.program);
+
+        // rerun stale final tasks when the current build requirement is no longer satisfied
+        if !self.build_key_is_available(&build_key)
+            && let Some(task_id) = self.queue.try_requeue_final(&build_key)
+        {
+            self.stats.record_enqueue();
+            tracing::trace!(%event, %args, ?task_id, "compile.enqueue");
+            return (task_id, false);
+        }
+
         let (task_id, is_new) = self.queue.enqueue(task);
         if is_new {
             self.stats.record_enqueue();
@@ -44,16 +61,19 @@ impl Compiler {
         (task_id, is_new)
     }
 
-    /// Get the status of a task.
-    pub fn get_status<T: Into<Task>>(&self, task: T) -> Option<TaskStatus> {
-        let task: Task = task.into();
-        self.queue.find_task_status(&task)
+    /// Enqueue the producer task for one build key.
+    pub fn enqueue_build_key(&self, build_key: BuildKey) -> (TaskId, bool) {
+        self.enqueue(build_key)
     }
 
-    /// Get the outcome of a task.
-    pub fn get_outcome<T: Into<Task>>(&self, task: T) -> Option<TaskOutcome> {
-        let task: Task = task.into();
-        self.queue.find_task_outcome(&task)
+    /// Get the status of a build key.
+    pub fn get_status(&self, build_key: &BuildKey) -> Option<TaskStatus> {
+        self.queue.find_task_status(build_key)
+    }
+
+    /// Get the outcome of a build key.
+    pub fn get_outcome(&self, build_key: &BuildKey) -> Option<TaskOutcome> {
+        self.queue.find_task_outcome(build_key)
     }
 
     /// Runs the compiler loop until there is nothing left to do.
@@ -130,9 +150,9 @@ impl Compiler {
 
     /// Fail yielded tasks when the scheduler has no ready work but tasks are still pending.
     fn fail_stalled_yielded_tasks(&self) {
-        let yielded_tasks = self.queue.yielded_tasks_with_dependencies();
-        for (task_id, dependency) in yielded_tasks {
-            let error = self.get_yield_failed_error(task_id, &dependency);
+        let yielded_tasks = self.queue.yielded_tasks_with_requirements();
+        for (task_id, requirement) in yielded_tasks {
+            let error = self.get_yield_failed_error(task_id, &requirement);
             self.queue.set_status(
                 task_id,
                 TaskStatus::Failed {
@@ -178,9 +198,10 @@ impl Compiler {
                 self.queue.end_work();
 
                 // no ready tasks; if target is yielded, convert to error (deadlock)
-                if let Some(TaskStatus::Yielded { dependency }) = self.queue.get_status(target_id) {
+                if let Some(TaskStatus::Yielded { requirement }) = self.queue.get_status(target_id)
+                {
                     return TaskOutcome::Error {
-                        error: self.get_yield_failed_error(target_id, &dependency),
+                        error: self.get_yield_failed_error(target_id, &requirement),
                     };
                 }
                 panic!("task {target_id:?} did not reach a final state");
@@ -188,6 +209,11 @@ impl Compiler {
             self.step_task(next_id);
             self.queue.end_work();
         }
+    }
+
+    /// Run one build key producer to completion.
+    pub fn run_build_key(&self, build_key: BuildKey) -> TaskOutcome {
+        self.run_task(build_key)
     }
 
     /// Process a single task 'step' (run until outcome, not final state).
@@ -251,36 +277,77 @@ impl Compiler {
         let event = format!("{}.{}.{}", task.phase().name(), task.name(), event_name);
         tracing::debug!(%event, %args, ?task_id);
 
-        // skip stale tasks before doing work
-        if let Some(reason) = task.skip_reason(self) {
-            let event = format!("{}.{}.skip", task.phase().name(), task.name());
-            tracing::debug!(%event, %args, ?task_id);
-            return TaskOutcome::Skipped { reason };
-        }
+        // bridge module-owned mutable workspace from committed build truth
+        self.ensure_workspace_for_build_key(task.build_key());
 
         // process
-        let outcome = match task.clone() {
-            Task::Import(import_task) => self.process_import(import_task).into(),
-            Task::Resolve(resolve_task) => self.process_resolve(resolve_task).into(),
-            Task::Analyze(analyze_task) => self.process_analyze(analyze_task).into(),
-            Task::Elaborate(elaborate_task) => self.process_elaborate(elaborate_task).into(),
-            Task::Execute(execute_task) => self.process_execute(execute_task).into(),
-            Task::Lower(lower_task) => self.process_lower(lower_task).into(),
-            Task::Optimize(optimize_task) => self.process_optimize(optimize_task).into(),
-            Task::Generate(generate_task) => self.process_generate(generate_task).into(),
-            Task::Link(link_task) => self.process_link(link_task).into(),
-            Task::Emit(emit_task) => self.process_emit(emit_task).into(),
-            Task::Lint(lint_task) => self.process_lint(lint_task).into(),
-        };
+        let outcome = match task.build_key() {
+            BuildKey::Artifact(ArtifactKey::Ast { module }) => self.process_ast(*module).into(),
+            BuildKey::Artifact(ArtifactKey::DirBase { module }) => {
+                self.process_dir_base(*module).into()
+            }
+            BuildKey::Artifact(ArtifactKey::DirPrepared { module, profile }) => {
+                self.process_dir_prepared(*module, *profile).into()
+            }
+            BuildKey::Artifact(ArtifactKey::LanguageEnvironment { profile }) => {
+                self.process_language_environment(*profile).into()
+            }
+            BuildKey::Artifact(ArtifactKey::IntrinsicEnvironment { profile }) => {
+                self.process_intrinsic_environment(*profile).into()
+            }
+            BuildKey::Artifact(ArtifactKey::LibEnvironment { profile }) => {
+                self.process_lib_environment(*profile).into()
+            }
+            BuildKey::Artifact(ArtifactKey::DirResolved { module, profile }) => {
+                self.process_dir_resolved(*module, *profile).into()
+            }
+            BuildKey::Artifact(ArtifactKey::DirDeclared { module, profile }) => {
+                self.process_dir_declared(*module, *profile).into()
+            }
+            BuildKey::Artifact(ArtifactKey::DirInterface { module, profile }) => {
+                self.process_dir_interface(*module, *profile).into()
+            }
+            BuildKey::Artifact(ArtifactKey::DirAnalyzed { module, profile }) => {
+                self.process_dir_analyzed(*module, *profile).into()
+            }
+            BuildKey::Artifact(ArtifactKey::DirElaborated { module, profile }) => {
+                self.process_dir_elaborated(*module, *profile).into()
+            }
+            BuildKey::Artifact(ArtifactKey::DirPatched { module, profile }) => {
+                self.process_dir_patched(*module, *profile).into()
+            }
+            BuildKey::Artifact(ArtifactKey::Mir {
+                module,
+                profile,
+                target,
+            }) => self.process_mir(*module, *profile, target.clone()).into(),
+            BuildKey::Artifact(ArtifactKey::MirOptimized {
+                module,
+                profile,
+                target,
+            }) => self
+                .process_mir_optimized(*module, *profile, target.clone())
+                .into(),
+            BuildKey::Output(output_key) => match output_key.scope {
+                OutputScope::Module(module) => {
+                    let profile = self
+                        .program
+                        .profile_id_for_target(module, &output_key.target)
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "missing profile for module {:?} target {:?}",
+                                module, output_key.target
+                            )
+                        });
 
-        // skip tasks that became stale during processing
-        if matches!(outcome, TaskOutcome::Complete)
-            && let Some(reason) = task.skip_reason(self)
-        {
-            let event = format!("{}.{}.skip", task.phase().name(), task.name());
-            tracing::debug!(%event, %args, ?task_id);
-            return TaskOutcome::Skipped { reason };
-        }
+                    self.process_module_output(module, profile, output_key.target.clone())
+                        .into()
+                }
+                OutputScope::Package(package) => self
+                    .process_package_output(package, output_key.target.clone())
+                    .into(),
+            },
+        };
 
         outcome
     }
@@ -304,6 +371,10 @@ impl Compiler {
             TaskOutcome::Complete => {
                 let event = format!("{}.{}.complete", handle.phase().name(), handle.task.name());
                 tracing::debug!(%event, %description, ?task_id);
+
+                // publish the completed product before waking waiters
+                self.commit_completed_build(handle.task.build_key());
+
                 self.queue.set_status(task_id, TaskStatus::Complete);
                 self.wake_waiters(task_id);
                 self.stats.record_complete();
@@ -377,9 +448,9 @@ impl Compiler {
                 });
             }
             // yield if possible
-            TaskOutcome::Yield { dependency } => {
+            TaskOutcome::Yield { requirement } => {
                 // check for yield errors
-                if let Some(internal_error) = self.check_yield(task_id, handle, dependency) {
+                if let Some(internal_error) = self.check_yield(task_id, handle, requirement) {
                     let event = format!("{}.{}.circuit", handle.phase().name(), handle.task.name());
                     tracing::error!(%event, %description, ?task_id);
                     self.queue.set_status(
@@ -401,14 +472,14 @@ impl Compiler {
                     return;
                 }
 
-                // mark yielded and register dependency waits
+                // mark yielded and register requirement waits
                 self.queue.set_status(
                     task_id,
                     TaskStatus::Yielded {
-                        dependency: dependency.clone(),
+                        requirement: requirement.clone(),
                     },
                 );
-                requeued = self.yield_dependency(task_id, dependency);
+                requeued = self.yield_requirement(task_id, requirement);
 
                 // count only yields that actually wait: immediate requeues do not block
                 if !requeued {
@@ -435,17 +506,17 @@ impl Compiler {
         &self,
         task_id: TaskId,
         handle: &TaskHandle,
-        dependency: &TaskDependency,
+        requirement: &BuildRequirementSet,
     ) -> Option<InternalError> {
-        // check for repeated yield to the same dependency
+        // check for repeated yield to the same requirement
         if let Some(TaskOutcome::Yield {
-            dependency: previous_dependency,
+            requirement: previous_requirement,
         }) = &handle.last_outcome
-            && *previous_dependency == *dependency
+            && *previous_requirement == *requirement
         {
             return Some(InternalError::SuspiciousYield {
                 task_id,
-                dependency: dependency.clone(),
+                requirement: requirement.clone(),
             });
         }
 
@@ -454,7 +525,7 @@ impl Compiler {
             return Some(InternalError::ExcessiveYield {
                 task_id,
                 task: handle.task.clone(),
-                dependency: dependency.clone(),
+                requirement: requirement.clone(),
                 yield_count: handle.yield_count,
             });
         }
@@ -462,123 +533,87 @@ impl Compiler {
         None
     }
 
-    /// Yield to a dependency, register waiters for all sub-dependencies, and check if already satisfied.
-    /// Returns true if the task was immediately requeued (dependency already satisfied).
-    fn yield_dependency(&self, waiter_id: TaskId, dependency: &TaskDependency) -> bool {
-        // first, register all sub-dependencies (recursively)
-        self.register_dependency(waiter_id, dependency);
+    /// Yield to a requirement, register waiters, and check if already satisfied.
+    /// Returns true if the task was immediately requeued.
+    fn yield_requirement(&self, waiter_id: TaskId, requirement: &BuildRequirementSet) -> bool {
+        // first, register all sub-requirements
+        self.register_requirement(waiter_id, requirement);
 
-        // then check if the full dependency is already satisfied
-        if self.is_dependency_satisfied(dependency) {
+        // then check if the full requirement is already satisfied
+        if self.is_requirement_satisfied(requirement) {
             self.queue.try_requeue_yielded(waiter_id);
             return true;
         }
 
-        // check if any dependency has failed
-        if self.is_dependency_failed(dependency) {
-            self.fail_waiter(waiter_id, dependency);
+        // check if any requirement has failed
+        if self.is_requirement_failed(requirement) {
+            self.fail_waiter(waiter_id, requirement);
         }
 
         false
     }
 
-    /// Register waiters for all sub-dependencies without re-queuing.
-    fn register_dependency(&self, waiter_id: TaskId, dependency: &TaskDependency) {
-        match dependency {
-            // register for a single dependency
-            TaskDependency::Complete { task, .. } => {
-                // enqueue the dependency task (might already exist)
-                let (dependency_id, _) = self.enqueue(task.clone());
+    /// Register waiters for all sub-requirements without re-queuing.
+    fn register_requirement(&self, waiter_id: TaskId, requirement: &BuildRequirementSet) {
+        requirement.for_each(|requirement| {
+            let (required_id, _) = self.enqueue(requirement.key.clone());
 
-                // only register as waiter if not already complete or failed
-                if let Some(status) = self.queue.get_status(dependency_id)
-                    && status.is_final()
-                {
-                    return;
-                }
+            if let Some(status) = self.queue.get_status(required_id)
+                && status.is_final()
+            {
+                return;
+            }
 
-                // register as waiter
-                self.queue.add_waiter(dependency_id, waiter_id);
-            }
-            // register for all dependencies
-            TaskDependency::CompleteAll { dependencies } => {
-                for dependency in dependencies {
-                    self.register_dependency(waiter_id, dependency);
-                }
-            }
-            // register for any dependency (first to complete will wake)
-            TaskDependency::CompleteAny { dependencies } => {
-                for dependency in dependencies {
-                    self.register_dependency(waiter_id, dependency);
-                }
-            }
-        }
+            self.queue.add_waiter(requirement.key.clone(), waiter_id);
+        });
     }
 
-    /// Check if any dependency in the tree has failed.
-    fn is_dependency_failed(&self, dependency: &TaskDependency) -> bool {
-        match dependency {
-            TaskDependency::Complete { task, .. } => {
-                matches!(
-                    self.queue.find_task_status(task),
-                    Some(TaskStatus::Failed { .. })
-                )
-            }
-            TaskDependency::CompleteAll { dependencies } => dependencies
-                .iter()
-                .any(|dependency| self.is_dependency_failed(dependency)),
-            TaskDependency::CompleteAny { dependencies } => {
-                // for CompleteAny, only fail if ALL have failed
-                dependencies
-                    .iter()
-                    .all(|dependency| self.is_dependency_failed(dependency))
-            }
-        }
+    /// Check if any requirement in the tree has failed.
+    fn is_requirement_failed(&self, requirement: &BuildRequirementSet) -> bool {
+        requirement.any(|requirement| {
+            matches!(
+                self.queue.find_task_status(&requirement.key),
+                Some(TaskStatus::Failed { .. })
+            )
+        })
     }
 
-    /// Check if a dependency is satisfied.
-    fn is_dependency_satisfied(&self, dependency: &TaskDependency) -> bool {
-        match dependency {
-            TaskDependency::Complete { task, .. } => {
-                matches!(
-                    self.queue.find_task_status(task),
-                    Some(TaskStatus::Complete) | Some(TaskStatus::Skipped { .. })
-                )
-            }
-            TaskDependency::CompleteAll { dependencies } => dependencies
-                .iter()
-                .all(|dependency| self.is_dependency_satisfied(dependency)),
-            TaskDependency::CompleteAny { dependencies } => dependencies
-                .iter()
-                .any(|dependency| self.is_dependency_satisfied(dependency)),
-        }
+    /// Check if a requirement is satisfied.
+    fn is_requirement_satisfied(&self, requirement: &BuildRequirementSet) -> bool {
+        requirement.all(|requirement| {
+            self.build_key_satisfies_dependency(&requirement.key, requirement.dependency)
+        })
     }
 
-    /// Wake all tasks waiting for the completed task.
+    /// Wake all tasks waiting for the completed build key.
     fn wake_waiters(&self, completed_id: TaskId) {
-        let waiters = self.queue.take_waiters(completed_id);
+        let completed_handle = self.queue.get_task(completed_id);
+        let completed_key = completed_handle.task.build_key().clone();
+        let waiters = self.queue.take_waiters(&completed_key);
         for waiter_id in waiters {
-            if let Some(TaskStatus::Yielded { dependency }) = self.queue.get_status(waiter_id)
-                && self.is_dependency_satisfied(&dependency)
+            if let Some(TaskStatus::Yielded { requirement }) = self.queue.get_status(waiter_id)
+                && self.is_requirement_satisfied(&requirement)
             {
                 self.queue.try_requeue_yielded(waiter_id);
             }
         }
     }
 
-    /// Fail all tasks waiting for the failed task.
+    /// Fail all tasks waiting for the failed build key.
     fn fail_waiters(&self, failed_id: TaskId) {
-        let waiters = self.queue.take_waiters(failed_id);
+        let failed_handle = self.queue.get_task(failed_id);
+        let failed_key = failed_handle.task.build_key().clone();
+        let waiters = self.queue.take_waiters(&failed_key);
         for waiter_id in waiters {
-            if let Some(TaskStatus::Yielded { dependency }) = self.queue.get_status(waiter_id) {
-                self.fail_waiter(waiter_id, &dependency);
+            if let Some(TaskStatus::Yielded { requirement }) = self.queue.get_status(waiter_id) {
+                self.fail_waiter(waiter_id, &requirement);
             }
         }
     }
-    /// Fail a waiter using the fallback error from its dependency.
-    fn fail_waiter(&self, waiter_id: TaskId, dependency: &TaskDependency) {
-        let error: TaskError = Self::get_fallback_error(dependency)
-            .unwrap_or_else(|| self.get_yield_failed_error(waiter_id, dependency));
+    /// Fail a waiter using the fallback error from its requirement.
+    fn fail_waiter(&self, waiter_id: TaskId, requirement: &BuildRequirementSet) {
+        let error: TaskError = Self::get_fallback_error(requirement)
+            .unwrap_or_else(|| self.get_yield_failed_error(waiter_id, requirement));
         self.queue.set_status(
             waiter_id,
             TaskStatus::Failed {
@@ -588,71 +623,53 @@ impl Compiler {
         self.error(error);
     }
 
-    /// Get the fallback error from a dependency.
-    fn get_fallback_error(dependency: &TaskDependency) -> Option<TaskError> {
-        match dependency {
-            TaskDependency::Complete { error, .. } => error.as_ref().map(|e| *e.clone()),
-            TaskDependency::CompleteAll { dependencies } => {
-                // return first fallback error found
-                dependencies
-                    .iter()
-                    .find_map(|dependency| Self::get_fallback_error(dependency))
-            }
-            TaskDependency::CompleteAny { dependencies } => {
-                // return first fallback error found
-                dependencies
-                    .iter()
-                    .find_map(|dependency| Self::get_fallback_error(dependency))
-            }
-        }
+    /// Get the fallback error from a requirement.
+    fn get_fallback_error(requirement: &BuildRequirementSet) -> Option<TaskError> {
+        requirement.find_map(|requirement| requirement.error.as_ref().map(|error| *error.clone()))
     }
 
-    /// Create a UnsatisfiedDependency variant of TaskError for the given waiter and dependency.
-    fn get_yield_failed_error(&self, waiter_id: TaskId, dependency: &TaskDependency) -> TaskError {
+    /// Create one unsatisfied requirement error for the given waiter.
+    fn get_yield_failed_error(
+        &self,
+        waiter_id: TaskId,
+        requirement: &BuildRequirementSet,
+    ) -> TaskError {
         let task = self.queue.get_task(waiter_id);
         match task.phase() {
-            TaskPhase::Import => ImportError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
+            TaskPhase::Import => ImportError::UnsatisfiedRequirement {
+                requirement: requirement.clone(),
             }
             .into(),
-            TaskPhase::Resolve => ResolveError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
+            TaskPhase::Resolve => ResolveError::UnsatisfiedRequirement {
+                requirement: requirement.clone(),
             }
             .into(),
-            TaskPhase::Analyze => AnalyzeError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
+            TaskPhase::Analyze => AnalyzeError::UnsatisfiedRequirement {
+                requirement: requirement.clone(),
             }
             .into(),
-            TaskPhase::Elaborate => ElaborateError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
+            TaskPhase::Elaborate => ElaborateError::UnsatisfiedRequirement {
+                requirement: requirement.clone(),
             }
             .into(),
-            TaskPhase::Execute => ExecuteError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
+            TaskPhase::Execute => ExecuteError::UnsatisfiedRequirement {
+                requirement: requirement.clone(),
             }
             .into(),
-            TaskPhase::Lower => LowerError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
+            TaskPhase::Lower => LowerError::UnsatisfiedRequirement {
+                requirement: requirement.clone(),
             }
             .into(),
-            TaskPhase::Optimize => OptimizeError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
+            TaskPhase::Optimize => OptimizeError::UnsatisfiedRequirement {
+                requirement: requirement.clone(),
             }
             .into(),
-            TaskPhase::Generate => GenerateError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
+            TaskPhase::Generate => GenerateError::UnsatisfiedRequirement {
+                requirement: requirement.clone(),
             }
             .into(),
-            TaskPhase::Link => LinkError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
-            }
-            .into(),
-            TaskPhase::Emit => EmitError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
-            }
-            .into(),
-            TaskPhase::Lint => LintError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
+            TaskPhase::Link => LinkError::UnsatisfiedRequirement {
+                requirement: requirement.clone(),
             }
             .into(),
         }

@@ -1,45 +1,52 @@
 use crate::analyze::common::TypeContext;
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, Task, TaskDependencyError,
-    TaskResultCollector,
+    AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementCollector, BuildRequirementError,
+    Compiler,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::ProfileId;
+use destack_workspace::{ArtifactKey, ProfileId};
 
 impl Compiler {
-    /// Ensure a module's interface summary has been computed.
-    pub fn require_analyze_module_interface(
+    /// Ensure interface DIR exists for a module.
+    pub fn require_dir_interface(
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
+    ) -> Result<(), BuildRequirementError> {
+        // ensure the component graph exists before selecting an anchor
+        self.require_interface_forward_closure(module, profile)?;
+
         // avoid self dependency when already analyzing this module interface
-        if let Some(Task::Analyze(AnalyzeTask::AnalyzeModuleInterface {
+        if self.current_build_key()
+            == Some(BuildKey::Artifact(ArtifactKey::DirInterface {
+                module,
+                profile,
+            }))
+        {
+            return Ok(());
+        }
+
+        // avoid same-component self cycles only from the canonical anchor task
+        if let Some(BuildKey::Artifact(ArtifactKey::DirInterface {
             module: current_module,
             profile: current_profile,
-        })) = self.current_task()
-            && current_module.id == module
-            && current_profile.id == profile
+        })) = self.current_build_key()
+            && current_profile == profile
         {
-            return Ok(());
+            let current_anchor = self.interface_component_anchor_module_id(current_module, profile);
+            if current_anchor == current_module
+                && self.interface_modules_share_component(profile, current_module, module)
+            {
+                return Ok(());
+            }
         }
 
-        // avoid same-component self cycles while solving one interface component
-        if let Some(Task::Analyze(AnalyzeTask::AnalyzeInterfaceComponent {
-            module: component_anchor,
-            profile: component_profile,
-            ..
-        })) = self.current_task()
-            && component_profile.id == profile
-            && self.interface_modules_share_component(profile, component_anchor.id, module)
-        {
-            return Ok(());
-        }
-
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleInterface { module, profile })
+        let anchor_module_id = self.interface_component_anchor_module_id(module, profile);
+        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirInterface {
+            module: anchor_module_id,
+            profile,
+        }))
     }
 
     /// Phase 2: Build interface summaries.
@@ -60,7 +67,7 @@ impl Compiler {
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_INTERFACE);
 
         // ensure local declarations are ready
-        self.require_analyze_module_declare(module_id, profile)?;
+        self.require_dir_declared(module_id, profile)?;
 
         // load module state and dir ctx
         let module = self.program.modules.get(module_id);
@@ -76,7 +83,7 @@ impl Compiler {
         let tree = dir.tree.read();
         let mut types = dir.types.write();
         let symbols = dir.symbols.read();
-        let mut collector = TaskResultCollector::new();
+        let mut collector = BuildRequirementCollector::new();
 
         if !self.is_code_module(module_id) {
             return Ok(());
@@ -116,8 +123,8 @@ impl Compiler {
         }
 
         // yield on any yields
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(AnalyzeError::Yield { dependency });
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(AnalyzeError::Yield { requirement });
         }
 
         Ok(())

@@ -2,58 +2,35 @@ use std::mem;
 use std::str::FromStr;
 
 use crate::timing::tags;
-use crate::{Compiler, LowerError, LowerResult, ModuleLowerer, TaskDependencyError};
+use crate::{BuildKey, BuildRequirementError, Compiler, LowerError, LowerResult, ModuleLowerer};
 
-use destack_compiler_macros::DefineTask;
-use destack_source::{
-    CacheKind, ModuleId, ModuleStamp, ModuleVersion, ProfileStamp, ProfileVersion,
+use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
+use destack_workspace::{
+    ArtifactKey, ModuleMir, OutputFormat, ProfileId, Target, TargetArch, TargetId,
 };
-use destack_workspace::{ModuleMir, OutputFormat, ProfileId, Target, TargetArch, TargetId};
 use target_lexicon::Triple;
 
-/// Task to lower a DIR into MIR.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
-#[phase(Lower)]
-pub enum LowerTask {
-    /// Lower a module into MIR.
-    #[task(code = 1, trace = "module={module} target={target}")]
-    LowerModule {
-        /// The module stamp to lower.
-        module: ModuleStamp,
-        /// The profile stamp to lower.
-        profile: ProfileStamp,
-        /// Identify the target backend for lowering.
-        target: TargetId,
-    },
-}
-
 impl Compiler {
-    /// Process a lower task.
-    pub fn process_lower(&self, task: LowerTask) -> LowerResult<()> {
-        match task {
-            LowerTask::LowerModule {
-                module,
-                profile,
-                target,
-            } => {
-                self.ensure_module_profile_matches::<LowerError>(
-                    module.id,
-                    module.version,
-                    profile.id,
-                    profile.version,
-                )?;
-                self.lower_module(
-                    module.id,
-                    profile.id,
-                    module.version,
-                    profile.version,
-                    target,
-                )?;
-                if self.is_code_module(module.id) {
-                    self.stats.record_lower();
-                }
-            }
+    /// Build MIR for one module and target.
+    pub fn process_mir(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    ) -> LowerResult<()> {
+        let module_version = self.module_version(module);
+        let profile_version = self.profile_version(profile);
+        self.ensure_module_profile_matches::<LowerError>(
+            module,
+            module_version,
+            profile,
+            profile_version,
+        )?;
+        self.lower_module(module, profile, module_version, profile_version, target)?;
+        if self.is_code_module(module) {
+            self.stats.record_lower();
         }
+
         Ok(())
     }
 
@@ -109,8 +86,10 @@ impl Compiler {
             return Ok(());
         }
 
-        self.require_elaborate_module(module_id, profile)?;
-        self.require_execute_module_patch(module_id, profile)?;
+        self.require_dir_elaborated(module_id, profile)?;
+        self.require_dir_patched(module_id, profile)?;
+        self.require_intrinsic_environment(profile)
+            .map_err(LowerError::from)?;
         if !self.is_code_module(module_id) {
             return Ok(());
         }
@@ -219,20 +198,18 @@ impl Compiler {
         Ok(())
     }
 
-    /// Ensure a module has been lowered.
-    pub fn require_lower_module(
+    /// Ensure MIR exists for one module and target.
+    pub fn require_mir(
         &self,
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Result<(), TaskDependencyError> {
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(LowerTask::LowerModule {
+    ) -> Result<(), BuildRequirementError> {
+        self.require_build_key(BuildKey::Artifact(ArtifactKey::Mir {
             module,
             profile,
             target: target.clone(),
-        })
+        }))
     }
 
     /// Resolve the pointer size in bytes for a lowering target.

@@ -9,8 +9,10 @@ use destack_workspace::{Module, ModuleDir, ProfileId};
 use indexmap::IndexMap;
 
 use crate::resolve::dependency::cache::{
-    BindingExportCacheKey, ReexportChainCacheKey, RemoteSymbolCacheKey, ResolveDependencyItemCache,
+    BindingExportCacheKey, ExportAssignmentTarget, ReexportChainCacheKey, RemoteSymbolCacheKey,
+    ResolveDependencyItemCache,
 };
+use crate::resolve::dependency::dependency::{ReexportVisitStack, ResolvedExportSymbol};
 use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -67,9 +69,9 @@ impl Compiler {
         kind: DependencyKind,
         key: StaticKey,
         default_name: StringId,
-        visited: &mut crate::resolve::dependency::dependency::ReexportVisitStack,
+        visited: &mut ReexportVisitStack,
         mut cache: Option<&mut ResolveDependencyItemCache>,
-    ) -> ResolveResult<Option<crate::resolve::dependency::dependency::ResolvedExportSymbol>> {
+    ) -> ResolveResult<Option<ResolvedExportSymbol>> {
         // check symbol spaces in priority order
         let order = self.export_spaces_for_kind(kind);
         for space in order.spaces() {
@@ -86,12 +88,10 @@ impl Compiler {
                 cache.as_deref_mut(),
             )?;
             if let Some(symbol) = symbol {
-                return Ok(Some(
-                    crate::resolve::dependency::dependency::ResolvedExportSymbol {
-                        symbol,
-                        export_space: *space,
-                    },
-                ));
+                return Ok(Some(ResolvedExportSymbol {
+                    symbol,
+                    export_space: *space,
+                }));
             }
         }
 
@@ -110,7 +110,7 @@ impl Compiler {
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         // resolve in the requested symbol space order
         let default_name = self.program.strings.intern("default");
-        let mut visited = crate::resolve::dependency::dependency::ReexportVisitStack::default();
+        let mut visited = ReexportVisitStack::default();
         for space in order.spaces() {
             let symbol = self.resolve_reexport_chain_symbol_for_space(
                 origin_module_id,
@@ -143,7 +143,7 @@ impl Compiler {
         space: SymbolSpace,
         key: StaticKey,
         default_name: StringId,
-        visited: &mut crate::resolve::dependency::dependency::ReexportVisitStack,
+        visited: &mut ReexportVisitStack,
         mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         let cache_key = cache.as_ref().map(|_| ReexportChainCacheKey {
@@ -228,11 +228,7 @@ impl Compiler {
                 }
 
                 // ensure the target module is prepared
-                self.require_resolve_module_prepare_if_needed(
-                    origin_module_id,
-                    module_id,
-                    profile,
-                )?;
+                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // use the module namespace scope for error reporting
                 let module = self.program.modules.get(module_id);
@@ -268,7 +264,7 @@ impl Compiler {
                 };
 
                 // ensure the binding module is prepared
-                self.require_resolve_module_prepare_if_needed(
+                self.require_dir_prepared_if_other(
                     origin_module_id,
                     binding_ref.module_id,
                     profile,
@@ -306,17 +302,13 @@ impl Compiler {
         space: SymbolSpace,
         key: StaticKey,
         default_name: StringId,
-        visited: &mut crate::resolve::dependency::dependency::ReexportVisitStack,
+        visited: &mut ReexportVisitStack,
         mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module is prepared
-                self.require_resolve_module_prepare_if_needed(
-                    origin_module_id,
-                    module_id,
-                    profile,
-                )?;
+                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // load the module dir for this profile
                 let module_ref = self.program.modules.get(module_id);
@@ -377,7 +369,7 @@ impl Compiler {
                 let mut resolved: Option<(GlobalSymbolId, Option<GlobalNodeIdAny>)> = None;
                 for binding_ref in bindings {
                     // ensure the binding module is prepared
-                    self.require_resolve_module_prepare_if_needed(
+                    self.require_dir_prepared_if_other(
                         origin_module_id,
                         binding_ref.module_id,
                         profile,
@@ -485,7 +477,7 @@ impl Compiler {
         profile: ProfileId,
         default_name: StringId,
         export: Export,
-        visited: &mut crate::resolve::dependency::dependency::ReexportVisitStack,
+        visited: &mut ReexportVisitStack,
         cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         match export.kind {
@@ -576,7 +568,7 @@ impl Compiler {
         default_name: StringId,
         item_node: GlobalNodeIdAny,
         item: DependencyItem,
-        visited: &mut crate::resolve::dependency::dependency::ReexportVisitStack,
+        visited: &mut ReexportVisitStack,
         mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         // resolve local or remote target symbols
@@ -858,7 +850,7 @@ impl Compiler {
         origin_symbol: Option<GlobalSymbolId>,
         key: StaticKey,
         mut cache: Option<&mut ResolveDependencyItemCache>,
-    ) -> ResolveResult<crate::resolve::dependency::dependency::ResolvedExportSymbol> {
+    ) -> ResolveResult<ResolvedExportSymbol> {
         // resolve the requested kind first
         let resolved = self.resolve_remote_item_symbol_for_requested_kind(
             module,
@@ -895,7 +887,7 @@ impl Compiler {
     fn effective_dependency_kind_for_export_space(
         &self,
         kind: DependencyKind,
-        resolved: crate::resolve::dependency::dependency::ResolvedExportSymbol,
+        resolved: ResolvedExportSymbol,
     ) -> DependencyKind {
         if kind == DependencyKind::Value && resolved.export_space == SymbolSpace::Type {
             DependencyKind::Type
@@ -915,11 +907,11 @@ impl Compiler {
         origin_symbol: Option<GlobalSymbolId>,
         key: StaticKey,
         mut cache: Option<&mut ResolveDependencyItemCache>,
-    ) -> ResolveResult<crate::resolve::dependency::dependency::ResolvedExportSymbol> {
+    ) -> ResolveResult<ResolvedExportSymbol> {
         let default_name = self.program.strings.intern("default");
 
         // resolve explicit exports and reexport chains first
-        let mut visited = crate::resolve::dependency::dependency::ReexportVisitStack::default();
+        let mut visited = ReexportVisitStack::default();
         let resolved_symbol = self.resolve_reexport_chain_symbol(
             module.id,
             origin_symbol,
@@ -941,23 +933,19 @@ impl Compiler {
             if let Some(symbol) =
                 self.resolve_export_assignment_symbol(module.id, remote_target, profile)?
             {
-                return Ok(
-                    crate::resolve::dependency::dependency::ResolvedExportSymbol {
-                        symbol,
-                        export_space: SymbolSpace::Value,
-                    },
-                );
+                return Ok(ResolvedExportSymbol {
+                    symbol,
+                    export_space: SymbolSpace::Value,
+                });
             }
 
             if let Some(symbol) =
                 self.resolve_commonjs_default_export_symbol(module.id, remote_target, profile)?
             {
-                return Ok(
-                    crate::resolve::dependency::dependency::ResolvedExportSymbol {
-                        symbol,
-                        export_space: SymbolSpace::Value,
-                    },
-                );
+                return Ok(ResolvedExportSymbol {
+                    symbol,
+                    export_space: SymbolSpace::Value,
+                });
             }
         }
 
@@ -970,9 +958,7 @@ impl Compiler {
             cache.as_deref_mut(),
         )? {
             match target {
-                crate::resolve::dependency::cache::ExportAssignmentTarget::Module(
-                    redirect_target,
-                ) => {
+                ExportAssignmentTarget::Module(redirect_target) => {
                     // recursively resolve the symbol in the redirected module
                     return self.resolve_remote_item_symbol(
                         module,
@@ -985,9 +971,7 @@ impl Compiler {
                         cache.as_deref_mut(),
                     );
                 }
-                crate::resolve::dependency::cache::ExportAssignmentTarget::Namespace(
-                    namespace_symbol,
-                ) => {
+                ExportAssignmentTarget::Namespace(namespace_symbol) => {
                     // look up the key in the namespace symbol's scope
                     if let Some(symbol) = self.resolve_symbol_in_namespace(
                         node,
@@ -1001,12 +985,10 @@ impl Compiler {
                             DependencyKind::Type => SymbolSpace::Type,
                             DependencyKind::Value => SymbolSpace::Value,
                         };
-                        return Ok(
-                            crate::resolve::dependency::dependency::ResolvedExportSymbol {
-                                symbol,
-                                export_space,
-                            },
-                        );
+                        return Ok(ResolvedExportSymbol {
+                            symbol,
+                            export_space,
+                        });
                     }
                 }
             }

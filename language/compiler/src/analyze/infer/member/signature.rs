@@ -11,6 +11,8 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_symbol: Option<GlobalSymbolId>,
+        receiver_symbol: Option<GlobalSymbolId>,
+        receiver_arguments: &[StaticArgument],
         member_ty_id: LocalTypeId,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
@@ -32,6 +34,8 @@ impl Compiler {
                     &mut ctx.type_context_reborrow(),
                     expression_id.into_any(),
                     owner_symbol,
+                    receiver_symbol,
+                    receiver_arguments,
                     substitutions,
                     member_ty_id,
                 )

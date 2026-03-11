@@ -1,106 +1,75 @@
-use destack_workspace::Program;
+use destack_workspace::{ArtifactKey, OutputKey, OutputScope, Program};
 
-use crate::DiagnosticAnchor;
-
-use crate::{
-    AnalyzeTask, Compiler, ElaborateTask, EmitTask, ExecuteTask, GenerateTask, ImportTask,
-    LinkTask, LintTask, LowerTask, OptimizeTask, ResolveTask, TaskError,
-};
-
-/// Trait for formatting task information.
-pub trait TaskDebug {
-    /// Get the task variant name (e.g., "file", "module", "specifier").
-    fn name(&self) -> &'static str;
-
-    /// Format the task arguments for tracing (resolving ids, making the arguments readable, etc.).
-    fn trace_args(&self, program: &Program) -> String;
-}
-
-/// Trait for task staleness checks.
-pub trait TaskSkipCheck {
-    /// Return a skip reason if the task is stale.
-    fn skip_reason(&self, compiler: &Compiler) -> Option<TaskSkipReason>;
-}
+use crate::{BuildKey, BuildRequirementSet, DiagnosticAnchor, DiagnosticFormat, TaskError};
 
 /// Region of the compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaskRegion {
-    /// Front-end (import, resolve, analyze, elaborate).
+    /// Front-end work.
     Front,
-    /// Middle-end (execute, lower, optimize).
+    /// Middle-end work.
     Middle,
-    /// Back-end (generate, link, emit).
+    /// Back-end work.
     Back,
-    /// Lint.
-    Lint,
 }
 
 impl TaskRegion {
-    /// Get the name of the region.
+    /// Return the display name for this region.
     pub fn name(&self) -> &str {
         match self {
             Self::Front => "front-end",
             Self::Middle => "middle-end",
             Self::Back => "back-end",
-            Self::Lint => "lint",
         }
     }
 }
 
-/// Phase of the compiler.
+/// Phase label for diagnostics, tracing, and stats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum TaskPhase {
-    /// Import, parse, and bind source into DIR.
+    /// Import, parse, and bind source into base DIR.
     Import = 1,
-    /// Resolve symbol references in DIR.
+    /// Resolve symbol references and profile environments.
     Resolve = 2,
-    /// Infer types, resolve overloads, validate.
+    /// Declare, interface, analyze, and validate DIR.
     Analyze = 3,
-    /// Desugar, impute overloads, reify DIR.
+    /// Elaborate analyzed DIR into lowered DIR form.
     Elaborate = 4,
-    // --------------------------------------------------
-    /// Execute comptime code and patch DIR before target lowering.
+    /// Execute comptime and patch DIR.
     Execute = 5,
     /// Lower patched DIR into MIR.
     Lower = 6,
     /// Optimize MIR.
     Optimize = 7,
-    // --------------------------------------------------
-    /// Generate DIR or MIR into outputs.
+    /// Generate build products from compiler products.
     Generate = 8,
-    /// Link outputs into final output.
+    /// Link generated products into final outputs.
     Link = 9,
-    /// Emit linked output to disk.
-    Emit = 10,
-    // --------------------------------------------------
-    /// Lint the program.
-    Lint = 11,
 }
 
 impl std::fmt::Display for TaskPhase {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.letter())
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}", self.letter())
     }
 }
 
 impl TaskPhase {
-    /// Get the numeric code of the phase.
+    /// Return the numeric code for this phase.
     pub fn code(&self) -> u8 {
         *self as u8
     }
 
-    /// Get the region of the phase.
+    /// Return the region for this phase.
     pub fn region(&self) -> TaskRegion {
         match self {
             Self::Import | Self::Resolve | Self::Analyze | Self::Elaborate => TaskRegion::Front,
             Self::Execute | Self::Lower | Self::Optimize => TaskRegion::Middle,
-            Self::Generate | Self::Link | Self::Emit => TaskRegion::Back,
-            Self::Lint => TaskRegion::Lint,
+            Self::Generate | Self::Link => TaskRegion::Back,
         }
     }
 
-    /// Get the name of the phase.
+    /// Return the display name for this phase.
     pub fn name(&self) -> &str {
         match self {
             Self::Import => "import",
@@ -112,29 +81,25 @@ impl TaskPhase {
             Self::Optimize => "optimize",
             Self::Generate => "generate",
             Self::Link => "link",
-            Self::Emit => "emit",
-            Self::Lint => "lint",
         }
     }
 
-    /// Get the description of the phase.
+    /// Return the description for this phase.
     pub fn description(&self) -> &str {
         match self {
             Self::Import => "import, parse, and bind source into DIR",
-            Self::Resolve => "resolve symbol references in DIR",
-            Self::Analyze => "infer types, resolve overloads, validate",
-            Self::Elaborate => "desugar, resolve overloads, reify",
+            Self::Resolve => "resolve symbol references and build semantic environments",
+            Self::Analyze => "declare, interface, analyze, and validate",
+            Self::Elaborate => "desugar and reify DIR",
             Self::Execute => "execute comptime code and patch DIR",
             Self::Lower => "lower DIR into MIR",
             Self::Optimize => "optimize MIR",
-            Self::Generate => "generate DIR or MIR into outputs",
-            Self::Link => "link outputs into final output",
-            Self::Emit => "emit linked output to disk",
-            Self::Lint => "lint the program",
+            Self::Generate => "generate build products",
+            Self::Link => "link build products",
         }
     }
 
-    /// Get the letter of the phase.
+    /// Return the one-letter code for this phase.
     pub fn letter(&self) -> char {
         match self {
             Self::Import => 'I',
@@ -146,13 +111,11 @@ impl TaskPhase {
             Self::Optimize => 'O',
             Self::Generate => 'G',
             Self::Link => 'K',
-            Self::Emit => 'W',
-            Self::Lint => 'L',
         }
     }
 
-    /// All phases in compilation order.
-    pub const ALL: [TaskPhase; 11] = [
+    /// All phases in build order.
+    pub const ALL: [TaskPhase; 9] = [
         Self::Import,
         Self::Resolve,
         Self::Analyze,
@@ -162,173 +125,188 @@ impl TaskPhase {
         Self::Optimize,
         Self::Generate,
         Self::Link,
-        Self::Emit,
-        Self::Lint,
     ];
 
-    /// Iterate over all phases in compilation order.
+    /// Iterate over all phases in build order.
     pub fn all() -> impl Iterator<Item = TaskPhase> {
         Self::ALL.into_iter()
     }
 }
 
-/// Task for the compiler during compilation.
+/// One in-flight build for one build key.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum Task {
-    /// Import, parse, and bind source into DIR.
-    Import(ImportTask),
-    /// Resolve symbol references in DIR.
-    Resolve(ResolveTask),
-    /// Infer types, resolve overloads, validate.
-    Analyze(AnalyzeTask),
-    /// Desugar, resolve overloads, reify DIR.
-    Elaborate(ElaborateTask),
-    // --------------------------------------------------
-    /// Execute comptime code.
-    Execute(ExecuteTask),
-    /// Lower DIR into MIR.
-    Lower(LowerTask),
-    /// Optimize MIR.
-    Optimize(OptimizeTask),
-    // --------------------------------------------------
-    /// Generate DIR or MIR into outputs.
-    Generate(GenerateTask),
-    /// Link outputs into final output.
-    Link(LinkTask),
-    /// Emit linked output to disk.
-    Emit(EmitTask),
-    // --------------------------------------------------
-    /// Lint the program.
-    Lint(LintTask),
+pub struct Task {
+    /// The build key this task realizes.
+    pub key: BuildKey,
 }
 
 impl Task {
-    /// Get the phase of the task.
+    /// Create a new task for one build key.
+    pub fn new(key: BuildKey) -> Self {
+        Self { key }
+    }
+
+    /// Return the build key realized by this task.
+    pub fn build_key(&self) -> &BuildKey {
+        &self.key
+    }
+
+    /// Return the phase label for this task.
     pub fn phase(&self) -> TaskPhase {
-        match self {
-            Self::Import(_) => TaskPhase::Import,
-            Self::Resolve(_) => TaskPhase::Resolve,
-            Self::Analyze(_) => TaskPhase::Analyze,
-            Self::Elaborate(_) => TaskPhase::Elaborate,
-            Self::Execute(_) => TaskPhase::Execute,
-            Self::Lower(_) => TaskPhase::Lower,
-            Self::Optimize(_) => TaskPhase::Optimize,
-            Self::Generate(_) => TaskPhase::Generate,
-            Self::Link(_) => TaskPhase::Link,
-            Self::Emit(_) => TaskPhase::Emit,
-            Self::Lint(_) => TaskPhase::Lint,
+        match &self.key {
+            BuildKey::Artifact(ArtifactKey::Ast { .. } | ArtifactKey::DirBase { .. }) => {
+                TaskPhase::Import
+            }
+            BuildKey::Artifact(
+                ArtifactKey::LanguageEnvironment { .. }
+                | ArtifactKey::LibEnvironment { .. }
+                | ArtifactKey::DirPrepared { .. }
+                | ArtifactKey::DirResolved { .. },
+            ) => TaskPhase::Resolve,
+            BuildKey::Artifact(
+                ArtifactKey::IntrinsicEnvironment { .. }
+                | ArtifactKey::DirDeclared { .. }
+                | ArtifactKey::DirInterface { .. }
+                | ArtifactKey::DirAnalyzed { .. },
+            ) => TaskPhase::Analyze,
+            BuildKey::Artifact(ArtifactKey::DirElaborated { .. }) => TaskPhase::Elaborate,
+            BuildKey::Artifact(ArtifactKey::DirPatched { .. }) => TaskPhase::Execute,
+            BuildKey::Artifact(ArtifactKey::Mir { .. }) => TaskPhase::Lower,
+            BuildKey::Artifact(ArtifactKey::MirOptimized { .. }) => TaskPhase::Optimize,
+            BuildKey::Output(OutputKey {
+                scope: OutputScope::Module(..),
+                ..
+            }) => TaskPhase::Generate,
+            BuildKey::Output(OutputKey {
+                scope: OutputScope::Package(..),
+                ..
+            }) => TaskPhase::Link,
         }
     }
 
-    /// Get the diagnostic anchor for this task.
+    /// Return the diagnostic anchor for this task.
     pub fn anchor(&self) -> DiagnosticAnchor {
-        match self {
-            Self::Import(t) => t.anchor(),
-            Self::Resolve(t) => t.anchor(),
-            Self::Analyze(t) => t.anchor(),
-            Self::Elaborate(t) => t.anchor(),
-            Self::Execute(t) => t.anchor(),
-            Self::Lower(t) => t.anchor(),
-            Self::Optimize(t) => t.anchor(),
-            Self::Generate(t) => t.anchor(),
-            Self::Link(t) => t.anchor(),
-            Self::Emit(t) => t.anchor(),
-            Self::Lint(t) => t.anchor(),
+        match &self.key {
+            BuildKey::Artifact(ArtifactKey::Ast { module })
+            | BuildKey::Artifact(ArtifactKey::DirBase { module })
+            | BuildKey::Artifact(ArtifactKey::DirPrepared { module, .. })
+            | BuildKey::Artifact(ArtifactKey::DirResolved { module, .. })
+            | BuildKey::Artifact(ArtifactKey::DirDeclared { module, .. })
+            | BuildKey::Artifact(ArtifactKey::DirInterface { module, .. })
+            | BuildKey::Artifact(ArtifactKey::DirAnalyzed { module, .. })
+            | BuildKey::Artifact(ArtifactKey::DirElaborated { module, .. })
+            | BuildKey::Artifact(ArtifactKey::DirPatched { module, .. })
+            | BuildKey::Artifact(ArtifactKey::Mir { module, .. })
+            | BuildKey::Artifact(ArtifactKey::MirOptimized { module, .. }) => {
+                DiagnosticAnchor::from(*module)
+            }
+            BuildKey::Artifact(ArtifactKey::LanguageEnvironment { .. })
+            | BuildKey::Artifact(ArtifactKey::IntrinsicEnvironment { .. })
+            | BuildKey::Artifact(ArtifactKey::LibEnvironment { .. }) => DiagnosticAnchor::Global,
+            BuildKey::Output(OutputKey {
+                scope: OutputScope::Module(module),
+                ..
+            }) => DiagnosticAnchor::from(*module),
+            BuildKey::Output(OutputKey {
+                scope: OutputScope::Package(package),
+                ..
+            }) => DiagnosticAnchor::from(*package),
         }
     }
 
-    /// Get the region of the task.
+    /// Return the telemetry region for this task.
     pub fn region(&self) -> TaskRegion {
         self.phase().region()
     }
 
-    /// Get the sub code of the task.
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::Import(task) => task.sub_code(),
-            Self::Resolve(task) => task.sub_code(),
-            Self::Analyze(task) => task.sub_code(),
-            Self::Elaborate(task) => task.sub_code(),
-            Self::Execute(task) => task.sub_code(),
-            Self::Lower(task) => task.sub_code(),
-            Self::Optimize(task) => task.sub_code(),
-            Self::Generate(task) => task.sub_code(),
-            Self::Link(task) => task.sub_code(),
-            Self::Emit(task) => task.sub_code(),
-            Self::Lint(task) => task.sub_code(),
+    /// Return a stable short task name.
+    pub fn name(&self) -> &'static str {
+        match &self.key {
+            BuildKey::Artifact(ArtifactKey::Ast { .. }) => "ast",
+            BuildKey::Artifact(ArtifactKey::DirBase { .. }) => "dir_base",
+            BuildKey::Artifact(ArtifactKey::LanguageEnvironment { .. }) => "language_environment",
+            BuildKey::Artifact(ArtifactKey::IntrinsicEnvironment { .. }) => "intrinsic_environment",
+            BuildKey::Artifact(ArtifactKey::LibEnvironment { .. }) => "lib_environment",
+            BuildKey::Artifact(ArtifactKey::DirPrepared { .. }) => "dir_prepared",
+            BuildKey::Artifact(ArtifactKey::DirResolved { .. }) => "dir_resolved",
+            BuildKey::Artifact(ArtifactKey::DirDeclared { .. }) => "dir_declared",
+            BuildKey::Artifact(ArtifactKey::DirInterface { .. }) => "dir_interface",
+            BuildKey::Artifact(ArtifactKey::DirAnalyzed { .. }) => "dir_analyzed",
+            BuildKey::Artifact(ArtifactKey::DirElaborated { .. }) => "dir_elaborated",
+            BuildKey::Artifact(ArtifactKey::DirPatched { .. }) => "dir_patched",
+            BuildKey::Artifact(ArtifactKey::Mir { .. }) => "mir",
+            BuildKey::Artifact(ArtifactKey::MirOptimized { .. }) => "mir_optimized",
+            BuildKey::Output(OutputKey {
+                scope: OutputScope::Module(..),
+                ..
+            }) => "module_output",
+            BuildKey::Output(OutputKey {
+                scope: OutputScope::Package(..),
+                ..
+            }) => "package_output",
         }
     }
 
-    /// Get the full code of the task.
-    pub fn full_code(&self) -> String {
-        format!("T{}{:03}", self.phase().letter(), self.sub_code())
-    }
-}
-
-impl TaskSkipCheck for Task {
-    fn skip_reason(&self, compiler: &Compiler) -> Option<TaskSkipReason> {
-        let reason = match self {
-            Self::Import(task) => task.skip_reason(compiler),
-            Self::Resolve(task) => task.skip_reason(compiler),
-            Self::Analyze(task) => task.skip_reason(compiler),
-            Self::Elaborate(task) => task.skip_reason(compiler),
-            Self::Execute(task) => task.skip_reason(compiler),
-            Self::Lower(task) => task.skip_reason(compiler),
-            Self::Optimize(task) => task.skip_reason(compiler),
-            Self::Generate(task) => task.skip_reason(compiler),
-            Self::Link(task) => task.skip_reason(compiler),
-            Self::Emit(task) => task.skip_reason(compiler),
-            Self::Lint(task) => task.skip_reason(compiler),
-        };
-        if reason.is_some() {
-            return reason;
-        }
-
-        if let Self::Emit(EmitTask::EmitModule {
-            module, package, ..
-        }) = self
-        {
-            let module_package = compiler.program.modules.get(module.id).read().package_id;
-            if module_package != package.id {
-                return Some(TaskSkipReason::StalePackageVersion);
+    /// Return trace arguments for this task.
+    pub fn trace_args(&self, program: &Program) -> String {
+        match &self.key {
+            BuildKey::Artifact(ArtifactKey::Ast { module })
+            | BuildKey::Artifact(ArtifactKey::DirBase { module }) => {
+                let module = module.diagnostic_fmt(program);
+                format!("module={module}")
+            }
+            BuildKey::Artifact(ArtifactKey::LanguageEnvironment { profile })
+            | BuildKey::Artifact(ArtifactKey::IntrinsicEnvironment { profile })
+            | BuildKey::Artifact(ArtifactKey::LibEnvironment { profile }) => {
+                let profile = profile.diagnostic_fmt(program);
+                format!("profile={profile}")
+            }
+            BuildKey::Artifact(ArtifactKey::DirPrepared { module, profile })
+            | BuildKey::Artifact(ArtifactKey::DirResolved { module, profile })
+            | BuildKey::Artifact(ArtifactKey::DirDeclared { module, profile })
+            | BuildKey::Artifact(ArtifactKey::DirInterface { module, profile })
+            | BuildKey::Artifact(ArtifactKey::DirAnalyzed { module, profile })
+            | BuildKey::Artifact(ArtifactKey::DirElaborated { module, profile })
+            | BuildKey::Artifact(ArtifactKey::DirPatched { module, profile }) => {
+                let module = module.diagnostic_fmt(program);
+                let profile = profile.diagnostic_fmt(program);
+                format!("module={module} profile={profile}")
+            }
+            BuildKey::Artifact(ArtifactKey::Mir {
+                module,
+                profile,
+                target,
+            })
+            | BuildKey::Artifact(ArtifactKey::MirOptimized {
+                module,
+                profile,
+                target,
+            }) => {
+                let module = module.diagnostic_fmt(program);
+                let profile = profile.diagnostic_fmt(program);
+                let target = target.diagnostic_fmt(program);
+                format!("module={module} profile={profile} target={target}")
+            }
+            BuildKey::Output(OutputKey { scope, target }) => {
+                let target = target.diagnostic_fmt(program);
+                match scope {
+                    OutputScope::Module(module) => {
+                        let module = module.diagnostic_fmt(program);
+                        format!("module={module} target={target}")
+                    }
+                    OutputScope::Package(package) => {
+                        let package = package.diagnostic_fmt(program);
+                        format!("package={package} target={target}")
+                    }
+                }
             }
         }
-
-        None
     }
 }
 
-impl TaskDebug for Task {
-    fn name(&self) -> &'static str {
-        match self {
-            Self::Import(task) => task.name(),
-            Self::Resolve(task) => task.name(),
-            Self::Analyze(task) => task.name(),
-            Self::Elaborate(task) => task.name(),
-            Self::Execute(task) => task.name(),
-            Self::Lower(task) => task.name(),
-            Self::Optimize(task) => task.name(),
-            Self::Generate(task) => task.name(),
-            Self::Link(task) => task.name(),
-            Self::Emit(task) => task.name(),
-            Self::Lint(task) => task.name(),
-        }
-    }
-
-    fn trace_args(&self, program: &Program) -> String {
-        match self {
-            Self::Import(task) => task.trace_args(program),
-            Self::Resolve(task) => task.trace_args(program),
-            Self::Analyze(task) => task.trace_args(program),
-            Self::Elaborate(task) => task.trace_args(program),
-            Self::Execute(task) => task.trace_args(program),
-            Self::Lower(task) => task.trace_args(program),
-            Self::Optimize(task) => task.trace_args(program),
-            Self::Generate(task) => task.trace_args(program),
-            Self::Link(task) => task.trace_args(program),
-            Self::Emit(task) => task.trace_args(program),
-            Self::Lint(task) => task.trace_args(program),
-        }
+impl From<BuildKey> for Task {
+    fn from(key: BuildKey) -> Self {
+        Self::new(key)
     }
 }
 
@@ -338,14 +316,14 @@ impl TaskDebug for Task {
 pub struct TaskId(pub u32);
 
 impl std::fmt::Debug for TaskId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "#{}", self.0)
     }
 }
 
 impl std::fmt::Display for TaskId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "#{}", self.0)
     }
 }
 
@@ -355,46 +333,43 @@ impl TaskId {
         Self(id)
     }
 
-    /// Get the numeric code of the id.
+    /// Return the numeric code of this id.
     pub fn code(&self) -> u32 {
         self.0
     }
 }
 
-/// Status of a compiler task.
+/// Status of one task.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TaskStatus {
     /// The task is queued.
     Queued,
     /// The task is running.
     Running,
-    /// The task is waiting for a dependency.
-    Yielded { dependency: TaskDependency },
-    /// The task was skipped.
+    /// The task is waiting for more build requirements.
+    Yielded { requirement: BuildRequirementSet },
+    /// The task was skipped because the running attempt became obsolete.
     Skipped { reason: TaskSkipReason },
-    /// The task is complete.
+    /// The task completed successfully.
     Complete,
     /// The task failed.
     Failed { error: TaskError },
 }
 
 impl TaskStatus {
-    /// Whether the status is final (i.e., will not change).
+    /// Return true when this status is final.
     pub fn is_final(&self) -> bool {
         matches!(
             self,
-            Self::Complete { .. } | Self::Failed { .. } | Self::Skipped { .. }
+            Self::Complete | Self::Skipped { .. } | Self::Failed { .. }
         )
     }
 
-    /// Whether the status is an outcome (i.e., yield, complete, skip, or fail).
+    /// Return true when this status is an outcome.
     pub fn is_outcome(&self) -> bool {
         matches!(
             self,
-            Self::Yielded { .. }
-                | Self::Complete { .. }
-                | Self::Failed { .. }
-                | Self::Skipped { .. }
+            Self::Yielded { .. } | Self::Complete | Self::Skipped { .. } | Self::Failed { .. }
         )
     }
 }
@@ -402,26 +377,26 @@ impl TaskStatus {
 impl From<TaskOutcome> for TaskStatus {
     fn from(outcome: TaskOutcome) -> Self {
         match outcome {
-            TaskOutcome::Yield { dependency } => Self::Yielded { dependency },
-            TaskOutcome::Error { error } => Self::Failed { error },
+            TaskOutcome::Yield { requirement } => Self::Yielded { requirement },
             TaskOutcome::Skipped { reason } => Self::Skipped { reason },
+            TaskOutcome::Error { error } => Self::Failed { error },
             TaskOutcome::Complete => Self::Complete,
         }
     }
 }
 
-/// Handle for a compiler task.
+/// Handle for one task.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TaskHandle {
     /// The task id.
     pub id: TaskId,
-    /// The status of the task.
+    /// The current task status.
     pub status: TaskStatus,
-    /// The previous outcome of the task.
+    /// The previous outcome for repeat-yield detection.
     pub last_outcome: Option<TaskOutcome>,
-    /// The task.
+    /// The task itself.
     pub task: Task,
-    /// Number of times this task has yielded (for debugging).
+    /// The number of times this task has yielded.
     pub yield_count: u32,
 }
 
@@ -437,26 +412,26 @@ impl TaskHandle {
         }
     }
 
-    /// Get the phase of the task.
+    /// Return the phase label for this task.
     pub fn phase(&self) -> TaskPhase {
         self.task.phase()
     }
 
-    /// Get the region of the task.
+    /// Return the region label for this task.
     pub fn region(&self) -> TaskRegion {
         self.task.region()
     }
 }
 
-/// Outcome of a compiler task.
+/// One step outcome for a task execution attempt.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TaskOutcome {
-    /// The task yielded a dependency.
-    Yield { dependency: TaskDependency },
-    /// The task failed with an error.
-    Error { error: TaskError },
-    /// The task was skipped.
+    /// The task yielded more requirements.
+    Yield { requirement: BuildRequirementSet },
+    /// The task became obsolete while running.
     Skipped { reason: TaskSkipReason },
+    /// The task failed.
+    Error { error: TaskError },
     /// The task completed successfully.
     Complete,
 }
@@ -464,7 +439,7 @@ pub enum TaskOutcome {
 impl<E> From<Result<(), E>> for TaskOutcome
 where
     E: Into<TaskError> + TaskSkip,
-    E: TryInto<TaskDependency, Error = E>,
+    E: TryInto<BuildRequirementSet, Error = E>,
 {
     fn from(result: Result<(), E>) -> Self {
         match result {
@@ -473,8 +448,9 @@ where
                 if let Some(reason) = error.skip_reason() {
                     return Self::Skipped { reason };
                 }
+
                 match error.try_into() {
-                    Ok(dependency) => Self::Yield { dependency },
+                    Ok(requirement) => Self::Yield { requirement },
                     Err(error) => Self::Error {
                         error: error.into(),
                     },
@@ -485,186 +461,31 @@ where
 }
 
 impl TaskOutcome {
-    /// Check if the outcome is final (i.e., will not change).
+    /// Return true when this outcome is final.
     pub fn is_final(&self) -> bool {
-        match self {
-            Self::Yield { .. } => false,
-            Self::Error { .. } => true,
-            Self::Skipped { .. } => true,
-            Self::Complete => true,
-        }
+        !matches!(self, Self::Yield { .. })
     }
 }
 
-/// Task dependency to wait for.
-#[derive(Debug, Clone, PartialEq)]
-pub enum TaskDependency {
-    /// Wait for a single task dependency to complete.
-    Complete {
-        anchor: DiagnosticAnchor,
-        task: Task,
-        error: Option<Box<TaskError>>,
-    },
-    /// Wait for all of the given task dependencies to be satisfied.
-    CompleteAll {
-        dependencies: Vec<Box<TaskDependency>>,
-    },
-    /// Wait for any of the given task dependencies to be satisfied.
-    CompleteAny {
-        dependencies: Vec<Box<TaskDependency>>,
-    },
-}
-
-impl TaskDependency {
-    /// Get the anchor for this dependency.
-    pub fn anchor(&self) -> DiagnosticAnchor {
-        match self {
-            Self::Complete { anchor, .. } => anchor.clone(),
-            Self::CompleteAll { dependencies } => dependencies
-                .first()
-                .map(|dependency| dependency.anchor())
-                .unwrap_or(DiagnosticAnchor::Global),
-            Self::CompleteAny { dependencies } => dependencies
-                .first()
-                .map(|dependency| dependency.anchor())
-                .unwrap_or(DiagnosticAnchor::Global),
-        }
-    }
-
-    /// Get all anchors involved in this dependency.
-    pub fn anchors(&self) -> Vec<DiagnosticAnchor> {
-        match self {
-            Self::Complete { anchor, .. } => vec![anchor.clone()],
-            Self::CompleteAll { dependencies } => dependencies
-                .iter()
-                .flat_map(|dependency| dependency.anchors())
-                .collect(),
-            Self::CompleteAny { dependencies } => dependencies
-                .iter()
-                .flat_map(|dependency| dependency.anchors())
-                .collect(),
-        }
-    }
-}
-
-/// Error when a task dependency is not satisfied.
-#[derive(Debug, Clone, PartialEq)]
-pub enum TaskDependencyError {
-    /// Task is not yet complete, need to yield.
-    NotReady { dependency: TaskDependency },
-    /// Task has failed.
-    Failed { dependency: TaskDependency },
-}
-
-impl TaskDependencyError {
-    /// Get the dependency from this error.
-    pub fn dependency(&self) -> &TaskDependency {
-        match self {
-            Self::NotReady { dependency } | Self::Failed { dependency } => dependency,
-        }
-    }
-
-    /// Convert to owned dependency.
-    pub fn into_dependency(self) -> TaskDependency {
-        match self {
-            Self::NotReady { dependency } | Self::Failed { dependency } => dependency,
-        }
-    }
-}
-
-impl TryFrom<TaskDependencyError> for TaskDependency {
-    type Error = TaskDependencyError;
-
-    fn try_from(error: TaskDependencyError) -> Result<Self, Self::Error> {
-        match error {
-            TaskDependencyError::NotReady { dependency } => Ok(dependency),
-            TaskDependencyError::Failed { .. } => Err(error),
-        }
-    }
-}
-
-/// Reason a task was skipped.
+/// Reason a running task became obsolete.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskSkipReason {
-    /// Task was stale due to a module version change.
+    /// The module changed while the task was running.
     StaleModuleVersion,
-    /// Task was stale due to a profile version change.
+    /// The profile changed while the task was running.
     StaleProfileVersion,
-    /// Task was stale due to a module graph version change.
+    /// The module graph changed while the task was running.
     StaleModuleGraphVersion,
-    /// Task was stale due to a package version change.
-    StalePackageVersion,
-    /// Task was stale due to a program stamp change.
-    StaleProgramStamp,
 }
 
-/// Return a skip reason for errors that represent task skips.
+/// Return a skip reason for errors that represent obsolete work.
 pub trait TaskSkip {
-    /// Get the skip reason, if this error represents a skipped task.
+    /// Return the skip reason, if any.
     fn skip_reason(&self) -> Option<TaskSkipReason>;
 }
 
-/// Build phase errors that represent skipped tasks.
+/// Build phase errors that mark work as obsolete.
 pub trait TaskSkipError: Sized {
-    /// Create an error that marks a task as skipped for the given reason.
+    /// Create one skipped error for the given reason.
     fn skipped(reason: TaskSkipReason) -> Self;
-}
-
-/// Collector for coalescing task dependencies from multiple operations.
-/// Accumulates Yield errors and lets non-yield errors pass through for handling.
-#[derive(Debug, Default)]
-pub struct TaskResultCollector {
-    dependencies: Vec<TaskDependency>,
-}
-
-impl TaskResultCollector {
-    /// Create a new empty collector.
-    pub fn new() -> Self {
-        Self {
-            dependencies: Vec::new(),
-        }
-    }
-
-    /// Collect a result as a TaskDependency (error if not a yield).
-    pub fn try_collect<T, E>(&mut self, result: Result<T, E>) -> Option<E>
-    where
-        E: TryInto<TaskDependency, Error = E>,
-    {
-        match result {
-            Ok(_) => None,
-            Err(error) => match error.try_into() {
-                Ok(dependency) => {
-                    self.dependencies.push(dependency);
-                    None
-                }
-                Err(error) => Some(error),
-            },
-        }
-    }
-
-    /// Check if any dependencies were collected.
-    pub fn has_dependencies(&self) -> bool {
-        !self.dependencies.is_empty()
-    }
-
-    /// Finish collection and return a combined CompleteAny dependency if any were collected.
-    pub fn try_into_yield_any(self) -> Option<TaskDependency> {
-        match self.dependencies.len() {
-            0 => None,
-            1 => Some(self.dependencies.into_iter().next().unwrap()),
-            _ => Some(TaskDependency::CompleteAny {
-                dependencies: self.dependencies.into_iter().map(Box::new).collect(),
-            }),
-        }
-    }
-
-    /// Finish collection and return a combined CompleteAll dependency if any were collected.
-    pub fn try_into_yield_all(self) -> Option<TaskDependency> {
-        match self.dependencies.len() {
-            0 => None,
-            _ => Some(TaskDependency::CompleteAll {
-                dependencies: self.dependencies.into_iter().map(Box::new).collect(),
-            }),
-        }
-    }
 }

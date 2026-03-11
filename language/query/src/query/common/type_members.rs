@@ -6,7 +6,7 @@ use destack_dir::{
 };
 use destack_source::ModuleId;
 
-use super::{for_each_visible_extension, owned_scope_for_symbol};
+use super::{for_each_visible_extension, owned_scope_for_symbol, query_context};
 use destack_workspace::Session;
 
 /// Maximum recursion depth for type member resolution.
@@ -214,7 +214,7 @@ fn resolve_type_members_inner(
                         // load the symbol and check if it's an enum
                         let module = session.modules.get(symbol.module_id);
                         let module = module.read();
-                        if let Some(ctx) = crate::query_context(session, &module) {
+                        if let Some(ctx) = query_context(session, &module) {
                             let symbols_table = ctx.symbols();
                             let sym = symbols_table.get_symbol(symbol.local_id);
                             return sym.ty == SymbolType::Enum;
@@ -314,7 +314,7 @@ pub(crate) fn resolve_reference_members(
     // load the symbol's module
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = query_context(session, &module) else {
         return Vec::new();
     };
     let symbols = ctx.symbols();
@@ -635,8 +635,14 @@ fn resolve_well_known_members(
 ) -> Vec<MemberInfo> {
     // try to find well known symbols from any profile
     // (NOTE #Broken?: LSP queries don't have a specific profile context)
-    if let Some(symbol_id) = session.builtins.first_well_known_type_symbol(well_known) {
-        return resolve_reference_members(symbol_id, session, current_module_id);
+    for program in session.programs.iter() {
+        if let Some(symbol_id) = program
+            .value()
+            .artifacts
+            .first_well_known_type_symbol(well_known)
+        {
+            return resolve_reference_members(symbol_id, session, current_module_id);
+        }
     }
 
     // fall back to empty members when no well known symbol is available

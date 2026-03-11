@@ -1333,6 +1333,7 @@ dependencies = [
  "destack_formatter",
  "destack_heap",
  "destack_json",
+ "destack_linter",
  "destack_mir",
  "destack_parser",
  "destack_query",

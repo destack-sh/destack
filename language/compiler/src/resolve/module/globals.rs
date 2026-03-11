@@ -10,7 +10,7 @@ use destack_workspace::{
 };
 
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
-use crate::{Compiler, ResolveError, ResolveResult, TaskDependencyError};
+use crate::{BuildRequirementError, Compiler, ResolveError, ResolveResult};
 
 /// Track dependency targets while scanning module trees.
 #[derive(Debug, Clone, Copy)]
@@ -64,7 +64,7 @@ impl Compiler {
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         space_order: SymbolSpaceOrder,
-        scope_cache: Option<&mut ResolveScopeIndexCache>,
+        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
         tree: &mut NodeTree,
     ) -> ResolveResult<Option<Expression>> {
         // load the cached table for this module
@@ -100,33 +100,35 @@ impl Compiler {
         }
         let target_symbol = target_symbol.or_else(|| cache.symbols.get(&symbol_key).copied());
 
-        // fall back to ambient lib symbol cache when global cache misses
-        let target_symbol = target_symbol.or_else(|| {
-            let builtins = self.program.builtins.as_ref()?;
-            let profile = self.program.profile(profile_id);
-            builtins.get_ambient_lib_symbol_for_space_order(
-                &profile.key,
-                first_segment,
+        // fall back to selected lib symbol cache when global cache misses
+        let target_symbol = target_symbol
+            .or_else(|| self.get_lib_symbol_from(profile_id, first_segment, space_order));
+        let target_symbol = match target_symbol {
+            Some(target_symbol) => Some(target_symbol),
+            None => self.resolve_selected_lib_symbol(
+                module,
+                profile_id,
+                node,
+                symbol_key,
                 space_order,
-            )
-        });
+                scope_cache.as_deref_mut(),
+            )?,
+        };
 
         let Some(target_symbol) = target_symbol else {
             return Ok(None);
         };
 
         // ensure the target module is prepared before reading its symbols
-        self.require_resolve_module_prepare_if_needed(
-            module.id,
-            target_symbol.module_id,
-            profile_id,
-        )
-        .map_err(|error| match error {
-            TaskDependencyError::NotReady { dependency } => ResolveError::Yield { dependency },
-            TaskDependencyError::Failed { dependency } => {
-                ResolveError::UnsatisfiedDependency { dependency }
-            }
-        })?;
+        self.require_dir_prepared_if_other(module.id, target_symbol.module_id, profile_id)
+            .map_err(|error| match error {
+                BuildRequirementError::NotReady { requirement } => {
+                    ResolveError::Yield { requirement }
+                }
+                BuildRequirementError::Failed { requirement } => {
+                    ResolveError::UnsatisfiedRequirement { requirement }
+                }
+            })?;
 
         // return the global reference when the path is a single segment
         if path.segments.len() == 1 {
@@ -333,8 +335,8 @@ impl Compiler {
             }
 
             // load the module tree and symbols
-            self.require_import_module_validate(module_id)?;
-            self.require_resolve_module_prepare(module_id, profile_id)?;
+            self.require_dir_base(module_id)?;
+            self.require_dir_prepared(module_id, profile_id)?;
             let module = self.program.modules.get(module_id);
             let module = module.read();
             let dir = module.dir(profile_id);
@@ -384,7 +386,7 @@ impl Compiler {
             }
 
             // ensure bind validation before reading dir data
-            if let Err(error) = self.require_import_module_validate(module_id) {
+            if let Err(error) = self.require_dir_base(module_id) {
                 cache.pending.push_front(module_id);
                 self.program
                     .index
@@ -394,7 +396,7 @@ impl Compiler {
             }
 
             // ensure per profile module data is prepared before reading dir data
-            if let Err(error) = self.require_resolve_module_prepare(module_id, profile_id) {
+            if let Err(error) = self.require_dir_prepared(module_id, profile_id) {
                 cache.pending.push_front(module_id);
                 self.program
                     .index

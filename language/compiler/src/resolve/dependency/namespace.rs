@@ -12,6 +12,7 @@ use rustc_hash::FxHashMap;
 use crate::resolve::dependency::cache::{
     NamespaceExportSymbolCacheKey, ResolveDependencyItemCache,
 };
+use crate::resolve::dependency::dependency::{ReexportVisitStack, ResolvedExportSymbol};
 use crate::resolve::dependency::loader::LoaderAttribute;
 use crate::{Compiler, ResolveError, ResolveResult};
 
@@ -258,11 +259,7 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module is prepared
-                self.require_resolve_module_prepare_if_needed(
-                    origin_module_id,
-                    module_id,
-                    profile,
-                )?;
+                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // load namespace exports from the module scope
                 let module = self.program.modules.get(module_id);
@@ -297,7 +294,7 @@ impl Compiler {
                 let mut exports = Vec::new();
                 for binding_ref in bindings {
                     // ensure the binding module is prepared
-                    self.require_resolve_module_prepare_if_needed(
+                    self.require_dir_prepared_if_other(
                         origin_module_id,
                         binding_ref.module_id,
                         profile,
@@ -406,7 +403,7 @@ impl Compiler {
         origin_symbol: Option<GlobalSymbolId>,
         default_name: StringId,
         mut cache: Option<&mut ResolveDependencyItemCache>,
-    ) -> ResolveResult<crate::resolve::dependency::dependency::ResolvedExportSymbol> {
+    ) -> ResolveResult<ResolvedExportSymbol> {
         let cache_key = cache.as_ref().map(|_| NamespaceExportSymbolCacheKey {
             target: via_target,
             origin_module_id: self.cache_origin_module_id(module.id, via_target),
@@ -416,12 +413,10 @@ impl Compiler {
         if let (Some(cache), Some(cache_key)) = (cache.as_deref(), cache_key)
             && let Some(&(symbol, export_space)) = cache.namespace_export_symbols.get(&cache_key)
         {
-            return Ok(
-                crate::resolve::dependency::dependency::ResolvedExportSymbol {
-                    symbol,
-                    export_space,
-                },
-            );
+            return Ok(ResolvedExportSymbol {
+                symbol,
+                export_space,
+            });
         }
 
         // resolve the scope for missing symbol errors
@@ -445,10 +440,7 @@ impl Compiler {
         }
 
         // seed the namespace export queue
-        let mut found: Option<(
-            crate::resolve::dependency::dependency::ResolvedExportSymbol,
-            GlobalNodeIdAny,
-        )> = None;
+        let mut found: Option<(ResolvedExportSymbol, GlobalNodeIdAny)> = None;
         let mut visited = Vec::new();
         let mut queue = VecDeque::new();
 
@@ -468,8 +460,7 @@ impl Compiler {
             visited.push((source_module_id, namespace_target, origin_item));
 
             // resolve explicit exports within the namespace target
-            let mut visited_exports =
-                crate::resolve::dependency::dependency::ReexportVisitStack::default();
+            let mut visited_exports = ReexportVisitStack::default();
             if let Some(resolved) = self.resolve_reexport_chain_symbol(
                 module.id,
                 origin_symbol,

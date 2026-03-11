@@ -30,9 +30,6 @@ impl Compiler {
             profile_version,
         )?;
 
-        // ensure transform phase is complete
-        self.require_elaborate_module_transform(module_id, profile)?;
-
         // skip non-code modules
         if !self.is_code_module(module_id) {
             return Ok(());

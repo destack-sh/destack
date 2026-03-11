@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use destack_compiler::{Compiler, LowerTask, OptimizeTask};
+use destack_compiler::{BuildKey, Compiler};
 use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::Entry;
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
 use destack_workspace::{
-    DebugMode, DsConfigRuntimeOptionsJson, Program, Target, TargetId, TrustPolicy,
+    ArtifactKey, DebugMode, DsConfigRuntimeOptionsJson, Program, Target, TargetId, TrustPolicy,
 };
 use serde::{Deserialize, Serialize};
 
@@ -80,13 +80,12 @@ impl CommandContext<'_> {
             let profile = self
                 .program
                 .profile_id_for_target_or_default(entry_module, &target_id);
-            let module = self.compiler.module_stamp(entry_module);
-            let profile = self.compiler.profile_stamp(profile);
-            self.compiler.enqueue(OptimizeTask::OptimizeModule {
-                module,
-                profile,
-                target: target_id.clone(),
-            });
+            self.compiler
+                .enqueue(BuildKey::Artifact(ArtifactKey::MirOptimized {
+                    module: entry_module,
+                    profile,
+                    target: target_id.clone(),
+                }));
         }
 
         // compile and collect diagnostics
@@ -183,13 +182,11 @@ fn enqueue_lower_tasks(
     target_id: &TargetId,
 ) {
     let profile = program.profile_id_for_target_or_default(module_id, target_id);
-    let module = compiler.module_stamp(module_id);
-    let profile = compiler.profile_stamp(profile);
-    compiler.enqueue(LowerTask::LowerModule {
-        module,
+    compiler.enqueue(BuildKey::Artifact(ArtifactKey::Mir {
+        module: module_id,
         profile,
         target: target_id.clone(),
-    });
+    }));
 }
 
 /// Execute the entry module in the VM.
