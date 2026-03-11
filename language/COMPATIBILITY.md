@@ -17,32 +17,29 @@ Over time, like in many highly dynamic languages, much of the JavaScript communi
 We consider arbitrary untyped, dynamic JavaScript to be out of scope for AOT compilation.
 There are other projects that attempt AOT compilation for full ECMAScript with varying degrees of success; in general, that use case is already well served by existing JS engines (V8, JSC) or projects that aim to leverage _some_ type information like Static Hermes.
 
+### Dynamic Protocols
+
+Because JavaScript started out without any real notion of classes or interfaces, various mechanisms were invented over time to emulate interface-like behavior, and then additional workarounds to prevent those protocols from polluting the object namespace.
+Modern TypeScript already (mostly) removes the need for these dynamic protocols by providing statically known interfaces like `Promise` and `Iterable` directly, and Destack follows and enforces this static form _only_. 
+Destack does **not** support JavaScript dynamic protocols, only static `TypeScript` forms:
+
+| JavaScript protocol | Dynamic hook | Static form | Rationale |
+|---------------------|--------------|-------------|-----------|
+| Callable objects | `[[Call]]` | `fn(x)`, `obj.method()`, typed closure values | No arbitrary callable duck typing |
+| Constructable objects | `[[Construct]]` | `new C(...)`, explicit class constructors | No arbitrary constructable duck typing |
+| Thenables | `.then` | `Promise<T>`, `await promise` | `Promise` is supported, arbitrary thenables are not |
+| Iterables | `Symbol.iterator` | `for (const x of values)`, `Iterable<T>`, `Iterator<T>` | No duck-typed iterable protocol |
+| Async iterables | `Symbol.asyncIterator` | `for await (const x of values)`, `AsyncIterable<T>`, `AsyncIterator<T>` | No duck-typed async iterable protocol |
+| Primitive coercion | `Symbol.toPrimitive` | `String(x)`, `Number(x)`, explicit conversion APIs | Use explicit conversions |
+| Custom `instanceof` | `Symbol.hasInstance` | `value instanceof C`, `T.is(value)` | No custom `instanceof` protocol hooks |
+
+In practice, this means Destack supports typed explicit forms like `Promise<T>` over arbitrary thenables.
+Likewise, iteration support is expressed through typed protocols like `Iterable<T>`, `Iterator<T>`, `AsyncIterable<T>`, and `AsyncIterator<T>` rather than arbitrary JavaScript objects exposing well-known symbol hooks.
+
 ### Exception Handling
 
-**On native targets, `throw` aborts the process.**.
-There is no stack unwinding, no catching, and misusing `throw` is a compile error.
-Instead of classical exceptions, Destack supports `try/catch` and `?` propagation for explicit `Result`-based error handling.
-
-The divergence on exception handling is the most significant semantic difference between Destack and traditional JavaScript/TypeScript:
-
-```ts
-// on JS/TS targets
-try {
-    throw new Error("oops")
-} catch (e) {
-    console.log("caught")  // executes
-}
-
-// on native targets
-try {
-    throw new Error("oops")
-} catch (e) {
-    console.log("caught")  // does not execute!
-}
-```
-
-Instead, use `Result<T, E>` with the `?` operator for recoverable errors
-(or any other type implementing `Try`):
+Destack strongly encourages the use of **Result first** error control flow across all targets, with `Result<T, E>` and `?` for recoverable errors.
+However, since a lot of existing code uses exceptions, Destack does also support `throw` for compatibility and interop (including on native targets).
 
 ```ds
 import { Error, readFile } from "destack:fs";
@@ -53,7 +50,7 @@ function readConfig(): Result<Config, Error> {
 }
 ```
 
-You can still use `try` / `catch` for Result type propagation too, which is useful for manually mapping / wrapping error results or containing the scope of propagation:
+You can still use `try` / `catch` for Result type propagation too, which is useful for manually mapping or wrapping error results or containing the scope of propagation:
 
 ```ds
 try {
@@ -63,9 +60,6 @@ try {
     console.error("Failed to read config:", e);
 }
 ```
-
-For JS/TS targets, `throw` works normally for compatibility.
-You can still take advantage of Destack's many other features while keeping exceptions around at no extra cost (other than the pre-existing code smell).
 
 ### Forbidden Features
 
@@ -97,10 +91,8 @@ Object prototype methods that depend on a dynamic prototype chain are emulated u
 | `isPrototypeOf()` | Forbidden | Use `instanceof` (class identity) or `T.is` with RTTI |
 | `propertyIsEnumerable()` | Forbidden | Use RTTI reflection |
 
-When RTTI is available, `Object.keys/values/entries` and `hasOwnProperty` can be
-lowered for structs/classes by reading their reflected property lists.
-For `Record<K, V>` (which aliases to `Map<K, V>` on native targets), these map
-to the equivalent `Map` methods.
+When RTTI is available, `Object.keys/values/entries` and `hasOwnProperty` can be lowered for structs and classes by reading their reflected property lists.
+For `Record<K, V>` (which aliases to `Map<K, V>` on native targets), these map to the equivalent `Map` methods.
 
 For `toString()`, types implement the `Display` interface:
 ```ds
