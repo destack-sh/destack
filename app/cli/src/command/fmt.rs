@@ -6,10 +6,10 @@ use destack_source::DiagnosticOptions;
 
 use crate::common::{
     DiagnosticArgs, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, parse_command_payload,
-    print_report, report_error, report_from_payload,
+    print_report, report_from_payload,
 };
 use crate::pipeline::daemon::{
-    CommandOptionsBuilder, emit_daemon_text_output, run_workspace_command_once,
+    CommandOptionsBuilder, emit_daemon_text_output, run_workspace_command_or_report,
 };
 
 /// Arguments for the format command.
@@ -57,15 +57,16 @@ pub fn run(args: &FmtArgs) -> i32 {
     });
 
     // execute the daemon command
-    let result = match run_workspace_command_once(
+    let result = match run_workspace_command_or_report(
+        "fmt",
+        &args.report,
         &args.program,
         Some(diagnostic_options),
         common,
         payload,
-        None,
     ) {
         Ok(result) => result,
-        Err(error) => return report_error("fmt", &args.report, &error.to_string()),
+        Err(code) => return code,
     };
 
     // emit daemon output for text mode

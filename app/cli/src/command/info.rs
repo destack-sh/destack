@@ -1,13 +1,10 @@
-use crate::common::{
-    CommandReport, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, parse_required_command_payload,
-    print_report, report_error,
-};
+use crate::common::{ProgramArgs, ReportArgs, ensure_no_watch_or_dev, report_from_payload};
 use crate::console;
-use crate::pipeline::daemon::{
-    CommandOptionsBuilder, emit_daemon_text_output, run_workspace_command_once,
-};
+use crate::pipeline::daemon::{CommandOptionsBuilder, run_workspace_payload_command_or_report};
 use clap::Args;
-use destack_daemon::protocol::{CommandInfoOptions, CommandInfoPayload, CommandPayload};
+use destack_daemon::protocol::{
+    CommandInfoOptions, CommandInfoPayload, CommandInfoTarget, CommandPayload,
+};
 
 /// Arguments for the info command.
 #[derive(Args, Debug, Clone)]
@@ -35,88 +32,58 @@ pub fn run(args: &InfoArgs) -> i32 {
     let common = CommandOptionsBuilder::new(&args.program, None).build();
     let payload = CommandPayload::Info(CommandInfoOptions { all: args.all });
 
-    // execute the daemon command
-    let result = match run_workspace_command_once(&args.program, None, common, payload, None) {
-        Ok(result) => result,
-        Err(error) => return report_error("info", &args.report, &error.to_string()),
-    };
-
-    // decode daemon payload for structured output
-    let (payload, payload_value) = match parse_required_command_payload::<CommandInfoPayload>(
+    run_workspace_payload_command_or_report::<CommandInfoPayload, _, _>(
         "info",
         &args.report,
-        result.response.data.as_ref(),
+        &args.program,
+        None,
+        common,
+        payload,
         "info",
-    ) {
-        Ok(payload) => payload,
-        Err(code) => return code,
-    };
-
-    // emit daemon output for text mode
-    emit_daemon_text_output(
-        &args.report,
-        &result.response.messages,
-        &result.response.output,
-    );
-
-    // emit structured output when requested
-    if args.report.is_json() {
-        let mut report = CommandReport::success("info", result.response.exit_code);
-        report.data = Some(payload_value);
-        print_report(&report, args.report.format());
-        return result.response.exit_code;
-    }
-
-    // emit minimal text output
-    console::info(&format!("workspace: {}", payload.workspace.root));
-    console::info(&format!("kind: {}", payload.workspace.kind));
-    for path in &payload.workspace.packages {
-        console::info(&format!("package: {path}"));
-    }
-    if let Some(path) = payload.dsconfig.as_ref() {
-        console::info(&format!("dsconfig: {path}"));
-    } else {
-        console::warn("dsconfig: not found");
-    }
-    if let Some(targets) = payload.targets.as_ref() {
-        if targets.is_empty() {
-            console::warn("targets: none");
-        } else {
-            // emit target details for the active package
-            for target in targets {
-                console::info(&format!("target: {}", target.name));
-                console::info(&format!("  output: {}", target.output));
-                console::info(&format!("  runtime: {}", target.runtime));
-                console::info(&format!("  platform: {}", target.platform));
-                console::info(&format!("  out_dir: {}", target.out_dir));
-                if let Some(out_file) = target.out_file.as_ref() {
-                    console::info(&format!("  out_file: {out_file}"));
-                }
-                if let Some(package_dir) = target.package_dir.as_ref() {
-                    console::info(&format!("  package_dir: {package_dir}"));
-                }
+        |exit_code, _, payload_value| {
+            report_from_payload("info", exit_code, Some(payload_value), None, None)
+        },
+        |_, payload| {
+            console::info(&format!("workspace: {}", payload.workspace.root));
+            console::info(&format!("kind: {}", payload.workspace.kind));
+            for path in &payload.workspace.packages {
+                console::info(&format!("package: {path}"));
             }
+            if let Some(path) = payload.dsconfig.as_ref() {
+                console::info(&format!("dsconfig: {path}"));
+            } else {
+                console::warn("dsconfig: not found");
+            }
+            if let Some(targets) = payload.targets.as_deref() {
+                emit_targets("target", targets);
+            }
+            if let Some(workspace_targets) = payload.workspace_targets.as_deref()
+                && !workspace_targets.is_empty()
+            {
+                emit_targets("workspace target", workspace_targets);
+            }
+        },
+    )
+}
+
+/// Emit target details for an info payload section.
+fn emit_targets(label: &str, targets: &[CommandInfoTarget]) {
+    if targets.is_empty() {
+        console::warn("targets: none");
+        return;
+    }
+
+    for target in targets {
+        console::info(&format!("{label}: {}", target.name));
+        console::info(&format!("  output: {}", target.output));
+        console::info(&format!("  runtime: {}", target.runtime));
+        console::info(&format!("  platform: {}", target.platform));
+        console::info(&format!("  out_dir: {}", target.out_dir));
+        if let Some(out_file) = target.out_file.as_ref() {
+            console::info(&format!("  out_file: {out_file}"));
+        }
+        if let Some(package_dir) = target.package_dir.as_ref() {
+            console::info(&format!("  package_dir: {package_dir}"));
         }
     }
-
-    if let Some(workspace_targets) = payload.workspace_targets.as_ref()
-        && !workspace_targets.is_empty()
-    {
-        // emit target details for the workspace packages
-        for target in workspace_targets {
-            console::info(&format!("workspace target: {}", target.name));
-            console::info(&format!("  output: {}", target.output));
-            console::info(&format!("  runtime: {}", target.runtime));
-            console::info(&format!("  platform: {}", target.platform));
-            console::info(&format!("  out_dir: {}", target.out_dir));
-            if let Some(out_file) = target.out_file.as_ref() {
-                console::info(&format!("  out_file: {out_file}"));
-            }
-            if let Some(package_dir) = target.package_dir.as_ref() {
-                console::info(&format!("  package_dir: {package_dir}"));
-            }
-        }
-    }
-
-    result.response.exit_code
 }

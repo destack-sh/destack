@@ -3,13 +3,7 @@ use std::ffi::OsString;
 use clap::FromArgMatches;
 
 use crate::cli::{Cli, Command, HelpMode, build_command};
-use crate::{
-    bench, build, cache, check, clean, completions, config, console, daemon, doc, doctor, eval,
-    explain, fmt, info, init, lint, lsp, query, repl, run, targets, task, test, update, version,
-};
-
-#[cfg(feature = "dev")]
-use crate::command::{DevCommand, dev};
+use crate::console;
 
 /// Default subcommand selection for alias binaries.
 #[derive(Clone, Copy, Debug)]
@@ -52,44 +46,7 @@ pub fn run(default_command: DefaultCommand) -> i32 {
     cli.tracing.init();
 
     // dispatch the resolved command
-    match cli.command {
-        Command::Check(args) => check::run(&args),
-        Command::Build(args) => build::run(&args),
-        Command::Run(args) => run::run(&args),
-        Command::Eval(args) => eval::run(&args),
-        Command::Lint(args) => lint::run(&args),
-        Command::Format(args) => fmt::run(&args),
-        Command::Init(args) => init::run(&args),
-        Command::Clean(args) => clean::run(&args),
-        Command::Cache(args) => cache::run(&args),
-        Command::Info(args) => info::run(&args),
-        Command::Config(args) => config::run(&args),
-        Command::Targets(args) => targets::run(&args),
-        Command::Version(args) => version::run(&args),
-        Command::Update(args) => update::run(&args),
-        Command::Completions(args) => completions::run(&args),
-        Command::Explain(args) => explain::run(&args),
-        Command::Doctor(args) => doctor::run(&args),
-        Command::Test(args) => test::run(&args),
-        Command::Bench(args) => bench::run(&args),
-        Command::Doc(args) => doc::run(&args),
-        Command::Task(args) => task::run(&args),
-        Command::Lsp(args) => lsp::run(&args),
-        Command::Daemon(args) => daemon::run(&args),
-        Command::Query(args) => query::run(&args),
-        Command::Repl(args) => repl::run(&args),
-        #[cfg(feature = "dev")]
-        Command::Dev(subcommand) => match subcommand {
-            DevCommand::Resolve(args) => dev::resolve::run(&args),
-            DevCommand::Stats(args) => dev::stats::run(&args),
-            DevCommand::Release(args) => dev::release::run(&args),
-            DevCommand::Version(cmd) => match cmd {
-                dev::VersionCommands::Show => dev::version::show(),
-                dev::VersionCommands::Check => dev::version::check(),
-                cmd => dev::version::bump(&cmd),
-            },
-        },
-    }
+    cli.command.run()
 }
 
 /// Normalize argv with an optional default subcommand.
@@ -106,7 +63,7 @@ fn normalize_args(default_command: DefaultCommand) -> Vec<OsString> {
     let has_subcommand = args
         .get(1)
         .and_then(|arg| arg.to_str())
-        .is_some_and(is_known_subcommand);
+        .is_some_and(Command::is_known_subcommand);
 
     // inject the default command when missing
     if !has_subcommand {
@@ -115,50 +72,6 @@ fn normalize_args(default_command: DefaultCommand) -> Vec<OsString> {
 
     // return normalized argv
     args
-}
-
-/// Return whether an argument matches a known subcommand.
-fn is_known_subcommand(arg: &str) -> bool {
-    // match against known subcommand spellings and flags
-    matches!(
-        arg,
-        "check"
-            | "build"
-            | "compile"
-            | "run"
-            | "exec"
-            | "eval"
-            | "lint"
-            | "format"
-            | "fmt"
-            | "init"
-            | "clean"
-            | "cache"
-            | "info"
-            | "config"
-            | "completions"
-            | "completion"
-            | "targets"
-            | "explain"
-            | "doctor"
-            | "env"
-            | "version"
-            | "test"
-            | "bench"
-            | "doc"
-            | "task"
-            | "lsp"
-            | "query"
-            | "daemon"
-            | "repl"
-            | "typecheck"
-            | "dev"
-            | "--help"
-            | "-h"
-            | "--version"
-            | "-V"
-            | "update"
-    )
 }
 
 /// Parse a color mode override from raw args.

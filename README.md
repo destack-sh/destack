@@ -121,9 +121,9 @@ Destack is not a browser, and has no renderer (yet).
 On the backend, Destack supports Node APIs, similar to other Node-derived runtimes (Bun/Deno).
 However, Destack does _not_ fully support arbitrary JS/TS code *on the native path*, and it also does not fully support _all_ web standards.
 
-6. **Why can't we just use TypeScript/web for front-end and Rust/C++/Go for back-end?** 
-We can and that will continue to work pretty well, though with some friction.
-The baggage of classic web UI makes it very slow, and the existing "systems languages" are bad at the UIs we need for better software systems. 
+6. **Why can't we just use TypeScript/web for frontend and Rust/C++/Go for backend?** 
+We can and that will continue to work pretty well, though with some friction, as the traditional distinction between "frontend" and "backend" continues to blur and clients become more powerful. 
+Classic web UI is unfortunately very inefficient, and the existing "systems languages" are bad at the UIs we need for better software systems. 
 Full-stack TS is popular for a reason: centralizing domain models and software abstractions is useful. 
 
 7. **Why build new languages and programming systems if AI is going to be writing and maintaining code?** 
@@ -165,5 +165,5 @@ See [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 The Destack is fully open source under the MIT license.
 See [LICENSE.txt](LICENSE.txt).
 
-Destack includes components licensed, vendored and integrated from third parties, which come with their own licenses including the Apache-2.0 (WITH LLVM-exception) license.
+Destack includes components licensed, vendored and integrated from third parties, which come with their own licenses including the Apache-2.0 (with LLVM-exception) license.
 See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).

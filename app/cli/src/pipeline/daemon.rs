@@ -6,12 +6,12 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use destack_compiler::{CompilerEventHandler, CompilerOptions};
 use destack_daemon::protocol::{
     CommandEnvVar, CommandInput, CommandMessagePayload, CommandOutputChunk, CommandPayload,
-    CommandRequest, CommandResponse, CommandStats, CommandTargetOverrides, CommonCommandOptions,
-    ConfigOverride, DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonQuery,
-    DaemonQueryResponse, DaemonRequest, DaemonResponse, DiagnosticBatch, FileSnapshot,
-    OpenWorkspaceRequest, OutputStream, ProtocolClient, QueryRequestPayload,
-    WatchBatch as ProtocolWatchBatch, WatchBatchRequest, WatchEvent, WatchStatus,
-    WorkspaceHandleId, WorkspaceOpenOptions,
+    CommandRequest, CommandResponse, CommandRunPayload, CommandStats, CommandTargetOverrides,
+    CommonCommandOptions, ConfigOverride, DaemonMessageKind as ProtocolMessageKind,
+    DaemonMessageRecord, DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse,
+    DiagnosticBatch, FileSnapshot, OpenWorkspaceRequest, OutputStream, ProtocolClient,
+    QueryRequestPayload, WatchBatch as ProtocolWatchBatch, WatchBatchRequest, WatchEvent,
+    WatchStatus, WorkspaceHandleId, WorkspaceOpenOptions,
 };
 use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
@@ -22,11 +22,15 @@ use destack_source::{
     DiagnosticCollection, DiagnosticOptions, File, FileRegistry, FileType, FileWatchStatus,
 };
 use destack_workspace::{DsConfigRuntimeOptionsJson, OptimizeLevel, Session};
+use serde::de::DeserializeOwned;
+use serde_json::Value;
 
-use crate::common::report::CommandCacheStats;
 use crate::common::{
-    CommandStats as CliCommandStats, CommandTimingTagStats, InputSource, ProgramArgs, ReportArgs,
-    TargetArgs, parse_command_payload, print_report, report_from_message_payload,
+    CommandError, CommandReport, DiagnosticFormat, FormatOptions, InputSource, LineWriter,
+    ProgramArgs, ReportArgs, StatsSummary, TargetArgs, TimingOutputOptions,
+    collect_diagnostics_json, format_diagnostics_with_writer, parse_command_payload,
+    parse_required_command_payload, print_command_stats_summary, print_report, report_error,
+    report_from_message_payload, report_from_payload,
 };
 use crate::console;
 use crate::error::{CliError, CliResult};
@@ -684,44 +688,13 @@ pub fn target_overrides_from_args(args: &TargetArgs) -> Option<CommandTargetOver
     })
 }
 
-/// Convert a daemon command stats payload into CLI stats.
-pub fn command_stats_from_protocol(stats: &CommandStats, include_timings: bool) -> CliCommandStats {
-    // map cache stats when present
-    let cache = stats.cache.as_ref().map(|cache| CommandCacheStats {
-        hits_memory: saturating_usize(cache.hits_memory),
-        hits_disk: saturating_usize(cache.hits_disk),
-        misses: saturating_usize(cache.misses),
-        writes_memory: saturating_usize(cache.writes_memory),
-        writes_disk: saturating_usize(cache.writes_disk),
-        errors: saturating_usize(cache.errors),
-        hit_rate: cache.hit_rate,
-    });
-    let timings = stats.timings.as_ref().and_then(|entries| {
-        if !include_timings {
-            return None;
-        }
-        let mapped = entries
-            .iter()
-            .map(|entry| CommandTimingTagStats {
-                name: entry.name.clone(),
-                duration_ms: entry.duration_ms,
-                sample_count: entry.sample_count,
-            })
-            .collect::<Vec<_>>();
-        Some(mapped)
-    });
-
-    CliCommandStats {
-        elapsed_ms: stats.elapsed_ms,
-        tasks_completed: saturating_usize(stats.tasks_completed),
-        tasks_failed: saturating_usize(stats.tasks_failed),
-        tasks_skipped: saturating_usize(stats.tasks_skipped),
-        modules_processed: saturating_usize(stats.modules_processed),
-        lines_processed: saturating_usize(stats.lines_processed),
-        slow_tasks: saturating_usize(stats.slow_tasks),
-        cache,
-        timings,
+/// Clone a daemon command stats payload while optionally dropping timing entries.
+pub fn command_stats_from_protocol(stats: &CommandStats, include_timings: bool) -> CommandStats {
+    let mut stats = stats.clone();
+    if !include_timings {
+        stats.timings = None;
     }
+    stats
 }
 
 /// Run a daemon command with a one-shot client.
@@ -763,6 +736,281 @@ pub fn run_workspace_command_with_session(
     let result = daemon.run_workspace_command(&root, common, payload)?;
     daemon.shutdown();
     Ok(result)
+}
+
+/// Execute a workspace command or emit a CLI error report.
+pub fn run_workspace_command_or_report(
+    command: &str,
+    report_args: &ReportArgs,
+    program: &ProgramArgs,
+    diagnostic: Option<DiagnosticOptions>,
+    common: CommonCommandOptions,
+    payload: CommandPayload,
+) -> Result<DaemonCommandResult, i32> {
+    run_workspace_command_once(program, diagnostic, common, payload, None)
+        .map_err(|error| report_error(command, report_args, &error.to_string()))
+}
+
+/// Execute a workspace command and decode a required payload or emit a CLI error report.
+pub fn run_workspace_command_with_required_payload_or_report<T: DeserializeOwned>(
+    command: &str,
+    report_args: &ReportArgs,
+    program: &ProgramArgs,
+    diagnostic: Option<DiagnosticOptions>,
+    common: CommonCommandOptions,
+    payload: CommandPayload,
+    payload_label: &str,
+) -> Result<(DaemonCommandResult, T, Value), i32> {
+    let result = run_workspace_command_or_report(
+        command,
+        report_args,
+        program,
+        diagnostic,
+        common,
+        payload,
+    )?;
+    let (payload, value) = parse_required_command_payload::<T>(
+        command,
+        report_args,
+        result.response.data.as_ref(),
+        payload_label,
+    )?;
+
+    Ok((result, payload, value))
+}
+
+/// Execute a workspace command with a prepared session or emit a CLI error report.
+pub fn run_workspace_command_with_session_or_report(
+    command: &str,
+    report_args: &ReportArgs,
+    session: Arc<Session>,
+    program: &ProgramArgs,
+    diagnostic: DiagnosticOptions,
+    common: CommonCommandOptions,
+    payload: CommandPayload,
+) -> Result<DaemonCommandResult, i32> {
+    run_workspace_command_with_session(session, program, diagnostic, common, payload, None)
+        .map_err(|error| report_error(command, report_args, &error.to_string()))
+}
+
+/// Shared summary metadata for diagnostic commands.
+#[derive(Debug, Clone, Copy)]
+pub struct DiagnosticCommandSummary<'a> {
+    /// Verb used for the final stats summary.
+    pub verb: &'a str,
+    /// Number of modules processed.
+    pub modules: usize,
+    /// Number of profiles processed.
+    pub profiles: usize,
+    /// Number of targets processed.
+    pub targets: usize,
+}
+
+/// Run a daemon command that returns a required typed payload.
+pub fn run_workspace_payload_command_or_report<T, JsonFn, TextFn>(
+    command: &str,
+    report_args: &ReportArgs,
+    program: &ProgramArgs,
+    diagnostic: Option<DiagnosticOptions>,
+    common: CommonCommandOptions,
+    payload: CommandPayload,
+    payload_label: &str,
+    json_report: JsonFn,
+    text_report: TextFn,
+) -> i32
+where
+    T: DeserializeOwned,
+    JsonFn: FnOnce(i32, T, Value) -> CommandReport,
+    TextFn: FnOnce(i32, T),
+{
+    // execute the command and decode the payload
+    let (result, payload, payload_value) =
+        match run_workspace_command_with_required_payload_or_report::<T>(
+            command,
+            report_args,
+            program,
+            diagnostic,
+            common,
+            payload,
+            payload_label,
+        ) {
+            Ok(result) => result,
+            Err(code) => return code,
+        };
+
+    // emit daemon output before command specific rendering
+    emit_daemon_text_output(
+        report_args,
+        &result.response.messages,
+        &result.response.output,
+    );
+
+    let exit_code = result.response.exit_code;
+
+    // emit the structured report when requested
+    if report_args.is_json() {
+        let report = json_report(exit_code, payload, payload_value);
+        print_report(&report, report_args.format());
+        return exit_code;
+    }
+
+    // otherwise render the payload in text mode
+    text_report(exit_code, payload);
+    exit_code
+}
+
+/// Finish a daemon command that primarily reports diagnostics.
+pub fn finish_diagnostic_command(
+    command: &str,
+    report_args: &ReportArgs,
+    result: &DaemonCommandResult,
+    json_format_options: &FormatOptions,
+    text_format_options: &FormatOptions,
+    timing_options: TimingOutputOptions,
+    line_writer: Option<&LineWriter>,
+    summary: Option<DiagnosticCommandSummary<'_>>,
+    data: Option<Value>,
+) -> i32 {
+    // emit daemon output only for text mode
+    if !report_args.is_json() {
+        emit_daemon_text_output(
+            report_args,
+            &result.response.messages,
+            &result.response.output,
+        );
+    }
+
+    // build a structured diagnostics report when requested
+    if report_args.is_json() {
+        let (output, format_result) =
+            collect_diagnostics_json(&result.files, &result.diagnostics, json_format_options);
+        let mut report = report_from_payload(command, format_result.exit_code(), data, None, None);
+        if let Some(stats) = result.response.stats.as_ref() {
+            report.stats = Some(command_stats_from_protocol(stats, timing_options.enabled));
+        }
+        report.diagnostics = Some(output);
+        print_report(&report, report_args.format());
+        return format_result.exit_code();
+    }
+
+    // render diagnostics for text oriented output
+    let format_result = format_diagnostics_with_writer(
+        &result.files,
+        &result.diagnostics,
+        text_format_options,
+        result.response.module_count,
+        line_writer,
+    );
+
+    // emit stats after text diagnostics
+    if matches!(text_format_options.format, DiagnosticFormat::Text)
+        && let Some(summary) = summary
+        && let Some(stats) = result.response.stats.as_ref()
+    {
+        let summary = StatsSummary {
+            verb: summary.verb,
+            modules: summary.modules,
+            profiles: summary.profiles,
+            targets: summary.targets,
+            errors: format_result.error_count,
+            warnings: format_result.warning_count,
+        };
+        let stats = command_stats_from_protocol(stats, timing_options.enabled);
+        print_command_stats_summary(&summary, &stats, timing_options, line_writer);
+    }
+
+    // keep warning threshold failures loud in text mode
+    if format_result.max_warnings_exceeded {
+        console::warn(&format!(
+            "warning count ({}) exceeds --max-warnings ({})",
+            format_result.warning_count,
+            text_format_options.max_warnings.unwrap_or(0)
+        ));
+        return 1;
+    }
+
+    format_result.exit_code()
+}
+
+/// Finish a run command with diagnostic and payload rendering.
+pub fn finish_run_command(
+    command: &str,
+    report_args: &ReportArgs,
+    result: &DaemonCommandResult,
+    include_timings: bool,
+) -> i32 {
+    // render diagnostics before payload output
+    if report_args.is_json() {
+        let json_options = FormatOptions {
+            format: DiagnosticFormat::Json,
+            ..FormatOptions::default()
+        };
+        let (output, format_result) =
+            collect_diagnostics_json(&result.files, &result.diagnostics, &json_options);
+
+        if format_result.exit_code() != 0 {
+            let mut report = CommandReport::failure(command, format_result.exit_code());
+            if let Some(stats) = result.response.stats.as_ref() {
+                report.stats = Some(command_stats_from_protocol(stats, include_timings));
+            }
+            report.diagnostics = Some(output);
+            print_report(&report, report_args.format());
+            return format_result.exit_code();
+        }
+    } else {
+        let text_options = FormatOptions::default();
+        let format_result = format_diagnostics_with_writer(
+            &result.files,
+            &result.diagnostics,
+            &text_options,
+            result.response.module_count,
+            None,
+        );
+        if format_result.exit_code() != 0 {
+            return format_result.exit_code();
+        }
+    }
+
+    // emit daemon text output before the final run status
+    emit_daemon_text_output(
+        report_args,
+        &result.response.messages,
+        &result.response.output,
+    );
+
+    let exit_code = result.response.exit_code;
+
+    // print the structured payload for json output
+    if report_args.is_json() {
+        let payload = match parse_command_payload::<CommandRunPayload>(
+            command,
+            report_args,
+            result.response.data.as_ref(),
+            "run",
+            false,
+        ) {
+            Ok(payload) => payload,
+            Err(code) => return code,
+        };
+
+        let (summary, error, data) = match payload {
+            Some((CommandRunPayload::RuntimeError { message }, value)) => {
+                let error = Some(CommandError::new("runtime_error", "run", message.clone()));
+                (Some(message), error, Some(value))
+            }
+            Some((CommandRunPayload::Value { .. }, value)) => (None, None, Some(value)),
+            None => (None, None, None),
+        };
+        let mut report = report_from_payload(command, exit_code, data, summary, error);
+        if let Some(stats) = result.response.stats.as_ref() {
+            report.stats = Some(command_stats_from_protocol(stats, include_timings));
+        }
+        print_report(&report, report_args.format());
+    } else if exit_code != 0 {
+        console::warn(&format!("process exited with code {exit_code}"));
+    }
+
+    exit_code
 }
 
 /// Emit output for a daemon command that returns a message payload.
@@ -922,12 +1170,6 @@ fn files_from_snapshots(snapshots: &[FileSnapshot]) -> FileRegistry {
         registry.insert(file);
     }
     registry
-}
-
-/// Convert a u64 count into usize without panicking.
-fn saturating_usize(value: u64) -> usize {
-    // clamp counts that exceed usize
-    usize::try_from(value).unwrap_or(usize::MAX)
 }
 
 fn filter_status_for_root(status: &FileWatchStatus, root: &Path) -> Option<FileWatchStatus> {
