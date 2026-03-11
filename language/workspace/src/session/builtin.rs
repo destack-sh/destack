@@ -3,11 +3,11 @@ use std::path::Path;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_core::{StringId, StringPool};
 use destack_builtin::{
     BuiltinLibKind, BuiltinLibSource, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime,
     CORE_SOURCES, LanguageSymbol, PRELUDE_SOURCE, builtin_lib,
 };
+use destack_core::{StringId, StringPool};
 use destack_dir::{
     GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol, WellKnownSymbolKey,
 };

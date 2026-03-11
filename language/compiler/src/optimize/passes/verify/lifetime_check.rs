@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_core::StringPool;
 use destack_compiler_macros::declare_pass;
+use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::ModuleId;
 use destack_workspace::TargetId;

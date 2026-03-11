@@ -2,10 +2,9 @@ use std::borrow::Cow;
 use std::cmp;
 
 use destack_ast::TokenSpan;
-use destack_lsp_types as lsp;
-use destack_query as query;
 use destack_source::{File, Span};
 use destack_workspace::Session;
+use {destack_lsp_types as lsp, destack_query as query};
 
 use crate::uri::lsp_uri_for_file;
 

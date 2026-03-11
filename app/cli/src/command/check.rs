@@ -1,20 +1,19 @@
-use crate::common::format::{DiagnosticFormat, FormatOptions, format_diagnostics_with_writer};
+use crate::common::format::{DiagnosticFormat, FormatOptions};
 use crate::common::{
-    CommandReport, DiagnosticArgs, InputArgs, InputSource, ProgramArgs, ProgressMode,
-    ProgressReporter, ReportArgs, StatsSummary, TimingOutputOptions, WatchCompileReason,
-    collect_diagnostics_json, is_tty, print_command_stats_summary, print_report, report_error,
+    DiagnosticArgs, InputArgs, InputSource, ProgramArgs, ProgressMode, ProgressReporter,
+    ReportArgs, TimingOutputOptions, WatchCompileReason, is_tty, report_error,
 };
 use crate::console;
 use crate::error::CliResult;
 use crate::pipeline::daemon::{
-    CommandOptionsBuilder, ProtocolDaemonClient, command_inputs_from_sources,
-    command_stats_from_protocol, emit_daemon_text_output, run_workspace_command_once,
+    CommandOptionsBuilder, DaemonCommandResult, DiagnosticCommandSummary,
+    command_inputs_from_sources, command_stats_from_protocol, emit_daemon_text_output,
+    finish_diagnostic_command, run_workspace_command_once,
 };
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::watch::{
-    WatchCompileContext, WatchContext, WatchLoopAction, WatchLoopOptions, build_daemon_options,
-    build_watch_context, build_watch_loop_options, emit_watch_compile_report, run_watch_loop,
-    watch_error,
+    WatchCompileContext, WatchLoopOptions, build_watch_loop_options, emit_watch_compile_report,
+    run_daemon_watch_command, watch_error,
 };
 use clap::{Args, ValueEnum};
 use destack_compiler::CompilerEventHandler;
@@ -27,6 +26,16 @@ use destack_source::DiagnosticOptions;
 struct CheckWatchState {
     /// The resolved input sources.
     sources: Vec<InputSource>,
+}
+
+/// Execution context shared across check command paths.
+struct CheckExecutionContext {
+    /// Output formatting options.
+    format_options: FormatOptions,
+    /// Progress reporter for interactive output.
+    progress_reporter: Option<ProgressReporter>,
+    /// Compiler event handler for daemon execution.
+    event_handler: Option<CompilerEventHandler>,
 }
 
 /// Output format for diagnostics.
@@ -132,85 +141,21 @@ pub fn run(args: &CheckArgs) -> i32 {
 
 /// Check source files with a custom command label.
 pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
-    // validate flag combinations
-    if !args.report.is_json() {
-        if args.unsafe_fixes && !args.fix && !args.diff {
-            console::warn("--unsafe-fixes has no effect without --fix or --diff");
-        }
-
-        if args.no_lint && (args.fix || args.diff) {
-            console::warn("--fix and --diff have no effect with --no-lint");
-        }
+    if let Some(code) = validate_check_args(args, command_name) {
+        return code;
     }
 
-    // reject json output with fix modes
-    if args.report.is_json() && (args.fix || args.diff) {
-        return report_error(
-            command_name,
-            &args.report,
-            "--output-format json is not supported with --fix or --diff",
-        );
-    }
-
-    // determine progress mode
-    let progress_mode = match args.progress {
-        Progress::Auto => {
-            // show progress on tty unless quiet mode, json output, or stdin input
-            if is_tty()
-                && !args.quiet
-                && !args.input.stdin
-                && !matches!(args.format, Format::Json | Format::Github)
-                && !args.report.is_json()
-            {
-                ProgressMode::Spinner
-            } else {
-                ProgressMode::None
-            }
-        }
-        Progress::On => ProgressMode::Spinner,
-        Progress::Off => ProgressMode::None,
-        Progress::Detailed => ProgressMode::Detailed,
-    };
-
-    // create progress reporter
-    let progress_reporter = ProgressReporter::with_label(progress_mode, "Checking");
-    let finish_progress = || {
-        if let Some(reporter) = &progress_reporter {
-            reporter.finish();
-        }
-    };
-    let event_handler = progress_reporter.as_ref().map(|p| p.handler());
-
-    // build format options
-    let format_options = FormatOptions {
-        format: args.format.into(),
-        quiet: args.quiet,
-        max_warnings: args.max_warnings,
-        statistics: args.statistics,
-        suppress_diagnostics: args.no_diagnostics,
-    };
+    let context = CheckExecutionContext::new(args);
 
     // run watch mode when requested
     if args.program.watch {
-        let exit_code = run_watch(
-            args,
-            command_name,
-            event_handler,
-            &format_options,
-            progress_reporter.as_ref(),
-        );
-        finish_progress();
+        let exit_code = run_watch(args, command_name, &context);
+        context.finish();
         return exit_code;
     }
 
-    let exit_code = run_check_via_daemon(
-        args,
-        command_name,
-        &format_options,
-        progress_reporter.as_ref(),
-        event_handler,
-    );
-    finish_progress();
+    let exit_code = run_check_via_daemon(args, command_name, &context);
+    context.finish();
     exit_code
 }
 
@@ -218,46 +163,20 @@ pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
 fn run_check_via_daemon(
     args: &CheckArgs,
     command_name: &str,
-    format_options: &FormatOptions,
-    progress_reporter: Option<&ProgressReporter>,
-    event_handler: Option<CompilerEventHandler>,
+    context: &CheckExecutionContext,
 ) -> i32 {
     // build diagnostic options for the daemon command
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
-    // build command inputs when explicitly provided
-    let inputs = if args.input.has_input() {
-        let sources = match args.input.to_sources() {
-            Ok(sources) => sources,
-            Err(error) => {
-                return report_error(command_name, &args.report, &error.to_string());
-            }
-        };
-        match command_inputs_from_sources(&sources, args.input.file_type()) {
-            Ok(inputs) => inputs,
-            Err(error) => {
-                return report_error(command_name, &args.report, &error.to_string());
-            }
-        }
-    } else {
-        Vec::new()
+    // build the daemon command
+    let sources = match resolve_check_sources_or_report(args, command_name) {
+        Ok(sources) => sources,
+        Err(code) => return code,
     };
-
-    // build command payload for daemon execution
-    let lint_options = CommandLintOptions {
-        fix: args.fix,
-        unsafe_fixes: args.unsafe_fixes,
-        diff: args.diff,
+    let (common, payload) = match build_check_command(args, &sources, &diagnostic_options) {
+        Ok(command) => command,
+        Err(error) => return report_error(command_name, &args.report, &error.to_string()),
     };
-    let lint_enabled = !args.no_lint && !args.fix && !args.diff;
-    let common = CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
-        .inputs(inputs)
-        .allow_dsconfig_fallback(!args.input.has_input())
-        .build();
-    let payload = CommandPayload::Check(CommandCheckOptions {
-        lint: lint_enabled,
-        lint_options,
-    });
 
     // execute the daemon command
     let result = match run_workspace_command_once(
@@ -265,107 +184,34 @@ fn run_check_via_daemon(
         Some(diagnostic_options),
         common,
         payload,
-        event_handler,
+        context.event_handler.clone(),
     ) {
         Ok(result) => result,
         Err(error) => return report_error(command_name, &args.report, &error.to_string()),
     };
 
-    // emit daemon output and messages for text modes
-    if !args.report.is_json() {
-        emit_daemon_text_output(
-            &args.report,
-            &result.response.messages,
-            &result.response.output,
-        );
-    }
-
-    // emit json report when requested
-    if args.report.is_json() {
-        let json_options = FormatOptions {
-            format: DiagnosticFormat::Json,
-            quiet: args.quiet,
-            max_warnings: args.max_warnings,
-            statistics: args.statistics,
-            suppress_diagnostics: false,
-        };
-        let (output, format_result) =
-            collect_diagnostics_json(&result.files, &result.diagnostics, &json_options);
-        let mut report = if format_result.exit_code() == 0 {
-            CommandReport::success(command_name, 0)
-        } else {
-            CommandReport::failure(command_name, format_result.exit_code())
-        };
-        if let Some(stats) = result.response.stats.as_ref() {
-            report.stats = Some(command_stats_from_protocol(stats, args.program.timings));
-        }
-        report.diagnostics = Some(output);
-        print_report(&report, args.report.format());
-        return format_result.exit_code();
-    }
-
-    // emit formatted diagnostics
-    let line_writer = progress_reporter
-        .as_ref()
-        .map(|reporter| reporter.line_writer());
-    let module_count = result.response.module_count;
-    let output_result = format_diagnostics_with_writer(
-        &result.files,
-        &result.diagnostics,
-        format_options,
-        module_count,
-        line_writer.as_ref(),
-    );
-
-    // print stats summary in text mode
-    if matches!(args.format, Format::Text)
-        && let Some(stats) = result.response.stats.as_ref()
-    {
-        let summary = StatsSummary {
-            verb: "Checked",
-            modules: module_count,
-            profiles: result.response.profile_count,
-            targets: 0,
-            errors: output_result.error_count,
-            warnings: output_result.warning_count,
-        };
-        let timing_options = TimingOutputOptions {
-            enabled: args.program.timings,
-            top: args.report.timings_top,
-            min_ms: args.report.timings_min_ms,
-        };
-        let stats = command_stats_from_protocol(stats, timing_options.enabled);
-        print_command_stats_summary(&summary, &stats, timing_options, line_writer.as_ref());
-    }
-
-    // enforce max warning threshold when configured
-    if output_result.max_warnings_exceeded {
-        console::warn(&format!(
-            "warning count ({}) exceeds --max-warnings ({})",
-            output_result.warning_count,
-            args.max_warnings.unwrap_or(0)
-        ));
-        return 1;
-    }
-
-    output_result.exit_code()
+    finish_diagnostic_command(
+        command_name,
+        &args.report,
+        &result,
+        &context.json_format_options(),
+        &context.format_options,
+        context.timing_options(args),
+        context.line_writer().as_ref(),
+        context.summary(args, &result),
+        None,
+    )
 }
 
 /// Run check in watch mode with incremental updates.
-fn run_watch(
-    args: &CheckArgs,
-    command_name: &str,
-    event_handler: Option<CompilerEventHandler>,
-    format_options: &FormatOptions,
-    progress_reporter: Option<&ProgressReporter>,
-) -> i32 {
+fn run_watch(args: &CheckArgs, command_name: &str, context: &CheckExecutionContext) -> i32 {
     // run with default watch settings
     run_watch_with_options(
         args,
         command_name,
-        event_handler,
-        format_options,
-        progress_reporter,
+        context.event_handler.clone(),
+        &context.format_options,
+        context.progress_reporter.as_ref(),
         build_watch_loop_options(),
         || {},
         |_, _, _| {},
@@ -383,7 +229,7 @@ pub(crate) fn run_watch_with_options<StartFn, ObserveFn>(
     progress_reporter: Option<&ProgressReporter>,
     watch_loop_options: WatchLoopOptions,
     on_start: StartFn,
-    mut on_compile: ObserveFn,
+    on_compile: ObserveFn,
     is_one_shot: bool,
 ) -> i32
 where
@@ -408,15 +254,9 @@ where
         );
     }
 
-    // resolve sources for the initial compile
-    let sources = match resolve_sources(&args.input, Some(&args.program), None) {
+    let sources = match resolve_check_watch_sources_or_report(args, command_name) {
         Ok(sources) => sources,
-        Err(ResolveSourcesError::NoInput) => {
-            return report_error(command_name, &args.report, "no input files provided");
-        }
-        Err(ResolveSourcesError::Message(message)) => {
-            return report_error(command_name, &args.report, &message);
-        }
+        Err(code) => return code,
     };
 
     // build diagnostic options for the daemon command
@@ -425,164 +265,57 @@ where
     // prepare watch mode output
     let json_format_options = FormatOptions {
         format: DiagnosticFormat::Json,
-        ..format_options.clone()
+        quiet: format_options.quiet,
+        max_warnings: format_options.max_warnings,
+        statistics: format_options.statistics,
+        suppress_diagnostics: false,
     };
     let session = args.program.setup();
-    let WatchContext {
-        roots,
-        root,
-        mut reporter,
-    } = build_watch_context(command_name, &args.program, &args.report, &session);
     let line_writer = progress_reporter.map(|reporter| reporter.line_writer());
-
-    // configure the daemon client for incremental updates
-    let daemon_options =
-        build_daemon_options(&args.program, diagnostic_options.clone(), event_handler);
-    let daemon = match ProtocolDaemonClient::new(
-        session.clone(),
-        daemon_options,
-        roots.clone(),
-        &args.program,
-    ) {
-        Ok(daemon) => daemon,
-        Err(error) => {
-            let message = watch_error(&error.to_string());
-            if let Some(reporter) = reporter.as_mut() {
-                reporter.emit_warning(&message);
-                reporter.emit_stop();
-                return 1;
-            }
-            return report_error("check", &args.report, &message);
-        }
-    };
 
     // set up shared watch state
     let mut watch_state = CheckWatchState { sources };
 
-    // prepare lint options for watch runs
-    let lint_options = CommandLintOptions {
-        fix: args.fix,
-        unsafe_fixes: args.unsafe_fixes,
-        diff: args.diff,
-    };
-    let lint_enabled = !args.no_lint && !args.fix && !args.diff;
-
-    // helper to build command options
-    let build_options =
-        |sources: &[InputSource]| -> CliResult<(CommonCommandOptions, CommandPayload)> {
-            let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
-            let common =
-                CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
-                    .inputs(inputs)
-                    .allow_dsconfig_fallback(!args.input.has_input())
-                    .build();
-            let payload = CommandPayload::Check(CommandCheckOptions {
-                lint: lint_enabled,
-                lint_options: lint_options.clone(),
-            });
-            Ok((common, payload))
-        };
-
-    // compile the initial state
-    let mut exit_code = match build_options(&watch_state.sources) {
-        Ok((common, payload)) => match daemon.run_workspace_command(&root, common, payload) {
-            Ok(result) => {
-                emit_daemon_text_output(
-                    &args.report,
-                    &result.response.messages,
-                    &result.response.output,
-                );
-                let stats = result
-                    .response
-                    .stats
-                    .as_ref()
-                    .map(|stats| command_stats_from_protocol(stats, args.program.timings));
-                emit_watch_compile_report(
-                    &mut reporter,
-                    WatchCompileContext {
-                        files: &result.files,
-                        diagnostics: &result.diagnostics,
-                        format_options,
-                        json_format_options: &json_format_options,
-                        module_count: result.response.module_count,
-                        line_writer: line_writer.as_ref(),
-                    },
-                    stats,
-                    WatchCompileReason::Startup,
-                    false,
-                    false,
-                    None,
-                )
-            }
-            Err(message) => {
-                let message = watch_error(&message.to_string());
-                if let Some(reporter) = reporter.as_mut() {
-                    reporter.emit_warning(&message);
-                    1
-                } else {
-                    report_error(command_name, &args.report, &message)
-                }
-            }
-        },
-        Err(message) => {
-            let message = watch_error(&message.to_string());
-            if let Some(reporter) = reporter.as_mut() {
-                reporter.emit_warning(&message);
-                1
-            } else {
-                report_error(command_name, &args.report, &message)
-            }
-        }
-    };
-
-    // run the watch loop for incremental updates
-    exit_code = run_watch_loop(
-        &daemon,
-        roots,
-        &mut reporter,
+    run_daemon_watch_command(
+        command_name,
+        session,
+        &args.program,
+        &args.report,
+        diagnostic_options,
+        event_handler,
         watch_loop_options,
         &mut watch_state,
-        move |_| on_start(),
-        |state| {
-            // refresh sources when a rescan is requested
-            state.sources = match resolve_sources(&args.input, Some(&args.program), None) {
-                Ok(sources) => sources,
-                Err(ResolveSourcesError::NoInput) => {
-                    return Err(watch_error("no input files after rescan").into());
-                }
-                Err(ResolveSourcesError::Message(message)) => {
-                    return Err(watch_error(&message).into());
-                }
-            };
+        move |_state| on_start(),
+        |state, _session| refresh_check_watch_sources(args, state),
+        |daemon, root, reporter, state, reason, batch_id, updated, requires_rescan| {
+            let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
-            Ok(())
-        },
-        |state, reporter, reason, batch_id, updated, requires_rescan| {
             // build options for the updated sources
-            let (common, payload) = match build_options(&state.sources) {
-                Ok(options) => options,
-                Err(message) => {
-                    let message = watch_error(&message.to_string());
-                    if let Some(reporter) = reporter.as_mut() {
-                        reporter.emit_warning(&message);
-                        return WatchLoopAction::continue_with(Some(1));
+            let (common, payload) =
+                match build_check_command(args, &state.sources, &diagnostic_options) {
+                    Ok(options) => options,
+                    Err(message) => {
+                        let message = watch_error(&message.to_string());
+                        if let Some(reporter) = reporter.as_mut() {
+                            reporter.emit_warning(&message);
+                            return 1;
+                        }
+                        let next_exit = report_error(command_name, &args.report, &message);
+                        return next_exit;
                     }
-                    let next_exit = report_error(command_name, &args.report, &message);
-                    return WatchLoopAction::continue_with(Some(next_exit));
-                }
-            };
+                };
 
             // run the daemon check command
-            let result = match daemon.run_workspace_command(&root, common, payload) {
+            let result = match daemon.run_workspace_command(root, common, payload) {
                 Ok(result) => result,
                 Err(message) => {
                     let message = watch_error(&message.to_string());
                     if let Some(reporter) = reporter.as_mut() {
                         reporter.emit_warning(&message);
-                        return WatchLoopAction::continue_with(Some(1));
+                        return 1;
                     }
                     let next_exit = report_error(command_name, &args.report, &message);
-                    return WatchLoopAction::continue_with(Some(next_exit));
+                    return next_exit;
                 }
             };
 
@@ -613,26 +346,201 @@ where
                 reason,
                 updated,
                 requires_rescan,
-                Some(batch_id),
+                batch_id,
             );
 
-            // record compile observation
-            on_compile(reason, updated, requires_rescan);
-
-            if is_one_shot {
-                return WatchLoopAction::stop_with(Some(next_exit_code));
-            }
-
-            WatchLoopAction::continue_with(Some(next_exit_code))
+            next_exit_code
         },
-        exit_code,
-    );
+        on_compile,
+        is_one_shot,
+    )
+}
 
-    if let Some(reporter) = reporter.as_mut() {
-        reporter.emit_stop();
+impl CheckExecutionContext {
+    /// Build the shared execution context for a check command.
+    fn new(args: &CheckArgs) -> Self {
+        let progress_reporter = ProgressReporter::with_label(progress_mode(args), "Checking");
+        let event_handler = progress_reporter
+            .as_ref()
+            .map(|reporter| reporter.handler());
+        let format_options = FormatOptions {
+            format: args.format.into(),
+            quiet: args.quiet,
+            max_warnings: args.max_warnings,
+            statistics: args.statistics,
+            suppress_diagnostics: args.no_diagnostics,
+        };
+
+        Self {
+            format_options,
+            progress_reporter,
+            event_handler,
+        }
     }
 
-    daemon.shutdown();
+    /// Finish progress output for the command.
+    fn finish(&self) {
+        if let Some(reporter) = &self.progress_reporter {
+            reporter.finish();
+        }
+    }
 
-    exit_code
+    /// Build a line writer for formatted output.
+    fn line_writer(&self) -> Option<crate::common::LineWriter> {
+        self.progress_reporter
+            .as_ref()
+            .map(|reporter| reporter.line_writer())
+    }
+
+    /// Build json format options derived from the text options.
+    fn json_format_options(&self) -> FormatOptions {
+        FormatOptions {
+            format: DiagnosticFormat::Json,
+            quiet: self.format_options.quiet,
+            max_warnings: self.format_options.max_warnings,
+            statistics: self.format_options.statistics,
+            suppress_diagnostics: false,
+        }
+    }
+
+    /// Build timing output options for the command.
+    fn timing_options(&self, args: &CheckArgs) -> TimingOutputOptions {
+        TimingOutputOptions {
+            enabled: args.program.timings,
+            top: args.report.timings_top,
+            min_ms: args.report.timings_min_ms,
+        }
+    }
+
+    /// Build the summary metadata for text output.
+    fn summary(
+        &self,
+        args: &CheckArgs,
+        result: &DaemonCommandResult,
+    ) -> Option<DiagnosticCommandSummary<'static>> {
+        if !matches!(args.format, Format::Text) {
+            return None;
+        }
+
+        Some(DiagnosticCommandSummary {
+            verb: "Checked",
+            modules: result.response.module_count,
+            profiles: result.response.profile_count,
+            targets: 0,
+        })
+    }
+}
+
+/// Validate user facing check argument combinations.
+fn validate_check_args(args: &CheckArgs, command_name: &str) -> Option<i32> {
+    if !args.report.is_json() {
+        if args.unsafe_fixes && !args.fix && !args.diff {
+            console::warn("--unsafe-fixes has no effect without --fix or --diff");
+        }
+
+        if args.no_lint && (args.fix || args.diff) {
+            console::warn("--fix and --diff have no effect with --no-lint");
+        }
+    }
+
+    if args.report.is_json() && (args.fix || args.diff) {
+        return Some(report_error(
+            command_name,
+            &args.report,
+            "--output-format json is not supported with --fix or --diff",
+        ));
+    }
+
+    None
+}
+
+/// Resolve the progress mode for a check command.
+fn progress_mode(args: &CheckArgs) -> ProgressMode {
+    match args.progress {
+        Progress::Auto => {
+            if is_tty()
+                && !args.quiet
+                && !args.input.stdin
+                && !matches!(args.format, Format::Json | Format::Github)
+                && !args.report.is_json()
+            {
+                ProgressMode::Spinner
+            } else {
+                ProgressMode::None
+            }
+        }
+        Progress::On => ProgressMode::Spinner,
+        Progress::Off => ProgressMode::None,
+        Progress::Detailed => ProgressMode::Detailed,
+    }
+}
+
+/// Resolve explicit command input sources for one shot execution.
+fn resolve_check_sources_or_report(
+    args: &CheckArgs,
+    command_name: &str,
+) -> Result<Vec<InputSource>, i32> {
+    if !args.input.has_input() {
+        return Ok(Vec::new());
+    }
+
+    args.input
+        .to_sources()
+        .map_err(|error| report_error(command_name, &args.report, &error.to_string()))
+}
+
+/// Resolve initial watch sources for the check command.
+fn resolve_check_watch_sources_or_report(
+    args: &CheckArgs,
+    command_name: &str,
+) -> Result<Vec<InputSource>, i32> {
+    match resolve_sources(&args.input, Some(&args.program), None) {
+        Ok(sources) => Ok(sources),
+        Err(ResolveSourcesError::NoInput) => Err(report_error(
+            command_name,
+            &args.report,
+            "no input files provided",
+        )),
+        Err(ResolveSourcesError::Message(message)) => {
+            Err(report_error(command_name, &args.report, &message))
+        }
+    }
+}
+
+/// Refresh watch sources after a rescan.
+fn refresh_check_watch_sources(args: &CheckArgs, state: &mut CheckWatchState) -> CliResult<()> {
+    state.sources = match resolve_sources(&args.input, Some(&args.program), None) {
+        Ok(sources) => sources,
+        Err(ResolveSourcesError::NoInput) => {
+            return Err(watch_error("no input files after rescan").into());
+        }
+        Err(ResolveSourcesError::Message(message)) => {
+            return Err(watch_error(&message).into());
+        }
+    };
+
+    Ok(())
+}
+
+/// Build the daemon command for the check command.
+fn build_check_command(
+    args: &CheckArgs,
+    sources: &[InputSource],
+    diagnostic_options: &DiagnosticOptions,
+) -> CliResult<(CommonCommandOptions, CommandPayload)> {
+    let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
+    let common = CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
+        .inputs(inputs)
+        .allow_dsconfig_fallback(!args.input.has_input())
+        .build();
+    let payload = CommandPayload::Check(CommandCheckOptions {
+        lint: !args.no_lint && !args.fix && !args.diff,
+        lint_options: CommandLintOptions {
+            fix: args.fix,
+            unsafe_fixes: args.unsafe_fixes,
+            diff: args.diff,
+        },
+    });
+
+    Ok((common, payload))
 }
