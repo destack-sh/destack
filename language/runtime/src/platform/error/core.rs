@@ -1,4 +1,4 @@
-use destack_vm as vm;
+use destack_vm;
 
 use crate::diagnostic::{DiagnosticId, DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::{
@@ -52,8 +52,8 @@ impl<'a> NativeStringStore<'a> {
     }
 
     /// Store an optional string.
-    fn optional(&self, value: Option<&String>) -> NativeStringRef {
-        self.context.store_string_option(value)
+    fn optional(&self, value: Option<&String>) -> Option<NativeStringRef> {
+        value.map(|value| self.required(value))
     }
 
     /// Store a byte array.
@@ -71,31 +71,23 @@ impl<'a> NativeStringStore<'a> {
 #[derive(Debug)]
 pub struct VmStringStore<'a, 'ctx> {
     /// Runtime context for the current VM call.
-    context: &'a mut vm::ExternalCallContext<'ctx>,
+    context: &'a mut destack_vm::ExternalCallContext<'ctx>,
 }
 
 impl<'a, 'ctx> VmStringStore<'a, 'ctx> {
     /// Create a VM string store for the runtime context.
-    pub fn new(context: &'a mut vm::ExternalCallContext<'ctx>) -> Self {
+    pub fn new(context: &'a mut destack_vm::ExternalCallContext<'ctx>) -> Self {
         Self { context }
     }
 
-    /// Return the VM sentinel for an absent string.
-    fn none_sentinel() -> vm::StringHandle {
-        vm::StringHandle::new(vm::Value::VOID)
-    }
-
     /// Store a required string.
-    fn required(&mut self, value: &str) -> vm::StringHandle {
-        vm::StringHandle::new(self.context.intern_string(value))
+    fn required(&mut self, value: &str) -> destack_vm::StringHandle {
+        destack_vm::StringHandle::new(self.context.intern_string(value))
     }
 
     /// Store an optional string.
-    fn optional(&mut self, value: Option<&String>) -> vm::StringHandle {
-        match value {
-            Some(value) => self.required(value),
-            None => Self::none_sentinel(),
-        }
+    fn optional(&mut self, value: Option<&String>) -> Option<destack_vm::StringHandle> {
+        value.map(|value| self.required(value))
     }
 
     /// Store a byte array.
@@ -187,27 +179,26 @@ fn payload_utf16_units(payload: &DiagnosticPlatformPathPayload) -> Vec<u16> {
 fn platform_path_native(
     store: &NativeStringStore<'_>,
     payload: Option<&DiagnosticPlatformPathPayload>,
-) -> PlatformPathPayload {
+) -> Option<PlatformPathPayload> {
     let Some(payload) = payload else {
-        return PlatformPathPayload::PlatformPathPayloadBytes(PlatformPathPayloadBytes {
-            kind: store.required("bytes"),
-            bytes: store.bytes(&[]),
-        });
+        return None;
     };
 
     match payload.encoding {
-        DiagnosticPlatformPathEncoding::Bytes => {
+        DiagnosticPlatformPathEncoding::Bytes => Some(
             PlatformPathPayload::PlatformPathPayloadBytes(PlatformPathPayloadBytes {
                 kind: store.required("bytes"),
                 bytes: store.bytes(&payload.data),
-            })
-        }
+            }),
+        ),
         DiagnosticPlatformPathEncoding::Utf16 => {
             let utf16 = payload_utf16_units(payload);
-            PlatformPathPayload::PlatformPathPayloadUtf16(PlatformPathPayloadUtf16 {
-                kind: store.required("utf16"),
-                utf16: store.utf16(&utf16),
-            })
+            Some(PlatformPathPayload::PlatformPathPayloadUtf16(
+                PlatformPathPayloadUtf16 {
+                    kind: store.required("utf16"),
+                    utf16: store.utf16(&utf16),
+                },
+            ))
         }
     }
 }
@@ -216,31 +207,26 @@ fn platform_path_native(
 fn platform_path_vm(
     store: &mut VmStringStore<'_, '_>,
     payload: Option<&DiagnosticPlatformPathPayload>,
-) -> RuntimeResult<PlatformPathPayloadVm> {
+) -> RuntimeResult<Option<PlatformPathPayloadVm>> {
     let Some(payload) = payload else {
-        return Ok(PlatformPathPayloadVm::PlatformPathPayloadBytes(
-            PlatformPathPayloadBytesVm {
-                kind: store.required("bytes"),
-                bytes: store.bytes(&[]),
-            },
-        ));
+        return Ok(None);
     };
 
     match payload.encoding {
-        DiagnosticPlatformPathEncoding::Bytes => Ok(
+        DiagnosticPlatformPathEncoding::Bytes => Ok(Some(
             PlatformPathPayloadVm::PlatformPathPayloadBytes(PlatformPathPayloadBytesVm {
                 kind: store.required("bytes"),
                 bytes: store.bytes(&payload.data),
             }),
-        ),
+        )),
         DiagnosticPlatformPathEncoding::Utf16 => {
             let utf16 = payload_utf16_units(payload);
-            Ok(PlatformPathPayloadVm::PlatformPathPayloadUtf16(
+            Ok(Some(PlatformPathPayloadVm::PlatformPathPayloadUtf16(
                 PlatformPathPayloadUtf16Vm {
                     kind: store.required("utf16"),
                     utf16: store.utf16(&utf16)?,
                 },
-            ))
+            )))
         }
     }
 }
@@ -249,56 +235,56 @@ fn platform_path_vm(
 fn platform_source_native(
     store: &NativeStringStore<'_>,
     source: Option<&DiagnosticPlatformSystemSource>,
-) -> PlatformSystemSource {
-    let (kind, value, name) = match source {
-        Some(source) => (source.kind, source.value, source.name.as_ref()),
-        None => (DiagnosticPlatformSystemSourceKind::Other, 0, None),
-    };
+) -> Option<PlatformSystemSource> {
+    let source = source?;
+    let kind = source.kind;
+    let value = source.value;
+    let name = source.name.as_ref();
     let name = store.optional(name);
 
     match kind {
-        DiagnosticPlatformSystemSourceKind::Errno => {
+        DiagnosticPlatformSystemSourceKind::Errno => Some(
             PlatformSystemSource::PlatformSystemSourceErrno(PlatformSystemSourceErrno {
                 kind: store.required("errno"),
                 value,
                 name,
-            })
-        }
-        DiagnosticPlatformSystemSourceKind::Winsock => {
+            }),
+        ),
+        DiagnosticPlatformSystemSourceKind::Winsock => Some(
             PlatformSystemSource::PlatformSystemSourceWinsock(PlatformSystemSourceWinsock {
                 kind: store.required("winsock"),
                 value,
                 name,
-            })
-        }
-        DiagnosticPlatformSystemSourceKind::HResult => {
+            }),
+        ),
+        DiagnosticPlatformSystemSourceKind::HResult => Some(
             PlatformSystemSource::PlatformSystemSourceHResult(PlatformSystemSourceHResult {
                 kind: store.required("hresult"),
                 value,
                 name,
-            })
-        }
-        DiagnosticPlatformSystemSourceKind::Eai => {
+            }),
+        ),
+        DiagnosticPlatformSystemSourceKind::Eai => Some(
             PlatformSystemSource::PlatformSystemSourceEai(PlatformSystemSourceEai {
                 kind: store.required("eai"),
                 value,
                 name,
-            })
-        }
-        DiagnosticPlatformSystemSourceKind::Signal => {
+            }),
+        ),
+        DiagnosticPlatformSystemSourceKind::Signal => Some(
             PlatformSystemSource::PlatformSystemSourceSignal(PlatformSystemSourceSignal {
                 kind: store.required("signal"),
                 value,
                 name,
-            })
-        }
-        DiagnosticPlatformSystemSourceKind::Other => {
+            }),
+        ),
+        DiagnosticPlatformSystemSourceKind::Other => Some(
             PlatformSystemSource::PlatformSystemSourceOther(PlatformSystemSourceOther {
                 kind: store.required("other"),
                 value,
                 name,
-            })
-        }
+            }),
+        ),
     }
 }
 
@@ -306,56 +292,56 @@ fn platform_source_native(
 fn platform_source_vm(
     store: &mut VmStringStore<'_, '_>,
     source: Option<&DiagnosticPlatformSystemSource>,
-) -> PlatformSystemSourceVm {
-    let (kind, value, name) = match source {
-        Some(source) => (source.kind, source.value, source.name.as_ref()),
-        None => (DiagnosticPlatformSystemSourceKind::Other, 0, None),
-    };
+) -> Option<PlatformSystemSourceVm> {
+    let source = source?;
+    let kind = source.kind;
+    let value = source.value;
+    let name = source.name.as_ref();
     let name = store.optional(name);
 
     match kind {
-        DiagnosticPlatformSystemSourceKind::Errno => {
+        DiagnosticPlatformSystemSourceKind::Errno => Some(
             PlatformSystemSourceVm::PlatformSystemSourceErrno(PlatformSystemSourceErrnoVm {
                 kind: store.required("errno"),
                 value,
                 name,
-            })
-        }
-        DiagnosticPlatformSystemSourceKind::Winsock => {
+            }),
+        ),
+        DiagnosticPlatformSystemSourceKind::Winsock => Some(
             PlatformSystemSourceVm::PlatformSystemSourceWinsock(PlatformSystemSourceWinsockVm {
                 kind: store.required("winsock"),
                 value,
                 name,
-            })
-        }
-        DiagnosticPlatformSystemSourceKind::HResult => {
+            }),
+        ),
+        DiagnosticPlatformSystemSourceKind::HResult => Some(
             PlatformSystemSourceVm::PlatformSystemSourceHResult(PlatformSystemSourceHResultVm {
                 kind: store.required("hresult"),
                 value,
                 name,
-            })
-        }
-        DiagnosticPlatformSystemSourceKind::Eai => {
+            }),
+        ),
+        DiagnosticPlatformSystemSourceKind::Eai => Some(
             PlatformSystemSourceVm::PlatformSystemSourceEai(PlatformSystemSourceEaiVm {
                 kind: store.required("eai"),
                 value,
                 name,
-            })
-        }
-        DiagnosticPlatformSystemSourceKind::Signal => {
+            }),
+        ),
+        DiagnosticPlatformSystemSourceKind::Signal => Some(
             PlatformSystemSourceVm::PlatformSystemSourceSignal(PlatformSystemSourceSignalVm {
                 kind: store.required("signal"),
                 value,
                 name,
-            })
-        }
-        DiagnosticPlatformSystemSourceKind::Other => {
+            }),
+        ),
+        DiagnosticPlatformSystemSourceKind::Other => Some(
             PlatformSystemSourceVm::PlatformSystemSourceOther(PlatformSystemSourceOtherVm {
                 kind: store.required("other"),
                 value,
                 name,
-            })
-        }
+            }),
+        ),
     }
 }
 
@@ -385,79 +371,73 @@ fn required_context_numeric<T: Copy>(
     value: Option<T>,
     kind: DiagnosticPlatformErrorContextKind,
     field_name: &str,
-) -> T {
-    value.unwrap_or_else(|| {
+) -> Option<T> {
+    Some(value.unwrap_or_else(|| {
         let context_kind = platform_context_kind_label(kind);
         panic!(
             "internal platform error context invariant violated: missing {field_name} for {context_kind}"
         );
-    })
+    }))
 }
 
 /// Convert an optional context object into a native ABI context.
 fn platform_context_native(
     store: &NativeStringStore<'_>,
     context: Option<&DiagnosticPlatformErrorContext>,
-) -> PlatformErrorContext {
+) -> Option<PlatformErrorContext> {
     let Some(context) = context else {
-        return PlatformErrorContext::PlatformErrorContextGeneric(PlatformErrorContextGeneric {
-            kind: store.required("generic"),
-            syscall: store.optional(None),
-            argument: store.optional(None),
-            pointer: store.optional(None),
-            feature: store.optional(None),
-        });
+        return None;
     };
 
     match context.kind {
-        DiagnosticPlatformErrorContextKind::Audio => {
+        DiagnosticPlatformErrorContextKind::Audio => Some(
             PlatformErrorContext::PlatformErrorContextAudio(PlatformErrorContextAudio {
                 kind: store.required("audio"),
                 syscall: store.optional(context.syscall.as_ref()),
                 feature: store.optional(context.feature.as_ref()),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Device => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Device => Some(
             PlatformErrorContext::PlatformErrorContextDevice(PlatformErrorContextDevice {
                 kind: store.required("device"),
                 syscall: store.optional(context.syscall.as_ref()),
                 path: platform_path_native(store, context.path.as_ref()),
                 path_text: store.optional(context.path_text.as_ref()),
                 feature: store.optional(context.feature.as_ref()),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Display => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Display => Some(
             PlatformErrorContext::PlatformErrorContextDisplay(PlatformErrorContextDisplay {
                 kind: store.required("display"),
                 syscall: store.optional(context.syscall.as_ref()),
                 feature: store.optional(context.feature.as_ref()),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Ffi => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Ffi => Some(
             PlatformErrorContext::PlatformErrorContextFfi(PlatformErrorContextFfi {
                 kind: store.required("ffi"),
                 syscall: store.optional(context.syscall.as_ref()),
                 library: store.optional(context.library.as_ref()),
                 symbol: store.optional(context.symbol.as_ref()),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Generic => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Generic => Some(
             PlatformErrorContext::PlatformErrorContextGeneric(PlatformErrorContextGeneric {
                 kind: store.required("generic"),
                 syscall: store.optional(context.syscall.as_ref()),
                 argument: store.optional(context.argument.as_ref()),
                 pointer: store.optional(context.pointer.as_ref()),
                 feature: store.optional(context.feature.as_ref()),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Gpu => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Gpu => Some(
             PlatformErrorContext::PlatformErrorContextGpu(PlatformErrorContextGpu {
                 kind: store.required("gpu"),
                 syscall: store.optional(context.syscall.as_ref()),
                 feature: store.optional(context.feature.as_ref()),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Io => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Io => Some(
             PlatformErrorContext::PlatformErrorContextIo(PlatformErrorContextIo {
                 kind: store.required("io"),
                 syscall: store.optional(context.syscall.as_ref()),
@@ -466,44 +446,44 @@ fn platform_context_native(
                 path_text: store.optional(context.path_text.as_ref()),
                 dest_text: store.optional(context.dest_text.as_ref()),
                 fd: required_context_numeric(context.fd, context.kind, "fd"),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::IoDriver => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::IoDriver => Some(
             PlatformErrorContext::PlatformErrorContextIoDriver(PlatformErrorContextIoDriver {
                 kind: store.required("ioDriver"),
                 syscall: store.optional(context.syscall.as_ref()),
                 fd: required_context_numeric(context.fd, context.kind, "fd"),
                 feature: store.optional(context.feature.as_ref()),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Ipc => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Ipc => Some(
             PlatformErrorContext::PlatformErrorContextIpc(PlatformErrorContextIpc {
                 kind: store.required("ipc"),
                 syscall: store.optional(context.syscall.as_ref()),
                 path: platform_path_native(store, context.path.as_ref()),
                 path_text: store.optional(context.path_text.as_ref()),
                 fd: required_context_numeric(context.fd, context.kind, "fd"),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Net => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Net => Some(
             PlatformErrorContext::PlatformErrorContextNet(PlatformErrorContextNet {
                 kind: store.required("net"),
                 syscall: store.optional(context.syscall.as_ref()),
                 address: store.optional(context.address.as_ref()),
                 port: required_context_numeric(context.port, context.kind, "port"),
                 hostname: store.optional(context.hostname.as_ref()),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Process => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Process => Some(
             PlatformErrorContext::PlatformErrorContextProcess(PlatformErrorContextProcess {
                 kind: store.required("process"),
                 syscall: store.optional(context.syscall.as_ref()),
                 pid: required_context_numeric(context.pid, context.kind, "pid"),
                 signal: store.optional(context.signal.as_ref()),
                 exit_code: required_context_numeric(context.exit_code, context.kind, "exitCode"),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Resource => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Resource => Some(
             PlatformErrorContext::PlatformErrorContextResource(PlatformErrorContextResource {
                 kind: store.required("resource"),
                 syscall: store.optional(context.syscall.as_ref()),
@@ -513,24 +493,24 @@ fn platform_context_native(
                     "resourceId",
                 ),
                 resource_kind: store.optional(context.resource_kind.as_ref()),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Security => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Security => Some(
             PlatformErrorContext::PlatformErrorContextSecurity(PlatformErrorContextSecurity {
                 kind: store.required("security"),
                 syscall: store.optional(context.syscall.as_ref()),
                 capability: store.optional(context.capability.as_ref()),
                 policy: store.optional(context.policy.as_ref()),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Thread => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Thread => Some(
             PlatformErrorContext::PlatformErrorContextThread(PlatformErrorContextThread {
                 kind: store.required("thread"),
                 syscall: store.optional(context.syscall.as_ref()),
                 thread_id: required_context_numeric(context.thread_id, context.kind, "threadId"),
-            })
-        }
-        DiagnosticPlatformErrorContextKind::Timer => {
+            }),
+        ),
+        DiagnosticPlatformErrorContextKind::Timer => Some(
             PlatformErrorContext::PlatformErrorContextTimer(PlatformErrorContextTimer {
                 kind: store.required("timer"),
                 syscall: store.optional(context.syscall.as_ref()),
@@ -540,8 +520,8 @@ fn platform_context_native(
                     context.kind,
                     "deadlineNs",
                 ),
-            })
-        }
+            }),
+        ),
     }
 }
 
@@ -549,17 +529,9 @@ fn platform_context_native(
 fn platform_context_vm(
     store: &mut VmStringStore<'_, '_>,
     context: Option<&DiagnosticPlatformErrorContext>,
-) -> RuntimeResult<PlatformErrorContextVm> {
+) -> RuntimeResult<Option<PlatformErrorContextVm>> {
     let Some(context) = context else {
-        return Ok(PlatformErrorContextVm::PlatformErrorContextGeneric(
-            PlatformErrorContextGenericVm {
-                kind: store.required("generic"),
-                syscall: store.optional(None),
-                argument: store.optional(None),
-                pointer: store.optional(None),
-                feature: store.optional(None),
-            },
-        ));
+        return Ok(None);
     };
 
     let value = match context.kind {
@@ -697,7 +669,7 @@ fn platform_context_vm(
         }
     };
 
-    Ok(value)
+    Ok(Some(value))
 }
 
 /// Map diagnostic error codes into ABI platform error codes.
@@ -710,11 +682,11 @@ fn map_platform_error_code(code: DiagnosticPlatformErrorCode) -> PlatformErrorCo
 
 #[cfg(test)]
 mod tests {
-    use super::VmStringStore;
-
     #[test]
-    fn test_vm_string_none_sentinel_is_void() {
-        let sentinel = VmStringStore::none_sentinel();
-        assert!(sentinel.value().is_void_value());
+    fn test_platform_context_kind_label_returns_expected_name() {
+        let label =
+            super::platform_context_kind_label(super::DiagnosticPlatformErrorContextKind::Io);
+
+        assert_eq!(label, "io");
     }
 }

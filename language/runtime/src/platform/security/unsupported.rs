@@ -1,16 +1,12 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::security::bindings_generated as bindings;
-use crate::runtime::{NativeSlice, NativeStringRef};
+use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 
 use crate::runtime::BindingCallContext;
-use bindings::*;
 
 use crate::platform::resource;
-use crate::platform::security::{PlatformCapability, SecurityPolicyMode, SecurityPolicyRule};
+use crate::platform::security::SecurityPolicyRule;
 
 /// Check one capability.
 ///
@@ -32,7 +28,7 @@ use crate::platform::security::{PlatformCapability, SecurityPolicyMode, Security
 pub(crate) unsafe fn destack_security_capability_has(
     _binding: &BindingCallContext,
     out: *mut bool,
-    capability: PlatformCapability,
+    capability: NativeStringRef,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -64,7 +60,7 @@ pub(crate) unsafe fn destack_security_capability_has(
 /// Deterministic.
 pub(crate) unsafe fn destack_security_capability_list(
     _binding: &BindingCallContext,
-    out: *mut NativeSlice<PlatformCapability>,
+    out: *mut NativeStringSlice,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -126,7 +122,7 @@ pub(crate) unsafe fn destack_security_sandbox_seal(
 pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
     _binding: &BindingCallContext,
     handle: resource::SandboxHandle,
-    capabilities: NativeSlice<PlatformCapability>,
+    capabilities: NativeStringSlice,
 ) -> RuntimeResult<()> {
     let _ = (handle, capabilities);
 
@@ -184,7 +180,7 @@ pub(crate) unsafe fn destack_security_set_write_xor_execute(
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_get(
     _binding: &BindingCallContext,
-    out: *mut NativeSlice<PlatformCapability>,
+    out: *mut NativeStringSlice,
     scope: NativeStringRef,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -248,7 +244,7 @@ pub(crate) unsafe fn destack_security_policy_get_rules(
 pub(crate) unsafe fn destack_security_policy_set(
     _binding: &BindingCallContext,
     scope: NativeStringRef,
-    capabilities: NativeSlice<PlatformCapability>,
+    capabilities: NativeStringSlice,
 ) -> RuntimeResult<()> {
     let _ = (scope, capabilities);
 

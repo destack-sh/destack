@@ -1,5 +1,5 @@
 #[path = "abi.generated.rs"]
-mod abi_generated;
+pub(crate) mod abi_generated;
 #[path = "bindings.generated.rs"]
 mod bindings_generated;
 
@@ -9,7 +9,4 @@ pub use abi_generated::*;
 pub use bindings_generated::*;
 
 pub mod native;
-pub(crate) mod runtime;
-#[cfg(test)]
-mod tests;
 pub mod vm;

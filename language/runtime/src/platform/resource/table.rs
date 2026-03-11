@@ -17,7 +17,7 @@ use super::{
     ResourceAffinity, ResourceBacking, ResourceCapture, ResourceHandle, ResourceId,
     ResourceImageEntry, ResourceKind, ResourcePortability, ResourceProvider, ResourceRebindContext,
 };
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::bindings::{BindingAffinity, BindingEngine};
 use crate::runtime::world::World;
 use crate::runtime::{ExecutionContext, Hooks};
@@ -535,7 +535,7 @@ impl ResourceTable {
             return Ok(());
         }
 
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "resource table restore requires one empty live table".to_string(),
         }
         .boxed())
@@ -550,7 +550,7 @@ impl ResourceTable {
     ) -> RuntimeResult<ResourceImageEntry> {
         let snapshot = match entry.capture {
             ResourceCapture::None => {
-                return Err(crate::diagnostic::RuntimeError::Internal {
+                return Err(RuntimeError::Internal {
                     message: format!(
                         "resource {} of kind {:?} does not support capture",
                         resource_id.0, entry.kind
@@ -564,7 +564,7 @@ impl ResourceTable {
                     .clone()
                     .or_else(|| self.providers.read().get(&entry.kind).cloned());
                 let Some(provider) = provider else {
-                    return Err(crate::diagnostic::RuntimeError::Internal {
+                    return Err(RuntimeError::Internal {
                         message: format!(
                             "resource {} of kind {:?} is missing one resource provider",
                             resource_id.0, entry.kind
@@ -574,7 +574,7 @@ impl ResourceTable {
                 };
 
                 Some(provider.snapshot(resource_id).map_err(|error| {
-                    crate::diagnostic::RuntimeError::Internal {
+                    RuntimeError::Internal {
                         message: format!(
                             "resource {} of kind {:?} failed to capture: {error}",
                             resource_id.0, entry.kind
@@ -626,7 +626,7 @@ impl ResourceTable {
                 ResourceCapture::None => ResourceEntry::new(image_entry.kind),
                 ResourceCapture::State | ResourceCapture::Recipe => {
                     let snapshot = image_entry.snapshot.as_ref().ok_or_else(|| {
-                        crate::diagnostic::RuntimeError::Internal {
+                        RuntimeError::Internal {
                             message: format!(
                                 "resource {} of kind {:?} is missing one captured payload",
                                 image_entry.resource_id.0, image_entry.kind
@@ -639,7 +639,7 @@ impl ResourceTable {
                         let rebinder = rebind_context
                             .and_then(|context| context.rebinder(image_entry.kind))
                             .ok_or_else(|| {
-                                crate::diagnostic::RuntimeError::Internal {
+                                RuntimeError::Internal {
                                     message: format!(
                                         "resource {} of kind {:?} requires one external rebinding hook",
                                         image_entry.resource_id.0, image_entry.kind
@@ -649,7 +649,7 @@ impl ResourceTable {
                             })?;
 
                         rebinder.rebind(snapshot).map_err(|error| {
-                            crate::diagnostic::RuntimeError::Internal {
+                            RuntimeError::Internal {
                                 message: format!(
                                     "resource {} of kind {:?} failed to rebind: {error}",
                                     image_entry.resource_id.0, image_entry.kind
@@ -664,7 +664,7 @@ impl ResourceTable {
                             .get(&image_entry.kind)
                             .cloned()
                             .ok_or_else(|| {
-                                crate::diagnostic::RuntimeError::Internal {
+                                RuntimeError::Internal {
                                     message: format!(
                                         "resource {} of kind {:?} is missing one restore provider",
                                         image_entry.resource_id.0, image_entry.kind
@@ -674,7 +674,7 @@ impl ResourceTable {
                             })?;
 
                         provider.restore(snapshot).map_err(|error| {
-                            crate::diagnostic::RuntimeError::Internal {
+                            RuntimeError::Internal {
                                 message: format!(
                                     "resource {} of kind {:?} failed to restore: {error}",
                                     image_entry.resource_id.0, image_entry.kind
@@ -701,7 +701,7 @@ impl ResourceTable {
 
 impl Capture for ResourceTable {
     type Image = ResourceTableSnapshot;
-    type Error = Box<crate::diagnostic::RuntimeError>;
+    type Error = Box<RuntimeError>;
     type CaptureContext<'a> = ();
     type RestoreContext<'a> = Option<&'a ResourceRebindContext>;
 

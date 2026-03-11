@@ -1,13 +1,9 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::debug::bindings_generated as bindings;
 use crate::platform::{NativeArray, PlatformError};
 use crate::runtime::NativeStringRef;
 
 use crate::runtime::BindingCallContext;
-use bindings::*;
 
 use crate::platform::debug::{InspectorEndpoint, ProfileKind, TraceLevel};
 use crate::platform::resource;

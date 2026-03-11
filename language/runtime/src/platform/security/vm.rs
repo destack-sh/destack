@@ -1,10 +1,9 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::security::{PlatformCapabilityVm, SecurityPolicyMode, SecurityPolicyRuleVm};
 use crate::platform::{PlatformError, VmSlice, resource};
 use crate::runtime::BindingCallContext;
-use destack_vm as vm;
+use destack_vm;
+
+use crate::platform::security::SecurityPolicyRuleVm;
 
 /// Check one capability.
 ///
@@ -25,8 +24,8 @@ use destack_vm as vm;
 /// Deterministic.
 pub(crate) fn destack_security_capability_has(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    capability: PlatformCapabilityVm,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    capability: destack_vm::StringHandle,
 ) -> RuntimeResult<bool> {
     let _ = capability;
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -54,8 +53,8 @@ pub(crate) fn destack_security_capability_has(
 /// Deterministic.
 pub(crate) fn destack_security_capability_list(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<VmSlice<PlatformCapabilityVm>> {
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+) -> RuntimeResult<VmSlice<destack_vm::StringHandle>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.security.capability.list is not available in the VM yet",
     ))
@@ -81,7 +80,7 @@ pub(crate) fn destack_security_capability_list(
 /// Deterministic.
 pub(crate) fn destack_security_sandbox_seal(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -110,9 +109,9 @@ pub(crate) fn destack_security_sandbox_seal(
 /// Deterministic.
 pub(crate) fn destack_security_sandbox_set_capabilities(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
-    capabilities: VmSlice<PlatformCapabilityVm>,
+    capabilities: VmSlice<destack_vm::StringHandle>,
 ) -> RuntimeResult<()> {
     let _ = (handle, capabilities);
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -140,7 +139,7 @@ pub(crate) fn destack_security_sandbox_set_capabilities(
 /// Deterministic.
 pub(crate) fn destack_security_set_write_xor_execute(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = enabled;
@@ -169,9 +168,9 @@ pub(crate) fn destack_security_set_write_xor_execute(
 /// Deterministic.
 pub(crate) fn destack_security_policy_get(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    scope: vm::StringHandle,
-) -> RuntimeResult<VmSlice<PlatformCapabilityVm>> {
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    scope: destack_vm::StringHandle,
+) -> RuntimeResult<VmSlice<destack_vm::StringHandle>> {
     let _ = scope;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.security.policy.get is not available in the VM yet",
@@ -198,8 +197,8 @@ pub(crate) fn destack_security_policy_get(
 /// Deterministic.
 pub(crate) fn destack_security_policy_get_rules(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    scope: vm::StringHandle,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    scope: destack_vm::StringHandle,
 ) -> RuntimeResult<VmSlice<SecurityPolicyRuleVm>> {
     let _ = scope;
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -227,9 +226,9 @@ pub(crate) fn destack_security_policy_get_rules(
 /// Deterministic.
 pub(crate) fn destack_security_policy_set(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    scope: vm::StringHandle,
-    capabilities: VmSlice<PlatformCapabilityVm>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    scope: destack_vm::StringHandle,
+    capabilities: VmSlice<destack_vm::StringHandle>,
 ) -> RuntimeResult<()> {
     let _ = (scope, capabilities);
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -257,8 +256,8 @@ pub(crate) fn destack_security_policy_set(
 /// Deterministic.
 pub(crate) fn destack_security_policy_set_rules(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    scope: vm::StringHandle,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    scope: destack_vm::StringHandle,
     rules: VmSlice<SecurityPolicyRuleVm>,
 ) -> RuntimeResult<()> {
     let _ = (scope, rules);
@@ -287,8 +286,8 @@ pub(crate) fn destack_security_policy_set_rules(
 /// External, recordable.
 pub(crate) fn destack_security_sandbox_enter(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    name: vm::StringHandle,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    name: destack_vm::StringHandle,
 ) -> RuntimeResult<resource::SandboxHandle> {
     let _ = name;
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -316,7 +315,7 @@ pub(crate) fn destack_security_sandbox_enter(
 /// External, recordable.
 pub(crate) fn destack_security_sandbox_exit(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;

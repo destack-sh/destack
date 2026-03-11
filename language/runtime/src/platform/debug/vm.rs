@@ -1,10 +1,8 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::debug::{InspectorEndpointVm, ProfileKind, TraceLevel};
 use crate::platform::{PlatformError, VmArray, resource};
 use crate::runtime::BindingCallContext;
-use destack_vm as vm;
+use destack_vm;
 
 /// Request a runtime debug break.
 ///
@@ -25,7 +23,7 @@ use destack_vm as vm;
 /// External, recordable.
 pub(crate) fn destack_debug_break_now(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.debug.core.breakNow is not available in the VM yet",
@@ -52,8 +50,8 @@ pub(crate) fn destack_debug_break_now(
 /// External, recordable.
 pub(crate) fn destack_debug_mark(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    label: vm::StringHandle,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    label: destack_vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = label;
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -81,7 +79,7 @@ pub(crate) fn destack_debug_mark(
 /// External, recordable.
 pub(crate) fn destack_debug_inspector_endpoint(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<InspectorEndpointVm> {
     let _ = handle;
@@ -110,8 +108,8 @@ pub(crate) fn destack_debug_inspector_endpoint(
 /// External, recordable.
 pub(crate) fn destack_debug_inspector_start(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    host: vm::StringHandle,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    host: destack_vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<resource::InspectorHandle> {
     let _ = (host, port);
@@ -140,7 +138,7 @@ pub(crate) fn destack_debug_inspector_start(
 /// External, recordable.
 pub(crate) fn destack_debug_inspector_stop(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InspectorHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -169,7 +167,7 @@ pub(crate) fn destack_debug_inspector_stop(
 /// External, recordable.
 pub(crate) fn destack_debug_profile_snapshot(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<VmArray<u8>> {
     let _ = handle;
@@ -198,7 +196,7 @@ pub(crate) fn destack_debug_profile_snapshot(
 /// External, recordable.
 pub(crate) fn destack_debug_profile_start(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     kind: ProfileKind,
 ) -> RuntimeResult<resource::ProfileHandle> {
     let _ = kind;
@@ -227,7 +225,7 @@ pub(crate) fn destack_debug_profile_start(
 /// External, recordable.
 pub(crate) fn destack_debug_profile_stop(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::ProfileHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -256,10 +254,10 @@ pub(crate) fn destack_debug_profile_stop(
 /// External, recordable.
 pub(crate) fn destack_debug_trace_emit(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    category: vm::StringHandle,
-    name: vm::StringHandle,
-    payloadjson: vm::StringHandle,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    category: destack_vm::StringHandle,
+    name: destack_vm::StringHandle,
+    payloadjson: destack_vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = (category, name, payloadjson);
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -287,9 +285,9 @@ pub(crate) fn destack_debug_trace_emit(
 /// External, recordable.
 pub(crate) fn destack_debug_trace_start(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     level: TraceLevel,
-    destination: vm::StringHandle,
+    destination: destack_vm::StringHandle,
 ) -> RuntimeResult<resource::TraceHandle> {
     let _ = (level, destination);
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -317,7 +315,7 @@ pub(crate) fn destack_debug_trace_start(
 /// External, recordable.
 pub(crate) fn destack_debug_trace_stop(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::TraceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;

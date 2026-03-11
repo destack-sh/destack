@@ -1,3 +1,7 @@
+use crate::diagnostic::RuntimeResult;
+use crate::platform::{NativeAbiCodec, VmAbiCodec};
+use crate::runtime::BindingCallContext;
+use destack_vm;
 use serde::{Deserialize, Serialize};
 
 /// Semantic topology facet for one builtin resource kind.
@@ -256,6 +260,36 @@ macro_rules! define_resource_kind {
                     | Self::SerialPort
                     | Self::UsbDevice => &[],
                 }
+            }
+        }
+
+        impl NativeAbiCodec for ResourceKind {
+            type Value = Self;
+
+            unsafe fn into_value(self) -> RuntimeResult<Self::Value> {
+                Ok(self)
+            }
+
+            fn from_value(_binding: &BindingCallContext, value: Self::Value) -> Self {
+                value
+            }
+        }
+
+        impl VmAbiCodec for ResourceKind {
+            type Value = Self;
+
+            fn into_value(
+                self,
+                _context: &destack_vm::ExternalCallContext<'_>,
+            ) -> RuntimeResult<Self::Value> {
+                Ok(self)
+            }
+
+            fn from_value(
+                _context: &mut destack_vm::ExternalCallContext<'_>,
+                value: Self::Value,
+            ) -> RuntimeResult<Self> {
+                Ok(value)
             }
         }
     };
