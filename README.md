@@ -34,8 +34,8 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
 - [**Destack Bridge**](bridge/README.md): Two-way bridges for the Destack universe.
 
-Destack is designed as a sort of meta framework for developing and maintaining your _own_ stack using [foundational building blocks](https://caseymuratori.com/blog_0016).
-Destack is more of a "software factory toolkit" than "ready-to-wear software"; we do provide some common apps with a common plugin system, but Destack is optimized for programmers building their own software processes in one correct, optimal, integrated system.
+Destack is designed as a meta framework for developing and maintaining custom software stacks using [foundational building blocks](https://caseymuratori.com/blog_0016).
+The structure of Destack is more of a "software factory toolkit" than it is "ready-to-wear software": we do provide some apps with a common plugin system - built on top of the shared library and reusable services - but the entire Destack is optimized for programmers building their _own_ software processes in one correct, optimal, integrated system.
 
 ---
 
