@@ -1,33 +1,46 @@
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
+use crate::platform::service::CachedServiceHandle;
 
 #[cfg(target_os = "macos")]
-use super::unix::AppKitRuntimeState;
+use super::unix::{AppKitDisplayService, AppKitRuntimeState};
 #[cfg(target_os = "linux")]
-use super::unix::{WaylandRuntimeState, X11RuntimeState};
+use super::unix::{WaylandDisplayService, WaylandRuntimeState, X11DisplayService, X11RuntimeState};
 #[cfg(windows)]
-use super::windows::Win32RuntimeState;
+use super::windows::{Win32DisplayService, Win32RuntimeState};
 
-/// Runtime-owned display module state.
+/// Agent-owned display module state.
 #[derive(Default)]
 pub(crate) struct PlatformDisplayState {
-    /// Runtime-owned windows display-event state.
+    /// Shared Win32 display service handle for this agent.
     #[cfg(windows)]
-    win32_runtime_state: OnceLock<Arc<Win32RuntimeState>>,
-    /// Runtime-owned linux x11 state.
+    win32_service: CachedServiceHandle<Win32DisplayService>,
+    /// Agent-owned Win32 display runtime state.
+    #[cfg(windows)]
+    win32_runtime_state: std::sync::OnceLock<Arc<Win32RuntimeState>>,
+    /// Agent-owned linux x11 runtime state.
     #[cfg(target_os = "linux")]
-    x11_runtime_state: OnceLock<Arc<X11RuntimeState>>,
-    /// Runtime-owned linux wayland state.
+    x11_runtime_state: std::sync::OnceLock<Arc<X11RuntimeState>>,
+    /// Shared linux x11 display service handle for this agent.
     #[cfg(target_os = "linux")]
-    wayland_runtime_state: OnceLock<Arc<WaylandRuntimeState>>,
-    /// Runtime-owned macOS appkit state.
+    x11_service: CachedServiceHandle<X11DisplayService>,
+    /// Agent-owned linux wayland runtime state.
+    #[cfg(target_os = "linux")]
+    wayland_runtime_state: std::sync::OnceLock<Arc<WaylandRuntimeState>>,
+    /// Shared linux wayland display service handle for this agent.
+    #[cfg(target_os = "linux")]
+    wayland_service: CachedServiceHandle<WaylandDisplayService>,
+    /// Shared AppKit display service handle for this agent.
     #[cfg(target_os = "macos")]
-    appkit_runtime_state: OnceLock<Arc<AppKitRuntimeState>>,
+    appkit_service: CachedServiceHandle<AppKitDisplayService>,
+    /// Agent-owned AppKit runtime state.
+    #[cfg(target_os = "macos")]
+    appkit_runtime_state: std::sync::OnceLock<Arc<AppKitRuntimeState>>,
 }
 
 impl std::fmt::Debug for PlatformDisplayState {
@@ -39,7 +52,14 @@ impl std::fmt::Debug for PlatformDisplayState {
 }
 
 impl PlatformDisplayState {
-    /// Return whether any runtime-owned display state is active.
+    /// Return one shared Win32 display service handle for this agent.
+    #[cfg(windows)]
+    pub(crate) fn win32_service(&self) -> Arc<Win32DisplayService> {
+        self.win32_service
+            .get_or_init(super::windows::win32_display_service)
+    }
+
+    /// Return whether any agent-owned display runtime state is active.
     fn has_runtime_state(&self) -> bool {
         #[cfg(windows)]
         if self.win32_runtime_state.get().is_some() {
@@ -73,7 +93,7 @@ impl PlatformDisplayState {
         .boxed())
     }
 
-    /// Return runtime-owned Win32 display state.
+    /// Return agent-owned Win32 display runtime state.
     #[cfg(windows)]
     pub(crate) fn win32_runtime_state(
         &self,
@@ -85,7 +105,7 @@ impl PlatformDisplayState {
         )
     }
 
-    /// Return runtime-owned linux x11 display state.
+    /// Return agent-owned linux x11 display runtime state.
     #[cfg(target_os = "linux")]
     pub(crate) fn x11_runtime_state(
         &self,
@@ -97,7 +117,14 @@ impl PlatformDisplayState {
         )
     }
 
-    /// Return runtime-owned linux wayland display state.
+    /// Return one shared x11 display service handle for this agent.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn x11_service(&self) -> Arc<X11DisplayService> {
+        self.x11_service
+            .get_or_init(super::unix::x11_display_service)
+    }
+
+    /// Return agent-owned linux wayland display runtime state.
     #[cfg(target_os = "linux")]
     pub(crate) fn wayland_runtime_state(
         &self,
@@ -109,7 +136,21 @@ impl PlatformDisplayState {
         )
     }
 
-    /// Return runtime-owned macOS appkit display state.
+    /// Return one shared wayland display service handle for this agent.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn wayland_service(&self) -> Arc<WaylandDisplayService> {
+        self.wayland_service
+            .get_or_init(super::unix::wayland_display_service)
+    }
+
+    /// Return one shared AppKit display service handle for this agent.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn appkit_service(&self) -> Arc<AppKitDisplayService> {
+        self.appkit_service
+            .get_or_init(super::unix::appkit_display_service)
+    }
+
+    /// Return agent-owned AppKit display runtime state.
     #[cfg(target_os = "macos")]
     pub(crate) fn appkit_runtime_state(
         &self,

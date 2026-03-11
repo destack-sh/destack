@@ -1,0 +1,20 @@
+/// One caller-thread executor for one host-affine platform service.
+#[allow(dead_code)]
+pub(crate) struct CallerThreadExecutor;
+
+#[allow(dead_code)]
+impl CallerThreadExecutor {
+    /// Create one caller-thread executor.
+    pub(crate) fn new(_name: &str) -> Self {
+        Self
+    }
+
+    /// Execute one callback directly on the caller thread.
+    pub(crate) fn call<R>(
+        &self,
+        _operation: &'static str,
+        callback: impl FnOnce() -> crate::diagnostic::RuntimeResult<R>,
+    ) -> crate::diagnostic::RuntimeResult<R> {
+        callback()
+    }
+}

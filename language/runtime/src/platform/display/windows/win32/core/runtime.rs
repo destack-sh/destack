@@ -17,7 +17,7 @@ use crate::platform::display::windows::win32::model::{MonitorSnapshot, Win32Wind
 use crate::platform::display::windows::win32::{core, publish_monitor_topology_deltas};
 use crate::platform::resource;
 use crate::runtime::{
-    BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
+    BindingCallContext, RuntimeEventLog, RuntimeId, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
 
 /// Runtime-owned mutable state for the Win32 display backend.
@@ -49,6 +49,8 @@ pub(crate) struct Win32RuntimeState {
     pub(crate) window_streams: RuntimeStreamRegistry<WindowEventStream>,
     /// Registered host-owned ingress observer for this runtime.
     runtime_ingress_observer: OnceLock<Arc<Win32RuntimeIngressObserver>>,
+    /// One-time Win32 service registration guard for this runtime.
+    service_registration: OnceLock<()>,
 }
 
 impl Default for Win32RuntimeState {
@@ -75,6 +77,7 @@ impl Win32RuntimeState {
             window_event_signal: Condvar::new(),
             window_streams: RuntimeStreamRegistry::default(),
             runtime_ingress_observer: OnceLock::new(),
+            service_registration: OnceLock::new(),
         }
     }
 
@@ -267,19 +270,6 @@ impl RuntimeIngressObserver for Win32RuntimeIngressObserver {
     }
 }
 
-/// Return runtime-owned Win32 display state.
-pub(crate) fn runtime_state(context: &BindingCallContext) -> Arc<Win32RuntimeState> {
-    let diagnostics = Arc::clone(&context.agent().diagnostics);
-    let runtime_state = context
-        .agent()
-        .platform_state
-        .display
-        .win32_runtime_state(|| Win32RuntimeState::new(diagnostics));
-
-    runtime_state.register_runtime_ingress(context);
-    runtime_state
-}
-
 impl Win32RuntimeState {
     /// Publish monitor-topology deltas for this runtime.
     pub(crate) fn publish_monitor_topology_deltas(self: &Arc<Self>) -> RuntimeResult<()> {
@@ -287,9 +277,7 @@ impl Win32RuntimeState {
     }
 
     /// Register one host-owned ingress observer for this runtime.
-    fn register_runtime_ingress(self: &Arc<Self>, context: &BindingCallContext) {
-        let runtime_id = context.agent().runtime_id;
-
+    pub(crate) fn register_runtime_ingress(self: &Arc<Self>, runtime_id: RuntimeId) {
         let observer = self
             .runtime_ingress_observer
             .get_or_init(|| {
@@ -304,4 +292,27 @@ impl Win32RuntimeState {
             .write()
             .register(runtime_id.0, &observer);
     }
+
+    /// Register this runtime with the Win32 display service once.
+    pub(crate) fn ensure_service_registration(self: &Arc<Self>, context: &BindingCallContext) {
+        // register once so repeated binding calls do not keep re-entering the windows loop
+        self.service_registration.get_or_init(|| {
+            let service = context.agent().platform_state.display.win32_service();
+            service.register_runtime(context, self);
+        });
+    }
+}
+
+/// Return runtime-owned Win32 display state.
+pub(crate) fn runtime_state(context: &BindingCallContext) -> Arc<Win32RuntimeState> {
+    let diagnostics = Arc::clone(&context.agent().diagnostics);
+    let runtime_state = context
+        .agent()
+        .platform_state
+        .display
+        .win32_runtime_state(|| Win32RuntimeState::new(diagnostics));
+
+    // keep the host message loop registration service-backed
+    runtime_state.ensure_service_registration(context);
+    runtime_state
 }

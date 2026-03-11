@@ -50,6 +50,8 @@ pub mod resource;
 pub mod runtime;
 /// Security bindings.
 pub mod security;
+/// Shared host-affine platform service substrate.
+pub(crate) mod service;
 /// Runtime-owned platform module state.
 pub(crate) mod state;
 /// Thread bindings.
