@@ -56,7 +56,8 @@ pub(crate) fn lower_type(
             )),
         },
 
-        mir::Type::Type
+        mir::Type::TypeDescriptor
+        | mir::Type::TypeId
         | mir::Type::Reference { .. }
         | mir::Type::FunctionPointer { .. }
         | mir::Type::TensorReference { .. } => {
@@ -86,6 +87,11 @@ pub(crate) fn lower_type(
 
         mir::Type::Struct { .. } => Err(CodegenCraneliftError::unsupported_type(
             "struct types must be lowered to memory operations",
+            type_id.into_any(),
+        )),
+
+        mir::Type::FunctionValue { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "function values must be lowered to aggregate operations",
             type_id.into_any(),
         )),
 

@@ -125,7 +125,7 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         target: &mut cir::Function,
     ) -> CodegenCraneliftResult<()> {
-        // scan all blocks for Call instructions and TailCall terminators
+        // scan all blocks for direct callee references
         for &block_id in &self.function.blocks {
             let block = self.tree.get(block_id);
 
@@ -146,11 +146,15 @@ impl<'a> FunctionLowerer<'a> {
                 }
             }
 
-            // check terminator for TailCall
-            if let mir::Terminator::TailCall { function, .. } = &block.terminator
-                && !self.function_ref_map.contains_key(function)
-            {
-                self.declare_function_ref(*function, target)?;
+            // check terminator for direct callees
+            match &block.terminator {
+                mir::Terminator::Call { function, .. }
+                | mir::Terminator::TailCall { function, .. }
+                    if !self.function_ref_map.contains_key(function) =>
+                {
+                    self.declare_function_ref(*function, target)?;
+                }
+                _ => {}
             }
         }
 
@@ -518,15 +522,18 @@ impl<'a> FunctionLowerer<'a> {
                         fields,
                         copyability: _,
                     } => {
-                        let field_id = fields.get(*index as usize).ok_or_else(|| {
+                        fields.get(*index as usize).ok_or_else(|| {
                             CodegenCraneliftError::out_of_bounds(
                                 instruction_id.into_any(),
                                 *index,
                                 fields.len(),
                             )
                         })?;
-                        let field = self.tree.get(*field_id);
-                        (field.offset, field.ty)
+                        self.struct_field_offset_and_type(
+                            aggregate_type_id,
+                            *index,
+                            instruction_id.into_any(),
+                        )?
                     }
                     mir::Type::Tuple {
                         elements,
@@ -577,9 +584,9 @@ impl<'a> FunctionLowerer<'a> {
                 let aggregate_type_id =
                     self.value_type_or_error(*aggregate, instruction_id.into_any())?;
                 let aggregate_type = self.tree.get(aggregate_type_id);
-                let aggregate_layout = match aggregate_type {
-                    mir::Type::Reference { pointee, .. } => self.tree.get(*pointee),
-                    _ => aggregate_type,
+                let (aggregate_layout_type_id, aggregate_layout) = match aggregate_type {
+                    mir::Type::Reference { pointee, .. } => (*pointee, self.tree.get(*pointee)),
+                    _ => (aggregate_type_id, aggregate_type),
                 };
 
                 // field offset and type
@@ -588,15 +595,19 @@ impl<'a> FunctionLowerer<'a> {
                         fields,
                         copyability: _,
                     } => {
-                        let field_id = fields.get(*index as usize).ok_or_else(|| {
+                        fields.get(*index as usize).ok_or_else(|| {
                             CodegenCraneliftError::out_of_bounds(
                                 instruction_id.into_any(),
                                 *index,
                                 fields.len(),
                             )
                         })?;
-                        let field = self.tree.get(*field_id);
-                        field.offset
+                        let (field_offset, _field_type) = self.struct_field_offset_and_type(
+                            aggregate_layout_type_id,
+                            *index,
+                            instruction_id.into_any(),
+                        )?;
+                        field_offset
                     }
                     mir::Type::Tuple {
                         elements,
@@ -635,22 +646,30 @@ impl<'a> FunctionLowerer<'a> {
                 let aggregate_type_id =
                     self.value_type_or_error(*aggregate, instruction_id.into_any())?;
                 let aggregate_type = self.tree.get(aggregate_type_id);
+                let (aggregate_layout_type_id, aggregate_layout) = match aggregate_type {
+                    mir::Type::Reference { pointee, .. } => (*pointee, self.tree.get(*pointee)),
+                    _ => (aggregate_type_id, aggregate_type),
+                };
 
                 // field
-                let field_offset = match aggregate_type {
+                let field_offset = match aggregate_layout {
                     mir::Type::Struct {
                         fields,
                         copyability: _,
                     } => {
-                        let field_id = fields.get(*index as usize).ok_or_else(|| {
+                        fields.get(*index as usize).ok_or_else(|| {
                             CodegenCraneliftError::out_of_bounds(
                                 instruction_id.into_any(),
                                 *index,
                                 fields.len(),
                             )
                         })?;
-                        let field = self.tree.get(*field_id);
-                        field.offset
+                        let (field_offset, _field_type) = self.struct_field_offset_and_type(
+                            aggregate_layout_type_id,
+                            *index,
+                            instruction_id.into_any(),
+                        )?;
+                        field_offset
                     }
                     mir::Type::Tuple {
                         elements,
@@ -1081,6 +1100,14 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::TensorCompare { .. } => return unsupported("tensor.compare"),
             mir::Instruction::TensorSelect { .. } => return unsupported("tensor.select"),
             mir::Instruction::TensorConvert { .. } => return unsupported("tensor.convert"),
+            mir::Instruction::AtomicLoad { .. } => return unsupported("atomic.load"),
+            mir::Instruction::AtomicStore { .. } => return unsupported("atomic.store"),
+            mir::Instruction::AtomicCompareExchange { .. } => return unsupported("atomic.cas"),
+            mir::Instruction::AtomicRmw { operator, .. } => {
+                return unsupported(&format!("atomic.rmw.{}", operator.to_str()));
+            }
+            mir::Instruction::AtomicFence { .. } => return unsupported("atomic.fence"),
+            mir::Instruction::Barrier { .. } => return unsupported("barrier"),
 
             // intrinsic: depends on the specific intrinsic
             mir::Instruction::Intrinsic { intrinsic, .. } => {
@@ -1209,6 +1236,36 @@ impl<'a> FunctionLowerer<'a> {
                 // #Incomplete: implement cranelift coroutine support (lower in MIR?)
                 builder.ins().trap(trap::UNREACHABLE);
             }
+
+            // exception edge calls: explicit unwind CFG is not lowered yet
+            mir::Terminator::Call { .. }
+            | mir::Terminator::CallIndirect { .. }
+            | mir::Terminator::CallVirtual { .. }
+            | mir::Terminator::CallInterface { .. } => {
+                return Err(CodegenCraneliftError::Internal {
+                    message: "exceptional call terminators are not supported in native codegen yet"
+                        .into(),
+                });
+            }
+
+            // throw: native exception lowering is not implemented yet
+            mir::Terminator::Throw { .. } => {
+                return Err(CodegenCraneliftError::Internal {
+                    message: "throw is not supported in native codegen yet".into(),
+                });
+            }
+
+            // abort trap lowers to a backend trap, panic still needs runtime support
+            mir::Terminator::Trap { kind, .. } => match kind {
+                mir::TrapKind::Abort => {
+                    builder.ins().trap(trap::UNREACHABLE);
+                }
+                mir::TrapKind::Panic => {
+                    return Err(CodegenCraneliftError::Internal {
+                        message: "trap panic is not supported in native codegen yet".into(),
+                    });
+                }
+            },
 
             // tail call: return_call (direct tail call)
             mir::Terminator::TailCall {
@@ -1526,6 +1583,44 @@ impl<'a> FunctionLowerer<'a> {
                 message: Some(format!("missing value type for {value:?}")),
             }),
         }
+    }
+
+    /// Resolve a struct field offset and type from canonical layout metadata.
+    fn struct_field_offset_and_type(
+        &self,
+        struct_type: mir::LocalNodeId<mir::Type>,
+        index: u32,
+        node: mir::LocalNodeIdAny,
+    ) -> CodegenCraneliftResult<(u32, mir::LocalNodeId<mir::Type>)> {
+        let mir::Type::Struct { fields, .. } = self.tree.get(struct_type) else {
+            return Err(CodegenCraneliftError::Internal {
+                message: "struct field lookup on non-struct type".into(),
+            });
+        };
+
+        let field_id = fields
+            .get(index as usize)
+            .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, fields.len()))?;
+        let field_type = self.tree.get(*field_id).ty;
+
+        let layout = self
+            .tree
+            .type_table
+            .type_layout(struct_type)
+            .ok_or_else(|| {
+                CodegenCraneliftError::unsupported_type("missing struct layout metadata", node)
+            })?;
+        let layout_field = layout.fields.get(index as usize).ok_or_else(|| {
+            CodegenCraneliftError::out_of_bounds(node, index, layout.fields.len())
+        })?;
+
+        if layout_field.ty != field_type {
+            return Err(CodegenCraneliftError::Internal {
+                message: "struct layout field type mismatch".into(),
+            });
+        }
+
+        Ok((layout_field.offset, field_type))
     }
 
     /// Lower a binary operation to Cranelift IR.
