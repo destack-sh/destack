@@ -6,7 +6,9 @@ mod monitor;
 mod resource;
 mod window;
 
-pub(crate) use core::{X11RuntimeState, backend_descriptor_state};
+pub(crate) use core::{
+    X11DisplayService, X11RuntimeState, backend_descriptor_state, x11_display_service,
+};
 pub(crate) use event::*;
 pub(crate) use monitor::*;
 pub(crate) use resource::{

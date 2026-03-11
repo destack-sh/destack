@@ -6,7 +6,9 @@ mod monitor;
 mod resource;
 mod window;
 
-pub(crate) use core::{WaylandRuntimeState, backend_descriptor_state};
+pub(crate) use core::{
+    WaylandDisplayService, WaylandRuntimeState, backend_descriptor_state, wayland_display_service,
+};
 pub(crate) use event::*;
 pub(crate) use monitor::*;
 pub(crate) use resource::{

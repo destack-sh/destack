@@ -65,6 +65,8 @@ pub(crate) struct WaylandRuntimeState {
     next_window_host_id: AtomicU64,
     /// Registered host-owned ingress observer for this runtime.
     runtime_ingress_observer: OnceLock<Arc<WaylandRuntimeIngressObserver>>,
+    /// One-time service registration guard for this runtime.
+    service_registration: OnceLock<()>,
 }
 
 impl std::fmt::Debug for WaylandRuntimeState {
@@ -93,6 +95,7 @@ impl WaylandRuntimeState {
             gamma_ramps_by_display_id: Mutex::new(HashMap::new()),
             next_window_host_id: AtomicU64::new(1),
             runtime_ingress_observer: OnceLock::new(),
+            service_registration: OnceLock::new(),
         }
     }
 
@@ -266,6 +269,15 @@ impl WaylandRuntimeState {
             .write()
             .register(runtime_id.0, &observer);
     }
+
+    /// Register this runtime with the wayland display service once.
+    fn ensure_service_registration(self: &Arc<Self>, context: &BindingCallContext) {
+        // register once so repeated binding calls do not keep re-entering the ingress setup path
+        self.service_registration.get_or_init(|| {
+            let service = context.agent().platform_state.display.wayland_service();
+            service.register_runtime(context, self);
+        });
+    }
 }
 
 /// Host-owned ingress observer for one wayland runtime.
@@ -299,6 +311,6 @@ pub(crate) fn runtime_state(context: &BindingCallContext) -> Arc<WaylandRuntimeS
         .display
         .wayland_runtime_state(|| WaylandRuntimeState::from_context(context));
 
-    runtime_state.register_runtime_ingress(context);
+    runtime_state.ensure_service_registration(context);
     runtime_state
 }

@@ -40,6 +40,8 @@ pub(crate) struct X11RuntimeState {
     pub(crate) monitor_topology_snapshot: RuntimeSnapshotCache<Vec<MonitorSnapshot>>,
     /// Registered host-owned ingress observer for this runtime.
     pub(crate) runtime_ingress_observer: OnceLock<Arc<X11RuntimeIngressObserver>>,
+    /// One-time service registration guard for this runtime.
+    service_registration: OnceLock<()>,
 }
 
 /// Runtime dispatch entry for one live X11 window id.
@@ -93,6 +95,7 @@ impl X11RuntimeState {
             windows_by_xid: Mutex::new(HashMap::new()),
             monitor_topology_snapshot: RuntimeSnapshotCache::default(),
             runtime_ingress_observer: OnceLock::new(),
+            service_registration: OnceLock::new(),
         }
     }
 
@@ -253,6 +256,15 @@ impl X11RuntimeState {
             .write()
             .register(runtime_id.0, &observer);
     }
+
+    /// Register this runtime with the x11 display service once.
+    pub(crate) fn ensure_service_registration(self: &Arc<Self>, context: &BindingCallContext) {
+        // register once so repeated binding calls do not keep re-entering the ingress setup path
+        self.service_registration.get_or_init(|| {
+            let service = context.agent().platform_state.display.x11_service();
+            service.register_runtime(context, self);
+        });
+    }
 }
 
 /// Return runtime-owned X11 state for this binding call.
@@ -263,6 +275,6 @@ pub(crate) fn runtime_state(binding: &BindingCallContext) -> Arc<X11RuntimeState
         .display
         .x11_runtime_state(|| X11RuntimeState::from_context(binding));
 
-    runtime_state.register_runtime_ingress(binding);
+    runtime_state.ensure_service_registration(binding);
     runtime_state
 }

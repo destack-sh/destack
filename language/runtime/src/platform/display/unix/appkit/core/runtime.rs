@@ -2,19 +2,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 
-use dispatch2::{MainThreadBound, run_on_main};
-use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSImage, NSWindow};
-use objc2_core_graphics::{
-    CGDirectDisplayID, CGDisplayChangeSummaryFlags, CGDisplayReconfigurationCallBack,
-    CGDisplayRegisterReconfigurationCallback, CGError,
-};
-
 use super::delegate::AppKitWindowDelegate;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
 use crate::host::core::observer::{RuntimeIngressObserver, RuntimeIngressObserverRegistry};
 use crate::platform::display::unix::appkit::event::{
-    self as appkit_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord,
-    WindowEventStream,
+    DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
 use crate::platform::display::unix::appkit::model::{AppKitWindowHostState, MonitorSnapshot};
 use crate::platform::display::unix::appkit::window;
@@ -22,9 +14,10 @@ use crate::platform::display::{WindowPosition, WindowTheme};
 use crate::platform::{ResourceTable, core as core_platform, resource};
 use crate::runtime::world::World;
 use crate::runtime::{
-    AgentId, BindingCallContext, ProcessSubscriberRegistry, RuntimeEventLog, RuntimeSnapshotCache,
-    RuntimeStreamRegistry,
+    BindingCallContext, RuntimeEventLog, RuntimeId, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
+use dispatch2::{MainThreadBound, run_on_main};
+use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSImage, NSWindow};
 
 /// Transient drag and drop state for one native AppKit window.
 #[derive(Debug, Default)]
@@ -139,15 +132,9 @@ pub(crate) struct AppKitRuntimeState {
     pub(crate) cursor_hidden: Mutex<bool>,
     /// Registered host-owned observer for post-pump AppKit reconciliation.
     runtime_ingress_observer: OnceLock<Arc<AppKitIngressObserver>>,
+    /// One-time AppKit service registration guard for this runtime.
+    service_registration: OnceLock<()>,
 }
-
-/// Shared runtime registry for process-global CoreGraphics display callbacks.
-static APPKIT_MONITOR_CALLBACK_RUNTIMES: OnceLock<
-    Mutex<ProcessSubscriberRegistry<AgentId, AppKitRuntimeState>>,
-> = OnceLock::new();
-
-/// Guard that ensures the CoreGraphics display callback is registered once.
-static APPKIT_MONITOR_CALLBACK_REGISTRATION: OnceLock<()> = OnceLock::new();
 
 impl std::fmt::Debug for AppKitRuntimeState {
     /// Format this runtime state for diagnostics.
@@ -189,6 +176,7 @@ impl AppKitRuntimeState {
             monitor_topology_snapshot: RuntimeSnapshotCache::default(),
             cursor_hidden: Mutex::new(false),
             runtime_ingress_observer: OnceLock::new(),
+            service_registration: OnceLock::new(),
         }
     }
 
@@ -278,9 +266,7 @@ impl AppKitRuntimeState {
     }
 
     /// Register one host-owned ingress observer for this runtime.
-    fn register_runtime_ingress(self: &Arc<Self>, context: &BindingCallContext) {
-        let runtime_id = context.agent().runtime_id;
-
+    pub(crate) fn register_runtime_ingress(self: &Arc<Self>, runtime_id: RuntimeId) {
         let observer = self
             .runtime_ingress_observer
             .get_or_init(|| {
@@ -295,69 +281,14 @@ impl AppKitRuntimeState {
             .write()
             .register(runtime_id.0, &observer);
     }
-}
 
-/// Return the shared runtime registry for process-global monitor callbacks.
-fn monitor_callback_runtimes()
--> &'static Mutex<ProcessSubscriberRegistry<AgentId, AppKitRuntimeState>> {
-    APPKIT_MONITOR_CALLBACK_RUNTIMES
-        .get_or_init(|| Mutex::new(ProcessSubscriberRegistry::default()))
-}
-
-/// Register the process-global CoreGraphics display callback once.
-fn ensure_monitor_callback_registered() {
-    APPKIT_MONITOR_CALLBACK_REGISTRATION.get_or_init(|| {
-        let callback: CGDisplayReconfigurationCallBack = Some(handle_display_reconfiguration);
-        let status =
-            unsafe { CGDisplayRegisterReconfigurationCallback(callback, std::ptr::null_mut()) };
-
-        // surface callback registration failures through tracing so the backend does not fail silently
-        if status != CGError(0) {
-            tracing::warn!(
-                target: "destack.runtime.display.appkit",
-                "CGDisplayRegisterReconfigurationCallback failed with status {:?}",
-                status
-            );
-        }
-    });
-}
-
-/// Register one runtime for process-global monitor reconfiguration callbacks.
-fn register_monitor_runtime(agent_id: AgentId, runtime_state: &Arc<AppKitRuntimeState>) {
-    let mut registry = monitor_callback_runtimes()
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-
-    // refresh the keyed process-global runtime subscription
-    registry.register(agent_id, runtime_state);
-
-    ensure_monitor_callback_registered();
-}
-
-/// Handle one process-global display reconfiguration callback from CoreGraphics.
-unsafe extern "C-unwind" fn handle_display_reconfiguration(
-    _display: CGDirectDisplayID,
-    flags: CGDisplayChangeSummaryFlags,
-    _user_info: *mut std::ffi::c_void,
-) {
-    // ignore the begin-configuration marker because no stable topology exists yet
-    if flags.contains(CGDisplayChangeSummaryFlags::BeginConfigurationFlag) {
-        return;
-    }
-
-    let mut registry = monitor_callback_runtimes()
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-
-    // broadcast one topology refresh to every live runtime subscriber
-    for runtime_state in registry.snapshot() {
-        if let Err(error) = appkit_event::publish_monitor_topology_deltas(&runtime_state) {
-            super::core::warn_callback_error(
-                runtime_state.as_ref(),
-                "destack.display.monitor.reconfigurationCallback",
-                error.as_ref(),
-            );
-        }
+    /// Register this runtime with the AppKit display service once.
+    pub(crate) fn ensure_service_registration(self: &Arc<Self>, binding: &BindingCallContext) {
+        // register once so repeated binding calls do not keep re-entering the main thread
+        self.service_registration.get_or_init(|| {
+            let service = binding.agent().platform_state.display.appkit_service();
+            service.register_runtime(binding, self);
+        });
     }
 }
 
@@ -369,11 +300,8 @@ pub(crate) fn runtime_state(binding: &BindingCallContext) -> Arc<AppKitRuntimeSt
         .display
         .appkit_runtime_state(|| AppKitRuntimeState::from_context(binding));
 
-    {
-        let agent_id = binding.agent().id;
-        register_monitor_runtime(agent_id, &runtime_state);
-    }
-    runtime_state.register_runtime_ingress(binding);
+    // keep process-global AppKit callbacks and ingress service-backed
+    runtime_state.ensure_service_registration(binding);
 
     runtime_state
 }
