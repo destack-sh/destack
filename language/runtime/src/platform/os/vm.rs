@@ -1,370 +1,23 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::core::call_out;
-use crate::platform::os::*;
+use crate::platform::os::{
+    BackgroundEventOpenOptionsVm, BackgroundEventVm, BackgroundStatus, BackgroundTaskDescriptorVm,
+    BackgroundTaskOptionsVm, BackgroundTaskResult, CalendarDescriptorVm, CalendarEventDraftVm,
+    CalendarEventQueryVm, CalendarEventVm, ClipboardBinaryFormat, ContactDraftVm, ContactPageVm,
+    ContactQueryVm, ContactVm, CredentialAuthenticationOptionsVm, CredentialAuthenticationResultVm,
+    CredentialQueryVm, CredentialRecordVm, CredentialWriteOptionsVm, DocumentAccess,
+    DocumentDescriptorVm, DocumentPickOptionsVm, HostIdentityVm, IntentEventVm,
+    IntentOpenOptionsVm, LifecycleEventVm, LifecycleState, LoadAverageVm, LocationSampleVm,
+    LocationWatchOptionsVm, MediaAssetDescriptorVm, MediaAssetKind, MediaPageVm, MediaQueryVm,
+    MountEntryVm, NetworkEventVm, NetworkStateVm, NotificationCategoryVm,
+    NotificationEventOpenOptionsVm, NotificationEventVm, NotificationPermissionState,
+    NotificationRequestVm, NotificationScheduledDescriptorVm, Permission, PermissionEntryVm,
+    PermissionState, PowerState, SystemSnapshotVm,
+};
 use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
-use super::credentials::{
-    CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialWriteOptionsOwned,
-    authenticate_credentials, contains_credentials, delete_credentials, normalize_optional_string,
-    read_credentials, write_credentials,
-};
-use super::{host_impl as host_os_host, info as host_os_info, power as host_os_power};
-
-/// Clear clipboard payload.
-///
-/// Clear current host clipboard ownership or payload contents.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard clear and owner-reset APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_clipboard_clear(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.clipboard.clear is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Query whether text clipboard payload exists.
-///
-/// Return whether one text payload is currently available on the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard query APIs and selection ownership checks.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_clipboard_has_text(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<bool> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.clipboard.hasText is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Query whether host can route one URL target.
-///
-/// Ask host routing policy whether one URL target can be opened.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses `canOpenURL` or `resolveActivity` style APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_intent_can_open_url(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    url: vm::StringHandle,
-) -> RuntimeResult<bool> {
-    let _ = url;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.intent.canOpenUrl is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Read whether host location services are enabled.
-///
-/// Read global host location-service availability before per-runtime authorization checks.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host location service-status APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.location.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_location_services_enabled(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<bool> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.location.servicesEnabled is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Read one host calendar event.
-///
-/// Read one host calendar event payload by stable identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host calendar read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.read`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_calendar_event_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    id: vm::StringHandle,
-) -> RuntimeResult<CalendarEventVm> {
-    let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.calendar.eventRead is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// List notification categories.
-///
-/// Enumerate registered host notification categories for this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification category query APIs where available.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_notification_category_list(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<VmArray<NotificationCategoryVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.categoryList is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Register notification categories.
-///
-/// Register host notification categories and actions for this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification category registration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_notification_category_set(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    categories: VmArray<NotificationCategoryVm>,
-) -> RuntimeResult<()> {
-    let _ = categories;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.categorySet is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Cancel pending scheduled notification.
-///
-/// Cancel one pending scheduled host notification by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host scheduled-notification cancellation APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_notification_pending_cancel(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    id: vm::StringHandle,
-) -> RuntimeResult<()> {
-    let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.pendingCancel is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Cancel all pending scheduled notifications.
-///
-/// Cancel all pending scheduled notifications owned by this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host scheduled-notification cancellation APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_notification_pending_cancel_all(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.pendingCancelAll is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// List pending scheduled notifications.
-///
-/// Enumerate pending notification requests owned by this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host pending-notification query APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_notification_pending_list(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<VmArray<NotificationScheduledDescriptorVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.pendingList is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Schedule host notification.
-///
-/// Schedule one host notification request for deferred delivery according to trigger policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification scheduling APIs on each platform.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_notification_schedule(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    request: NotificationRequestVm,
-) -> RuntimeResult<vm::StringHandle> {
-    let _ = request;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.schedule is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Request multiple permissions.
-///
-/// Request host authorization for one selector list and return resulting states.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses batched host permission request APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.permission.request`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_permission_request_many(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    permissions: VmArray<Permission>,
-) -> RuntimeResult<VmArray<PermissionEntryVm>> {
-    let _ = permissions;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.permission.requestMany is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Read permission states.
-///
-/// Read current host permission states for one selector list.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host permission-state APIs and policy bridges.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.permission.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_permission_state_many(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    permissions: VmArray<Permission>,
-) -> RuntimeResult<VmArray<PermissionEntryVm>> {
-    let _ = permissions;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.permission.stateMany is not available in the VM yet",
-    ))
-    .boxed())
-}
+use super::{credentials, host_impl, info, power};
 
 /// Report completion for one scheduled background-task execution.
 ///
@@ -728,6 +381,34 @@ pub(crate) fn destack_os_calendar_event_list(
     .boxed())
 }
 
+/// Read one host calendar event.
+///
+/// Read one host calendar event payload by stable identifier.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host calendar read APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.calendar.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_calendar_event_read(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    id: vm::StringHandle,
+) -> RuntimeResult<CalendarEventVm> {
+    let _ = id;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.calendar.eventRead is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Update one calendar event.
 ///
 /// Update one existing host calendar event by identifier.
@@ -779,6 +460,58 @@ pub(crate) fn destack_os_calendar_list(
 ) -> RuntimeResult<VmArray<CalendarDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.calendar.list is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Clear clipboard payload.
+///
+/// Clear current host clipboard ownership or payload contents.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host clipboard clear and owner-reset APIs.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.clipboard.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_clipboard_clear(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.clipboard.clear is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Query whether text clipboard payload exists.
+///
+/// Return whether one text payload is currently available on the host clipboard.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host clipboard query APIs and selection ownership checks.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.clipboard.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_os_clipboard_has_text(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<bool> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.clipboard.hasText is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1115,16 +848,7 @@ pub(crate) fn destack_os_credentials_authenticate(
     context: &mut vm::ExternalCallContext<'_>,
     options: CredentialAuthenticationOptionsVm,
 ) -> RuntimeResult<CredentialAuthenticationResultVm> {
-    // decode vm authentication options into owned values
-    let options = CredentialAuthenticationOptionsOwned {
-        title: vm_string_to_owned(context, options.title, "options.title")?,
-        subtitle: vm_string_to_owned(context, options.subtitle, "options.subtitle")?,
-        message: vm_string_to_owned(context, options.message, "options.message")?,
-        requirement: options.requirement,
-    };
-
-    // execute one authentication challenge
-    authenticate_credentials(binding, &options)
+    credentials::destack_os_credentials_authenticate_vm(binding, context, options)
 }
 
 /// Query credential presence.
@@ -1150,18 +874,9 @@ pub(crate) fn destack_os_credentials_contains(
     context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
-    access_group: Option<vm::StringHandle>,
+    accessgroup: Option<vm::StringHandle>,
 ) -> RuntimeResult<bool> {
-    // decode vm service, account, and optional access-group values
-    let service = vm_string_to_owned(context, service, "service")?;
-    let account = vm_string_to_owned(context, account, "account")?;
-    let access_group = access_group
-        .map(|value| vm_string_to_owned(context, value, "accessGroup"))
-        .transpose()?;
-    let access_group = normalize_optional_string(access_group);
-
-    // execute one contains query
-    contains_credentials(binding, &service, &account, access_group.as_deref())
+    credentials::destack_os_credentials_contains_vm(binding, context, service, account, accessgroup)
 }
 
 /// Delete one credential record.
@@ -1187,18 +902,9 @@ pub(crate) fn destack_os_credentials_delete(
     context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
-    access_group: Option<vm::StringHandle>,
+    accessgroup: Option<vm::StringHandle>,
 ) -> RuntimeResult<()> {
-    // decode vm service, account, and optional access-group values
-    let service = vm_string_to_owned(context, service, "service")?;
-    let account = vm_string_to_owned(context, account, "account")?;
-    let access_group = access_group
-        .map(|value| vm_string_to_owned(context, value, "accessGroup"))
-        .transpose()?;
-    let access_group = normalize_optional_string(access_group);
-
-    // execute one delete operation
-    delete_credentials(binding, &service, &account, access_group.as_deref())
+    credentials::destack_os_credentials_delete_vm(binding, context, service, account, accessgroup)
 }
 
 /// Read one credential record.
@@ -1222,34 +928,7 @@ pub(crate) fn destack_os_credentials_read(
     context: &mut vm::ExternalCallContext<'_>,
     query: CredentialQueryVm,
 ) -> RuntimeResult<CredentialRecordVm> {
-    // decode vm query payload into owned values
-    let query = CredentialQueryOwned {
-        service: vm_string_to_owned(context, query.service, "query.service")?,
-        account: vm_string_to_owned(context, query.account, "query.account")?,
-        access_group: normalize_optional_string(
-            query
-                .access_group
-                .map(|value| vm_string_to_owned(context, value, "query.accessGroup"))
-                .transpose()?,
-        ),
-        require_authentication: query.require_authentication,
-    };
-
-    // execute one read operation
-    let record = read_credentials(binding, &query)?;
-
-    // encode one vm record payload
-    let service = vm::StringHandle::new(context.intern_string(&record.service));
-    let account = vm::StringHandle::new(context.intern_string(&record.account));
-    let bytes = VmSlice::from_bytes(context, &record.bytes);
-
-    Ok(CredentialRecordVm {
-        service,
-        account,
-        bytes,
-        created_unix_ns: record.created_unix_ns,
-        modified_unix_ns: record.modified_unix_ns,
-    })
+    credentials::destack_os_credentials_read_vm(binding, context, query)
 }
 
 /// Write one credential record.
@@ -1274,79 +953,7 @@ pub(crate) fn destack_os_credentials_write(
     context: &mut vm::ExternalCallContext<'_>,
     options: CredentialWriteOptionsVm,
 ) -> RuntimeResult<()> {
-    // decode vm write payload into owned values
-    let options = CredentialWriteOptionsOwned {
-        service: vm_string_to_owned(context, options.service, "options.service")?,
-        account: vm_string_to_owned(context, options.account, "options.account")?,
-        access_group: normalize_optional_string(
-            options
-                .access_group
-                .map(|value| vm_string_to_owned(context, value, "options.accessGroup"))
-                .transpose()?,
-        ),
-        bytes: vm_bytes_to_owned(context, options.bytes, "options.bytes")?,
-        accessibility: options.accessibility,
-        authentication: options.authentication,
-        replace_existing: options.replace_existing,
-    };
-
-    // execute one write operation
-    write_credentials(binding, &options)
-}
-
-/// Decode one vm string handle into owned text.
-fn vm_string_to_owned(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
-    field: &str,
-) -> RuntimeResult<String> {
-    // resolve one vm string ref from the call context
-    let value = context.string_ref(value).map_err(|error| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            field,
-            format!("invalid vm string handle: {error}"),
-        ))
-        .boxed()
-    })?;
-
-    Ok(value.as_str().to_string())
-}
-
-/// Decode one vm byte slice into owned bytes.
-fn vm_bytes_to_owned(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: VmSlice<u8>,
-    field: &str,
-) -> RuntimeResult<Vec<u8>> {
-    // copy one vm byte slice into owned memory
-    let bytes = value.read_bytes(context).map_err(|error| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            field,
-            format!("invalid vm byte slice: {error}"),
-        ))
-        .boxed()
-    })?;
-
-    Ok(bytes.to_vec())
-}
-
-/// Decode one native string reference into one vm string handle.
-fn native_string_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeStringRef,
-    field: &str,
-) -> RuntimeResult<vm::StringHandle> {
-    // decode one native string and validate utf-8 payload
-    let value = unsafe { value.as_str() }.map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            field,
-            "native host string payload was not valid utf-8",
-        ))
-        .boxed()
-    })?;
-
-    // intern one vm string handle for the decoded payload
-    Ok(vm::StringHandle::new(context.intern_string(value)))
+    credentials::destack_os_credentials_write_vm(binding, context, options)
 }
 
 /// Close one opened document handle.
@@ -1572,23 +1179,7 @@ pub(crate) fn destack_os_host_identity(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<HostIdentityVm> {
-    // forward to host-native implementation
-    let identity = call_out(|out| unsafe { host_os_host::destack_os_host_identity(binding, out) })?;
-
-    // decode native host identity strings into vm handles
-    let hostname = native_string_to_vm(context, identity.hostname, "identity.hostname")?;
-    let kernel = native_string_to_vm(context, identity.kernel, "identity.kernel")?;
-    let release = native_string_to_vm(context, identity.release, "identity.release")?;
-    let architecture =
-        native_string_to_vm(context, identity.architecture, "identity.architecture")?;
-
-    // return one vm host-identity payload
-    Ok(HostIdentityVm {
-        hostname,
-        kernel,
-        release,
-        architecture,
-    })
+    host_impl::destack_os_host_identity_vm(binding, context)
 }
 
 /// Read host boot time.
@@ -1612,7 +1203,7 @@ pub(crate) fn destack_os_boot_time_unix_ns(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    call_out(|out| unsafe { host_os_info::destack_os_boot_time_unix_ns(binding, out) })
+    info::read_boot_time_unix_ns(binding)
 }
 
 /// Read host load averages.
@@ -1636,7 +1227,7 @@ pub(crate) fn destack_os_load_average(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<LoadAverageVm> {
-    call_out(|out| unsafe { host_os_info::destack_os_load_average(binding, out) })
+    info::read_load_average(binding)
 }
 
 /// Read host system information.
@@ -1660,7 +1251,7 @@ pub(crate) fn destack_os_system_snapshot(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<SystemSnapshotVm> {
-    call_out(|out| unsafe { host_os_info::destack_os_system_snapshot(binding, out) })
+    info::read_system_snapshot(binding)
 }
 
 /// Read host uptime.
@@ -1684,7 +1275,35 @@ pub(crate) fn destack_os_uptime_ns(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    call_out(|out| unsafe { host_os_info::destack_os_uptime_ns(binding, out) })
+    info::read_uptime_ns(binding)
+}
+
+/// Query whether host can route one URL target.
+///
+/// Ask host routing policy whether one URL target can be opened.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses `canOpenURL` or `resolveActivity` style APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.intent.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_os_intent_can_open_url(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    url: vm::StringHandle,
+) -> RuntimeResult<bool> {
+    let _ = url;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.intent.canOpenUrl is not available in the VM yet",
+    ))
+    .boxed())
 }
 
 /// Close one host intent stream.
@@ -2073,6 +1692,32 @@ pub(crate) fn destack_os_location_last_known(
 ) -> RuntimeResult<LocationSampleVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.location.lastKnown is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read whether host location services are enabled.
+///
+/// Read global host location-service availability before per-runtime authorization checks.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host location service-status APIs.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.location.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_os_location_services_enabled(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<bool> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.location.servicesEnabled is not available in the VM yet",
     ))
     .boxed())
 }
@@ -2584,6 +2229,60 @@ pub(crate) fn destack_os_notification_cancel_all(
     .boxed())
 }
 
+/// List notification categories.
+///
+/// Enumerate registered host notification categories for this runtime context.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host notification category query APIs where available.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.notification.post`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_os_notification_category_list(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<VmArray<NotificationCategoryVm>> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.notification.categoryList is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Register notification categories.
+///
+/// Register host notification categories and actions for this runtime context.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host notification category registration APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.notification.post`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_notification_category_set(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    categories: VmArray<NotificationCategoryVm>,
+) -> RuntimeResult<()> {
+    let _ = categories;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.notification.categorySet is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Close one notification event stream.
 ///
 /// Close one opened event stream and release host callback routing resources.
@@ -2697,6 +2396,86 @@ pub(crate) fn destack_os_notification_event_try_read(
     .boxed())
 }
 
+/// Cancel pending scheduled notification.
+///
+/// Cancel one pending scheduled host notification by identifier.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host scheduled-notification cancellation APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `os.notification.post`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_notification_pending_cancel(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    id: vm::StringHandle,
+) -> RuntimeResult<()> {
+    let _ = id;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.notification.pendingCancel is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Cancel all pending scheduled notifications.
+///
+/// Cancel all pending scheduled notifications owned by this runtime context.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host scheduled-notification cancellation APIs.
+///
+/// # Errors
+/// Returns ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `os.notification.post`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_notification_pending_cancel_all(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.notification.pendingCancelAll is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// List pending scheduled notifications.
+///
+/// Enumerate pending notification requests owned by this runtime context.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host pending-notification query APIs.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.notification.post`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_os_notification_pending_list(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<VmArray<NotificationScheduledDescriptorVm>> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.notification.pendingList is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Read host notification permission state.
 ///
 /// Return current host notification permission state for this runtime context.
@@ -2777,6 +2556,34 @@ pub(crate) fn destack_os_notification_request_permission(
     .boxed())
 }
 
+/// Schedule host notification.
+///
+/// Schedule one host notification request for deferred delivery according to trigger policy.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host notification scheduling APIs on each platform.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.notification.post`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_notification_schedule(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    request: NotificationRequestVm,
+) -> RuntimeResult<vm::StringHandle> {
+    let _ = request;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.notification.schedule is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Open host settings for runtime permissions.
 ///
 /// Request host navigation to the runtime permission settings page.
@@ -2831,6 +2638,34 @@ pub(crate) fn destack_os_permission_request(
     .boxed())
 }
 
+/// Request multiple permissions.
+///
+/// Request host authorization for one selector list and return resulting states.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses batched host permission request APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.permission.request`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) fn destack_os_permission_request_many(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    permissions: VmArray<Permission>,
+) -> RuntimeResult<VmArray<PermissionEntryVm>> {
+    let _ = permissions;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.permission.requestMany is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Read one permission state.
 ///
 /// Read the current host permission state for one permission selector.
@@ -2859,6 +2694,34 @@ pub(crate) fn destack_os_permission_state(
     .boxed())
 }
 
+/// Read permission states.
+///
+/// Read current host permission states for one selector list.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host permission-state APIs and policy bridges.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.permission.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_os_permission_state_many(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    permissions: VmArray<Permission>,
+) -> RuntimeResult<VmArray<PermissionEntryVm>> {
+    let _ = permissions;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.permission.stateMany is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Read current host power state.
 ///
 /// Return one normalized host power-state classification.
@@ -2880,7 +2743,7 @@ pub(crate) fn destack_os_power_state(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<PowerState> {
-    call_out(|out| unsafe { host_os_power::destack_os_power_state(binding, out) })
+    power::read_power_state(binding)
 }
 
 /// Request host suspend.

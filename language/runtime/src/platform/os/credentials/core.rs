@@ -1,13 +1,16 @@
+use destack_vm as vm;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{
-    CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
-    CredentialAuthenticationResult,
+    CredentialAccessibility, CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
+    CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
+    CredentialAuthenticationResult, CredentialQuery, CredentialQueryVm, CredentialRecord,
+    CredentialRecordVm, CredentialWriteOptions, CredentialWriteOptionsVm,
 };
-use crate::platform::{PlatformError, core as core_platform};
+use crate::platform::{PlatformError, VmSlice, core as core_platform};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 use super::backend;
@@ -121,6 +124,370 @@ pub(crate) fn normalize_optional_string(value: Option<String>) -> Option<String>
     }
 
     Some(value)
+}
+
+/// Decode one VM string argument into owned text.
+pub(crate) fn decode_vm_string(
+    context: &vm::ExternalCallContext<'_>,
+    argument: vm::StringHandle,
+    field: &str,
+) -> RuntimeResult<String> {
+    let value = context.string_ref(argument).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            "string argument was invalid",
+        ))
+        .boxed()
+    })?;
+
+    Ok(value.as_str().to_string())
+}
+
+/// Decode one VM byte slice argument into owned bytes.
+pub(crate) fn decode_vm_bytes(
+    context: &vm::ExternalCallContext<'_>,
+    bytes: VmSlice<u8>,
+    field: &str,
+) -> RuntimeResult<Vec<u8>> {
+    let bytes = bytes.read_bytes(context).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            "slice argument was invalid",
+        ))
+        .boxed()
+    })?;
+
+    Ok(bytes.to_vec())
+}
+
+/// Decode one native credential query into owned data.
+pub(crate) fn decode_native_query(query: CredentialQuery) -> RuntimeResult<CredentialQueryOwned> {
+    let service = decode_native_string(query.service, "query.service")?;
+    let account = decode_native_string(query.account, "query.account")?;
+    let access_group = match query.access_group {
+        Some(access_group) => Some(decode_native_string(access_group, "query.accessGroup")?),
+        None => None,
+    };
+
+    Ok(CredentialQueryOwned {
+        service,
+        account,
+        access_group: normalize_optional_string(access_group),
+        require_authentication: query.require_authentication,
+    })
+}
+
+/// Decode one VM credential query into owned data.
+pub(crate) fn decode_vm_query(
+    context: &vm::ExternalCallContext<'_>,
+    query: CredentialQueryVm,
+) -> RuntimeResult<CredentialQueryOwned> {
+    let service = decode_vm_string(context, query.service, "query.service")?;
+    let account = decode_vm_string(context, query.account, "query.account")?;
+    let access_group = match query.access_group {
+        Some(access_group) => Some(decode_vm_string(
+            context,
+            access_group,
+            "query.accessGroup",
+        )?),
+        None => None,
+    };
+
+    Ok(CredentialQueryOwned {
+        service,
+        account,
+        access_group: normalize_optional_string(access_group),
+        require_authentication: query.require_authentication,
+    })
+}
+
+/// Decode one native credential write request into owned data.
+pub(crate) fn decode_native_write_options(
+    options: CredentialWriteOptions,
+) -> RuntimeResult<CredentialWriteOptionsOwned> {
+    let service = decode_native_string(options.service, "options.service")?;
+    let account = decode_native_string(options.account, "options.account")?;
+    let access_group = match options.access_group {
+        Some(access_group) => Some(decode_native_string(access_group, "options.accessGroup")?),
+        None => None,
+    };
+    let bytes = decode_native_bytes(options.bytes, "options.bytes")?;
+
+    Ok(CredentialWriteOptionsOwned {
+        service,
+        account,
+        access_group: normalize_optional_string(access_group),
+        bytes,
+        accessibility: options.accessibility,
+        authentication: options.authentication,
+        replace_existing: options.replace_existing,
+    })
+}
+
+/// Decode one VM credential write request into owned data.
+pub(crate) fn decode_vm_write_options(
+    context: &vm::ExternalCallContext<'_>,
+    options: CredentialWriteOptionsVm,
+) -> RuntimeResult<CredentialWriteOptionsOwned> {
+    let service = decode_vm_string(context, options.service, "options.service")?;
+    let account = decode_vm_string(context, options.account, "options.account")?;
+    let access_group = match options.access_group {
+        Some(access_group) => Some(decode_vm_string(
+            context,
+            access_group,
+            "options.accessGroup",
+        )?),
+        None => None,
+    };
+    let bytes = decode_vm_bytes(context, options.bytes, "options.bytes")?;
+
+    Ok(CredentialWriteOptionsOwned {
+        service,
+        account,
+        access_group: normalize_optional_string(access_group),
+        bytes,
+        accessibility: options.accessibility,
+        authentication: options.authentication,
+        replace_existing: options.replace_existing,
+    })
+}
+
+/// Decode one native authentication request into owned data.
+pub(crate) fn decode_native_authentication_options(
+    options: CredentialAuthenticationOptions,
+) -> RuntimeResult<CredentialAuthenticationOptionsOwned> {
+    let title = decode_native_string(options.title, "options.title")?;
+    let subtitle = decode_native_string(options.subtitle, "options.subtitle")?;
+    let message = decode_native_string(options.message, "options.message")?;
+
+    Ok(CredentialAuthenticationOptionsOwned {
+        title,
+        subtitle,
+        message,
+        requirement: options.requirement,
+    })
+}
+
+/// Decode one VM authentication request into owned data.
+pub(crate) fn decode_vm_authentication_options(
+    context: &vm::ExternalCallContext<'_>,
+    options: CredentialAuthenticationOptionsVm,
+) -> RuntimeResult<CredentialAuthenticationOptionsOwned> {
+    let title = decode_vm_string(context, options.title, "options.title")?;
+    let subtitle = decode_vm_string(context, options.subtitle, "options.subtitle")?;
+    let message = decode_vm_string(context, options.message, "options.message")?;
+
+    Ok(CredentialAuthenticationOptionsOwned {
+        title,
+        subtitle,
+        message,
+        requirement: options.requirement,
+    })
+}
+
+/// Store one native credential record in call-local backing storage.
+pub(crate) fn store_native_record(
+    binding: &BindingCallContext,
+    record: &CredentialRecordOwned,
+) -> CredentialRecord {
+    CredentialRecord {
+        service: binding.store_string(&record.service),
+        account: binding.store_string(&record.account),
+        bytes: binding.store_slice(record.bytes.clone()),
+        created_unix_ns: record.created_unix_ns,
+        modified_unix_ns: record.modified_unix_ns,
+    }
+}
+
+/// Store one VM credential record in the external call context.
+pub(crate) fn store_vm_record(
+    context: &mut vm::ExternalCallContext<'_>,
+    record: &CredentialRecordOwned,
+) -> CredentialRecordVm {
+    CredentialRecordVm {
+        service: vm::StringHandle::new(context.intern_string(&record.service)),
+        account: vm::StringHandle::new(context.intern_string(&record.account)),
+        bytes: VmSlice::from_bytes(context, &record.bytes),
+        created_unix_ns: record.created_unix_ns,
+        modified_unix_ns: record.modified_unix_ns,
+    }
+}
+
+/// Authenticate one credential request through the native ABI surface.
+pub(crate) unsafe fn destack_os_credentials_authenticate_native(
+    binding: &BindingCallContext,
+    out: *mut CredentialAuthenticationResult,
+    options: CredentialAuthenticationOptions,
+) -> RuntimeResult<()> {
+    // validate the output pointer before decoding arguments
+    core_platform::ensure_out(out, "out")?;
+
+    // decode and run one authentication request
+    let options = decode_native_authentication_options(options)?;
+    let result = authenticate_credentials(binding, &options)?;
+
+    // write the normalized result
+    unsafe {
+        out.write(result);
+    }
+
+    Ok(())
+}
+
+/// Authenticate one credential request through the VM ABI surface.
+pub(crate) fn destack_os_credentials_authenticate_vm(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    options: CredentialAuthenticationOptionsVm,
+) -> RuntimeResult<CredentialAuthenticationResult> {
+    // decode and run one authentication request
+    let options = decode_vm_authentication_options(context, options)?;
+
+    authenticate_credentials(binding, &options)
+}
+
+/// Query credential presence through the native ABI surface.
+pub(crate) unsafe fn destack_os_credentials_contains_native(
+    binding: &BindingCallContext,
+    out: *mut bool,
+    service: NativeStringRef,
+    account: NativeStringRef,
+    access_group: Option<NativeStringRef>,
+) -> RuntimeResult<()> {
+    // validate the output pointer before decoding arguments
+    core_platform::ensure_out(out, "out")?;
+
+    // decode the credential identity fields
+    let service = decode_native_string(service, "service")?;
+    let account = decode_native_string(account, "account")?;
+    let access_group = match access_group {
+        Some(access_group) => Some(decode_native_string(access_group, "accessgroup")?),
+        None => None,
+    };
+    let access_group = normalize_optional_string(access_group);
+
+    // query and write one presence result
+    let is_present = contains_credentials(binding, &service, &account, access_group.as_deref())?;
+    unsafe {
+        out.write(is_present);
+    }
+
+    Ok(())
+}
+
+/// Query credential presence through the VM ABI surface.
+pub(crate) fn destack_os_credentials_contains_vm(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    service: vm::StringHandle,
+    account: vm::StringHandle,
+    access_group: Option<vm::StringHandle>,
+) -> RuntimeResult<bool> {
+    // decode the credential identity fields
+    let service = decode_vm_string(context, service, "service")?;
+    let account = decode_vm_string(context, account, "account")?;
+    let access_group = match access_group {
+        Some(access_group) => Some(decode_vm_string(context, access_group, "accessgroup")?),
+        None => None,
+    };
+    let access_group = normalize_optional_string(access_group);
+
+    contains_credentials(binding, &service, &account, access_group.as_deref())
+}
+
+/// Delete one credential record through the native ABI surface.
+pub(crate) unsafe fn destack_os_credentials_delete_native(
+    binding: &BindingCallContext,
+    service: NativeStringRef,
+    account: NativeStringRef,
+    access_group: Option<NativeStringRef>,
+) -> RuntimeResult<()> {
+    // decode the credential identity fields
+    let service = decode_native_string(service, "service")?;
+    let account = decode_native_string(account, "account")?;
+    let access_group = match access_group {
+        Some(access_group) => Some(decode_native_string(access_group, "accessgroup")?),
+        None => None,
+    };
+    let access_group = normalize_optional_string(access_group);
+
+    delete_credentials(binding, &service, &account, access_group.as_deref())
+}
+
+/// Delete one credential record through the VM ABI surface.
+pub(crate) fn destack_os_credentials_delete_vm(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    service: vm::StringHandle,
+    account: vm::StringHandle,
+    access_group: Option<vm::StringHandle>,
+) -> RuntimeResult<()> {
+    // decode the credential identity fields
+    let service = decode_vm_string(context, service, "service")?;
+    let account = decode_vm_string(context, account, "account")?;
+    let access_group = match access_group {
+        Some(access_group) => Some(decode_vm_string(context, access_group, "accessgroup")?),
+        None => None,
+    };
+    let access_group = normalize_optional_string(access_group);
+
+    delete_credentials(binding, &service, &account, access_group.as_deref())
+}
+
+/// Read one credential record through the native ABI surface.
+pub(crate) unsafe fn destack_os_credentials_read_native(
+    binding: &BindingCallContext,
+    out: *mut CredentialRecord,
+    query: CredentialQuery,
+) -> RuntimeResult<()> {
+    // validate the output pointer before decoding arguments
+    core_platform::ensure_out(out, "out")?;
+
+    // decode, read, and encode the record
+    let query = decode_native_query(query)?;
+    let record = read_credentials(binding, &query)?;
+    let record = store_native_record(binding, &record);
+    unsafe {
+        out.write(record);
+    }
+
+    Ok(())
+}
+
+/// Read one credential record through the VM ABI surface.
+pub(crate) fn destack_os_credentials_read_vm(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    query: CredentialQueryVm,
+) -> RuntimeResult<CredentialRecordVm> {
+    // decode, read, and encode the record
+    let query = decode_vm_query(context, query)?;
+    let record = read_credentials(binding, &query)?;
+
+    Ok(store_vm_record(context, &record))
+}
+
+/// Write one credential record through the native ABI surface.
+pub(crate) unsafe fn destack_os_credentials_write_native(
+    binding: &BindingCallContext,
+    options: CredentialWriteOptions,
+) -> RuntimeResult<()> {
+    // decode and persist the credential payload
+    let options = decode_native_write_options(options)?;
+
+    write_credentials(binding, &options)
+}
+
+/// Write one credential record through the VM ABI surface.
+pub(crate) fn destack_os_credentials_write_vm(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    options: CredentialWriteOptionsVm,
+) -> RuntimeResult<()> {
+    // decode and persist the credential payload
+    let options = decode_vm_write_options(context, options)?;
+
+    write_credentials(binding, &options)
 }
 
 /// Read one credential record from the active host backend.

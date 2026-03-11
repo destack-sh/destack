@@ -143,6 +143,11 @@ pub(crate) unsafe fn destack_os_system_snapshot(
     Ok(())
 }
 
+/// Read host system information through the VM ABI surface.
+pub(crate) fn read_system_snapshot(binding: &BindingCallContext) -> RuntimeResult<SystemSnapshot> {
+    backend::read_system_snapshot(binding)
+}
+
 /// Read host uptime.
 ///
 /// Return host uptime in nanoseconds from system boot.
@@ -174,6 +179,11 @@ pub(crate) unsafe fn destack_os_uptime_ns(
     }
 
     Ok(())
+}
+
+/// Read host uptime through the VM ABI surface.
+pub(crate) fn read_uptime_ns(binding: &BindingCallContext) -> RuntimeResult<u64> {
+    backend::read_uptime_ns(binding)
 }
 
 /// Read host boot time.
@@ -209,6 +219,11 @@ pub(crate) unsafe fn destack_os_boot_time_unix_ns(
     Ok(())
 }
 
+/// Read host boot time through the VM ABI surface.
+pub(crate) fn read_boot_time_unix_ns(binding: &BindingCallContext) -> RuntimeResult<u64> {
+    backend::read_boot_time_unix_ns(binding)
+}
+
 /// Read host load averages.
 ///
 /// Return host load averages over one, five, and fifteen minute windows.
@@ -240,4 +255,9 @@ pub(crate) unsafe fn destack_os_load_average(
     }
 
     Ok(())
+}
+
+/// Read host load averages through the VM ABI surface.
+pub(crate) fn read_load_average(binding: &BindingCallContext) -> RuntimeResult<LoadAverage> {
+    backend::read_load_average(binding)
 }

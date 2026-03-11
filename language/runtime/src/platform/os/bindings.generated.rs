@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -5374,7 +5375,7 @@ struct OsPowerStateReplayRecord {
 }
 
 /// Binding descriptor for destack.os.background.complete.
-pub const OS_BACKGROUND_COMPLETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_COMPLETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.background.complete",
     "export function backgroundComplete(executionId: string, result: BackgroundTaskResult): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5388,7 +5389,7 @@ pub const OS_BACKGROUND_COMPLETE: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.close.
-pub const OS_BACKGROUND_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.background.event.close",
     "export function backgroundEventClose(handle: BackgroundEventHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5402,7 +5403,7 @@ pub const OS_BACKGROUND_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.open.
-pub const OS_BACKGROUND_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.background.event.open",
     "export function backgroundEventOpen(options: BackgroundEventOpenOptions): Result<BackgroundEventHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5416,7 +5417,7 @@ pub const OS_BACKGROUND_EVENT_OPEN: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.read.
-pub const OS_BACKGROUND_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.background.event.read",
     "export function backgroundEventRead(handle: BackgroundEventHandle, timeoutNs: uint64): Result<BackgroundEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5430,7 +5431,7 @@ pub const OS_BACKGROUND_EVENT_READ: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.tryRead.
-pub const OS_BACKGROUND_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.background.event.tryRead",
     "export function backgroundEventTryRead(handle: BackgroundEventHandle): Result<BackgroundEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5444,7 +5445,7 @@ pub const OS_BACKGROUND_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.list.
-pub const OS_BACKGROUND_LIST: BindingDescriptor =
+pub(crate) const OS_BACKGROUND_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.background.list",
         "export function backgroundList(): Result<BackgroundTaskDescriptor[], PlatformError>",
@@ -5472,7 +5473,7 @@ pub const OS_BACKGROUND_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.background.register.
-pub const OS_BACKGROUND_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.background.register",
     "export function backgroundRegister(options: BackgroundTaskOptions): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5486,7 +5487,7 @@ pub const OS_BACKGROUND_REGISTER: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.background.status.
-pub const OS_BACKGROUND_STATUS: BindingDescriptor =
+pub(crate) const OS_BACKGROUND_STATUS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.background.status",
         "export function backgroundStatus(): Result<BackgroundStatus, PlatformError>",
@@ -5514,7 +5515,7 @@ pub const OS_BACKGROUND_STATUS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.background.triggerTest.
-pub const OS_BACKGROUND_TRIGGER_TEST: BindingDescriptor =
+pub(crate) const OS_BACKGROUND_TRIGGER_TEST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.background.triggerTest",
         "export function backgroundTriggerTest(identifier: string): Result<boolean, PlatformError>",
@@ -5542,7 +5543,7 @@ pub const OS_BACKGROUND_TRIGGER_TEST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.background.unregister.
-pub const OS_BACKGROUND_UNREGISTER: BindingDescriptor =
+pub(crate) const OS_BACKGROUND_UNREGISTER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.background.unregister",
         "export function backgroundUnregister(identifier: string): Result<void, PlatformError>",
@@ -5570,7 +5571,7 @@ pub const OS_BACKGROUND_UNREGISTER: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.calendar.eventCreate.
-pub const OS_CALENDAR_EVENT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CALENDAR_EVENT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.calendar.eventCreate",
     "export function calendarEventCreate(event: CalendarEventDraft): Result<string, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5584,7 +5585,7 @@ pub const OS_CALENDAR_EVENT_CREATE: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventDelete.
-pub const OS_CALENDAR_EVENT_DELETE: BindingDescriptor =
+pub(crate) const OS_CALENDAR_EVENT_DELETE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.calendar.eventDelete",
         "export function calendarEventDelete(id: string): Result<void, PlatformError>",
@@ -5612,7 +5613,7 @@ pub const OS_CALENDAR_EVENT_DELETE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.calendar.eventList.
-pub const OS_CALENDAR_EVENT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CALENDAR_EVENT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.calendar.eventList",
     "export function calendarEventList(query: CalendarEventQuery): Result<CalendarEvent[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5626,7 +5627,7 @@ pub const OS_CALENDAR_EVENT_LIST: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventRead.
-pub const OS_CALENDAR_EVENT_READ: BindingDescriptor =
+pub(crate) const OS_CALENDAR_EVENT_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.calendar.eventRead",
         "export function calendarEventRead(id: string): Result<CalendarEvent, PlatformError>",
@@ -5654,7 +5655,7 @@ pub const OS_CALENDAR_EVENT_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.calendar.eventUpdate.
-pub const OS_CALENDAR_EVENT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CALENDAR_EVENT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.calendar.eventUpdate",
     "export function calendarEventUpdate(id: string, event: CalendarEventDraft): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5668,7 +5669,7 @@ pub const OS_CALENDAR_EVENT_UPDATE: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.list.
-pub const OS_CALENDAR_LIST: BindingDescriptor =
+pub(crate) const OS_CALENDAR_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.calendar.list",
         "export function calendarList(): Result<CalendarDescriptor[], PlatformError>",
@@ -5696,7 +5697,7 @@ pub const OS_CALENDAR_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.clipboard.clear.
-pub const OS_CLIPBOARD_CLEAR: BindingDescriptor =
+pub(crate) const OS_CLIPBOARD_CLEAR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.clipboard.clear",
         "export function clipboardClear(): Result<void, PlatformError>",
@@ -5724,7 +5725,7 @@ pub const OS_CLIPBOARD_CLEAR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.clipboard.hasText.
-pub const OS_CLIPBOARD_HAS_TEXT: BindingDescriptor =
+pub(crate) const OS_CLIPBOARD_HAS_TEXT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.clipboard.hasText",
         "export function clipboardHasText(): Result<boolean, PlatformError>",
@@ -5752,7 +5753,7 @@ pub const OS_CLIPBOARD_HAS_TEXT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.clipboard.readBytes.
-pub const OS_CLIPBOARD_READ_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CLIPBOARD_READ_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.clipboard.readBytes",
     "export function clipboardReadBytes(format: ClipboardBinaryFormat): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5766,7 +5767,7 @@ pub const OS_CLIPBOARD_READ_BYTES: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.clipboard.readText.
-pub const OS_CLIPBOARD_READ_TEXT: BindingDescriptor =
+pub(crate) const OS_CLIPBOARD_READ_TEXT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.clipboard.readText",
         "export function clipboardReadText(): Result<string, PlatformError>",
@@ -5794,7 +5795,7 @@ pub const OS_CLIPBOARD_READ_TEXT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.clipboard.sequence.
-pub const OS_CLIPBOARD_SEQUENCE: BindingDescriptor =
+pub(crate) const OS_CLIPBOARD_SEQUENCE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.clipboard.sequence",
         "export function clipboardSequence(): Result<uint64, PlatformError>",
@@ -5822,7 +5823,7 @@ pub const OS_CLIPBOARD_SEQUENCE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.clipboard.writeBytes.
-pub const OS_CLIPBOARD_WRITE_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CLIPBOARD_WRITE_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.clipboard.writeBytes",
     "export function clipboardWriteBytes(format: ClipboardBinaryFormat, bytes: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5836,7 +5837,7 @@ pub const OS_CLIPBOARD_WRITE_BYTES: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.clipboard.writeText.
-pub const OS_CLIPBOARD_WRITE_TEXT: BindingDescriptor =
+pub(crate) const OS_CLIPBOARD_WRITE_TEXT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.clipboard.writeText",
         "export function clipboardWriteText(text: string): Result<void, PlatformError>",
@@ -5864,7 +5865,7 @@ pub const OS_CLIPBOARD_WRITE_TEXT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.contact.create.
-pub const OS_CONTACT_CREATE: BindingDescriptor =
+pub(crate) const OS_CONTACT_CREATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.contact.create",
         "export function contactCreate(contact: ContactDraft): Result<string, PlatformError>",
@@ -5892,7 +5893,7 @@ pub const OS_CONTACT_CREATE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.contact.delete.
-pub const OS_CONTACT_DELETE: BindingDescriptor =
+pub(crate) const OS_CONTACT_DELETE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.contact.delete",
         "export function contactDelete(id: string): Result<void, PlatformError>",
@@ -5920,7 +5921,7 @@ pub const OS_CONTACT_DELETE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.contact.list.
-pub const OS_CONTACT_LIST: BindingDescriptor =
+pub(crate) const OS_CONTACT_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.contact.list",
         "export function contactList(query: ContactQuery): Result<ContactPage, PlatformError>",
@@ -5948,7 +5949,7 @@ pub const OS_CONTACT_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.contact.read.
-pub const OS_CONTACT_READ: BindingDescriptor =
+pub(crate) const OS_CONTACT_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.contact.read",
         "export function contactRead(id: string): Result<Contact, PlatformError>",
@@ -5976,7 +5977,7 @@ pub const OS_CONTACT_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.contact.search.
-pub const OS_CONTACT_SEARCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CONTACT_SEARCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.contact.search",
     "export function contactSearch(queryText: string, query: ContactQuery): Result<ContactPage, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5990,7 +5991,7 @@ pub const OS_CONTACT_SEARCH: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.contact.update.
-pub const OS_CONTACT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CONTACT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.contact.update",
     "export function contactUpdate(id: string, contact: ContactDraft): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6004,7 +6005,7 @@ pub const OS_CONTACT_UPDATE: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.authenticate.
-pub const OS_CREDENTIALS_AUTHENTICATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CREDENTIALS_AUTHENTICATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.credentials.authenticate",
     "export function credentialsAuthenticate(options: CredentialAuthenticationOptions): Result<CredentialAuthenticationResult, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6018,7 +6019,7 @@ pub const OS_CREDENTIALS_AUTHENTICATE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.contains.
-pub const OS_CREDENTIALS_CONTAINS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CREDENTIALS_CONTAINS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.credentials.contains",
     "export function credentialsContains(service: string, account: string, accessGroup: string): Result<boolean, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6032,7 +6033,7 @@ pub const OS_CREDENTIALS_CONTAINS: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.delete.
-pub const OS_CREDENTIALS_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CREDENTIALS_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.credentials.delete",
     "export function credentialsDelete(service: string, account: string, accessGroup: string): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6046,7 +6047,7 @@ pub const OS_CREDENTIALS_DELETE: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.read.
-pub const OS_CREDENTIALS_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CREDENTIALS_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.credentials.read",
     "export function credentialsRead(query: CredentialQuery): Result<CredentialRecord, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6060,7 +6061,7 @@ pub const OS_CREDENTIALS_READ: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.write.
-pub const OS_CREDENTIALS_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CREDENTIALS_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.credentials.write",
     "export function credentialsWrite(options: CredentialWriteOptions): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6074,7 +6075,7 @@ pub const OS_CREDENTIALS_WRITE: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.document.close.
-pub const OS_DOCUMENT_CLOSE: BindingDescriptor =
+pub(crate) const OS_DOCUMENT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.document.close",
         "export function documentClose(handle: DocumentHandle): Result<void, PlatformError>",
@@ -6102,7 +6103,7 @@ pub const OS_DOCUMENT_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.document.flush.
-pub const OS_DOCUMENT_FLUSH: BindingDescriptor =
+pub(crate) const OS_DOCUMENT_FLUSH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.document.flush",
         "export function documentFlush(handle: DocumentHandle): Result<void, PlatformError>",
@@ -6130,7 +6131,7 @@ pub const OS_DOCUMENT_FLUSH: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.document.open.
-pub const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.document.open",
     "export function documentOpen(uri: string, access: DocumentAccess): Result<DocumentHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6144,7 +6145,7 @@ pub const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.document.pick.
-pub const OS_DOCUMENT_PICK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_PICK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.document.pick",
     "export function documentPick(options: DocumentPickOptions): Result<DocumentDescriptor[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6158,7 +6159,7 @@ pub const OS_DOCUMENT_PICK: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.document.read.
-pub const OS_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.document.read",
     "export function documentRead(handle: DocumentHandle, maxBytes: uint32, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6172,7 +6173,7 @@ pub const OS_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.document.tryRead.
-pub const OS_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.document.tryRead",
     "export function documentTryRead(handle: DocumentHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6186,7 +6187,7 @@ pub const OS_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.document.write.
-pub const OS_DOCUMENT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.document.write",
     "export function documentWrite(handle: DocumentHandle, bytes: Slice<uint8>, timeoutNs: uint64): Result<uint32, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6200,7 +6201,7 @@ pub const OS_DOCUMENT_WRITE: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.host.identity.
-pub const OS_HOST_IDENTITY: BindingDescriptor =
+pub(crate) const OS_HOST_IDENTITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.host.identity",
         "export function hostIdentity(): Result<HostIdentity, PlatformError>",
@@ -6228,7 +6229,7 @@ pub const OS_HOST_IDENTITY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.info.bootTimeUnixNs.
-pub const OS_INFO_BOOT_TIME_UNIX_NS: BindingDescriptor =
+pub(crate) const OS_INFO_BOOT_TIME_UNIX_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.info.bootTimeUnixNs",
         "export function bootTimeUnixNs(): Result<uint64, PlatformError>",
@@ -6256,7 +6257,7 @@ pub const OS_INFO_BOOT_TIME_UNIX_NS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.info.loadAverage.
-pub const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
+pub(crate) const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.info.loadAverage",
         "export function loadAverage(): Result<LoadAverage, PlatformError>",
@@ -6283,7 +6284,7 @@ pub const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.info.systemSnapshot.
-pub const OS_INFO_SYSTEM_SNAPSHOT: BindingDescriptor =
+pub(crate) const OS_INFO_SYSTEM_SNAPSHOT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.info.systemSnapshot",
         "export function systemSnapshot(): Result<SystemSnapshot, PlatformError>",
@@ -6311,7 +6312,7 @@ pub const OS_INFO_SYSTEM_SNAPSHOT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.info.uptimeNs.
-pub const OS_INFO_UPTIME_NS: BindingDescriptor =
+pub(crate) const OS_INFO_UPTIME_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.info.uptimeNs",
         "export function uptimeNs(): Result<uint64, PlatformError>",
@@ -6339,7 +6340,7 @@ pub const OS_INFO_UPTIME_NS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.intent.canOpenUrl.
-pub const OS_INTENT_CAN_OPEN_URL: BindingDescriptor =
+pub(crate) const OS_INTENT_CAN_OPEN_URL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.intent.canOpenUrl",
         "export function intentCanOpenUrl(url: string): Result<boolean, PlatformError>",
@@ -6367,7 +6368,7 @@ pub const OS_INTENT_CAN_OPEN_URL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.intent.close.
-pub const OS_INTENT_CLOSE: BindingDescriptor =
+pub(crate) const OS_INTENT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.intent.close",
         "export function intentClose(handle: IntentHandle): Result<void, PlatformError>",
@@ -6395,7 +6396,7 @@ pub const OS_INTENT_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.intent.open.
-pub const OS_INTENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_INTENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.intent.open",
     "export function intentOpen(options: IntentOpenOptions): Result<IntentHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6409,7 +6410,7 @@ pub const OS_INTENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.intent.openPath.
-pub const OS_INTENT_OPEN_PATH: BindingDescriptor =
+pub(crate) const OS_INTENT_OPEN_PATH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.intent.openPath",
         "export function intentOpenPath(path: OsPath): Result<void, PlatformError>",
@@ -6437,7 +6438,7 @@ pub const OS_INTENT_OPEN_PATH: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.intent.openUrl.
-pub const OS_INTENT_OPEN_URL: BindingDescriptor =
+pub(crate) const OS_INTENT_OPEN_URL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.intent.openUrl",
         "export function intentOpenUrl(url: string): Result<void, PlatformError>",
@@ -6465,7 +6466,7 @@ pub const OS_INTENT_OPEN_URL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.intent.read.
-pub const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.intent.read",
     "export function intentRead(handle: IntentHandle, timeoutNs: uint64): Result<IntentEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6479,7 +6480,7 @@ pub const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.intent.sharePaths.
-pub const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.intent.sharePaths",
     "export function intentSharePaths(paths: OsPath[], mimeType: string): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6493,7 +6494,7 @@ pub const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.intent.shareText.
-pub const OS_INTENT_SHARE_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_INTENT_SHARE_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.intent.shareText",
     "export function intentShareText(text: string, mimeType: string): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6507,7 +6508,7 @@ pub const OS_INTENT_SHARE_TEXT: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.intent.tryRead.
-pub const OS_INTENT_TRY_READ: BindingDescriptor =
+pub(crate) const OS_INTENT_TRY_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.intent.tryRead",
         "export function intentTryRead(handle: IntentHandle): Result<IntentEvent, PlatformError>",
@@ -6535,7 +6536,7 @@ pub const OS_INTENT_TRY_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.lifecycle.close.
-pub const OS_LIFECYCLE_CLOSE: BindingDescriptor =
+pub(crate) const OS_LIFECYCLE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.lifecycle.close",
         "export function lifecycleClose(handle: LifecycleEventHandle): Result<void, PlatformError>",
@@ -6563,7 +6564,7 @@ pub const OS_LIFECYCLE_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.lifecycle.open.
-pub const OS_LIFECYCLE_OPEN: BindingDescriptor =
+pub(crate) const OS_LIFECYCLE_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.lifecycle.open",
         "export function lifecycleOpen(): Result<LifecycleEventHandle, PlatformError>",
@@ -6591,7 +6592,7 @@ pub const OS_LIFECYCLE_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.lifecycle.read.
-pub const OS_LIFECYCLE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LIFECYCLE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.lifecycle.read",
     "export function lifecycleRead(handle: LifecycleEventHandle, timeoutNs: uint64): Result<LifecycleEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6605,7 +6606,7 @@ pub const OS_LIFECYCLE_READ: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.state.
-pub const OS_LIFECYCLE_STATE: BindingDescriptor =
+pub(crate) const OS_LIFECYCLE_STATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.lifecycle.state",
         "export function lifecycleState(): Result<LifecycleState, PlatformError>",
@@ -6633,7 +6634,7 @@ pub const OS_LIFECYCLE_STATE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.lifecycle.tryRead.
-pub const OS_LIFECYCLE_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LIFECYCLE_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.lifecycle.tryRead",
     "export function lifecycleTryRead(handle: LifecycleEventHandle): Result<LifecycleEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6647,7 +6648,7 @@ pub const OS_LIFECYCLE_TRY_READ: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.location.lastKnown.
-pub const OS_LOCATION_LAST_KNOWN: BindingDescriptor =
+pub(crate) const OS_LOCATION_LAST_KNOWN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.location.lastKnown",
         "export function locationLastKnown(): Result<LocationSample, PlatformError>",
@@ -6675,7 +6676,7 @@ pub const OS_LOCATION_LAST_KNOWN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.location.servicesEnabled.
-pub const OS_LOCATION_SERVICES_ENABLED: BindingDescriptor =
+pub(crate) const OS_LOCATION_SERVICES_ENABLED: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.location.servicesEnabled",
         "export function locationServicesEnabled(): Result<boolean, PlatformError>",
@@ -6703,7 +6704,7 @@ pub const OS_LOCATION_SERVICES_ENABLED: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.location.watchClose.
-pub const OS_LOCATION_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LOCATION_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.location.watchClose",
     "export function locationWatchClose(handle: LocationWatchHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6717,7 +6718,7 @@ pub const OS_LOCATION_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchOpen.
-pub const OS_LOCATION_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LOCATION_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.location.watchOpen",
     "export function locationWatchOpen(options: LocationWatchOptions): Result<LocationWatchHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6731,7 +6732,7 @@ pub const OS_LOCATION_WATCH_OPEN: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchRead.
-pub const OS_LOCATION_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LOCATION_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.location.watchRead",
     "export function locationWatchRead(handle: LocationWatchHandle, timeoutNs: uint64): Result<LocationSample, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6745,7 +6746,7 @@ pub const OS_LOCATION_WATCH_READ: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchTryRead.
-pub const OS_LOCATION_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LOCATION_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.location.watchTryRead",
     "export function locationWatchTryRead(handle: LocationWatchHandle): Result<LocationSample, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6759,7 +6760,7 @@ pub const OS_LOCATION_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.media.delete.
-pub const OS_MEDIA_DELETE: BindingDescriptor =
+pub(crate) const OS_MEDIA_DELETE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.media.delete",
         "export function mediaDelete(ids: string[]): Result<uint32, PlatformError>",
@@ -6787,7 +6788,7 @@ pub const OS_MEDIA_DELETE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.media.importPath.
-pub const OS_MEDIA_IMPORT_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_MEDIA_IMPORT_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.media.importPath",
     "export function mediaImportPath(path: OsPath, kind: MediaAssetKind): Result<string, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6801,7 +6802,7 @@ pub const OS_MEDIA_IMPORT_PATH: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.media.list.
-pub const OS_MEDIA_LIST: BindingDescriptor =
+pub(crate) const OS_MEDIA_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.media.list",
         "export function mediaList(query: MediaQuery): Result<MediaPage, PlatformError>",
@@ -6829,7 +6830,7 @@ pub const OS_MEDIA_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.media.read.
-pub const OS_MEDIA_READ: BindingDescriptor =
+pub(crate) const OS_MEDIA_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.media.read",
         "export function mediaRead(id: string): Result<MediaAssetDescriptor, PlatformError>",
@@ -6857,7 +6858,7 @@ pub const OS_MEDIA_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.mount.add.
-pub const OS_MOUNT_ADD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_MOUNT_ADD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.mount.add",
     "export function mountAdd(source: string, target: OsPath, fileSystem: string, flags: uint64, data: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6871,7 +6872,7 @@ pub const OS_MOUNT_ADD: BindingDescriptor = BindingDescriptor::external_with_req
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.mount.list.
-pub const OS_MOUNT_LIST: BindingDescriptor =
+pub(crate) const OS_MOUNT_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.mount.list",
         "export function mountList(): Result<MountEntry[], PlatformError>",
@@ -6899,7 +6900,7 @@ pub const OS_MOUNT_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.mount.remove.
-pub const OS_MOUNT_REMOVE: BindingDescriptor =
+pub(crate) const OS_MOUNT_REMOVE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.mount.remove",
         "export function mountRemove(target: OsPath, flags: uint64): Result<void, PlatformError>",
@@ -6927,7 +6928,7 @@ pub const OS_MOUNT_REMOVE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.network.state.
-pub const OS_NETWORK_STATE: BindingDescriptor =
+pub(crate) const OS_NETWORK_STATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.network.state",
         "export function networkState(): Result<NetworkState, PlatformError>",
@@ -6955,7 +6956,7 @@ pub const OS_NETWORK_STATE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.network.watchClose.
-pub const OS_NETWORK_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NETWORK_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.network.watchClose",
     "export function networkWatchClose(handle: NetworkWatchHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6969,7 +6970,7 @@ pub const OS_NETWORK_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchOpen.
-pub const OS_NETWORK_WATCH_OPEN: BindingDescriptor =
+pub(crate) const OS_NETWORK_WATCH_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.network.watchOpen",
         "export function networkWatchOpen(): Result<NetworkWatchHandle, PlatformError>",
@@ -6997,7 +6998,7 @@ pub const OS_NETWORK_WATCH_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.network.watchRead.
-pub const OS_NETWORK_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NETWORK_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.network.watchRead",
     "export function networkWatchRead(handle: NetworkWatchHandle, timeoutNs: uint64): Result<NetworkEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7011,7 +7012,7 @@ pub const OS_NETWORK_WATCH_READ: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchTryRead.
-pub const OS_NETWORK_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NETWORK_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.network.watchTryRead",
     "export function networkWatchTryRead(handle: NetworkWatchHandle): Result<NetworkEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7025,7 +7026,7 @@ pub const OS_NETWORK_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.cancel.
-pub const OS_NOTIFICATION_CANCEL: BindingDescriptor =
+pub(crate) const OS_NOTIFICATION_CANCEL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.notification.cancel",
         "export function notificationCancel(id: string): Result<void, PlatformError>",
@@ -7053,7 +7054,7 @@ pub const OS_NOTIFICATION_CANCEL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.notification.cancelAll.
-pub const OS_NOTIFICATION_CANCEL_ALL: BindingDescriptor =
+pub(crate) const OS_NOTIFICATION_CANCEL_ALL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.notification.cancelAll",
         "export function notificationCancelAll(): Result<void, PlatformError>",
@@ -7081,7 +7082,7 @@ pub const OS_NOTIFICATION_CANCEL_ALL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.notification.categoryList.
-pub const OS_NOTIFICATION_CATEGORY_LIST: BindingDescriptor =
+pub(crate) const OS_NOTIFICATION_CATEGORY_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.notification.categoryList",
         "export function notificationCategoryList(): Result<NotificationCategory[], PlatformError>",
@@ -7109,7 +7110,7 @@ pub const OS_NOTIFICATION_CATEGORY_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.notification.categorySet.
-pub const OS_NOTIFICATION_CATEGORY_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_CATEGORY_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.categorySet",
     "export function notificationCategorySet(categories: NotificationCategory[]): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -7123,7 +7124,7 @@ pub const OS_NOTIFICATION_CATEGORY_SET: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.close.
-pub const OS_NOTIFICATION_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.event.close",
     "export function notificationEventClose(handle: NotificationEventHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -7137,7 +7138,7 @@ pub const OS_NOTIFICATION_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.open.
-pub const OS_NOTIFICATION_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.event.open",
     "export function notificationEventOpen(options: NotificationEventOpenOptions): Result<NotificationEventHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -7151,7 +7152,7 @@ pub const OS_NOTIFICATION_EVENT_OPEN: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.read.
-pub const OS_NOTIFICATION_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.event.read",
     "export function notificationEventRead(handle: NotificationEventHandle, timeoutNs: uint64): Result<NotificationEvent, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -7165,7 +7166,7 @@ pub const OS_NOTIFICATION_EVENT_READ: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.tryRead.
-pub const OS_NOTIFICATION_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.event.tryRead",
     "export function notificationEventTryRead(handle: NotificationEventHandle): Result<NotificationEvent, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -7179,7 +7180,7 @@ pub const OS_NOTIFICATION_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.pendingCancel.
-pub const OS_NOTIFICATION_PENDING_CANCEL: BindingDescriptor =
+pub(crate) const OS_NOTIFICATION_PENDING_CANCEL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.notification.pendingCancel",
         "export function notificationPendingCancel(id: string): Result<void, PlatformError>",
@@ -7207,7 +7208,7 @@ pub const OS_NOTIFICATION_PENDING_CANCEL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.notification.pendingCancelAll.
-pub const OS_NOTIFICATION_PENDING_CANCEL_ALL: BindingDescriptor =
+pub(crate) const OS_NOTIFICATION_PENDING_CANCEL_ALL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.notification.pendingCancelAll",
         "export function notificationPendingCancelAll(): Result<void, PlatformError>",
@@ -7235,7 +7236,7 @@ pub const OS_NOTIFICATION_PENDING_CANCEL_ALL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.notification.pendingList.
-pub const OS_NOTIFICATION_PENDING_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_PENDING_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.pendingList",
     "export function notificationPendingList(): Result<NotificationScheduledDescriptor[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7249,7 +7250,7 @@ pub const OS_NOTIFICATION_PENDING_LIST: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.permissionState.
-pub const OS_NOTIFICATION_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.permissionState",
     "export function notificationPermissionState(): Result<NotificationPermissionState, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7263,7 +7264,7 @@ pub const OS_NOTIFICATION_PERMISSION_STATE: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.post.
-pub const OS_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.post",
     "export function notificationPost(request: NotificationRequest): Result<string, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -7277,7 +7278,7 @@ pub const OS_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.requestPermission.
-pub const OS_NOTIFICATION_REQUEST_PERMISSION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.requestPermission",
     "export function notificationRequestPermission(): Result<NotificationPermissionState, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -7291,7 +7292,7 @@ pub const OS_NOTIFICATION_REQUEST_PERMISSION: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.notification.schedule.
-pub const OS_NOTIFICATION_SCHEDULE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_SCHEDULE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.schedule",
     "export function notificationSchedule(request: NotificationRequest): Result<string, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -7305,7 +7306,7 @@ pub const OS_NOTIFICATION_SCHEDULE: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.permission.openSettings.
-pub const OS_PERMISSION_OPEN_SETTINGS: BindingDescriptor =
+pub(crate) const OS_PERMISSION_OPEN_SETTINGS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.permission.openSettings",
         "export function permissionOpenSettings(): Result<void, PlatformError>",
@@ -7333,7 +7334,7 @@ pub const OS_PERMISSION_OPEN_SETTINGS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.permission.request.
-pub const OS_PERMISSION_REQUEST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_PERMISSION_REQUEST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.permission.request",
     "export function permissionRequest(permission: Permission): Result<PermissionState, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -7347,7 +7348,7 @@ pub const OS_PERMISSION_REQUEST: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestMany.
-pub const OS_PERMISSION_REQUEST_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_PERMISSION_REQUEST_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.permission.requestMany",
     "export function permissionRequestMany(permissions: Permission[]): Result<PermissionEntry[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -7361,7 +7362,7 @@ pub const OS_PERMISSION_REQUEST_MANY: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.permission.state.
-pub const OS_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.permission.state",
     "export function permissionState(permission: Permission): Result<PermissionState, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7375,7 +7376,7 @@ pub const OS_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.permission.stateMany.
-pub const OS_PERMISSION_STATE_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_PERMISSION_STATE_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.permission.stateMany",
     "export function permissionStateMany(permissions: Permission[]): Result<PermissionEntry[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7389,7 +7390,7 @@ pub const OS_PERMISSION_STATE_MANY: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.power.state.
-pub const OS_POWER_STATE: BindingDescriptor =
+pub(crate) const OS_POWER_STATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.power.state",
         "export function powerState(): Result<PowerState, PlatformError>",
@@ -7417,7 +7418,7 @@ pub const OS_POWER_STATE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.power.suspend.
-pub const OS_POWER_SUSPEND: BindingDescriptor =
+pub(crate) const OS_POWER_SUSPEND: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.power.suspend",
         "export function suspend(): Result<void, PlatformError>",
@@ -7444,112 +7445,8 @@ pub const OS_POWER_SUSPEND: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptors for os.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    OS_BACKGROUND_COMPLETE,
-    OS_BACKGROUND_EVENT_CLOSE,
-    OS_BACKGROUND_EVENT_OPEN,
-    OS_BACKGROUND_EVENT_READ,
-    OS_BACKGROUND_EVENT_TRY_READ,
-    OS_BACKGROUND_LIST,
-    OS_BACKGROUND_REGISTER,
-    OS_BACKGROUND_STATUS,
-    OS_BACKGROUND_TRIGGER_TEST,
-    OS_BACKGROUND_UNREGISTER,
-    OS_CALENDAR_EVENT_CREATE,
-    OS_CALENDAR_EVENT_DELETE,
-    OS_CALENDAR_EVENT_LIST,
-    OS_CALENDAR_EVENT_READ,
-    OS_CALENDAR_EVENT_UPDATE,
-    OS_CALENDAR_LIST,
-    OS_CLIPBOARD_CLEAR,
-    OS_CLIPBOARD_HAS_TEXT,
-    OS_CLIPBOARD_READ_BYTES,
-    OS_CLIPBOARD_READ_TEXT,
-    OS_CLIPBOARD_SEQUENCE,
-    OS_CLIPBOARD_WRITE_BYTES,
-    OS_CLIPBOARD_WRITE_TEXT,
-    OS_CONTACT_CREATE,
-    OS_CONTACT_DELETE,
-    OS_CONTACT_LIST,
-    OS_CONTACT_READ,
-    OS_CONTACT_SEARCH,
-    OS_CONTACT_UPDATE,
-    OS_CREDENTIALS_AUTHENTICATE,
-    OS_CREDENTIALS_CONTAINS,
-    OS_CREDENTIALS_DELETE,
-    OS_CREDENTIALS_READ,
-    OS_CREDENTIALS_WRITE,
-    OS_DOCUMENT_CLOSE,
-    OS_DOCUMENT_FLUSH,
-    OS_DOCUMENT_OPEN,
-    OS_DOCUMENT_PICK,
-    OS_DOCUMENT_READ,
-    OS_DOCUMENT_TRY_READ,
-    OS_DOCUMENT_WRITE,
-    OS_HOST_IDENTITY,
-    OS_INFO_BOOT_TIME_UNIX_NS,
-    OS_INFO_LOAD_AVERAGE,
-    OS_INFO_SYSTEM_SNAPSHOT,
-    OS_INFO_UPTIME_NS,
-    OS_INTENT_CAN_OPEN_URL,
-    OS_INTENT_CLOSE,
-    OS_INTENT_OPEN,
-    OS_INTENT_OPEN_PATH,
-    OS_INTENT_OPEN_URL,
-    OS_INTENT_READ,
-    OS_INTENT_SHARE_PATHS,
-    OS_INTENT_SHARE_TEXT,
-    OS_INTENT_TRY_READ,
-    OS_LIFECYCLE_CLOSE,
-    OS_LIFECYCLE_OPEN,
-    OS_LIFECYCLE_READ,
-    OS_LIFECYCLE_STATE,
-    OS_LIFECYCLE_TRY_READ,
-    OS_LOCATION_LAST_KNOWN,
-    OS_LOCATION_SERVICES_ENABLED,
-    OS_LOCATION_WATCH_CLOSE,
-    OS_LOCATION_WATCH_OPEN,
-    OS_LOCATION_WATCH_READ,
-    OS_LOCATION_WATCH_TRY_READ,
-    OS_MEDIA_DELETE,
-    OS_MEDIA_IMPORT_PATH,
-    OS_MEDIA_LIST,
-    OS_MEDIA_READ,
-    OS_MOUNT_ADD,
-    OS_MOUNT_LIST,
-    OS_MOUNT_REMOVE,
-    OS_NETWORK_STATE,
-    OS_NETWORK_WATCH_CLOSE,
-    OS_NETWORK_WATCH_OPEN,
-    OS_NETWORK_WATCH_READ,
-    OS_NETWORK_WATCH_TRY_READ,
-    OS_NOTIFICATION_CANCEL,
-    OS_NOTIFICATION_CANCEL_ALL,
-    OS_NOTIFICATION_CATEGORY_LIST,
-    OS_NOTIFICATION_CATEGORY_SET,
-    OS_NOTIFICATION_EVENT_CLOSE,
-    OS_NOTIFICATION_EVENT_OPEN,
-    OS_NOTIFICATION_EVENT_READ,
-    OS_NOTIFICATION_EVENT_TRY_READ,
-    OS_NOTIFICATION_PENDING_CANCEL,
-    OS_NOTIFICATION_PENDING_CANCEL_ALL,
-    OS_NOTIFICATION_PENDING_LIST,
-    OS_NOTIFICATION_PERMISSION_STATE,
-    OS_NOTIFICATION_POST,
-    OS_NOTIFICATION_REQUEST_PERMISSION,
-    OS_NOTIFICATION_SCHEDULE,
-    OS_PERMISSION_OPEN_SETTINGS,
-    OS_PERMISSION_REQUEST,
-    OS_PERMISSION_REQUEST_MANY,
-    OS_PERMISSION_STATE,
-    OS_PERMISSION_STATE_MANY,
-    OS_POWER_STATE,
-    OS_POWER_SUSPEND,
-];
-
 /// Native binding set for os.
-pub const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "os",
     bindings: &[
         NativeBinding::new(
@@ -12833,7 +12730,7 @@ fn destack_os_power_state_replay(
 
 /// Native export wrappers for os bindings.
 #[unsafe(export_name = "destack.os.background.complete")]
-pub unsafe extern "C" fn destack_os_background_complete(
+pub(crate) unsafe extern "C" fn destack_os_background_complete(
     executionid: NativeStringRef,
     argument_result: BackgroundTaskResult,
 ) -> RuntimeStatus {
@@ -12864,7 +12761,7 @@ pub unsafe extern "C" fn destack_os_background_complete(
 }
 
 #[unsafe(export_name = "destack.os.background.event.close")]
-pub unsafe extern "C" fn destack_os_background_event_close(
+pub(crate) unsafe extern "C" fn destack_os_background_event_close(
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -12877,7 +12774,7 @@ pub unsafe extern "C" fn destack_os_background_event_close(
 }
 
 #[unsafe(export_name = "destack.os.background.event.open")]
-pub unsafe extern "C" fn destack_os_background_event_open(
+pub(crate) unsafe extern "C" fn destack_os_background_event_open(
     out: *mut resource::BackgroundEventHandle,
     options: BackgroundEventOpenOptions,
 ) -> RuntimeStatus {
@@ -12894,7 +12791,7 @@ pub unsafe extern "C" fn destack_os_background_event_open(
 }
 
 #[unsafe(export_name = "destack.os.background.event.read")]
-pub unsafe extern "C" fn destack_os_background_event_read(
+pub(crate) unsafe extern "C" fn destack_os_background_event_read(
     out: *mut BackgroundEvent,
     handle: resource::BackgroundEventHandle,
     timeoutns: u64,
@@ -12912,7 +12809,7 @@ pub unsafe extern "C" fn destack_os_background_event_read(
 }
 
 #[unsafe(export_name = "destack.os.background.event.tryRead")]
-pub unsafe extern "C" fn destack_os_background_event_try_read(
+pub(crate) unsafe extern "C" fn destack_os_background_event_try_read(
     out: *mut BackgroundEvent,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeStatus {
@@ -12929,7 +12826,7 @@ pub unsafe extern "C" fn destack_os_background_event_try_read(
 }
 
 #[unsafe(export_name = "destack.os.background.list")]
-pub unsafe extern "C" fn destack_os_background_list(
+pub(crate) unsafe extern "C" fn destack_os_background_list(
     out: *mut NativeArray<BackgroundTaskDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -12945,7 +12842,7 @@ pub unsafe extern "C" fn destack_os_background_list(
 }
 
 #[unsafe(export_name = "destack.os.background.register")]
-pub unsafe extern "C" fn destack_os_background_register(
+pub(crate) unsafe extern "C" fn destack_os_background_register(
     options: BackgroundTaskOptions,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -12967,7 +12864,9 @@ pub unsafe extern "C" fn destack_os_background_register(
 }
 
 #[unsafe(export_name = "destack.os.background.status")]
-pub unsafe extern "C" fn destack_os_background_status(out: *mut BackgroundStatus) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_background_status(
+    out: *mut BackgroundStatus,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -12981,7 +12880,7 @@ pub unsafe extern "C" fn destack_os_background_status(out: *mut BackgroundStatus
 }
 
 #[unsafe(export_name = "destack.os.background.triggerTest")]
-pub unsafe extern "C" fn destack_os_background_trigger_test(
+pub(crate) unsafe extern "C" fn destack_os_background_trigger_test(
     out: *mut bool,
     identifier: NativeStringRef,
 ) -> RuntimeStatus {
@@ -13009,7 +12908,7 @@ pub unsafe extern "C" fn destack_os_background_trigger_test(
 }
 
 #[unsafe(export_name = "destack.os.background.unregister")]
-pub unsafe extern "C" fn destack_os_background_unregister(
+pub(crate) unsafe extern "C" fn destack_os_background_unregister(
     identifier: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13033,7 +12932,7 @@ pub unsafe extern "C" fn destack_os_background_unregister(
 }
 
 #[unsafe(export_name = "destack.os.calendar.eventCreate")]
-pub unsafe extern "C" fn destack_os_calendar_event_create(
+pub(crate) unsafe extern "C" fn destack_os_calendar_event_create(
     out: *mut NativeStringRef,
     event: CalendarEventDraft,
 ) -> RuntimeStatus {
@@ -13061,7 +12960,9 @@ pub unsafe extern "C" fn destack_os_calendar_event_create(
 }
 
 #[unsafe(export_name = "destack.os.calendar.eventDelete")]
-pub unsafe extern "C" fn destack_os_calendar_event_delete(id: NativeStringRef) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_calendar_event_delete(
+    id: NativeStringRef,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &id;
 
@@ -13081,7 +12982,7 @@ pub unsafe extern "C" fn destack_os_calendar_event_delete(id: NativeStringRef) -
 }
 
 #[unsafe(export_name = "destack.os.calendar.eventList")]
-pub unsafe extern "C" fn destack_os_calendar_event_list(
+pub(crate) unsafe extern "C" fn destack_os_calendar_event_list(
     out: *mut NativeArray<CalendarEvent>,
     query: CalendarEventQuery,
 ) -> RuntimeStatus {
@@ -13107,7 +13008,7 @@ pub unsafe extern "C" fn destack_os_calendar_event_list(
 }
 
 #[unsafe(export_name = "destack.os.calendar.eventRead")]
-pub unsafe extern "C" fn destack_os_calendar_event_read(
+pub(crate) unsafe extern "C" fn destack_os_calendar_event_read(
     out: *mut CalendarEvent,
     id: NativeStringRef,
 ) -> RuntimeStatus {
@@ -13133,7 +13034,7 @@ pub unsafe extern "C" fn destack_os_calendar_event_read(
 }
 
 #[unsafe(export_name = "destack.os.calendar.eventUpdate")]
-pub unsafe extern "C" fn destack_os_calendar_event_update(
+pub(crate) unsafe extern "C" fn destack_os_calendar_event_update(
     id: NativeStringRef,
     event: CalendarEventDraft,
 ) -> RuntimeStatus {
@@ -13156,7 +13057,7 @@ pub unsafe extern "C" fn destack_os_calendar_event_update(
 }
 
 #[unsafe(export_name = "destack.os.calendar.list")]
-pub unsafe extern "C" fn destack_os_calendar_list(
+pub(crate) unsafe extern "C" fn destack_os_calendar_list(
     out: *mut NativeArray<CalendarDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13181,7 +13082,7 @@ pub unsafe extern "C" fn destack_os_calendar_list(
 }
 
 #[unsafe(export_name = "destack.os.clipboard.clear")]
-pub unsafe extern "C" fn destack_os_clipboard_clear() -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_clipboard_clear() -> RuntimeStatus {
     native_call(|context| {
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(OS_CLIPBOARD_CLEAR)?;
@@ -13195,7 +13096,7 @@ pub unsafe extern "C" fn destack_os_clipboard_clear() -> RuntimeStatus {
 }
 
 #[unsafe(export_name = "destack.os.clipboard.hasText")]
-pub unsafe extern "C" fn destack_os_clipboard_has_text(out: *mut bool) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_clipboard_has_text(out: *mut bool) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -13209,7 +13110,7 @@ pub unsafe extern "C" fn destack_os_clipboard_has_text(out: *mut bool) -> Runtim
 }
 
 #[unsafe(export_name = "destack.os.clipboard.readBytes")]
-pub unsafe extern "C" fn destack_os_clipboard_read_bytes(
+pub(crate) unsafe extern "C" fn destack_os_clipboard_read_bytes(
     out: *mut NativeSlice<u8>,
     format: ClipboardBinaryFormat,
 ) -> RuntimeStatus {
@@ -13226,7 +13127,7 @@ pub unsafe extern "C" fn destack_os_clipboard_read_bytes(
 }
 
 #[unsafe(export_name = "destack.os.clipboard.readText")]
-pub unsafe extern "C" fn destack_os_clipboard_read_text(
+pub(crate) unsafe extern "C" fn destack_os_clipboard_read_text(
     out: *mut NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13242,7 +13143,7 @@ pub unsafe extern "C" fn destack_os_clipboard_read_text(
 }
 
 #[unsafe(export_name = "destack.os.clipboard.sequence")]
-pub unsafe extern "C" fn destack_os_clipboard_sequence(out: *mut u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_clipboard_sequence(out: *mut u64) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -13256,7 +13157,7 @@ pub unsafe extern "C" fn destack_os_clipboard_sequence(out: *mut u64) -> Runtime
 }
 
 #[unsafe(export_name = "destack.os.clipboard.writeBytes")]
-pub unsafe extern "C" fn destack_os_clipboard_write_bytes(
+pub(crate) unsafe extern "C" fn destack_os_clipboard_write_bytes(
     format: ClipboardBinaryFormat,
     argument_bytes: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -13287,7 +13188,9 @@ pub unsafe extern "C" fn destack_os_clipboard_write_bytes(
 }
 
 #[unsafe(export_name = "destack.os.clipboard.writeText")]
-pub unsafe extern "C" fn destack_os_clipboard_write_text(text: NativeStringRef) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_clipboard_write_text(
+    text: NativeStringRef,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &text;
 
@@ -13307,7 +13210,7 @@ pub unsafe extern "C" fn destack_os_clipboard_write_text(text: NativeStringRef) 
 }
 
 #[unsafe(export_name = "destack.os.contact.create")]
-pub unsafe extern "C" fn destack_os_contact_create(
+pub(crate) unsafe extern "C" fn destack_os_contact_create(
     out: *mut NativeStringRef,
     contact: ContactDraft,
 ) -> RuntimeStatus {
@@ -13333,7 +13236,7 @@ pub unsafe extern "C" fn destack_os_contact_create(
 }
 
 #[unsafe(export_name = "destack.os.contact.delete")]
-pub unsafe extern "C" fn destack_os_contact_delete(id: NativeStringRef) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_contact_delete(id: NativeStringRef) -> RuntimeStatus {
     native_call(|context| {
         let _ = &id;
 
@@ -13353,7 +13256,7 @@ pub unsafe extern "C" fn destack_os_contact_delete(id: NativeStringRef) -> Runti
 }
 
 #[unsafe(export_name = "destack.os.contact.list")]
-pub unsafe extern "C" fn destack_os_contact_list(
+pub(crate) unsafe extern "C" fn destack_os_contact_list(
     out: *mut ContactPage,
     query: ContactQuery,
 ) -> RuntimeStatus {
@@ -13379,7 +13282,7 @@ pub unsafe extern "C" fn destack_os_contact_list(
 }
 
 #[unsafe(export_name = "destack.os.contact.read")]
-pub unsafe extern "C" fn destack_os_contact_read(
+pub(crate) unsafe extern "C" fn destack_os_contact_read(
     out: *mut Contact,
     id: NativeStringRef,
 ) -> RuntimeStatus {
@@ -13405,7 +13308,7 @@ pub unsafe extern "C" fn destack_os_contact_read(
 }
 
 #[unsafe(export_name = "destack.os.contact.search")]
-pub unsafe extern "C" fn destack_os_contact_search(
+pub(crate) unsafe extern "C" fn destack_os_contact_search(
     out: *mut ContactPage,
     querytext: NativeStringRef,
     query: ContactQuery,
@@ -13434,7 +13337,7 @@ pub unsafe extern "C" fn destack_os_contact_search(
 }
 
 #[unsafe(export_name = "destack.os.contact.update")]
-pub unsafe extern "C" fn destack_os_contact_update(
+pub(crate) unsafe extern "C" fn destack_os_contact_update(
     id: NativeStringRef,
     contact: ContactDraft,
 ) -> RuntimeStatus {
@@ -13457,7 +13360,7 @@ pub unsafe extern "C" fn destack_os_contact_update(
 }
 
 #[unsafe(export_name = "destack.os.credentials.authenticate")]
-pub unsafe extern "C" fn destack_os_credentials_authenticate(
+pub(crate) unsafe extern "C" fn destack_os_credentials_authenticate(
     out: *mut CredentialAuthenticationResult,
     options: CredentialAuthenticationOptions,
 ) -> RuntimeStatus {
@@ -13485,7 +13388,7 @@ pub unsafe extern "C" fn destack_os_credentials_authenticate(
 }
 
 #[unsafe(export_name = "destack.os.credentials.contains")]
-pub unsafe extern "C" fn destack_os_credentials_contains(
+pub(crate) unsafe extern "C" fn destack_os_credentials_contains(
     out: *mut bool,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -13525,7 +13428,7 @@ pub unsafe extern "C" fn destack_os_credentials_contains(
 }
 
 #[unsafe(export_name = "destack.os.credentials.delete")]
-pub unsafe extern "C" fn destack_os_credentials_delete(
+pub(crate) unsafe extern "C" fn destack_os_credentials_delete(
     service: NativeStringRef,
     account: NativeStringRef,
     accessgroup: Option<NativeStringRef>,
@@ -13559,7 +13462,7 @@ pub unsafe extern "C" fn destack_os_credentials_delete(
 }
 
 #[unsafe(export_name = "destack.os.credentials.read")]
-pub unsafe extern "C" fn destack_os_credentials_read(
+pub(crate) unsafe extern "C" fn destack_os_credentials_read(
     out: *mut CredentialRecord,
     query: CredentialQuery,
 ) -> RuntimeStatus {
@@ -13585,7 +13488,7 @@ pub unsafe extern "C" fn destack_os_credentials_read(
 }
 
 #[unsafe(export_name = "destack.os.credentials.write")]
-pub unsafe extern "C" fn destack_os_credentials_write(
+pub(crate) unsafe extern "C" fn destack_os_credentials_write(
     options: CredentialWriteOptions,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13607,7 +13510,7 @@ pub unsafe extern "C" fn destack_os_credentials_write(
 }
 
 #[unsafe(export_name = "destack.os.document.close")]
-pub unsafe extern "C" fn destack_os_document_close(
+pub(crate) unsafe extern "C" fn destack_os_document_close(
     handle: resource::DocumentHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13629,7 +13532,7 @@ pub unsafe extern "C" fn destack_os_document_close(
 }
 
 #[unsafe(export_name = "destack.os.document.flush")]
-pub unsafe extern "C" fn destack_os_document_flush(
+pub(crate) unsafe extern "C" fn destack_os_document_flush(
     handle: resource::DocumentHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13651,7 +13554,7 @@ pub unsafe extern "C" fn destack_os_document_flush(
 }
 
 #[unsafe(export_name = "destack.os.document.open")]
-pub unsafe extern "C" fn destack_os_document_open(
+pub(crate) unsafe extern "C" fn destack_os_document_open(
     out: *mut resource::DocumentHandle,
     uri: NativeStringRef,
     access: DocumentAccess,
@@ -13678,7 +13581,7 @@ pub unsafe extern "C" fn destack_os_document_open(
 }
 
 #[unsafe(export_name = "destack.os.document.pick")]
-pub unsafe extern "C" fn destack_os_document_pick(
+pub(crate) unsafe extern "C" fn destack_os_document_pick(
     out: *mut NativeArray<DocumentDescriptor>,
     options: DocumentPickOptions,
 ) -> RuntimeStatus {
@@ -13704,7 +13607,7 @@ pub unsafe extern "C" fn destack_os_document_pick(
 }
 
 #[unsafe(export_name = "destack.os.document.read")]
-pub unsafe extern "C" fn destack_os_document_read(
+pub(crate) unsafe extern "C" fn destack_os_document_read(
     out: *mut NativeSlice<u8>,
     handle: resource::DocumentHandle,
     maxbytes: u32,
@@ -13736,7 +13639,7 @@ pub unsafe extern "C" fn destack_os_document_read(
 }
 
 #[unsafe(export_name = "destack.os.document.tryRead")]
-pub unsafe extern "C" fn destack_os_document_try_read(
+pub(crate) unsafe extern "C" fn destack_os_document_try_read(
     out: *mut NativeSlice<u8>,
     handle: resource::DocumentHandle,
     maxbytes: u32,
@@ -13765,7 +13668,7 @@ pub unsafe extern "C" fn destack_os_document_try_read(
 }
 
 #[unsafe(export_name = "destack.os.document.write")]
-pub unsafe extern "C" fn destack_os_document_write(
+pub(crate) unsafe extern "C" fn destack_os_document_write(
     out: *mut u32,
     handle: resource::DocumentHandle,
     argument_bytes: NativeSlice<u8>,
@@ -13805,7 +13708,7 @@ pub unsafe extern "C" fn destack_os_document_write(
 }
 
 #[unsafe(export_name = "destack.os.host.identity")]
-pub unsafe extern "C" fn destack_os_host_identity(out: *mut HostIdentity) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_host_identity(out: *mut HostIdentity) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -13819,7 +13722,7 @@ pub unsafe extern "C" fn destack_os_host_identity(out: *mut HostIdentity) -> Run
 }
 
 #[unsafe(export_name = "destack.os.info.bootTimeUnixNs")]
-pub unsafe extern "C" fn destack_os_info_boot_time_unix_ns(out: *mut u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_info_boot_time_unix_ns(out: *mut u64) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -13833,7 +13736,9 @@ pub unsafe extern "C" fn destack_os_info_boot_time_unix_ns(out: *mut u64) -> Run
 }
 
 #[unsafe(export_name = "destack.os.info.loadAverage")]
-pub unsafe extern "C" fn destack_os_info_load_average(out: *mut LoadAverage) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_info_load_average(
+    out: *mut LoadAverage,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -13847,7 +13752,7 @@ pub unsafe extern "C" fn destack_os_info_load_average(out: *mut LoadAverage) -> 
 }
 
 #[unsafe(export_name = "destack.os.info.systemSnapshot")]
-pub unsafe extern "C" fn destack_os_info_system_snapshot(
+pub(crate) unsafe extern "C" fn destack_os_info_system_snapshot(
     out: *mut SystemSnapshot,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13863,7 +13768,7 @@ pub unsafe extern "C" fn destack_os_info_system_snapshot(
 }
 
 #[unsafe(export_name = "destack.os.info.uptimeNs")]
-pub unsafe extern "C" fn destack_os_info_uptime_ns(out: *mut u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_info_uptime_ns(out: *mut u64) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -13877,7 +13782,7 @@ pub unsafe extern "C" fn destack_os_info_uptime_ns(out: *mut u64) -> RuntimeStat
 }
 
 #[unsafe(export_name = "destack.os.intent.canOpenUrl")]
-pub unsafe extern "C" fn destack_os_intent_can_open_url(
+pub(crate) unsafe extern "C" fn destack_os_intent_can_open_url(
     out: *mut bool,
     url: NativeStringRef,
 ) -> RuntimeStatus {
@@ -13894,7 +13799,9 @@ pub unsafe extern "C" fn destack_os_intent_can_open_url(
 }
 
 #[unsafe(export_name = "destack.os.intent.close")]
-pub unsafe extern "C" fn destack_os_intent_close(handle: resource::IntentHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_intent_close(
+    handle: resource::IntentHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -13905,7 +13812,7 @@ pub unsafe extern "C" fn destack_os_intent_close(handle: resource::IntentHandle)
 }
 
 #[unsafe(export_name = "destack.os.intent.open")]
-pub unsafe extern "C" fn destack_os_intent_open(
+pub(crate) unsafe extern "C" fn destack_os_intent_open(
     out: *mut resource::IntentHandle,
     options: IntentOpenOptions,
 ) -> RuntimeStatus {
@@ -13922,7 +13829,7 @@ pub unsafe extern "C" fn destack_os_intent_open(
 }
 
 #[unsafe(export_name = "destack.os.intent.openPath")]
-pub unsafe extern "C" fn destack_os_intent_open_path(path: fs::OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_intent_open_path(path: fs::OsPath) -> RuntimeStatus {
     native_call(|context| {
         let _ = &path;
 
@@ -13942,7 +13849,7 @@ pub unsafe extern "C" fn destack_os_intent_open_path(path: fs::OsPath) -> Runtim
 }
 
 #[unsafe(export_name = "destack.os.intent.openUrl")]
-pub unsafe extern "C" fn destack_os_intent_open_url(url: NativeStringRef) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_intent_open_url(url: NativeStringRef) -> RuntimeStatus {
     native_call(|context| {
         let _ = &url;
 
@@ -13962,7 +13869,7 @@ pub unsafe extern "C" fn destack_os_intent_open_url(url: NativeStringRef) -> Run
 }
 
 #[unsafe(export_name = "destack.os.intent.read")]
-pub unsafe extern "C" fn destack_os_intent_read(
+pub(crate) unsafe extern "C" fn destack_os_intent_read(
     out: *mut IntentEvent,
     handle: resource::IntentHandle,
     timeoutns: u64,
@@ -13980,7 +13887,7 @@ pub unsafe extern "C" fn destack_os_intent_read(
 }
 
 #[unsafe(export_name = "destack.os.intent.sharePaths")]
-pub unsafe extern "C" fn destack_os_intent_share_paths(
+pub(crate) unsafe extern "C" fn destack_os_intent_share_paths(
     paths: NativeArray<fs::OsPath>,
     mimetype: NativeStringRef,
 ) -> RuntimeStatus {
@@ -14005,7 +13912,7 @@ pub unsafe extern "C" fn destack_os_intent_share_paths(
 }
 
 #[unsafe(export_name = "destack.os.intent.shareText")]
-pub unsafe extern "C" fn destack_os_intent_share_text(
+pub(crate) unsafe extern "C" fn destack_os_intent_share_text(
     text: NativeStringRef,
     mimetype: NativeStringRef,
 ) -> RuntimeStatus {
@@ -14030,7 +13937,7 @@ pub unsafe extern "C" fn destack_os_intent_share_text(
 }
 
 #[unsafe(export_name = "destack.os.intent.tryRead")]
-pub unsafe extern "C" fn destack_os_intent_try_read(
+pub(crate) unsafe extern "C" fn destack_os_intent_try_read(
     out: *mut IntentEvent,
     handle: resource::IntentHandle,
 ) -> RuntimeStatus {
@@ -14047,7 +13954,7 @@ pub unsafe extern "C" fn destack_os_intent_try_read(
 }
 
 #[unsafe(export_name = "destack.os.lifecycle.close")]
-pub unsafe extern "C" fn destack_os_lifecycle_close(
+pub(crate) unsafe extern "C" fn destack_os_lifecycle_close(
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14060,7 +13967,7 @@ pub unsafe extern "C" fn destack_os_lifecycle_close(
 }
 
 #[unsafe(export_name = "destack.os.lifecycle.open")]
-pub unsafe extern "C" fn destack_os_lifecycle_open(
+pub(crate) unsafe extern "C" fn destack_os_lifecycle_open(
     out: *mut resource::LifecycleEventHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14076,7 +13983,7 @@ pub unsafe extern "C" fn destack_os_lifecycle_open(
 }
 
 #[unsafe(export_name = "destack.os.lifecycle.read")]
-pub unsafe extern "C" fn destack_os_lifecycle_read(
+pub(crate) unsafe extern "C" fn destack_os_lifecycle_read(
     out: *mut LifecycleEvent,
     handle: resource::LifecycleEventHandle,
     timeoutns: u64,
@@ -14094,7 +14001,9 @@ pub unsafe extern "C" fn destack_os_lifecycle_read(
 }
 
 #[unsafe(export_name = "destack.os.lifecycle.state")]
-pub unsafe extern "C" fn destack_os_lifecycle_state(out: *mut LifecycleState) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_lifecycle_state(
+    out: *mut LifecycleState,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -14108,7 +14017,7 @@ pub unsafe extern "C" fn destack_os_lifecycle_state(out: *mut LifecycleState) ->
 }
 
 #[unsafe(export_name = "destack.os.lifecycle.tryRead")]
-pub unsafe extern "C" fn destack_os_lifecycle_try_read(
+pub(crate) unsafe extern "C" fn destack_os_lifecycle_try_read(
     out: *mut LifecycleEvent,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeStatus {
@@ -14125,7 +14034,9 @@ pub unsafe extern "C" fn destack_os_lifecycle_try_read(
 }
 
 #[unsafe(export_name = "destack.os.location.lastKnown")]
-pub unsafe extern "C" fn destack_os_location_last_known(out: *mut LocationSample) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_location_last_known(
+    out: *mut LocationSample,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -14139,7 +14050,9 @@ pub unsafe extern "C" fn destack_os_location_last_known(out: *mut LocationSample
 }
 
 #[unsafe(export_name = "destack.os.location.servicesEnabled")]
-pub unsafe extern "C" fn destack_os_location_services_enabled(out: *mut bool) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_location_services_enabled(
+    out: *mut bool,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -14153,7 +14066,7 @@ pub unsafe extern "C" fn destack_os_location_services_enabled(out: *mut bool) ->
 }
 
 #[unsafe(export_name = "destack.os.location.watchClose")]
-pub unsafe extern "C" fn destack_os_location_watch_close(
+pub(crate) unsafe extern "C" fn destack_os_location_watch_close(
     handle: resource::LocationWatchHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14166,7 +14079,7 @@ pub unsafe extern "C" fn destack_os_location_watch_close(
 }
 
 #[unsafe(export_name = "destack.os.location.watchOpen")]
-pub unsafe extern "C" fn destack_os_location_watch_open(
+pub(crate) unsafe extern "C" fn destack_os_location_watch_open(
     out: *mut resource::LocationWatchHandle,
     options: LocationWatchOptions,
 ) -> RuntimeStatus {
@@ -14183,7 +14096,7 @@ pub unsafe extern "C" fn destack_os_location_watch_open(
 }
 
 #[unsafe(export_name = "destack.os.location.watchRead")]
-pub unsafe extern "C" fn destack_os_location_watch_read(
+pub(crate) unsafe extern "C" fn destack_os_location_watch_read(
     out: *mut LocationSample,
     handle: resource::LocationWatchHandle,
     timeoutns: u64,
@@ -14201,7 +14114,7 @@ pub unsafe extern "C" fn destack_os_location_watch_read(
 }
 
 #[unsafe(export_name = "destack.os.location.watchTryRead")]
-pub unsafe extern "C" fn destack_os_location_watch_try_read(
+pub(crate) unsafe extern "C" fn destack_os_location_watch_try_read(
     out: *mut LocationSample,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeStatus {
@@ -14218,7 +14131,7 @@ pub unsafe extern "C" fn destack_os_location_watch_try_read(
 }
 
 #[unsafe(export_name = "destack.os.media.delete")]
-pub unsafe extern "C" fn destack_os_media_delete(
+pub(crate) unsafe extern "C" fn destack_os_media_delete(
     out: *mut u32,
     ids: NativeArray<NativeStringRef>,
 ) -> RuntimeStatus {
@@ -14244,7 +14157,7 @@ pub unsafe extern "C" fn destack_os_media_delete(
 }
 
 #[unsafe(export_name = "destack.os.media.importPath")]
-pub unsafe extern "C" fn destack_os_media_import_path(
+pub(crate) unsafe extern "C" fn destack_os_media_import_path(
     out: *mut NativeStringRef,
     path: fs::OsPath,
     kind: MediaAssetKind,
@@ -14273,7 +14186,7 @@ pub unsafe extern "C" fn destack_os_media_import_path(
 }
 
 #[unsafe(export_name = "destack.os.media.list")]
-pub unsafe extern "C" fn destack_os_media_list(
+pub(crate) unsafe extern "C" fn destack_os_media_list(
     out: *mut MediaPage,
     query: MediaQuery,
 ) -> RuntimeStatus {
@@ -14299,7 +14212,7 @@ pub unsafe extern "C" fn destack_os_media_list(
 }
 
 #[unsafe(export_name = "destack.os.media.read")]
-pub unsafe extern "C" fn destack_os_media_read(
+pub(crate) unsafe extern "C" fn destack_os_media_read(
     out: *mut MediaAssetDescriptor,
     id: NativeStringRef,
 ) -> RuntimeStatus {
@@ -14325,7 +14238,7 @@ pub unsafe extern "C" fn destack_os_media_read(
 }
 
 #[unsafe(export_name = "destack.os.mount.add")]
-pub unsafe extern "C" fn destack_os_mount_add(
+pub(crate) unsafe extern "C" fn destack_os_mount_add(
     source: NativeStringRef,
     target: fs::OsPath,
     filesystem: NativeStringRef,
@@ -14341,7 +14254,9 @@ pub unsafe extern "C" fn destack_os_mount_add(
 }
 
 #[unsafe(export_name = "destack.os.mount.list")]
-pub unsafe extern "C" fn destack_os_mount_list(out: *mut NativeArray<MountEntry>) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_mount_list(
+    out: *mut NativeArray<MountEntry>,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -14355,7 +14270,10 @@ pub unsafe extern "C" fn destack_os_mount_list(out: *mut NativeArray<MountEntry>
 }
 
 #[unsafe(export_name = "destack.os.mount.remove")]
-pub unsafe extern "C" fn destack_os_mount_remove(target: fs::OsPath, flags: u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_mount_remove(
+    target: fs::OsPath,
+    flags: u64,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&target, &flags);
 
@@ -14366,7 +14284,7 @@ pub unsafe extern "C" fn destack_os_mount_remove(target: fs::OsPath, flags: u64)
 }
 
 #[unsafe(export_name = "destack.os.network.state")]
-pub unsafe extern "C" fn destack_os_network_state(out: *mut NetworkState) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_network_state(out: *mut NetworkState) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -14380,7 +14298,7 @@ pub unsafe extern "C" fn destack_os_network_state(out: *mut NetworkState) -> Run
 }
 
 #[unsafe(export_name = "destack.os.network.watchClose")]
-pub unsafe extern "C" fn destack_os_network_watch_close(
+pub(crate) unsafe extern "C" fn destack_os_network_watch_close(
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14393,7 +14311,7 @@ pub unsafe extern "C" fn destack_os_network_watch_close(
 }
 
 #[unsafe(export_name = "destack.os.network.watchOpen")]
-pub unsafe extern "C" fn destack_os_network_watch_open(
+pub(crate) unsafe extern "C" fn destack_os_network_watch_open(
     out: *mut resource::NetworkWatchHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14409,7 +14327,7 @@ pub unsafe extern "C" fn destack_os_network_watch_open(
 }
 
 #[unsafe(export_name = "destack.os.network.watchRead")]
-pub unsafe extern "C" fn destack_os_network_watch_read(
+pub(crate) unsafe extern "C" fn destack_os_network_watch_read(
     out: *mut NetworkEvent,
     handle: resource::NetworkWatchHandle,
     timeoutns: u64,
@@ -14427,7 +14345,7 @@ pub unsafe extern "C" fn destack_os_network_watch_read(
 }
 
 #[unsafe(export_name = "destack.os.network.watchTryRead")]
-pub unsafe extern "C" fn destack_os_network_watch_try_read(
+pub(crate) unsafe extern "C" fn destack_os_network_watch_try_read(
     out: *mut NetworkEvent,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeStatus {
@@ -14444,7 +14362,9 @@ pub unsafe extern "C" fn destack_os_network_watch_try_read(
 }
 
 #[unsafe(export_name = "destack.os.notification.cancel")]
-pub unsafe extern "C" fn destack_os_notification_cancel(id: NativeStringRef) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_notification_cancel(
+    id: NativeStringRef,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &id;
 
@@ -14464,7 +14384,7 @@ pub unsafe extern "C" fn destack_os_notification_cancel(id: NativeStringRef) -> 
 }
 
 #[unsafe(export_name = "destack.os.notification.cancelAll")]
-pub unsafe extern "C" fn destack_os_notification_cancel_all() -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_notification_cancel_all() -> RuntimeStatus {
     native_call(|context| {
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(OS_NOTIFICATION_CANCEL_ALL)?;
@@ -14480,7 +14400,7 @@ pub unsafe extern "C" fn destack_os_notification_cancel_all() -> RuntimeStatus {
 }
 
 #[unsafe(export_name = "destack.os.notification.categoryList")]
-pub unsafe extern "C" fn destack_os_notification_category_list(
+pub(crate) unsafe extern "C" fn destack_os_notification_category_list(
     out: *mut NativeArray<NotificationCategory>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14496,7 +14416,7 @@ pub unsafe extern "C" fn destack_os_notification_category_list(
 }
 
 #[unsafe(export_name = "destack.os.notification.categorySet")]
-pub unsafe extern "C" fn destack_os_notification_category_set(
+pub(crate) unsafe extern "C" fn destack_os_notification_category_set(
     categories: NativeArray<NotificationCategory>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14520,7 +14440,7 @@ pub unsafe extern "C" fn destack_os_notification_category_set(
 }
 
 #[unsafe(export_name = "destack.os.notification.event.close")]
-pub unsafe extern "C" fn destack_os_notification_event_close(
+pub(crate) unsafe extern "C" fn destack_os_notification_event_close(
     handle: resource::NotificationEventHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14542,7 +14462,7 @@ pub unsafe extern "C" fn destack_os_notification_event_close(
 }
 
 #[unsafe(export_name = "destack.os.notification.event.open")]
-pub unsafe extern "C" fn destack_os_notification_event_open(
+pub(crate) unsafe extern "C" fn destack_os_notification_event_open(
     out: *mut resource::NotificationEventHandle,
     options: NotificationEventOpenOptions,
 ) -> RuntimeStatus {
@@ -14570,7 +14490,7 @@ pub unsafe extern "C" fn destack_os_notification_event_open(
 }
 
 #[unsafe(export_name = "destack.os.notification.event.read")]
-pub unsafe extern "C" fn destack_os_notification_event_read(
+pub(crate) unsafe extern "C" fn destack_os_notification_event_read(
     out: *mut NotificationEvent,
     handle: resource::NotificationEventHandle,
     timeoutns: u64,
@@ -14601,7 +14521,7 @@ pub unsafe extern "C" fn destack_os_notification_event_read(
 }
 
 #[unsafe(export_name = "destack.os.notification.event.tryRead")]
-pub unsafe extern "C" fn destack_os_notification_event_try_read(
+pub(crate) unsafe extern "C" fn destack_os_notification_event_try_read(
     out: *mut NotificationEvent,
     handle: resource::NotificationEventHandle,
 ) -> RuntimeStatus {
@@ -14629,7 +14549,7 @@ pub unsafe extern "C" fn destack_os_notification_event_try_read(
 }
 
 #[unsafe(export_name = "destack.os.notification.pendingCancel")]
-pub unsafe extern "C" fn destack_os_notification_pending_cancel(
+pub(crate) unsafe extern "C" fn destack_os_notification_pending_cancel(
     id: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14651,7 +14571,7 @@ pub unsafe extern "C" fn destack_os_notification_pending_cancel(
 }
 
 #[unsafe(export_name = "destack.os.notification.pendingCancelAll")]
-pub unsafe extern "C" fn destack_os_notification_pending_cancel_all() -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_notification_pending_cancel_all() -> RuntimeStatus {
     native_call(|context| {
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(OS_NOTIFICATION_PENDING_CANCEL_ALL)?;
@@ -14667,7 +14587,7 @@ pub unsafe extern "C" fn destack_os_notification_pending_cancel_all() -> Runtime
 }
 
 #[unsafe(export_name = "destack.os.notification.pendingList")]
-pub unsafe extern "C" fn destack_os_notification_pending_list(
+pub(crate) unsafe extern "C" fn destack_os_notification_pending_list(
     out: *mut NativeArray<NotificationScheduledDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14683,7 +14603,7 @@ pub unsafe extern "C" fn destack_os_notification_pending_list(
 }
 
 #[unsafe(export_name = "destack.os.notification.permissionState")]
-pub unsafe extern "C" fn destack_os_notification_permission_state(
+pub(crate) unsafe extern "C" fn destack_os_notification_permission_state(
     out: *mut NotificationPermissionState,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14699,7 +14619,7 @@ pub unsafe extern "C" fn destack_os_notification_permission_state(
 }
 
 #[unsafe(export_name = "destack.os.notification.post")]
-pub unsafe extern "C" fn destack_os_notification_post(
+pub(crate) unsafe extern "C" fn destack_os_notification_post(
     out: *mut NativeStringRef,
     request: NotificationRequest,
 ) -> RuntimeStatus {
@@ -14725,7 +14645,7 @@ pub unsafe extern "C" fn destack_os_notification_post(
 }
 
 #[unsafe(export_name = "destack.os.notification.requestPermission")]
-pub unsafe extern "C" fn destack_os_notification_request_permission(
+pub(crate) unsafe extern "C" fn destack_os_notification_request_permission(
     out: *mut NotificationPermissionState,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14752,7 +14672,7 @@ pub unsafe extern "C" fn destack_os_notification_request_permission(
 }
 
 #[unsafe(export_name = "destack.os.notification.schedule")]
-pub unsafe extern "C" fn destack_os_notification_schedule(
+pub(crate) unsafe extern "C" fn destack_os_notification_schedule(
     out: *mut NativeStringRef,
     request: NotificationRequest,
 ) -> RuntimeStatus {
@@ -14780,7 +14700,7 @@ pub unsafe extern "C" fn destack_os_notification_schedule(
 }
 
 #[unsafe(export_name = "destack.os.permission.openSettings")]
-pub unsafe extern "C" fn destack_os_permission_open_settings() -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_permission_open_settings() -> RuntimeStatus {
     native_call(|context| {
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(OS_PERMISSION_OPEN_SETTINGS)?;
@@ -14796,7 +14716,7 @@ pub unsafe extern "C" fn destack_os_permission_open_settings() -> RuntimeStatus 
 }
 
 #[unsafe(export_name = "destack.os.permission.request")]
-pub unsafe extern "C" fn destack_os_permission_request(
+pub(crate) unsafe extern "C" fn destack_os_permission_request(
     out: *mut PermissionState,
     permission: Permission,
 ) -> RuntimeStatus {
@@ -14824,7 +14744,7 @@ pub unsafe extern "C" fn destack_os_permission_request(
 }
 
 #[unsafe(export_name = "destack.os.permission.requestMany")]
-pub unsafe extern "C" fn destack_os_permission_request_many(
+pub(crate) unsafe extern "C" fn destack_os_permission_request_many(
     out: *mut NativeArray<PermissionEntry>,
     permissions: NativeArray<Permission>,
 ) -> RuntimeStatus {
@@ -14854,7 +14774,7 @@ pub unsafe extern "C" fn destack_os_permission_request_many(
 }
 
 #[unsafe(export_name = "destack.os.permission.state")]
-pub unsafe extern "C" fn destack_os_permission_state(
+pub(crate) unsafe extern "C" fn destack_os_permission_state(
     out: *mut PermissionState,
     permission: Permission,
 ) -> RuntimeStatus {
@@ -14871,7 +14791,7 @@ pub unsafe extern "C" fn destack_os_permission_state(
 }
 
 #[unsafe(export_name = "destack.os.permission.stateMany")]
-pub unsafe extern "C" fn destack_os_permission_state_many(
+pub(crate) unsafe extern "C" fn destack_os_permission_state_many(
     out: *mut NativeArray<PermissionEntry>,
     permissions: NativeArray<Permission>,
 ) -> RuntimeStatus {
@@ -14888,7 +14808,7 @@ pub unsafe extern "C" fn destack_os_permission_state_many(
 }
 
 #[unsafe(export_name = "destack.os.power.state")]
-pub unsafe extern "C" fn destack_os_power_state(out: *mut PowerState) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_power_state(out: *mut PowerState) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -14902,7 +14822,7 @@ pub unsafe extern "C" fn destack_os_power_state(out: *mut PowerState) -> Runtime
 }
 
 #[unsafe(export_name = "destack.os.power.suspend")]
-pub unsafe extern "C" fn destack_os_power_suspend() -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_os_power_suspend() -> RuntimeStatus {
     native_call(|context| {
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(OS_POWER_SUSPEND)?;
@@ -20534,7 +20454,7 @@ fn destack_os_power_state_vm_replay(
 }
 
 /// Register VM bindings for os.
-pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -23000,8 +22920,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 }
 
 /// Install VM bindings for os.
-pub fn install_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_os_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub OS_VM_BINDINGS, "os", install_os_vm_bindings);
+vm_binding_set!(pub(crate) OS_VM_BINDINGS, "os", install_os_vm_bindings);

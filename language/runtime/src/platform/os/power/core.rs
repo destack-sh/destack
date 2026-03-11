@@ -41,3 +41,8 @@ pub(crate) unsafe fn destack_os_power_state(
 
     Ok(())
 }
+
+/// Read current host power state through the VM ABI surface.
+pub(crate) fn read_power_state(binding: &BindingCallContext) -> RuntimeResult<PowerState> {
+    backend::read_power_state(binding)
+}
