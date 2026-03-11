@@ -210,10 +210,10 @@ pub struct Function {
     pub return_type: LocalNodeId<Type>,
     /// Lifetime bounds for the return value.
     pub return_lifetime: Lifetime,
-    /// Memory effects for this function, when known.
-    pub memory_effects: Option<MemoryEffect>,
-    /// Behavioral effects for this function, when known.
-    pub call_behavior: Option<CallBehavior>,
+    /// Memory effects for this function.
+    pub memory_effects: MemoryEffect,
+    /// Behavioral effects for this function.
+    pub call_behavior: CallBehavior,
     /// Allocation size metadata for allocator-like functions.
     pub alloc_size: Option<AllocSize>,
     /// Pointer attributes for parameters, indexed by parameter position.
@@ -269,8 +269,8 @@ impl Function {
             value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
-            memory_effects: None,
-            call_behavior: None,
+            memory_effects: MemoryEffect::unknown(),
+            call_behavior: CallBehavior::unknown(),
             alloc_size: None,
             parameter_attributes,
             return_attributes: PointerAttributes::default(),
@@ -311,8 +311,8 @@ impl Function {
             value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
-            memory_effects: None,
-            call_behavior: None,
+            memory_effects: MemoryEffect::unknown(),
+            call_behavior: CallBehavior::unknown(),
             alloc_size: None,
             parameter_attributes,
             return_attributes: PointerAttributes::default(),
@@ -350,8 +350,8 @@ impl Function {
             value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
-            memory_effects: None,
-            call_behavior: None,
+            memory_effects: MemoryEffect::unknown(),
+            call_behavior: CallBehavior::unknown(),
             alloc_size: None,
             parameter_attributes,
             return_attributes: PointerAttributes::default(),

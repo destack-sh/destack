@@ -3,44 +3,44 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-/// Set of memory locations that an operation may access.
+/// Set of memory regions that an operation may access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct MemoryLocationSet(
-    /// Bitset describing accessible memory locations.
+pub struct MemoryRegionSet(
+    /// Bitset describing accessible memory regions.
     u16,
 );
 
-impl MemoryLocationSet {
-    /// No memory locations.
+impl MemoryRegionSet {
+    /// No memory regions.
     pub const NONE: Self = Self(0);
-    /// Memory reachable from pointer arguments.
-    pub const ARGUMENTS: Self = Self(1 << 0);
-    /// Heap allocated memory.
-    pub const HEAP: Self = Self(1 << 1);
+    /// GC managed heap memory.
+    pub const MANAGED_HEAP: Self = Self(1 << 0);
+    /// Immortal managed heap memory.
+    pub const IMMORTAL_HEAP: Self = Self(1 << 1);
+    /// Raw manually managed heap memory.
+    pub const RAW_HEAP: Self = Self(1 << 2);
     /// Stack memory.
-    pub const STACK: Self = Self(1 << 2);
+    pub const STACK: Self = Self(1 << 3);
     /// Global or static memory.
-    pub const GLOBAL: Self = Self(1 << 3);
+    pub const GLOBAL: Self = Self(1 << 4);
     /// Shared or workgroup memory.
-    pub const SHARED: Self = Self(1 << 4);
+    pub const SHARED: Self = Self(1 << 5);
     /// Target local or thread local memory.
-    pub const LOCAL: Self = Self(1 << 5);
+    pub const LOCAL: Self = Self(1 << 6);
     /// Target constant or read only memory.
-    pub const CONSTANT: Self = Self(1 << 6);
-    /// Inaccessible memory that cannot be aliased.
-    pub const INACCESSIBLE: Self = Self(1 << 7);
+    pub const CONSTANT: Self = Self(1 << 7);
     /// Memory mapped IO or other side channel memory.
     pub const IO: Self = Self(1 << 8);
-    /// All memory locations.
+    /// All memory regions.
     pub const ANY: Self = Self(
-        Self::ARGUMENTS.0
-            | Self::HEAP.0
+        Self::MANAGED_HEAP.0
+            | Self::IMMORTAL_HEAP.0
+            | Self::RAW_HEAP.0
             | Self::STACK.0
             | Self::GLOBAL.0
             | Self::SHARED.0
             | Self::LOCAL.0
             | Self::CONSTANT.0
-            | Self::INACCESSIBLE.0
             | Self::IO.0,
     );
 
@@ -54,49 +54,49 @@ impl MemoryLocationSet {
         self.0 & other.0 == other.0
     }
 
-    /// Insert another set of locations.
+    /// Insert another set of regions.
     pub fn insert(&mut self, other: Self) {
         self.0 |= other.0;
     }
 
-    /// Return the intersection of two location sets.
+    /// Return the intersection of two region sets.
     pub fn intersection(self, other: Self) -> Self {
         Self(self.0 & other.0)
     }
 
-    /// Check whether two location sets intersect.
+    /// Check whether two region sets intersect.
     pub fn intersects(self, other: Self) -> bool {
         self.0 & other.0 != 0
     }
 
-    /// Check whether two location sets are disjoint.
+    /// Check whether two region sets are disjoint.
     pub fn is_disjoint(self, other: Self) -> bool {
         self.0 & other.0 == 0
     }
 }
 
-impl Default for MemoryLocationSet {
+impl Default for MemoryRegionSet {
     fn default() -> Self {
         Self::ANY
     }
 }
 
-impl TryFrom<&str> for MemoryLocationSet {
+impl TryFrom<&str> for MemoryRegionSet {
     type Error = ();
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "None" => Ok(MemoryLocationSet::NONE),
-            "Arguments" => Ok(MemoryLocationSet::ARGUMENTS),
-            "Heap" => Ok(MemoryLocationSet::HEAP),
-            "Stack" => Ok(MemoryLocationSet::STACK),
-            "Global" => Ok(MemoryLocationSet::GLOBAL),
-            "Shared" => Ok(MemoryLocationSet::SHARED),
-            "Local" => Ok(MemoryLocationSet::LOCAL),
-            "Constant" => Ok(MemoryLocationSet::CONSTANT),
-            "Inaccessible" => Ok(MemoryLocationSet::INACCESSIBLE),
-            "Io" => Ok(MemoryLocationSet::IO),
-            "Any" => Ok(MemoryLocationSet::ANY),
+            "None" => Ok(MemoryRegionSet::NONE),
+            "ManagedHeap" => Ok(MemoryRegionSet::MANAGED_HEAP),
+            "ImmortalHeap" => Ok(MemoryRegionSet::IMMORTAL_HEAP),
+            "RawHeap" => Ok(MemoryRegionSet::RAW_HEAP),
+            "Stack" => Ok(MemoryRegionSet::STACK),
+            "Global" => Ok(MemoryRegionSet::GLOBAL),
+            "Shared" => Ok(MemoryRegionSet::SHARED),
+            "Local" => Ok(MemoryRegionSet::LOCAL),
+            "Constant" => Ok(MemoryRegionSet::CONSTANT),
+            "Io" => Ok(MemoryRegionSet::IO),
+            "Any" => Ok(MemoryRegionSet::ANY),
             _ => Err(()),
         }
     }
@@ -164,6 +164,92 @@ impl TryFrom<&str> for MemoryOrdering {
             "SeqCst" => Ok(MemoryOrdering::SeqCst),
             _ => Err(()),
         }
+    }
+}
+
+/// Read modify write operator for atomic memory operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AtomicRmwOperator {
+    /// Swap the memory value with the new value.
+    Exchange,
+    /// Add and return the old value.
+    Add,
+    /// Subtract and return the old value.
+    Sub,
+    /// Bitwise and and return the old value.
+    And,
+    /// Bitwise or and return the old value.
+    Or,
+    /// Bitwise xor and return the old value.
+    Xor,
+    /// Signed minimum and return the old value.
+    Min,
+    /// Signed maximum and return the old value.
+    Max,
+    /// Unsigned minimum and return the old value.
+    Umin,
+    /// Unsigned maximum and return the old value.
+    Umax,
+    /// Floating add and return the old value.
+    Fadd,
+    /// Floating minimum and return the old value.
+    Fmin,
+    /// Floating maximum and return the old value.
+    Fmax,
+}
+
+impl AtomicRmwOperator {
+    /// Return the canonical text form.
+    pub fn to_str(self) -> &'static str {
+        match self {
+            AtomicRmwOperator::Exchange => "xchg",
+            AtomicRmwOperator::Add => "add",
+            AtomicRmwOperator::Sub => "sub",
+            AtomicRmwOperator::And => "and",
+            AtomicRmwOperator::Or => "or",
+            AtomicRmwOperator::Xor => "xor",
+            AtomicRmwOperator::Min => "min",
+            AtomicRmwOperator::Max => "max",
+            AtomicRmwOperator::Umin => "umin",
+            AtomicRmwOperator::Umax => "umax",
+            AtomicRmwOperator::Fadd => "fadd",
+            AtomicRmwOperator::Fmin => "fmin",
+            AtomicRmwOperator::Fmax => "fmax",
+        }
+    }
+
+    /// Parse one canonical text form.
+    pub fn parse(text: &str) -> Option<Self> {
+        Some(match text {
+            "xchg" => AtomicRmwOperator::Exchange,
+            "add" => AtomicRmwOperator::Add,
+            "sub" => AtomicRmwOperator::Sub,
+            "and" => AtomicRmwOperator::And,
+            "or" => AtomicRmwOperator::Or,
+            "xor" => AtomicRmwOperator::Xor,
+            "min" => AtomicRmwOperator::Min,
+            "max" => AtomicRmwOperator::Max,
+            "umin" => AtomicRmwOperator::Umin,
+            "umax" => AtomicRmwOperator::Umax,
+            "fadd" => AtomicRmwOperator::Fadd,
+            "fmin" => AtomicRmwOperator::Fmin,
+            "fmax" => AtomicRmwOperator::Fmax,
+            _ => return None,
+        })
+    }
+}
+
+impl fmt::Display for AtomicRmwOperator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.to_str())
+    }
+}
+
+impl FromStr for AtomicRmwOperator {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s).ok_or(())
     }
 }
 
@@ -329,7 +415,7 @@ impl TryFrom<&str> for MemoryScope {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MemorySemantics {
     /// Memory locations participating in the synchronization.
-    pub locations: MemoryLocationSet,
+    pub locations: MemoryRegionSet,
     /// Whether the access is volatile.
     pub is_volatile: bool,
     /// Whether this makes writes available to other scopes.
@@ -340,7 +426,7 @@ pub struct MemorySemantics {
 
 impl MemorySemantics {
     /// Create semantics for the provided locations.
-    pub fn new(locations: MemoryLocationSet) -> Self {
+    pub fn new(locations: MemoryRegionSet) -> Self {
         Self {
             locations,
             is_volatile: false,
@@ -351,7 +437,7 @@ impl MemorySemantics {
 
     /// Create semantics with explicit flags.
     pub fn with_flags(
-        locations: MemoryLocationSet,
+        locations: MemoryRegionSet,
         is_volatile: bool,
         is_make_available: bool,
         is_make_visible: bool,
@@ -368,7 +454,7 @@ impl MemorySemantics {
 impl Default for MemorySemantics {
     fn default() -> Self {
         Self {
-            locations: MemoryLocationSet::ANY,
+            locations: MemoryRegionSet::ANY,
             is_volatile: false,
             is_make_available: false,
             is_make_visible: false,

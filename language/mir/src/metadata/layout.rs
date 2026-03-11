@@ -4,6 +4,82 @@ use destack_core::StringId;
 
 use crate::{LocalNodeId, Type};
 
+/// Canonical module data layout metadata.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DataLayout {
+    /// Native pointer size in bytes for this module.
+    pub native_pointer_bytes: u8,
+    /// Managed reference representation for this module.
+    pub managed_reference_layout: ManagedReferenceLayout,
+}
+
+/// Managed reference representation metadata.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManagedReferenceLayout {
+    /// Managed reference size in bytes.
+    pub bytes: u8,
+    /// Managed reference alignment in bytes.
+    pub alignment: u8,
+    /// Managed reference encoding.
+    pub representation: ManagedReferenceRepresentation,
+}
+
+/// Managed reference encoding strategy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ManagedReferenceRepresentation {
+    /// Native machine pointer.
+    NativePointer,
+    /// Offset from a managed heap base.
+    CompressedOffset32,
+    /// Indirect 32 bit handle.
+    Handle32,
+    /// Indirect 64 bit handle.
+    Handle64,
+}
+
+impl Default for DataLayout {
+    fn default() -> Self {
+        Self {
+            native_pointer_bytes: 8,
+            managed_reference_layout: ManagedReferenceLayout::default(),
+        }
+    }
+}
+
+impl Default for ManagedReferenceLayout {
+    fn default() -> Self {
+        Self {
+            bytes: 8,
+            alignment: 8,
+            representation: ManagedReferenceRepresentation::NativePointer,
+        }
+    }
+}
+
+impl DataLayout {
+    /// Create a data layout with a specific pointer size.
+    pub fn with_pointer_bytes(pointer_bytes: u8) -> Self {
+        Self {
+            native_pointer_bytes: pointer_bytes,
+            managed_reference_layout: ManagedReferenceLayout {
+                bytes: pointer_bytes,
+                alignment: pointer_bytes,
+                representation: ManagedReferenceRepresentation::NativePointer,
+            },
+        }
+    }
+
+    /// Return pointer width in bits.
+    pub fn pointer_bits(self) -> u16 {
+        u16::from(self.native_pointer_bytes) * 8
+    }
+
+    /// Return managed reference width in bits.
+    pub fn managed_reference_bits(self) -> u16 {
+        u16::from(self.managed_reference_layout.bytes) * 8
+    }
+}
+
 /// Opaque identifier for a concrete memory layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct LayoutId(pub u32);

@@ -9,9 +9,7 @@ impl Parser<'_> {
     /// Record layout metadata for aggregate types parsed from MIR text.
     pub(super) fn record_layout_for_type(&mut self, type_id: LocalNodeId<Type>) -> ParseResult<()> {
         // skip if metadata already exists
-        if let Some(metadata) = self.tree.type_table.type_metadata_by_id.get(&type_id)
-            && metadata.layout_id.is_some()
-        {
+        if self.tree.type_table.layout_id(type_id).is_some() {
             return Ok(());
         }
 
@@ -48,29 +46,32 @@ impl Parser<'_> {
     ) -> ParseResult<()> {
         // compute field layouts in declaration order
         let mut layout_fields = Vec::with_capacity(fields.len());
+        let mut offset = 0u32;
         for (index, field_id) in fields.iter().enumerate() {
             // compute field size and alignment
-            let (field_name, field_type, field_offset) = {
+            let (field_name, field_type) = {
                 let field = self.tree.get(*field_id);
-                (field.name, field.ty, field.offset)
+                (field.name, field.ty)
             };
             let field_layout =
-                compute_type_layout(&self.tree, field_type, self.options.pointer_bytes);
+                compute_type_layout(&self.tree, field_type, self.tree.pointer_bytes());
+            offset = field_layout.align_offset(offset);
 
             // resolve a stable field name
             let name = field_name.unwrap_or_else(|| self.synthetic_field_name(index));
             layout_fields.push(LayoutField {
                 name,
                 ty: field_type,
-                offset: field_offset,
+                offset,
                 size: field_layout.size,
                 alignment: field_layout.alignment,
                 source_index: Some(index as u32),
             });
+            offset += field_layout.size;
         }
 
         // compute the final struct size and alignment
-        let layout = compute_type_layout(&self.tree, type_id, self.options.pointer_bytes);
+        let layout = compute_type_layout(&self.tree, type_id, self.tree.pointer_bytes());
 
         // assemble the layout table entry
         let layout_entry = Layout {
@@ -100,7 +101,7 @@ impl Parser<'_> {
         for (index, element_id) in elements.iter().enumerate() {
             // compute element size and alignment
             let element_layout =
-                compute_type_layout(&self.tree, *element_id, self.options.pointer_bytes);
+                compute_type_layout(&self.tree, *element_id, self.tree.pointer_bytes());
 
             // align the current offset
             offset = element_layout.align_offset(offset);
@@ -121,7 +122,7 @@ impl Parser<'_> {
         }
 
         // pad to the final alignment
-        let total_size = compute_type_layout(&self.tree, type_id, self.options.pointer_bytes).size;
+        let total_size = compute_type_layout(&self.tree, type_id, self.tree.pointer_bytes()).size;
 
         // assemble the layout table entry
         let layout_entry = Layout {
@@ -145,7 +146,7 @@ impl Parser<'_> {
         length: u64,
     ) -> ParseResult<()> {
         // compute element layout
-        let element_layout = compute_type_layout(&self.tree, element, self.options.pointer_bytes);
+        let element_layout = compute_type_layout(&self.tree, element, self.tree.pointer_bytes());
         let element_stride = align_up(element_layout.size, element_layout.alignment);
 
         // validate the array length
@@ -176,16 +177,10 @@ impl Parser<'_> {
         Ok(())
     }
 
-    /// Insert a layout entry and attach it to the type metadata.
+    /// Insert a layout entry and attach it to the type table.
     fn insert_layout_entry(&mut self, type_id: LocalNodeId<Type>, layout: Layout) {
         let layout_id = self.tree.type_table.layout_table.insert(layout);
-        let metadata = self
-            .tree
-            .type_table
-            .type_metadata_by_id
-            .entry(type_id)
-            .or_default();
-        metadata.layout_id = Some(layout_id);
+        self.tree.type_table.set_layout_id(type_id, layout_id);
     }
 
     /// Build a synthetic field name for unnamed struct fields.

@@ -48,7 +48,8 @@ fn format_type_inner<'a>(
         Type::Float { width } => {
             write!(f, [text(&format!("f{width}"))])
         }
-        Type::Type => write!(f, [token("type")]),
+        Type::TypeDescriptor => write!(f, [token("type_descriptor")]),
+        Type::TypeId => write!(f, [token("type_id")]),
         Type::Reference {
             kind,
             address_space,
@@ -213,6 +214,20 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(")"), space(), token("->"), space(), result])
         }
+        Type::FunctionValue {
+            signature,
+            environment,
+        } => write!(
+            f,
+            [
+                token("fnvalue<"),
+                signature,
+                token(","),
+                space(),
+                environment,
+                token(">")
+            ]
+        ),
     }
 }
 
