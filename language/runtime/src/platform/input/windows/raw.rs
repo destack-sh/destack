@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, OnceLock, mpsc};
+use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
 use std::{mem, ptr, thread};
 
@@ -61,8 +61,9 @@ use crate::platform::input::{
     InputScrollEventPayload, InputSensorDescriptor, InputSensorKind, InputSensorSample,
     InputTouchContactPhase, InputTouchContactState, InputTouchState,
 };
+use crate::platform::service::global_service;
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
 
 /// Prefix for monitor event device identifiers derived from raw device handles.
 pub(super) const WINDOWS_INPUT_MONITOR_ID_PREFIX: &str = "raw:device:";
@@ -513,13 +514,15 @@ impl RawInputState {
     }
 }
 
-/// Initialized raw-input worker service.
-#[derive(Debug, Clone)]
-struct RawInputService {
-    /// Shared worker state.
-    state: Arc<RawInputState>,
+/// Process-global windows raw-input service.
+#[derive(Debug)]
+pub(crate) struct WindowsRawInputService {
+    /// Registered raw-input runtimes keyed by agent id.
+    runtimes: Mutex<ProcessSubscriberRegistry<AgentId, WindowsRawInputRuntimeState>>,
     /// Worker-thread control payload.
-    worker: Arc<RawInputWorker>,
+    worker: Mutex<Option<RawInputWorker>>,
+    /// Liveness state for the raw-input message worker.
+    worker_running: AtomicBool,
 }
 
 /// Raw-input worker-thread control payload.
@@ -531,7 +534,96 @@ struct RawInputWorker {
     handle: Mutex<Option<thread::JoinHandle<()>>>,
 }
 
-/// Runtime-owned mutable state for windows raw-input services.
+impl WindowsRawInputService {
+    /// Create one process-global windows raw-input service.
+    fn new() -> Self {
+        Self {
+            runtimes: Mutex::new(ProcessSubscriberRegistry::default()),
+            worker: Mutex::new(None),
+            worker_running: AtomicBool::new(false),
+        }
+    }
+
+    /// Register one agent-local raw-input runtime.
+    fn register_runtime(
+        &self,
+        agent_id: AgentId,
+        runtime_state: &Arc<WindowsRawInputRuntimeState>,
+    ) {
+        let mut runtimes = self.runtimes.lock();
+        runtimes.register(agent_id, runtime_state);
+    }
+
+    /// Unregister one agent-local raw-input runtime.
+    fn unregister_runtime(&self, agent_id: AgentId) {
+        let should_shutdown = {
+            let mut runtimes = self.runtimes.lock();
+            runtimes.unregister(agent_id);
+            runtimes.is_empty()
+        };
+
+        if should_shutdown {
+            self.shutdown_worker();
+        }
+    }
+
+    /// Return one snapshot of the live raw-input runtimes.
+    fn runtime_states_snapshot(&self) -> Vec<Arc<WindowsRawInputRuntimeState>> {
+        let mut runtimes = self.runtimes.lock();
+
+        runtimes.snapshot()
+    }
+
+    /// Return whether the worker thread is currently running.
+    fn is_worker_running(&self) -> bool {
+        self.worker_running.load(Ordering::Acquire)
+    }
+
+    /// Ensure one live worker thread is available.
+    fn ensure_worker(
+        self: &Arc<Self>,
+        binding: &BindingCallContext,
+        operation: &'static str,
+    ) -> RuntimeResult<()> {
+        let mut worker = self.worker.lock();
+
+        // restart the worker after unexpected exits
+        let requires_spawn = match worker.as_ref() {
+            Some(_) => !self.is_worker_running(),
+            None => true,
+        };
+
+        if requires_spawn {
+            let next_worker = spawn_raw_input_worker(binding, self).map_err(|error| {
+                service_error(operation, format!("raw input unavailable: {error}"))
+            })?;
+            *worker = Some(next_worker);
+        }
+
+        Ok(())
+    }
+
+    /// Shut down one active worker thread when present.
+    fn shutdown_worker(&self) {
+        let worker = self.worker.lock().take();
+        let Some(worker) = worker else {
+            return;
+        };
+
+        let thread_id = worker.thread_id;
+        if thread_id != 0 {
+            unsafe {
+                PostThreadMessageW(thread_id, WM_QUIT, 0, 0);
+            }
+        }
+
+        if let Some(handle) = worker.handle.lock().take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+/// Agent-owned mutable state for windows raw-input streams.
 #[derive(Debug)]
 pub(crate) struct WindowsRawInputRuntimeState {
     /// Runtime-configured queue capacity for keyboard and mouse packets.
@@ -542,47 +634,61 @@ pub(crate) struct WindowsRawInputRuntimeState {
     raw_hid_queue_limit: AtomicUsize,
     /// Runtime-configured queue capacity for touch snapshots.
     raw_touch_queue_limit: AtomicUsize,
-    /// Shared pointer used by the worker procedure to enqueue events.
-    state: OnceLock<Arc<RawInputState>>,
-    /// Singleton service slot with restart support when the worker exits.
-    service: Mutex<Option<RawInputService>>,
-    /// Liveness state for the raw-input message worker.
-    worker_running: AtomicBool,
-    /// Whether runtime shutdown finalizers were already registered.
-    shutdown_registered: AtomicBool,
+    /// Shared queue state for this agent-local runtime.
+    state: Arc<RawInputState>,
+    /// Whether runtime finalizers were already registered.
+    finalizer_registered: AtomicBool,
+    /// Whether this runtime was already attached to the shared raw-input service.
+    service_registered: AtomicBool,
     /// Cached raw gamepad decoder state keyed by runtime device identifier.
     gamepad_decoder_cache: Mutex<HashMap<String, RawGamepadDecoderEntry>>,
 }
 
-impl Default for WindowsRawInputRuntimeState {
-    /// Build one runtime-owned raw-input state payload.
-    fn default() -> Self {
+impl WindowsRawInputRuntimeState {
+    /// Build one agent-owned raw-input state payload.
+    pub(crate) fn new(_agent_id: AgentId) -> Self {
         Self {
             raw_input_queue_limit: AtomicUsize::new(RAW_INPUT_QUEUE_LIMIT),
             raw_monitor_queue_limit: AtomicUsize::new(RAW_MONITOR_QUEUE_LIMIT),
             raw_hid_queue_limit: AtomicUsize::new(RAW_HID_QUEUE_LIMIT),
             raw_touch_queue_limit: AtomicUsize::new(RAW_TOUCH_QUEUE_LIMIT),
-            state: OnceLock::new(),
-            service: Mutex::new(None),
-            worker_running: AtomicBool::new(false),
-            shutdown_registered: AtomicBool::new(false),
+            state: Arc::new(RawInputState::new()),
+            finalizer_registered: AtomicBool::new(false),
+            service_registered: AtomicBool::new(false),
             gamepad_decoder_cache: Mutex::new(HashMap::new()),
         }
     }
 }
 
-/// Return runtime-owned raw-input mutable state.
+impl Default for WindowsRawInputRuntimeState {
+    /// Build one default raw-input runtime state for tests and fallback construction.
+    fn default() -> Self {
+        Self::new(AgentId(0))
+    }
+}
+
+/// Return one agent-owned raw-input mutable state.
 pub(super) fn windows_raw_input_runtime_state(
     binding: &BindingCallContext,
 ) -> Arc<WindowsRawInputRuntimeState> {
-    let runtime_state = binding
+    binding
         .agent()
         .platform_state
         .input
-        .windows_raw_input_runtime_state(WindowsRawInputRuntimeState::default);
-    register_runtime_finalizer(binding, &runtime_state);
+        .windows_raw_input_runtime_state(binding)
+}
 
-    runtime_state
+/// Return one shared windows raw-input service.
+pub(crate) fn windows_raw_input_service(
+    operation: &'static str,
+) -> RuntimeResult<Arc<WindowsRawInputService>> {
+    global_service(|| Ok(WindowsRawInputService::new())).map_err(|error| {
+        core_platform::io_operation_error(
+            operation,
+            None,
+            format!("failed to initialize windows raw input service: {error}"),
+        )
+    })
 }
 
 /// Return the configured keyboard and mouse queue capacity.
@@ -1746,50 +1852,26 @@ fn normalize_raw_mouse_motion(mouse: &windows_sys::Win32::UI::Input::RAWMOUSE) -
     }
 }
 
-/// Return the raw service slot used for lazy startup and restart.
-fn raw_service_slot(
-    runtime_state: &WindowsRawInputRuntimeState,
-) -> &Mutex<Option<RawInputService>> {
-    &runtime_state.service
-}
-
 /// Register one runtime teardown finalizer for the raw-input service.
 fn register_runtime_finalizer(
     binding: &BindingCallContext,
+    service: &Arc<WindowsRawInputService>,
     runtime_state: &Arc<WindowsRawInputRuntimeState>,
 ) {
     if runtime_state
-        .shutdown_registered
+        .finalizer_registered
         .swap(true, Ordering::AcqRel)
     {
         return;
     }
 
+    let agent_id = binding.agent().id;
+    let service = Arc::clone(service);
     let runtime_state = Arc::clone(runtime_state);
     binding.agent().finalizers.register(move || {
-        shutdown_raw_input_service(&runtime_state);
+        service.unregister_runtime(agent_id);
         clear_raw_gamepad_decoder_cache(&runtime_state);
     });
-}
-
-/// Stop and join one active raw-input worker when present.
-fn shutdown_raw_input_service(runtime_state: &WindowsRawInputRuntimeState) {
-    let service = raw_service_slot(runtime_state).lock().take();
-    let Some(service) = service else {
-        return;
-    };
-
-    let thread_id = service.worker.thread_id;
-    if thread_id != 0 {
-        unsafe {
-            PostThreadMessageW(thread_id, WM_QUIT, 0, 0);
-        }
-    }
-
-    let worker = &service.worker;
-    if let Some(handle) = worker.handle.lock().take() {
-        let _ = handle.join();
-    }
 }
 
 /// Return the raw gamepad decoder cache used by polling snapshots.
@@ -2175,25 +2257,17 @@ fn ensure_raw_input_registration(hwnd: HWND) -> RuntimeResult<()> {
 }
 
 /// Spawn the raw-input worker and wait for successful initialization.
-fn spawn_raw_input_service(
+fn spawn_raw_input_worker(
     _binding: &BindingCallContext,
-    runtime_state: &Arc<WindowsRawInputRuntimeState>,
-) -> Result<RawInputService, String> {
-    // reuse existing shared state so restarted workers keep servicing the same queues
-    let state = Arc::clone(
-        runtime_state
-            .state
-            .get_or_init(|| Arc::new(RawInputState::new())),
-    );
-
+    service: &Arc<WindowsRawInputService>,
+) -> Result<RawInputWorker, String> {
     // spawn the message-thread worker and wait for readiness
     let (ready_tx, ready_rx) = mpsc::channel::<Result<u32, String>>();
-    let thread_state = Arc::clone(&state);
-    let thread_runtime_state = Arc::clone(runtime_state);
+    let thread_service = Arc::clone(service);
     let handle = thread::Builder::new()
         .name("destack-input-raw".to_string())
         .spawn(move || {
-            raw_input_thread_main(thread_runtime_state, thread_state, ready_tx);
+            raw_input_thread_main(thread_service, ready_tx);
         })
         .map_err(|error| format!("failed to spawn raw input thread: {error}"))?;
 
@@ -2209,17 +2283,17 @@ fn spawn_raw_input_service(
         }
     };
 
-    let worker = Arc::new(RawInputWorker {
+    let worker = RawInputWorker {
         thread_id,
         handle: Mutex::new(Some(handle)),
-    });
-    Ok(RawInputService { state, worker })
+    };
+
+    Ok(worker)
 }
 
 /// Run the raw-input message-thread main loop.
 fn raw_input_thread_main(
-    runtime_state: Arc<WindowsRawInputRuntimeState>,
-    state: Arc<RawInputState>,
+    service: Arc<WindowsRawInputService>,
     ready_tx: mpsc::Sender<Result<u32, String>>,
 ) {
     // resolve module instance and register a message-only window class
@@ -2248,8 +2322,7 @@ fn raw_input_thread_main(
 
     // create one callback context and a message-only window for raw input delivery
     let mut window_context = RawInputWindowContext {
-        runtime_state: Arc::clone(&runtime_state),
-        state: Arc::clone(&state),
+        service: Arc::clone(&service),
     };
     let hwnd = unsafe {
         CreateWindowExW(
@@ -2283,7 +2356,7 @@ fn raw_input_thread_main(
     }
 
     // report readiness before entering the message loop
-    runtime_state.worker_running.store(true, Ordering::Release);
+    service.worker_running.store(true, Ordering::Release);
     let thread_id = unsafe { GetCurrentThreadId() };
     let _ = ready_tx.send(Ok(thread_id));
 
@@ -2299,8 +2372,11 @@ fn raw_input_thread_main(
     }
 
     // mark worker exit and wake readers so they can surface restartable failures
-    runtime_state.worker_running.store(false, Ordering::Release);
-    state.wake.notify_all();
+    service.worker_running.store(false, Ordering::Release);
+
+    for runtime_state in service.runtime_states_snapshot() {
+        runtime_state.state.wake.notify_all();
+    }
 
     // crash fast when the host integration contract is unexpectedly broken
     if let Err(error) = loop_result {
@@ -2335,7 +2411,7 @@ unsafe extern "system" fn raw_input_window_proc(
             };
 
             unsafe {
-                handle_raw_input_message(&(*context).runtime_state, &(*context).state, lparam);
+                handle_raw_input_message(&(*context).service, lparam);
             }
             0
         }
@@ -2345,12 +2421,7 @@ unsafe extern "system" fn raw_input_window_proc(
             };
 
             unsafe {
-                handle_raw_device_change_message(
-                    &(*context).runtime_state,
-                    &(*context).state,
-                    wparam as u32,
-                    lparam,
-                );
+                handle_raw_device_change_message(&(*context).service, wparam as u32, lparam);
             }
             0
         }
@@ -2361,7 +2432,7 @@ unsafe extern "system" fn raw_input_window_proc(
             };
 
             unsafe {
-                handle_touch_message(&(*context).runtime_state, &(*context).state, wparam, lparam);
+                handle_touch_message(&(*context).service, wparam, lparam);
             }
             0
         }
@@ -2378,10 +2449,8 @@ unsafe extern "system" fn raw_input_window_proc(
 /// Worker-side context passed to the message-only raw-input window.
 #[derive(Debug)]
 struct RawInputWindowContext {
-    /// Runtime-owned mutable state for raw-input services.
-    runtime_state: Arc<WindowsRawInputRuntimeState>,
-    /// Shared queue state used by window callbacks.
-    state: Arc<RawInputState>,
+    /// Process-global raw-input service.
+    service: Arc<WindowsRawInputService>,
 }
 
 /// Resolve one window callback context from one message-only window.
@@ -2396,8 +2465,7 @@ unsafe fn raw_input_window_context(hwnd: HWND) -> Option<*mut RawInputWindowCont
 
 /// Handle one raw device-change notification.
 fn handle_raw_device_change_message(
-    runtime_state: &WindowsRawInputRuntimeState,
-    state: &Arc<RawInputState>,
+    service: &WindowsRawInputService,
     kind: u32,
     raw_device: isize,
 ) {
@@ -2410,36 +2478,40 @@ fn handle_raw_device_change_message(
         return;
     };
 
-    // enqueue one monitor packet and wake blocked readers
-    let mut queues = state.queues.lock();
-    let device_kind = if kind == GIDC_ARRIVAL {
-        let kind = raw_device_kind(raw_device);
-        queues.monitor_device_kinds.insert(raw_device, kind);
-        kind
-    } else {
-        queues
-            .monitor_device_kinds
-            .remove(&raw_device)
-            .unwrap_or_else(|| raw_device_kind(raw_device))
-    };
-    let device_id = resolve_monitor_device_id(kind, raw_device, &mut queues.monitor_device_ids);
-    push_monitor_packet(
-        runtime_state,
-        &mut queues.monitor,
-        RawMonitorPacket {
-            timestamp_ns: now_timestamp_ns(),
-            action,
-            device_id,
-            device_kind,
-            code: kind,
-            value: if action == InputEventAction::Connect {
-                1
-            } else {
-                0
+    // fan out one monitor packet into every live runtime queue
+    let timestamp_ns = now_timestamp_ns();
+    for runtime_state in service.runtime_states_snapshot() {
+        let mut queues = runtime_state.state.queues.lock();
+        let device_kind = if kind == GIDC_ARRIVAL {
+            let kind = raw_device_kind(raw_device);
+            queues.monitor_device_kinds.insert(raw_device, kind);
+            kind
+        } else {
+            queues
+                .monitor_device_kinds
+                .remove(&raw_device)
+                .unwrap_or_else(|| raw_device_kind(raw_device))
+        };
+        let device_id = resolve_monitor_device_id(kind, raw_device, &mut queues.monitor_device_ids);
+
+        push_monitor_packet(
+            &runtime_state,
+            &mut queues.monitor,
+            RawMonitorPacket {
+                timestamp_ns,
+                action,
+                device_id,
+                device_kind,
+                code: kind,
+                value: if action == InputEventAction::Connect {
+                    1
+                } else {
+                    0
+                },
             },
-        },
-    );
-    state.wake.notify_all();
+        );
+        runtime_state.state.wake.notify_all();
+    }
 }
 
 /// Map Win32 touch flags into one stable touch phase.
@@ -2465,12 +2537,7 @@ fn touch_coordinate_from_raw(value: i32) -> f64 {
 }
 
 /// Handle one WM_TOUCH payload and enqueue per-device touch snapshots.
-fn handle_touch_message(
-    runtime_state: &WindowsRawInputRuntimeState,
-    state: &Arc<RawInputState>,
-    wparam: usize,
-    lparam: isize,
-) {
+fn handle_touch_message(service: &WindowsRawInputService, wparam: usize, lparam: isize) {
     // decode touch-packet count from the low word of wparam
     let touch_count = (wparam & 0xffffusize) as u32;
     if touch_count == 0 {
@@ -2498,86 +2565,85 @@ fn handle_touch_message(
 
     // update per-device contact maps and publish one snapshot per touched device
     let timestamp_ns = now_timestamp_ns();
-    let mut queues = state.queues.lock();
-    let mut touched_devices = HashSet::new();
-    for touch in touches {
-        let device_id = monitor_device_id(touch.hSource);
-        let has_active_stream = queues
-            .active_input_streams
-            .get(&device_id)
-            .copied()
-            .unwrap_or(0)
-            > 0;
-        if !has_active_stream {
-            continue;
+    for runtime_state in service.runtime_states_snapshot() {
+        let mut queues = runtime_state.state.queues.lock();
+        let mut touched_devices = HashSet::new();
+
+        for touch in &touches {
+            let device_id = monitor_device_id(touch.hSource);
+            let has_active_stream = queues
+                .active_input_streams
+                .get(&device_id)
+                .copied()
+                .unwrap_or(0)
+                > 0;
+            if !has_active_stream {
+                continue;
+            }
+
+            let phase = touch_phase_from_flags(touch.dwFlags);
+            let pressure = if phase == InputTouchContactPhase::End {
+                0.0
+            } else {
+                1.0
+            };
+            let radius_x = if (touch.dwMask & TOUCHINPUTMASKF_CONTACTAREA) != 0 {
+                touch.cxContact as f64 / 200.0
+            } else {
+                0.0
+            };
+            let radius_y = if (touch.dwMask & TOUCHINPUTMASKF_CONTACTAREA) != 0 {
+                touch.cyContact as f64 / 200.0
+            } else {
+                0.0
+            };
+            let entry = RawTouchContact {
+                contact_id: touch.dwID,
+                phase,
+                x: touch_coordinate_from_raw(touch.x),
+                y: touch_coordinate_from_raw(touch.y),
+                pressure,
+                radius_x,
+                radius_y,
+                tilt_x: 0.0,
+                tilt_y: 0.0,
+            };
+
+            let contacts = queues
+                .active_touch_contacts
+                .entry(device_id.clone())
+                .or_default();
+            if phase == InputTouchContactPhase::End {
+                contacts.remove(&entry.contact_id);
+            } else {
+                contacts.insert(entry.contact_id, entry);
+            }
+
+            touched_devices.insert(device_id);
         }
 
-        let phase = touch_phase_from_flags(touch.dwFlags);
-        let pressure = if phase == InputTouchContactPhase::End {
-            0.0
-        } else {
-            1.0
-        };
-        let radius_x = if (touch.dwMask & TOUCHINPUTMASKF_CONTACTAREA) != 0 {
-            touch.cxContact as f64 / 200.0
-        } else {
-            0.0
-        };
-        let radius_y = if (touch.dwMask & TOUCHINPUTMASKF_CONTACTAREA) != 0 {
-            touch.cyContact as f64 / 200.0
-        } else {
-            0.0
-        };
-        let entry = RawTouchContact {
-            contact_id: touch.dwID,
-            phase,
-            x: touch_coordinate_from_raw(touch.x),
-            y: touch_coordinate_from_raw(touch.y),
-            pressure,
-            radius_x,
-            radius_y,
-            tilt_x: 0.0,
-            tilt_y: 0.0,
-        };
-
-        let contacts = queues
-            .active_touch_contacts
-            .entry(device_id.clone())
-            .or_default();
-        if phase == InputTouchContactPhase::End {
-            contacts.remove(&entry.contact_id);
-        } else {
-            contacts.insert(entry.contact_id, entry);
+        for device_id in touched_devices {
+            let Some(contacts) = queues.active_touch_contacts.get(&device_id) else {
+                continue;
+            };
+            let mut snapshot_contacts = contacts.values().cloned().collect::<Vec<_>>();
+            snapshot_contacts.sort_by_key(|contact| contact.contact_id);
+            let sequence = queues.touch_sequences.entry(device_id.clone()).or_insert(1);
+            let packet = RawTouchPacket {
+                timestamp_ns,
+                device_id: device_id.clone(),
+                contacts: snapshot_contacts,
+            };
+            *sequence = sequence.saturating_add(1);
+            push_touch_packet(&runtime_state, &mut queues.touch, packet);
         }
 
-        touched_devices.insert(device_id);
+        runtime_state.state.wake.notify_all();
     }
-
-    for device_id in touched_devices {
-        let Some(contacts) = queues.active_touch_contacts.get(&device_id) else {
-            continue;
-        };
-        let mut snapshot_contacts = contacts.values().cloned().collect::<Vec<_>>();
-        snapshot_contacts.sort_by_key(|contact| contact.contact_id);
-        let sequence = queues.touch_sequences.entry(device_id.clone()).or_insert(1);
-        let packet = RawTouchPacket {
-            timestamp_ns,
-            device_id: device_id.clone(),
-            contacts: snapshot_contacts,
-        };
-        *sequence = sequence.saturating_add(1);
-        push_touch_packet(runtime_state, &mut queues.touch, packet);
-    }
-
-    state.wake.notify_all();
 }
 
 /// Handle one raw keyboard or mouse input message payload.
-fn handle_raw_input_message(
-    runtime_state: &WindowsRawInputRuntimeState,
-    state: &Arc<RawInputState>,
-    raw_input_handle: isize,
-) {
+fn handle_raw_input_message(service: &WindowsRawInputService, raw_input_handle: isize) {
     // query payload size and allocate one temporary raw-input buffer
     let mut size = 0u32;
     let header_size = mem::size_of::<RAWINPUTHEADER>() as u32;
@@ -2612,196 +2678,198 @@ fn handle_raw_input_message(
         return;
     }
 
-    // parse payload and enqueue normalized packets
+    // parse payload and enqueue normalized packets into every subscribed runtime
     let raw = unsafe { ptr::read_unaligned(buffer.as_ptr().cast::<RAWINPUT>()) };
-    let mut queues = state.queues.lock();
     let timestamp = now_timestamp_ns();
     let source_device_id = monitor_device_id(raw.header.hDevice);
 
-    // skip queueing events when no stream is currently subscribed to this device
-    let has_active_stream = queues
-        .active_input_streams
-        .get(&source_device_id)
-        .copied()
-        .unwrap_or(0)
-        > 0;
-    if !has_active_stream {
-        return;
-    }
-
-    if raw.header.dwType == RIM_TYPEKEYBOARD {
-        // decode keyboard press or release semantics
-        let keyboard = unsafe { raw.data.keyboard };
-        let key_code = keyboard.VKey as usize;
-        if key_code >= queues.key_down.len() {
-            return;
+    for runtime_state in service.runtime_states_snapshot() {
+        let mut queues = runtime_state.state.queues.lock();
+        let has_active_stream = queues
+            .active_input_streams
+            .get(&source_device_id)
+            .copied()
+            .unwrap_or(0)
+            > 0;
+        if !has_active_stream {
+            continue;
         }
 
-        let is_break = (u32::from(keyboard.Flags) & RI_KEY_BREAK) != 0;
-        let is_pressed = !is_break;
-        let was_pressed = queues.key_down[key_code];
-        queues.key_down[key_code] = is_pressed;
-        if !is_side_modifier_key(key_code) {
-            update_lock_key_state(&mut queues, key_code, is_pressed, was_pressed);
-        }
+        if raw.header.dwType == RIM_TYPEKEYBOARD {
+            let keyboard = unsafe { raw.data.keyboard };
+            let key_code = keyboard.VKey as usize;
+            if key_code >= queues.key_down.len() {
+                continue;
+            }
 
-        let is_repeat = is_pressed && was_pressed;
-        let action = if is_repeat {
-            InputEventAction::Repeat
-        } else if is_pressed {
-            InputEventAction::Press
-        } else {
-            InputEventAction::Release
-        };
-        let modifiers = control_key_state_from_queues(&queues);
+            let is_break = (u32::from(keyboard.Flags) & RI_KEY_BREAK) != 0;
+            let is_pressed = !is_break;
+            let was_pressed = queues.key_down[key_code];
+            queues.key_down[key_code] = is_pressed;
+            if !is_side_modifier_key(key_code) {
+                update_lock_key_state(&mut queues, key_code, is_pressed, was_pressed);
+            }
 
-        // enqueue normalized keyboard packet
-        push_input_packet(
-            runtime_state,
-            &mut queues.keyboard,
-            RawInputPacket {
-                timestamp_ns: timestamp,
-                device_id: source_device_id.clone(),
-                kind: InputEventKind::Key,
-                action,
-                code: keyboard.VKey as u32,
-                scan_code: keyboard.MakeCode as u32,
-                value: if is_repeat {
-                    2
-                } else if is_pressed {
-                    1
-                } else {
-                    0
+            let is_repeat = is_pressed && was_pressed;
+            let action = if is_repeat {
+                InputEventAction::Repeat
+            } else if is_pressed {
+                InputEventAction::Press
+            } else {
+                InputEventAction::Release
+            };
+            let modifiers = control_key_state_from_queues(&queues);
+
+            push_input_packet(
+                &runtime_state,
+                &mut queues.keyboard,
+                RawInputPacket {
+                    timestamp_ns: timestamp,
+                    device_id: source_device_id.clone(),
+                    kind: InputEventKind::Key,
+                    action,
+                    code: keyboard.VKey as u32,
+                    scan_code: keyboard.MakeCode as u32,
+                    value: if is_repeat {
+                        2
+                    } else if is_pressed {
+                        1
+                    } else {
+                        0
+                    },
+                    x: 0.0,
+                    y: 0.0,
+                    wheel_x: 0.0,
+                    wheel_y: 0.0,
+                    buttons: 0,
+                    modifiers,
+                    repeat: is_repeat,
                 },
-                x: 0.0,
-                y: 0.0,
-                wheel_x: 0.0,
-                wheel_y: 0.0,
-                buttons: 0,
+            );
+            runtime_state.state.wake.notify_all();
+            continue;
+        }
+
+        if raw.header.dwType == RIM_TYPEMOUSE {
+            let mouse = unsafe { raw.data.mouse };
+            let is_absolute = (mouse.usFlags & RAW_MOUSE_MOVE_ABSOLUTE) != 0;
+            let button_flags = unsafe { u32::from(mouse.Anonymous.Anonymous.usButtonFlags) };
+            let button_data = unsafe { mouse.Anonymous.Anonymous.usButtonData };
+            let modifiers = control_key_state_from_queues(&queues);
+            let (pointer_x, pointer_y) = current_pointer_position();
+            let motion_buttons = queues.mouse_buttons;
+            let mut next_mouse_buttons = queues.mouse_buttons;
+
+            if mouse.lLastX != 0 || mouse.lLastY != 0 || is_absolute {
+                let (x, y, code) = normalize_raw_mouse_motion(&mouse);
+
+                push_input_packet(
+                    &runtime_state,
+                    &mut queues.mouse,
+                    RawInputPacket {
+                        timestamp_ns: timestamp,
+                        device_id: source_device_id.clone(),
+                        kind: InputEventKind::PointerMotion,
+                        action: InputEventAction::Move,
+                        code,
+                        scan_code: code,
+                        value: if is_absolute { 1 } else { 0 },
+                        x,
+                        y,
+                        wheel_x: 0.0,
+                        wheel_y: 0.0,
+                        buttons: motion_buttons,
+                        modifiers,
+                        repeat: false,
+                    },
+                );
+            }
+
+            if button_flags & RI_MOUSE_WHEEL != 0 {
+                let delta = i16::from_ne_bytes(button_data.to_ne_bytes()) as f64;
+                push_input_packet(
+                    &runtime_state,
+                    &mut queues.mouse,
+                    RawInputPacket {
+                        timestamp_ns: timestamp,
+                        device_id: source_device_id.clone(),
+                        kind: InputEventKind::Scroll,
+                        action: InputEventAction::Scroll,
+                        code: RI_MOUSE_WHEEL,
+                        scan_code: RI_MOUSE_WHEEL,
+                        value: delta as i64,
+                        x: pointer_x,
+                        y: pointer_y,
+                        wheel_x: 0.0,
+                        wheel_y: delta,
+                        buttons: motion_buttons,
+                        modifiers,
+                        repeat: false,
+                    },
+                );
+            }
+
+            if button_flags & RI_MOUSE_HWHEEL != 0 {
+                let delta = i16::from_ne_bytes(button_data.to_ne_bytes()) as f64;
+                push_input_packet(
+                    &runtime_state,
+                    &mut queues.mouse,
+                    RawInputPacket {
+                        timestamp_ns: timestamp,
+                        device_id: source_device_id.clone(),
+                        kind: InputEventKind::Scroll,
+                        action: InputEventAction::Scroll,
+                        code: RI_MOUSE_HWHEEL,
+                        scan_code: RI_MOUSE_HWHEEL,
+                        value: delta as i64,
+                        x: pointer_x,
+                        y: pointer_y,
+                        wheel_x: delta,
+                        wheel_y: 0.0,
+                        buttons: motion_buttons,
+                        modifiers,
+                        repeat: false,
+                    },
+                );
+            }
+
+            push_mouse_button_events(
+                &runtime_state,
+                &mut queues.mouse,
+                &source_device_id,
+                &mut next_mouse_buttons,
+                button_flags,
+                timestamp,
+                pointer_x,
+                pointer_y,
                 modifiers,
-                repeat: is_repeat,
-            },
-        );
-    } else if raw.header.dwType == RIM_TYPEMOUSE {
-        // decode mouse movement, wheel, and button payloads
-        let mouse = unsafe { raw.data.mouse };
-        let is_absolute = (mouse.usFlags & RAW_MOUSE_MOVE_ABSOLUTE) != 0;
-        let button_flags = unsafe { u32::from(mouse.Anonymous.Anonymous.usButtonFlags) };
-        let button_data = unsafe { mouse.Anonymous.Anonymous.usButtonData };
-        let modifiers = control_key_state_from_queues(&queues);
-        let (pointer_x, pointer_y) = current_pointer_position();
-        let motion_buttons = queues.mouse_buttons;
-        let mut next_mouse_buttons = queues.mouse_buttons;
-
-        if mouse.lLastX != 0 || mouse.lLastY != 0 || is_absolute {
-            // normalize absolute coordinates and preserve relative deltas
-            let (x, y, code) = normalize_raw_mouse_motion(&mouse);
-
-            // enqueue pointer movement
-            push_input_packet(
-                runtime_state,
-                &mut queues.mouse,
-                RawInputPacket {
-                    timestamp_ns: timestamp,
-                    device_id: source_device_id.clone(),
-                    kind: InputEventKind::PointerMotion,
-                    action: InputEventAction::Move,
-                    code,
-                    scan_code: code,
-                    value: if is_absolute { 1 } else { 0 },
-                    x,
-                    y,
-                    wheel_x: 0.0,
-                    wheel_y: 0.0,
-                    buttons: motion_buttons,
-                    modifiers,
-                    repeat: false,
-                },
             );
+            queues.mouse_buttons = next_mouse_buttons;
+            runtime_state.state.wake.notify_all();
+            continue;
         }
 
-        if button_flags & RI_MOUSE_WHEEL != 0 {
-            // enqueue vertical wheel delta
-            let delta = i16::from_ne_bytes(button_data.to_ne_bytes()) as f64;
-            push_input_packet(
-                runtime_state,
-                &mut queues.mouse,
-                RawInputPacket {
-                    timestamp_ns: timestamp,
-                    device_id: source_device_id.clone(),
-                    kind: InputEventKind::Scroll,
-                    action: InputEventAction::Scroll,
-                    code: RI_MOUSE_WHEEL,
-                    scan_code: RI_MOUSE_WHEEL,
-                    value: delta as i64,
-                    x: pointer_x,
-                    y: pointer_y,
-                    wheel_x: 0.0,
-                    wheel_y: delta,
-                    buttons: motion_buttons,
-                    modifiers,
-                    repeat: false,
-                },
-            );
+        if raw.header.dwType != RIM_TYPEHID {
+            continue;
         }
 
-        if button_flags & RI_MOUSE_HWHEEL != 0 {
-            // enqueue horizontal wheel delta
-            let delta = i16::from_ne_bytes(button_data.to_ne_bytes()) as f64;
-            push_input_packet(
-                runtime_state,
-                &mut queues.mouse,
-                RawInputPacket {
-                    timestamp_ns: timestamp,
-                    device_id: source_device_id.clone(),
-                    kind: InputEventKind::Scroll,
-                    action: InputEventAction::Scroll,
-                    code: RI_MOUSE_HWHEEL,
-                    scan_code: RI_MOUSE_HWHEEL,
-                    value: delta as i64,
-                    x: pointer_x,
-                    y: pointer_y,
-                    wheel_x: delta,
-                    wheel_y: 0.0,
-                    buttons: motion_buttons,
-                    modifiers,
-                    repeat: false,
-                },
-            );
-        }
-
-        // enqueue pressed or released button packets
-        push_mouse_button_events(
-            runtime_state,
-            &mut queues.mouse,
-            &source_device_id,
-            &mut next_mouse_buttons,
-            button_flags,
-            timestamp,
-            pointer_x,
-            pointer_y,
-            modifiers,
-        );
-        queues.mouse_buttons = next_mouse_buttons;
-    } else if raw.header.dwType == RIM_TYPEHID {
-        // decode raw-hid report batches from the backing byte buffer
         let hid = unsafe { raw.data.hid };
         let report_size = hid.dwSizeHid as usize;
         let report_count = hid.dwCount as usize;
         if report_size == 0 || report_count == 0 {
-            return;
+            continue;
         }
 
         let data_start = unsafe { raw.data.hid.bRawData.as_ptr() as usize };
         let buffer_start = buffer.as_ptr() as usize;
         if data_start < buffer_start {
-            return;
+            continue;
         }
 
         let data_offset = data_start - buffer_start;
         let total_size = report_size.saturating_mul(report_count);
         if data_offset > buffer.len() || total_size > buffer.len().saturating_sub(data_offset) {
-            return;
+            continue;
         }
 
         let data = &buffer[data_offset..data_offset + total_size];
@@ -2810,7 +2878,6 @@ fn handle_raw_input_message(
                 continue;
             }
 
-            // reserve one per-device sequence number before queue insertion
             let sequence = {
                 let next = queues
                     .hid_sequences
@@ -2823,7 +2890,7 @@ fn handle_raw_input_message(
 
             let report_id = report[0];
             push_hid_packet(
-                runtime_state,
+                &runtime_state,
                 &mut queues.hid,
                 RawHidPacket {
                     timestamp_ns: timestamp,
@@ -2834,10 +2901,9 @@ fn handle_raw_input_message(
                 },
             );
         }
-    }
 
-    // wake blocked readers after packet enqueue
-    state.wake.notify_all();
+        runtime_state.state.wake.notify_all();
+    }
 }
 
 /// Push mouse button transitions described by one raw flag word.
@@ -2927,7 +2993,7 @@ fn pop_input_event_for_device(
     // ensure the singleton raw service is initialized
     let runtime_state = windows_raw_input_runtime_state(binding);
     let service = ensure_raw_service(binding, operation)?;
-    let mut queues = service.state.queues.lock();
+    let mut queues = runtime_state.state.queues.lock();
 
     loop {
         // select one queue and pop the next packet for this specific device
@@ -2949,12 +3015,12 @@ fn pop_input_event_for_device(
         }
 
         // otherwise wait until the worker enqueues the next packet or exits
-        if !runtime_state.worker_running.load(Ordering::Acquire) {
+        if !service.is_worker_running() {
             return Err(service_error(operation, "raw input worker stopped"));
         }
 
-        service.state.wake.wait(&mut queues);
-        if !runtime_state.worker_running.load(Ordering::Acquire) {
+        runtime_state.state.wake.wait(&mut queues);
+        if !service.is_worker_running() {
             return Err(service_error(operation, "raw input worker stopped"));
         }
     }
@@ -2969,7 +3035,7 @@ fn pop_monitor_event(
     // ensure the singleton raw service is initialized
     let runtime_state = windows_raw_input_runtime_state(binding);
     let service = ensure_raw_service(binding, operation)?;
-    let mut queues = service.state.queues.lock();
+    let mut queues = runtime_state.state.queues.lock();
 
     loop {
         // pop one monitor packet when available
@@ -2983,12 +3049,12 @@ fn pop_monitor_event(
         }
 
         // otherwise wait until the worker enqueues the next packet or exits
-        if !runtime_state.worker_running.load(Ordering::Acquire) {
+        if !service.is_worker_running() {
             return Err(service_error(operation, "raw input worker stopped"));
         }
 
-        service.state.wake.wait(&mut queues);
-        if !runtime_state.worker_running.load(Ordering::Acquire) {
+        runtime_state.state.wake.wait(&mut queues);
+        if !service.is_worker_running() {
             return Err(service_error(operation, "raw input worker stopped"));
         }
     }
@@ -3003,7 +3069,7 @@ fn pop_raw_hid_packet_for_device(
 ) -> RuntimeResult<RawHidPacket> {
     let runtime_state = windows_raw_input_runtime_state(binding);
     let service = ensure_raw_service(binding, operation)?;
-    let mut queues = service.state.queues.lock();
+    let mut queues = runtime_state.state.queues.lock();
 
     loop {
         let packet = queues
@@ -3019,12 +3085,12 @@ fn pop_raw_hid_packet_for_device(
             return Err(io_would_block(operation, "input queue is empty"));
         }
 
-        if !runtime_state.worker_running.load(Ordering::Acquire) {
+        if !service.is_worker_running() {
             return Err(service_error(operation, "raw input worker stopped"));
         }
 
-        service.state.wake.wait(&mut queues);
-        if !runtime_state.worker_running.load(Ordering::Acquire) {
+        runtime_state.state.wake.wait(&mut queues);
+        if !service.is_worker_running() {
             return Err(service_error(operation, "raw input worker stopped"));
         }
     }
@@ -3043,7 +3109,7 @@ fn pop_raw_hid_packet_for_device_with_timeout(
 
     let runtime_state = windows_raw_input_runtime_state(binding);
     let service = ensure_raw_service(binding, operation)?;
-    let mut queues = service.state.queues.lock();
+    let mut queues = runtime_state.state.queues.lock();
     let deadline = Instant::now().checked_add(Duration::from_nanos(timeoutns));
 
     loop {
@@ -3056,7 +3122,7 @@ fn pop_raw_hid_packet_for_device_with_timeout(
             return Ok(packet);
         }
 
-        if !runtime_state.worker_running.load(Ordering::Acquire) {
+        if !service.is_worker_running() {
             return Err(service_error(operation, "raw input worker stopped"));
         }
 
@@ -3069,12 +3135,12 @@ fn pop_raw_hid_packet_for_device_with_timeout(
                 return Err(io_would_block(operation, "input queue is empty"));
             }
 
-            service.state.wake.wait_for(&mut queues, remaining);
+            runtime_state.state.wake.wait_for(&mut queues, remaining);
         } else {
-            service.state.wake.wait(&mut queues);
+            runtime_state.state.wake.wait(&mut queues);
         }
 
-        if !runtime_state.worker_running.load(Ordering::Acquire) {
+        if !service.is_worker_running() {
             return Err(service_error(operation, "raw input worker stopped"));
         }
     }
@@ -3089,7 +3155,7 @@ fn pop_touch_packet_for_device(
 ) -> RuntimeResult<RawTouchPacket> {
     let runtime_state = windows_raw_input_runtime_state(binding);
     let service = ensure_raw_service(binding, operation)?;
-    let mut queues = service.state.queues.lock();
+    let mut queues = runtime_state.state.queues.lock();
 
     loop {
         let packet = queues
@@ -3105,12 +3171,12 @@ fn pop_touch_packet_for_device(
             return Err(io_would_block(operation, "input queue is empty"));
         }
 
-        if !runtime_state.worker_running.load(Ordering::Acquire) {
+        if !service.is_worker_running() {
             return Err(service_error(operation, "raw input worker stopped"));
         }
 
-        service.state.wake.wait(&mut queues);
-        if !runtime_state.worker_running.load(Ordering::Acquire) {
+        runtime_state.state.wake.wait(&mut queues);
+        if !service.is_worker_running() {
             return Err(service_error(operation, "raw input worker stopped"));
         }
     }
@@ -3120,30 +3186,38 @@ fn pop_touch_packet_for_device(
 fn ensure_raw_service(
     binding: &BindingCallContext,
     operation: &'static str,
-) -> RuntimeResult<RawInputService> {
+) -> RuntimeResult<Arc<WindowsRawInputService>> {
     let runtime_state = windows_raw_input_runtime_state(binding);
     configure_raw_queue_limits(&runtime_state, binding);
 
-    let mut slot = raw_service_slot(&runtime_state).lock();
+    let service = binding
+        .agent()
+        .platform_state
+        .input
+        .windows_raw_input_service(operation)?;
 
-    // respawn the service when no worker exists or the previous worker has exited
-    let requires_spawn = match slot.as_ref() {
-        Some(_) => !runtime_state.worker_running.load(Ordering::Acquire),
-        None => true,
-    };
-    if requires_spawn {
-        let service = spawn_raw_input_service(binding, &runtime_state)
-            .map_err(|error| service_error(operation, format!("raw input unavailable: {error}")))?;
-        *slot = Some(service);
+    ensure_runtime_registration(binding, &service, &runtime_state);
+    service.ensure_worker(binding, operation)?;
+
+    Ok(service)
+}
+
+/// Register one runtime with the shared raw-input service once.
+fn ensure_runtime_registration(
+    binding: &BindingCallContext,
+    service: &Arc<WindowsRawInputService>,
+    runtime_state: &Arc<WindowsRawInputRuntimeState>,
+) {
+    if runtime_state
+        .service_registered
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        return;
     }
 
-    match slot.as_ref() {
-        Some(service) => Ok(service.clone()),
-        None => Err(service_error(
-            operation,
-            "raw input unavailable: missing service state",
-        )),
-    }
+    register_runtime_finalizer(binding, service, runtime_state);
+    service.register_runtime(binding.agent().id, runtime_state);
 }
 
 /// Ensure the raw service is initialized for one binding operation.
@@ -3163,8 +3237,8 @@ pub(super) fn register_input_stream(
 ) -> RuntimeResult<Arc<WindowsRawInputRuntimeState>> {
     // ensure service startup before mutating shared stream counts
     let runtime_state = windows_raw_input_runtime_state(binding);
-    let service = ensure_raw_service(binding, operation)?;
-    let mut queues = service.state.queues.lock();
+    let _service = ensure_raw_service(binding, operation)?;
+    let mut queues = runtime_state.state.queues.lock();
     let current = queues
         .active_input_streams
         .get(device_id)
@@ -3178,6 +3252,8 @@ pub(super) fn register_input_stream(
     }
 
     queues.active_input_streams.insert(device_id.to_string(), 1);
+    drop(queues);
+
     Ok(runtime_state)
 }
 
@@ -3186,17 +3262,8 @@ pub(super) fn release_input_stream(
     runtime_state: &Arc<WindowsRawInputRuntimeState>,
     device_id: &str,
 ) {
-    // skip when the raw service was never initialized in this process
-    let service_slot = raw_service_slot(runtime_state);
-
-    // skip when no active service instance exists
-    let service = service_slot.lock().clone();
-    let Some(service) = service else {
-        return;
-    };
-
     // decrement and remove per-device stream counters
-    let mut queues = service.state.queues.lock();
+    let mut queues = runtime_state.state.queues.lock();
     let Some(current) = queues.active_input_streams.get(device_id).copied() else {
         return;
     };
@@ -3640,8 +3707,9 @@ fn latest_raw_hid_packet_for_device(
     device_id: &str,
     operation: &'static str,
 ) -> RuntimeResult<Option<RawHidPacket>> {
-    let service = ensure_raw_service(binding, operation)?;
-    let queues = service.state.queues.lock();
+    let runtime_state = windows_raw_input_runtime_state(binding);
+    let _service = ensure_raw_service(binding, operation)?;
+    let queues = runtime_state.state.queues.lock();
     Ok(queues
         .hid
         .iter()
@@ -4229,8 +4297,9 @@ pub(super) fn read_touch_state_snapshot(
     operation: &'static str,
 ) -> RuntimeResult<InputTouchState> {
     // resolve the raw service and inspect current active contacts
-    let service = ensure_raw_service(binding, operation)?;
-    let mut queues = service.state.queues.lock();
+    let runtime_state = windows_raw_input_runtime_state(binding);
+    let _service = ensure_raw_service(binding, operation)?;
+    let mut queues = runtime_state.state.queues.lock();
 
     // snapshot active contacts for this device in stable contact-id order
     let contacts = queues
@@ -4282,8 +4351,9 @@ pub(super) fn read_pen_state(
     }
 
     // resolve the raw service and inspect current active contacts
-    let service = ensure_raw_service(binding, operation)?;
-    let queues = service.state.queues.lock();
+    let runtime_state = windows_raw_input_runtime_state(binding);
+    let _service = ensure_raw_service(binding, operation)?;
+    let queues = runtime_state.state.queues.lock();
     let Some(contacts) = queues.active_touch_contacts.get(&device.id) else {
         return Ok(Some(RawPenStateSnapshot {
             x: 0.0,

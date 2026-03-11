@@ -126,7 +126,9 @@ fn run_device_monitor_thread(
 
     while !stop.load(Ordering::Relaxed) {
         if pending.swap(false, Ordering::AcqRel) {
-            audio_core::publish_device_snapshot_native(audio_types::AudioBackend::Jack);
+            audio_core::publish_device_snapshot_native_if_service_live(
+                audio_types::AudioBackend::Jack,
+            );
         }
 
         thread::sleep(sleep_interval);

@@ -24,7 +24,7 @@ use crate::platform::audio::AudioBackend;
 #[cfg(not(target_os = "macos"))]
 use crate::platform::audio::backend::backend_not_supported;
 #[cfg(target_os = "macos")]
-use crate::platform::audio::core::event::publish::publish_device_snapshot_native;
+use crate::platform::audio::core::event::publish::publish_device_snapshot_native_if_service_live;
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
 #[cfg(target_os = "macos")]
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -119,7 +119,7 @@ unsafe extern "C" fn coreaudio_device_property_listener(
     let _ = in_client_data;
     let _ = std::panic::catch_unwind(|| {
         clear_loopback_support_cache();
-        publish_device_snapshot_native(AudioBackend::CoreAudio);
+        publish_device_snapshot_native_if_service_live(AudioBackend::CoreAudio);
     });
 
     K_NO_ERR

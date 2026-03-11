@@ -380,7 +380,7 @@ fn open_first_windows_text_device_or_skip(
 #[cfg(windows)]
 fn default_input_target() -> InputWindowTarget {
     InputWindowTarget {
-        window: WindowHandle(ResourceId(0)),
+        window: Some(WindowHandle(ResourceId(0))),
     }
 }
 
@@ -388,7 +388,7 @@ fn default_input_target() -> InputWindowTarget {
 #[cfg(windows)]
 fn explicit_input_target() -> InputWindowTarget {
     InputWindowTarget {
-        window: WindowHandle(ResourceId(1)),
+        window: Some(WindowHandle(ResourceId(1))),
     }
 }
 
@@ -1599,7 +1599,7 @@ fn test_input_linux_pointer_capture_accepts_default_target() {
         };
 
         let target = InputWindowTarget {
-            window: WindowHandle(ResourceId(0)),
+            window: Some(WindowHandle(ResourceId(0))),
         };
         assert_ok_or_expected_error(
             context.destack_input_pointer_capture(handle, context.window_target(target), true),
@@ -1761,7 +1761,7 @@ fn test_input_unix_text_composition_requires_pending_event() {
             PlatformErrorCode::IoWouldBlock,
         )?;
         let target = InputWindowTarget {
-            window: WindowHandle(ResourceId(0)),
+            window: Some(WindowHandle(ResourceId(0))),
         };
         context.destack_input_text_start(
             handle,

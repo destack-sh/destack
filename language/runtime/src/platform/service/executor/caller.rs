@@ -1,8 +1,14 @@
 /// One caller-thread executor for one host-affine platform service.
-#[allow(dead_code)]
+#[cfg_attr(
+    any(target_os = "ios", target_os = "android", windows),
+    allow(dead_code)
+)]
 pub(crate) struct CallerThreadExecutor;
 
-#[allow(dead_code)]
+#[cfg_attr(
+    any(target_os = "ios", target_os = "android", windows),
+    allow(dead_code)
+)]
 impl CallerThreadExecutor {
     /// Create one caller-thread executor.
     pub(crate) fn new(_name: &str) -> Self {

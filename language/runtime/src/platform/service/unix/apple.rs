@@ -2,7 +2,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::apple::message::is_process_main_context;
 use dispatch2::run_on_main;
 
-use super::super::executor::HostLoopExecutor;
+use super::super::executor::host::HostLoopExecutor;
 
 /// Execute one callback on the process main thread.
 pub(crate) fn call_process_main_thread<R>(

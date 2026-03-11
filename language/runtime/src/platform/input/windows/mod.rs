@@ -18,7 +18,9 @@ pub(crate) use gamepad::*;
 pub(crate) use haptics::*;
 pub(crate) use keyboard::*;
 pub(crate) use pointer::*;
-pub(crate) use raw::WindowsRawInputRuntimeState;
+pub(crate) use raw::{
+    WindowsRawInputRuntimeState, WindowsRawInputService, windows_raw_input_service,
+};
 pub(crate) use rawhid::*;
 pub(crate) use sensor::*;
 pub(crate) use text::*;

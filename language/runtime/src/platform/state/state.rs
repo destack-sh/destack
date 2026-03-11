@@ -11,7 +11,6 @@ use crate::platform::net::{PlatformNetImage, PlatformNetState};
 use crate::platform::os::{PlatformOsImage, PlatformOsState};
 
 /// Runtime-owned platform module state slots.
-#[allow(dead_code)]
 #[derive(Debug, Default)]
 pub(crate) struct PlatformState {
     /// Audio module state.

@@ -8,7 +8,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::service::global_service;
 
-use super::super::executor::HostLoopExecutor;
+use super::super::executor::host::HostLoopExecutor;
 
 /// Shared callback queue for one windows loop service.
 #[derive(Default)]
@@ -62,7 +62,7 @@ pub(crate) fn try_bind_windows_message_loop(service: &HostLoopExecutor) -> bool 
         return service.is_current_bound_thread();
     }
 
-    let _windows_thread_id_set_result = service.windows_thread_id.set(current_windows_thread_id);
+    let _ = service.windows_thread_id.set(current_windows_thread_id);
     register_windows_loop_queue(service);
     service
         .is_bound
@@ -153,9 +153,7 @@ where
     {
         let mut callbacks = service.windows_queue.callbacks.lock();
         callbacks.push_back(Box::new(move || {
-            if result_tx.send(callback()).is_err() {
-                return;
-            }
+            let _ = result_tx.send(callback());
         }));
     }
 

@@ -7,6 +7,10 @@ use std::fs;
 use std::os::unix::io::RawFd;
 #[cfg(target_os = "linux")]
 use std::path::Path;
+#[cfg(target_os = "linux")]
+use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(target_os = "linux")]
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -25,9 +29,12 @@ use crate::platform::input::{
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 #[cfg(target_os = "linux")]
-use crate::platform::resource::{ResourceFinalizer, ResourceId};
+use crate::platform::service::global_service;
 use crate::platform::{NativeArray, PlatformError, resource};
+#[cfg(not(target_os = "linux"))]
 use crate::runtime::BindingCallContext;
+#[cfg(target_os = "linux")]
+use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
 
 /// Resource-table label for opened input-monitor entries.
 const INPUT_MONITOR_RESOURCE_LABEL: &str = "input.monitor";
@@ -40,6 +47,212 @@ const INPUT_MONITOR_EVENT_PREFIX: &str = "event";
 /// Linux inotify read-buffer size for monitor polling.
 #[cfg(target_os = "linux")]
 const INPUT_MONITOR_INOTIFY_BUFFER_SIZE: usize = 4096;
+/// Maximum retained monitor topology events per agent runtime.
+#[cfg(target_os = "linux")]
+const INPUT_MONITOR_QUEUE_LIMIT: usize = 1024;
+
+/// One sequenced monitor topology event delivered by the shared unix monitor service.
+#[cfg(target_os = "linux")]
+#[derive(Debug, Clone)]
+struct SequencedMonitorDeltaEvent {
+    /// Shared monotonic queue sequence for this topology event.
+    sequence: u64,
+    /// Monitor payload delivered to per-agent runtimes.
+    event: MonitorDeltaEvent,
+}
+
+/// Shared queue state for one agent-owned unix monitor runtime.
+#[cfg(target_os = "linux")]
+#[derive(Debug, Default)]
+struct UnixInputMonitorQueueState {
+    /// Retained monitor topology events for this agent.
+    events: VecDeque<SequencedMonitorDeltaEvent>,
+    /// Next shared sequence number to assign.
+    next_sequence: u64,
+}
+
+/// One agent-owned unix monitor runtime state.
+#[cfg(target_os = "linux")]
+#[derive(Debug)]
+pub(crate) struct UnixInputMonitorRuntimeState {
+    /// Shared event queue for this agent.
+    queue: Mutex<UnixInputMonitorQueueState>,
+    /// Wake handle for blocking monitor reads.
+    wake: Condvar,
+    /// Whether teardown finalization was already registered.
+    finalizer_registered: AtomicBool,
+    /// Whether this runtime was already attached to the shared unix monitor service.
+    service_registered: AtomicBool,
+}
+
+#[cfg(target_os = "linux")]
+impl UnixInputMonitorRuntimeState {
+    /// Build one agent-owned unix monitor runtime state.
+    pub(crate) fn new(_agent_id: AgentId) -> Self {
+        Self {
+            queue: Mutex::new(UnixInputMonitorQueueState::default()),
+            wake: Condvar::new(),
+            finalizer_registered: AtomicBool::new(false),
+            service_registered: AtomicBool::new(false),
+        }
+    }
+}
+
+/// One owned worker thread for the shared unix monitor service.
+#[cfg(target_os = "linux")]
+#[derive(Debug)]
+struct UnixInputMonitorWorker {
+    /// Stop signal for the shared watcher thread.
+    stop: Arc<AtomicBool>,
+    /// Join handle for deterministic worker teardown.
+    handle: Option<thread::JoinHandle<()>>,
+}
+
+/// One process-global unix input monitor service.
+#[cfg(target_os = "linux")]
+#[derive(Debug)]
+pub(crate) struct UnixInputMonitorService {
+    /// Registered unix monitor runtimes keyed by owning agent.
+    runtimes: Mutex<ProcessSubscriberRegistry<AgentId, UnixInputMonitorRuntimeState>>,
+    /// Shared monitor worker when the host supports one.
+    worker: Mutex<Option<UnixInputMonitorWorker>>,
+    /// Whether the shared monitor worker is currently running.
+    worker_running: AtomicBool,
+}
+
+#[cfg(target_os = "linux")]
+impl UnixInputMonitorService {
+    /// Build one empty unix input monitor service.
+    fn new() -> Self {
+        Self {
+            runtimes: Mutex::new(ProcessSubscriberRegistry::default()),
+            worker: Mutex::new(None),
+            worker_running: AtomicBool::new(false),
+        }
+    }
+
+    /// Register one agent-local unix monitor runtime.
+    fn register_runtime(
+        &self,
+        agent_id: AgentId,
+        runtime_state: &Arc<UnixInputMonitorRuntimeState>,
+    ) {
+        let mut runtimes = self
+            .runtimes
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+
+        runtimes.register(agent_id, runtime_state);
+    }
+
+    /// Unregister one agent-local unix monitor runtime.
+    fn unregister_runtime(&self, agent_id: AgentId) {
+        let should_shutdown = {
+            let mut runtimes = self
+                .runtimes
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+
+            runtimes.unregister(agent_id);
+            runtimes.is_empty()
+        };
+
+        if should_shutdown {
+            self.shutdown_worker();
+        }
+    }
+
+    /// Return one snapshot of the live unix monitor runtimes.
+    fn runtime_states_snapshot(&self) -> Vec<Arc<UnixInputMonitorRuntimeState>> {
+        let mut runtimes = self
+            .runtimes
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+
+        runtimes.snapshot()
+    }
+
+    /// Return whether the shared monitor worker is currently running.
+    fn is_worker_running(&self) -> bool {
+        self.worker_running.load(Ordering::Acquire)
+    }
+
+    /// Ensure one live unix monitor worker is available when supported.
+    fn ensure_worker(
+        self: &Arc<Self>,
+        binding: &BindingCallContext,
+        operation: &'static str,
+    ) -> RuntimeResult<()> {
+        let mut worker = self
+            .worker
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+
+        // restart the worker after unexpected exits
+        let requires_spawn = match worker.as_ref() {
+            Some(_) => !self.is_worker_running(),
+            None => true,
+        };
+
+        if !requires_spawn {
+            return Ok(());
+        }
+
+        let next_worker = spawn_unix_monitor_worker(binding, self).map_err(|error| {
+            RuntimeError::from(PlatformError::io_with(
+                None,
+                None,
+                None,
+                Some(operation.to_string()),
+                None,
+                format!("unix input monitor unavailable: {error}"),
+            ))
+            .boxed()
+        })?;
+
+        *worker = next_worker;
+
+        Ok(())
+    }
+
+    /// Shut down one active unix monitor worker when present.
+    fn shutdown_worker(&self) {
+        let worker = self
+            .worker
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take();
+        let Some(mut worker) = worker else {
+            return;
+        };
+
+        worker.stop.store(true, Ordering::Release);
+
+        if let Some(handle) = worker.handle.take() {
+            let _ = handle.join();
+        }
+
+        self.worker_running.store(false, Ordering::Release);
+    }
+}
+
+/// Return one shared unix input monitor service.
+#[cfg(target_os = "linux")]
+pub(crate) fn unix_input_monitor_service(
+    operation: &'static str,
+) -> RuntimeResult<Arc<UnixInputMonitorService>> {
+    global_service(|| Ok(UnixInputMonitorService::new())).map_err(|error| {
+        RuntimeError::from(PlatformError::io_with(
+            None,
+            None,
+            None,
+            Some(operation.to_string()),
+            None,
+            format!("failed to initialize unix input monitor service: {error}"),
+        ))
+        .boxed()
+    })
+}
 
 /// Monitor event payload queued by unix monitor polling.
 #[derive(Debug, Clone)]
@@ -59,34 +272,12 @@ struct UnixInputMonitorBinding {
     known_devices: Vec<String>,
     /// Known device kinds keyed by stable device id.
     known_device_kinds: HashMap<String, InputDeviceKind>,
-    /// Stable ids keyed by Linux monitor node path.
     #[cfg(target_os = "linux")]
-    known_linux_paths: HashMap<String, String>,
+    last_service_sequence: u64,
     /// Pending connect or disconnect events.
     pending_events: VecDeque<MonitorDeltaEvent>,
     /// Next per-monitor event sequence number.
     next_sequence: u64,
-    /// Linux inotify descriptor used for monitor events.
-    #[cfg(target_os = "linux")]
-    watch_descriptor: Option<RawFd>,
-}
-
-/// Finalizer payload for one monitor watcher descriptor.
-#[cfg(target_os = "linux")]
-#[derive(Debug)]
-struct MonitorWatchFinalizer {
-    /// Linux inotify descriptor to close.
-    fd: RawFd,
-}
-
-#[cfg(target_os = "linux")]
-impl ResourceFinalizer for MonitorWatchFinalizer {
-    /// Close the monitor watch descriptor during resource finalization.
-    fn finalize(self: Box<Self>, _resource_id: ResourceId) {
-        unsafe {
-            libc::close(self.fd);
-        }
-    }
 }
 
 /// Return whether one runtime error carries io-would-block.
@@ -151,61 +342,7 @@ fn list_monitor_devices(binding: &BindingCallContext) -> RuntimeResult<Vec<Monit
     {
         let _ = binding;
 
-        // list linux event node paths and classify each visible endpoint
-        let entries = match fs::read_dir(INPUT_MONITOR_LINUX_PATH) {
-            Ok(entries) => entries,
-            Err(error) => {
-                if error.kind() == std::io::ErrorKind::NotFound {
-                    return Ok(Vec::new());
-                }
-
-                return Err(RuntimeError::from(PlatformError::io_with(
-                    None,
-                    None,
-                    error.raw_os_error(),
-                    Some("read_dir".to_string()),
-                    Some(INPUT_MONITOR_LINUX_PATH.to_string()),
-                    format!("failed to read {INPUT_MONITOR_LINUX_PATH}: {error}"),
-                ))
-                .boxed());
-            }
-        };
-
-        let mut devices = Vec::new();
-        for entry in entries {
-            let entry = entry.map_err(|error| {
-                RuntimeError::from(PlatformError::io_with(
-                    None,
-                    None,
-                    error.raw_os_error(),
-                    Some("read_dir".to_string()),
-                    Some(INPUT_MONITOR_LINUX_PATH.to_string()),
-                    format!("failed to read directory entry: {error}"),
-                ))
-                .boxed()
-            })?;
-
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else {
-                continue;
-            };
-            if !name.starts_with(INPUT_MONITOR_EVENT_PREFIX) {
-                continue;
-            }
-
-            let path = format!("{INPUT_MONITOR_LINUX_PATH}/{name}");
-            if Path::new(&path).exists() {
-                let device_id = input_linux::linux_runtime_device_id_for_path(&path);
-                devices.push(MonitorDeviceSnapshot {
-                    device_id,
-                    device_path: path.clone(),
-                    device_kind: input_linux::linux_device_kind_for_path(&path),
-                });
-            }
-        }
-        devices.sort_unstable_by(|left, right| left.device_id.cmp(&right.device_id));
-        devices.dedup_by(|left, right| left.device_id == right.device_id);
-        Ok(devices)
+        list_monitor_devices_snapshot()
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -240,13 +377,6 @@ fn enqueue_monitor_delta(
     // collect newly discovered devices
     let mut connect_events = Vec::new();
     for device in current_devices {
-        #[cfg(target_os = "linux")]
-        {
-            binding
-                .known_linux_paths
-                .insert(device.device_path.clone(), device.device_id.clone());
-        }
-
         if !previous.contains(device.device_id.as_str()) {
             connect_events.push(device.clone());
         }
@@ -272,13 +402,6 @@ fn enqueue_monitor_delta(
 
     // enqueue disconnect transitions
     for device_id in disconnect_events {
-        #[cfg(target_os = "linux")]
-        {
-            binding
-                .known_linux_paths
-                .retain(|_, known_id| known_id != &device_id);
-        }
-
         enqueue_monitor_action(binding, device_id, InputEventAction::Disconnect, None);
     }
 }
@@ -375,13 +498,13 @@ fn open_linux_monitor_watch() -> RuntimeResult<Option<RawFd>> {
     Ok(Some(descriptor))
 }
 
-/// Drain queued inotify events into monitor events.
+/// Drain one inotify descriptor into normalized monitor delta events.
 #[cfg(target_os = "linux")]
-fn drain_linux_monitor_watch(binding: &mut UnixInputMonitorBinding) -> RuntimeResult<()> {
-    let Some(descriptor) = binding.watch_descriptor else {
-        return Ok(());
-    };
-
+fn drain_linux_monitor_watch(
+    descriptor: RawFd,
+    known_linux_paths: &mut HashMap<String, String>,
+    mut publish: impl FnMut(MonitorDeltaEvent),
+) -> RuntimeResult<()> {
     let mut buffer = [0u8; INPUT_MONITOR_INOTIFY_BUFFER_SIZE];
     loop {
         // read one chunk of inotify events
@@ -436,32 +559,27 @@ fn drain_linux_monitor_watch(binding: &mut UnixInputMonitorBinding) -> RuntimeRe
                     if (mask & (libc::IN_CREATE | libc::IN_MOVED_TO)) != 0 {
                         let device_kind = input_linux::linux_device_kind_for_path(&device_path);
                         let device_id = input_linux::linux_runtime_device_id_for_path(&device_path);
-                        binding
-                            .known_linux_paths
-                            .insert(device_path.clone(), device_id.clone());
+                        known_linux_paths.insert(device_path.clone(), device_id.clone());
 
-                        enqueue_monitor_action(
-                            binding,
+                        publish(MonitorDeltaEvent {
                             device_id,
-                            InputEventAction::Connect,
-                            Some(device_kind),
-                        );
+                            device_kind,
+                            action: InputEventAction::Connect,
+                        });
                     }
 
                     if (mask & (libc::IN_DELETE | libc::IN_MOVED_FROM)) != 0 {
                         let fallback_id =
                             input_linux::linux_runtime_device_id_for_path(&device_path);
-                        let device_id = binding
-                            .known_linux_paths
+                        let device_id = known_linux_paths
                             .remove(&device_path)
                             .unwrap_or(fallback_id);
 
-                        enqueue_monitor_action(
-                            binding,
+                        publish(MonitorDeltaEvent {
                             device_id,
-                            InputEventAction::Disconnect,
-                            None,
-                        );
+                            device_kind: InputDeviceKind::Raw,
+                            action: InputEventAction::Disconnect,
+                        });
                     }
                 }
             }
@@ -497,6 +615,203 @@ fn wait_for_monitor_watch_event(descriptor: RawFd) -> RuntimeResult<()> {
 
         return Err(core_platform::io_error("poll", None));
     }
+}
+
+/// Register one unix monitor runtime teardown finalizer.
+#[cfg(target_os = "linux")]
+fn register_unix_monitor_runtime_finalizer(
+    binding: &BindingCallContext,
+    service: &Arc<UnixInputMonitorService>,
+    runtime_state: &Arc<UnixInputMonitorRuntimeState>,
+) {
+    if runtime_state
+        .finalizer_registered
+        .swap(true, Ordering::AcqRel)
+    {
+        return;
+    }
+
+    let agent_id = binding.agent().id;
+    let service = Arc::clone(service);
+    binding.agent().finalizers.register(move || {
+        service.unregister_runtime(agent_id);
+    });
+}
+
+/// Return one agent-owned unix monitor runtime state.
+#[cfg(target_os = "linux")]
+fn unix_input_monitor_runtime_state(
+    binding: &BindingCallContext,
+) -> Arc<UnixInputMonitorRuntimeState> {
+    binding
+        .agent()
+        .platform_state
+        .input
+        .unix_input_monitor_runtime_state(binding)
+}
+
+/// Register one runtime with the shared unix monitor service once.
+#[cfg(target_os = "linux")]
+fn ensure_unix_monitor_runtime_registration(
+    binding: &BindingCallContext,
+    service: &Arc<UnixInputMonitorService>,
+    runtime_state: &Arc<UnixInputMonitorRuntimeState>,
+) {
+    if runtime_state
+        .service_registered
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        return;
+    }
+
+    register_unix_monitor_runtime_finalizer(binding, service, runtime_state);
+    service.register_runtime(binding.agent().id, runtime_state);
+}
+
+/// Publish one topology event into every live unix monitor runtime.
+#[cfg(target_os = "linux")]
+fn publish_unix_monitor_event(service: &Arc<UnixInputMonitorService>, event: MonitorDeltaEvent) {
+    let runtimes = service.runtime_states_snapshot();
+
+    for runtime_state in &runtimes {
+        let mut queue = runtime_state
+            .queue
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+
+        let sequence = queue.next_sequence.saturating_add(1);
+        queue.next_sequence = sequence;
+
+        if queue.events.len() >= INPUT_MONITOR_QUEUE_LIMIT {
+            queue.events.pop_front();
+        }
+
+        queue.events.push_back(SequencedMonitorDeltaEvent {
+            sequence,
+            event: event.clone(),
+        });
+        runtime_state.wake.notify_all();
+    }
+}
+
+/// Spawn one shared unix monitor worker when the host supports one.
+#[cfg(target_os = "linux")]
+fn spawn_unix_monitor_worker(
+    _binding: &BindingCallContext,
+    service: &Arc<UnixInputMonitorService>,
+) -> Result<Option<UnixInputMonitorWorker>, String> {
+    let Some(descriptor) = open_linux_monitor_watch().map_err(|error| error.to_string())? else {
+        return Ok(None);
+    };
+
+    let stop = Arc::new(AtomicBool::new(false));
+    let stop_signal = Arc::clone(&stop);
+    let service = Arc::clone(service);
+    let handle = thread::spawn(move || {
+        let mut known_linux_paths = HashMap::new();
+
+        service.worker_running.store(true, Ordering::Release);
+
+        // seed the disconnect map from the current device snapshot
+        if let Ok(devices) = list_monitor_devices_snapshot() {
+            for device in devices {
+                known_linux_paths.insert(device.device_path, device.device_id);
+            }
+        }
+
+        loop {
+            // stop when the shared service tears the worker down
+            if stop_signal.load(Ordering::Acquire) {
+                break;
+            }
+
+            // wait for one monitor event and then publish all queued deltas
+            if wait_for_monitor_watch_event(descriptor).is_err() {
+                thread::sleep(Duration::from_millis(8));
+                continue;
+            }
+
+            let drain = drain_linux_monitor_watch(descriptor, &mut known_linux_paths, |event| {
+                publish_unix_monitor_event(&service, event);
+            });
+            if drain.is_err() {
+                thread::sleep(Duration::from_millis(8));
+            }
+        }
+
+        unsafe {
+            libc::close(descriptor);
+        }
+
+        service.worker_running.store(false, Ordering::Release);
+    });
+
+    Ok(Some(UnixInputMonitorWorker {
+        stop,
+        handle: Some(handle),
+    }))
+}
+
+/// Return one linux snapshot of monitor-visible devices without a binding context.
+#[cfg(target_os = "linux")]
+fn list_monitor_devices_snapshot() -> RuntimeResult<Vec<MonitorDeviceSnapshot>> {
+    let entries = match fs::read_dir(INPUT_MONITOR_LINUX_PATH) {
+        Ok(entries) => entries,
+        Err(error) => {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                return Ok(Vec::new());
+            }
+
+            return Err(RuntimeError::from(PlatformError::io_with(
+                None,
+                None,
+                error.raw_os_error(),
+                Some("read_dir".to_string()),
+                Some(INPUT_MONITOR_LINUX_PATH.to_string()),
+                format!("failed to read {INPUT_MONITOR_LINUX_PATH}: {error}"),
+            ))
+            .boxed());
+        }
+    };
+
+    let mut devices = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            RuntimeError::from(PlatformError::io_with(
+                None,
+                None,
+                error.raw_os_error(),
+                Some("read_dir".to_string()),
+                Some(INPUT_MONITOR_LINUX_PATH.to_string()),
+                format!("failed to read directory entry: {error}"),
+            ))
+            .boxed()
+        })?;
+
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        if !name.starts_with(INPUT_MONITOR_EVENT_PREFIX) {
+            continue;
+        }
+
+        let path = format!("{INPUT_MONITOR_LINUX_PATH}/{name}");
+        if Path::new(&path).exists() {
+            let device_id = input_linux::linux_runtime_device_id_for_path(&path);
+            devices.push(MonitorDeviceSnapshot {
+                device_id,
+                device_path: path.clone(),
+                device_kind: input_linux::linux_device_kind_for_path(&path),
+            });
+        }
+    }
+
+    devices.sort_unstable_by(|left, right| left.device_id.cmp(&right.device_id));
+    devices.dedup_by(|left, right| left.device_id == right.device_id);
+
+    Ok(devices)
 }
 
 /// Convert one monitor packet into one runtime monitor event.
@@ -568,6 +883,48 @@ fn monitor_event_to_output(
     )
 }
 
+/// Drain one agent-local unix monitor queue into one monitor binding.
+#[cfg(target_os = "linux")]
+fn drain_runtime_monitor_events(
+    binding: &mut UnixInputMonitorBinding,
+    runtime_state: &UnixInputMonitorRuntimeState,
+) -> bool {
+    let queue = runtime_state
+        .queue
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let front_sequence = queue.events.front().map(|event| event.sequence);
+    let back_sequence = queue.events.back().map(|event| event.sequence);
+
+    // when this handle fell behind queue retention, rebuild from the current snapshot
+    if let Some(front_sequence) = front_sequence
+        && binding.last_service_sequence != 0
+        && front_sequence > binding.last_service_sequence.saturating_add(1)
+    {
+        let current_devices = list_monitor_devices_snapshot().unwrap_or_default();
+        enqueue_monitor_delta(binding, &current_devices);
+        binding.last_service_sequence = back_sequence.unwrap_or(binding.last_service_sequence);
+
+        return !binding.pending_events.is_empty();
+    }
+
+    for event in &queue.events {
+        if event.sequence <= binding.last_service_sequence {
+            continue;
+        }
+
+        enqueue_monitor_action(
+            binding,
+            event.event.device_id.clone(),
+            event.event.action,
+            Some(event.event.device_kind),
+        );
+        binding.last_service_sequence = event.sequence;
+    }
+
+    !binding.pending_events.is_empty()
+}
+
 /// Poll monitor state until one event is available or would-block.
 fn poll_monitor_event(
     binding: &BindingCallContext,
@@ -575,6 +932,19 @@ fn poll_monitor_event(
     nonblocking: bool,
     operation: &'static str,
 ) -> RuntimeResult<InputMonitorEvent> {
+    #[cfg(target_os = "linux")]
+    let runtime_state = unix_input_monitor_runtime_state(binding);
+    #[cfg(target_os = "linux")]
+    let service = binding
+        .agent()
+        .platform_state
+        .input
+        .unix_input_monitor_service("destack.input.service.monitor")?;
+    #[cfg(target_os = "linux")]
+    ensure_unix_monitor_runtime_registration(binding, &service, &runtime_state);
+    #[cfg(target_os = "linux")]
+    service.ensure_worker(binding, operation)?;
+
     loop {
         // drain watcher queues and attempt one queue pop
         let next = binding.agent().resources.with_entry_mut(handle.0, |entry| {
@@ -592,21 +962,15 @@ fn poll_monitor_event(
                 .and_then(|payload| payload.downcast_mut::<UnixInputMonitorBinding>())?;
 
             #[cfg(target_os = "linux")]
-            if let Err(error) = drain_linux_monitor_watch(resolved_binding) {
-                return Some(Err(error));
-            }
-
-            // request one fallback snapshot only when no watch backend is available
-            #[cfg(target_os = "linux")]
-            let requires_snapshot = resolved_binding.pending_events.is_empty()
-                && resolved_binding.watch_descriptor.is_none();
+            let requires_snapshot =
+                resolved_binding.pending_events.is_empty() && !service.is_worker_running();
             #[cfg(not(target_os = "linux"))]
             let requires_snapshot = resolved_binding.pending_events.is_empty();
 
             #[cfg(target_os = "linux")]
-            let watch_descriptor = resolved_binding.watch_descriptor;
+            let has_runtime_events = drain_runtime_monitor_events(resolved_binding, &runtime_state);
             #[cfg(not(target_os = "linux"))]
-            let watch_descriptor: Option<i32> = None;
+            let has_runtime_events = false;
 
             let event = resolved_binding.pending_events.pop_front();
             let event = event.map(|event| {
@@ -614,7 +978,11 @@ fn poll_monitor_event(
                 resolved_binding.next_sequence = resolved_binding.next_sequence.saturating_add(1);
                 (event, sequence)
             });
-            Some(Ok((event, watch_descriptor, requires_snapshot)))
+            Some(Ok::<_, Box<RuntimeError>>((
+                event,
+                has_runtime_events,
+                requires_snapshot,
+            )))
         });
 
         match next {
@@ -687,21 +1055,28 @@ fn poll_monitor_event(
                 .boxed());
             }
             // blocking calls wait briefly and poll again
-            Some(Some(Ok((None, watch_descriptor, _)))) => {
+            Some(Some(Ok((None, has_runtime_events, _)))) => {
                 #[cfg(target_os = "linux")]
-                if let Some(watch_descriptor) = watch_descriptor {
-                    wait_for_monitor_watch_event(watch_descriptor)?;
-                } else {
+                if has_runtime_events || !service.is_worker_running() {
                     thread::sleep(Duration::from_millis(8));
+                } else {
+                    let queue = runtime_state
+                        .queue
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner());
+                    let _queue = runtime_state
+                        .wake
+                        .wait_timeout(queue, Duration::from_millis(32))
+                        .unwrap_or_else(|error| error.into_inner());
                 }
 
                 #[cfg(not(target_os = "linux"))]
                 {
-                    let _ = watch_descriptor;
+                    let _ = has_runtime_events;
                     thread::sleep(Duration::from_millis(8));
                 }
             }
-            // bubble watcher failures
+            // bubble queue and snapshot failures
             Some(Some(Err(error))) => return Err(error),
             // return not-found when monitor payload cannot be resolved
             Some(None) => return Err(monitor_not_found(operation, handle)),
@@ -831,33 +1206,34 @@ pub(crate) unsafe fn destack_input_monitor_open(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // initialize one watcher backend before taking the first topology snapshot
     #[cfg(target_os = "linux")]
-    let watch_descriptor = open_linux_monitor_watch()?;
+    let runtime_state = unix_input_monitor_runtime_state(binding);
+    #[cfg(target_os = "linux")]
+    let service = binding
+        .agent()
+        .platform_state
+        .input
+        .unix_input_monitor_service("destack.input.event.monitorOpen")?;
+    #[cfg(target_os = "linux")]
+    ensure_unix_monitor_runtime_registration(binding, &service, &runtime_state);
+    #[cfg(target_os = "linux")]
+    service.ensure_worker(binding, "destack.input.event.monitorOpen")?;
 
     // create one monitor payload from current device snapshot
     let known_devices = list_monitor_devices(binding)?;
     let mut known_device_ids = Vec::with_capacity(known_devices.len());
     let mut known_device_kinds = HashMap::with_capacity(known_devices.len());
-    #[cfg(target_os = "linux")]
-    let mut known_linux_paths = HashMap::with_capacity(known_devices.len());
     for device in known_devices {
-        #[cfg(target_os = "linux")]
-        {
-            known_linux_paths.insert(device.device_path.clone(), device.device_id.clone());
-        }
-
         known_device_ids.push(device.device_id.clone());
         known_device_kinds.insert(device.device_id, device.device_kind);
     }
     #[cfg(target_os = "linux")]
-    let mut resolved_binding = UnixInputMonitorBinding {
+    let resolved_binding = UnixInputMonitorBinding {
         known_devices: known_device_ids,
         known_device_kinds,
-        known_linux_paths,
+        last_service_sequence: 0,
         pending_events: VecDeque::new(),
         next_sequence: 1,
-        watch_descriptor,
     };
 
     #[cfg(not(target_os = "linux"))]
@@ -868,21 +1244,9 @@ pub(crate) unsafe fn destack_input_monitor_open(
         next_sequence: 1,
     };
 
-    // drain watcher-delivered events queued during snapshot creation
-    #[cfg(target_os = "linux")]
-    if watch_descriptor.is_some() {
-        drain_linux_monitor_watch(&mut resolved_binding)?;
-    }
-
     let entry = ResourceEntry::new(ResourceKind::InputMonitor)
         .with_label(INPUT_MONITOR_RESOURCE_LABEL)
         .with_payload(resolved_binding);
-    #[cfg(target_os = "linux")]
-    let entry = if let Some(descriptor) = watch_descriptor {
-        entry.with_finalizer(MonitorWatchFinalizer { fd: descriptor })
-    } else {
-        entry
-    };
     let handle = resource::InputMonitorHandle(binding.agent().resources.insert(
         binding.world(),
         entry,
@@ -1191,11 +1555,9 @@ mod tests {
             known_devices: Vec::new(),
             known_device_kinds: HashMap::new(),
             #[cfg(target_os = "linux")]
-            known_linux_paths: HashMap::new(),
+            last_service_sequence: 0,
             pending_events: VecDeque::new(),
             next_sequence: 1,
-            #[cfg(target_os = "linux")]
-            watch_descriptor: None,
         }
     }
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -8,6 +8,9 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::{
     AudioBackend, AudioEventDeliveryMode, AudioEventSource, backend as audio_backend,
 };
+use crate::platform::service::global_service;
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+use crate::platform::service::registry::global_service_if_initialized;
 use crate::runtime::{AgentId, ProcessSubscriberRegistry};
 
 use super::constants::host_monotonic_nanos;
@@ -50,8 +53,8 @@ struct AudioMonitorDemand {
     synthetic_interval_ns: u64,
 }
 
-/// One process-global backend monitor service.
-struct AudioBackendMonitorService {
+/// One process-global backend monitor state for one backend.
+struct AudioBackendMonitorState {
     /// Registered agent runtimes keyed by owning agent id.
     subscribers: ProcessSubscriberRegistry<AgentId, AudioRuntimeState>,
     /// Shared native backend monitor handle when the backend supports one.
@@ -74,7 +77,7 @@ enum AudioMonitorServiceAction {
     StopSynthetic(Box<dyn AudioMonitorHandle>),
 }
 
-impl AudioBackendMonitorService {
+impl AudioBackendMonitorState {
     /// Build one empty backend monitor service.
     fn new() -> Self {
         Self {
@@ -91,25 +94,23 @@ impl AudioBackendMonitorService {
     }
 }
 
-/// One process-global registry of backend monitor services.
-pub(crate) struct AudioMonitorServiceRegistry {
+/// One process-global audio monitor service.
+pub(crate) struct AudioMonitorService {
     /// Shared backend monitor services keyed by backend.
-    backends: HashMap<AudioBackend, AudioBackendMonitorService>,
+    backends: Mutex<HashMap<AudioBackend, AudioBackendMonitorState>>,
 }
 
-impl AudioMonitorServiceRegistry {
-    /// Return the shared monitor service registry.
-    pub(crate) fn shared() -> &'static Mutex<Self> {
-        static REGISTRY: OnceLock<Mutex<AudioMonitorServiceRegistry>> = OnceLock::new();
-        REGISTRY.get_or_init(|| {
-            Mutex::new(AudioMonitorServiceRegistry {
-                backends: HashMap::new(),
-            })
-        })
+impl AudioMonitorService {
+    /// Build one empty process-global audio monitor service.
+    fn new() -> Self {
+        Self {
+            backends: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Refresh one runtime subscription for one backend.
     pub(crate) fn refresh_runtime(
+        self: &Arc<Self>,
         runtime_state: &Arc<AudioRuntimeState>,
         backend: AudioBackend,
     ) -> RuntimeResult<()> {
@@ -119,10 +120,11 @@ impl AudioMonitorServiceRegistry {
         let mut pending_synthetic_stop = None;
 
         {
-            let mut registry = Self::shared()
+            let mut backends = self
+                .backends
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
-            let actions = registry.refresh_runtime_locked(runtime_state, backend);
+            let actions = self.refresh_runtime_locked(&mut backends, runtime_state, backend);
 
             for action in actions {
                 match action {
@@ -162,10 +164,11 @@ impl AudioMonitorServiceRegistry {
         // start requested native monitor
         if pending_native_start {
             let handle = audio_backend::start_backend_native_device_events(backend)?;
-            let mut registry = Self::shared()
+            let mut backends = self
+                .backends
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
-            let Some(monitor) = registry.backends.get_mut(&backend) else {
+            let Some(monitor) = backends.get_mut(&backend) else {
                 handle.stop();
                 return Ok(());
             };
@@ -179,11 +182,12 @@ impl AudioMonitorServiceRegistry {
 
         // start requested synthetic worker
         if let Some(interval_ns) = pending_synthetic_start {
-            let handle = start_synthetic_monitor_worker(backend, interval_ns);
-            let mut registry = Self::shared()
+            let handle = start_synthetic_monitor_worker(Arc::clone(self), backend, interval_ns);
+            let mut backends = self
+                .backends
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
-            let Some(monitor) = registry.backends.get_mut(&backend) else {
+            let Some(monitor) = backends.get_mut(&backend) else {
                 handle.stop();
                 return Ok(());
             };
@@ -200,16 +204,17 @@ impl AudioMonitorServiceRegistry {
     }
 
     /// Remove one runtime from all backend monitors.
-    pub(crate) fn unregister_runtime(runtime_state: &AudioRuntimeState) {
+    pub(crate) fn unregister_runtime(&self, runtime_state: &AudioRuntimeState) {
         let mut handles_to_stop = Vec::new();
 
         {
-            let mut registry = Self::shared()
+            let mut backends = self
+                .backends
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
             let mut empty_backends = Vec::new();
 
-            for (backend, monitor) in &mut registry.backends {
+            for (backend, monitor) in &mut *backends {
                 monitor.subscribers.unregister(runtime_state.agent_id);
                 let runtimes = monitor.live_runtime_states();
                 let demand = aggregate_backend_monitor_demand(&runtimes, *backend);
@@ -238,7 +243,7 @@ impl AudioMonitorServiceRegistry {
             }
 
             for backend in empty_backends {
-                registry.backends.remove(&backend);
+                backends.remove(&backend);
             }
         }
 
@@ -250,17 +255,18 @@ impl AudioMonitorServiceRegistry {
 
     /// Publish one native backend snapshot to subscribed runtimes.
     #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-    pub(crate) fn publish_native_snapshot(backend: AudioBackend) {
+    pub(crate) fn publish_native_snapshot(&self, backend: AudioBackend) {
         let now = host_monotonic_nanos();
         let snapshot = match monitor_snapshot(backend) {
             Ok(snapshot) => snapshot,
             Err(_) => return,
         };
         let runtimes = {
-            let mut registry = Self::shared()
+            let mut backends = self
+                .backends
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
-            let Some(monitor) = registry.backends.get_mut(&backend) else {
+            let Some(monitor) = backends.get_mut(&backend) else {
                 return;
             };
 
@@ -280,15 +286,15 @@ impl AudioMonitorServiceRegistry {
 
     /// Refresh one runtime subscription while holding the registry lock.
     fn refresh_runtime_locked(
-        &mut self,
+        &self,
+        backends: &mut HashMap<AudioBackend, AudioBackendMonitorState>,
         runtime_state: &Arc<AudioRuntimeState>,
         backend: AudioBackend,
     ) -> Vec<AudioMonitorServiceAction> {
         let wants_backend = runtime_backend_monitor_demand(runtime_state, backend).has_subscribers;
-        let monitor = self
-            .backends
+        let monitor = backends
             .entry(backend)
-            .or_insert_with(AudioBackendMonitorService::new);
+            .or_insert_with(AudioBackendMonitorState::new);
         let mut actions = Vec::new();
 
         // keep only runtimes that still have matching subscriptions
@@ -342,11 +348,26 @@ impl AudioMonitorServiceRegistry {
             && monitor.native_handle.is_none()
             && monitor.synthetic_handle.is_none()
         {
-            self.backends.remove(&backend);
+            backends.remove(&backend);
         }
 
         actions
     }
+}
+
+/// Return one shared process-global audio monitor service.
+pub(crate) fn audio_monitor_service() -> Arc<AudioMonitorService> {
+    global_service(|| Ok(AudioMonitorService::new()))
+        .expect("audio monitor service initialization should not fail")
+}
+
+/// Return the shared process-global audio monitor service when it is already live.
+///
+/// This is for backend callback ingress that may arrive after the monitor service
+/// has not been initialized yet or has already been torn down.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+pub(crate) fn active_audio_monitor_service() -> Option<Arc<AudioMonitorService>> {
+    global_service_if_initialized()
 }
 
 /// Return the effective monitor demand for one runtime and backend.
@@ -418,6 +439,7 @@ fn aggregate_backend_monitor_demand(
 
 /// Start one shared synthetic monitor worker for one backend.
 fn start_synthetic_monitor_worker(
+    service: Arc<AudioMonitorService>,
     backend: AudioBackend,
     poll_interval_ns: u64,
 ) -> Box<dyn AudioMonitorHandle> {
@@ -436,10 +458,11 @@ fn start_synthetic_monitor_worker(
             let snapshot = monitor_snapshot(backend);
             if let Ok(snapshot) = snapshot {
                 let runtimes = {
-                    let mut registry = AudioMonitorServiceRegistry::shared()
+                    let mut backends = service
+                        .backends
                         .lock()
                         .unwrap_or_else(|error| error.into_inner());
-                    let Some(monitor) = registry.backends.get_mut(&backend) else {
+                    let Some(monitor) = backends.get_mut(&backend) else {
                         thread::sleep(sleep_interval);
                         continue;
                     };

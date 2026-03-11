@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::platform::service::affinity::{ServiceAffinity, ServiceHostLoop};
-use crate::platform::service::executor::HostLoopExecutor;
+use crate::platform::service::executor::host::HostLoopExecutor;
 use crate::platform::service::global_service;
 use crate::runtime::BindingCallContext;
 

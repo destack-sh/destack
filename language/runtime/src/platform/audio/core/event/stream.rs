@@ -25,7 +25,6 @@ use super::queue::{
 };
 use super::snapshot::initial_device_monitor_baseline;
 use crate::platform::audio::backend as audio_backend;
-use crate::platform::audio::core::monitor::AudioMonitorServiceRegistry;
 use crate::platform::audio::core::runtime::{
     AudioRuntimeState, KNOWN_EVENT_SUBSCRIPTION_FLAGS_MASK, STREAM_EVENT_SUBSCRIPTION_FLAGS_MASK,
     native_only_supported_subscription_flags, runtime_state,
@@ -263,9 +262,9 @@ pub(crate) unsafe fn open_event_stream(
     );
     register_event_stream(&runtime_state, Arc::clone(&stream));
 
-    if let Err(error) =
-        AudioMonitorServiceRegistry::refresh_runtime(&runtime_state, options.backend)
-    {
+    // refresh backend monitor demand after the new stream is visible
+    let monitor_service = ctx.agent().platform_state.audio.monitor_service();
+    if let Err(error) = monitor_service.refresh_runtime(&runtime_state, options.backend) {
         unregister_event_stream(&runtime_state, stream.stream_id);
         let _ = ctx
             .agent()
@@ -305,7 +304,8 @@ pub(crate) unsafe fn close_event_stream(
         ));
     }
 
-    let _ = AudioMonitorServiceRegistry::refresh_runtime(&runtime_state, backend);
+    let monitor_service = ctx.agent().platform_state.audio.monitor_service();
+    let _ = monitor_service.refresh_runtime(&runtime_state, backend);
     Ok(())
 }
 

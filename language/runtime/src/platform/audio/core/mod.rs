@@ -118,4 +118,4 @@ pub(crate) use stream::mark_stream_backend_disconnected;
 pub(crate) use constants::resolved_event_monitor_poll_interval_ns;
 
 #[cfg(any(target_os = "linux", windows))]
-pub(crate) use event::publish_device_snapshot_native;
+pub(crate) use event::publish_device_snapshot_native_if_service_live;

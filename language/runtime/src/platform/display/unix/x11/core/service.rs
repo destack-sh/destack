@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::platform::service::affinity::ServiceAffinity;
-use crate::platform::service::executor::CallerThreadExecutor;
+use crate::platform::service::executor::caller::CallerThreadExecutor;
 use crate::platform::service::global_service;
 use crate::runtime::BindingCallContext;
 

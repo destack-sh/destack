@@ -5,6 +5,7 @@ use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 use crate::platform::service::CachedServiceHandle;
 
 #[cfg(target_os = "macos")]

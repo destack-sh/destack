@@ -125,7 +125,9 @@ fn run_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<RuntimeRes
         }
 
         core_platform::callback_boundary(|| {
-            audio_core::publish_device_snapshot_native(audio_types::AudioBackend::Asio);
+            audio_core::publish_device_snapshot_native_if_service_live(
+                audio_types::AudioBackend::Asio,
+            );
         });
 
         if arm_registry_watcher(&watchers[watcher_index]).is_err() {
