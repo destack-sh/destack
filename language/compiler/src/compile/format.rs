@@ -6,8 +6,8 @@
 
 use std::path::PathBuf;
 
-use destack_core::StringId;
 use destack_builtin::LanguageSymbol;
+use destack_core::StringId;
 use destack_dir::{
     self as dir, FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StaticKey,
     Visibility,

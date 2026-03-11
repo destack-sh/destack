@@ -18,10 +18,11 @@ use crate::common::format::{
 use crate::common::program::ProgramArgs;
 use crate::common::{
     CommandStats, ReportArgs, WatchCompileJson, WatchCompileReason, WatchReporter,
-    collect_diagnostics_json,
+    collect_diagnostics_json, report_error,
 };
 use crate::console;
 use crate::error::CliResult;
+use crate::pipeline::daemon::ProtocolDaemonClient;
 
 /// Summary of watch updates produced by a daemon.
 #[derive(Debug, Clone, Default)]
@@ -395,6 +396,114 @@ where
             }
         }
     }
+
+    exit_code
+}
+
+/// Run a CLI watch command backed by a protocol daemon client.
+#[allow(clippy::too_many_arguments)]
+pub fn run_daemon_watch_command<State, StartFn, RescanFn, CompileFn, ObserveFn>(
+    command_name: &str,
+    session: Arc<Session>,
+    program: &ProgramArgs,
+    report: &ReportArgs,
+    diagnostic_options: DiagnosticOptions,
+    event_handler: Option<CompilerEventHandler>,
+    watch_loop_options: WatchLoopOptions,
+    state: &mut State,
+    on_start: StartFn,
+    mut on_rescan: RescanFn,
+    mut compile: CompileFn,
+    mut on_compile: ObserveFn,
+    is_one_shot: bool,
+) -> i32
+where
+    StartFn: FnOnce(&mut State),
+    RescanFn: FnMut(&mut State, &Session) -> CliResult<()>,
+    CompileFn: FnMut(
+        &ProtocolDaemonClient,
+        &Path,
+        &mut Option<WatchReporter>,
+        &mut State,
+        WatchCompileReason,
+        Option<u64>,
+        bool,
+        bool,
+    ) -> i32,
+    ObserveFn: FnMut(WatchCompileReason, bool, bool),
+{
+    // prepare watch mode output
+    let WatchContext {
+        roots,
+        root,
+        mut reporter,
+    } = build_watch_context(command_name, program, report, &session);
+
+    // configure the daemon client for incremental updates
+    let daemon_options = build_daemon_options(program, diagnostic_options, event_handler);
+    let daemon =
+        match ProtocolDaemonClient::new(session.clone(), daemon_options, roots.clone(), program) {
+            Ok(daemon) => daemon,
+            Err(error) => {
+                let message = watch_error(&error.to_string());
+                if let Some(reporter) = reporter.as_mut() {
+                    reporter.emit_warning(&message);
+                    reporter.emit_stop();
+                    return 1;
+                }
+                return report_error(command_name, report, &message);
+            }
+        };
+
+    // run the initial compile
+    let mut exit_code = compile(
+        &daemon,
+        &root,
+        &mut reporter,
+        state,
+        WatchCompileReason::Startup,
+        None,
+        false,
+        false,
+    );
+
+    // run the shared watch loop
+    exit_code = run_watch_loop(
+        &daemon,
+        roots,
+        &mut reporter,
+        watch_loop_options,
+        state,
+        on_start,
+        |state| on_rescan(state, &session),
+        |state, reporter, reason, batch_id, updated, requires_rescan| {
+            let next_exit_code = compile(
+                &daemon,
+                &root,
+                reporter,
+                state,
+                reason,
+                Some(batch_id),
+                updated,
+                requires_rescan,
+            );
+
+            on_compile(reason, updated, requires_rescan);
+
+            if is_one_shot {
+                return WatchLoopAction::stop_with(Some(next_exit_code));
+            }
+
+            WatchLoopAction::continue_with(Some(next_exit_code))
+        },
+        exit_code,
+    );
+
+    if let Some(reporter) = reporter.as_mut() {
+        reporter.emit_stop();
+    }
+
+    daemon.shutdown();
 
     exit_code
 }

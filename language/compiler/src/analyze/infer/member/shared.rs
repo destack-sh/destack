@@ -4,8 +4,8 @@ pub(crate) use crate::analyze::StaticMemberSymbolKind;
 pub(crate) use crate::analyze::common::{AnalyzeDependencyStage, RelationMode};
 pub(crate) use crate::timing::tags;
 pub(crate) use crate::{AnalyzeError, AnalyzeResult, Compiler, InferState};
-pub(crate) use destack_core::StringId;
 pub(crate) use destack_builtin::LanguageSymbol;
+pub(crate) use destack_core::StringId;
 pub(crate) use destack_dir::{
     Argument, AssociatedComptimeProjectionObligation, BindingAnchor, BindingCategory,
     BindingModifier, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,

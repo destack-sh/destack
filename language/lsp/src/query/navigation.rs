@@ -1,9 +1,8 @@
 use destack_dir::GlobalSymbolId;
-use destack_lsp_types as lsp;
-use destack_query as query;
 use destack_source::{File, ModuleId, PackageId};
 use destack_workspace::Session;
 use serde_json::{from_value, json, to_value};
+use {destack_lsp_types as lsp, destack_query as query};
 
 use super::common::{byte_span_to_range, span_to_location, symbol_kind_to_lsp};
 use crate::uri::{lsp_uri_for_file, lsp_uri_for_path};

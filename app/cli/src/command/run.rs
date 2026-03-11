@@ -1,31 +1,32 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use crate::common::{
-    CommandError, CommandReport, DiagnosticArgs, DiagnosticFormat, FormatOptions, InputArgs,
-    InputSource, ProgramArgs, ReportArgs, RuntimeArgs, TargetArgs, WatchCompileReason,
-    WatchReporter, collect_diagnostics_json, ensure_no_watch_or_dev, format_diagnostics,
-    parse_command_payload, print_report, report_error, report_no_input,
+    DiagnosticArgs, DiagnosticFormat, FormatOptions, InputArgs, InputSource, ProgramArgs,
+    ReportArgs, RuntimeArgs, TargetArgs, WatchCompileReason, WatchReporter, ensure_no_watch_or_dev,
+    print_report, report_error, report_from_payload, report_no_input,
 };
 use crate::console;
+use crate::error::CliResult;
 use crate::pipeline::daemon::{
-    CommandOptionsBuilder, ProtocolDaemonClient, command_inputs_from_sources,
-    command_stats_from_protocol, emit_daemon_text_output, run_workspace_command_with_session,
-    target_overrides_from_args,
+    CommandOptionsBuilder, DaemonCommandResult, ProtocolDaemonClient, command_inputs_from_sources,
+    command_stats_from_protocol, emit_daemon_text_output, finish_run_command,
+    run_workspace_command_with_session_or_report, target_overrides_from_args,
 };
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::script::{ScriptSource, resolve_script_command, shell_command};
 use crate::pipeline::target::target_name_from_args;
 use crate::pipeline::watch::{
-    WatchCompileContext, WatchContext, WatchLoopAction, WatchLoopOptions, build_daemon_options,
-    build_watch_context, build_watch_loop_options, emit_watch_compile_report, run_watch_loop,
-    watch_error,
+    WatchCompileContext, WatchLoopOptions, build_watch_loop_options, emit_watch_compile_report,
+    run_daemon_watch_command, watch_error,
 };
 use crate::pipeline::workspace::default_target_for_session;
 use clap::Args;
 use destack_daemon::protocol::{
-    CommandPayload, CommandRunMode, CommandRunOptions, CommandRunPayload,
+    CommandPayload, CommandRunMode, CommandRunOptions, CommonCommandOptions,
 };
 use destack_source::{DiagnosticOptions, FileSystem};
+use destack_workspace::Session;
 
 /// Arguments for the run command.
 #[derive(Args, Debug, Clone)]
@@ -105,6 +106,36 @@ struct RunWatchState {
     target_name: String,
 }
 
+/// Prepared daemon execution for run like commands.
+struct PreparedRunCommand {
+    /// Session used for daemon execution.
+    session: Arc<Session>,
+    /// Diagnostic options passed to the daemon.
+    diagnostic_options: DiagnosticOptions,
+    /// Common daemon command options.
+    common: CommonCommandOptions,
+    /// Command specific daemon payload.
+    payload: CommandPayload,
+}
+
+/// Prepared watch execution state for run like commands.
+struct PreparedRunWatch {
+    /// Session used for watch mode.
+    session: Arc<Session>,
+    /// Diagnostic options passed to the daemon.
+    diagnostic_options: DiagnosticOptions,
+    /// Mutable watch state.
+    state: RunWatchState,
+}
+
+/// One shot execution plan for run like commands.
+enum RunExecutionPlan {
+    /// Script execution completed without using the daemon.
+    Script(i32),
+    /// Daemon execution is ready to run.
+    Daemon(PreparedRunCommand),
+}
+
 /// Compile and run a source file or script.
 pub fn run(args: &RunArgs) -> i32 {
     run_with_request(RunRequest {
@@ -140,152 +171,30 @@ pub(crate) fn run_with_request(request: RunRequest) -> i32 {
 
 /// Run a single execution request through the daemon.
 fn run_via_daemon(request: &RunRequest) -> i32 {
-    let command_name = request.command_name;
-
-    // prepare session context for script detection
-    let session = request.program.setup();
-
-    // check for script execution before compilation
-    if matches!(request.mode, RunMode::Program)
-        && let Some(exit_code) = try_run_script(request, session.fs.as_ref(), &session.cwd)
-    {
-        return exit_code;
-    }
-
-    // resolve input sources for the run
-    let sources = match resolve_sources(&request.input, None, None) {
-        Ok(sources) => sources,
-        Err(ResolveSourcesError::NoInput) => {
-            return report_no_input(command_name, &request.report);
-        }
-        Err(ResolveSourcesError::Message(message)) => {
-            return report_error(command_name, &request.report, &message);
-        }
+    // prepare the execution plan
+    let plan = match prepare_run_execution(request) {
+        Ok(plan) => plan,
+        Err(code) => return code,
     };
-    if sources.len() > 1 {
-        return report_error(
-            command_name,
-            &request.report,
-            "run expects a single entry module",
-        );
-    }
 
-    // build command inputs and options for the daemon
-    let inputs = match command_inputs_from_sources(&sources, request.input.file_type()) {
-        Ok(inputs) => inputs,
-        Err(error) => return report_error(command_name, &request.report, &error.to_string()),
+    // return early when a script handled the command
+    let prepared = match plan {
+        RunExecutionPlan::Script(exit_code) => return exit_code,
+        RunExecutionPlan::Daemon(prepared) => prepared,
     };
-    let run_mode = match request.mode {
-        RunMode::Program => CommandRunMode::Program,
-        RunMode::Eval { print } => CommandRunMode::Eval { print },
-    };
-    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
-    let target_name = match default_target_for_session(&request.program, &session) {
-        Ok(default_target) => {
-            let fallback = default_target.as_deref().unwrap_or("native");
-            target_name_from_args(&request.target, fallback)
-        }
-        Err(error) => {
-            return report_error(command_name, &request.report, &error.to_string());
-        }
-    };
-    let common = CommandOptionsBuilder::new(&request.program, Some(diagnostic_options.clone()))
-        .inputs(inputs)
-        .target(target_name)
-        .target_overrides(target_overrides_from_args(&request.target))
-        .runtime_overrides(request.runtime.to_runtime_overrides())
-        .build();
-    let payload = CommandPayload::Run(CommandRunOptions {
-        entry: Some(request.entry.clone()),
-        args: request.args.clone(),
-        run_mode,
-    });
 
     // execute the daemon command
-    let result = match run_workspace_command_with_session(
-        session.clone(),
-        &request.program,
-        diagnostic_options.clone(),
-        common,
-        payload,
-        None,
-    ) {
+    let result = match execute_run_command(request, &prepared) {
         Ok(result) => result,
-        Err(error) => return report_error(command_name, &request.report, &error.to_string()),
+        Err(code) => return code,
     };
 
-    // emit diagnostics in the requested format
-    if request.report.is_json() {
-        let format_options = FormatOptions {
-            format: DiagnosticFormat::Json,
-            ..FormatOptions::default()
-        };
-        let (output, format_result) =
-            collect_diagnostics_json(&result.files, &result.diagnostics, &format_options);
-
-        if format_result.exit_code() != 0 {
-            let mut report = CommandReport::failure(command_name, format_result.exit_code());
-            if let Some(stats) = result.response.stats.as_ref() {
-                report.stats = Some(command_stats_from_protocol(stats, request.program.timings));
-            }
-            report.diagnostics = Some(output);
-            print_report(&report, request.report.format());
-            return format_result.exit_code();
-        }
-    } else {
-        let format_options = FormatOptions::default();
-        let _ = format_diagnostics(
-            &result.files,
-            &result.diagnostics,
-            &format_options,
-            result.response.module_count,
-        );
-        if result.diagnostics.get_status_code() != 0 {
-            return result.diagnostics.get_status_code();
-        }
-    }
-
-    // emit daemon messages and output for non-json runs
-    emit_daemon_text_output(
+    finish_run_command(
+        request.command_name,
         &request.report,
-        &result.response.messages,
-        &result.response.output,
-    );
-
-    let exit_code = result.response.exit_code;
-    if request.report.is_json() {
-        // decode payload for structured output
-        let payload = match parse_command_payload::<CommandRunPayload>(
-            command_name,
-            &request.report,
-            result.response.data.as_ref(),
-            "run",
-            false,
-        ) {
-            Ok(payload) => payload,
-            Err(code) => return code,
-        };
-        let mut report = if exit_code == 0 {
-            CommandReport::success(command_name, exit_code)
-        } else {
-            CommandReport::failure(command_name, exit_code)
-        };
-        if let Some(stats) = result.response.stats.as_ref() {
-            report.stats = Some(command_stats_from_protocol(stats, request.program.timings));
-        }
-        if let Some((payload, value)) = payload {
-            report.data = Some(value);
-            if let CommandRunPayload::RuntimeError { message } = payload {
-                report.summary = Some(message.clone());
-                report.error = Some(CommandError::new("runtime_error", "run", &message));
-            }
-        }
-        print_report(&report, request.report.format());
-    } else if exit_code != 0 {
-        console::warn(&format!("process exited with code {exit_code}"));
-    }
-
-    exit_code
+        &result,
+        request.program.timings,
+    )
 }
 
 /// Compile and run a source file in watch mode.
@@ -312,12 +221,6 @@ where
     StartFn: FnOnce(),
     ObserveFn: FnMut(WatchCompileReason, bool, bool),
 {
-    let format_options = FormatOptions::default();
-    let json_format_options = FormatOptions {
-        format: DiagnosticFormat::Json,
-        ..FormatOptions::default()
-    };
-
     run_watch_with_driver(
         request,
         watch_loop_options,
@@ -340,8 +243,6 @@ where
                 entry_source,
                 target_name,
                 reporter,
-                &format_options,
-                &json_format_options,
                 reason,
                 batch_id,
                 updated,
@@ -357,7 +258,7 @@ pub(crate) fn run_watch_with_driver<StartFn, ObserveFn, CompileFn>(
     request: &RunRequest,
     watch_loop_options: WatchLoopOptions,
     on_start: StartFn,
-    mut on_compile: ObserveFn,
+    on_compile: ObserveFn,
     mut compile: CompileFn,
     is_one_shot: bool,
 ) -> i32
@@ -379,205 +280,45 @@ where
 {
     let command_name = request.command_name;
 
-    // reject eval mode for watch
-    if matches!(request.mode, RunMode::Eval { .. }) {
-        return report_error(
-            command_name,
-            &request.report,
-            "--watch does not support --eval",
-        );
-    }
-
-    // reject watch mode for inline inputs
-    if request.input.stdin || !request.input.eval.is_empty() || !request.input.module.is_empty() {
-        return report_error(
-            command_name,
-            &request.report,
-            "--watch requires file or directory inputs",
-        );
-    }
-
-    // prepare session context for watch mode
-    let session = request.program.setup();
-
-    // disallow scripts in watch mode
-    if matches!(request.mode, RunMode::Program)
-        && request.input.files.len() == 1
-        && request.input.eval.is_empty()
-        && request.input.module.is_empty()
-        && !request.input.stdin
-    {
-        let candidate = &request.input.files[0];
-        let candidate_path = if candidate.is_absolute() {
-            candidate.clone()
-        } else {
-            session.cwd.join(candidate)
-        };
-        if session.fs.metadata(&candidate_path).is_err() {
-            return report_error(
-                command_name,
-                &request.report,
-                "--watch does not support script commands",
-            );
-        }
-    }
-
-    // load sources and enforce a single entry module
-    let sources = match resolve_sources(&request.input, None, None) {
-        Ok(sources) => sources,
-        Err(ResolveSourcesError::NoInput) => {
-            return report_no_input(command_name, &request.report);
-        }
-        Err(ResolveSourcesError::Message(message)) => {
-            return report_error(command_name, &request.report, &message);
-        }
+    // prepare watch mode state
+    let prepared = match prepare_run_watch(request) {
+        Ok(prepared) => prepared,
+        Err(code) => return code,
     };
-    if sources.len() > 1 {
-        return report_error(
-            command_name,
-            &request.report,
-            "run expects a single entry module",
-        );
-    }
+    let PreparedRunWatch {
+        session,
+        diagnostic_options,
+        mut state,
+    } = prepared;
 
-    // resolve the entry source
-    let entry_source = sources[0].clone();
-
-    // prepare watch mode output
-    let WatchContext {
-        roots,
-        root,
-        mut reporter,
-    } = build_watch_context(command_name, &request.program, &request.report, &session);
-
-    // configure the daemon client for incremental updates
-    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
-    let daemon_options = build_daemon_options(&request.program, diagnostic_options.clone(), None);
-    let daemon = match ProtocolDaemonClient::new(
-        session.clone(),
-        daemon_options,
-        roots.clone(),
+    run_daemon_watch_command(
+        command_name,
+        session,
         &request.program,
-    ) {
-        Ok(daemon) => daemon,
-        Err(error) => {
-            let message = watch_error(&error.to_string());
-            if let Some(reporter) = reporter.as_mut() {
-                reporter.emit_warning(&message);
-                reporter.emit_stop();
-                return 1;
-            }
-            return report_error(command_name, &request.report, &message);
-        }
-    };
-
-    // resolve the target name for watch executions
-    let target_name = match default_target_for_session(&request.program, &session) {
-        Ok(default_target) => {
-            let fallback = default_target.as_deref().unwrap_or("native");
-            target_name_from_args(&request.target, fallback)
-        }
-        Err(error) => {
-            let message = watch_error(&error.to_string());
-            if let Some(reporter) = reporter.as_mut() {
-                reporter.emit_warning(&message);
-                reporter.emit_stop();
-                return 1;
-            }
-            return report_error(command_name, &request.report, &message);
-        }
-    };
-
-    // set up shared watch state
-    let mut watch_state = RunWatchState {
-        sources,
-        target_name,
-    };
-
-    // run the initial compile and execute
-    let mut exit_code = compile(
-        request,
-        &daemon,
-        &root,
-        &entry_source,
-        &watch_state.target_name,
-        &mut reporter,
-        WatchCompileReason::Startup,
+        &request.report,
+        diagnostic_options,
         None,
-        false,
-        false,
-    );
-
-    // run the watch loop for incremental updates
-    exit_code = run_watch_loop(
-        &daemon,
-        roots,
-        &mut reporter,
         watch_loop_options,
-        &mut watch_state,
-        move |_| on_start(),
-        |state| {
-            // refresh sources when a rescan is requested
-            state.sources = match resolve_sources(&request.input, None, None) {
-                Ok(sources) => sources,
-                Err(ResolveSourcesError::NoInput) => {
-                    return Err(watch_error("no input files after rescan").into());
-                }
-                Err(ResolveSourcesError::Message(message)) => {
-                    return Err(watch_error(&message).into());
-                }
-            };
-            if state.sources.len() != 1 {
-                return Err(watch_error("expected a single entry module").into());
-            }
-
-            // refresh target defaults after rescan
-            state.target_name = match default_target_for_session(&request.program, &session) {
-                Ok(default_target) => {
-                    let fallback = default_target.as_deref().unwrap_or("native");
-                    target_name_from_args(&request.target, fallback)
-                }
-                Err(error) => {
-                    return Err(watch_error(&error.to_string()).into());
-                }
-            };
-
-            Ok(())
-        },
-        |state, reporter, reason, batch_id, updated, requires_rescan| {
-            // recompile and rerun when updates occur
-            let next_exit_code = compile(
+        &mut state,
+        move |_state| on_start(),
+        |state, session| refresh_run_watch_state(request, state, session),
+        move |daemon, root, reporter, state, reason, batch_id, updated, requires_rescan| {
+            compile(
                 request,
-                &daemon,
-                &root,
+                daemon,
+                root,
                 &state.sources[0],
                 &state.target_name,
                 reporter,
                 reason,
-                Some(batch_id),
+                batch_id,
                 updated,
                 requires_rescan,
-            );
-
-            // record compile observation
-            on_compile(reason, updated, requires_rescan);
-
-            if is_one_shot {
-                return WatchLoopAction::stop_with(Some(next_exit_code));
-            }
-
-            WatchLoopAction::continue_with(Some(next_exit_code))
+            )
         },
-        exit_code,
-    );
-
-    if let Some(reporter) = reporter.as_mut() {
-        reporter.emit_stop();
-    }
-
-    daemon.shutdown();
-
-    exit_code
+        on_compile,
+        is_one_shot,
+    )
 }
 
 /// Compile the entry module and run the program through the daemon.
@@ -589,19 +330,19 @@ fn compile_and_run_daemon(
     entry_source: &InputSource,
     target_name: &str,
     watch_reporter: &mut Option<WatchReporter>,
-    format_options: &FormatOptions,
-    json_format_options: &FormatOptions,
     compile_reason: WatchCompileReason,
     batch_id: Option<u64>,
     updated: bool,
     rescan: bool,
 ) -> i32 {
-    // build the daemon command options
-    let inputs = match command_inputs_from_sources(
+    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
+    let (common, payload) = match build_run_command(
+        request,
         std::slice::from_ref(entry_source),
-        request.input.file_type(),
+        target_name,
+        &diagnostic_options,
     ) {
-        Ok(inputs) => inputs,
+        Ok(command) => command,
         Err(error) => {
             let message = watch_error(&error.to_string());
             if let Some(reporter) = watch_reporter.as_mut() {
@@ -611,22 +352,6 @@ fn compile_and_run_daemon(
             return report_error(request.command_name, &request.report, &message);
         }
     };
-    let run_mode = match request.mode {
-        RunMode::Program => CommandRunMode::Program,
-        RunMode::Eval { print } => CommandRunMode::Eval { print },
-    };
-    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
-    let common = CommandOptionsBuilder::new(&request.program, Some(diagnostic_options.clone()))
-        .inputs(inputs)
-        .target(target_name.to_string())
-        .target_overrides(target_overrides_from_args(&request.target))
-        .runtime_overrides(request.runtime.to_runtime_overrides())
-        .build();
-    let payload = CommandPayload::Run(CommandRunOptions {
-        entry: Some(request.entry.clone()),
-        args: request.args.clone(),
-        run_mode,
-    });
 
     // execute the daemon command
     let result = match daemon.run_workspace_command(root, common, payload) {
@@ -647,13 +372,18 @@ fn compile_and_run_daemon(
         .stats
         .as_ref()
         .map(|stats| command_stats_from_protocol(stats, request.program.timings));
+    let format_options = FormatOptions::default();
+    let json_format_options = FormatOptions {
+        format: DiagnosticFormat::Json,
+        ..FormatOptions::default()
+    };
     let diagnostic_exit = emit_watch_compile_report(
         watch_reporter,
         WatchCompileContext {
             files: &result.files,
             diagnostics: &result.diagnostics,
-            format_options,
-            json_format_options,
+            format_options: &format_options,
+            json_format_options: &json_format_options,
             module_count: result.response.module_count,
             line_writer: None,
         },
@@ -756,17 +486,255 @@ fn try_run_script(request: &RunRequest, fs: &dyn FileSystem, cwd: &Path) -> Opti
             ScriptSource::DsConfig => "dsconfig",
             ScriptSource::PackageJson => "package.json",
         };
-        let mut report = CommandReport::success(command_name, exit_code);
-        report.data = Some(serde_json::json!({
+        let data = serde_json::json!({
             "script": script.name,
             "command": command,
             "cwd": script.cwd,
             "source": source,
-        }));
+        });
+        let report = report_from_payload(command_name, exit_code, Some(data), None, None);
         print_report(&report, request.report.format());
     } else if exit_code != 0 {
         console::warn(&format!("process exited with code {exit_code}"));
     }
 
     Some(exit_code)
+}
+
+/// Prepare one shot execution for a run like command.
+fn prepare_run_execution(request: &RunRequest) -> Result<RunExecutionPlan, i32> {
+    let session = request.program.setup();
+
+    // allow script execution before daemon setup
+    if matches!(request.mode, RunMode::Program)
+        && let Some(exit_code) = try_run_script(request, session.fs.as_ref(), &session.cwd)
+    {
+        return Ok(RunExecutionPlan::Script(exit_code));
+    }
+
+    // resolve a single entry source for the run
+    let sources = resolve_run_sources_or_report(request)?;
+    let target_name = resolve_run_target_name_or_report(request, &session)?;
+    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
+    let (common, payload) = build_run_command(request, &sources, &target_name, &diagnostic_options)
+        .map_err(|error| report_error(request.command_name, &request.report, &error.to_string()))?;
+
+    Ok(RunExecutionPlan::Daemon(PreparedRunCommand {
+        session,
+        diagnostic_options,
+        common,
+        payload,
+    }))
+}
+
+/// Execute a prepared run command through the daemon.
+fn execute_run_command(
+    request: &RunRequest,
+    prepared: &PreparedRunCommand,
+) -> Result<DaemonCommandResult, i32> {
+    run_workspace_command_with_session_or_report(
+        request.command_name,
+        &request.report,
+        prepared.session.clone(),
+        &request.program,
+        prepared.diagnostic_options.clone(),
+        prepared.common.clone(),
+        prepared.payload.clone(),
+    )
+}
+
+/// Prepare watch state for a run like command.
+fn prepare_run_watch(request: &RunRequest) -> Result<PreparedRunWatch, i32> {
+    if matches!(request.mode, RunMode::Eval { .. }) {
+        return Err(report_error(
+            request.command_name,
+            &request.report,
+            "--watch does not support --eval",
+        ));
+    }
+
+    if request.input.stdin || !request.input.eval.is_empty() || !request.input.module.is_empty() {
+        return Err(report_error(
+            request.command_name,
+            &request.report,
+            "--watch requires file or directory inputs",
+        ));
+    }
+
+    let session = request.program.setup();
+
+    if is_script_name_input(request)
+        && let Some(candidate_path) = script_name_input_path(request, &session)
+        && session.fs.metadata(&candidate_path).is_err()
+    {
+        return Err(report_error(
+            request.command_name,
+            &request.report,
+            "--watch does not support script commands",
+        ));
+    }
+
+    let sources = resolve_run_sources_or_report(request)?;
+    let target_name = resolve_run_target_name_for_watch(request, &session)?;
+    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
+
+    Ok(PreparedRunWatch {
+        session,
+        diagnostic_options,
+        state: RunWatchState {
+            sources,
+            target_name,
+        },
+    })
+}
+
+/// Refresh watch state after a rescan.
+fn refresh_run_watch_state(
+    request: &RunRequest,
+    state: &mut RunWatchState,
+    session: &Session,
+) -> CliResult<()> {
+    state.sources = resolve_run_sources_for_watch(request)?;
+    let target_name = resolve_run_target_name(request, session).map_err(|message| {
+        let message = watch_error(&message);
+        crate::error::CliError::message(message)
+    })?;
+    state.target_name = target_name;
+
+    Ok(())
+}
+
+/// Resolve entry sources for a one shot run command.
+fn resolve_run_sources_or_report(request: &RunRequest) -> Result<Vec<InputSource>, i32> {
+    let sources = match resolve_sources(&request.input, None, None) {
+        Ok(sources) => sources,
+        Err(ResolveSourcesError::NoInput) => {
+            return Err(report_no_input(request.command_name, &request.report));
+        }
+        Err(ResolveSourcesError::Message(message)) => {
+            return Err(report_error(
+                request.command_name,
+                &request.report,
+                &message,
+            ));
+        }
+    };
+
+    if sources.len() != 1 {
+        return Err(report_error(
+            request.command_name,
+            &request.report,
+            "run expects a single entry module",
+        ));
+    }
+
+    Ok(sources)
+}
+
+/// Resolve entry sources for watch mode rescans.
+fn resolve_run_sources_for_watch(request: &RunRequest) -> CliResult<Vec<InputSource>> {
+    let sources = match resolve_sources(&request.input, None, None) {
+        Ok(sources) => sources,
+        Err(ResolveSourcesError::NoInput) => {
+            return Err(watch_error("no input files after rescan").into());
+        }
+        Err(ResolveSourcesError::Message(message)) => {
+            return Err(watch_error(&message).into());
+        }
+    };
+
+    if sources.len() != 1 {
+        return Err(watch_error("expected a single entry module").into());
+    }
+
+    Ok(sources)
+}
+
+/// Resolve the target name for a run command.
+fn resolve_run_target_name(request: &RunRequest, session: &Session) -> Result<String, String> {
+    let default_target =
+        default_target_for_session(&request.program, session).map_err(|error| error.to_string())?;
+    let fallback = default_target.as_deref().unwrap_or("native");
+
+    Ok(target_name_from_args(&request.target, fallback))
+}
+
+/// Resolve the target name for one shot execution.
+fn resolve_run_target_name_or_report(
+    request: &RunRequest,
+    session: &Session,
+) -> Result<String, i32> {
+    resolve_run_target_name(request, session)
+        .map_err(|message| report_error(request.command_name, &request.report, &message))
+}
+
+/// Resolve the target name for watch execution.
+fn resolve_run_target_name_for_watch(
+    request: &RunRequest,
+    session: &Session,
+) -> Result<String, i32> {
+    resolve_run_target_name(request, session).map_err(|message| {
+        let message = watch_error(&message);
+        report_error(request.command_name, &request.report, &message)
+    })
+}
+
+/// Build the daemon command options for a run command.
+fn build_run_command(
+    request: &RunRequest,
+    sources: &[InputSource],
+    target_name: &str,
+    diagnostic_options: &DiagnosticOptions,
+) -> CliResult<(CommonCommandOptions, CommandPayload)> {
+    let inputs = command_inputs_from_sources(sources, request.input.file_type())?;
+    let common = CommandOptionsBuilder::new(&request.program, Some(diagnostic_options.clone()))
+        .inputs(inputs)
+        .target(target_name.to_string())
+        .target_overrides(target_overrides_from_args(&request.target))
+        .runtime_overrides(request.runtime.to_runtime_overrides())
+        .build();
+
+    Ok((common, build_run_payload(request)))
+}
+
+/// Build the daemon payload for a run command.
+fn build_run_payload(request: &RunRequest) -> CommandPayload {
+    CommandPayload::Run(CommandRunOptions {
+        entry: Some(request.entry.clone()),
+        args: request.args.clone(),
+        run_mode: resolve_run_mode(request),
+    })
+}
+
+/// Resolve the daemon run mode for a request.
+fn resolve_run_mode(request: &RunRequest) -> CommandRunMode {
+    match request.mode {
+        RunMode::Program => CommandRunMode::Program,
+        RunMode::Eval { print } => CommandRunMode::Eval { print },
+    }
+}
+
+/// Check whether the request could refer to a script name.
+fn is_script_name_input(request: &RunRequest) -> bool {
+    matches!(request.mode, RunMode::Program)
+        && request.input.files.len() == 1
+        && request.input.eval.is_empty()
+        && request.input.module.is_empty()
+        && !request.input.stdin
+}
+
+/// Resolve the candidate path for a potential script name.
+fn script_name_input_path(request: &RunRequest, session: &Session) -> Option<std::path::PathBuf> {
+    if !is_script_name_input(request) {
+        return None;
+    }
+
+    let candidate = &request.input.files[0];
+    let candidate_path = if candidate.is_absolute() {
+        candidate.clone()
+    } else {
+        session.cwd.join(candidate)
+    };
+
+    Some(candidate_path)
 }

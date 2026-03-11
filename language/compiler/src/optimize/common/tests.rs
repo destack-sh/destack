@@ -833,8 +833,8 @@ impl TestProgram {
 mod tests {
     use std::sync::Arc;
 
-    use destack_core::StringPool;
     use destack_compiler_macros::declare_pass;
+    use destack_core::StringPool;
     use destack_mir as mir;
 
     use super::TestProgram;

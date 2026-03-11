@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use destack_core::StringId;
 use destack_builtin::builtin_lib;
+use destack_core::StringId;
 use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
 use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};

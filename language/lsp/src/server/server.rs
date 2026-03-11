@@ -7,9 +7,7 @@ use std::time::{Duration, Instant};
 
 use dashmap::{DashMap, DashSet};
 use destack_compiler::CompilerOptions;
-use destack_query as query;
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
-use destack_lsp_types as lsp;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_service::{
     LanguageService as LspLanguageService, LanguageServiceError, RescanReason, WorkspaceMessage,
@@ -23,6 +21,7 @@ use destack_workspace::{Session, Workspace, WorkspaceKind};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value};
 use tokio::sync::{Notify, mpsc};
+use {destack_lsp_types as lsp, destack_query as query};
 
 use crate::query::assist::{code_lens_to_lsp, inlay_hint_to_lsp};
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
@@ -4416,8 +4415,7 @@ impl LanguageServer for DestackLanguageServer {
 #[cfg(test)]
 mod tests {
     use super::DestackLanguageServer;
-    use destack_lsp_types as lsp;
-    use destack_query as query;
+    use {destack_lsp_types as lsp, destack_query as query};
 
     /// Map umbrella refactor kinds to all workspace refactor buckets.
     #[test]

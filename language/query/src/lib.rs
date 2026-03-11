@@ -1,5 +1,3 @@
-pub mod registry;
-pub mod request;
 #[path = "query/assist/mod.rs"]
 pub mod assist;
 #[path = "query/common/mod.rs"]
@@ -9,6 +7,8 @@ pub mod format;
 pub mod navigation;
 #[path = "query/refactor/mod.rs"]
 pub mod refactor;
+pub mod registry;
+pub mod request;
 
 pub use assist::*;
 pub use common::*;

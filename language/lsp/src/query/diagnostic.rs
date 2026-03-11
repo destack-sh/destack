@@ -1,8 +1,7 @@
-use destack_lsp_types as lsp;
-use destack_query as query;
 use destack_source::{Diagnostic, DiagnosticSeverity, File};
 use destack_workspace::Session;
 use serde_json::Value;
+use {destack_lsp_types as lsp, destack_query as query};
 
 use super::common::byte_span_to_range;
 use super::refactor::batch_edit_to_workspace_edit;

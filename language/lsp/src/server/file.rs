@@ -8,14 +8,13 @@ use destack_fir::format as fir_format;
 use destack_formatter::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
 };
-use destack_lsp_types as lsp;
 use destack_parser::Parser;
-use destack_query as query;
 use destack_service::{FileSnapshot, LanguageService as LspLanguageService, LanguageServiceError};
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, Span, WATCHABLE_FILE_TYPES,
 };
 use destack_workspace::{FormatterOptions, Session};
+use {destack_lsp_types as lsp, destack_query as query};
 
 /// Globs for config files tracked by the LSP.
 pub(super) const CONFIG_GLOBS: [&str; 2] = ["**/dsconfig.json", "**/tsconfig*.json"];

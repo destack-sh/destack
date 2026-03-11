@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use destack_core::{StringPool, fnv1a_64};
 use destack_builtin::LanguageSymbol;
+use destack_core::{StringPool, fnv1a_64};
 use destack_dir::{
     self as dir, Annotation, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId,
     PrimitiveType, StaticArgument, StaticExpression, TypeLiteral, WellKnownSymbol,

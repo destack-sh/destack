@@ -12,6 +12,8 @@ use crate::common::compile::print_no_input_help;
 use crate::common::format::{DiagnosticOutputJson, LineWriter};
 use crate::console;
 
+pub use destack_daemon::protocol::{CommandCacheStats, CommandStats, CommandTimingTagStats};
+
 /// Schema version for command reports.
 pub const REPORT_SCHEMA_VERSION: u32 = 4;
 
@@ -83,65 +85,6 @@ pub enum CommandStatus {
     Failure,
 }
 
-/// Summary statistics for command execution.
-#[derive(Debug, Clone, Serialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-pub struct CommandStats {
-    /// Elapsed time in milliseconds.
-    pub elapsed_ms: u64,
-    /// Number of tasks completed by the compiler.
-    pub tasks_completed: usize,
-    /// Number of tasks failed by the compiler.
-    pub tasks_failed: usize,
-    /// Number of tasks skipped by the compiler.
-    pub tasks_skipped: usize,
-    /// Number of modules processed.
-    pub modules_processed: usize,
-    /// Number of lines processed.
-    pub lines_processed: usize,
-    /// Number of slow tasks detected.
-    pub slow_tasks: usize,
-    /// Cache statistics for the command.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cache: Option<CommandCacheStats>,
-    /// Timing tag statistics for the command.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub timings: Option<Vec<CommandTimingTagStats>>,
-}
-
-impl CommandStats {
-    /// Build stats from a compiler snapshot.
-    pub fn from_snapshot(snapshot: &StatsSnapshot) -> Self {
-        // map snapshot fields into the report summary
-        let elapsed_ms = duration_to_ms(snapshot.elapsed);
-        let modules_processed = snapshot.modules_processed();
-        let cache = cache_stats_from_snapshot(snapshot);
-        Self {
-            elapsed_ms,
-            tasks_completed: snapshot.tasks.completed,
-            tasks_failed: snapshot.tasks.failed,
-            tasks_skipped: snapshot.tasks.skipped,
-            modules_processed,
-            lines_processed: snapshot.modules.lines_processed,
-            slow_tasks: snapshot.slow_tasks,
-            cache,
-            timings: None,
-        }
-    }
-}
-
-/// Timing tag statistics for command output.
-#[derive(Debug, Clone, Serialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-pub struct CommandTimingTagStats {
-    /// Timing tag name.
-    pub name: String,
-    /// Total time spent in this tag (milliseconds).
-    pub duration_ms: u64,
-    /// Number of samples recorded.
-    pub sample_count: u64,
-}
-
 /// Options for reporting timing tags.
 #[derive(Debug, Clone, Copy)]
 pub struct TimingOutputOptions {
@@ -151,51 +94,6 @@ pub struct TimingOutputOptions {
     pub top: usize,
     /// Minimum duration in milliseconds to display.
     pub min_ms: u64,
-}
-
-/// Cache statistics for command output.
-#[derive(Debug, Clone, Serialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-pub struct CommandCacheStats {
-    /// Cache hits from memory.
-    pub hits_memory: usize,
-    /// Cache hits from disk.
-    pub hits_disk: usize,
-    /// Cache misses.
-    pub misses: usize,
-    /// Cache writes to memory.
-    pub writes_memory: usize,
-    /// Cache writes to disk.
-    pub writes_disk: usize,
-    /// Cache errors.
-    pub errors: usize,
-    /// Cache hit rate across all cache kinds.
-    pub hit_rate: f32,
-}
-
-/// Build cache stats from a compiler snapshot when there is cache activity.
-fn cache_stats_from_snapshot(snapshot: &StatsSnapshot) -> Option<CommandCacheStats> {
-    let totals = snapshot.cache_totals();
-    let activity = totals.hits_memory
-        + totals.hits_disk
-        + totals.misses
-        + totals.writes_memory
-        + totals.writes_disk
-        + totals.errors;
-
-    if activity == 0 {
-        return None;
-    }
-
-    Some(CommandCacheStats {
-        hits_memory: totals.hits_memory,
-        hits_disk: totals.hits_disk,
-        misses: totals.misses,
-        writes_memory: totals.writes_memory,
-        writes_disk: totals.writes_disk,
-        errors: totals.errors,
-        hit_rate: snapshot.cache_hit_rate(),
-    })
 }
 
 /// Structured error payload for command failures.
@@ -555,13 +453,13 @@ pub fn print_stats_summary(
         let throughput = stats.modules.lines_processed as f64 / elapsed_secs;
         console::bold(&format!(
             " · {} lines · {} lines/s",
-            format_number(stats.modules.lines_processed),
-            format_compact(throughput as usize)
+            format_number(stats.modules.lines_processed as u64),
+            format_compact(throughput as u64)
         ))
     } else if stats.modules.lines_processed > 0 {
         console::bold(&format!(
             " · {} lines",
-            format_number(stats.modules.lines_processed)
+            format_number(stats.modules.lines_processed as u64)
         ))
     } else {
         String::new()
@@ -583,12 +481,12 @@ pub fn print_stats_summary(
         let hit_rate = stats.cache_hit_rate() * 100.0;
         let cache_line = format!(
             "cache: {} hits ({} mem, {} disk) · {} misses · {} writes · {} errors · {:.0}% hit rate",
-            format_number(hits),
-            format_number(cache_totals.hits_memory),
-            format_number(cache_totals.hits_disk),
-            format_number(cache_totals.misses),
-            format_number(writes),
-            format_number(cache_totals.errors),
+            format_number(hits as u64),
+            format_number(cache_totals.hits_memory as u64),
+            format_number(cache_totals.hits_disk as u64),
+            format_number(cache_totals.misses as u64),
+            format_number(writes as u64),
+            format_number(cache_totals.errors as u64),
             hit_rate,
         );
         write_line(line_writer, &console::dim(&cache_line));
@@ -629,11 +527,11 @@ pub fn print_stats_summary(
             "    {} optimized {} functions: {} {arrow} {} instructions ({}), {} {arrow} {} blocks ({})",
             console::dim(console::SYMBOL_ARROW),
             stats.mir.functions_optimized,
-            format_number(instr_before),
-            format_number(instr_after),
+            format_number(instr_before as u64),
+            format_number(instr_after as u64),
             format_delta(instr_delta),
-            format_number(blocks_before),
-            format_number(blocks_after),
+            format_number(blocks_before as u64),
+            format_number(blocks_after as u64),
             format_delta(blocks_delta),
         );
         write_line(line_writer, &mir_line);
@@ -677,12 +575,12 @@ pub fn print_stats_summary(
                 String::new()
             };
             let modules_str = pluralize(modules, "module");
-            let lines_str = format!("{} lines", format_number(lines));
+            let lines_str = format!("{} lines", format_number(lines as u64));
             let throughput_str = if duration.as_nanos() > 0 {
                 let duration_secs = duration.as_secs_f64();
                 if lines > 0 && duration_secs > 0.001 {
                     let throughput = lines as f64 / duration_secs;
-                    format!(" · {} lines/s", format_compact(throughput as usize))
+                    format!(" · {} lines/s", format_compact(throughput as u64))
                 } else {
                     String::new()
                 }
@@ -784,7 +682,7 @@ pub fn print_command_stats_summary(
         console::bold(&format!(
             " · {} lines · {} lines/s",
             format_number(stats.lines_processed),
-            format_compact(throughput as usize)
+            format_compact(throughput as u64)
         ))
     } else if stats.lines_processed > 0 {
         console::bold(&format!(
@@ -914,7 +812,7 @@ fn write_line(line_writer: Option<&LineWriter>, line: &str) {
 }
 
 /// Format a number with grouping separators.
-fn format_number(n: usize) -> String {
+fn format_number(n: u64) -> String {
     let mut digits = n.to_string();
     let mut output = String::new();
     while digits.len() > 3 {
@@ -933,7 +831,7 @@ fn format_number(n: usize) -> String {
 }
 
 /// Format a number in a compact human friendly form.
-fn format_compact(n: usize) -> String {
+fn format_compact(n: u64) -> String {
     let n = n as f64;
     if n >= 1_000_000_000.0 {
         format!("{:.1}b", n / 1_000_000_000.0)
@@ -953,13 +851,6 @@ fn pluralize(n: usize, word: &str) -> String {
     } else {
         format!("{n} {word}s")
     }
-}
-
-/// Convert a duration to milliseconds with saturation.
-fn duration_to_ms(duration: Duration) -> u64 {
-    // guard against overflow on large durations
-    let millis = duration.as_millis();
-    u64::try_from(millis).unwrap_or(u64::MAX)
 }
 
 #[cfg(feature = "schema")]
