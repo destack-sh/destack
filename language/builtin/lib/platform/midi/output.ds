@@ -146,7 +146,7 @@ declare namespace midi {
     /// Write one batch of outbound MIDI records.
     ///
     /// Submit one batch of outbound MIDI transport records to one opened output endpoint.
-    /// Scheduled timestamps are advisory unless the backend advertises scheduled output support.
+    /// Scheduled timestamps are advisory unless the backend advertises scheduled output support and the opened endpoint accepts them.
     /// Record framing and payload encoding must match the selected transport data format.
     ///
     /// # Platform

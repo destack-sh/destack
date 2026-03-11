@@ -5,6 +5,7 @@ pub(crate) enum ServiceAffinity {
     CallerThread,
 
     /// Run on one existing host loop.
+    #[cfg(any(target_os = "macos", windows))]
     HostLoop(ServiceHostLoop),
 
     /// Run on one dedicated service thread.
@@ -13,6 +14,7 @@ pub(crate) enum ServiceAffinity {
 }
 
 /// One existing host loop kind.
+#[cfg(any(target_os = "macos", windows))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ServiceHostLoop {
     /// Use the process main thread.

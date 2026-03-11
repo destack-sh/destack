@@ -30,13 +30,12 @@ impl X11DisplayService {
         context: &BindingCallContext,
         runtime_state: &Arc<X11RuntimeState>,
     ) {
-        let runtime_id = context.agent().runtime_id;
         let runtime_state = runtime_state.clone();
 
         // keep runtime registration explicit and one-time through the service boundary
         self.executor
             .call("destack.display.service.x11.register", move || {
-                runtime_state.register_runtime_ingress(runtime_id);
+                runtime_state.register_runtime_ingress(context);
                 Ok(())
             })
             .expect("x11 display service registration should succeed");

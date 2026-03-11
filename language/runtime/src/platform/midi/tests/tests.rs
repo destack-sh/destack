@@ -1,10 +1,10 @@
 #![cfg_attr(
-    not(any(target_os = "macos", windows)),
+    not(any(target_os = "macos", target_os = "linux", windows)),
     allow(dead_code, unused_imports)
 )]
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 use std::sync::{Mutex, OnceLock};
 
 #[path = "harness.rs"]
@@ -133,7 +133,7 @@ pub(crate) fn with_harness_context<F>(mut callback: F)
 where
     F: for<'call> FnMut(MidiHarnessContext<'call>) -> RuntimeResult<()>,
 {
-    #[cfg(any(target_os = "macos", windows))]
+    #[cfg(any(target_os = "macos", target_os = "linux", windows))]
     let _guard = {
         let global_lock = midi_test_lock();
         global_lock
@@ -146,7 +146,7 @@ where
     });
 }
 
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 /// Return one process-global serialization lock for backend-global MIDI tests.
 fn midi_test_lock() -> &'static Mutex<()> {
     static MIDI_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -326,22 +326,6 @@ pub(crate) fn harness_output_records(
     }
 }
 
-/// Build virtual-input creation options for one requested transport shape.
-pub(crate) fn harness_virtual_input_create_options_for_transport(
-    context: &mut MidiHarnessContext<'_>,
-    name: &str,
-    data_format: MidiDataFormat,
-    protocol: MidiProtocol,
-) -> RuntimeResult<HarnessValue<MidiVirtualInputCreateOptions, MidiVirtualInputCreateOptionsVm>> {
-    harness_virtual_input_create_options_for_backend_transport(
-        context,
-        MidiBackend::Auto,
-        name,
-        data_format,
-        protocol,
-    )
-}
-
 /// Build virtual-input creation options for one backend and requested transport shape.
 pub(crate) fn harness_virtual_input_create_options_for_backend_transport(
     context: &mut MidiHarnessContext<'_>,
@@ -374,23 +358,6 @@ pub(crate) fn harness_virtual_input_create_options_for_backend_transport(
             queue_capacity: 0,
         })),
     }
-}
-
-/// Build virtual-output creation options for one requested transport shape.
-#[cfg(windows)]
-pub(crate) fn harness_virtual_output_create_options_for_transport(
-    context: &mut MidiHarnessContext<'_>,
-    name: &str,
-    data_format: MidiDataFormat,
-    protocol: MidiProtocol,
-) -> RuntimeResult<HarnessValue<MidiVirtualOutputCreateOptions, MidiVirtualOutputCreateOptionsVm>> {
-    harness_virtual_output_create_options_for_backend_transport(
-        context,
-        MidiBackend::Auto,
-        name,
-        data_format,
-        protocol,
-    )
 }
 
 /// Build virtual-output creation options for one backend and requested transport shape.

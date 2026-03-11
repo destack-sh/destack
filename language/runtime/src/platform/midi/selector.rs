@@ -3,7 +3,7 @@ use crate::platform::midi::MidiBackend;
 /// Selector rows advertised by the platform MIDI surface.
 pub(crate) const MIDI_SELECTOR_ROWS: [MidiBackend; 7] = [
     MidiBackend::Auto,
-    MidiBackend::AlsaSequencer,
+    MidiBackend::Alsa,
     MidiBackend::JackMidi,
     MidiBackend::CoreMIDI,
     MidiBackend::WinMM,
@@ -15,7 +15,7 @@ pub(crate) const MIDI_SELECTOR_ROWS: [MidiBackend; 7] = [
 pub(crate) fn midi_backend_name(backend: MidiBackend) -> &'static str {
     match backend {
         MidiBackend::Auto => "auto",
-        MidiBackend::AlsaSequencer => "alsa-sequencer",
+        MidiBackend::Alsa => "alsa",
         MidiBackend::JackMidi => "jack-midi",
         MidiBackend::CoreMIDI => "coremidi",
         MidiBackend::WinMM => "winmm",

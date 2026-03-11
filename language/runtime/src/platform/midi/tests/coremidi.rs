@@ -2,7 +2,7 @@ use super::{
     decode_backend_descriptors_full, decode_event, decode_input_record, decode_port_descriptor,
     decode_port_descriptors, harness_event_open_options, harness_output_open_options_for_transport,
     harness_output_records, harness_port_list_options_with_flags, harness_string,
-    harness_virtual_input_create_options_for_transport, with_harness_context,
+    harness_virtual_input_create_options_for_backend_transport, with_harness_context,
 };
 use crate::platform::core::BackendSupport;
 use crate::platform::midi::{
@@ -109,8 +109,9 @@ fn test_midi_coremidi_native_event_feed_reports_virtual_endpoint_additions_and_r
         let event_handle = context.destack_midi_event_open(options)?;
 
         // virtual destination creation
-        let create_options = harness_virtual_input_create_options_for_transport(
+        let create_options = harness_virtual_input_create_options_for_backend_transport(
             &mut context,
+            MidiBackend::CoreMIDI,
             "Destack CoreMIDI Native Event Destination",
             MidiDataFormat::Ump,
             MidiProtocol::Midi1,
@@ -165,8 +166,9 @@ fn test_midi_coremidi_native_event_feed_reports_virtual_endpoint_additions_and_r
 fn test_midi_coremidi_virtual_destination_roundtrips_midi1_transport_records() {
     with_harness_context(|mut context| {
         // virtual destination creation
-        let create_options = harness_virtual_input_create_options_for_transport(
+        let create_options = harness_virtual_input_create_options_for_backend_transport(
             &mut context,
+            MidiBackend::CoreMIDI,
             "Destack CoreMIDI Virtual MIDI1 Destination",
             MidiDataFormat::Midi1Bytes,
             MidiProtocol::Midi1,
@@ -261,8 +263,9 @@ fn test_midi_coremidi_virtual_destination_roundtrips_midi1_transport_records() {
 fn test_midi_coremidi_virtual_destination_roundtrips_ump_transport_records() {
     with_harness_context(|mut context| {
         // virtual destination creation
-        let create_options = harness_virtual_input_create_options_for_transport(
+        let create_options = harness_virtual_input_create_options_for_backend_transport(
             &mut context,
+            MidiBackend::CoreMIDI,
             "Destack CoreMIDI Virtual Destination",
             MidiDataFormat::Ump,
             MidiProtocol::Midi1,

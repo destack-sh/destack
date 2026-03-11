@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+mod alsa;
 #[cfg(any(unix, windows))]
 mod backend;
 #[cfg(target_os = "macos")]

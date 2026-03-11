@@ -6,11 +6,15 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::RuntimeError;
 #[cfg(target_os = "macos")]
 use crate::diagnostic::RuntimeResult;
+#[cfg(target_os = "linux")]
+use crate::diagnostic::RuntimeResult;
 #[cfg(windows)]
 use crate::diagnostic::RuntimeResult;
 use crate::platform::service::CachedServiceHandle;
 use crate::runtime::{AgentId, BindingCallContext};
 
+#[cfg(target_os = "linux")]
+use super::host::{AlsaService, alsa_service};
 #[cfg(target_os = "macos")]
 use super::host::{CoreMidiService, core_midi_service};
 #[cfg(windows)]
@@ -19,6 +23,9 @@ use super::host::{WinRtService, winrt_service};
 /// Agent-owned MIDI module state.
 #[derive(Default)]
 pub(crate) struct PlatformMidiState {
+    /// Shared ALSA service handle for this agent.
+    #[cfg(target_os = "linux")]
+    alsa_service: CachedServiceHandle<AlsaService>,
     /// Shared CoreMIDI service handle for this agent.
     #[cfg(target_os = "macos")]
     core_midi_service: CachedServiceHandle<CoreMidiService>,
@@ -38,6 +45,13 @@ impl std::fmt::Debug for PlatformMidiState {
 }
 
 impl PlatformMidiState {
+    /// Return one shared ALSA service handle for this agent.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn alsa_service(&self, operation: &'static str) -> RuntimeResult<Arc<AlsaService>> {
+        self.alsa_service
+            .get_or_try_init(|| alsa_service(operation))
+    }
+
     /// Ensure the shared CoreMIDI service is initialized for this agent.
     #[cfg(target_os = "macos")]
     pub(crate) fn ensure_core_midi_service(&self, operation: &'static str) -> RuntimeResult<()> {

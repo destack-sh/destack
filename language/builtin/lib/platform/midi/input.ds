@@ -150,6 +150,7 @@ declare namespace midi {
     /// Wait for one queued inbound MIDI transport record from one opened input endpoint.
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     /// Record framing and payload encoding follow the selected transport data format.
+    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -182,6 +183,7 @@ declare namespace midi {
     /// Wait for queued inbound MIDI transport records from one opened input endpoint and return up to `maxRecords`.
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     /// Record framing and payload encoding follow the selected transport data format.
+    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -215,6 +217,7 @@ declare namespace midi {
     /// Poll one pending inbound MIDI transport record from one opened input endpoint.
     /// Empty queue state is reported through ioWouldBlock.
     /// Record framing and payload encoding follow the selected transport data format.
+    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -244,6 +247,7 @@ declare namespace midi {
     /// Poll pending inbound MIDI transport records from one opened input endpoint and return up to `maxRecords`.
     /// Empty queue state is reported through ioWouldBlock.
     /// Record framing and payload encoding follow the selected transport data format.
+    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
     /// Unix and Windows.

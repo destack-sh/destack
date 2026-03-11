@@ -236,7 +236,7 @@ fn decode_destack_midi_event_open_args(
         let options_backend_raw = decode_uint8(slots[0], "options_backend_raw", "backend")?;
         let options_backend = match options_backend_raw {
             0u8 => MidiBackend::Auto,
-            1u8 => MidiBackend::AlsaSequencer,
+            1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
             4u8 => MidiBackend::WinMM,
@@ -917,7 +917,7 @@ fn decode_destack_midi_input_port_list_args(
         let options_backend_raw = decode_uint8(slots[0], "options_backend_raw", "backend")?;
         let options_backend = match options_backend_raw {
             0u8 => MidiBackend::Auto,
-            1u8 => MidiBackend::AlsaSequencer,
+            1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
             4u8 => MidiBackend::WinMM,
@@ -994,7 +994,7 @@ fn decode_destack_midi_input_port_open_args(
         let options_backend_raw = decode_uint8(slots[0], "options_backend_raw", "backend")?;
         let options_backend = match options_backend_raw {
             0u8 => MidiBackend::Auto,
-            1u8 => MidiBackend::AlsaSequencer,
+            1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
             4u8 => MidiBackend::WinMM,
@@ -1235,7 +1235,7 @@ fn decode_destack_midi_input_virtual_create_args(
         let options_backend_raw = decode_uint8(slots[0], "options_backend_raw", "backend")?;
         let options_backend = match options_backend_raw {
             0u8 => MidiBackend::Auto,
-            1u8 => MidiBackend::AlsaSequencer,
+            1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
             4u8 => MidiBackend::WinMM,
@@ -1475,7 +1475,7 @@ fn decode_destack_midi_output_port_list_args(
         let options_backend_raw = decode_uint8(slots[0], "options_backend_raw", "backend")?;
         let options_backend = match options_backend_raw {
             0u8 => MidiBackend::Auto,
-            1u8 => MidiBackend::AlsaSequencer,
+            1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
             4u8 => MidiBackend::WinMM,
@@ -1552,7 +1552,7 @@ fn decode_destack_midi_output_port_open_args(
         let options_backend_raw = decode_uint8(slots[0], "options_backend_raw", "backend")?;
         let options_backend = match options_backend_raw {
             0u8 => MidiBackend::Auto,
-            1u8 => MidiBackend::AlsaSequencer,
+            1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
             4u8 => MidiBackend::WinMM,
@@ -1662,7 +1662,7 @@ fn decode_destack_midi_output_virtual_create_args(
         let options_backend_raw = decode_uint8(slots[0], "options_backend_raw", "backend")?;
         let options_backend = match options_backend_raw {
             0u8 => MidiBackend::Auto,
-            1u8 => MidiBackend::AlsaSequencer,
+            1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
             4u8 => MidiBackend::WinMM,
@@ -7205,7 +7205,7 @@ fn destack_midi_backend_list_vm_replay(
                             decode_uint8(slots[0], "result_recorded_item_backend_raw", "backend")?;
                         let result_recorded_item_backend = match result_recorded_item_backend_raw {
                             0u8 => MidiBackend::Auto,
-                            1u8 => MidiBackend::AlsaSequencer,
+                            1u8 => MidiBackend::Alsa,
                             2u8 => MidiBackend::JackMidi,
                             3u8 => MidiBackend::CoreMIDI,
                             4u8 => MidiBackend::WinMM,
@@ -10469,7 +10469,7 @@ fn destack_midi_input_port_list_vm_replay(
                             decode_uint8(slots[0], "result_recorded_item_backend_raw", "backend")?;
                         let result_recorded_item_backend = match result_recorded_item_backend_raw {
                             0u8 => MidiBackend::Auto,
-                            1u8 => MidiBackend::AlsaSequencer,
+                            1u8 => MidiBackend::Alsa,
                             2u8 => MidiBackend::JackMidi,
                             3u8 => MidiBackend::CoreMIDI,
                             4u8 => MidiBackend::WinMM,
@@ -12151,7 +12151,7 @@ fn destack_midi_output_port_list_vm_replay(
                             decode_uint8(slots[0], "result_recorded_item_backend_raw", "backend")?;
                         let result_recorded_item_backend = match result_recorded_item_backend_raw {
                             0u8 => MidiBackend::Auto,
-                            1u8 => MidiBackend::AlsaSequencer,
+                            1u8 => MidiBackend::Alsa,
                             2u8 => MidiBackend::JackMidi,
                             3u8 => MidiBackend::CoreMIDI,
                             4u8 => MidiBackend::WinMM,

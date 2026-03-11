@@ -30,13 +30,12 @@ impl WaylandDisplayService {
         context: &BindingCallContext,
         runtime_state: &Arc<WaylandRuntimeState>,
     ) {
-        let runtime_id = context.agent().runtime_id;
         let runtime_state = runtime_state.clone();
 
         // keep runtime registration explicit and one-time through the service boundary
         self.executor
             .call("destack.display.service.wayland.register", move || {
-                runtime_state.register_runtime_ingress(runtime_id);
+                runtime_state.register_runtime_ingress(context);
                 Ok(())
             })
             .expect("wayland display service registration should succeed");
