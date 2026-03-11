@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::StringId;
 use destack_source::Span;
 
-use crate::{Block, Function, Global, Instruction, Local, LocalNodeId, Type, Value};
+use crate::{Block, Constant, Function, Global, Instruction, Local, LocalNodeId, Type, Value};
 
 /// Identifier for a debug scope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -23,12 +23,60 @@ impl DebugScopeId {
     }
 }
 
-/// Identifier for a debug variable.
+/// Identifier for a debug binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct DebugVariableId(u32);
+pub struct DebugBindingId(u32);
 
-impl DebugVariableId {
-    /// Create a debug variable id from a raw index.
+impl DebugBindingId {
+    /// Create a debug binding id from a raw index.
+    pub fn new(index: u32) -> Self {
+        Self(index)
+    }
+
+    /// Get the raw index for this id.
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+/// Identifier for a debug type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DebugTypeId(u32);
+
+impl DebugTypeId {
+    /// Create a debug type id from a raw index.
+    pub fn new(index: u32) -> Self {
+        Self(index)
+    }
+
+    /// Get the raw index for this id.
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+/// Identifier for an inline site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DebugInlineSiteId(u32);
+
+impl DebugInlineSiteId {
+    /// Create an inline site id from a raw index.
+    pub fn new(index: u32) -> Self {
+        Self(index)
+    }
+
+    /// Get the raw index for this id.
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+/// Identifier for a coroutine state mapping.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DebugCoroutineStateId(u32);
+
+impl DebugCoroutineStateId {
+    /// Create a coroutine state id from a raw index.
     pub fn new(index: u32) -> Self {
         Self(index)
     }
@@ -46,60 +94,137 @@ pub enum DebugScopeKind {
     Function,
     /// Lexical scope.
     Lexical,
-    /// Inlined callsite scope.
-    Inline,
 }
 
 /// Debug scope metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DebugScope {
+    /// Optional display name.
+    pub name: Option<StringId>,
     /// The kind of scope.
     pub kind: DebugScopeKind,
-    /// Optional name for the scope.
-    pub name: Option<StringId>,
     /// Source span for the scope.
     pub span: Span,
     /// Parent scope for nesting.
     pub parent: Option<DebugScopeId>,
 }
 
-/// Debug variable metadata.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DebugVariable {
-    /// Variable name.
-    pub name: StringId,
-    /// Variable type.
-    pub ty: LocalNodeId<Type>,
-    /// Scope containing the variable.
-    pub scope: DebugScopeId,
-    /// True when the variable is a parameter.
-    pub is_parameter: bool,
-    /// True when the variable is compiler synthesized.
-    pub is_artificial: bool,
+/// Debug binding kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DebugBindingKind {
+    /// Function parameter binding.
+    Parameter,
+    /// Local binding.
+    Local,
+    /// Captured binding.
+    Capture,
+    /// Compiler-synthesized binding.
+    Synthetic,
 }
 
-/// Location for a debug variable.
+/// Debug binding metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DebugValueLocation {
-    /// The variable is stored in an SSA value.
-    Value(Value),
-    /// The variable is stored in a local slot.
-    Local(LocalNodeId<Local>),
-    /// The variable is stored in a global location.
-    Global(LocalNodeId<Global>),
-    /// The variable has no concrete location.
-    Undefined,
+pub struct DebugBinding {
+    /// Binding name.
+    pub name: StringId,
+    /// Binding type.
+    pub ty: LocalNodeId<Type>,
+    /// Scope containing the binding.
+    pub scope: DebugScopeId,
+    /// Binding category.
+    pub kind: DebugBindingKind,
+}
+
+/// Debug type metadata.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DebugType {
+    /// Optional display name for the type.
+    pub name: Option<StringId>,
+    /// MIR type represented by this debug type.
+    pub ty: LocalNodeId<Type>,
+}
+
+/// One explicit inline call site.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DebugInlineSite {
+    /// Scope of the inlined callee.
+    pub callee_scope: DebugScopeId,
+    /// Source location of the call site.
+    pub call_location: DebugLocation,
+    /// Parent inline site for nested inlining.
+    pub parent: Option<DebugInlineSiteId>,
 }
 
 /// Debug location for an instruction or block.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DebugLocation {
     /// The source span for this location.
     pub span: Span,
     /// The scope containing this location.
     pub scope: DebugScopeId,
-    /// Inline scope for inlined callsites.
-    pub inlined_at: Option<DebugScopeId>,
+    /// Inline provenance for this location.
+    pub inline_site: Option<DebugInlineSiteId>,
+}
+
+/// One fragment of a split debug value.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DebugValueFragment {
+    /// Byte offset within the logical binding value.
+    pub offset_bytes: u32,
+    /// Byte size covered by this piece.
+    pub size_bytes: u32,
+    /// Storage for this piece.
+    pub location: Box<DebugValueLocation>,
+}
+
+/// Availability state for a debug binding value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DebugValueState {
+    /// The binding existed semantically but is unavailable here.
+    OptimizedOut,
+    /// The binding has no meaningful value here.
+    Undefined,
+}
+
+/// Storage location for a debug binding.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DebugValueLocation {
+    /// The binding is stored in an SSA value.
+    Value(Value),
+    /// The binding is stored in a local slot.
+    Local(LocalNodeId<Local>),
+    /// The binding is stored in a global location.
+    Global(LocalNodeId<Global>),
+    /// The binding is represented by a constant.
+    Constant(Constant),
+    /// The binding is assembled from multiple fragments.
+    Composite(Vec<DebugValueFragment>),
+    /// The binding has a non-location state here.
+    State(DebugValueState),
+}
+
+/// One binding location valid over an instruction range.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DebugBindingLocationRange {
+    /// The binding being described.
+    pub binding: DebugBindingId,
+    /// The storage location over the covered range.
+    pub location: DebugValueLocation,
+    /// The first instruction covered by this range.
+    pub start: Option<LocalNodeId<Instruction>>,
+    /// The first instruction after the covered range, if bounded.
+    pub end: Option<LocalNodeId<Instruction>>,
+}
+
+/// Debug metadata for one lowered coroutine state.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DebugCoroutineState {
+    /// Scope for the logical coroutine body.
+    pub scope: DebugScopeId,
+    /// Source location of the suspend point.
+    pub suspend_location: DebugLocation,
+    /// Bindings lifted into coroutine state.
+    pub lifted_bindings: Vec<DebugBindingId>,
 }
 
 /// Table of debug information for MIR nodes.
@@ -107,16 +232,22 @@ pub struct DebugLocation {
 pub struct DebugTable {
     /// Debug scopes indexed by id.
     pub scopes: Vec<DebugScope>,
-    /// Debug variables indexed by id.
-    pub variables: Vec<DebugVariable>,
+    /// Debug bindings indexed by id.
+    pub bindings: Vec<DebugBinding>,
+    /// Debug types indexed by id.
+    pub types: Vec<DebugType>,
+    /// Inline sites indexed by id.
+    pub inline_sites: Vec<DebugInlineSite>,
+    /// Coroutine state mappings indexed by id.
+    pub coroutine_states: Vec<DebugCoroutineState>,
     /// Function scopes keyed by function id.
     pub function_scopes: HashMap<LocalNodeId<Function>, DebugScopeId>,
     /// Block scopes keyed by block id.
     pub block_scopes: HashMap<LocalNodeId<Block>, DebugScopeId>,
     /// Instruction locations keyed by instruction id.
     pub instruction_locations: HashMap<LocalNodeId<Instruction>, DebugLocation>,
-    /// Variable locations keyed by debug variable id.
-    pub variable_locations: HashMap<DebugVariableId, DebugValueLocation>,
+    /// Binding location histories keyed by debug binding id.
+    pub binding_location_ranges: HashMap<DebugBindingId, Vec<DebugBindingLocationRange>>,
 }
 
 impl DebugTable {
@@ -135,30 +266,67 @@ impl DebugTable {
     ) -> DebugScopeId {
         let id = DebugScopeId::new(self.scopes.len() as u32);
         self.scopes.push(DebugScope {
-            kind,
             name,
+            kind,
             span,
             parent,
         });
         id
     }
 
-    /// Create a new debug variable entry.
-    pub fn create_variable(
+    /// Create a new debug binding entry.
+    pub fn create_binding(
         &mut self,
         name: StringId,
         ty: LocalNodeId<Type>,
         scope: DebugScopeId,
-        is_parameter: bool,
-        is_artificial: bool,
-    ) -> DebugVariableId {
-        let id = DebugVariableId::new(self.variables.len() as u32);
-        self.variables.push(DebugVariable {
+        kind: DebugBindingKind,
+    ) -> DebugBindingId {
+        let id = DebugBindingId::new(self.bindings.len() as u32);
+        self.bindings.push(DebugBinding {
             name,
             ty,
             scope,
-            is_parameter,
-            is_artificial,
+            kind,
+        });
+        id
+    }
+
+    /// Create a new debug type entry.
+    pub fn create_type(&mut self, name: Option<StringId>, ty: LocalNodeId<Type>) -> DebugTypeId {
+        let id = DebugTypeId::new(self.types.len() as u32);
+        self.types.push(DebugType { name, ty });
+        id
+    }
+
+    /// Create a new inline site entry.
+    pub fn create_inline_site(
+        &mut self,
+        callee_scope: DebugScopeId,
+        call_location: DebugLocation,
+        parent: Option<DebugInlineSiteId>,
+    ) -> DebugInlineSiteId {
+        let id = DebugInlineSiteId::new(self.inline_sites.len() as u32);
+        self.inline_sites.push(DebugInlineSite {
+            callee_scope,
+            call_location,
+            parent,
+        });
+        id
+    }
+
+    /// Create a new coroutine state entry.
+    pub fn create_coroutine_state(
+        &mut self,
+        scope: DebugScopeId,
+        suspend_location: DebugLocation,
+        lifted_bindings: Vec<DebugBindingId>,
+    ) -> DebugCoroutineStateId {
+        let id = DebugCoroutineStateId::new(self.coroutine_states.len() as u32);
+        self.coroutine_states.push(DebugCoroutineState {
+            scope,
+            suspend_location,
+            lifted_bindings,
         });
         id
     }
@@ -168,8 +336,18 @@ impl DebugTable {
         &self.scopes[id.index()]
     }
 
-    /// Return the debug variable for an id.
-    pub fn variable(&self, id: DebugVariableId) -> &DebugVariable {
-        &self.variables[id.index()]
+    /// Return the debug binding for an id.
+    pub fn binding(&self, id: DebugBindingId) -> &DebugBinding {
+        &self.bindings[id.index()]
+    }
+
+    /// Return the debug type for an id.
+    pub fn debug_type(&self, id: DebugTypeId) -> &DebugType {
+        &self.types[id.index()]
+    }
+
+    /// Return the inline site for an id.
+    pub fn inline_site(&self, id: DebugInlineSiteId) -> &DebugInlineSite {
+        &self.inline_sites[id.index()]
     }
 }

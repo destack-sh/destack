@@ -532,31 +532,39 @@ fn update_debug_for_removed_global_addr(
 
     // collect debug variables referencing the removed value
     let mut to_update = Vec::new();
-    for (index, variable) in tree.debug_table.variables.iter().enumerate() {
-        // skip variables outside the function scope
-        if !scope_in_function(variable.scope, function_scope, &tree.debug_table) {
+    for (index, binding) in tree.debug_table.bindings.iter().enumerate() {
+        // skip bindings outside the function scope
+        if !scope_in_function(binding.scope, function_scope, &tree.debug_table) {
             continue;
         }
 
-        // read the current debug value location
-        let var_id = mir::DebugVariableId::new(index as u32);
-        let Some(mir::DebugValueLocation::Value(value)) =
-            tree.debug_table.variable_locations.get(&var_id)
-        else {
+        // read the current binding location ranges
+        let binding_id = mir::DebugBindingId::new(index as u32);
+        let Some(ranges) = tree.debug_table.binding_location_ranges.get(&binding_id) else {
             continue;
         };
 
-        // collect variables tied to the removed value
-        if *value == removed_value {
-            to_update.push(var_id);
+        // collect bindings tied to the removed value
+        let matches_removed = ranges.iter().any(|range| {
+            matches!(range.location, mir::DebugValueLocation::Value(value) if value == removed_value)
+        });
+
+        if matches_removed {
+            to_update.push(binding_id);
         }
     }
 
     // rewrite debug locations to the global value
-    for var_id in to_update {
-        tree.debug_table
-            .variable_locations
-            .insert(var_id, mir::DebugValueLocation::Global(global_id));
+    for binding_id in to_update {
+        if let Some(ranges) = tree
+            .debug_table
+            .binding_location_ranges
+            .get_mut(&binding_id)
+        {
+            for range in ranges {
+                range.location = mir::DebugValueLocation::Global(global_id);
+            }
+        }
     }
 }
 
@@ -825,20 +833,27 @@ block0:
             .debug_table
             .function_scopes
             .insert(root_id, scope_id);
-        let var_id =
-            test.tree
-                .debug_table
-                .create_variable(root_name, global_type, scope_id, false, false);
-        test.tree
-            .debug_table
-            .variable_locations
-            .insert(var_id, mir::DebugValueLocation::Value(destination));
+        let binding_id = test.tree.debug_table.create_binding(
+            root_name,
+            global_type,
+            scope_id,
+            mir::DebugBindingKind::Local,
+        );
+        test.tree.debug_table.binding_location_ranges.insert(
+            binding_id,
+            vec![mir::DebugBindingLocationRange {
+                binding: binding_id,
+                location: mir::DebugValueLocation::Value(destination),
+                start: Some(instruction_id),
+                end: None,
+            }],
+        );
         test.tree.debug_table.instruction_locations.insert(
             instruction_id,
             mir::DebugLocation {
                 span,
                 scope: scope_id,
-                inlined_at: None,
+                inline_site: None,
             },
         );
 
@@ -847,11 +862,19 @@ block0:
         let location = test
             .tree
             .debug_table
-            .variable_locations
-            .get(&var_id)
-            .expect("missing debug variable location");
+            .binding_location_ranges
+            .get(&binding_id)
+            .expect("missing debug binding location");
 
-        assert_eq!(location, &mir::DebugValueLocation::Global(global_id));
+        assert_eq!(
+            location,
+            &vec![mir::DebugBindingLocationRange {
+                binding: binding_id,
+                location: mir::DebugValueLocation::Global(global_id),
+                start: Some(instruction_id),
+                end: None,
+            }]
+        );
         assert!(
             !test
                 .tree
