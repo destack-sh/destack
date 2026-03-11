@@ -4,18 +4,16 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::diagnostic::RuntimeError;
-use crate::diagnostic::RuntimeResult;
-use crate::platform::PlatformError as AbiPlatformError;
-use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::platform::{
+    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
+    VmValueCodec, error as platform_error,
+};
 use crate::runtime::BindingCallContext;
-use crate::platform::VmValueCodec;
-use crate::platform::VmAggregateCodec;
-use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::error as platform_error;
 
 /// ABI enum for PlatformErrorCode.
 #[repr(u16)]
@@ -219,8 +217,109 @@ impl VmValueCodec for PlatformErrorCode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u16 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1000u16 => Self::InvalidArgument, 1001u16 => Self::InvalidArgumentType, 1002u16 => Self::InvalidArgumentValue, 1100u16 => Self::NullPointer, 1200u16 => Self::NotSupported, 2000u16 => Self::Io, 2100u16 => Self::IoReadFailed, 2101u16 => Self::IoWriteFailed, 2102u16 => Self::IoNotFound, 2103u16 => Self::IoPermissionDenied, 2104u16 => Self::IoAlreadyExists, 2105u16 => Self::IoNotDirectory, 2106u16 => Self::IoIsDirectory, 2107u16 => Self::IoNotEmpty, 2108u16 => Self::IoReadOnly, 2109u16 => Self::IoNameTooLong, 2110u16 => Self::IoFileTooLarge, 2111u16 => Self::IoTooManyOpenFiles, 2112u16 => Self::IoFileTableOverflow, 2113u16 => Self::IoInvalidData, 2114u16 => Self::IoCrossDevice, 2115u16 => Self::IoBrokenPipe, 2116u16 => Self::IoTimedOut, 2117u16 => Self::IoInterrupted, 2118u16 => Self::IoBusy, 2119u16 => Self::IoWouldBlock, 3000u16 => Self::Net, 3100u16 => Self::NetConnectionRefused, 3101u16 => Self::NetTimedOut, 3102u16 => Self::NetConnectionReset, 3103u16 => Self::NetAddressInUse, 3104u16 => Self::NetAddressNotAvailable, 3105u16 => Self::NetNetworkUnreachable, 3106u16 => Self::NetHostUnreachable, 3107u16 => Self::NetConnectionAborted, 3108u16 => Self::NetBrokenPipe, 3109u16 => Self::NetDnsFailed, 3110u16 => Self::NetNotConnected, 3111u16 => Self::NetAlreadyConnected, 3112u16 => Self::NetMessageTooLarge, 3113u16 => Self::NetNotSocket, 3114u16 => Self::NetProtocolError, 3115u16 => Self::NetInProgress, 3116u16 => Self::NetShutdown, 3117u16 => Self::NetUnsupportedFamily, 3118u16 => Self::NetUnsupportedProtocol, 3119u16 => Self::NetNoBufferSpace, 4000u16 => Self::Process, 4100u16 => Self::ProcessSpawnFailed, 4101u16 => Self::ProcessNotFound, 4102u16 => Self::ProcessPermissionDenied, 4103u16 => Self::ProcessExecFailed, 4104u16 => Self::ProcessWaitFailed, 4105u16 => Self::ProcessSignaled, 4106u16 => Self::ProcessTimedOut, 5000u16 => Self::Random, 5100u16 => Self::RandomUnavailable, 6000u16 => Self::Time, 6100u16 => Self::TimeUnavailable, 7000u16 => Self::Ipc, 7100u16 => Self::IpcMessageTooLarge, 7101u16 => Self::IpcTimedOut, 7102u16 => Self::IpcClosed, 7103u16 => Self::IpcWouldBlock, 7104u16 => Self::IpcAlreadyExists, 7200u16 => Self::Security, 7210u16 => Self::SecurityDenied, 7211u16 => Self::SecurityViolation, 7300u16 => Self::Thread, 7310u16 => Self::ThreadSpawnFailed, 7311u16 => Self::ThreadJoinFailed, 7312u16 => Self::ThreadDeadlock, 7400u16 => Self::Ffi, 7410u16 => Self::FfiLibraryLoadFailed, 7411u16 => Self::FfiSymbolNotFound, 7412u16 => Self::FfiCallFailed, 7500u16 => Self::Device, 7510u16 => Self::DeviceUnavailable, 7600u16 => Self::Display, 7610u16 => Self::DisplayUnavailable, 7700u16 => Self::Audio, 7710u16 => Self::AudioUnavailable, 7800u16 => Self::Gpu, 7810u16 => Self::GpuUnavailable, 7811u16 => Self::GpuOutOfMemory, 7812u16 => Self::GpuDeviceLost, 7900u16 => Self::Resource, 7910u16 => Self::ResourceNotFound, 7911u16 => Self::ResourceClosed, 7912u16 => Self::ResourceBusy, 7913u16 => Self::ResourceTypeMismatch, 8000u16 => Self::IoDriver, 8010u16 => Self::IoSubmissionFailed, 8011u16 => Self::IoCompletionFailed, 8012u16 => Self::IoCancelled, 9000u16 => Self::Generic,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown PlatformErrorCode value")).boxed()),
+            1000u16 => Self::InvalidArgument,
+            1001u16 => Self::InvalidArgumentType,
+            1002u16 => Self::InvalidArgumentValue,
+            1100u16 => Self::NullPointer,
+            1200u16 => Self::NotSupported,
+            2000u16 => Self::Io,
+            2100u16 => Self::IoReadFailed,
+            2101u16 => Self::IoWriteFailed,
+            2102u16 => Self::IoNotFound,
+            2103u16 => Self::IoPermissionDenied,
+            2104u16 => Self::IoAlreadyExists,
+            2105u16 => Self::IoNotDirectory,
+            2106u16 => Self::IoIsDirectory,
+            2107u16 => Self::IoNotEmpty,
+            2108u16 => Self::IoReadOnly,
+            2109u16 => Self::IoNameTooLong,
+            2110u16 => Self::IoFileTooLarge,
+            2111u16 => Self::IoTooManyOpenFiles,
+            2112u16 => Self::IoFileTableOverflow,
+            2113u16 => Self::IoInvalidData,
+            2114u16 => Self::IoCrossDevice,
+            2115u16 => Self::IoBrokenPipe,
+            2116u16 => Self::IoTimedOut,
+            2117u16 => Self::IoInterrupted,
+            2118u16 => Self::IoBusy,
+            2119u16 => Self::IoWouldBlock,
+            3000u16 => Self::Net,
+            3100u16 => Self::NetConnectionRefused,
+            3101u16 => Self::NetTimedOut,
+            3102u16 => Self::NetConnectionReset,
+            3103u16 => Self::NetAddressInUse,
+            3104u16 => Self::NetAddressNotAvailable,
+            3105u16 => Self::NetNetworkUnreachable,
+            3106u16 => Self::NetHostUnreachable,
+            3107u16 => Self::NetConnectionAborted,
+            3108u16 => Self::NetBrokenPipe,
+            3109u16 => Self::NetDnsFailed,
+            3110u16 => Self::NetNotConnected,
+            3111u16 => Self::NetAlreadyConnected,
+            3112u16 => Self::NetMessageTooLarge,
+            3113u16 => Self::NetNotSocket,
+            3114u16 => Self::NetProtocolError,
+            3115u16 => Self::NetInProgress,
+            3116u16 => Self::NetShutdown,
+            3117u16 => Self::NetUnsupportedFamily,
+            3118u16 => Self::NetUnsupportedProtocol,
+            3119u16 => Self::NetNoBufferSpace,
+            4000u16 => Self::Process,
+            4100u16 => Self::ProcessSpawnFailed,
+            4101u16 => Self::ProcessNotFound,
+            4102u16 => Self::ProcessPermissionDenied,
+            4103u16 => Self::ProcessExecFailed,
+            4104u16 => Self::ProcessWaitFailed,
+            4105u16 => Self::ProcessSignaled,
+            4106u16 => Self::ProcessTimedOut,
+            5000u16 => Self::Random,
+            5100u16 => Self::RandomUnavailable,
+            6000u16 => Self::Time,
+            6100u16 => Self::TimeUnavailable,
+            7000u16 => Self::Ipc,
+            7100u16 => Self::IpcMessageTooLarge,
+            7101u16 => Self::IpcTimedOut,
+            7102u16 => Self::IpcClosed,
+            7103u16 => Self::IpcWouldBlock,
+            7104u16 => Self::IpcAlreadyExists,
+            7200u16 => Self::Security,
+            7210u16 => Self::SecurityDenied,
+            7211u16 => Self::SecurityViolation,
+            7300u16 => Self::Thread,
+            7310u16 => Self::ThreadSpawnFailed,
+            7311u16 => Self::ThreadJoinFailed,
+            7312u16 => Self::ThreadDeadlock,
+            7400u16 => Self::Ffi,
+            7410u16 => Self::FfiLibraryLoadFailed,
+            7411u16 => Self::FfiSymbolNotFound,
+            7412u16 => Self::FfiCallFailed,
+            7500u16 => Self::Device,
+            7510u16 => Self::DeviceUnavailable,
+            7600u16 => Self::Display,
+            7610u16 => Self::DisplayUnavailable,
+            7700u16 => Self::Audio,
+            7710u16 => Self::AudioUnavailable,
+            7800u16 => Self::Gpu,
+            7810u16 => Self::GpuUnavailable,
+            7811u16 => Self::GpuOutOfMemory,
+            7812u16 => Self::GpuDeviceLost,
+            7900u16 => Self::Resource,
+            7910u16 => Self::ResourceNotFound,
+            7911u16 => Self::ResourceClosed,
+            7912u16 => Self::ResourceBusy,
+            7913u16 => Self::ResourceTypeMismatch,
+            8000u16 => Self::IoDriver,
+            8010u16 => Self::IoSubmissionFailed,
+            8011u16 => Self::IoCompletionFailed,
+            8012u16 => Self::IoCancelled,
+            9000u16 => Self::Generic,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PlatformErrorCode value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -248,11 +347,17 @@ impl NativeAbiCodec for PlatformErrorCode {
 impl VmAbiCodec for PlatformErrorCode {
     type Value = PlatformErrorCodeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -302,119 +407,265 @@ impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextAbi<A> {
 
 impl Copy for PlatformErrorContextAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextAbi<VmAbi> {}
 impl Clone for PlatformErrorContextAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContext")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContext",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            1349179423u32 => Self::PlatformErrorContextAudio(<PlatformErrorContextAudioVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1175468002u32 => Self::PlatformErrorContextDevice(<PlatformErrorContextDeviceVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2713129955u32 => Self::PlatformErrorContextDisplay(<PlatformErrorContextDisplayVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            296575469u32 => Self::PlatformErrorContextFfi(<PlatformErrorContextFfiVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1651991300u32 => Self::PlatformErrorContextGeneric(<PlatformErrorContextGenericVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            10423638u32 => Self::PlatformErrorContextGpu(<PlatformErrorContextGpuVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            629091376u32 => Self::PlatformErrorContextIo(<PlatformErrorContextIoVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3236432103u32 => Self::PlatformErrorContextIoDriver(<PlatformErrorContextIoDriverVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1171251870u32 => Self::PlatformErrorContextIpc(<PlatformErrorContextIpcVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2690143185u32 => Self::PlatformErrorContextNet(<PlatformErrorContextNetVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1891737808u32 => Self::PlatformErrorContextProcess(<PlatformErrorContextProcessVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2486361974u32 => Self::PlatformErrorContextResource(<PlatformErrorContextResourceVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            522139370u32 => Self::PlatformErrorContextSecurity(<PlatformErrorContextSecurityVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2561716789u32 => Self::PlatformErrorContextThread(<PlatformErrorContextThreadVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3049620673u32 => Self::PlatformErrorContextTimer(<PlatformErrorContextTimerVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown PlatformErrorContext tag")).boxed()),
+            1349179423u32 => Self::PlatformErrorContextAudio(
+                <PlatformErrorContextAudioVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1175468002u32 => Self::PlatformErrorContextDevice(
+                <PlatformErrorContextDeviceVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2713129955u32 => Self::PlatformErrorContextDisplay(
+                <PlatformErrorContextDisplayVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            296575469u32 => Self::PlatformErrorContextFfi(
+                <PlatformErrorContextFfiVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1651991300u32 => Self::PlatformErrorContextGeneric(
+                <PlatformErrorContextGenericVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            10423638u32 => Self::PlatformErrorContextGpu(
+                <PlatformErrorContextGpuVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            629091376u32 => Self::PlatformErrorContextIo(
+                <PlatformErrorContextIoVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3236432103u32 => Self::PlatformErrorContextIoDriver(
+                <PlatformErrorContextIoDriverVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1171251870u32 => Self::PlatformErrorContextIpc(
+                <PlatformErrorContextIpcVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2690143185u32 => Self::PlatformErrorContextNet(
+                <PlatformErrorContextNetVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1891737808u32 => Self::PlatformErrorContextProcess(
+                <PlatformErrorContextProcessVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2486361974u32 => Self::PlatformErrorContextResource(
+                <PlatformErrorContextResourceVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            522139370u32 => Self::PlatformErrorContextSecurity(
+                <PlatformErrorContextSecurityVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2561716789u32 => Self::PlatformErrorContextThread(
+                <PlatformErrorContextThreadVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3049620673u32 => Self::PlatformErrorContextTimer(
+                <PlatformErrorContextTimerVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PlatformErrorContext tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::PlatformErrorContextAudio(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1349179423u32, context)?;
-                let payload_value = <PlatformErrorContextAudioVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1349179423u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextAudioVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextDevice(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1175468002u32, context)?;
-                let payload_value = <PlatformErrorContextDeviceVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1175468002u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextDeviceVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextDisplay(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2713129955u32, context)?;
-                let payload_value = <PlatformErrorContextDisplayVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2713129955u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextDisplayVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextFfi(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(296575469u32, context)?;
-                let payload_value = <PlatformErrorContextFfiVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(296575469u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextFfiVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextGeneric(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1651991300u32, context)?;
-                let payload_value = <PlatformErrorContextGenericVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1651991300u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextGenericVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextGpu(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(10423638u32, context)?;
-                let payload_value = <PlatformErrorContextGpuVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(10423638u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextGpuVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextIo(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(629091376u32, context)?;
-                let payload_value = <PlatformErrorContextIoVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(629091376u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextIoVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextIoDriver(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3236432103u32, context)?;
-                let payload_value = <PlatformErrorContextIoDriverVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3236432103u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextIoDriverVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextIpc(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1171251870u32, context)?;
-                let payload_value = <PlatformErrorContextIpcVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1171251870u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextIpcVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextNet(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2690143185u32, context)?;
-                let payload_value = <PlatformErrorContextNetVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2690143185u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextNetVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextProcess(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1891737808u32, context)?;
-                let payload_value = <PlatformErrorContextProcessVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1891737808u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextProcessVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextResource(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2486361974u32, context)?;
-                let payload_value = <PlatformErrorContextResourceVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2486361974u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextResourceVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextSecurity(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(522139370u32, context)?;
-                let payload_value = <PlatformErrorContextSecurityVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(522139370u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextSecurityVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextThread(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2561716789u32, context)?;
-                let payload_value = <PlatformErrorContextThreadVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2561716789u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextThreadVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformErrorContextTimer(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3049620673u32, context)?;
-                let payload_value = <PlatformErrorContextTimerVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3049620673u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextTimerVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
         };
@@ -462,42 +713,162 @@ impl NativeAbiCodec for PlatformErrorContextAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::PlatformErrorContextAudio(value) => PlatformErrorContextValue::PlatformErrorContextAudio(unsafe { <PlatformErrorContextAudio as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextDevice(value) => PlatformErrorContextValue::PlatformErrorContextDevice(unsafe { <PlatformErrorContextDevice as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextDisplay(value) => PlatformErrorContextValue::PlatformErrorContextDisplay(unsafe { <PlatformErrorContextDisplay as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextFfi(value) => PlatformErrorContextValue::PlatformErrorContextFfi(unsafe { <PlatformErrorContextFfi as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextGeneric(value) => PlatformErrorContextValue::PlatformErrorContextGeneric(unsafe { <PlatformErrorContextGeneric as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextGpu(value) => PlatformErrorContextValue::PlatformErrorContextGpu(unsafe { <PlatformErrorContextGpu as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextIo(value) => PlatformErrorContextValue::PlatformErrorContextIo(unsafe { <PlatformErrorContextIo as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextIoDriver(value) => PlatformErrorContextValue::PlatformErrorContextIoDriver(unsafe { <PlatformErrorContextIoDriver as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextIpc(value) => PlatformErrorContextValue::PlatformErrorContextIpc(unsafe { <PlatformErrorContextIpc as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextNet(value) => PlatformErrorContextValue::PlatformErrorContextNet(unsafe { <PlatformErrorContextNet as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextProcess(value) => PlatformErrorContextValue::PlatformErrorContextProcess(unsafe { <PlatformErrorContextProcess as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextResource(value) => PlatformErrorContextValue::PlatformErrorContextResource(unsafe { <PlatformErrorContextResource as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextSecurity(value) => PlatformErrorContextValue::PlatformErrorContextSecurity(unsafe { <PlatformErrorContextSecurity as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextThread(value) => PlatformErrorContextValue::PlatformErrorContextThread(unsafe { <PlatformErrorContextThread as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformErrorContextTimer(value) => PlatformErrorContextValue::PlatformErrorContextTimer(unsafe { <PlatformErrorContextTimer as NativeAbiCodec>::into_value(value)? }),
+            Self::PlatformErrorContextAudio(value) => {
+                PlatformErrorContextValue::PlatformErrorContextAudio(unsafe {
+                    <PlatformErrorContextAudio as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextDevice(value) => {
+                PlatformErrorContextValue::PlatformErrorContextDevice(unsafe {
+                    <PlatformErrorContextDevice as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextDisplay(value) => {
+                PlatformErrorContextValue::PlatformErrorContextDisplay(unsafe {
+                    <PlatformErrorContextDisplay as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextFfi(value) => {
+                PlatformErrorContextValue::PlatformErrorContextFfi(unsafe {
+                    <PlatformErrorContextFfi as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextGeneric(value) => {
+                PlatformErrorContextValue::PlatformErrorContextGeneric(unsafe {
+                    <PlatformErrorContextGeneric as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextGpu(value) => {
+                PlatformErrorContextValue::PlatformErrorContextGpu(unsafe {
+                    <PlatformErrorContextGpu as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextIo(value) => {
+                PlatformErrorContextValue::PlatformErrorContextIo(unsafe {
+                    <PlatformErrorContextIo as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextIoDriver(value) => {
+                PlatformErrorContextValue::PlatformErrorContextIoDriver(unsafe {
+                    <PlatformErrorContextIoDriver as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextIpc(value) => {
+                PlatformErrorContextValue::PlatformErrorContextIpc(unsafe {
+                    <PlatformErrorContextIpc as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextNet(value) => {
+                PlatformErrorContextValue::PlatformErrorContextNet(unsafe {
+                    <PlatformErrorContextNet as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextProcess(value) => {
+                PlatformErrorContextValue::PlatformErrorContextProcess(unsafe {
+                    <PlatformErrorContextProcess as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextResource(value) => {
+                PlatformErrorContextValue::PlatformErrorContextResource(unsafe {
+                    <PlatformErrorContextResource as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextSecurity(value) => {
+                PlatformErrorContextValue::PlatformErrorContextSecurity(unsafe {
+                    <PlatformErrorContextSecurity as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextThread(value) => {
+                PlatformErrorContextValue::PlatformErrorContextThread(unsafe {
+                    <PlatformErrorContextThread as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformErrorContextTimer(value) => {
+                PlatformErrorContextValue::PlatformErrorContextTimer(unsafe {
+                    <PlatformErrorContextTimer as NativeAbiCodec>::into_value(value)?
+                })
+            }
         };
         Ok(owned)
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            PlatformErrorContextValue::PlatformErrorContextAudio(value) => Self::PlatformErrorContextAudio(<PlatformErrorContextAudio as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextDevice(value) => Self::PlatformErrorContextDevice(<PlatformErrorContextDevice as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextDisplay(value) => Self::PlatformErrorContextDisplay(<PlatformErrorContextDisplay as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextFfi(value) => Self::PlatformErrorContextFfi(<PlatformErrorContextFfi as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextGeneric(value) => Self::PlatformErrorContextGeneric(<PlatformErrorContextGeneric as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextGpu(value) => Self::PlatformErrorContextGpu(<PlatformErrorContextGpu as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextIo(value) => Self::PlatformErrorContextIo(<PlatformErrorContextIo as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextIoDriver(value) => Self::PlatformErrorContextIoDriver(<PlatformErrorContextIoDriver as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextIpc(value) => Self::PlatformErrorContextIpc(<PlatformErrorContextIpc as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextNet(value) => Self::PlatformErrorContextNet(<PlatformErrorContextNet as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextProcess(value) => Self::PlatformErrorContextProcess(<PlatformErrorContextProcess as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextResource(value) => Self::PlatformErrorContextResource(<PlatformErrorContextResource as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextSecurity(value) => Self::PlatformErrorContextSecurity(<PlatformErrorContextSecurity as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextThread(value) => Self::PlatformErrorContextThread(<PlatformErrorContextThread as NativeAbiCodec>::from_value(binding, value)),
-            PlatformErrorContextValue::PlatformErrorContextTimer(value) => Self::PlatformErrorContextTimer(<PlatformErrorContextTimer as NativeAbiCodec>::from_value(binding, value)),
+            PlatformErrorContextValue::PlatformErrorContextAudio(value) => {
+                Self::PlatformErrorContextAudio(
+                    <PlatformErrorContextAudio as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextDevice(value) => {
+                Self::PlatformErrorContextDevice(
+                    <PlatformErrorContextDevice as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextDisplay(value) => {
+                Self::PlatformErrorContextDisplay(
+                    <PlatformErrorContextDisplay as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextFfi(value) => {
+                Self::PlatformErrorContextFfi(
+                    <PlatformErrorContextFfi as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextGeneric(value) => {
+                Self::PlatformErrorContextGeneric(
+                    <PlatformErrorContextGeneric as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextGpu(value) => {
+                Self::PlatformErrorContextGpu(
+                    <PlatformErrorContextGpu as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextIo(value) => {
+                Self::PlatformErrorContextIo(
+                    <PlatformErrorContextIo as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextIoDriver(value) => {
+                Self::PlatformErrorContextIoDriver(
+                    <PlatformErrorContextIoDriver as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextIpc(value) => {
+                Self::PlatformErrorContextIpc(
+                    <PlatformErrorContextIpc as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextNet(value) => {
+                Self::PlatformErrorContextNet(
+                    <PlatformErrorContextNet as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextProcess(value) => {
+                Self::PlatformErrorContextProcess(
+                    <PlatformErrorContextProcess as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextResource(value) => {
+                Self::PlatformErrorContextResource(
+                    <PlatformErrorContextResource as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextSecurity(value) => {
+                Self::PlatformErrorContextSecurity(
+                    <PlatformErrorContextSecurity as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextThread(value) => {
+                Self::PlatformErrorContextThread(
+                    <PlatformErrorContextThread as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformErrorContextValue::PlatformErrorContextTimer(value) => {
+                Self::PlatformErrorContextTimer(
+                    <PlatformErrorContextTimer as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
         }
     }
 }
@@ -505,44 +876,170 @@ impl NativeAbiCodec for PlatformErrorContextAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextAbi<VmAbi> {
     type Value = PlatformErrorContextValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::PlatformErrorContextAudio(value) => PlatformErrorContextValue::PlatformErrorContextAudio(<PlatformErrorContextAudioVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextDevice(value) => PlatformErrorContextValue::PlatformErrorContextDevice(<PlatformErrorContextDeviceVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextDisplay(value) => PlatformErrorContextValue::PlatformErrorContextDisplay(<PlatformErrorContextDisplayVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextFfi(value) => PlatformErrorContextValue::PlatformErrorContextFfi(<PlatformErrorContextFfiVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextGeneric(value) => PlatformErrorContextValue::PlatformErrorContextGeneric(<PlatformErrorContextGenericVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextGpu(value) => PlatformErrorContextValue::PlatformErrorContextGpu(<PlatformErrorContextGpuVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextIo(value) => PlatformErrorContextValue::PlatformErrorContextIo(<PlatformErrorContextIoVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextIoDriver(value) => PlatformErrorContextValue::PlatformErrorContextIoDriver(<PlatformErrorContextIoDriverVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextIpc(value) => PlatformErrorContextValue::PlatformErrorContextIpc(<PlatformErrorContextIpcVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextNet(value) => PlatformErrorContextValue::PlatformErrorContextNet(<PlatformErrorContextNetVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextProcess(value) => PlatformErrorContextValue::PlatformErrorContextProcess(<PlatformErrorContextProcessVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextResource(value) => PlatformErrorContextValue::PlatformErrorContextResource(<PlatformErrorContextResourceVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextSecurity(value) => PlatformErrorContextValue::PlatformErrorContextSecurity(<PlatformErrorContextSecurityVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextThread(value) => PlatformErrorContextValue::PlatformErrorContextThread(<PlatformErrorContextThreadVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformErrorContextTimer(value) => PlatformErrorContextValue::PlatformErrorContextTimer(<PlatformErrorContextTimerVm as VmAbiCodec>::into_value(value, context)?),
+            Self::PlatformErrorContextAudio(value) => {
+                PlatformErrorContextValue::PlatformErrorContextAudio(
+                    <PlatformErrorContextAudioVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextDevice(value) => {
+                PlatformErrorContextValue::PlatformErrorContextDevice(
+                    <PlatformErrorContextDeviceVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextDisplay(value) => {
+                PlatformErrorContextValue::PlatformErrorContextDisplay(
+                    <PlatformErrorContextDisplayVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextFfi(value) => {
+                PlatformErrorContextValue::PlatformErrorContextFfi(
+                    <PlatformErrorContextFfiVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextGeneric(value) => {
+                PlatformErrorContextValue::PlatformErrorContextGeneric(
+                    <PlatformErrorContextGenericVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextGpu(value) => {
+                PlatformErrorContextValue::PlatformErrorContextGpu(
+                    <PlatformErrorContextGpuVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextIo(value) => {
+                PlatformErrorContextValue::PlatformErrorContextIo(
+                    <PlatformErrorContextIoVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextIoDriver(value) => {
+                PlatformErrorContextValue::PlatformErrorContextIoDriver(
+                    <PlatformErrorContextIoDriverVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextIpc(value) => {
+                PlatformErrorContextValue::PlatformErrorContextIpc(
+                    <PlatformErrorContextIpcVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextNet(value) => {
+                PlatformErrorContextValue::PlatformErrorContextNet(
+                    <PlatformErrorContextNetVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextProcess(value) => {
+                PlatformErrorContextValue::PlatformErrorContextProcess(
+                    <PlatformErrorContextProcessVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextResource(value) => {
+                PlatformErrorContextValue::PlatformErrorContextResource(
+                    <PlatformErrorContextResourceVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextSecurity(value) => {
+                PlatformErrorContextValue::PlatformErrorContextSecurity(
+                    <PlatformErrorContextSecurityVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextThread(value) => {
+                PlatformErrorContextValue::PlatformErrorContextThread(
+                    <PlatformErrorContextThreadVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformErrorContextTimer(value) => {
+                PlatformErrorContextValue::PlatformErrorContextTimer(
+                    <PlatformErrorContextTimerVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
         };
         Ok(owned)
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         match value {
-            PlatformErrorContextValue::PlatformErrorContextAudio(value) => Ok(Self::PlatformErrorContextAudio(<PlatformErrorContextAudioVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextDevice(value) => Ok(Self::PlatformErrorContextDevice(<PlatformErrorContextDeviceVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextDisplay(value) => Ok(Self::PlatformErrorContextDisplay(<PlatformErrorContextDisplayVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextFfi(value) => Ok(Self::PlatformErrorContextFfi(<PlatformErrorContextFfiVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextGeneric(value) => Ok(Self::PlatformErrorContextGeneric(<PlatformErrorContextGenericVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextGpu(value) => Ok(Self::PlatformErrorContextGpu(<PlatformErrorContextGpuVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextIo(value) => Ok(Self::PlatformErrorContextIo(<PlatformErrorContextIoVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextIoDriver(value) => Ok(Self::PlatformErrorContextIoDriver(<PlatformErrorContextIoDriverVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextIpc(value) => Ok(Self::PlatformErrorContextIpc(<PlatformErrorContextIpcVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextNet(value) => Ok(Self::PlatformErrorContextNet(<PlatformErrorContextNetVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextProcess(value) => Ok(Self::PlatformErrorContextProcess(<PlatformErrorContextProcessVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextResource(value) => Ok(Self::PlatformErrorContextResource(<PlatformErrorContextResourceVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextSecurity(value) => Ok(Self::PlatformErrorContextSecurity(<PlatformErrorContextSecurityVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextThread(value) => Ok(Self::PlatformErrorContextThread(<PlatformErrorContextThreadVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformErrorContextValue::PlatformErrorContextTimer(value) => Ok(Self::PlatformErrorContextTimer(<PlatformErrorContextTimerVm as VmAbiCodec>::from_value(context, value)?)),
+            PlatformErrorContextValue::PlatformErrorContextAudio(value) => {
+                Ok(Self::PlatformErrorContextAudio(
+                    <PlatformErrorContextAudioVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextDevice(value) => {
+                Ok(Self::PlatformErrorContextDevice(
+                    <PlatformErrorContextDeviceVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextDisplay(value) => {
+                Ok(Self::PlatformErrorContextDisplay(
+                    <PlatformErrorContextDisplayVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextFfi(value) => {
+                Ok(Self::PlatformErrorContextFfi(
+                    <PlatformErrorContextFfiVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextGeneric(value) => {
+                Ok(Self::PlatformErrorContextGeneric(
+                    <PlatformErrorContextGenericVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextGpu(value) => {
+                Ok(Self::PlatformErrorContextGpu(
+                    <PlatformErrorContextGpuVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextIo(value) => {
+                Ok(Self::PlatformErrorContextIo(
+                    <PlatformErrorContextIoVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextIoDriver(value) => {
+                Ok(Self::PlatformErrorContextIoDriver(
+                    <PlatformErrorContextIoDriverVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextIpc(value) => {
+                Ok(Self::PlatformErrorContextIpc(
+                    <PlatformErrorContextIpcVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextNet(value) => {
+                Ok(Self::PlatformErrorContextNet(
+                    <PlatformErrorContextNetVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextProcess(value) => {
+                Ok(Self::PlatformErrorContextProcess(
+                    <PlatformErrorContextProcessVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextResource(value) => {
+                Ok(Self::PlatformErrorContextResource(
+                    <PlatformErrorContextResourceVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextSecurity(value) => {
+                Ok(Self::PlatformErrorContextSecurity(
+                    <PlatformErrorContextSecurityVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextThread(value) => {
+                Ok(Self::PlatformErrorContextThread(
+                    <PlatformErrorContextThreadVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformErrorContextValue::PlatformErrorContextTimer(value) => {
+                Ok(Self::PlatformErrorContextTimer(
+                    <PlatformErrorContextTimerVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
         }
     }
 }
@@ -566,41 +1063,83 @@ impl<A: BindingAbi> std::fmt::Debug for PlatformPathPayloadAbi<A> {
 
 impl Copy for PlatformPathPayloadAbi<NativeAbi> {}
 impl Clone for PlatformPathPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformPathPayloadAbi<VmAbi> {}
 impl Clone for PlatformPathPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformPathPayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformPathPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformPathPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            2764680609u32 => Self::PlatformPathPayloadBytes(<PlatformPathPayloadBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2409119511u32 => Self::PlatformPathPayloadUtf16(<PlatformPathPayloadUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown PlatformPathPayload tag")).boxed()),
+            2764680609u32 => Self::PlatformPathPayloadBytes(
+                <PlatformPathPayloadBytesVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2409119511u32 => Self::PlatformPathPayloadUtf16(
+                <PlatformPathPayloadUtf16Vm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PlatformPathPayload tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::PlatformPathPayloadBytes(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2764680609u32, context)?;
-                let payload_value = <PlatformPathPayloadBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2764680609u32, context)?;
+                let payload_value =
+                    <PlatformPathPayloadBytesVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformPathPayloadUtf16(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2409119511u32, context)?;
-                let payload_value = <PlatformPathPayloadUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2409119511u32, context)?;
+                let payload_value =
+                    <PlatformPathPayloadUtf16Vm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
         };
@@ -622,16 +1161,32 @@ impl NativeAbiCodec for PlatformPathPayloadAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::PlatformPathPayloadBytes(value) => PlatformPathPayloadValue::PlatformPathPayloadBytes(unsafe { <PlatformPathPayloadBytes as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformPathPayloadUtf16(value) => PlatformPathPayloadValue::PlatformPathPayloadUtf16(unsafe { <PlatformPathPayloadUtf16 as NativeAbiCodec>::into_value(value)? }),
+            Self::PlatformPathPayloadBytes(value) => {
+                PlatformPathPayloadValue::PlatformPathPayloadBytes(unsafe {
+                    <PlatformPathPayloadBytes as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformPathPayloadUtf16(value) => {
+                PlatformPathPayloadValue::PlatformPathPayloadUtf16(unsafe {
+                    <PlatformPathPayloadUtf16 as NativeAbiCodec>::into_value(value)?
+                })
+            }
         };
         Ok(owned)
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            PlatformPathPayloadValue::PlatformPathPayloadBytes(value) => Self::PlatformPathPayloadBytes(<PlatformPathPayloadBytes as NativeAbiCodec>::from_value(binding, value)),
-            PlatformPathPayloadValue::PlatformPathPayloadUtf16(value) => Self::PlatformPathPayloadUtf16(<PlatformPathPayloadUtf16 as NativeAbiCodec>::from_value(binding, value)),
+            PlatformPathPayloadValue::PlatformPathPayloadBytes(value) => {
+                Self::PlatformPathPayloadBytes(
+                    <PlatformPathPayloadBytes as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformPathPayloadValue::PlatformPathPayloadUtf16(value) => {
+                Self::PlatformPathPayloadUtf16(
+                    <PlatformPathPayloadUtf16 as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
         }
     }
 }
@@ -639,18 +1194,40 @@ impl NativeAbiCodec for PlatformPathPayloadAbi<NativeAbi> {
 impl VmAbiCodec for PlatformPathPayloadAbi<VmAbi> {
     type Value = PlatformPathPayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::PlatformPathPayloadBytes(value) => PlatformPathPayloadValue::PlatformPathPayloadBytes(<PlatformPathPayloadBytesVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformPathPayloadUtf16(value) => PlatformPathPayloadValue::PlatformPathPayloadUtf16(<PlatformPathPayloadUtf16Vm as VmAbiCodec>::into_value(value, context)?),
+            Self::PlatformPathPayloadBytes(value) => {
+                PlatformPathPayloadValue::PlatformPathPayloadBytes(
+                    <PlatformPathPayloadBytesVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformPathPayloadUtf16(value) => {
+                PlatformPathPayloadValue::PlatformPathPayloadUtf16(
+                    <PlatformPathPayloadUtf16Vm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
         };
         Ok(owned)
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         match value {
-            PlatformPathPayloadValue::PlatformPathPayloadBytes(value) => Ok(Self::PlatformPathPayloadBytes(<PlatformPathPayloadBytesVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformPathPayloadValue::PlatformPathPayloadUtf16(value) => Ok(Self::PlatformPathPayloadUtf16(<PlatformPathPayloadUtf16Vm as VmAbiCodec>::from_value(context, value)?)),
+            PlatformPathPayloadValue::PlatformPathPayloadBytes(value) => {
+                Ok(Self::PlatformPathPayloadBytes(
+                    <PlatformPathPayloadBytesVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformPathPayloadValue::PlatformPathPayloadUtf16(value) => {
+                Ok(Self::PlatformPathPayloadUtf16(
+                    <PlatformPathPayloadUtf16Vm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
         }
     }
 }
@@ -682,65 +1259,139 @@ impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceAbi<A> {
 
 impl Copy for PlatformSystemSourceAbi<NativeAbi> {}
 impl Clone for PlatformSystemSourceAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformSystemSourceAbi<VmAbi> {}
 impl Clone for PlatformSystemSourceAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformSystemSourceAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformSystemSource")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSource",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            3714893166u32 => Self::PlatformSystemSourceEai(<PlatformSystemSourceEaiVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            631622357u32 => Self::PlatformSystemSourceErrno(<PlatformSystemSourceErrnoVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1028132082u32 => Self::PlatformSystemSourceHResult(<PlatformSystemSourceHResultVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3614867150u32 => Self::PlatformSystemSourceOther(<PlatformSystemSourceOtherVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2760780772u32 => Self::PlatformSystemSourceSignal(<PlatformSystemSourceSignalVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1456327686u32 => Self::PlatformSystemSourceWinsock(<PlatformSystemSourceWinsockVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown PlatformSystemSource tag")).boxed()),
+            3714893166u32 => Self::PlatformSystemSourceEai(
+                <PlatformSystemSourceEaiVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            631622357u32 => Self::PlatformSystemSourceErrno(
+                <PlatformSystemSourceErrnoVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1028132082u32 => Self::PlatformSystemSourceHResult(
+                <PlatformSystemSourceHResultVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3614867150u32 => Self::PlatformSystemSourceOther(
+                <PlatformSystemSourceOtherVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2760780772u32 => Self::PlatformSystemSourceSignal(
+                <PlatformSystemSourceSignalVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1456327686u32 => Self::PlatformSystemSourceWinsock(
+                <PlatformSystemSourceWinsockVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PlatformSystemSource tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::PlatformSystemSourceEai(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3714893166u32, context)?;
-                let payload_value = <PlatformSystemSourceEaiVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3714893166u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceEaiVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformSystemSourceErrno(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(631622357u32, context)?;
-                let payload_value = <PlatformSystemSourceErrnoVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(631622357u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceErrnoVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformSystemSourceHResult(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1028132082u32, context)?;
-                let payload_value = <PlatformSystemSourceHResultVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1028132082u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceHResultVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformSystemSourceOther(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3614867150u32, context)?;
-                let payload_value = <PlatformSystemSourceOtherVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3614867150u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceOtherVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformSystemSourceSignal(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2760780772u32, context)?;
-                let payload_value = <PlatformSystemSourceSignalVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2760780772u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceSignalVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::PlatformSystemSourceWinsock(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1456327686u32, context)?;
-                let payload_value = <PlatformSystemSourceWinsockVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1456327686u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceWinsockVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
         };
@@ -770,24 +1421,72 @@ impl NativeAbiCodec for PlatformSystemSourceAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::PlatformSystemSourceEai(value) => PlatformSystemSourceValue::PlatformSystemSourceEai(unsafe { <PlatformSystemSourceEai as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformSystemSourceErrno(value) => PlatformSystemSourceValue::PlatformSystemSourceErrno(unsafe { <PlatformSystemSourceErrno as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformSystemSourceHResult(value) => PlatformSystemSourceValue::PlatformSystemSourceHResult(unsafe { <PlatformSystemSourceHResult as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformSystemSourceOther(value) => PlatformSystemSourceValue::PlatformSystemSourceOther(unsafe { <PlatformSystemSourceOther as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformSystemSourceSignal(value) => PlatformSystemSourceValue::PlatformSystemSourceSignal(unsafe { <PlatformSystemSourceSignal as NativeAbiCodec>::into_value(value)? }),
-            Self::PlatformSystemSourceWinsock(value) => PlatformSystemSourceValue::PlatformSystemSourceWinsock(unsafe { <PlatformSystemSourceWinsock as NativeAbiCodec>::into_value(value)? }),
+            Self::PlatformSystemSourceEai(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceEai(unsafe {
+                    <PlatformSystemSourceEai as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformSystemSourceErrno(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceErrno(unsafe {
+                    <PlatformSystemSourceErrno as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformSystemSourceHResult(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceHResult(unsafe {
+                    <PlatformSystemSourceHResult as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformSystemSourceOther(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceOther(unsafe {
+                    <PlatformSystemSourceOther as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformSystemSourceSignal(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceSignal(unsafe {
+                    <PlatformSystemSourceSignal as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::PlatformSystemSourceWinsock(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceWinsock(unsafe {
+                    <PlatformSystemSourceWinsock as NativeAbiCodec>::into_value(value)?
+                })
+            }
         };
         Ok(owned)
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            PlatformSystemSourceValue::PlatformSystemSourceEai(value) => Self::PlatformSystemSourceEai(<PlatformSystemSourceEai as NativeAbiCodec>::from_value(binding, value)),
-            PlatformSystemSourceValue::PlatformSystemSourceErrno(value) => Self::PlatformSystemSourceErrno(<PlatformSystemSourceErrno as NativeAbiCodec>::from_value(binding, value)),
-            PlatformSystemSourceValue::PlatformSystemSourceHResult(value) => Self::PlatformSystemSourceHResult(<PlatformSystemSourceHResult as NativeAbiCodec>::from_value(binding, value)),
-            PlatformSystemSourceValue::PlatformSystemSourceOther(value) => Self::PlatformSystemSourceOther(<PlatformSystemSourceOther as NativeAbiCodec>::from_value(binding, value)),
-            PlatformSystemSourceValue::PlatformSystemSourceSignal(value) => Self::PlatformSystemSourceSignal(<PlatformSystemSourceSignal as NativeAbiCodec>::from_value(binding, value)),
-            PlatformSystemSourceValue::PlatformSystemSourceWinsock(value) => Self::PlatformSystemSourceWinsock(<PlatformSystemSourceWinsock as NativeAbiCodec>::from_value(binding, value)),
+            PlatformSystemSourceValue::PlatformSystemSourceEai(value) => {
+                Self::PlatformSystemSourceEai(
+                    <PlatformSystemSourceEai as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformSystemSourceValue::PlatformSystemSourceErrno(value) => {
+                Self::PlatformSystemSourceErrno(
+                    <PlatformSystemSourceErrno as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformSystemSourceValue::PlatformSystemSourceHResult(value) => {
+                Self::PlatformSystemSourceHResult(
+                    <PlatformSystemSourceHResult as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformSystemSourceValue::PlatformSystemSourceOther(value) => {
+                Self::PlatformSystemSourceOther(
+                    <PlatformSystemSourceOther as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformSystemSourceValue::PlatformSystemSourceSignal(value) => {
+                Self::PlatformSystemSourceSignal(
+                    <PlatformSystemSourceSignal as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            PlatformSystemSourceValue::PlatformSystemSourceWinsock(value) => {
+                Self::PlatformSystemSourceWinsock(
+                    <PlatformSystemSourceWinsock as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
         }
     }
 }
@@ -795,26 +1494,80 @@ impl NativeAbiCodec for PlatformSystemSourceAbi<NativeAbi> {
 impl VmAbiCodec for PlatformSystemSourceAbi<VmAbi> {
     type Value = PlatformSystemSourceValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::PlatformSystemSourceEai(value) => PlatformSystemSourceValue::PlatformSystemSourceEai(<PlatformSystemSourceEaiVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformSystemSourceErrno(value) => PlatformSystemSourceValue::PlatformSystemSourceErrno(<PlatformSystemSourceErrnoVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformSystemSourceHResult(value) => PlatformSystemSourceValue::PlatformSystemSourceHResult(<PlatformSystemSourceHResultVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformSystemSourceOther(value) => PlatformSystemSourceValue::PlatformSystemSourceOther(<PlatformSystemSourceOtherVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformSystemSourceSignal(value) => PlatformSystemSourceValue::PlatformSystemSourceSignal(<PlatformSystemSourceSignalVm as VmAbiCodec>::into_value(value, context)?),
-            Self::PlatformSystemSourceWinsock(value) => PlatformSystemSourceValue::PlatformSystemSourceWinsock(<PlatformSystemSourceWinsockVm as VmAbiCodec>::into_value(value, context)?),
+            Self::PlatformSystemSourceEai(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceEai(
+                    <PlatformSystemSourceEaiVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformSystemSourceErrno(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceErrno(
+                    <PlatformSystemSourceErrnoVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformSystemSourceHResult(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceHResult(
+                    <PlatformSystemSourceHResultVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformSystemSourceOther(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceOther(
+                    <PlatformSystemSourceOtherVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformSystemSourceSignal(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceSignal(
+                    <PlatformSystemSourceSignalVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::PlatformSystemSourceWinsock(value) => {
+                PlatformSystemSourceValue::PlatformSystemSourceWinsock(
+                    <PlatformSystemSourceWinsockVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
         };
         Ok(owned)
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         match value {
-            PlatformSystemSourceValue::PlatformSystemSourceEai(value) => Ok(Self::PlatformSystemSourceEai(<PlatformSystemSourceEaiVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformSystemSourceValue::PlatformSystemSourceErrno(value) => Ok(Self::PlatformSystemSourceErrno(<PlatformSystemSourceErrnoVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformSystemSourceValue::PlatformSystemSourceHResult(value) => Ok(Self::PlatformSystemSourceHResult(<PlatformSystemSourceHResultVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformSystemSourceValue::PlatformSystemSourceOther(value) => Ok(Self::PlatformSystemSourceOther(<PlatformSystemSourceOtherVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformSystemSourceValue::PlatformSystemSourceSignal(value) => Ok(Self::PlatformSystemSourceSignal(<PlatformSystemSourceSignalVm as VmAbiCodec>::from_value(context, value)?)),
-            PlatformSystemSourceValue::PlatformSystemSourceWinsock(value) => Ok(Self::PlatformSystemSourceWinsock(<PlatformSystemSourceWinsockVm as VmAbiCodec>::from_value(context, value)?)),
+            PlatformSystemSourceValue::PlatformSystemSourceEai(value) => {
+                Ok(Self::PlatformSystemSourceEai(
+                    <PlatformSystemSourceEaiVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformSystemSourceValue::PlatformSystemSourceErrno(value) => {
+                Ok(Self::PlatformSystemSourceErrno(
+                    <PlatformSystemSourceErrnoVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformSystemSourceValue::PlatformSystemSourceHResult(value) => {
+                Ok(Self::PlatformSystemSourceHResult(
+                    <PlatformSystemSourceHResultVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformSystemSourceValue::PlatformSystemSourceOther(value) => {
+                Ok(Self::PlatformSystemSourceOther(
+                    <PlatformSystemSourceOtherVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformSystemSourceValue::PlatformSystemSourceSignal(value) => {
+                Ok(Self::PlatformSystemSourceSignal(
+                    <PlatformSystemSourceSignalVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            PlatformSystemSourceValue::PlatformSystemSourceWinsock(value) => {
+                Ok(Self::PlatformSystemSourceWinsock(
+                    <PlatformSystemSourceWinsockVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
         }
     }
 }
@@ -839,33 +1592,61 @@ pub type PlatformErrorVm = PlatformErrorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorAbi<NativeAbi> {}
 impl Clone for PlatformErrorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorAbi<VmAbi> {}
 impl Clone for PlatformErrorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformError")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformError",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_code = <PlatformErrorCode as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_op = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_source = <Option<PlatformSystemSourceVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_context = <Option<PlatformErrorContextVm> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_message = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_code =
+            <PlatformErrorCode as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_op =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_source =
+            <Option<PlatformSystemSourceVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        let field_context =
+            <Option<PlatformErrorContextVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
+        let field_message =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             code: field_code,
             op: field_op,
@@ -875,13 +1656,25 @@ impl VmAggregateCodec for PlatformErrorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <PlatformErrorCode as VmAggregateCodec>::encode_with_context(self.code, context)?,
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.op, context)?,
-            <Option<PlatformSystemSourceVm> as VmAggregateCodec>::encode_with_context(self.source, context)?,
-            <Option<PlatformErrorContextVm> as VmAggregateCodec>::encode_with_context(self.context, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.message, context)?,
+            <Option<PlatformSystemSourceVm> as VmAggregateCodec>::encode_with_context(
+                self.source,
+                context,
+            )?,
+            <Option<PlatformErrorContextVm> as VmAggregateCodec>::encode_with_context(
+                self.context,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.message,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -909,9 +1702,15 @@ impl NativeAbiCodec for PlatformErrorAbi<NativeAbi> {
         Ok(PlatformErrorValue {
             code: unsafe { <PlatformErrorCode as NativeAbiCodec>::into_value(self.code)? },
             op: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.op)? },
-            source: unsafe { <Option<PlatformSystemSource> as NativeAbiCodec>::into_value(self.source)? },
-            context: unsafe { <Option<PlatformErrorContext> as NativeAbiCodec>::into_value(self.context)? },
-            message: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.message)? },
+            source: unsafe {
+                <Option<PlatformSystemSource> as NativeAbiCodec>::into_value(self.source)?
+            },
+            context: unsafe {
+                <Option<PlatformErrorContext> as NativeAbiCodec>::into_value(self.context)?
+            },
+            message: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.message)?
+            },
         })
     }
 
@@ -919,9 +1718,18 @@ impl NativeAbiCodec for PlatformErrorAbi<NativeAbi> {
         Self {
             code: <PlatformErrorCode as NativeAbiCodec>::from_value(binding, value.code),
             op: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.op),
-            source: <Option<PlatformSystemSource> as NativeAbiCodec>::from_value(binding, value.source),
-            context: <Option<PlatformErrorContext> as NativeAbiCodec>::from_value(binding, value.context),
-            message: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.message),
+            source: <Option<PlatformSystemSource> as NativeAbiCodec>::from_value(
+                binding,
+                value.source,
+            ),
+            context: <Option<PlatformErrorContext> as NativeAbiCodec>::from_value(
+                binding,
+                value.context,
+            ),
+            message: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.message,
+            ),
         }
     }
 }
@@ -929,22 +1737,40 @@ impl NativeAbiCodec for PlatformErrorAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorAbi<VmAbi> {
     type Value = PlatformErrorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorValue {
             code: <PlatformErrorCode as VmAbiCodec>::into_value(self.code, context)?,
             op: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.op, context)?,
-            source: <Option<PlatformSystemSourceVm> as VmAbiCodec>::into_value(self.source, context)?,
-            context: <Option<PlatformErrorContextVm> as VmAbiCodec>::into_value(self.context, context)?,
+            source: <Option<PlatformSystemSourceVm> as VmAbiCodec>::into_value(
+                self.source,
+                context,
+            )?,
+            context: <Option<PlatformErrorContextVm> as VmAbiCodec>::into_value(
+                self.context,
+                context,
+            )?,
             message: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.message, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             code: <PlatformErrorCode as VmAbiCodec>::from_value(context, value.code)?,
             op: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.op)?,
-            source: <Option<PlatformSystemSourceVm> as VmAbiCodec>::from_value(context, value.source)?,
-            context: <Option<PlatformErrorContextVm> as VmAbiCodec>::from_value(context, value.context)?,
+            source: <Option<PlatformSystemSourceVm> as VmAbiCodec>::from_value(
+                context,
+                value.source,
+            )?,
+            context: <Option<PlatformErrorContextVm> as VmAbiCodec>::from_value(
+                context,
+                value.context,
+            )?,
             message: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.message)?,
         })
     }
@@ -966,31 +1792,53 @@ pub type PlatformErrorContextAudioVm = PlatformErrorContextAudioAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextAudioAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextAudioAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextAudioAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextAudioAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextAudioAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextAudioAbi<VmAbi> {}
 impl Clone for PlatformErrorContextAudioAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextAudioAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextAudio")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextAudio",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_feature = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_feature =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -998,11 +1846,20 @@ impl VmAggregateCodec for PlatformErrorContextAudioAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.feature,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1025,16 +1882,26 @@ impl NativeAbiCodec for PlatformErrorContextAudioAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextAudioValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
-            feature: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
+            feature: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
-            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.feature),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
+            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.feature,
+            ),
         }
     }
 }
@@ -1042,7 +1909,10 @@ impl NativeAbiCodec for PlatformErrorContextAudioAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextAudioAbi<VmAbi> {
     type Value = PlatformErrorContextAudioValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextAudioValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
@@ -1050,7 +1920,10 @@ impl VmAbiCodec for PlatformErrorContextAudioAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
@@ -1079,33 +1952,58 @@ pub type PlatformErrorContextDeviceVm = PlatformErrorContextDeviceAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextDeviceAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextDeviceAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextDeviceAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextDeviceAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextDeviceAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextDeviceAbi<VmAbi> {}
 impl Clone for PlatformErrorContextDeviceAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextDeviceAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextDevice")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextDevice",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_path = <Option<PlatformPathPayloadVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_path_text = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_feature = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path = <Option<PlatformPathPayloadVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        let field_path_text =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_feature =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -1115,13 +2013,27 @@ impl VmAggregateCodec for PlatformErrorContextDeviceAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
-            <Option<PlatformPathPayloadVm> as VmAggregateCodec>::encode_with_context(self.path, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.path_text, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
+            <Option<PlatformPathPayloadVm> as VmAggregateCodec>::encode_with_context(
+                self.path, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.path_text,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.feature,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1148,20 +2060,37 @@ impl NativeAbiCodec for PlatformErrorContextDeviceAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextDeviceValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
-            path: unsafe { <Option<PlatformPathPayload> as NativeAbiCodec>::into_value(self.path)? },
-            path_text: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.path_text)? },
-            feature: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
+            path: unsafe {
+                <Option<PlatformPathPayload> as NativeAbiCodec>::into_value(self.path)?
+            },
+            path_text: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.path_text)?
+            },
+            feature: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
             path: <Option<PlatformPathPayload> as NativeAbiCodec>::from_value(binding, value.path),
-            path_text: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.path_text),
-            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.feature),
+            path_text: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.path_text,
+            ),
+            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.feature,
+            ),
         }
     }
 }
@@ -1169,22 +2098,34 @@ impl NativeAbiCodec for PlatformErrorContextDeviceAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextDeviceAbi<VmAbi> {
     type Value = PlatformErrorContextDeviceValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextDeviceValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
             path: <Option<PlatformPathPayloadVm> as VmAbiCodec>::into_value(self.path, context)?,
-            path_text: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.path_text, context)?,
+            path_text: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.path_text,
+                context,
+            )?,
             feature: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.feature, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
             path: <Option<PlatformPathPayloadVm> as VmAbiCodec>::from_value(context, value.path)?,
-            path_text: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.path_text)?,
+            path_text: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.path_text,
+            )?,
             feature: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.feature)?,
         })
     }
@@ -1206,31 +2147,53 @@ pub type PlatformErrorContextDisplayVm = PlatformErrorContextDisplayAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextDisplayAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextDisplayAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextDisplayAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextDisplayAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextDisplayAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextDisplayAbi<VmAbi> {}
 impl Clone for PlatformErrorContextDisplayAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextDisplayAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextDisplay")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextDisplay",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_feature = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_feature =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -1238,11 +2201,20 @@ impl VmAggregateCodec for PlatformErrorContextDisplayAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.feature,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1265,16 +2237,26 @@ impl NativeAbiCodec for PlatformErrorContextDisplayAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextDisplayValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
-            feature: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
+            feature: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
-            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.feature),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
+            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.feature,
+            ),
         }
     }
 }
@@ -1282,7 +2264,10 @@ impl NativeAbiCodec for PlatformErrorContextDisplayAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextDisplayAbi<VmAbi> {
     type Value = PlatformErrorContextDisplayValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextDisplayValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
@@ -1290,7 +2275,10 @@ impl VmAbiCodec for PlatformErrorContextDisplayAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
@@ -1317,32 +2305,55 @@ pub type PlatformErrorContextFfiVm = PlatformErrorContextFfiAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextFfiAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextFfiAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextFfiAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextFfiAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextFfiAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextFfiAbi<VmAbi> {}
 impl Clone for PlatformErrorContextFfiAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextFfiAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextFfi")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextFfi",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_library = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_symbol = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_library =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_symbol =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -1351,12 +2362,24 @@ impl VmAggregateCodec for PlatformErrorContextFfiAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.library, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.symbol, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.library,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.symbol,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1381,17 +2404,29 @@ impl NativeAbiCodec for PlatformErrorContextFfiAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextFfiValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
-            library: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.library)? },
-            symbol: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.symbol)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
+            library: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.library)?
+            },
+            symbol: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.symbol)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
-            library: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.library),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
+            library: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.library,
+            ),
             symbol: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.symbol),
         }
     }
@@ -1400,7 +2435,10 @@ impl NativeAbiCodec for PlatformErrorContextFfiAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextFfiAbi<VmAbi> {
     type Value = PlatformErrorContextFfiValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextFfiValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
@@ -1409,7 +2447,10 @@ impl VmAbiCodec for PlatformErrorContextFfiAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
@@ -1439,33 +2480,57 @@ pub type PlatformErrorContextGenericVm = PlatformErrorContextGenericAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextGenericAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextGenericAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextGenericAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextGenericAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextGenericAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextGenericAbi<VmAbi> {}
 impl Clone for PlatformErrorContextGenericAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextGenericAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextGeneric")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextGeneric",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_argument = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_pointer = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_feature = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_argument =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_pointer =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_feature =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -1475,13 +2540,28 @@ impl VmAggregateCodec for PlatformErrorContextGenericAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.argument, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.pointer, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.argument,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.pointer,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.feature,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1508,20 +2588,40 @@ impl NativeAbiCodec for PlatformErrorContextGenericAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextGenericValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
-            argument: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.argument)? },
-            pointer: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.pointer)? },
-            feature: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
+            argument: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.argument)?
+            },
+            pointer: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.pointer)?
+            },
+            feature: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
-            argument: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.argument),
-            pointer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.pointer),
-            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.feature),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
+            argument: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.argument,
+            ),
+            pointer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.pointer,
+            ),
+            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.feature,
+            ),
         }
     }
 }
@@ -1529,7 +2629,10 @@ impl NativeAbiCodec for PlatformErrorContextGenericAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextGenericAbi<VmAbi> {
     type Value = PlatformErrorContextGenericValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextGenericValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
@@ -1539,11 +2642,17 @@ impl VmAbiCodec for PlatformErrorContextGenericAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
-            argument: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.argument)?,
+            argument: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.argument,
+            )?,
             pointer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.pointer)?,
             feature: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.feature)?,
         })
@@ -1566,31 +2675,53 @@ pub type PlatformErrorContextGpuVm = PlatformErrorContextGpuAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextGpuAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextGpuAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextGpuAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextGpuAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextGpuAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextGpuAbi<VmAbi> {}
 impl Clone for PlatformErrorContextGpuAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextGpuAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextGpu")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextGpu",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_feature = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_feature =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -1598,11 +2729,20 @@ impl VmAggregateCodec for PlatformErrorContextGpuAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.feature,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1625,16 +2765,26 @@ impl NativeAbiCodec for PlatformErrorContextGpuAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextGpuValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
-            feature: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
+            feature: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
-            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.feature),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
+            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.feature,
+            ),
         }
     }
 }
@@ -1642,7 +2792,10 @@ impl NativeAbiCodec for PlatformErrorContextGpuAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextGpuAbi<VmAbi> {
     type Value = PlatformErrorContextGpuValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextGpuValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
@@ -1650,7 +2803,10 @@ impl VmAbiCodec for PlatformErrorContextGpuAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
@@ -1683,34 +2839,61 @@ pub type PlatformErrorContextIoVm = PlatformErrorContextIoAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextIoAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextIoAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextIoAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextIoAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextIoAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextIoAbi<VmAbi> {}
 impl Clone for PlatformErrorContextIoAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextIoAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextIo")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextIo",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 7 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 7 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_path = <Option<PlatformPathPayloadVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_dest = <Option<PlatformPathPayloadVm> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_path_text = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_dest_text = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path = <Option<PlatformPathPayloadVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        let field_dest = <Option<PlatformPathPayloadVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[3],
+        )?;
+        let field_path_text =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_dest_text =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_fd = <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
             kind: field_kind,
@@ -1723,14 +2906,30 @@ impl VmAggregateCodec for PlatformErrorContextIoAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
-            <Option<PlatformPathPayloadVm> as VmAggregateCodec>::encode_with_context(self.path, context)?,
-            <Option<PlatformPathPayloadVm> as VmAggregateCodec>::encode_with_context(self.dest, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.path_text, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.dest_text, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
+            <Option<PlatformPathPayloadVm> as VmAggregateCodec>::encode_with_context(
+                self.path, context,
+            )?,
+            <Option<PlatformPathPayloadVm> as VmAggregateCodec>::encode_with_context(
+                self.dest, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.path_text,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.dest_text,
+                context,
+            )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.fd, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -1762,11 +2961,21 @@ impl NativeAbiCodec for PlatformErrorContextIoAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextIoValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
-            path: unsafe { <Option<PlatformPathPayload> as NativeAbiCodec>::into_value(self.path)? },
-            dest: unsafe { <Option<PlatformPathPayload> as NativeAbiCodec>::into_value(self.dest)? },
-            path_text: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.path_text)? },
-            dest_text: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.dest_text)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
+            path: unsafe {
+                <Option<PlatformPathPayload> as NativeAbiCodec>::into_value(self.path)?
+            },
+            dest: unsafe {
+                <Option<PlatformPathPayload> as NativeAbiCodec>::into_value(self.dest)?
+            },
+            path_text: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.path_text)?
+            },
+            dest_text: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.dest_text)?
+            },
             fd: unsafe { <Option<i32> as NativeAbiCodec>::into_value(self.fd)? },
         })
     }
@@ -1774,11 +2983,20 @@ impl NativeAbiCodec for PlatformErrorContextIoAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
             path: <Option<PlatformPathPayload> as NativeAbiCodec>::from_value(binding, value.path),
             dest: <Option<PlatformPathPayload> as NativeAbiCodec>::from_value(binding, value.dest),
-            path_text: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.path_text),
-            dest_text: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.dest_text),
+            path_text: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.path_text,
+            ),
+            dest_text: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.dest_text,
+            ),
             fd: <Option<i32> as NativeAbiCodec>::from_value(binding, value.fd),
         }
     }
@@ -1787,26 +3005,44 @@ impl NativeAbiCodec for PlatformErrorContextIoAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextIoAbi<VmAbi> {
     type Value = PlatformErrorContextIoValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextIoValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
             path: <Option<PlatformPathPayloadVm> as VmAbiCodec>::into_value(self.path, context)?,
             dest: <Option<PlatformPathPayloadVm> as VmAbiCodec>::into_value(self.dest, context)?,
-            path_text: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.path_text, context)?,
-            dest_text: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.dest_text, context)?,
+            path_text: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.path_text,
+                context,
+            )?,
+            dest_text: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.dest_text,
+                context,
+            )?,
             fd: <Option<i32> as VmAbiCodec>::into_value(self.fd, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
             path: <Option<PlatformPathPayloadVm> as VmAbiCodec>::from_value(context, value.path)?,
             dest: <Option<PlatformPathPayloadVm> as VmAbiCodec>::from_value(context, value.dest)?,
-            path_text: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.path_text)?,
-            dest_text: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.dest_text)?,
+            path_text: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.path_text,
+            )?,
+            dest_text: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.dest_text,
+            )?,
             fd: <Option<i32> as VmAbiCodec>::from_value(context, value.fd)?,
         })
     }
@@ -1830,32 +3066,54 @@ pub type PlatformErrorContextIoDriverVm = PlatformErrorContextIoDriverAbi<VmAbi>
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextIoDriverAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextIoDriverAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextIoDriverAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextIoDriverAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextIoDriverAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextIoDriverAbi<VmAbi> {}
 impl Clone for PlatformErrorContextIoDriverAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextIoDriverAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextIoDriver")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextIoDriver",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_fd = <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_feature = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_feature =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -1864,12 +3122,21 @@ impl VmAggregateCodec for PlatformErrorContextIoDriverAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.fd, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.feature,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1894,18 +3161,28 @@ impl NativeAbiCodec for PlatformErrorContextIoDriverAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextIoDriverValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
             fd: unsafe { <Option<i32> as NativeAbiCodec>::into_value(self.fd)? },
-            feature: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)? },
+            feature: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.feature)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
             fd: <Option<i32> as NativeAbiCodec>::from_value(binding, value.fd),
-            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.feature),
+            feature: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.feature,
+            ),
         }
     }
 }
@@ -1913,7 +3190,10 @@ impl NativeAbiCodec for PlatformErrorContextIoDriverAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextIoDriverAbi<VmAbi> {
     type Value = PlatformErrorContextIoDriverValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextIoDriverValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
@@ -1922,7 +3202,10 @@ impl VmAbiCodec for PlatformErrorContextIoDriverAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
@@ -1952,32 +3235,56 @@ pub type PlatformErrorContextIpcVm = PlatformErrorContextIpcAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextIpcAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextIpcAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextIpcAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextIpcAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextIpcAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextIpcAbi<VmAbi> {}
 impl Clone for PlatformErrorContextIpcAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextIpcAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextIpc")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextIpc",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_path = <Option<PlatformPathPayloadVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_path_text = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path = <Option<PlatformPathPayloadVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        let field_path_text =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_fd = <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             kind: field_kind,
@@ -1988,12 +3295,23 @@ impl VmAggregateCodec for PlatformErrorContextIpcAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
-            <Option<PlatformPathPayloadVm> as VmAggregateCodec>::encode_with_context(self.path, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.path_text, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
+            <Option<PlatformPathPayloadVm> as VmAggregateCodec>::encode_with_context(
+                self.path, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.path_text,
+                context,
+            )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.fd, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -2021,9 +3339,15 @@ impl NativeAbiCodec for PlatformErrorContextIpcAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextIpcValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
-            path: unsafe { <Option<PlatformPathPayload> as NativeAbiCodec>::into_value(self.path)? },
-            path_text: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.path_text)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
+            path: unsafe {
+                <Option<PlatformPathPayload> as NativeAbiCodec>::into_value(self.path)?
+            },
+            path_text: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.path_text)?
+            },
             fd: unsafe { <Option<i32> as NativeAbiCodec>::into_value(self.fd)? },
         })
     }
@@ -2031,9 +3355,15 @@ impl NativeAbiCodec for PlatformErrorContextIpcAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
             path: <Option<PlatformPathPayload> as NativeAbiCodec>::from_value(binding, value.path),
-            path_text: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.path_text),
+            path_text: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.path_text,
+            ),
             fd: <Option<i32> as NativeAbiCodec>::from_value(binding, value.fd),
         }
     }
@@ -2042,22 +3372,34 @@ impl NativeAbiCodec for PlatformErrorContextIpcAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextIpcAbi<VmAbi> {
     type Value = PlatformErrorContextIpcValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextIpcValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
             path: <Option<PlatformPathPayloadVm> as VmAbiCodec>::into_value(self.path, context)?,
-            path_text: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.path_text, context)?,
+            path_text: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.path_text,
+                context,
+            )?,
             fd: <Option<i32> as VmAbiCodec>::into_value(self.fd, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
             path: <Option<PlatformPathPayloadVm> as VmAbiCodec>::from_value(context, value.path)?,
-            path_text: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.path_text)?,
+            path_text: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.path_text,
+            )?,
             fd: <Option<i32> as VmAbiCodec>::from_value(context, value.fd)?,
         })
     }
@@ -2083,33 +3425,56 @@ pub type PlatformErrorContextNetVm = PlatformErrorContextNetAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextNetAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextNetAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextNetAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextNetAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextNetAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextNetAbi<VmAbi> {}
 impl Clone for PlatformErrorContextNetAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextNetAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextNet")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextNet",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_address = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_address =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_port = <Option<u16> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_hostname = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_hostname =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -2119,13 +3484,25 @@ impl VmAggregateCodec for PlatformErrorContextNetAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.address, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.address,
+                context,
+            )?,
             <Option<u16> as VmAggregateCodec>::encode_with_context(self.port, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.hostname, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.hostname,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2152,20 +3529,35 @@ impl NativeAbiCodec for PlatformErrorContextNetAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextNetValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
-            address: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.address)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
+            address: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.address)?
+            },
             port: unsafe { <Option<u16> as NativeAbiCodec>::into_value(self.port)? },
-            hostname: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.hostname)? },
+            hostname: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.hostname)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
-            address: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.address),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
+            address: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.address,
+            ),
             port: <Option<u16> as NativeAbiCodec>::from_value(binding, value.port),
-            hostname: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.hostname),
+            hostname: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.hostname,
+            ),
         }
     }
 }
@@ -2173,7 +3565,10 @@ impl NativeAbiCodec for PlatformErrorContextNetAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextNetAbi<VmAbi> {
     type Value = PlatformErrorContextNetValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextNetValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
@@ -2183,13 +3578,19 @@ impl VmAbiCodec for PlatformErrorContextNetAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
             address: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.address)?,
             port: <Option<u16> as VmAbiCodec>::from_value(context, value.port)?,
-            hostname: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.hostname)?,
+            hostname: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.hostname,
+            )?,
         })
     }
 }
@@ -2214,33 +3615,56 @@ pub type PlatformErrorContextProcessVm = PlatformErrorContextProcessAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextProcessAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextProcessAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextProcessAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextProcessAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextProcessAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextProcessAbi<VmAbi> {}
 impl Clone for PlatformErrorContextProcessAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextProcessAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextProcess")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextProcess",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_pid = <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_signal = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_exit_code = <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_signal =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_exit_code =
+            <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -2250,12 +3674,21 @@ impl VmAggregateCodec for PlatformErrorContextProcessAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.pid, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.signal, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.signal,
+                context,
+            )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.exit_code, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -2283,9 +3716,13 @@ impl NativeAbiCodec for PlatformErrorContextProcessAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextProcessValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
             pid: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.pid)? },
-            signal: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.signal)? },
+            signal: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.signal)?
+            },
             exit_code: unsafe { <Option<i32> as NativeAbiCodec>::into_value(self.exit_code)? },
         })
     }
@@ -2293,7 +3730,10 @@ impl NativeAbiCodec for PlatformErrorContextProcessAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
             pid: <Option<u64> as NativeAbiCodec>::from_value(binding, value.pid),
             signal: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.signal),
             exit_code: <Option<i32> as NativeAbiCodec>::from_value(binding, value.exit_code),
@@ -2304,7 +3744,10 @@ impl NativeAbiCodec for PlatformErrorContextProcessAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextProcessAbi<VmAbi> {
     type Value = PlatformErrorContextProcessValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextProcessValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
@@ -2314,7 +3757,10 @@ impl VmAbiCodec for PlatformErrorContextProcessAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
@@ -2343,32 +3789,55 @@ pub type PlatformErrorContextResourceVm = PlatformErrorContextResourceAbi<VmAbi>
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextResourceAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextResourceAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextResourceAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextResourceAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextResourceAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextResourceAbi<VmAbi> {}
 impl Clone for PlatformErrorContextResourceAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextResourceAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextResource")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextResource",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_resource_id = <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_resource_kind = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_resource_id =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_resource_kind =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -2377,12 +3846,21 @@ impl VmAggregateCodec for PlatformErrorContextResourceAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.resource_id, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.resource_kind, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.resource_kind,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2407,18 +3885,28 @@ impl NativeAbiCodec for PlatformErrorContextResourceAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextResourceValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
             resource_id: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.resource_id)? },
-            resource_kind: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.resource_kind)? },
+            resource_kind: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.resource_kind)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
             resource_id: <Option<u64> as NativeAbiCodec>::from_value(binding, value.resource_id),
-            resource_kind: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.resource_kind),
+            resource_kind: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.resource_kind,
+            ),
         }
     }
 }
@@ -2426,21 +3914,33 @@ impl NativeAbiCodec for PlatformErrorContextResourceAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextResourceAbi<VmAbi> {
     type Value = PlatformErrorContextResourceValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextResourceValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
             resource_id: <Option<u64> as VmAbiCodec>::into_value(self.resource_id, context)?,
-            resource_kind: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.resource_kind, context)?,
+            resource_kind: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.resource_kind,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
             resource_id: <Option<u64> as VmAbiCodec>::from_value(context, value.resource_id)?,
-            resource_kind: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.resource_kind)?,
+            resource_kind: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.resource_kind,
+            )?,
         })
     }
 }
@@ -2463,32 +3963,55 @@ pub type PlatformErrorContextSecurityVm = PlatformErrorContextSecurityAbi<VmAbi>
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextSecurityAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextSecurityAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextSecurityAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextSecurityAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextSecurityAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextSecurityAbi<VmAbi> {}
 impl Clone for PlatformErrorContextSecurityAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextSecurityAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextSecurity")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextSecurity",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_capability = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_policy = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_capability =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_policy =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -2497,12 +4020,24 @@ impl VmAggregateCodec for PlatformErrorContextSecurityAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.capability, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.policy, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.capability,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.policy,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2527,17 +4062,29 @@ impl NativeAbiCodec for PlatformErrorContextSecurityAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextSecurityValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
-            capability: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.capability)? },
-            policy: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.policy)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
+            capability: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.capability)?
+            },
+            policy: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.policy)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
-            capability: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.capability),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
+            capability: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.capability,
+            ),
             policy: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.policy),
         }
     }
@@ -2546,20 +4093,32 @@ impl NativeAbiCodec for PlatformErrorContextSecurityAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextSecurityAbi<VmAbi> {
     type Value = PlatformErrorContextSecurityValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextSecurityValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
-            capability: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.capability, context)?,
+            capability: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.capability,
+                context,
+            )?,
             policy: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.policy, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
-            capability: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.capability)?,
+            capability: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.capability,
+            )?,
             policy: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.policy)?,
         })
     }
@@ -2581,31 +4140,53 @@ pub type PlatformErrorContextThreadVm = PlatformErrorContextThreadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextThreadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextThreadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextThreadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextThreadAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextThreadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextThreadAbi<VmAbi> {}
 impl Clone for PlatformErrorContextThreadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextThreadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextThread")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextThread",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_thread_id = <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_thread_id =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -2613,10 +4194,16 @@ impl VmAggregateCodec for PlatformErrorContextThreadAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.thread_id, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -2640,7 +4227,9 @@ impl NativeAbiCodec for PlatformErrorContextThreadAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextThreadValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
             thread_id: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.thread_id)? },
         })
     }
@@ -2648,7 +4237,10 @@ impl NativeAbiCodec for PlatformErrorContextThreadAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
             thread_id: <Option<u64> as NativeAbiCodec>::from_value(binding, value.thread_id),
         }
     }
@@ -2657,7 +4249,10 @@ impl NativeAbiCodec for PlatformErrorContextThreadAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextThreadAbi<VmAbi> {
     type Value = PlatformErrorContextThreadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextThreadValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
@@ -2665,7 +4260,10 @@ impl VmAbiCodec for PlatformErrorContextThreadAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
@@ -2692,32 +4290,55 @@ pub type PlatformErrorContextTimerVm = PlatformErrorContextTimerAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextTimerAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextTimerAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextTimerAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextTimerAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextTimerAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextTimerAbi<VmAbi> {}
 impl Clone for PlatformErrorContextTimerAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformErrorContextTimerAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformErrorContextTimer")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextTimer",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_timer_id = <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_deadline_ns = <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timer_id =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_deadline_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             kind: field_kind,
             syscall: field_syscall,
@@ -2726,10 +4347,16 @@ impl VmAggregateCodec for PlatformErrorContextTimerAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.syscall,
+                context,
+            )?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.timer_id, context)?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.deadline_ns, context)?,
         ];
@@ -2756,7 +4383,9 @@ impl NativeAbiCodec for PlatformErrorContextTimerAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(PlatformErrorContextTimerValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            syscall: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)? },
+            syscall: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.syscall)?
+            },
             timer_id: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.timer_id)? },
             deadline_ns: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.deadline_ns)? },
         })
@@ -2765,7 +4394,10 @@ impl NativeAbiCodec for PlatformErrorContextTimerAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.syscall),
+            syscall: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.syscall,
+            ),
             timer_id: <Option<u64> as NativeAbiCodec>::from_value(binding, value.timer_id),
             deadline_ns: <Option<u64> as NativeAbiCodec>::from_value(binding, value.deadline_ns),
         }
@@ -2775,7 +4407,10 @@ impl NativeAbiCodec for PlatformErrorContextTimerAbi<NativeAbi> {
 impl VmAbiCodec for PlatformErrorContextTimerAbi<VmAbi> {
     type Value = PlatformErrorContextTimerValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformErrorContextTimerValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.syscall, context)?,
@@ -2784,7 +4419,10 @@ impl VmAbiCodec for PlatformErrorContextTimerAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             syscall: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.syscall)?,
@@ -2808,37 +4446,61 @@ pub type PlatformPathPayloadBytesVm = PlatformPathPayloadBytesAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformPathPayloadBytesAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformPathPayloadBytesAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformPathPayloadBytesAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformPathPayloadBytesAbi<NativeAbi> {}
 impl Clone for PlatformPathPayloadBytesAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformPathPayloadBytesAbi<VmAbi> {}
 impl Clone for PlatformPathPayloadBytesAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformPathPayloadBytesAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformPathPayloadBytes")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformPathPayloadBytes",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_bytes = <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes =
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             bytes: field_bytes,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
@@ -2877,14 +4539,20 @@ impl NativeAbiCodec for PlatformPathPayloadBytesAbi<NativeAbi> {
 impl VmAbiCodec for PlatformPathPayloadBytesAbi<VmAbi> {
     type Value = PlatformPathPayloadBytesValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformPathPayloadBytesValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             bytes: <VmArray<u8> as VmAbiCodec>::into_value(self.bytes, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             bytes: <VmArray<u8> as VmAbiCodec>::from_value(context, value.bytes)?,
@@ -2906,37 +4574,61 @@ pub type PlatformPathPayloadUtf16Vm = PlatformPathPayloadUtf16Abi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformPathPayloadUtf16Abi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformPathPayloadUtf16Abi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformPathPayloadUtf16Abi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformPathPayloadUtf16Abi<NativeAbi> {}
 impl Clone for PlatformPathPayloadUtf16Abi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformPathPayloadUtf16Abi<VmAbi> {}
 impl Clone for PlatformPathPayloadUtf16Abi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformPathPayloadUtf16Abi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformPathPayloadUtf16")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformPathPayloadUtf16",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_utf16 = <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_utf16 =
+            <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             utf16: field_utf16,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
@@ -2975,14 +4667,20 @@ impl NativeAbiCodec for PlatformPathPayloadUtf16Abi<NativeAbi> {
 impl VmAbiCodec for PlatformPathPayloadUtf16Abi<VmAbi> {
     type Value = PlatformPathPayloadUtf16Value;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformPathPayloadUtf16Value {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             utf16: <VmArray<u16> as VmAbiCodec>::into_value(self.utf16, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             utf16: <VmArray<u16> as VmAbiCodec>::from_value(context, value.utf16)?,
@@ -3006,31 +4704,52 @@ pub type PlatformSystemSourceEaiVm = PlatformSystemSourceEaiAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceEaiAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformSystemSourceEaiAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformSystemSourceEaiAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformSystemSourceEaiAbi<NativeAbi> {}
 impl Clone for PlatformSystemSourceEaiAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformSystemSourceEaiAbi<VmAbi> {}
 impl Clone for PlatformSystemSourceEaiAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformSystemSourceEaiAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformSystemSourceEai")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceEai",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             value: field_value,
@@ -3038,11 +4757,16 @@ impl VmAggregateCodec for PlatformSystemSourceEaiAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3082,7 +4806,10 @@ impl NativeAbiCodec for PlatformSystemSourceEaiAbi<NativeAbi> {
 impl VmAbiCodec for PlatformSystemSourceEaiAbi<VmAbi> {
     type Value = PlatformSystemSourceEaiValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformSystemSourceEaiValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             value: <i32 as VmAbiCodec>::into_value(self.value, context)?,
@@ -3090,7 +4817,10 @@ impl VmAbiCodec for PlatformSystemSourceEaiAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             value: <i32 as VmAbiCodec>::from_value(context, value.value)?,
@@ -3115,31 +4845,52 @@ pub type PlatformSystemSourceErrnoVm = PlatformSystemSourceErrnoAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceErrnoAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformSystemSourceErrnoAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformSystemSourceErrnoAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformSystemSourceErrnoAbi<NativeAbi> {}
 impl Clone for PlatformSystemSourceErrnoAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformSystemSourceErrnoAbi<VmAbi> {}
 impl Clone for PlatformSystemSourceErrnoAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformSystemSourceErrnoAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformSystemSourceErrno")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceErrno",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             value: field_value,
@@ -3147,11 +4898,16 @@ impl VmAggregateCodec for PlatformSystemSourceErrnoAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3191,7 +4947,10 @@ impl NativeAbiCodec for PlatformSystemSourceErrnoAbi<NativeAbi> {
 impl VmAbiCodec for PlatformSystemSourceErrnoAbi<VmAbi> {
     type Value = PlatformSystemSourceErrnoValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformSystemSourceErrnoValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             value: <i32 as VmAbiCodec>::into_value(self.value, context)?,
@@ -3199,7 +4958,10 @@ impl VmAbiCodec for PlatformSystemSourceErrnoAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             value: <i32 as VmAbiCodec>::from_value(context, value.value)?,
@@ -3224,31 +4986,52 @@ pub type PlatformSystemSourceHResultVm = PlatformSystemSourceHResultAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceHResultAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformSystemSourceHResultAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformSystemSourceHResultAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformSystemSourceHResultAbi<NativeAbi> {}
 impl Clone for PlatformSystemSourceHResultAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformSystemSourceHResultAbi<VmAbi> {}
 impl Clone for PlatformSystemSourceHResultAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformSystemSourceHResultAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformSystemSourceHResult")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceHResult",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             value: field_value,
@@ -3256,11 +5039,16 @@ impl VmAggregateCodec for PlatformSystemSourceHResultAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3300,7 +5088,10 @@ impl NativeAbiCodec for PlatformSystemSourceHResultAbi<NativeAbi> {
 impl VmAbiCodec for PlatformSystemSourceHResultAbi<VmAbi> {
     type Value = PlatformSystemSourceHResultValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformSystemSourceHResultValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             value: <i32 as VmAbiCodec>::into_value(self.value, context)?,
@@ -3308,7 +5099,10 @@ impl VmAbiCodec for PlatformSystemSourceHResultAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             value: <i32 as VmAbiCodec>::from_value(context, value.value)?,
@@ -3333,31 +5127,52 @@ pub type PlatformSystemSourceOtherVm = PlatformSystemSourceOtherAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceOtherAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformSystemSourceOtherAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformSystemSourceOtherAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformSystemSourceOtherAbi<NativeAbi> {}
 impl Clone for PlatformSystemSourceOtherAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformSystemSourceOtherAbi<VmAbi> {}
 impl Clone for PlatformSystemSourceOtherAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformSystemSourceOtherAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformSystemSourceOther")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceOther",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             value: field_value,
@@ -3365,11 +5180,16 @@ impl VmAggregateCodec for PlatformSystemSourceOtherAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3409,7 +5229,10 @@ impl NativeAbiCodec for PlatformSystemSourceOtherAbi<NativeAbi> {
 impl VmAbiCodec for PlatformSystemSourceOtherAbi<VmAbi> {
     type Value = PlatformSystemSourceOtherValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformSystemSourceOtherValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             value: <i32 as VmAbiCodec>::into_value(self.value, context)?,
@@ -3417,7 +5240,10 @@ impl VmAbiCodec for PlatformSystemSourceOtherAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             value: <i32 as VmAbiCodec>::from_value(context, value.value)?,
@@ -3442,31 +5268,52 @@ pub type PlatformSystemSourceSignalVm = PlatformSystemSourceSignalAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceSignalAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformSystemSourceSignalAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformSystemSourceSignalAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformSystemSourceSignalAbi<NativeAbi> {}
 impl Clone for PlatformSystemSourceSignalAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformSystemSourceSignalAbi<VmAbi> {}
 impl Clone for PlatformSystemSourceSignalAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformSystemSourceSignalAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformSystemSourceSignal")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceSignal",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             value: field_value,
@@ -3474,11 +5321,16 @@ impl VmAggregateCodec for PlatformSystemSourceSignalAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3518,7 +5370,10 @@ impl NativeAbiCodec for PlatformSystemSourceSignalAbi<NativeAbi> {
 impl VmAbiCodec for PlatformSystemSourceSignalAbi<VmAbi> {
     type Value = PlatformSystemSourceSignalValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformSystemSourceSignalValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             value: <i32 as VmAbiCodec>::into_value(self.value, context)?,
@@ -3526,7 +5381,10 @@ impl VmAbiCodec for PlatformSystemSourceSignalAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             value: <i32 as VmAbiCodec>::from_value(context, value.value)?,
@@ -3551,31 +5409,52 @@ pub type PlatformSystemSourceWinsockVm = PlatformSystemSourceWinsockAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceWinsockAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformSystemSourceWinsockAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformSystemSourceWinsockAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformSystemSourceWinsockAbi<NativeAbi> {}
 impl Clone for PlatformSystemSourceWinsockAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformSystemSourceWinsockAbi<VmAbi> {}
 impl Clone for PlatformSystemSourceWinsockAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for PlatformSystemSourceWinsockAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "PlatformSystemSourceWinsock")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceWinsock",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             value: field_value,
@@ -3583,11 +5462,16 @@ impl VmAggregateCodec for PlatformSystemSourceWinsockAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3627,7 +5511,10 @@ impl NativeAbiCodec for PlatformSystemSourceWinsockAbi<NativeAbi> {
 impl VmAbiCodec for PlatformSystemSourceWinsockAbi<VmAbi> {
     type Value = PlatformSystemSourceWinsockValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PlatformSystemSourceWinsockValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             value: <i32 as VmAbiCodec>::into_value(self.value, context)?,
@@ -3635,7 +5522,10 @@ impl VmAbiCodec for PlatformSystemSourceWinsockAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             value: <i32 as VmAbiCodec>::from_value(context, value.value)?,
@@ -4006,4 +5896,3 @@ pub enum PlatformsystemsourceReplayRecord {
     /// PlatformSystemSourceWinsock variant.
     PlatformSystemSourceWinsock(PlatformsystemsourcewinsockReplayRecord),
 }
-

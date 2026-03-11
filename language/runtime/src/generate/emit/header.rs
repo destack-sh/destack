@@ -70,7 +70,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         if usage.vm_types.uses_vm_slice {
             vm_imports.push("VmSlice");
         }
-        if usage.vm_types.uses_vm_array {
+        if usage.vm_types.uses_vm_array || usage.vm_usage.uses_array {
             vm_imports.push("VmArray");
         }
         if !vm_imports.is_empty() {

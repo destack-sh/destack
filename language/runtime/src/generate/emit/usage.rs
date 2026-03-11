@@ -278,11 +278,11 @@ fn collect_vm_decode_usage(bindings: &ModuleBindings) -> VmDecodeUsage {
         for param in &entry.parameters {
             collect_vm_decode_usage_for_binding(&param.binding_type, &mut usage, false, true);
             if uses_binding_replay && supports_args {
-                collect_vm_decode_usage_for_binding(&param.binding_type, &mut usage, true, false);
+                collect_vm_decode_usage_for_binding(&param.binding_type, &mut usage, true, true);
             }
         }
         if uses_binding_replay {
-            collect_vm_decode_usage_for_binding(&entry.return_binding, &mut usage, true, false);
+            collect_vm_decode_usage_for_binding(&entry.return_binding, &mut usage, true, true);
         }
     }
     usage
@@ -444,89 +444,6 @@ pub(crate) fn collect_native_stub_named_types(
     }
 
     names
-}
-
-/// Collect VM-named types required for decoding collection elements.
-pub(crate) fn collect_collection_vm_names(
-    domain: &str,
-    binding_type: &BindingType,
-    names: &mut BTreeSet<String>,
-) {
-    match binding_type {
-        BindingType::StringSlice => {}
-        BindingType::Slice(inner) | BindingType::Array(inner) => {
-            collect_collection_vm_type_names(domain, inner, names);
-        }
-        BindingType::Optional(inner) => {
-            collect_collection_vm_type_names(domain, inner, names);
-        }
-        _ => {}
-    }
-}
-
-/// Collect VM collection element type names for nested binding types.
-fn collect_collection_vm_type_names(
-    domain: &str,
-    binding_type: &BindingType,
-    names: &mut BTreeSet<String>,
-) {
-    match binding_type {
-        BindingType::Slice(inner) | BindingType::Array(inner) => {
-            collect_collection_vm_type_names(domain, inner, names);
-        }
-        BindingType::Optional(inner) => {
-            collect_collection_vm_type_names(domain, inner, names);
-        }
-        BindingType::Newtype {
-            name,
-            domain: type_domain,
-            inner,
-        } => {
-            if binding_type_requires_abi(inner) {
-                collect_collection_vm_type_names(domain, inner, names);
-            } else if type_domain == domain {
-                names.insert(format!("{name}Vm"));
-            }
-        }
-        BindingType::Struct {
-            name,
-            domain: type_domain,
-            fields,
-        } => {
-            if type_domain == domain {
-                names.insert(format!("{name}Vm"));
-            }
-            for field in fields {
-                collect_collection_vm_type_names(domain, &field.binding_type, names);
-            }
-        }
-        BindingType::Enum {
-            name,
-            domain: type_domain,
-            ..
-        } => {
-            if type_domain == domain {
-                names.insert(name.clone());
-            }
-        }
-        BindingType::TaggedUnion {
-            name,
-            domain: type_domain,
-            variants,
-        } => {
-            if type_domain == domain {
-                if binding_type_requires_abi(binding_type) {
-                    names.insert(format!("{name}Vm"));
-                } else {
-                    names.insert(name.clone());
-                }
-            }
-            for variant in variants {
-                collect_collection_vm_type_names(domain, &variant.binding_type, names);
-            }
-        }
-        _ => {}
-    }
 }
 
 /// Collect platform module names referenced by binding types.

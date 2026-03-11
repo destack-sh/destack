@@ -4,20 +4,16 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::diagnostic::RuntimeError;
-use crate::diagnostic::RuntimeResult;
-use crate::platform::PlatformError as AbiPlatformError;
-use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::platform::{
+    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
+    VmValueCodec, core, core as platform_core, midi as platform_midi,
+};
 use crate::runtime::BindingCallContext;
-use crate::platform::VmValueCodec;
-use crate::platform::VmAggregateCodec;
-use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::{core};
-use crate::platform::core as platform_core;
-use crate::platform::midi as platform_midi;
 
 /// ABI newtype for MidiBackendCapabilityFlags.
 #[repr(transparent)]
@@ -57,11 +53,17 @@ impl NativeAbiCodec for MidiBackendCapabilityFlags {
 impl VmAbiCodec for MidiBackendCapabilityFlags {
     type Value = MidiBackendCapabilityFlagsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -104,11 +106,17 @@ impl NativeAbiCodec for MidiDataFormatFlags {
 impl VmAbiCodec for MidiDataFormatFlags {
     type Value = MidiDataFormatFlagsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -151,11 +159,17 @@ impl NativeAbiCodec for MidiEventSubscriptionFlags {
 impl VmAbiCodec for MidiEventSubscriptionFlags {
     type Value = MidiEventSubscriptionFlagsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -198,11 +212,17 @@ impl NativeAbiCodec for MidiPortDirectionFlags {
 impl VmAbiCodec for MidiPortDirectionFlags {
     type Value = MidiPortDirectionFlagsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -245,11 +265,17 @@ impl NativeAbiCodec for MidiPortListFlags {
 impl VmAbiCodec for MidiPortListFlags {
     type Value = MidiPortListFlagsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -292,11 +318,17 @@ impl NativeAbiCodec for MidiProtocolFlags {
 impl VmAbiCodec for MidiProtocolFlags {
     type Value = MidiProtocolFlagsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -319,8 +351,17 @@ impl VmValueCodec for BackendSupport {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Available, 1u8 => Self::UnsupportedTarget, 2u8 => Self::DisabledByBuild, 3u8 => Self::HostUnavailable,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown BackendSupport value")).boxed()),
+            0u8 => Self::Available,
+            1u8 => Self::UnsupportedTarget,
+            2u8 => Self::DisabledByBuild,
+            3u8 => Self::HostUnavailable,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BackendSupport value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -348,11 +389,17 @@ impl NativeAbiCodec for BackendSupport {
 impl VmAbiCodec for BackendSupport {
     type Value = BackendSupportValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -381,8 +428,20 @@ impl VmValueCodec for MidiBackend {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Auto, 1u8 => Self::AlsaSequencer, 2u8 => Self::JackMidi, 3u8 => Self::CoreMIDI, 4u8 => Self::WinMM, 5u8 => Self::WinRT, 255u8 => Self::Null,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown MidiBackend value")).boxed()),
+            0u8 => Self::Auto,
+            1u8 => Self::AlsaSequencer,
+            2u8 => Self::JackMidi,
+            3u8 => Self::CoreMIDI,
+            4u8 => Self::WinMM,
+            5u8 => Self::WinRT,
+            255u8 => Self::Null,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MidiBackend value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -410,11 +469,17 @@ impl NativeAbiCodec for MidiBackend {
 impl VmAbiCodec for MidiBackend {
     type Value = MidiBackendValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -433,8 +498,15 @@ impl VmValueCodec for MidiBackendSelectionPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Strict, 2u8 => Self::AllowFallback,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown MidiBackendSelectionPolicy value")).boxed()),
+            1u8 => Self::Strict,
+            2u8 => Self::AllowFallback,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MidiBackendSelectionPolicy value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -462,11 +534,17 @@ impl NativeAbiCodec for MidiBackendSelectionPolicy {
 impl VmAbiCodec for MidiBackendSelectionPolicy {
     type Value = MidiBackendSelectionPolicyValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -485,8 +563,15 @@ impl VmValueCodec for MidiDataFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Midi1Bytes, 2u8 => Self::Ump,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown MidiDataFormat value")).boxed()),
+            1u8 => Self::Midi1Bytes,
+            2u8 => Self::Ump,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MidiDataFormat value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -514,11 +599,17 @@ impl NativeAbiCodec for MidiDataFormat {
 impl VmAbiCodec for MidiDataFormat {
     type Value = MidiDataFormatValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -539,8 +630,16 @@ impl VmValueCodec for MidiEventDeliveryMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Auto, 2u8 => Self::NativeOnly, 3u8 => Self::PollOnly,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown MidiEventDeliveryMode value")).boxed()),
+            1u8 => Self::Auto,
+            2u8 => Self::NativeOnly,
+            3u8 => Self::PollOnly,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MidiEventDeliveryMode value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -568,11 +667,17 @@ impl NativeAbiCodec for MidiEventDeliveryMode {
 impl VmAbiCodec for MidiEventDeliveryMode {
     type Value = MidiEventDeliveryModeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -593,8 +698,16 @@ impl VmValueCodec for MidiEventOverflowPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::DropOldest, 2u8 => Self::DropNewest, 3u8 => Self::Error,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown MidiEventOverflowPolicy value")).boxed()),
+            1u8 => Self::DropOldest,
+            2u8 => Self::DropNewest,
+            3u8 => Self::Error,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MidiEventOverflowPolicy value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -622,11 +735,17 @@ impl NativeAbiCodec for MidiEventOverflowPolicy {
 impl VmAbiCodec for MidiEventOverflowPolicy {
     type Value = MidiEventOverflowPolicyValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -645,8 +764,15 @@ impl VmValueCodec for MidiEventSource {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Native, 2u8 => Self::SyntheticPoll,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown MidiEventSource value")).boxed()),
+            1u8 => Self::Native,
+            2u8 => Self::SyntheticPoll,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MidiEventSource value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -674,11 +800,17 @@ impl NativeAbiCodec for MidiEventSource {
 impl VmAbiCodec for MidiEventSource {
     type Value = MidiEventSourceValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -697,8 +829,15 @@ impl VmValueCodec for MidiPortDirection {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Input, 2u8 => Self::Output,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown MidiPortDirection value")).boxed()),
+            1u8 => Self::Input,
+            2u8 => Self::Output,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MidiPortDirection value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -726,11 +865,17 @@ impl NativeAbiCodec for MidiPortDirection {
 impl VmAbiCodec for MidiPortDirection {
     type Value = MidiPortDirectionValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -749,8 +894,15 @@ impl VmValueCodec for MidiProtocol {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Midi1, 2u8 => Self::Midi2,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown MidiProtocol value")).boxed()),
+            1u8 => Self::Midi1,
+            2u8 => Self::Midi2,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MidiProtocol value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -778,11 +930,17 @@ impl NativeAbiCodec for MidiProtocol {
 impl VmAbiCodec for MidiProtocol {
     type Value = MidiProtocolValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -805,8 +963,17 @@ impl VmValueCodec for MidiRecordFraming {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Complete, 2u8 => Self::Start, 3u8 => Self::Continue, 4u8 => Self::End,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown MidiRecordFraming value")).boxed()),
+            1u8 => Self::Complete,
+            2u8 => Self::Start,
+            3u8 => Self::Continue,
+            4u8 => Self::End,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MidiRecordFraming value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -834,11 +1001,17 @@ impl NativeAbiCodec for MidiRecordFraming {
 impl VmAbiCodec for MidiRecordFraming {
     type Value = MidiRecordFramingValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -866,53 +1039,109 @@ impl<A: BindingAbi> std::fmt::Debug for MidiEventAbi<A> {
 
 impl Copy for MidiEventAbi<NativeAbi> {}
 impl Clone for MidiEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiEventAbi<VmAbi> {}
 impl Clone for MidiEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            4143034202u32 => Self::MidiBackendDisconnectedEvent(<MidiBackendDisconnectedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            639313437u32 => Self::MidiPortAddedEvent(<MidiPortAddedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2166240247u32 => Self::MidiPortChangedEvent(<MidiPortChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1791639446u32 => Self::MidiPortRemovedEvent(<MidiPortRemovedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown MidiEvent tag")).boxed()),
+            4143034202u32 => Self::MidiBackendDisconnectedEvent(
+                <MidiBackendDisconnectedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            639313437u32 => Self::MidiPortAddedEvent(
+                <MidiPortAddedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            2166240247u32 => Self::MidiPortChangedEvent(
+                <MidiPortChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1791639446u32 => Self::MidiPortRemovedEvent(
+                <MidiPortRemovedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MidiEvent tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::MidiBackendDisconnectedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(4143034202u32, context)?;
-                let payload_value = <MidiBackendDisconnectedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(4143034202u32, context)?;
+                let payload_value =
+                    <MidiBackendDisconnectedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::MidiPortAddedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(639313437u32, context)?;
-                let payload_value = <MidiPortAddedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(639313437u32, context)?;
+                let payload_value =
+                    <MidiPortAddedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::MidiPortChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2166240247u32, context)?;
-                let payload_value = <MidiPortChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2166240247u32, context)?;
+                let payload_value =
+                    <MidiPortChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::MidiPortRemovedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1791639446u32, context)?;
-                let payload_value = <MidiPortRemovedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1791639446u32, context)?;
+                let payload_value =
+                    <MidiPortRemovedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
         };
@@ -938,20 +1167,40 @@ impl NativeAbiCodec for MidiEventAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::MidiBackendDisconnectedEvent(value) => MidiEventValue::MidiBackendDisconnectedEvent(unsafe { <MidiBackendDisconnectedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::MidiPortAddedEvent(value) => MidiEventValue::MidiPortAddedEvent(unsafe { <MidiPortAddedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::MidiPortChangedEvent(value) => MidiEventValue::MidiPortChangedEvent(unsafe { <MidiPortChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::MidiPortRemovedEvent(value) => MidiEventValue::MidiPortRemovedEvent(unsafe { <MidiPortRemovedEvent as NativeAbiCodec>::into_value(value)? }),
+            Self::MidiBackendDisconnectedEvent(value) => {
+                MidiEventValue::MidiBackendDisconnectedEvent(unsafe {
+                    <MidiBackendDisconnectedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::MidiPortAddedEvent(value) => MidiEventValue::MidiPortAddedEvent(unsafe {
+                <MidiPortAddedEvent as NativeAbiCodec>::into_value(value)?
+            }),
+            Self::MidiPortChangedEvent(value) => MidiEventValue::MidiPortChangedEvent(unsafe {
+                <MidiPortChangedEvent as NativeAbiCodec>::into_value(value)?
+            }),
+            Self::MidiPortRemovedEvent(value) => MidiEventValue::MidiPortRemovedEvent(unsafe {
+                <MidiPortRemovedEvent as NativeAbiCodec>::into_value(value)?
+            }),
         };
         Ok(owned)
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            MidiEventValue::MidiBackendDisconnectedEvent(value) => Self::MidiBackendDisconnectedEvent(<MidiBackendDisconnectedEvent as NativeAbiCodec>::from_value(binding, value)),
-            MidiEventValue::MidiPortAddedEvent(value) => Self::MidiPortAddedEvent(<MidiPortAddedEvent as NativeAbiCodec>::from_value(binding, value)),
-            MidiEventValue::MidiPortChangedEvent(value) => Self::MidiPortChangedEvent(<MidiPortChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            MidiEventValue::MidiPortRemovedEvent(value) => Self::MidiPortRemovedEvent(<MidiPortRemovedEvent as NativeAbiCodec>::from_value(binding, value)),
+            MidiEventValue::MidiBackendDisconnectedEvent(value) => {
+                Self::MidiBackendDisconnectedEvent(
+                    <MidiBackendDisconnectedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            MidiEventValue::MidiPortAddedEvent(value) => Self::MidiPortAddedEvent(
+                <MidiPortAddedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            MidiEventValue::MidiPortChangedEvent(value) => Self::MidiPortChangedEvent(
+                <MidiPortChangedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            MidiEventValue::MidiPortRemovedEvent(value) => Self::MidiPortRemovedEvent(
+                <MidiPortRemovedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
         }
     }
 }
@@ -959,22 +1208,48 @@ impl NativeAbiCodec for MidiEventAbi<NativeAbi> {
 impl VmAbiCodec for MidiEventAbi<VmAbi> {
     type Value = MidiEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::MidiBackendDisconnectedEvent(value) => MidiEventValue::MidiBackendDisconnectedEvent(<MidiBackendDisconnectedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::MidiPortAddedEvent(value) => MidiEventValue::MidiPortAddedEvent(<MidiPortAddedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::MidiPortChangedEvent(value) => MidiEventValue::MidiPortChangedEvent(<MidiPortChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::MidiPortRemovedEvent(value) => MidiEventValue::MidiPortRemovedEvent(<MidiPortRemovedEventVm as VmAbiCodec>::into_value(value, context)?),
+            Self::MidiBackendDisconnectedEvent(value) => {
+                MidiEventValue::MidiBackendDisconnectedEvent(
+                    <MidiBackendDisconnectedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::MidiPortAddedEvent(value) => MidiEventValue::MidiPortAddedEvent(
+                <MidiPortAddedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::MidiPortChangedEvent(value) => MidiEventValue::MidiPortChangedEvent(
+                <MidiPortChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::MidiPortRemovedEvent(value) => MidiEventValue::MidiPortRemovedEvent(
+                <MidiPortRemovedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
         };
         Ok(owned)
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         match value {
-            MidiEventValue::MidiBackendDisconnectedEvent(value) => Ok(Self::MidiBackendDisconnectedEvent(<MidiBackendDisconnectedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            MidiEventValue::MidiPortAddedEvent(value) => Ok(Self::MidiPortAddedEvent(<MidiPortAddedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            MidiEventValue::MidiPortChangedEvent(value) => Ok(Self::MidiPortChangedEvent(<MidiPortChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            MidiEventValue::MidiPortRemovedEvent(value) => Ok(Self::MidiPortRemovedEvent(<MidiPortRemovedEventVm as VmAbiCodec>::from_value(context, value)?)),
+            MidiEventValue::MidiBackendDisconnectedEvent(value) => {
+                Ok(Self::MidiBackendDisconnectedEvent(
+                    <MidiBackendDisconnectedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            MidiEventValue::MidiPortAddedEvent(value) => Ok(Self::MidiPortAddedEvent(
+                <MidiPortAddedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            MidiEventValue::MidiPortChangedEvent(value) => Ok(Self::MidiPortChangedEvent(
+                <MidiPortChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            MidiEventValue::MidiPortRemovedEvent(value) => Ok(Self::MidiPortRemovedEvent(
+                <MidiPortRemovedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
         }
     }
 }
@@ -1003,35 +1278,62 @@ pub type MidiBackendDescriptorVm = MidiBackendDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for MidiBackendDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiBackendDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiBackendDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiBackendDescriptorAbi<NativeAbi> {}
 impl Clone for MidiBackendDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiBackendDescriptorAbi<VmAbi> {}
 impl Clone for MidiBackendDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiBackendDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiBackendDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiBackendDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 7 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 7 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_support = <core::BackendSupport as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_backend =
+            <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_support =
+            <core::BackendSupport as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_priority = <u16 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_capability_flags = <MidiBackendCapabilityFlags as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_supported_data_formats = <MidiDataFormatFlags as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_supported_protocols = <MidiProtocolFlags as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_capability_flags =
+            <MidiBackendCapabilityFlags as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        let field_supported_data_formats =
+            <MidiDataFormatFlags as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_supported_protocols =
+            <MidiProtocolFlags as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
             backend: field_backend,
             name: field_name,
@@ -1043,15 +1345,27 @@ impl VmAggregateCodec for MidiBackendDescriptorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <MidiBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
             <core::BackendSupport as VmAggregateCodec>::encode_with_context(self.support, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.priority, context)?,
-            <MidiBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(self.capability_flags, context)?,
-            <MidiDataFormatFlags as VmAggregateCodec>::encode_with_context(self.supported_data_formats, context)?,
-            <MidiProtocolFlags as VmAggregateCodec>::encode_with_context(self.supported_protocols, context)?,
+            <MidiBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(
+                self.capability_flags,
+                context,
+            )?,
+            <MidiDataFormatFlags as VmAggregateCodec>::encode_with_context(
+                self.supported_data_formats,
+                context,
+            )?,
+            <MidiProtocolFlags as VmAggregateCodec>::encode_with_context(
+                self.supported_protocols,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1085,9 +1399,15 @@ impl NativeAbiCodec for MidiBackendDescriptorAbi<NativeAbi> {
             name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.name)? },
             support: unsafe { <core::BackendSupport as NativeAbiCodec>::into_value(self.support)? },
             priority: unsafe { <u16 as NativeAbiCodec>::into_value(self.priority)? },
-            capability_flags: unsafe { <MidiBackendCapabilityFlags as NativeAbiCodec>::into_value(self.capability_flags)? },
-            supported_data_formats: unsafe { <MidiDataFormatFlags as NativeAbiCodec>::into_value(self.supported_data_formats)? },
-            supported_protocols: unsafe { <MidiProtocolFlags as NativeAbiCodec>::into_value(self.supported_protocols)? },
+            capability_flags: unsafe {
+                <MidiBackendCapabilityFlags as NativeAbiCodec>::into_value(self.capability_flags)?
+            },
+            supported_data_formats: unsafe {
+                <MidiDataFormatFlags as NativeAbiCodec>::into_value(self.supported_data_formats)?
+            },
+            supported_protocols: unsafe {
+                <MidiProtocolFlags as NativeAbiCodec>::into_value(self.supported_protocols)?
+            },
         })
     }
 
@@ -1097,9 +1417,18 @@ impl NativeAbiCodec for MidiBackendDescriptorAbi<NativeAbi> {
             name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.name),
             support: <core::BackendSupport as NativeAbiCodec>::from_value(binding, value.support),
             priority: <u16 as NativeAbiCodec>::from_value(binding, value.priority),
-            capability_flags: <MidiBackendCapabilityFlags as NativeAbiCodec>::from_value(binding, value.capability_flags),
-            supported_data_formats: <MidiDataFormatFlags as NativeAbiCodec>::from_value(binding, value.supported_data_formats),
-            supported_protocols: <MidiProtocolFlags as NativeAbiCodec>::from_value(binding, value.supported_protocols),
+            capability_flags: <MidiBackendCapabilityFlags as NativeAbiCodec>::from_value(
+                binding,
+                value.capability_flags,
+            ),
+            supported_data_formats: <MidiDataFormatFlags as NativeAbiCodec>::from_value(
+                binding,
+                value.supported_data_formats,
+            ),
+            supported_protocols: <MidiProtocolFlags as NativeAbiCodec>::from_value(
+                binding,
+                value.supported_protocols,
+            ),
         }
     }
 }
@@ -1107,27 +1436,51 @@ impl NativeAbiCodec for MidiBackendDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for MidiBackendDescriptorAbi<VmAbi> {
     type Value = MidiBackendDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiBackendDescriptorValue {
             backend: <MidiBackend as VmAbiCodec>::into_value(self.backend, context)?,
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
             support: <core::BackendSupport as VmAbiCodec>::into_value(self.support, context)?,
             priority: <u16 as VmAbiCodec>::into_value(self.priority, context)?,
-            capability_flags: <MidiBackendCapabilityFlags as VmAbiCodec>::into_value(self.capability_flags, context)?,
-            supported_data_formats: <MidiDataFormatFlags as VmAbiCodec>::into_value(self.supported_data_formats, context)?,
-            supported_protocols: <MidiProtocolFlags as VmAbiCodec>::into_value(self.supported_protocols, context)?,
+            capability_flags: <MidiBackendCapabilityFlags as VmAbiCodec>::into_value(
+                self.capability_flags,
+                context,
+            )?,
+            supported_data_formats: <MidiDataFormatFlags as VmAbiCodec>::into_value(
+                self.supported_data_formats,
+                context,
+            )?,
+            supported_protocols: <MidiProtocolFlags as VmAbiCodec>::into_value(
+                self.supported_protocols,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             backend: <MidiBackend as VmAbiCodec>::from_value(context, value.backend)?,
             name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.name)?,
             support: <core::BackendSupport as VmAbiCodec>::from_value(context, value.support)?,
             priority: <u16 as VmAbiCodec>::from_value(context, value.priority)?,
-            capability_flags: <MidiBackendCapabilityFlags as VmAbiCodec>::from_value(context, value.capability_flags)?,
-            supported_data_formats: <MidiDataFormatFlags as VmAbiCodec>::from_value(context, value.supported_data_formats)?,
-            supported_protocols: <MidiProtocolFlags as VmAbiCodec>::from_value(context, value.supported_protocols)?,
+            capability_flags: <MidiBackendCapabilityFlags as VmAbiCodec>::from_value(
+                context,
+                value.capability_flags,
+            )?,
+            supported_data_formats: <MidiDataFormatFlags as VmAbiCodec>::from_value(
+                context,
+                value.supported_data_formats,
+            )?,
+            supported_protocols: <MidiProtocolFlags as VmAbiCodec>::from_value(
+                context,
+                value.supported_protocols,
+            )?,
         })
     }
 }
@@ -1148,31 +1501,55 @@ pub type MidiBackendDisconnectedEventVm = MidiBackendDisconnectedEventAbi<VmAbi>
 
 impl<A: BindingAbi> std::fmt::Debug for MidiBackendDisconnectedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiBackendDisconnectedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiBackendDisconnectedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiBackendDisconnectedEventAbi<NativeAbi> {}
 impl Clone for MidiBackendDisconnectedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiBackendDisconnectedEventAbi<VmAbi> {}
 impl Clone for MidiBackendDisconnectedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiBackendDisconnectedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiBackendDisconnectedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiBackendDisconnectedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <MidiEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <MidiBackendDisconnectedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <MidiEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <MidiBackendDisconnectedPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -1180,11 +1557,17 @@ impl VmAggregateCodec for MidiBackendDisconnectedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <MidiEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <MidiBackendDisconnectedPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <MidiBackendDisconnectedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1208,7 +1591,9 @@ impl NativeAbiCodec for MidiBackendDisconnectedEventAbi<NativeAbi> {
         Ok(MidiBackendDisconnectedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <MidiEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <MidiBackendDisconnectedPayload as NativeAbiCodec>::into_value(self.payload)? },
+            payload: unsafe {
+                <MidiBackendDisconnectedPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -1216,7 +1601,10 @@ impl NativeAbiCodec for MidiBackendDisconnectedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <MidiEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <MidiBackendDisconnectedPayload as NativeAbiCodec>::from_value(binding, value.payload),
+            payload: <MidiBackendDisconnectedPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
         }
     }
 }
@@ -1224,19 +1612,31 @@ impl NativeAbiCodec for MidiBackendDisconnectedEventAbi<NativeAbi> {
 impl VmAbiCodec for MidiBackendDisconnectedEventAbi<VmAbi> {
     type Value = MidiBackendDisconnectedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiBackendDisconnectedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <MidiEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <MidiBackendDisconnectedPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
+            payload: <MidiBackendDisconnectedPayloadVm as VmAbiCodec>::into_value(
+                self.payload,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <MidiEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <MidiBackendDisconnectedPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
+            payload: <MidiBackendDisconnectedPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
         })
     }
 }
@@ -1252,24 +1652,38 @@ pub struct MidiBackendDisconnectedPayload {
 pub type MidiBackendDisconnectedPayloadVm = MidiBackendDisconnectedPayload;
 
 impl VmAggregateCodec for MidiBackendDisconnectedPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiBackendDisconnectedPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiBackendDisconnectedPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 1 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
         }
         let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self {
-            flags: field_flags,
-        })
+        Ok(Self { flags: field_flags })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-        ];
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<u32 as VmAggregateCodec>::encode_with_context(
+            self.flags, context,
+        )?];
         Ok(context.allocate_aggregate(slots))
     }
 }
@@ -1292,11 +1706,17 @@ impl NativeAbiCodec for MidiBackendDisconnectedPayload {
 impl VmAbiCodec for MidiBackendDisconnectedPayload {
     type Value = MidiBackendDisconnectedPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1320,19 +1740,35 @@ pub struct MidiEventMetadata {
 pub type MidiEventMetadataVm = MidiEventMetadata;
 
 impl VmAggregateCodec for MidiEventMetadata {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiEventMetadata")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiEventMetadata",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
         let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_dropped_count = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_source = <MidiEventSource as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_backend = <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_dropped_count =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_source =
+            <MidiEventSource as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_backend =
+            <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -1342,7 +1778,10 @@ impl VmAggregateCodec for MidiEventMetadata {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
@@ -1372,11 +1811,17 @@ impl NativeAbiCodec for MidiEventMetadata {
 impl VmAbiCodec for MidiEventMetadata {
     type Value = MidiEventMetadataValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1407,22 +1852,46 @@ pub struct MidiEventSubscriptionOptions {
 pub type MidiEventSubscriptionOptionsVm = MidiEventSubscriptionOptions;
 
 impl VmAggregateCodec for MidiEventSubscriptionOptions {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiEventSubscriptionOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiEventSubscriptionOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 8 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 8 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 8 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_policy = <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_flags = <MidiEventSubscriptionFlags as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_direction_mask = <MidiPortDirectionFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_delivery_mode = <MidiEventDeliveryMode as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_overflow_policy = <MidiEventOverflowPolicy as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_queue_capacity = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_poll_interval_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_backend =
+            <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_flags = <MidiEventSubscriptionFlags as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        let field_direction_mask =
+            <MidiPortDirectionFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_delivery_mode =
+            <MidiEventDeliveryMode as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_overflow_policy =
+            <MidiEventOverflowPolicy as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_queue_capacity =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_poll_interval_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -1435,14 +1904,31 @@ impl VmAggregateCodec for MidiEventSubscriptionOptions {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <MidiBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(self.backend_policy, context)?,
-            <MidiEventSubscriptionFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-            <MidiPortDirectionFlags as VmAggregateCodec>::encode_with_context(self.direction_mask, context)?,
-            <MidiEventDeliveryMode as VmAggregateCodec>::encode_with_context(self.delivery_mode, context)?,
-            <MidiEventOverflowPolicy as VmAggregateCodec>::encode_with_context(self.overflow_policy, context)?,
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
+            <MidiEventSubscriptionFlags as VmAggregateCodec>::encode_with_context(
+                self.flags, context,
+            )?,
+            <MidiPortDirectionFlags as VmAggregateCodec>::encode_with_context(
+                self.direction_mask,
+                context,
+            )?,
+            <MidiEventDeliveryMode as VmAggregateCodec>::encode_with_context(
+                self.delivery_mode,
+                context,
+            )?,
+            <MidiEventOverflowPolicy as VmAggregateCodec>::encode_with_context(
+                self.overflow_policy,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.poll_interval_ns, context)?,
         ];
@@ -1468,11 +1954,17 @@ impl NativeAbiCodec for MidiEventSubscriptionOptions {
 impl VmAbiCodec for MidiEventSubscriptionOptions {
     type Value = MidiEventSubscriptionOptionsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1497,19 +1989,39 @@ pub struct MidiInputPortOpenOptions {
 pub type MidiInputPortOpenOptionsVm = MidiInputPortOpenOptions;
 
 impl VmAggregateCodec for MidiInputPortOpenOptions {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiInputPortOpenOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiInputPortOpenOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_policy = <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_data_format = <Option<MidiDataFormat> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_protocol = <Option<MidiProtocol> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_queue_capacity = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_backend =
+            <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_data_format =
+            <Option<MidiDataFormat> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_protocol =
+            <Option<MidiProtocol> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_queue_capacity =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -1519,12 +2031,24 @@ impl VmAggregateCodec for MidiInputPortOpenOptions {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <MidiBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(self.backend_policy, context)?,
-            <Option<MidiDataFormat> as VmAggregateCodec>::encode_with_context(self.data_format, context)?,
-            <Option<MidiProtocol> as VmAggregateCodec>::encode_with_context(self.protocol, context)?,
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
+            <Option<MidiDataFormat> as VmAggregateCodec>::encode_with_context(
+                self.data_format,
+                context,
+            )?,
+            <Option<MidiProtocol> as VmAggregateCodec>::encode_with_context(
+                self.protocol,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -1549,11 +2073,17 @@ impl NativeAbiCodec for MidiInputPortOpenOptions {
 impl VmAbiCodec for MidiInputPortOpenOptions {
     type Value = MidiInputPortOpenOptionsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1584,33 +2114,57 @@ pub type MidiInputRecordVm = MidiInputRecordAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for MidiInputRecordAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiInputRecordAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiInputRecordAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiInputRecordAbi<NativeAbi> {}
 impl Clone for MidiInputRecordAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiInputRecordAbi<VmAbi> {}
 impl Clone for MidiInputRecordAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiInputRecordAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiInputRecord")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiInputRecord",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 6 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 6 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
         }
-        let field_received_at_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_source_id = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_data_format = <MidiDataFormat as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_protocol = <Option<MidiProtocol> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_framing = <MidiRecordFraming as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_received_at_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_source_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_data_format =
+            <MidiDataFormat as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_protocol =
+            <Option<MidiProtocol> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_framing =
+            <MidiRecordFraming as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_data = <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         Ok(Self {
             received_at_ns: field_received_at_ns,
@@ -1622,12 +2176,21 @@ impl VmAggregateCodec for MidiInputRecordAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.received_at_ns, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.source_id, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.source_id,
+                context,
+            )?,
             <MidiDataFormat as VmAggregateCodec>::encode_with_context(self.data_format, context)?,
-            <Option<MidiProtocol> as VmAggregateCodec>::encode_with_context(self.protocol, context)?,
+            <Option<MidiProtocol> as VmAggregateCodec>::encode_with_context(
+                self.protocol,
+                context,
+            )?,
             <MidiRecordFraming as VmAggregateCodec>::encode_with_context(self.framing, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
@@ -1662,9 +2225,15 @@ impl NativeAbiCodec for MidiInputRecordAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(MidiInputRecordValue {
             received_at_ns: unsafe { <u64 as NativeAbiCodec>::into_value(self.received_at_ns)? },
-            source_id: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.source_id)? },
-            data_format: unsafe { <MidiDataFormat as NativeAbiCodec>::into_value(self.data_format)? },
-            protocol: unsafe { <Option<MidiProtocol> as NativeAbiCodec>::into_value(self.protocol)? },
+            source_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.source_id)?
+            },
+            data_format: unsafe {
+                <MidiDataFormat as NativeAbiCodec>::into_value(self.data_format)?
+            },
+            protocol: unsafe {
+                <Option<MidiProtocol> as NativeAbiCodec>::into_value(self.protocol)?
+            },
             framing: unsafe { <MidiRecordFraming as NativeAbiCodec>::into_value(self.framing)? },
             data: unsafe { <NativeSlice<u8> as NativeAbiCodec>::into_value(self.data)? },
         })
@@ -1673,7 +2242,10 @@ impl NativeAbiCodec for MidiInputRecordAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             received_at_ns: <u64 as NativeAbiCodec>::from_value(binding, value.received_at_ns),
-            source_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.source_id),
+            source_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.source_id,
+            ),
             data_format: <MidiDataFormat as NativeAbiCodec>::from_value(binding, value.data_format),
             protocol: <Option<MidiProtocol> as NativeAbiCodec>::from_value(binding, value.protocol),
             framing: <MidiRecordFraming as NativeAbiCodec>::from_value(binding, value.framing),
@@ -1685,10 +2257,16 @@ impl NativeAbiCodec for MidiInputRecordAbi<NativeAbi> {
 impl VmAbiCodec for MidiInputRecordAbi<VmAbi> {
     type Value = MidiInputRecordValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiInputRecordValue {
             received_at_ns: <u64 as VmAbiCodec>::into_value(self.received_at_ns, context)?,
-            source_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.source_id, context)?,
+            source_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.source_id,
+                context,
+            )?,
             data_format: <MidiDataFormat as VmAbiCodec>::into_value(self.data_format, context)?,
             protocol: <Option<MidiProtocol> as VmAbiCodec>::into_value(self.protocol, context)?,
             framing: <MidiRecordFraming as VmAbiCodec>::into_value(self.framing, context)?,
@@ -1696,10 +2274,16 @@ impl VmAbiCodec for MidiInputRecordAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             received_at_ns: <u64 as VmAbiCodec>::from_value(context, value.received_at_ns)?,
-            source_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.source_id)?,
+            source_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.source_id,
+            )?,
             data_format: <MidiDataFormat as VmAbiCodec>::from_value(context, value.data_format)?,
             protocol: <Option<MidiProtocol> as VmAbiCodec>::from_value(context, value.protocol)?,
             framing: <MidiRecordFraming as VmAbiCodec>::from_value(context, value.framing)?,
@@ -1726,18 +2310,37 @@ pub struct MidiOutputPortOpenOptions {
 pub type MidiOutputPortOpenOptionsVm = MidiOutputPortOpenOptions;
 
 impl VmAggregateCodec for MidiOutputPortOpenOptions {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiOutputPortOpenOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiOutputPortOpenOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_policy = <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_data_format = <Option<MidiDataFormat> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_protocol = <Option<MidiProtocol> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_backend =
+            <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_data_format =
+            <Option<MidiDataFormat> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_protocol =
+            <Option<MidiProtocol> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -1746,12 +2349,24 @@ impl VmAggregateCodec for MidiOutputPortOpenOptions {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <MidiBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(self.backend_policy, context)?,
-            <Option<MidiDataFormat> as VmAggregateCodec>::encode_with_context(self.data_format, context)?,
-            <Option<MidiProtocol> as VmAggregateCodec>::encode_with_context(self.protocol, context)?,
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
+            <Option<MidiDataFormat> as VmAggregateCodec>::encode_with_context(
+                self.data_format,
+                context,
+            )?,
+            <Option<MidiProtocol> as VmAggregateCodec>::encode_with_context(
+                self.protocol,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1775,11 +2390,17 @@ impl NativeAbiCodec for MidiOutputPortOpenOptions {
 impl VmAbiCodec for MidiOutputPortOpenOptions {
     type Value = MidiOutputPortOpenOptionsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1808,32 +2429,55 @@ pub type MidiOutputRecordVm = MidiOutputRecordAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for MidiOutputRecordAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiOutputRecordAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiOutputRecordAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiOutputRecordAbi<NativeAbi> {}
 impl Clone for MidiOutputRecordAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiOutputRecordAbi<VmAbi> {}
 impl Clone for MidiOutputRecordAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiOutputRecordAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiOutputRecord")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiOutputRecord",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_send_at_ns = <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_data_format = <MidiDataFormat as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_protocol = <Option<MidiProtocol> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_framing = <MidiRecordFraming as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_send_at_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_data_format =
+            <MidiDataFormat as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_protocol =
+            <Option<MidiProtocol> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_framing =
+            <MidiRecordFraming as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_data = <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             send_at_ns: field_send_at_ns,
@@ -1844,11 +2488,17 @@ impl VmAggregateCodec for MidiOutputRecordAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.send_at_ns, context)?,
             <MidiDataFormat as VmAggregateCodec>::encode_with_context(self.data_format, context)?,
-            <Option<MidiProtocol> as VmAggregateCodec>::encode_with_context(self.protocol, context)?,
+            <Option<MidiProtocol> as VmAggregateCodec>::encode_with_context(
+                self.protocol,
+                context,
+            )?,
             <MidiRecordFraming as VmAggregateCodec>::encode_with_context(self.framing, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
@@ -1881,8 +2531,12 @@ impl NativeAbiCodec for MidiOutputRecordAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(MidiOutputRecordValue {
             send_at_ns: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.send_at_ns)? },
-            data_format: unsafe { <MidiDataFormat as NativeAbiCodec>::into_value(self.data_format)? },
-            protocol: unsafe { <Option<MidiProtocol> as NativeAbiCodec>::into_value(self.protocol)? },
+            data_format: unsafe {
+                <MidiDataFormat as NativeAbiCodec>::into_value(self.data_format)?
+            },
+            protocol: unsafe {
+                <Option<MidiProtocol> as NativeAbiCodec>::into_value(self.protocol)?
+            },
             framing: unsafe { <MidiRecordFraming as NativeAbiCodec>::into_value(self.framing)? },
             data: unsafe { <NativeSlice<u8> as NativeAbiCodec>::into_value(self.data)? },
         })
@@ -1902,7 +2556,10 @@ impl NativeAbiCodec for MidiOutputRecordAbi<NativeAbi> {
 impl VmAbiCodec for MidiOutputRecordAbi<VmAbi> {
     type Value = MidiOutputRecordValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiOutputRecordValue {
             send_at_ns: <Option<u64> as VmAbiCodec>::into_value(self.send_at_ns, context)?,
             data_format: <MidiDataFormat as VmAbiCodec>::into_value(self.data_format, context)?,
@@ -1912,7 +2569,10 @@ impl VmAbiCodec for MidiOutputRecordAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             send_at_ns: <Option<u64> as VmAbiCodec>::from_value(context, value.send_at_ns)?,
             data_format: <MidiDataFormat as VmAbiCodec>::from_value(context, value.data_format)?,
@@ -1939,31 +2599,53 @@ pub type MidiPortAddedEventVm = MidiPortAddedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for MidiPortAddedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiPortAddedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiPortAddedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiPortAddedEventAbi<NativeAbi> {}
 impl Clone for MidiPortAddedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiPortAddedEventAbi<VmAbi> {}
 impl Clone for MidiPortAddedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiPortAddedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiPortAddedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiPortAddedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <MidiEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <MidiPortAddedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <MidiEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <MidiPortAddedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -1971,11 +2653,17 @@ impl VmAggregateCodec for MidiPortAddedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <MidiEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <MidiPortAddedPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <MidiPortAddedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2015,7 +2703,10 @@ impl NativeAbiCodec for MidiPortAddedEventAbi<NativeAbi> {
 impl VmAbiCodec for MidiPortAddedEventAbi<VmAbi> {
     type Value = MidiPortAddedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiPortAddedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <MidiEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -2023,7 +2714,10 @@ impl VmAbiCodec for MidiPortAddedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <MidiEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -2046,40 +2740,67 @@ pub type MidiPortAddedPayloadVm = MidiPortAddedPayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for MidiPortAddedPayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiPortAddedPayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiPortAddedPayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiPortAddedPayloadAbi<NativeAbi> {}
 impl Clone for MidiPortAddedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiPortAddedPayloadAbi<VmAbi> {}
 impl Clone for MidiPortAddedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiPortAddedPayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiPortAddedPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiPortAddedPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_direction = <MidiPortDirection as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_descriptor = <MidiPortDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_direction =
+            <MidiPortDirection as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_descriptor =
+            <MidiPortDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             direction: field_direction,
             descriptor: field_descriptor,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <MidiPortDirection as VmAggregateCodec>::encode_with_context(self.direction, context)?,
-            <MidiPortDescriptorVm as VmAggregateCodec>::encode_with_context(self.descriptor, context)?,
+            <MidiPortDescriptorVm as VmAggregateCodec>::encode_with_context(
+                self.descriptor,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2099,15 +2820,22 @@ impl NativeAbiCodec for MidiPortAddedPayloadAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(MidiPortAddedPayloadValue {
-            direction: unsafe { <MidiPortDirection as NativeAbiCodec>::into_value(self.direction)? },
-            descriptor: unsafe { <MidiPortDescriptor as NativeAbiCodec>::into_value(self.descriptor)? },
+            direction: unsafe {
+                <MidiPortDirection as NativeAbiCodec>::into_value(self.direction)?
+            },
+            descriptor: unsafe {
+                <MidiPortDescriptor as NativeAbiCodec>::into_value(self.descriptor)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             direction: <MidiPortDirection as NativeAbiCodec>::from_value(binding, value.direction),
-            descriptor: <MidiPortDescriptor as NativeAbiCodec>::from_value(binding, value.descriptor),
+            descriptor: <MidiPortDescriptor as NativeAbiCodec>::from_value(
+                binding,
+                value.descriptor,
+            ),
         }
     }
 }
@@ -2115,17 +2843,26 @@ impl NativeAbiCodec for MidiPortAddedPayloadAbi<NativeAbi> {
 impl VmAbiCodec for MidiPortAddedPayloadAbi<VmAbi> {
     type Value = MidiPortAddedPayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiPortAddedPayloadValue {
             direction: <MidiPortDirection as VmAbiCodec>::into_value(self.direction, context)?,
             descriptor: <MidiPortDescriptorVm as VmAbiCodec>::into_value(self.descriptor, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             direction: <MidiPortDirection as VmAbiCodec>::from_value(context, value.direction)?,
-            descriptor: <MidiPortDescriptorVm as VmAbiCodec>::from_value(context, value.descriptor)?,
+            descriptor: <MidiPortDescriptorVm as VmAbiCodec>::from_value(
+                context,
+                value.descriptor,
+            )?,
         })
     }
 }
@@ -2146,31 +2883,53 @@ pub type MidiPortChangedEventVm = MidiPortChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for MidiPortChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiPortChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiPortChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiPortChangedEventAbi<NativeAbi> {}
 impl Clone for MidiPortChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiPortChangedEventAbi<VmAbi> {}
 impl Clone for MidiPortChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiPortChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiPortChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiPortChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <MidiEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <MidiPortChangedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <MidiEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <MidiPortChangedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -2178,11 +2937,17 @@ impl VmAggregateCodec for MidiPortChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <MidiEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <MidiPortChangedPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <MidiPortChangedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2206,7 +2971,9 @@ impl NativeAbiCodec for MidiPortChangedEventAbi<NativeAbi> {
         Ok(MidiPortChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <MidiEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <MidiPortChangedPayload as NativeAbiCodec>::into_value(self.payload)? },
+            payload: unsafe {
+                <MidiPortChangedPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -2222,7 +2989,10 @@ impl NativeAbiCodec for MidiPortChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for MidiPortChangedEventAbi<VmAbi> {
     type Value = MidiPortChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiPortChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <MidiEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -2230,7 +3000,10 @@ impl VmAbiCodec for MidiPortChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <MidiEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -2253,40 +3026,67 @@ pub type MidiPortChangedPayloadVm = MidiPortChangedPayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for MidiPortChangedPayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiPortChangedPayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiPortChangedPayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiPortChangedPayloadAbi<NativeAbi> {}
 impl Clone for MidiPortChangedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiPortChangedPayloadAbi<VmAbi> {}
 impl Clone for MidiPortChangedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiPortChangedPayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiPortChangedPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiPortChangedPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_direction = <MidiPortDirection as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_descriptor = <MidiPortDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_direction =
+            <MidiPortDirection as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_descriptor =
+            <MidiPortDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             direction: field_direction,
             descriptor: field_descriptor,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <MidiPortDirection as VmAggregateCodec>::encode_with_context(self.direction, context)?,
-            <MidiPortDescriptorVm as VmAggregateCodec>::encode_with_context(self.descriptor, context)?,
+            <MidiPortDescriptorVm as VmAggregateCodec>::encode_with_context(
+                self.descriptor,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2306,15 +3106,22 @@ impl NativeAbiCodec for MidiPortChangedPayloadAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(MidiPortChangedPayloadValue {
-            direction: unsafe { <MidiPortDirection as NativeAbiCodec>::into_value(self.direction)? },
-            descriptor: unsafe { <MidiPortDescriptor as NativeAbiCodec>::into_value(self.descriptor)? },
+            direction: unsafe {
+                <MidiPortDirection as NativeAbiCodec>::into_value(self.direction)?
+            },
+            descriptor: unsafe {
+                <MidiPortDescriptor as NativeAbiCodec>::into_value(self.descriptor)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             direction: <MidiPortDirection as NativeAbiCodec>::from_value(binding, value.direction),
-            descriptor: <MidiPortDescriptor as NativeAbiCodec>::from_value(binding, value.descriptor),
+            descriptor: <MidiPortDescriptor as NativeAbiCodec>::from_value(
+                binding,
+                value.descriptor,
+            ),
         }
     }
 }
@@ -2322,17 +3129,26 @@ impl NativeAbiCodec for MidiPortChangedPayloadAbi<NativeAbi> {
 impl VmAbiCodec for MidiPortChangedPayloadAbi<VmAbi> {
     type Value = MidiPortChangedPayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiPortChangedPayloadValue {
             direction: <MidiPortDirection as VmAbiCodec>::into_value(self.direction, context)?,
             descriptor: <MidiPortDescriptorVm as VmAbiCodec>::into_value(self.descriptor, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             direction: <MidiPortDirection as VmAbiCodec>::from_value(context, value.direction)?,
-            descriptor: <MidiPortDescriptorVm as VmAbiCodec>::from_value(context, value.descriptor)?,
+            descriptor: <MidiPortDescriptorVm as VmAbiCodec>::from_value(
+                context,
+                value.descriptor,
+            )?,
         })
     }
 }
@@ -2379,43 +3195,76 @@ pub type MidiPortDescriptorVm = MidiPortDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for MidiPortDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiPortDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiPortDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiPortDescriptorAbi<NativeAbi> {}
 impl Clone for MidiPortDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiPortDescriptorAbi<VmAbi> {}
 impl Clone for MidiPortDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiPortDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiPortDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiPortDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 15 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 15 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 15 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_group_id = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_backend_id = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_group_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_manufacturer = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_model = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_version = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_supported_data_formats = <MidiDataFormatFlags as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_default_data_format = <Option<MidiDataFormat> as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_supported_protocols = <MidiProtocolFlags as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_default_protocol = <Option<MidiProtocol> as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_backend =
+            <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_group_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_backend_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_group_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_manufacturer =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_model =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_version =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_supported_data_formats =
+            <MidiDataFormatFlags as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_default_data_format =
+            <Option<MidiDataFormat> as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_supported_protocols =
+            <MidiProtocolFlags as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_default_protocol =
+            <Option<MidiProtocol> as VmAggregateCodec>::decode_with_context(context, slots[12])?;
         let field_is_virtual = <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_is_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_is_connected =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
         Ok(Self {
             backend: field_backend,
             id: field_id,
@@ -2435,21 +3284,53 @@ impl VmAggregateCodec for MidiPortDescriptorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <MidiBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.group_id, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.backend_id, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.group_id,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.backend_id,
+                context,
+            )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.group_name, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.manufacturer, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.model, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.version, context)?,
-            <MidiDataFormatFlags as VmAggregateCodec>::encode_with_context(self.supported_data_formats, context)?,
-            <Option<MidiDataFormat> as VmAggregateCodec>::encode_with_context(self.default_data_format, context)?,
-            <MidiProtocolFlags as VmAggregateCodec>::encode_with_context(self.supported_protocols, context)?,
-            <Option<MidiProtocol> as VmAggregateCodec>::encode_with_context(self.default_protocol, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.group_name,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.manufacturer,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.model, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.version,
+                context,
+            )?,
+            <MidiDataFormatFlags as VmAggregateCodec>::encode_with_context(
+                self.supported_data_formats,
+                context,
+            )?,
+            <Option<MidiDataFormat> as VmAggregateCodec>::encode_with_context(
+                self.default_data_format,
+                context,
+            )?,
+            <MidiProtocolFlags as VmAggregateCodec>::encode_with_context(
+                self.supported_protocols,
+                context,
+            )?,
+            <Option<MidiProtocol> as VmAggregateCodec>::encode_with_context(
+                self.default_protocol,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_virtual, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_connected, context)?,
         ];
@@ -2501,17 +3382,35 @@ impl NativeAbiCodec for MidiPortDescriptorAbi<NativeAbi> {
         Ok(MidiPortDescriptorValue {
             backend: unsafe { <MidiBackend as NativeAbiCodec>::into_value(self.backend)? },
             id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.id)? },
-            group_id: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.group_id)? },
-            backend_id: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.backend_id)? },
+            group_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.group_id)?
+            },
+            backend_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.backend_id)?
+            },
             name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.name)? },
-            group_name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.group_name)? },
-            manufacturer: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)? },
+            group_name: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.group_name)?
+            },
+            manufacturer: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)?
+            },
             model: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.model)? },
-            version: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.version)? },
-            supported_data_formats: unsafe { <MidiDataFormatFlags as NativeAbiCodec>::into_value(self.supported_data_formats)? },
-            default_data_format: unsafe { <Option<MidiDataFormat> as NativeAbiCodec>::into_value(self.default_data_format)? },
-            supported_protocols: unsafe { <MidiProtocolFlags as NativeAbiCodec>::into_value(self.supported_protocols)? },
-            default_protocol: unsafe { <Option<MidiProtocol> as NativeAbiCodec>::into_value(self.default_protocol)? },
+            version: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.version)?
+            },
+            supported_data_formats: unsafe {
+                <MidiDataFormatFlags as NativeAbiCodec>::into_value(self.supported_data_formats)?
+            },
+            default_data_format: unsafe {
+                <Option<MidiDataFormat> as NativeAbiCodec>::into_value(self.default_data_format)?
+            },
+            supported_protocols: unsafe {
+                <MidiProtocolFlags as NativeAbiCodec>::into_value(self.supported_protocols)?
+            },
+            default_protocol: unsafe {
+                <Option<MidiProtocol> as NativeAbiCodec>::into_value(self.default_protocol)?
+            },
             is_virtual: unsafe { <bool as NativeAbiCodec>::into_value(self.is_virtual)? },
             is_connected: unsafe { <bool as NativeAbiCodec>::into_value(self.is_connected)? },
         })
@@ -2521,17 +3420,44 @@ impl NativeAbiCodec for MidiPortDescriptorAbi<NativeAbi> {
         Self {
             backend: <MidiBackend as NativeAbiCodec>::from_value(binding, value.backend),
             id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.id),
-            group_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.group_id),
-            backend_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.backend_id),
+            group_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.group_id,
+            ),
+            backend_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.backend_id,
+            ),
             name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.name),
-            group_name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.group_name),
-            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.manufacturer),
+            group_name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.group_name,
+            ),
+            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.manufacturer,
+            ),
             model: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.model),
-            version: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.version),
-            supported_data_formats: <MidiDataFormatFlags as NativeAbiCodec>::from_value(binding, value.supported_data_formats),
-            default_data_format: <Option<MidiDataFormat> as NativeAbiCodec>::from_value(binding, value.default_data_format),
-            supported_protocols: <MidiProtocolFlags as NativeAbiCodec>::from_value(binding, value.supported_protocols),
-            default_protocol: <Option<MidiProtocol> as NativeAbiCodec>::from_value(binding, value.default_protocol),
+            version: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.version,
+            ),
+            supported_data_formats: <MidiDataFormatFlags as NativeAbiCodec>::from_value(
+                binding,
+                value.supported_data_formats,
+            ),
+            default_data_format: <Option<MidiDataFormat> as NativeAbiCodec>::from_value(
+                binding,
+                value.default_data_format,
+            ),
+            supported_protocols: <MidiProtocolFlags as NativeAbiCodec>::from_value(
+                binding,
+                value.supported_protocols,
+            ),
+            default_protocol: <Option<MidiProtocol> as NativeAbiCodec>::from_value(
+                binding,
+                value.default_protocol,
+            ),
             is_virtual: <bool as NativeAbiCodec>::from_value(binding, value.is_virtual),
             is_connected: <bool as NativeAbiCodec>::from_value(binding, value.is_connected),
         }
@@ -2541,41 +3467,92 @@ impl NativeAbiCodec for MidiPortDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for MidiPortDescriptorAbi<VmAbi> {
     type Value = MidiPortDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiPortDescriptorValue {
             backend: <MidiBackend as VmAbiCodec>::into_value(self.backend, context)?,
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
             group_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.group_id, context)?,
-            backend_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.backend_id, context)?,
+            backend_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.backend_id,
+                context,
+            )?,
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
-            group_name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.group_name, context)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.manufacturer, context)?,
+            group_name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.group_name,
+                context,
+            )?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.manufacturer,
+                context,
+            )?,
             model: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.model, context)?,
             version: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.version, context)?,
-            supported_data_formats: <MidiDataFormatFlags as VmAbiCodec>::into_value(self.supported_data_formats, context)?,
-            default_data_format: <Option<MidiDataFormat> as VmAbiCodec>::into_value(self.default_data_format, context)?,
-            supported_protocols: <MidiProtocolFlags as VmAbiCodec>::into_value(self.supported_protocols, context)?,
-            default_protocol: <Option<MidiProtocol> as VmAbiCodec>::into_value(self.default_protocol, context)?,
+            supported_data_formats: <MidiDataFormatFlags as VmAbiCodec>::into_value(
+                self.supported_data_formats,
+                context,
+            )?,
+            default_data_format: <Option<MidiDataFormat> as VmAbiCodec>::into_value(
+                self.default_data_format,
+                context,
+            )?,
+            supported_protocols: <MidiProtocolFlags as VmAbiCodec>::into_value(
+                self.supported_protocols,
+                context,
+            )?,
+            default_protocol: <Option<MidiProtocol> as VmAbiCodec>::into_value(
+                self.default_protocol,
+                context,
+            )?,
             is_virtual: <bool as VmAbiCodec>::into_value(self.is_virtual, context)?,
             is_connected: <bool as VmAbiCodec>::into_value(self.is_connected, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             backend: <MidiBackend as VmAbiCodec>::from_value(context, value.backend)?,
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
-            group_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.group_id)?,
-            backend_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.backend_id)?,
+            group_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.group_id,
+            )?,
+            backend_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.backend_id,
+            )?,
             name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.name)?,
-            group_name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.group_name)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.manufacturer)?,
+            group_name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.group_name,
+            )?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.manufacturer,
+            )?,
             model: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.model)?,
             version: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.version)?,
-            supported_data_formats: <MidiDataFormatFlags as VmAbiCodec>::from_value(context, value.supported_data_formats)?,
-            default_data_format: <Option<MidiDataFormat> as VmAbiCodec>::from_value(context, value.default_data_format)?,
-            supported_protocols: <MidiProtocolFlags as VmAbiCodec>::from_value(context, value.supported_protocols)?,
-            default_protocol: <Option<MidiProtocol> as VmAbiCodec>::from_value(context, value.default_protocol)?,
+            supported_data_formats: <MidiDataFormatFlags as VmAbiCodec>::from_value(
+                context,
+                value.supported_data_formats,
+            )?,
+            default_data_format: <Option<MidiDataFormat> as VmAbiCodec>::from_value(
+                context,
+                value.default_data_format,
+            )?,
+            supported_protocols: <MidiProtocolFlags as VmAbiCodec>::from_value(
+                context,
+                value.supported_protocols,
+            )?,
+            default_protocol: <Option<MidiProtocol> as VmAbiCodec>::from_value(
+                context,
+                value.default_protocol,
+            )?,
             is_virtual: <bool as VmAbiCodec>::from_value(context, value.is_virtual)?,
             is_connected: <bool as VmAbiCodec>::from_value(context, value.is_connected)?,
         })
@@ -2597,17 +3574,35 @@ pub struct MidiPortListOptions {
 pub type MidiPortListOptionsVm = MidiPortListOptions;
 
 impl VmAggregateCodec for MidiPortListOptions {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiPortListOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiPortListOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_policy = <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_flags = <MidiPortListFlags as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_backend =
+            <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_flags =
+            <MidiPortListFlags as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -2615,10 +3610,16 @@ impl VmAggregateCodec for MidiPortListOptions {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <MidiBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(self.backend_policy, context)?,
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
             <MidiPortListFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -2643,11 +3644,17 @@ impl NativeAbiCodec for MidiPortListOptions {
 impl VmAbiCodec for MidiPortListOptions {
     type Value = MidiPortListOptionsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -2668,31 +3675,53 @@ pub type MidiPortRemovedEventVm = MidiPortRemovedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for MidiPortRemovedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiPortRemovedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiPortRemovedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiPortRemovedEventAbi<NativeAbi> {}
 impl Clone for MidiPortRemovedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiPortRemovedEventAbi<VmAbi> {}
 impl Clone for MidiPortRemovedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiPortRemovedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiPortRemovedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiPortRemovedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <MidiEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <MidiPortRemovedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <MidiEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <MidiPortRemovedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -2700,11 +3729,17 @@ impl VmAggregateCodec for MidiPortRemovedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <MidiEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <MidiPortRemovedPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <MidiPortRemovedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2728,7 +3763,9 @@ impl NativeAbiCodec for MidiPortRemovedEventAbi<NativeAbi> {
         Ok(MidiPortRemovedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <MidiEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <MidiPortRemovedPayload as NativeAbiCodec>::into_value(self.payload)? },
+            payload: unsafe {
+                <MidiPortRemovedPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -2744,7 +3781,10 @@ impl NativeAbiCodec for MidiPortRemovedEventAbi<NativeAbi> {
 impl VmAbiCodec for MidiPortRemovedEventAbi<VmAbi> {
     type Value = MidiPortRemovedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiPortRemovedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <MidiEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -2752,7 +3792,10 @@ impl VmAbiCodec for MidiPortRemovedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <MidiEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -2777,31 +3820,53 @@ pub type MidiPortRemovedPayloadVm = MidiPortRemovedPayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for MidiPortRemovedPayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiPortRemovedPayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiPortRemovedPayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiPortRemovedPayloadAbi<NativeAbi> {}
 impl Clone for MidiPortRemovedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiPortRemovedPayloadAbi<VmAbi> {}
 impl Clone for MidiPortRemovedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiPortRemovedPayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiPortRemovedPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiPortRemovedPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_direction = <MidiPortDirection as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_group_id = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_direction =
+            <MidiPortDirection as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_group_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             direction: field_direction,
             id: field_id,
@@ -2809,11 +3874,17 @@ impl VmAggregateCodec for MidiPortRemovedPayloadAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <MidiPortDirection as VmAggregateCodec>::encode_with_context(self.direction, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.group_id, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.group_id,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2835,9 +3906,13 @@ impl NativeAbiCodec for MidiPortRemovedPayloadAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(MidiPortRemovedPayloadValue {
-            direction: unsafe { <MidiPortDirection as NativeAbiCodec>::into_value(self.direction)? },
+            direction: unsafe {
+                <MidiPortDirection as NativeAbiCodec>::into_value(self.direction)?
+            },
             id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.id)? },
-            group_id: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.group_id)? },
+            group_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.group_id)?
+            },
         })
     }
 
@@ -2845,7 +3920,10 @@ impl NativeAbiCodec for MidiPortRemovedPayloadAbi<NativeAbi> {
         Self {
             direction: <MidiPortDirection as NativeAbiCodec>::from_value(binding, value.direction),
             id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.id),
-            group_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.group_id),
+            group_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.group_id,
+            ),
         }
     }
 }
@@ -2853,7 +3931,10 @@ impl NativeAbiCodec for MidiPortRemovedPayloadAbi<NativeAbi> {
 impl VmAbiCodec for MidiPortRemovedPayloadAbi<VmAbi> {
     type Value = MidiPortRemovedPayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiPortRemovedPayloadValue {
             direction: <MidiPortDirection as VmAbiCodec>::into_value(self.direction, context)?,
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
@@ -2861,11 +3942,17 @@ impl VmAbiCodec for MidiPortRemovedPayloadAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             direction: <MidiPortDirection as VmAbiCodec>::from_value(context, value.direction)?,
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
-            group_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.group_id)?,
+            group_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.group_id,
+            )?,
         })
     }
 }
@@ -2899,37 +3986,67 @@ pub type MidiVirtualInputCreateOptionsVm = MidiVirtualInputCreateOptionsAbi<VmAb
 
 impl<A: BindingAbi> std::fmt::Debug for MidiVirtualInputCreateOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiVirtualInputCreateOptionsAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiVirtualInputCreateOptionsAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiVirtualInputCreateOptionsAbi<NativeAbi> {}
 impl Clone for MidiVirtualInputCreateOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiVirtualInputCreateOptionsAbi<VmAbi> {}
 impl Clone for MidiVirtualInputCreateOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiVirtualInputCreateOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiVirtualInputCreateOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 9 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 9 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 9 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_policy = <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_manufacturer = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_model = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_version = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_data_format = <MidiDataFormat as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_protocol = <MidiProtocol as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_queue_capacity = <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_backend =
+            <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_manufacturer =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_model =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_version =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_data_format =
+            <MidiDataFormat as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_protocol =
+            <MidiProtocol as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_queue_capacity =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -2943,14 +4060,28 @@ impl VmAggregateCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <MidiBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(self.backend_policy, context)?,
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.manufacturer, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.model, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.version, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.manufacturer,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.model, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.version,
+                context,
+            )?,
             <MidiDataFormat as VmAggregateCodec>::encode_with_context(self.data_format, context)?,
             <MidiProtocol as VmAggregateCodec>::encode_with_context(self.protocol, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
@@ -2989,12 +4120,20 @@ impl NativeAbiCodec for MidiVirtualInputCreateOptionsAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(MidiVirtualInputCreateOptionsValue {
             backend: unsafe { <MidiBackend as NativeAbiCodec>::into_value(self.backend)? },
-            backend_policy: unsafe { <MidiBackendSelectionPolicy as NativeAbiCodec>::into_value(self.backend_policy)? },
+            backend_policy: unsafe {
+                <MidiBackendSelectionPolicy as NativeAbiCodec>::into_value(self.backend_policy)?
+            },
             name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.name)? },
-            manufacturer: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)? },
+            manufacturer: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)?
+            },
             model: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.model)? },
-            version: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.version)? },
-            data_format: unsafe { <MidiDataFormat as NativeAbiCodec>::into_value(self.data_format)? },
+            version: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.version)?
+            },
+            data_format: unsafe {
+                <MidiDataFormat as NativeAbiCodec>::into_value(self.data_format)?
+            },
             protocol: unsafe { <MidiProtocol as NativeAbiCodec>::into_value(self.protocol)? },
             queue_capacity: unsafe { <u32 as NativeAbiCodec>::into_value(self.queue_capacity)? },
         })
@@ -3003,11 +4142,20 @@ impl NativeAbiCodec for MidiVirtualInputCreateOptionsAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             backend: <MidiBackend as NativeAbiCodec>::from_value(binding, value.backend),
-            backend_policy: <MidiBackendSelectionPolicy as NativeAbiCodec>::from_value(binding, value.backend_policy),
+            backend_policy: <MidiBackendSelectionPolicy as NativeAbiCodec>::from_value(
+                binding,
+                value.backend_policy,
+            ),
             name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.name),
-            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.manufacturer),
+            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.manufacturer,
+            ),
             model: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.model),
-            version: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.version),
+            version: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.version,
+            ),
             data_format: <MidiDataFormat as NativeAbiCodec>::from_value(binding, value.data_format),
             protocol: <MidiProtocol as NativeAbiCodec>::from_value(binding, value.protocol),
             queue_capacity: <u32 as NativeAbiCodec>::from_value(binding, value.queue_capacity),
@@ -3018,12 +4166,21 @@ impl NativeAbiCodec for MidiVirtualInputCreateOptionsAbi<NativeAbi> {
 impl VmAbiCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
     type Value = MidiVirtualInputCreateOptionsValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiVirtualInputCreateOptionsValue {
             backend: <MidiBackend as VmAbiCodec>::into_value(self.backend, context)?,
-            backend_policy: <MidiBackendSelectionPolicy as VmAbiCodec>::into_value(self.backend_policy, context)?,
+            backend_policy: <MidiBackendSelectionPolicy as VmAbiCodec>::into_value(
+                self.backend_policy,
+                context,
+            )?,
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.manufacturer, context)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.manufacturer,
+                context,
+            )?,
             model: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.model, context)?,
             version: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.version, context)?,
             data_format: <MidiDataFormat as VmAbiCodec>::into_value(self.data_format, context)?,
@@ -3032,12 +4189,21 @@ impl VmAbiCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             backend: <MidiBackend as VmAbiCodec>::from_value(context, value.backend)?,
-            backend_policy: <MidiBackendSelectionPolicy as VmAbiCodec>::from_value(context, value.backend_policy)?,
+            backend_policy: <MidiBackendSelectionPolicy as VmAbiCodec>::from_value(
+                context,
+                value.backend_policy,
+            )?,
             name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.name)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.manufacturer)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.manufacturer,
+            )?,
             model: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.model)?,
             version: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.version)?,
             data_format: <MidiDataFormat as VmAbiCodec>::from_value(context, value.data_format)?,
@@ -3074,36 +4240,65 @@ pub type MidiVirtualOutputCreateOptionsVm = MidiVirtualOutputCreateOptionsAbi<Vm
 
 impl<A: BindingAbi> std::fmt::Debug for MidiVirtualOutputCreateOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("MidiVirtualOutputCreateOptionsAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("MidiVirtualOutputCreateOptionsAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for MidiVirtualOutputCreateOptionsAbi<NativeAbi> {}
 impl Clone for MidiVirtualOutputCreateOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for MidiVirtualOutputCreateOptionsAbi<VmAbi> {}
 impl Clone for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MidiVirtualOutputCreateOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiVirtualOutputCreateOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 8 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 8 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 8 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_policy = <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_manufacturer = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_model = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_version = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_data_format = <MidiDataFormat as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_protocol = <MidiProtocol as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_backend =
+            <MidiBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_manufacturer =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_model =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_version =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_data_format =
+            <MidiDataFormat as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_protocol =
+            <MidiProtocol as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -3116,14 +4311,28 @@ impl VmAggregateCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <MidiBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(self.backend_policy, context)?,
+            <MidiBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.manufacturer, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.model, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.version, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.manufacturer,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.model, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.version,
+                context,
+            )?,
             <MidiDataFormat as VmAggregateCodec>::encode_with_context(self.data_format, context)?,
             <MidiProtocol as VmAggregateCodec>::encode_with_context(self.protocol, context)?,
         ];
@@ -3159,12 +4368,20 @@ impl NativeAbiCodec for MidiVirtualOutputCreateOptionsAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(MidiVirtualOutputCreateOptionsValue {
             backend: unsafe { <MidiBackend as NativeAbiCodec>::into_value(self.backend)? },
-            backend_policy: unsafe { <MidiBackendSelectionPolicy as NativeAbiCodec>::into_value(self.backend_policy)? },
+            backend_policy: unsafe {
+                <MidiBackendSelectionPolicy as NativeAbiCodec>::into_value(self.backend_policy)?
+            },
             name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.name)? },
-            manufacturer: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)? },
+            manufacturer: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)?
+            },
             model: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.model)? },
-            version: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.version)? },
-            data_format: unsafe { <MidiDataFormat as NativeAbiCodec>::into_value(self.data_format)? },
+            version: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.version)?
+            },
+            data_format: unsafe {
+                <MidiDataFormat as NativeAbiCodec>::into_value(self.data_format)?
+            },
             protocol: unsafe { <MidiProtocol as NativeAbiCodec>::into_value(self.protocol)? },
         })
     }
@@ -3172,11 +4389,20 @@ impl NativeAbiCodec for MidiVirtualOutputCreateOptionsAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             backend: <MidiBackend as NativeAbiCodec>::from_value(binding, value.backend),
-            backend_policy: <MidiBackendSelectionPolicy as NativeAbiCodec>::from_value(binding, value.backend_policy),
+            backend_policy: <MidiBackendSelectionPolicy as NativeAbiCodec>::from_value(
+                binding,
+                value.backend_policy,
+            ),
             name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.name),
-            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.manufacturer),
+            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.manufacturer,
+            ),
             model: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.model),
-            version: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.version),
+            version: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.version,
+            ),
             data_format: <MidiDataFormat as NativeAbiCodec>::from_value(binding, value.data_format),
             protocol: <MidiProtocol as NativeAbiCodec>::from_value(binding, value.protocol),
         }
@@ -3186,12 +4412,21 @@ impl NativeAbiCodec for MidiVirtualOutputCreateOptionsAbi<NativeAbi> {
 impl VmAbiCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
     type Value = MidiVirtualOutputCreateOptionsValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MidiVirtualOutputCreateOptionsValue {
             backend: <MidiBackend as VmAbiCodec>::into_value(self.backend, context)?,
-            backend_policy: <MidiBackendSelectionPolicy as VmAbiCodec>::into_value(self.backend_policy, context)?,
+            backend_policy: <MidiBackendSelectionPolicy as VmAbiCodec>::into_value(
+                self.backend_policy,
+                context,
+            )?,
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.manufacturer, context)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.manufacturer,
+                context,
+            )?,
             model: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.model, context)?,
             version: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.version, context)?,
             data_format: <MidiDataFormat as VmAbiCodec>::into_value(self.data_format, context)?,
@@ -3199,12 +4434,21 @@ impl VmAbiCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             backend: <MidiBackend as VmAbiCodec>::from_value(context, value.backend)?,
-            backend_policy: <MidiBackendSelectionPolicy as VmAbiCodec>::from_value(context, value.backend_policy)?,
+            backend_policy: <MidiBackendSelectionPolicy as VmAbiCodec>::from_value(
+                context,
+                value.backend_policy,
+            )?,
             name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.name)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.manufacturer)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.manufacturer,
+            )?,
             model: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.model)?,
             version: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.version)?,
             data_format: <MidiDataFormat as VmAbiCodec>::from_value(context, value.data_format)?,
@@ -3442,25 +4686,31 @@ pub enum MidieventReplayRecord {
 }
 
 /// Backend exposes native notification feeds instead of synthesized polling.
-pub const MIDI_BACKEND_CAP_NATIVE_EVENT_FEED: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(32u64);
+pub const MIDI_BACKEND_CAP_NATIVE_EVENT_FEED: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(32u64);
 
 /// Backend reports host receive timestamps.
-pub const MIDI_BACKEND_CAP_RECEIVE_TIMESTAMPS: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(16u64);
+pub const MIDI_BACKEND_CAP_RECEIVE_TIMESTAMPS: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(16u64);
 
 /// Backend supports scheduled outbound delivery timestamps.
-pub const MIDI_BACKEND_CAP_SCHEDULED_OUTPUT: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(8u64);
+pub const MIDI_BACKEND_CAP_SCHEDULED_OUTPUT: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(8u64);
 
 /// Backend supports topology notifications.
-pub const MIDI_BACKEND_CAP_TOPOLOGY_EVENTS: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(1u64);
+pub const MIDI_BACKEND_CAP_TOPOLOGY_EVENTS: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(1u64);
 
 /// Backend supports Universal MIDI Packet transport.
 pub const MIDI_BACKEND_CAP_UMP: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(64u64);
 
 /// Backend supports virtual input endpoints.
-pub const MIDI_BACKEND_CAP_VIRTUAL_INPUT: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(2u64);
+pub const MIDI_BACKEND_CAP_VIRTUAL_INPUT: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(2u64);
 
 /// Backend supports virtual output endpoints.
-pub const MIDI_BACKEND_CAP_VIRTUAL_OUTPUT: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(4u64);
+pub const MIDI_BACKEND_CAP_VIRTUAL_OUTPUT: MidiBackendCapabilityFlags =
+    MidiBackendCapabilityFlags(4u64);
 
 /// Support for MIDI 1.0 byte-stream transport.
 pub const MIDI_DATA_FORMAT_FLAG_MIDI1_BYTES: MidiDataFormatFlags = MidiDataFormatFlags(1u32);
@@ -3472,22 +4722,28 @@ pub const MIDI_DATA_FORMAT_FLAG_NONE: MidiDataFormatFlags = MidiDataFormatFlags(
 pub const MIDI_DATA_FORMAT_FLAG_UMP: MidiDataFormatFlags = MidiDataFormatFlags(2u32);
 
 /// Subscribe to backend-disconnected notifications.
-pub const MIDI_EVENT_SUBSCRIBE_BACKEND_DISCONNECTED: MidiEventSubscriptionFlags = MidiEventSubscriptionFlags(8u32);
+pub const MIDI_EVENT_SUBSCRIBE_BACKEND_DISCONNECTED: MidiEventSubscriptionFlags =
+    MidiEventSubscriptionFlags(8u32);
 
 /// Subscribe to port-added notifications.
-pub const MIDI_EVENT_SUBSCRIBE_PORT_ADDED: MidiEventSubscriptionFlags = MidiEventSubscriptionFlags(1u32);
+pub const MIDI_EVENT_SUBSCRIBE_PORT_ADDED: MidiEventSubscriptionFlags =
+    MidiEventSubscriptionFlags(1u32);
 
 /// Subscribe to port-changed notifications.
-pub const MIDI_EVENT_SUBSCRIBE_PORT_CHANGED: MidiEventSubscriptionFlags = MidiEventSubscriptionFlags(4u32);
+pub const MIDI_EVENT_SUBSCRIBE_PORT_CHANGED: MidiEventSubscriptionFlags =
+    MidiEventSubscriptionFlags(4u32);
 
 /// Subscribe to port-removed notifications.
-pub const MIDI_EVENT_SUBSCRIBE_PORT_REMOVED: MidiEventSubscriptionFlags = MidiEventSubscriptionFlags(2u32);
+pub const MIDI_EVENT_SUBSCRIBE_PORT_REMOVED: MidiEventSubscriptionFlags =
+    MidiEventSubscriptionFlags(2u32);
 
 /// Include disconnected endpoints in synthesized polling snapshots when the backend can report them.
-pub const MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED: MidiEventSubscriptionFlags = MidiEventSubscriptionFlags(2u32);
+pub const MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED: MidiEventSubscriptionFlags =
+    MidiEventSubscriptionFlags(2u32);
 
 /// Include virtual endpoints in synthesized polling snapshots when the backend can report them.
-pub const MIDI_EVENT_SUBSCRIPTION_INCLUDE_VIRTUAL: MidiEventSubscriptionFlags = MidiEventSubscriptionFlags(1u32);
+pub const MIDI_EVENT_SUBSCRIPTION_INCLUDE_VIRTUAL: MidiEventSubscriptionFlags =
+    MidiEventSubscriptionFlags(1u32);
 
 /// All MIDI endpoint directions.
 pub const MIDI_PORT_DIRECTION_FLAG_ALL: MidiPortDirectionFlags = MidiPortDirectionFlags(3u32);
@@ -3515,4 +4771,3 @@ pub const MIDI_PROTOCOL_FLAG_MIDI2: MidiProtocolFlags = MidiProtocolFlags(2u32);
 
 /// No supported MIDI protocols.
 pub const MIDI_PROTOCOL_FLAG_NONE: MidiProtocolFlags = MidiProtocolFlags(0u32);
-

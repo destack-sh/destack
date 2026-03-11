@@ -9,6 +9,21 @@ use super::codegen::ModuleCodegen;
 use super::{binding_type_requires_abi, *};
 
 impl<'a> ModuleCodegen<'a> {
+    /// Report whether one replay collection can iterate borrowed items directly.
+    fn replay_collection_items_can_be_borrowed(binding_type: &BindingType) -> bool {
+        match binding_type {
+            BindingType::String | BindingType::StringSlice => true,
+            BindingType::Slice(inner) | BindingType::Array(inner) => {
+                matches!(**inner, BindingType::UInt(8))
+            }
+            BindingType::Newtype { inner, .. } => {
+                binding_type_requires_abi(inner)
+                    && Self::replay_collection_items_can_be_borrowed(inner)
+            }
+            _ => false,
+        }
+    }
+
     /// Render the replay result type for one binding entry.
     fn replay_result_type(&self, entry: &BindingEntry) -> String {
         let inner = self.replay_type_for_binding(&entry.return_binding);
@@ -70,6 +85,78 @@ impl<'a> ModuleCodegen<'a> {
 
                 for variant in variants {
                     self.collect_replay_type_names(&variant.binding_type, names);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Collect VM-visible named types referenced by replay payload conversion.
+    fn collect_replay_vm_type_names(
+        &self,
+        binding_type: &BindingType,
+        names: &mut BTreeSet<String>,
+    ) {
+        match binding_type {
+            BindingType::Slice(inner) | BindingType::Array(inner) => {
+                self.collect_replay_vm_type_names(inner, names);
+            }
+            BindingType::Optional(inner) => {
+                self.collect_replay_vm_type_names(inner, names);
+            }
+            BindingType::Newtype {
+                name,
+                domain: type_domain,
+                inner,
+                ..
+            } => {
+                if binding_type_requires_abi(inner) {
+                    self.collect_replay_vm_type_names(inner, names);
+                } else if type_domain == self.module() {
+                    names.insert(name.clone());
+                }
+            }
+            BindingType::Struct {
+                name,
+                domain: type_domain,
+                fields,
+            } => {
+                if type_domain == self.module() {
+                    if binding_type_requires_abi(binding_type) {
+                        names.insert(self.value_type_name(name));
+                    } else {
+                        names.insert(format!("{name}Vm"));
+                    }
+                }
+
+                for field in fields {
+                    self.collect_replay_vm_type_names(&field.binding_type, names);
+                }
+            }
+            BindingType::Enum {
+                name,
+                domain: type_domain,
+                ..
+            } => {
+                if type_domain == self.module() {
+                    names.insert(name.clone());
+                }
+            }
+            BindingType::TaggedUnion {
+                name,
+                domain: type_domain,
+                variants,
+            } => {
+                if type_domain == self.module() {
+                    if binding_type_requires_abi(binding_type) {
+                        names.insert(self.value_type_name(name));
+                    } else {
+                        names.insert(name.clone());
+                    }
+                }
+
+                for variant in variants {
+                    self.collect_replay_vm_type_names(&variant.binding_type, names);
                 }
             }
             _ => {}
@@ -587,11 +674,11 @@ impl<'a> ModuleCodegen<'a> {
         if is_bytes {
             if is_array {
                 lines.push(format!(
-                    "let {name} = VmArray::<u8>::from_bytes(context, &{value_expr});"
+                    "let {name} = VmArray::<u8>::from_bytes(context, {value_expr}.as_ref());"
                 ));
             } else {
                 lines.push(format!(
-                    "let {name} = VmSlice::<u8>::from_bytes(context, &{value_expr});"
+                    "let {name} = VmSlice::<u8>::from_bytes(context, {value_expr}.as_ref());"
                 ));
             }
 
@@ -601,12 +688,17 @@ impl<'a> ModuleCodegen<'a> {
         let values_var = format!("{name}_values");
         let item_var = format!("{name}_item");
         let item_value_var = format!("{name}_item_value");
+        let borrow_items = Self::replay_collection_items_can_be_borrowed(inner);
 
         // replay payloads are owned, so rebuild VM collections from owned items
         lines.push(format!(
             "let mut {values_var} = Vec::with_capacity({value_expr}.len());"
         ));
-        lines.push(format!("for {item_var} in {value_expr}.iter().cloned() {{"));
+        if borrow_items {
+            lines.push(format!("for {item_var} in {value_expr}.iter() {{"));
+        } else {
+            lines.push(format!("for {item_var} in {value_expr}.iter().cloned() {{"));
+        }
         lines.extend(
             self.render_replay_to_vm_binding_lines(inner, &item_value_var, &item_var)
                 .into_iter()
@@ -671,14 +763,18 @@ impl<'a> ModuleCodegen<'a> {
             BindingType::Newtype { inner, .. } => {
                 if binding_type_requires_abi(inner) {
                     let inner_name = format!("{name}_inner");
-                    let mut lines =
-                        self.render_native_replay_encode_lines(inner, &inner_name, value_expr);
+                    let inner_expr = format!("{value_expr}.0");
+                    let mut lines = self.render_native_replay_encode_lines(
+                        inner,
+                        &inner_name,
+                        inner_expr.as_str(),
+                    );
 
                     lines.push(format!("let {name} = {inner_name};"));
 
                     lines
                 } else {
-                    vec![format!("let {name} = {value_expr}.0;")]
+                    vec![format!("let {name} = {value_expr};")]
                 }
             }
             BindingType::Struct {
@@ -688,7 +784,8 @@ impl<'a> ModuleCodegen<'a> {
             } => {
                 let mut lines = Vec::new();
                 let struct_type = if binding_type_requires_abi(binding_type) {
-                    self.value_type_path(struct_domain, struct_name)
+                    let replay_name = self.replay_named_struct_name(struct_name);
+                    self.named_type_path(struct_domain, replay_name.as_str())
                 } else {
                     self.named_type_path(struct_domain, struct_name)
                 };
@@ -726,7 +823,8 @@ impl<'a> ModuleCodegen<'a> {
                 let mut lines = Vec::new();
                 let source_union = self.named_type_path(union_domain, union_name);
                 let target_union = if binding_type_requires_abi(binding_type) {
-                    self.value_type_path(union_domain, union_name)
+                    let replay_name = self.replay_named_struct_name(union_name);
+                    self.named_type_path(union_domain, replay_name.as_str())
                 } else {
                     self.named_type_path(union_domain, union_name)
                 };
@@ -772,7 +870,7 @@ impl<'a> ModuleCodegen<'a> {
 
         lines.push(format!("let mut {name} = Vec::new();"));
         lines.push(format!(
-            "for {item_var} in unsafe {{ {value_expr}.as_slice()? }} {{"
+            "for {item_var} in unsafe {{ {value_expr}.as_slice()? }}.iter() {{"
         ));
         lines.push(format!(
             "    let {item_recorded_var} = unsafe {{ {item_var}.as_str()? }}.to_string();"
@@ -792,12 +890,19 @@ impl<'a> ModuleCodegen<'a> {
     ) -> Vec<String> {
         let item_var = format!("{name}_item");
         let item_recorded_var = format!("{name}_item_recorded");
+        let borrow_items = Self::replay_collection_items_can_be_borrowed(inner);
         let mut lines = Vec::new();
 
         lines.push(format!("let mut {name} = Vec::new();"));
-        lines.push(format!(
-            "for {item_var} in unsafe {{ {value_expr}.as_slice()? }} {{"
-        ));
+        if borrow_items {
+            lines.push(format!(
+                "for {item_var} in unsafe {{ {value_expr}.as_slice()? }}.iter() {{"
+            ));
+        } else {
+            lines.push(format!(
+                "for {item_var} in unsafe {{ {value_expr}.as_slice()? }}.iter().cloned() {{"
+            ));
+        }
         lines.extend(
             self.render_native_replay_encode_lines(inner, &item_recorded_var, item_var.as_str())
                 .into_iter()
@@ -835,7 +940,7 @@ impl<'a> ModuleCodegen<'a> {
         value_expr: &str,
         name: &str,
     ) -> Vec<String> {
-        if Self::binding_type_is_copy(binding_type) {
+        if Self::binding_type_supports_direct_replay_store(binding_type) {
             return vec![format!("unsafe {{ {out_expr}.write({value_expr}) }};")];
         }
 
@@ -880,8 +985,11 @@ impl<'a> ModuleCodegen<'a> {
                 ));
                 lines
             }
-            BindingType::Slice(inner) | BindingType::Array(inner) => {
-                self.render_native_replay_decode_collection_lines(inner, name, value_expr)
+            BindingType::Slice(inner) => {
+                self.render_native_replay_decode_collection_lines(inner, name, value_expr, false)
+            }
+            BindingType::Array(inner) => {
+                self.render_native_replay_decode_collection_lines(inner, name, value_expr, true)
             }
             BindingType::Optional(inner) => {
                 let mut lines = Vec::new();
@@ -909,12 +1017,15 @@ impl<'a> ModuleCodegen<'a> {
                     let inner_name = format!("{name}_inner");
                     let mut lines =
                         self.render_native_replay_decode_lines(inner, &inner_name, value_expr);
-                    let type_path = self.named_type_path(type_domain, type_name);
+                    let type_path = self.newtype_abi_constructor_path(
+                        type_domain,
+                        type_name,
+                        "platform_abi::NativeAbi",
+                    );
                     lines.push(format!("let {name} = {type_path}({inner_name});"));
                     lines
                 } else {
-                    let type_path = self.named_type_path(type_domain, type_name);
-                    vec![format!("let {name} = {type_path}({value_expr});")]
+                    vec![format!("let {name} = {value_expr};")]
                 }
             }
             BindingType::Struct {
@@ -957,7 +1068,8 @@ impl<'a> ModuleCodegen<'a> {
             } => {
                 let mut lines = Vec::new();
                 let source_union = if binding_type_requires_abi(binding_type) {
-                    self.value_type_path(union_domain, union_name)
+                    let replay_name = self.replay_named_struct_name(union_name);
+                    self.named_type_path(union_domain, replay_name.as_str())
                 } else {
                     self.named_type_path(union_domain, union_name)
                 };
@@ -998,13 +1110,19 @@ impl<'a> ModuleCodegen<'a> {
         inner: &BindingType,
         name: &str,
         value_expr: &str,
+        is_array: bool,
     ) -> Vec<String> {
         let item_var = format!("{name}_item");
         let item_decoded_var = format!("{name}_decoded");
+        let borrow_items = Self::replay_collection_items_can_be_borrowed(inner);
         let mut lines = Vec::new();
 
         lines.push(format!("let mut {name}_values = Vec::new();"));
-        lines.push(format!("for {item_var} in {value_expr}.iter() {{"));
+        if borrow_items {
+            lines.push(format!("for {item_var} in {value_expr}.iter() {{"));
+        } else {
+            lines.push(format!("for {item_var} in {value_expr}.iter().cloned() {{"));
+        }
         lines.extend(
             self.render_native_replay_decode_lines(inner, &item_decoded_var, item_var.as_str())
                 .into_iter()
@@ -1013,9 +1131,33 @@ impl<'a> ModuleCodegen<'a> {
         lines.push(format!("    {name}_values.push({item_decoded_var});"));
         lines.push("}".to_string());
 
-        lines.push(format!("let {name} = binding.store_array({name}_values);"));
+        if is_array {
+            lines.push(format!("let {name} = binding.store_array({name}_values);"));
+        } else {
+            lines.push(format!("let {name} = binding.store_slice({name}_values);"));
+        }
 
         lines
+    }
+
+    /// Report whether one binding type can be written directly during native replay restore.
+    fn binding_type_supports_direct_replay_store(binding_type: &BindingType) -> bool {
+        match binding_type {
+            BindingType::Void
+            | BindingType::Bool
+            | BindingType::Int(_)
+            | BindingType::UInt(_)
+            | BindingType::Float(_)
+            | BindingType::Enum { .. } => true,
+            BindingType::Optional(inner) => Self::binding_type_supports_direct_replay_store(inner),
+            BindingType::Newtype { inner, .. } => !binding_type_requires_abi(inner),
+            BindingType::String
+            | BindingType::StringSlice
+            | BindingType::Slice(_)
+            | BindingType::Array(_)
+            | BindingType::Struct { .. }
+            | BindingType::TaggedUnion { .. } => false,
+        }
     }
 }
 
@@ -1663,6 +1805,7 @@ pub(crate) fn collect_replay_vm_named_types(
     bindings: &ModuleBindings,
 ) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
+    let codegen = ModuleCodegen::new(domain);
     for entry in bindings.values() {
         let CatalogEffectClass::External {
             replay: CatalogReplayPolicy::Recordable,
@@ -1679,10 +1822,10 @@ pub(crate) fn collect_replay_vm_named_types(
             CatalogReplayPayload::ArgumentsAndResults
         ) {
             for param in &entry.parameters {
-                collect_collection_vm_names(domain, &param.binding_type, &mut names);
+                codegen.collect_replay_vm_type_names(&param.binding_type, &mut names);
             }
         }
-        collect_collection_vm_names(domain, &entry.return_binding, &mut names);
+        codegen.collect_replay_vm_type_names(&entry.return_binding, &mut names);
     }
 
     names

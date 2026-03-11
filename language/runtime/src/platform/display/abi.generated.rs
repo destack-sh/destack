@@ -4,22 +4,17 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::diagnostic::RuntimeError;
-use crate::diagnostic::RuntimeResult;
-use crate::platform::PlatformError as AbiPlatformError;
-use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::platform::{
+    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
+    VmValueCodec, core, core as platform_core, display as platform_display, fs, fs as platform_fs,
+    resource, resource as platform_resource,
+};
 use crate::runtime::BindingCallContext;
-use crate::platform::VmValueCodec;
-use crate::platform::VmAggregateCodec;
-use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::{core, fs, resource};
-use crate::platform::core as platform_core;
-use crate::platform::display as platform_display;
-use crate::platform::fs as platform_fs;
-use crate::platform::resource as platform_resource;
 
 /// ABI newtype for DisplayBackendCapabilityFlags.
 #[repr(transparent)]
@@ -59,11 +54,17 @@ impl NativeAbiCodec for DisplayBackendCapabilityFlags {
 impl VmAbiCodec for DisplayBackendCapabilityFlags {
     type Value = DisplayBackendCapabilityFlagsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -106,11 +107,17 @@ impl NativeAbiCodec for DisplayHandle {
 impl VmAbiCodec for DisplayHandle {
     type Value = DisplayHandleValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -153,11 +160,17 @@ impl NativeAbiCodec for DisplayMetricChangedMask {
 impl VmAbiCodec for DisplayMetricChangedMask {
     type Value = DisplayMetricChangedMaskValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -200,11 +213,17 @@ impl NativeAbiCodec for DisplayMonitorEventKindMask {
 impl VmAbiCodec for DisplayMonitorEventKindMask {
     type Value = DisplayMonitorEventKindMaskValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -221,11 +240,19 @@ pub type PathBytes = PathBytesAbi<NativeAbi>;
 pub type PathBytesVm = PathBytesAbi<VmAbi>;
 
 impl VmAggregateCodec for PathBytesAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
-        Ok(Self(<VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?))
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?,
+        ))
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -242,23 +269,37 @@ impl NativeAbiCodec for PathBytesAbi<NativeAbi> {
     type Value = PathBytesValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(PathBytesValue(unsafe { <NativeArray<u8> as NativeAbiCodec>::into_value(self.0)? }))
+        Ok(PathBytesValue(unsafe {
+            <NativeArray<u8> as NativeAbiCodec>::into_value(self.0)?
+        }))
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self(<NativeArray<u8> as NativeAbiCodec>::from_value(binding, value.0))
+        Self(<NativeArray<u8> as NativeAbiCodec>::from_value(
+            binding, value.0,
+        ))
     }
 }
 
 impl VmAbiCodec for PathBytesAbi<VmAbi> {
     type Value = PathBytesValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(PathBytesValue(<VmArray<u8> as VmAbiCodec>::into_value(self.0, context)?))
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(PathBytesValue(<VmArray<u8> as VmAbiCodec>::into_value(
+            self.0, context,
+        )?))
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
-        Ok(Self(<VmArray<u8> as VmAbiCodec>::from_value(context, value.0)?))
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(<VmArray<u8> as VmAbiCodec>::from_value(
+            context, value.0,
+        )?))
     }
 }
 
@@ -274,11 +315,19 @@ pub type PathUtf16 = PathUtf16Abi<NativeAbi>;
 pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 
 impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
-        Ok(Self(<VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?))
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(
+            <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?,
+        ))
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -295,23 +344,37 @@ impl NativeAbiCodec for PathUtf16Abi<NativeAbi> {
     type Value = PathUtf16Value;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(PathUtf16Value(unsafe { <NativeArray<u16> as NativeAbiCodec>::into_value(self.0)? }))
+        Ok(PathUtf16Value(unsafe {
+            <NativeArray<u16> as NativeAbiCodec>::into_value(self.0)?
+        }))
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self(<NativeArray<u16> as NativeAbiCodec>::from_value(binding, value.0))
+        Self(<NativeArray<u16> as NativeAbiCodec>::from_value(
+            binding, value.0,
+        ))
     }
 }
 
 impl VmAbiCodec for PathUtf16Abi<VmAbi> {
     type Value = PathUtf16Value;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(PathUtf16Value(<VmArray<u16> as VmAbiCodec>::into_value(self.0, context)?))
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(PathUtf16Value(<VmArray<u16> as VmAbiCodec>::into_value(
+            self.0, context,
+        )?))
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
-        Ok(Self(<VmArray<u16> as VmAbiCodec>::from_value(context, value.0)?))
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(<VmArray<u16> as VmAbiCodec>::from_value(
+            context, value.0,
+        )?))
     }
 }
 
@@ -353,11 +416,17 @@ impl NativeAbiCodec for ResourceId {
 impl VmAbiCodec for ResourceId {
     type Value = ResourceIdValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -400,11 +469,17 @@ impl NativeAbiCodec for WindowEventKindMask {
 impl VmAbiCodec for WindowEventKindMask {
     type Value = WindowEventKindMaskValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -447,11 +522,17 @@ impl NativeAbiCodec for WindowHandle {
 impl VmAbiCodec for WindowHandle {
     type Value = WindowHandleValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -474,8 +555,17 @@ impl VmValueCodec for BackendSupport {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Available, 1u8 => Self::UnsupportedTarget, 2u8 => Self::DisabledByBuild, 3u8 => Self::HostUnavailable,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown BackendSupport value")).boxed()),
+            0u8 => Self::Available,
+            1u8 => Self::UnsupportedTarget,
+            2u8 => Self::DisabledByBuild,
+            3u8 => Self::HostUnavailable,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BackendSupport value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -503,11 +593,17 @@ impl NativeAbiCodec for BackendSupport {
 impl VmAbiCodec for BackendSupport {
     type Value = BackendSupportValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -538,8 +634,21 @@ impl VmValueCodec for DisplayBackend {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Auto, 1u8 => Self::Wayland, 2u8 => Self::X11, 3u8 => Self::Win32, 4u8 => Self::AppKit, 5u8 => Self::UIKit, 6u8 => Self::Android, 255u8 => Self::Null,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown DisplayBackend value")).boxed()),
+            0u8 => Self::Auto,
+            1u8 => Self::Wayland,
+            2u8 => Self::X11,
+            3u8 => Self::Win32,
+            4u8 => Self::AppKit,
+            5u8 => Self::UIKit,
+            6u8 => Self::Android,
+            255u8 => Self::Null,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayBackend value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -567,11 +676,17 @@ impl NativeAbiCodec for DisplayBackend {
 impl VmAbiCodec for DisplayBackend {
     type Value = DisplayBackendValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -590,8 +705,15 @@ impl VmValueCodec for DisplayBackendSelectionPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Strict, 2u8 => Self::AllowFallback,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown DisplayBackendSelectionPolicy value")).boxed()),
+            1u8 => Self::Strict,
+            2u8 => Self::AllowFallback,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayBackendSelectionPolicy value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -619,11 +741,17 @@ impl NativeAbiCodec for DisplayBackendSelectionPolicy {
 impl VmAbiCodec for DisplayBackendSelectionPolicy {
     type Value = DisplayBackendSelectionPolicyValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -650,8 +778,19 @@ impl VmValueCodec for DisplayColorSpace {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown, 1u8 => Self::Srgb, 2u8 => Self::DisplayP3, 3u8 => Self::Bt2020, 4u8 => Self::ScRgb, 5u8 => Self::Hdr10,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown DisplayColorSpace value")).boxed()),
+            0u8 => Self::Unknown,
+            1u8 => Self::Srgb,
+            2u8 => Self::DisplayP3,
+            3u8 => Self::Bt2020,
+            4u8 => Self::ScRgb,
+            5u8 => Self::Hdr10,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayColorSpace value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -679,11 +818,17 @@ impl NativeAbiCodec for DisplayColorSpace {
 impl VmAbiCodec for DisplayColorSpace {
     type Value = DisplayColorSpaceValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -704,8 +849,16 @@ impl VmValueCodec for DisplayEventOverflowPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::DropOldest, 2u8 => Self::DropNewest, 3u8 => Self::Error,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown DisplayEventOverflowPolicy value")).boxed()),
+            1u8 => Self::DropOldest,
+            2u8 => Self::DropNewest,
+            3u8 => Self::Error,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayEventOverflowPolicy value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -733,11 +886,17 @@ impl NativeAbiCodec for DisplayEventOverflowPolicy {
 impl VmAbiCodec for DisplayEventOverflowPolicy {
     type Value = DisplayEventOverflowPolicyValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -760,8 +919,17 @@ impl VmValueCodec for DisplayHdrMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown, 1u8 => Self::System, 2u8 => Self::Sdr, 3u8 => Self::Hdr,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown DisplayHdrMode value")).boxed()),
+            0u8 => Self::Unknown,
+            1u8 => Self::System,
+            2u8 => Self::Sdr,
+            3u8 => Self::Hdr,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayHdrMode value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -789,11 +957,17 @@ impl NativeAbiCodec for DisplayHdrMode {
 impl VmAbiCodec for DisplayHdrMode {
     type Value = DisplayHdrModeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -818,8 +992,18 @@ impl VmValueCodec for DisplayOrientation {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown, 1u8 => Self::Landscape, 2u8 => Self::Portrait, 3u8 => Self::LandscapeFlipped, 4u8 => Self::PortraitFlipped,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown DisplayOrientation value")).boxed()),
+            0u8 => Self::Unknown,
+            1u8 => Self::Landscape,
+            2u8 => Self::Portrait,
+            3u8 => Self::LandscapeFlipped,
+            4u8 => Self::PortraitFlipped,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayOrientation value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -847,11 +1031,17 @@ impl NativeAbiCodec for DisplayOrientation {
 impl VmAbiCodec for DisplayOrientation {
     type Value = DisplayOrientationValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -872,8 +1062,16 @@ impl VmValueCodec for DisplaySupportStatus {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown, 1u8 => Self::Unsupported, 2u8 => Self::Supported,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown DisplaySupportStatus value")).boxed()),
+            0u8 => Self::Unknown,
+            1u8 => Self::Unsupported,
+            2u8 => Self::Supported,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplaySupportStatus value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -901,11 +1099,17 @@ impl NativeAbiCodec for DisplaySupportStatus {
 impl VmAbiCodec for DisplaySupportStatus {
     type Value = DisplaySupportStatusValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -924,8 +1128,15 @@ impl VmValueCodec for WindowAttentionLevel {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Informational, 2u8 => Self::Critical,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowAttentionLevel value")).boxed()),
+            1u8 => Self::Informational,
+            2u8 => Self::Critical,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowAttentionLevel value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -953,11 +1164,17 @@ impl NativeAbiCodec for WindowAttentionLevel {
 impl VmAbiCodec for WindowAttentionLevel {
     type Value = WindowAttentionLevelValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -978,8 +1195,16 @@ impl VmValueCodec for WindowChromeKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Standard, 2u8 => Self::Tool, 3u8 => Self::Popup,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowChromeKind value")).boxed()),
+            1u8 => Self::Standard,
+            2u8 => Self::Tool,
+            3u8 => Self::Popup,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowChromeKind value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -1007,11 +1232,17 @@ impl NativeAbiCodec for WindowChromeKind {
 impl VmAbiCodec for WindowChromeKind {
     type Value = WindowChromeKindValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1082,8 +1313,41 @@ impl VmValueCodec for WindowCursorIcon {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Default, 2u8 => Self::Text, 3u8 => Self::Crosshair, 4u8 => Self::Pointer, 5u8 => Self::Help, 6u8 => Self::Wait, 7u8 => Self::Progress, 8u8 => Self::Move, 9u8 => Self::NotAllowed, 10u8 => Self::Grab, 11u8 => Self::Grabbing, 12u8 => Self::EResize, 13u8 => Self::NResize, 14u8 => Self::NeResize, 15u8 => Self::NwResize, 16u8 => Self::SResize, 17u8 => Self::SeResize, 18u8 => Self::SwResize, 19u8 => Self::WResize, 20u8 => Self::EwResize, 21u8 => Self::NsResize, 22u8 => Self::NeswResize, 23u8 => Self::NwseResize, 24u8 => Self::ColResize, 25u8 => Self::RowResize, 26u8 => Self::AllScroll, 27u8 => Self::ZoomIn, 28u8 => Self::ZoomOut,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowCursorIcon value")).boxed()),
+            1u8 => Self::Default,
+            2u8 => Self::Text,
+            3u8 => Self::Crosshair,
+            4u8 => Self::Pointer,
+            5u8 => Self::Help,
+            6u8 => Self::Wait,
+            7u8 => Self::Progress,
+            8u8 => Self::Move,
+            9u8 => Self::NotAllowed,
+            10u8 => Self::Grab,
+            11u8 => Self::Grabbing,
+            12u8 => Self::EResize,
+            13u8 => Self::NResize,
+            14u8 => Self::NeResize,
+            15u8 => Self::NwResize,
+            16u8 => Self::SResize,
+            17u8 => Self::SeResize,
+            18u8 => Self::SwResize,
+            19u8 => Self::WResize,
+            20u8 => Self::EwResize,
+            21u8 => Self::NsResize,
+            22u8 => Self::NeswResize,
+            23u8 => Self::NwseResize,
+            24u8 => Self::ColResize,
+            25u8 => Self::RowResize,
+            26u8 => Self::AllScroll,
+            27u8 => Self::ZoomIn,
+            28u8 => Self::ZoomOut,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowCursorIcon value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -1111,11 +1375,17 @@ impl NativeAbiCodec for WindowCursorIcon {
 impl VmAbiCodec for WindowCursorIcon {
     type Value = WindowCursorIconValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1138,8 +1408,17 @@ impl VmValueCodec for WindowCursorMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Normal, 2u8 => Self::Hidden, 3u8 => Self::Locked, 4u8 => Self::Confined,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowCursorMode value")).boxed()),
+            1u8 => Self::Normal,
+            2u8 => Self::Hidden,
+            3u8 => Self::Locked,
+            4u8 => Self::Confined,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowCursorMode value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -1167,11 +1446,17 @@ impl NativeAbiCodec for WindowCursorMode {
 impl VmAbiCodec for WindowCursorMode {
     type Value = WindowCursorModeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1190,8 +1475,15 @@ impl VmValueCodec for WindowIconPixelFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Rgba8, 2u8 => Self::Bgra8,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowIconPixelFormat value")).boxed()),
+            1u8 => Self::Rgba8,
+            2u8 => Self::Bgra8,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowIconPixelFormat value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -1219,11 +1511,17 @@ impl NativeAbiCodec for WindowIconPixelFormat {
 impl VmAbiCodec for WindowIconPixelFormat {
     type Value = WindowIconPixelFormatValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1244,8 +1542,16 @@ impl VmValueCodec for WindowOcclusionState {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown, 1u8 => Self::Unoccluded, 2u8 => Self::Occluded,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowOcclusionState value")).boxed()),
+            0u8 => Self::Unknown,
+            1u8 => Self::Unoccluded,
+            2u8 => Self::Occluded,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowOcclusionState value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -1273,11 +1579,17 @@ impl NativeAbiCodec for WindowOcclusionState {
 impl VmAbiCodec for WindowOcclusionState {
     type Value = WindowOcclusionStateValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1308,8 +1620,21 @@ impl VmValueCodec for WindowResizeEdge {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::North, 2u8 => Self::South, 3u8 => Self::East, 4u8 => Self::West, 5u8 => Self::NorthEast, 6u8 => Self::NorthWest, 7u8 => Self::SouthEast, 8u8 => Self::SouthWest,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowResizeEdge value")).boxed()),
+            1u8 => Self::North,
+            2u8 => Self::South,
+            3u8 => Self::East,
+            4u8 => Self::West,
+            5u8 => Self::NorthEast,
+            6u8 => Self::NorthWest,
+            7u8 => Self::SouthEast,
+            8u8 => Self::SouthWest,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowResizeEdge value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -1337,11 +1662,17 @@ impl NativeAbiCodec for WindowResizeEdge {
 impl VmAbiCodec for WindowResizeEdge {
     type Value = WindowResizeEdgeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1362,8 +1693,16 @@ impl VmValueCodec for WindowRole {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Toplevel, 2u8 => Self::Popup, 3u8 => Self::Overlay,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowRole value")).boxed()),
+            1u8 => Self::Toplevel,
+            2u8 => Self::Popup,
+            3u8 => Self::Overlay,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowRole value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -1391,11 +1730,17 @@ impl NativeAbiCodec for WindowRole {
 impl VmAbiCodec for WindowRole {
     type Value = WindowRoleValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1420,8 +1765,18 @@ impl VmValueCodec for WindowTheme {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown, 1u8 => Self::Light, 2u8 => Self::Dark, 3u8 => Self::HighContrastLight, 4u8 => Self::HighContrastDark,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowTheme value")).boxed()),
+            0u8 => Self::Unknown,
+            1u8 => Self::Light,
+            2u8 => Self::Dark,
+            3u8 => Self::HighContrastLight,
+            4u8 => Self::HighContrastDark,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowTheme value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -1449,11 +1804,17 @@ impl NativeAbiCodec for WindowTheme {
 impl VmAbiCodec for WindowTheme {
     type Value = WindowThemeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1476,8 +1837,17 @@ impl VmValueCodec for WindowVisibility {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Hidden, 2u8 => Self::Visible, 3u8 => Self::Minimized, 4u8 => Self::Maximized,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowVisibility value")).boxed()),
+            1u8 => Self::Hidden,
+            2u8 => Self::Visible,
+            3u8 => Self::Minimized,
+            4u8 => Self::Maximized,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowVisibility value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -1505,11 +1875,17 @@ impl NativeAbiCodec for WindowVisibility {
 impl VmAbiCodec for WindowVisibility {
     type Value = WindowVisibilityValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -1539,59 +1915,121 @@ impl<A: BindingAbi> std::fmt::Debug for DisplayMonitorEventAbi<A> {
 
 impl Copy for DisplayMonitorEventAbi<NativeAbi> {}
 impl Clone for DisplayMonitorEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayMonitorEventAbi<VmAbi> {}
 impl Clone for DisplayMonitorEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayMonitorEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayMonitorEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            3489413994u32 => Self::DisplayAddedEvent(<DisplayAddedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2383728628u32 => Self::DisplayDescriptorChangedEvent(<DisplayDescriptorChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1618220126u32 => Self::DisplayModeChangedEvent(<DisplayModeChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            155560704u32 => Self::DisplayPrimaryChangedEvent(<DisplayPrimaryChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            821764653u32 => Self::DisplayRemovedEvent(<DisplayRemovedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown DisplayMonitorEvent tag")).boxed()),
+            3489413994u32 => Self::DisplayAddedEvent(
+                <DisplayAddedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            2383728628u32 => Self::DisplayDescriptorChangedEvent(
+                <DisplayDescriptorChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1618220126u32 => Self::DisplayModeChangedEvent(
+                <DisplayModeChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            155560704u32 => Self::DisplayPrimaryChangedEvent(
+                <DisplayPrimaryChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            821764653u32 => Self::DisplayRemovedEvent(
+                <DisplayRemovedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayMonitorEvent tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::DisplayAddedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3489413994u32, context)?;
-                let payload_value = <DisplayAddedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3489413994u32, context)?;
+                let payload_value =
+                    <DisplayAddedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::DisplayDescriptorChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2383728628u32, context)?;
-                let payload_value = <DisplayDescriptorChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2383728628u32, context)?;
+                let payload_value =
+                    <DisplayDescriptorChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::DisplayModeChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1618220126u32, context)?;
-                let payload_value = <DisplayModeChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1618220126u32, context)?;
+                let payload_value =
+                    <DisplayModeChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::DisplayPrimaryChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(155560704u32, context)?;
-                let payload_value = <DisplayPrimaryChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(155560704u32, context)?;
+                let payload_value =
+                    <DisplayPrimaryChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::DisplayRemovedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(821764653u32, context)?;
-                let payload_value = <DisplayRemovedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(821764653u32, context)?;
+                let payload_value =
+                    <DisplayRemovedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
         };
@@ -1619,22 +2057,56 @@ impl NativeAbiCodec for DisplayMonitorEventAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::DisplayAddedEvent(value) => DisplayMonitorEventValue::DisplayAddedEvent(unsafe { <DisplayAddedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::DisplayDescriptorChangedEvent(value) => DisplayMonitorEventValue::DisplayDescriptorChangedEvent(unsafe { <DisplayDescriptorChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::DisplayModeChangedEvent(value) => DisplayMonitorEventValue::DisplayModeChangedEvent(unsafe { <DisplayModeChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::DisplayPrimaryChangedEvent(value) => DisplayMonitorEventValue::DisplayPrimaryChangedEvent(unsafe { <DisplayPrimaryChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::DisplayRemovedEvent(value) => DisplayMonitorEventValue::DisplayRemovedEvent(unsafe { <DisplayRemovedEvent as NativeAbiCodec>::into_value(value)? }),
+            Self::DisplayAddedEvent(value) => DisplayMonitorEventValue::DisplayAddedEvent(unsafe {
+                <DisplayAddedEvent as NativeAbiCodec>::into_value(value)?
+            }),
+            Self::DisplayDescriptorChangedEvent(value) => {
+                DisplayMonitorEventValue::DisplayDescriptorChangedEvent(unsafe {
+                    <DisplayDescriptorChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::DisplayModeChangedEvent(value) => {
+                DisplayMonitorEventValue::DisplayModeChangedEvent(unsafe {
+                    <DisplayModeChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::DisplayPrimaryChangedEvent(value) => {
+                DisplayMonitorEventValue::DisplayPrimaryChangedEvent(unsafe {
+                    <DisplayPrimaryChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::DisplayRemovedEvent(value) => {
+                DisplayMonitorEventValue::DisplayRemovedEvent(unsafe {
+                    <DisplayRemovedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
         };
         Ok(owned)
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            DisplayMonitorEventValue::DisplayAddedEvent(value) => Self::DisplayAddedEvent(<DisplayAddedEvent as NativeAbiCodec>::from_value(binding, value)),
-            DisplayMonitorEventValue::DisplayDescriptorChangedEvent(value) => Self::DisplayDescriptorChangedEvent(<DisplayDescriptorChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            DisplayMonitorEventValue::DisplayModeChangedEvent(value) => Self::DisplayModeChangedEvent(<DisplayModeChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            DisplayMonitorEventValue::DisplayPrimaryChangedEvent(value) => Self::DisplayPrimaryChangedEvent(<DisplayPrimaryChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            DisplayMonitorEventValue::DisplayRemovedEvent(value) => Self::DisplayRemovedEvent(<DisplayRemovedEvent as NativeAbiCodec>::from_value(binding, value)),
+            DisplayMonitorEventValue::DisplayAddedEvent(value) => Self::DisplayAddedEvent(
+                <DisplayAddedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            DisplayMonitorEventValue::DisplayDescriptorChangedEvent(value) => {
+                Self::DisplayDescriptorChangedEvent(
+                    <DisplayDescriptorChangedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            DisplayMonitorEventValue::DisplayModeChangedEvent(value) => {
+                Self::DisplayModeChangedEvent(
+                    <DisplayModeChangedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            DisplayMonitorEventValue::DisplayPrimaryChangedEvent(value) => {
+                Self::DisplayPrimaryChangedEvent(
+                    <DisplayPrimaryChangedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            DisplayMonitorEventValue::DisplayRemovedEvent(value) => Self::DisplayRemovedEvent(
+                <DisplayRemovedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
         }
     }
 }
@@ -1642,24 +2114,62 @@ impl NativeAbiCodec for DisplayMonitorEventAbi<NativeAbi> {
 impl VmAbiCodec for DisplayMonitorEventAbi<VmAbi> {
     type Value = DisplayMonitorEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::DisplayAddedEvent(value) => DisplayMonitorEventValue::DisplayAddedEvent(<DisplayAddedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::DisplayDescriptorChangedEvent(value) => DisplayMonitorEventValue::DisplayDescriptorChangedEvent(<DisplayDescriptorChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::DisplayModeChangedEvent(value) => DisplayMonitorEventValue::DisplayModeChangedEvent(<DisplayModeChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::DisplayPrimaryChangedEvent(value) => DisplayMonitorEventValue::DisplayPrimaryChangedEvent(<DisplayPrimaryChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::DisplayRemovedEvent(value) => DisplayMonitorEventValue::DisplayRemovedEvent(<DisplayRemovedEventVm as VmAbiCodec>::into_value(value, context)?),
+            Self::DisplayAddedEvent(value) => DisplayMonitorEventValue::DisplayAddedEvent(
+                <DisplayAddedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::DisplayDescriptorChangedEvent(value) => {
+                DisplayMonitorEventValue::DisplayDescriptorChangedEvent(
+                    <DisplayDescriptorChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::DisplayModeChangedEvent(value) => {
+                DisplayMonitorEventValue::DisplayModeChangedEvent(
+                    <DisplayModeChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::DisplayPrimaryChangedEvent(value) => {
+                DisplayMonitorEventValue::DisplayPrimaryChangedEvent(
+                    <DisplayPrimaryChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::DisplayRemovedEvent(value) => DisplayMonitorEventValue::DisplayRemovedEvent(
+                <DisplayRemovedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
         };
         Ok(owned)
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         match value {
-            DisplayMonitorEventValue::DisplayAddedEvent(value) => Ok(Self::DisplayAddedEvent(<DisplayAddedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            DisplayMonitorEventValue::DisplayDescriptorChangedEvent(value) => Ok(Self::DisplayDescriptorChangedEvent(<DisplayDescriptorChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            DisplayMonitorEventValue::DisplayModeChangedEvent(value) => Ok(Self::DisplayModeChangedEvent(<DisplayModeChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            DisplayMonitorEventValue::DisplayPrimaryChangedEvent(value) => Ok(Self::DisplayPrimaryChangedEvent(<DisplayPrimaryChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            DisplayMonitorEventValue::DisplayRemovedEvent(value) => Ok(Self::DisplayRemovedEvent(<DisplayRemovedEventVm as VmAbiCodec>::from_value(context, value)?)),
+            DisplayMonitorEventValue::DisplayAddedEvent(value) => Ok(Self::DisplayAddedEvent(
+                <DisplayAddedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            DisplayMonitorEventValue::DisplayDescriptorChangedEvent(value) => {
+                Ok(Self::DisplayDescriptorChangedEvent(
+                    <DisplayDescriptorChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            DisplayMonitorEventValue::DisplayModeChangedEvent(value) => {
+                Ok(Self::DisplayModeChangedEvent(
+                    <DisplayModeChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            DisplayMonitorEventValue::DisplayPrimaryChangedEvent(value) => {
+                Ok(Self::DisplayPrimaryChangedEvent(
+                    <DisplayPrimaryChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            DisplayMonitorEventValue::DisplayRemovedEvent(value) => Ok(Self::DisplayRemovedEvent(
+                <DisplayRemovedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
         }
     }
 }
@@ -1683,41 +2193,74 @@ impl<A: BindingAbi> std::fmt::Debug for OsPathAbi<A> {
 
 impl Copy for OsPathAbi<NativeAbi> {}
 impl Clone for OsPathAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for OsPathAbi<VmAbi> {}
 impl Clone for OsPathAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for OsPathAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "OsPath")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "OsPath",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            1243901586u32 => Self::OsPathBytes(<fs::OsPathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2271740357u32 => Self::OsPathUtf16(<fs::OsPathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown OsPath tag")).boxed()),
+            1243901586u32 => Self::OsPathBytes(
+                <fs::OsPathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            2271740357u32 => Self::OsPathUtf16(
+                <fs::OsPathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown OsPath tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::OsPathBytes(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1243901586u32, context)?;
-                let payload_value = <fs::OsPathBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1243901586u32, context)?;
+                let payload_value =
+                    <fs::OsPathBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::OsPathUtf16(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2271740357u32, context)?;
-                let payload_value = <fs::OsPathUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2271740357u32, context)?;
+                let payload_value =
+                    <fs::OsPathUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
         };
@@ -1739,16 +2282,24 @@ impl NativeAbiCodec for OsPathAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(unsafe { <fs::OsPathBytes as NativeAbiCodec>::into_value(value)? }),
-            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(unsafe { <fs::OsPathUtf16 as NativeAbiCodec>::into_value(value)? }),
+            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(unsafe {
+                <fs::OsPathBytes as NativeAbiCodec>::into_value(value)?
+            }),
+            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(unsafe {
+                <fs::OsPathUtf16 as NativeAbiCodec>::into_value(value)?
+            }),
         };
         Ok(owned)
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            OsPathValue::OsPathBytes(value) => Self::OsPathBytes(<fs::OsPathBytes as NativeAbiCodec>::from_value(binding, value)),
-            OsPathValue::OsPathUtf16(value) => Self::OsPathUtf16(<fs::OsPathUtf16 as NativeAbiCodec>::from_value(binding, value)),
+            OsPathValue::OsPathBytes(value) => Self::OsPathBytes(
+                <fs::OsPathBytes as NativeAbiCodec>::from_value(binding, value),
+            ),
+            OsPathValue::OsPathUtf16(value) => Self::OsPathUtf16(
+                <fs::OsPathUtf16 as NativeAbiCodec>::from_value(binding, value),
+            ),
         }
     }
 }
@@ -1756,18 +2307,32 @@ impl NativeAbiCodec for OsPathAbi<NativeAbi> {
 impl VmAbiCodec for OsPathAbi<VmAbi> {
     type Value = OsPathValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(<fs::OsPathBytesVm as VmAbiCodec>::into_value(value, context)?),
-            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(<fs::OsPathUtf16Vm as VmAbiCodec>::into_value(value, context)?),
+            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(
+                <fs::OsPathBytesVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(
+                <fs::OsPathUtf16Vm as VmAbiCodec>::into_value(value, context)?,
+            ),
         };
         Ok(owned)
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         match value {
-            OsPathValue::OsPathBytes(value) => Ok(Self::OsPathBytes(<fs::OsPathBytesVm as VmAbiCodec>::from_value(context, value)?)),
-            OsPathValue::OsPathUtf16(value) => Ok(Self::OsPathUtf16(<fs::OsPathUtf16Vm as VmAbiCodec>::from_value(context, value)?)),
+            OsPathValue::OsPathBytes(value) => Ok(Self::OsPathBytes(
+                <fs::OsPathBytesVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            OsPathValue::OsPathUtf16(value) => Ok(Self::OsPathUtf16(
+                <fs::OsPathUtf16Vm as VmAbiCodec>::from_value(context, value)?,
+            )),
         }
     }
 }
@@ -1823,7 +2388,9 @@ pub enum WindowEventAbi<A: BindingAbi> {
     /// WindowSizeChangedEvent variant.
     WindowSizeChangedEvent(platform_display::WindowSizeChangedEventAbi<A>),
     /// WindowTaskbarVisibilityChangedEvent variant.
-    WindowTaskbarVisibilityChangedEvent(platform_display::WindowTaskbarVisibilityChangedEventAbi<A>),
+    WindowTaskbarVisibilityChangedEvent(
+        platform_display::WindowTaskbarVisibilityChangedEventAbi<A>,
+    ),
     /// WindowTextDroppedEvent variant.
     WindowTextDroppedEvent(platform_display::WindowTextDroppedEventAbi<A>),
     /// WindowThemeChangedEvent variant.
@@ -1845,203 +2412,453 @@ impl<A: BindingAbi> std::fmt::Debug for WindowEventAbi<A> {
 
 impl Copy for WindowEventAbi<NativeAbi> {}
 impl Clone for WindowEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowEventAbi<VmAbi> {}
 impl Clone for WindowEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            1369059526u32 => Self::WindowAspectRatioChangedEvent(<WindowAspectRatioChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3772276311u32 => Self::WindowChromeChangedEvent(<WindowChromeChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            994806682u32 => Self::WindowCloseRequestedEvent(<WindowCloseRequestedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            878591535u32 => Self::WindowCreatedEvent(<WindowCreatedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            184891498u32 => Self::WindowDestroyedEvent(<WindowDestroyedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1189065445u32 => Self::WindowDisplayChangedEvent(<WindowDisplayChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            259374440u32 => Self::WindowDropCancelledEvent(<WindowDropCancelledEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2237714444u32 => Self::WindowDropCompletedEvent(<WindowDropCompletedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            284045271u32 => Self::WindowDropStartedEvent(<WindowDropStartedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2557744057u32 => Self::WindowFileDroppedEvent(<WindowFileDroppedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1126636932u32 => Self::WindowFileHoverLeftEvent(<WindowFileHoverLeftEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3640653861u32 => Self::WindowFileHoveredEvent(<WindowFileHoveredEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3088503659u32 => Self::WindowFocusChangedEvent(<WindowFocusChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3070869257u32 => Self::WindowModalChangedEvent(<WindowModalChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3707716724u32 => Self::WindowModeChangedEvent(<WindowModeChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3655843800u32 => Self::WindowMousePassthroughChangedEvent(<WindowMousePassthroughChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            158403053u32 => Self::WindowOcclusionChangedEvent(<WindowOcclusionChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3398903605u32 => Self::WindowOpacityChangedEvent(<WindowOpacityChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            401270370u32 => Self::WindowParentChangedEvent(<WindowParentChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1091699329u32 => Self::WindowPositionChangedEvent(<WindowPositionChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1316312880u32 => Self::WindowRefreshRequestedEvent(<WindowRefreshRequestedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3188496132u32 => Self::WindowSafeAreaChangedEvent(<WindowSafeAreaChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            230889647u32 => Self::WindowScaleFactorChangedEvent(<WindowScaleFactorChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1375014571u32 => Self::WindowSizeChangedEvent(<WindowSizeChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            405937330u32 => Self::WindowTaskbarVisibilityChangedEvent(<WindowTaskbarVisibilityChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3238943166u32 => Self::WindowTextDroppedEvent(<WindowTextDroppedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1613918779u32 => Self::WindowThemeChangedEvent(<WindowThemeChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1611726874u32 => Self::WindowTransientChangedEvent(<WindowTransientChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            170308681u32 => Self::WindowVisibilityChangedEvent(<WindowVisibilityChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowEvent tag")).boxed()),
+            1369059526u32 => Self::WindowAspectRatioChangedEvent(
+                <WindowAspectRatioChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3772276311u32 => Self::WindowChromeChangedEvent(
+                <WindowChromeChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            994806682u32 => Self::WindowCloseRequestedEvent(
+                <WindowCloseRequestedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            878591535u32 => Self::WindowCreatedEvent(
+                <WindowCreatedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            184891498u32 => Self::WindowDestroyedEvent(
+                <WindowDestroyedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1189065445u32 => Self::WindowDisplayChangedEvent(
+                <WindowDisplayChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            259374440u32 => Self::WindowDropCancelledEvent(
+                <WindowDropCancelledEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2237714444u32 => Self::WindowDropCompletedEvent(
+                <WindowDropCompletedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            284045271u32 => Self::WindowDropStartedEvent(
+                <WindowDropStartedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2557744057u32 => Self::WindowFileDroppedEvent(
+                <WindowFileDroppedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1126636932u32 => Self::WindowFileHoverLeftEvent(
+                <WindowFileHoverLeftEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3640653861u32 => Self::WindowFileHoveredEvent(
+                <WindowFileHoveredEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3088503659u32 => Self::WindowFocusChangedEvent(
+                <WindowFocusChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3070869257u32 => Self::WindowModalChangedEvent(
+                <WindowModalChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3707716724u32 => Self::WindowModeChangedEvent(
+                <WindowModeChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3655843800u32 => Self::WindowMousePassthroughChangedEvent(
+                <WindowMousePassthroughChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            158403053u32 => Self::WindowOcclusionChangedEvent(
+                <WindowOcclusionChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3398903605u32 => Self::WindowOpacityChangedEvent(
+                <WindowOpacityChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            401270370u32 => Self::WindowParentChangedEvent(
+                <WindowParentChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1091699329u32 => Self::WindowPositionChangedEvent(
+                <WindowPositionChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1316312880u32 => Self::WindowRefreshRequestedEvent(
+                <WindowRefreshRequestedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3188496132u32 => Self::WindowSafeAreaChangedEvent(
+                <WindowSafeAreaChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            230889647u32 => Self::WindowScaleFactorChangedEvent(
+                <WindowScaleFactorChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1375014571u32 => Self::WindowSizeChangedEvent(
+                <WindowSizeChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            405937330u32 => Self::WindowTaskbarVisibilityChangedEvent(
+                <WindowTaskbarVisibilityChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3238943166u32 => Self::WindowTextDroppedEvent(
+                <WindowTextDroppedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1613918779u32 => Self::WindowThemeChangedEvent(
+                <WindowThemeChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1611726874u32 => Self::WindowTransientChangedEvent(
+                <WindowTransientChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            170308681u32 => Self::WindowVisibilityChangedEvent(
+                <WindowVisibilityChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowEvent tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::WindowAspectRatioChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1369059526u32, context)?;
-                let payload_value = <WindowAspectRatioChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1369059526u32, context)?;
+                let payload_value =
+                    <WindowAspectRatioChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowChromeChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3772276311u32, context)?;
-                let payload_value = <WindowChromeChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3772276311u32, context)?;
+                let payload_value =
+                    <WindowChromeChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowCloseRequestedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(994806682u32, context)?;
-                let payload_value = <WindowCloseRequestedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(994806682u32, context)?;
+                let payload_value =
+                    <WindowCloseRequestedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowCreatedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(878591535u32, context)?;
-                let payload_value = <WindowCreatedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(878591535u32, context)?;
+                let payload_value =
+                    <WindowCreatedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowDestroyedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(184891498u32, context)?;
-                let payload_value = <WindowDestroyedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(184891498u32, context)?;
+                let payload_value =
+                    <WindowDestroyedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowDisplayChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1189065445u32, context)?;
-                let payload_value = <WindowDisplayChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1189065445u32, context)?;
+                let payload_value =
+                    <WindowDisplayChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowDropCancelledEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(259374440u32, context)?;
-                let payload_value = <WindowDropCancelledEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(259374440u32, context)?;
+                let payload_value =
+                    <WindowDropCancelledEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowDropCompletedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2237714444u32, context)?;
-                let payload_value = <WindowDropCompletedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2237714444u32, context)?;
+                let payload_value =
+                    <WindowDropCompletedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowDropStartedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(284045271u32, context)?;
-                let payload_value = <WindowDropStartedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(284045271u32, context)?;
+                let payload_value =
+                    <WindowDropStartedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowFileDroppedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2557744057u32, context)?;
-                let payload_value = <WindowFileDroppedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2557744057u32, context)?;
+                let payload_value =
+                    <WindowFileDroppedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowFileHoverLeftEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1126636932u32, context)?;
-                let payload_value = <WindowFileHoverLeftEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1126636932u32, context)?;
+                let payload_value =
+                    <WindowFileHoverLeftEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowFileHoveredEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3640653861u32, context)?;
-                let payload_value = <WindowFileHoveredEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3640653861u32, context)?;
+                let payload_value =
+                    <WindowFileHoveredEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowFocusChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3088503659u32, context)?;
-                let payload_value = <WindowFocusChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3088503659u32, context)?;
+                let payload_value =
+                    <WindowFocusChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowModalChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3070869257u32, context)?;
-                let payload_value = <WindowModalChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3070869257u32, context)?;
+                let payload_value =
+                    <WindowModalChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowModeChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3707716724u32, context)?;
-                let payload_value = <WindowModeChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3707716724u32, context)?;
+                let payload_value =
+                    <WindowModeChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowMousePassthroughChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3655843800u32, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3655843800u32, context)?;
                 let payload_value = <WindowMousePassthroughChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::WindowOcclusionChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(158403053u32, context)?;
-                let payload_value = <WindowOcclusionChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(158403053u32, context)?;
+                let payload_value =
+                    <WindowOcclusionChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowOpacityChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3398903605u32, context)?;
-                let payload_value = <WindowOpacityChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3398903605u32, context)?;
+                let payload_value =
+                    <WindowOpacityChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowParentChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(401270370u32, context)?;
-                let payload_value = <WindowParentChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(401270370u32, context)?;
+                let payload_value =
+                    <WindowParentChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowPositionChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1091699329u32, context)?;
-                let payload_value = <WindowPositionChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1091699329u32, context)?;
+                let payload_value =
+                    <WindowPositionChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowRefreshRequestedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1316312880u32, context)?;
-                let payload_value = <WindowRefreshRequestedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1316312880u32, context)?;
+                let payload_value =
+                    <WindowRefreshRequestedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowSafeAreaChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3188496132u32, context)?;
-                let payload_value = <WindowSafeAreaChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3188496132u32, context)?;
+                let payload_value =
+                    <WindowSafeAreaChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowScaleFactorChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(230889647u32, context)?;
-                let payload_value = <WindowScaleFactorChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(230889647u32, context)?;
+                let payload_value =
+                    <WindowScaleFactorChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowSizeChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1375014571u32, context)?;
-                let payload_value = <WindowSizeChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1375014571u32, context)?;
+                let payload_value =
+                    <WindowSizeChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowTaskbarVisibilityChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(405937330u32, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(405937330u32, context)?;
                 let payload_value = <WindowTaskbarVisibilityChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::WindowTextDroppedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3238943166u32, context)?;
-                let payload_value = <WindowTextDroppedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3238943166u32, context)?;
+                let payload_value =
+                    <WindowTextDroppedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowThemeChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1613918779u32, context)?;
-                let payload_value = <WindowThemeChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1613918779u32, context)?;
+                let payload_value =
+                    <WindowThemeChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowTransientChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1611726874u32, context)?;
-                let payload_value = <WindowTransientChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1611726874u32, context)?;
+                let payload_value =
+                    <WindowTransientChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowVisibilityChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(170308681u32, context)?;
-                let payload_value = <WindowVisibilityChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(170308681u32, context)?;
+                let payload_value =
+                    <WindowVisibilityChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
         };
@@ -2117,70 +2934,264 @@ impl NativeAbiCodec for WindowEventAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::WindowAspectRatioChangedEvent(value) => WindowEventValue::WindowAspectRatioChangedEvent(unsafe { <WindowAspectRatioChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowChromeChangedEvent(value) => WindowEventValue::WindowChromeChangedEvent(unsafe { <WindowChromeChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowCloseRequestedEvent(value) => WindowEventValue::WindowCloseRequestedEvent(unsafe { <WindowCloseRequestedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowCreatedEvent(value) => WindowEventValue::WindowCreatedEvent(unsafe { <WindowCreatedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowDestroyedEvent(value) => WindowEventValue::WindowDestroyedEvent(unsafe { <WindowDestroyedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowDisplayChangedEvent(value) => WindowEventValue::WindowDisplayChangedEvent(unsafe { <WindowDisplayChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowDropCancelledEvent(value) => WindowEventValue::WindowDropCancelledEvent(unsafe { <WindowDropCancelledEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowDropCompletedEvent(value) => WindowEventValue::WindowDropCompletedEvent(unsafe { <WindowDropCompletedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowDropStartedEvent(value) => WindowEventValue::WindowDropStartedEvent(unsafe { <WindowDropStartedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowFileDroppedEvent(value) => WindowEventValue::WindowFileDroppedEvent(unsafe { <WindowFileDroppedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowFileHoverLeftEvent(value) => WindowEventValue::WindowFileHoverLeftEvent(unsafe { <WindowFileHoverLeftEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowFileHoveredEvent(value) => WindowEventValue::WindowFileHoveredEvent(unsafe { <WindowFileHoveredEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowFocusChangedEvent(value) => WindowEventValue::WindowFocusChangedEvent(unsafe { <WindowFocusChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowModalChangedEvent(value) => WindowEventValue::WindowModalChangedEvent(unsafe { <WindowModalChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowModeChangedEvent(value) => WindowEventValue::WindowModeChangedEvent(unsafe { <WindowModeChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowMousePassthroughChangedEvent(value) => WindowEventValue::WindowMousePassthroughChangedEvent(unsafe { <WindowMousePassthroughChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowOcclusionChangedEvent(value) => WindowEventValue::WindowOcclusionChangedEvent(unsafe { <WindowOcclusionChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowOpacityChangedEvent(value) => WindowEventValue::WindowOpacityChangedEvent(unsafe { <WindowOpacityChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowParentChangedEvent(value) => WindowEventValue::WindowParentChangedEvent(unsafe { <WindowParentChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowPositionChangedEvent(value) => WindowEventValue::WindowPositionChangedEvent(unsafe { <WindowPositionChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowRefreshRequestedEvent(value) => WindowEventValue::WindowRefreshRequestedEvent(unsafe { <WindowRefreshRequestedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowSafeAreaChangedEvent(value) => WindowEventValue::WindowSafeAreaChangedEvent(unsafe { <WindowSafeAreaChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowScaleFactorChangedEvent(value) => WindowEventValue::WindowScaleFactorChangedEvent(unsafe { <WindowScaleFactorChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowSizeChangedEvent(value) => WindowEventValue::WindowSizeChangedEvent(unsafe { <WindowSizeChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowTaskbarVisibilityChangedEvent(value) => WindowEventValue::WindowTaskbarVisibilityChangedEvent(unsafe { <WindowTaskbarVisibilityChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowTextDroppedEvent(value) => WindowEventValue::WindowTextDroppedEvent(unsafe { <WindowTextDroppedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowThemeChangedEvent(value) => WindowEventValue::WindowThemeChangedEvent(unsafe { <WindowThemeChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowTransientChangedEvent(value) => WindowEventValue::WindowTransientChangedEvent(unsafe { <WindowTransientChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowVisibilityChangedEvent(value) => WindowEventValue::WindowVisibilityChangedEvent(unsafe { <WindowVisibilityChangedEvent as NativeAbiCodec>::into_value(value)? }),
+            Self::WindowAspectRatioChangedEvent(value) => {
+                WindowEventValue::WindowAspectRatioChangedEvent(unsafe {
+                    <WindowAspectRatioChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowChromeChangedEvent(value) => {
+                WindowEventValue::WindowChromeChangedEvent(unsafe {
+                    <WindowChromeChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowCloseRequestedEvent(value) => {
+                WindowEventValue::WindowCloseRequestedEvent(unsafe {
+                    <WindowCloseRequestedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowCreatedEvent(value) => WindowEventValue::WindowCreatedEvent(unsafe {
+                <WindowCreatedEvent as NativeAbiCodec>::into_value(value)?
+            }),
+            Self::WindowDestroyedEvent(value) => WindowEventValue::WindowDestroyedEvent(unsafe {
+                <WindowDestroyedEvent as NativeAbiCodec>::into_value(value)?
+            }),
+            Self::WindowDisplayChangedEvent(value) => {
+                WindowEventValue::WindowDisplayChangedEvent(unsafe {
+                    <WindowDisplayChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowDropCancelledEvent(value) => {
+                WindowEventValue::WindowDropCancelledEvent(unsafe {
+                    <WindowDropCancelledEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowDropCompletedEvent(value) => {
+                WindowEventValue::WindowDropCompletedEvent(unsafe {
+                    <WindowDropCompletedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowDropStartedEvent(value) => {
+                WindowEventValue::WindowDropStartedEvent(unsafe {
+                    <WindowDropStartedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowFileDroppedEvent(value) => {
+                WindowEventValue::WindowFileDroppedEvent(unsafe {
+                    <WindowFileDroppedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowFileHoverLeftEvent(value) => {
+                WindowEventValue::WindowFileHoverLeftEvent(unsafe {
+                    <WindowFileHoverLeftEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowFileHoveredEvent(value) => {
+                WindowEventValue::WindowFileHoveredEvent(unsafe {
+                    <WindowFileHoveredEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowFocusChangedEvent(value) => {
+                WindowEventValue::WindowFocusChangedEvent(unsafe {
+                    <WindowFocusChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowModalChangedEvent(value) => {
+                WindowEventValue::WindowModalChangedEvent(unsafe {
+                    <WindowModalChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowModeChangedEvent(value) => {
+                WindowEventValue::WindowModeChangedEvent(unsafe {
+                    <WindowModeChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowMousePassthroughChangedEvent(value) => {
+                WindowEventValue::WindowMousePassthroughChangedEvent(unsafe {
+                    <WindowMousePassthroughChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowOcclusionChangedEvent(value) => {
+                WindowEventValue::WindowOcclusionChangedEvent(unsafe {
+                    <WindowOcclusionChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowOpacityChangedEvent(value) => {
+                WindowEventValue::WindowOpacityChangedEvent(unsafe {
+                    <WindowOpacityChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowParentChangedEvent(value) => {
+                WindowEventValue::WindowParentChangedEvent(unsafe {
+                    <WindowParentChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowPositionChangedEvent(value) => {
+                WindowEventValue::WindowPositionChangedEvent(unsafe {
+                    <WindowPositionChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowRefreshRequestedEvent(value) => {
+                WindowEventValue::WindowRefreshRequestedEvent(unsafe {
+                    <WindowRefreshRequestedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowSafeAreaChangedEvent(value) => {
+                WindowEventValue::WindowSafeAreaChangedEvent(unsafe {
+                    <WindowSafeAreaChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowScaleFactorChangedEvent(value) => {
+                WindowEventValue::WindowScaleFactorChangedEvent(unsafe {
+                    <WindowScaleFactorChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowSizeChangedEvent(value) => {
+                WindowEventValue::WindowSizeChangedEvent(unsafe {
+                    <WindowSizeChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowTaskbarVisibilityChangedEvent(value) => {
+                WindowEventValue::WindowTaskbarVisibilityChangedEvent(unsafe {
+                    <WindowTaskbarVisibilityChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowTextDroppedEvent(value) => {
+                WindowEventValue::WindowTextDroppedEvent(unsafe {
+                    <WindowTextDroppedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowThemeChangedEvent(value) => {
+                WindowEventValue::WindowThemeChangedEvent(unsafe {
+                    <WindowThemeChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowTransientChangedEvent(value) => {
+                WindowEventValue::WindowTransientChangedEvent(unsafe {
+                    <WindowTransientChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowVisibilityChangedEvent(value) => {
+                WindowEventValue::WindowVisibilityChangedEvent(unsafe {
+                    <WindowVisibilityChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
         };
         Ok(owned)
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            WindowEventValue::WindowAspectRatioChangedEvent(value) => Self::WindowAspectRatioChangedEvent(<WindowAspectRatioChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowChromeChangedEvent(value) => Self::WindowChromeChangedEvent(<WindowChromeChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowCloseRequestedEvent(value) => Self::WindowCloseRequestedEvent(<WindowCloseRequestedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowCreatedEvent(value) => Self::WindowCreatedEvent(<WindowCreatedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowDestroyedEvent(value) => Self::WindowDestroyedEvent(<WindowDestroyedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowDisplayChangedEvent(value) => Self::WindowDisplayChangedEvent(<WindowDisplayChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowDropCancelledEvent(value) => Self::WindowDropCancelledEvent(<WindowDropCancelledEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowDropCompletedEvent(value) => Self::WindowDropCompletedEvent(<WindowDropCompletedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowDropStartedEvent(value) => Self::WindowDropStartedEvent(<WindowDropStartedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowFileDroppedEvent(value) => Self::WindowFileDroppedEvent(<WindowFileDroppedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowFileHoverLeftEvent(value) => Self::WindowFileHoverLeftEvent(<WindowFileHoverLeftEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowFileHoveredEvent(value) => Self::WindowFileHoveredEvent(<WindowFileHoveredEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowFocusChangedEvent(value) => Self::WindowFocusChangedEvent(<WindowFocusChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowModalChangedEvent(value) => Self::WindowModalChangedEvent(<WindowModalChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowModeChangedEvent(value) => Self::WindowModeChangedEvent(<WindowModeChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowMousePassthroughChangedEvent(value) => Self::WindowMousePassthroughChangedEvent(<WindowMousePassthroughChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowOcclusionChangedEvent(value) => Self::WindowOcclusionChangedEvent(<WindowOcclusionChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowOpacityChangedEvent(value) => Self::WindowOpacityChangedEvent(<WindowOpacityChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowParentChangedEvent(value) => Self::WindowParentChangedEvent(<WindowParentChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowPositionChangedEvent(value) => Self::WindowPositionChangedEvent(<WindowPositionChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowRefreshRequestedEvent(value) => Self::WindowRefreshRequestedEvent(<WindowRefreshRequestedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowSafeAreaChangedEvent(value) => Self::WindowSafeAreaChangedEvent(<WindowSafeAreaChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowScaleFactorChangedEvent(value) => Self::WindowScaleFactorChangedEvent(<WindowScaleFactorChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowSizeChangedEvent(value) => Self::WindowSizeChangedEvent(<WindowSizeChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowTaskbarVisibilityChangedEvent(value) => Self::WindowTaskbarVisibilityChangedEvent(<WindowTaskbarVisibilityChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowTextDroppedEvent(value) => Self::WindowTextDroppedEvent(<WindowTextDroppedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowThemeChangedEvent(value) => Self::WindowThemeChangedEvent(<WindowThemeChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowTransientChangedEvent(value) => Self::WindowTransientChangedEvent(<WindowTransientChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            WindowEventValue::WindowVisibilityChangedEvent(value) => Self::WindowVisibilityChangedEvent(<WindowVisibilityChangedEvent as NativeAbiCodec>::from_value(binding, value)),
+            WindowEventValue::WindowAspectRatioChangedEvent(value) => {
+                Self::WindowAspectRatioChangedEvent(
+                    <WindowAspectRatioChangedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            WindowEventValue::WindowChromeChangedEvent(value) => Self::WindowChromeChangedEvent(
+                <WindowChromeChangedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowCloseRequestedEvent(value) => Self::WindowCloseRequestedEvent(
+                <WindowCloseRequestedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowCreatedEvent(value) => Self::WindowCreatedEvent(
+                <WindowCreatedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowDestroyedEvent(value) => Self::WindowDestroyedEvent(
+                <WindowDestroyedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowDisplayChangedEvent(value) => Self::WindowDisplayChangedEvent(
+                <WindowDisplayChangedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowDropCancelledEvent(value) => Self::WindowDropCancelledEvent(
+                <WindowDropCancelledEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowDropCompletedEvent(value) => Self::WindowDropCompletedEvent(
+                <WindowDropCompletedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowDropStartedEvent(value) => Self::WindowDropStartedEvent(
+                <WindowDropStartedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowFileDroppedEvent(value) => Self::WindowFileDroppedEvent(
+                <WindowFileDroppedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowFileHoverLeftEvent(value) => Self::WindowFileHoverLeftEvent(
+                <WindowFileHoverLeftEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowFileHoveredEvent(value) => Self::WindowFileHoveredEvent(
+                <WindowFileHoveredEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowFocusChangedEvent(value) => Self::WindowFocusChangedEvent(
+                <WindowFocusChangedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowModalChangedEvent(value) => Self::WindowModalChangedEvent(
+                <WindowModalChangedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowModeChangedEvent(value) => Self::WindowModeChangedEvent(
+                <WindowModeChangedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowMousePassthroughChangedEvent(value) => {
+                Self::WindowMousePassthroughChangedEvent(
+                    <WindowMousePassthroughChangedEvent as NativeAbiCodec>::from_value(
+                        binding, value,
+                    ),
+                )
+            }
+            WindowEventValue::WindowOcclusionChangedEvent(value) => {
+                Self::WindowOcclusionChangedEvent(
+                    <WindowOcclusionChangedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            WindowEventValue::WindowOpacityChangedEvent(value) => Self::WindowOpacityChangedEvent(
+                <WindowOpacityChangedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowParentChangedEvent(value) => Self::WindowParentChangedEvent(
+                <WindowParentChangedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowPositionChangedEvent(value) => {
+                Self::WindowPositionChangedEvent(
+                    <WindowPositionChangedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            WindowEventValue::WindowRefreshRequestedEvent(value) => {
+                Self::WindowRefreshRequestedEvent(
+                    <WindowRefreshRequestedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            WindowEventValue::WindowSafeAreaChangedEvent(value) => {
+                Self::WindowSafeAreaChangedEvent(
+                    <WindowSafeAreaChangedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            WindowEventValue::WindowScaleFactorChangedEvent(value) => {
+                Self::WindowScaleFactorChangedEvent(
+                    <WindowScaleFactorChangedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            WindowEventValue::WindowSizeChangedEvent(value) => Self::WindowSizeChangedEvent(
+                <WindowSizeChangedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowTaskbarVisibilityChangedEvent(value) => {
+                Self::WindowTaskbarVisibilityChangedEvent(
+                    <WindowTaskbarVisibilityChangedEvent as NativeAbiCodec>::from_value(
+                        binding, value,
+                    ),
+                )
+            }
+            WindowEventValue::WindowTextDroppedEvent(value) => Self::WindowTextDroppedEvent(
+                <WindowTextDroppedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowThemeChangedEvent(value) => Self::WindowThemeChangedEvent(
+                <WindowThemeChangedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            WindowEventValue::WindowTransientChangedEvent(value) => {
+                Self::WindowTransientChangedEvent(
+                    <WindowTransientChangedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            WindowEventValue::WindowVisibilityChangedEvent(value) => {
+                Self::WindowVisibilityChangedEvent(
+                    <WindowVisibilityChangedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
         }
     }
 }
@@ -2188,72 +3199,258 @@ impl NativeAbiCodec for WindowEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowEventAbi<VmAbi> {
     type Value = WindowEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::WindowAspectRatioChangedEvent(value) => WindowEventValue::WindowAspectRatioChangedEvent(<WindowAspectRatioChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowChromeChangedEvent(value) => WindowEventValue::WindowChromeChangedEvent(<WindowChromeChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowCloseRequestedEvent(value) => WindowEventValue::WindowCloseRequestedEvent(<WindowCloseRequestedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowCreatedEvent(value) => WindowEventValue::WindowCreatedEvent(<WindowCreatedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowDestroyedEvent(value) => WindowEventValue::WindowDestroyedEvent(<WindowDestroyedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowDisplayChangedEvent(value) => WindowEventValue::WindowDisplayChangedEvent(<WindowDisplayChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowDropCancelledEvent(value) => WindowEventValue::WindowDropCancelledEvent(<WindowDropCancelledEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowDropCompletedEvent(value) => WindowEventValue::WindowDropCompletedEvent(<WindowDropCompletedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowDropStartedEvent(value) => WindowEventValue::WindowDropStartedEvent(<WindowDropStartedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowFileDroppedEvent(value) => WindowEventValue::WindowFileDroppedEvent(<WindowFileDroppedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowFileHoverLeftEvent(value) => WindowEventValue::WindowFileHoverLeftEvent(<WindowFileHoverLeftEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowFileHoveredEvent(value) => WindowEventValue::WindowFileHoveredEvent(<WindowFileHoveredEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowFocusChangedEvent(value) => WindowEventValue::WindowFocusChangedEvent(<WindowFocusChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowModalChangedEvent(value) => WindowEventValue::WindowModalChangedEvent(<WindowModalChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowModeChangedEvent(value) => WindowEventValue::WindowModeChangedEvent(<WindowModeChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowMousePassthroughChangedEvent(value) => WindowEventValue::WindowMousePassthroughChangedEvent(<WindowMousePassthroughChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowOcclusionChangedEvent(value) => WindowEventValue::WindowOcclusionChangedEvent(<WindowOcclusionChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowOpacityChangedEvent(value) => WindowEventValue::WindowOpacityChangedEvent(<WindowOpacityChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowParentChangedEvent(value) => WindowEventValue::WindowParentChangedEvent(<WindowParentChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowPositionChangedEvent(value) => WindowEventValue::WindowPositionChangedEvent(<WindowPositionChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowRefreshRequestedEvent(value) => WindowEventValue::WindowRefreshRequestedEvent(<WindowRefreshRequestedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowSafeAreaChangedEvent(value) => WindowEventValue::WindowSafeAreaChangedEvent(<WindowSafeAreaChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowScaleFactorChangedEvent(value) => WindowEventValue::WindowScaleFactorChangedEvent(<WindowScaleFactorChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowSizeChangedEvent(value) => WindowEventValue::WindowSizeChangedEvent(<WindowSizeChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowTaskbarVisibilityChangedEvent(value) => WindowEventValue::WindowTaskbarVisibilityChangedEvent(<WindowTaskbarVisibilityChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowTextDroppedEvent(value) => WindowEventValue::WindowTextDroppedEvent(<WindowTextDroppedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowThemeChangedEvent(value) => WindowEventValue::WindowThemeChangedEvent(<WindowThemeChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowTransientChangedEvent(value) => WindowEventValue::WindowTransientChangedEvent(<WindowTransientChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowVisibilityChangedEvent(value) => WindowEventValue::WindowVisibilityChangedEvent(<WindowVisibilityChangedEventVm as VmAbiCodec>::into_value(value, context)?),
+            Self::WindowAspectRatioChangedEvent(value) => {
+                WindowEventValue::WindowAspectRatioChangedEvent(
+                    <WindowAspectRatioChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::WindowChromeChangedEvent(value) => WindowEventValue::WindowChromeChangedEvent(
+                <WindowChromeChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowCloseRequestedEvent(value) => WindowEventValue::WindowCloseRequestedEvent(
+                <WindowCloseRequestedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowCreatedEvent(value) => WindowEventValue::WindowCreatedEvent(
+                <WindowCreatedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowDestroyedEvent(value) => WindowEventValue::WindowDestroyedEvent(
+                <WindowDestroyedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowDisplayChangedEvent(value) => WindowEventValue::WindowDisplayChangedEvent(
+                <WindowDisplayChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowDropCancelledEvent(value) => WindowEventValue::WindowDropCancelledEvent(
+                <WindowDropCancelledEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowDropCompletedEvent(value) => WindowEventValue::WindowDropCompletedEvent(
+                <WindowDropCompletedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowDropStartedEvent(value) => WindowEventValue::WindowDropStartedEvent(
+                <WindowDropStartedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowFileDroppedEvent(value) => WindowEventValue::WindowFileDroppedEvent(
+                <WindowFileDroppedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowFileHoverLeftEvent(value) => WindowEventValue::WindowFileHoverLeftEvent(
+                <WindowFileHoverLeftEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowFileHoveredEvent(value) => WindowEventValue::WindowFileHoveredEvent(
+                <WindowFileHoveredEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowFocusChangedEvent(value) => WindowEventValue::WindowFocusChangedEvent(
+                <WindowFocusChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowModalChangedEvent(value) => WindowEventValue::WindowModalChangedEvent(
+                <WindowModalChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowModeChangedEvent(value) => WindowEventValue::WindowModeChangedEvent(
+                <WindowModeChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowMousePassthroughChangedEvent(value) => {
+                WindowEventValue::WindowMousePassthroughChangedEvent(
+                    <WindowMousePassthroughChangedEventVm as VmAbiCodec>::into_value(
+                        value, context,
+                    )?,
+                )
+            }
+            Self::WindowOcclusionChangedEvent(value) => {
+                WindowEventValue::WindowOcclusionChangedEvent(
+                    <WindowOcclusionChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::WindowOpacityChangedEvent(value) => WindowEventValue::WindowOpacityChangedEvent(
+                <WindowOpacityChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowParentChangedEvent(value) => WindowEventValue::WindowParentChangedEvent(
+                <WindowParentChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowPositionChangedEvent(value) => {
+                WindowEventValue::WindowPositionChangedEvent(
+                    <WindowPositionChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::WindowRefreshRequestedEvent(value) => {
+                WindowEventValue::WindowRefreshRequestedEvent(
+                    <WindowRefreshRequestedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::WindowSafeAreaChangedEvent(value) => {
+                WindowEventValue::WindowSafeAreaChangedEvent(
+                    <WindowSafeAreaChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::WindowScaleFactorChangedEvent(value) => {
+                WindowEventValue::WindowScaleFactorChangedEvent(
+                    <WindowScaleFactorChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::WindowSizeChangedEvent(value) => WindowEventValue::WindowSizeChangedEvent(
+                <WindowSizeChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowTaskbarVisibilityChangedEvent(value) => {
+                WindowEventValue::WindowTaskbarVisibilityChangedEvent(
+                    <WindowTaskbarVisibilityChangedEventVm as VmAbiCodec>::into_value(
+                        value, context,
+                    )?,
+                )
+            }
+            Self::WindowTextDroppedEvent(value) => WindowEventValue::WindowTextDroppedEvent(
+                <WindowTextDroppedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowThemeChangedEvent(value) => WindowEventValue::WindowThemeChangedEvent(
+                <WindowThemeChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::WindowTransientChangedEvent(value) => {
+                WindowEventValue::WindowTransientChangedEvent(
+                    <WindowTransientChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::WindowVisibilityChangedEvent(value) => {
+                WindowEventValue::WindowVisibilityChangedEvent(
+                    <WindowVisibilityChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
         };
         Ok(owned)
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         match value {
-            WindowEventValue::WindowAspectRatioChangedEvent(value) => Ok(Self::WindowAspectRatioChangedEvent(<WindowAspectRatioChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowChromeChangedEvent(value) => Ok(Self::WindowChromeChangedEvent(<WindowChromeChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowCloseRequestedEvent(value) => Ok(Self::WindowCloseRequestedEvent(<WindowCloseRequestedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowCreatedEvent(value) => Ok(Self::WindowCreatedEvent(<WindowCreatedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowDestroyedEvent(value) => Ok(Self::WindowDestroyedEvent(<WindowDestroyedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowDisplayChangedEvent(value) => Ok(Self::WindowDisplayChangedEvent(<WindowDisplayChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowDropCancelledEvent(value) => Ok(Self::WindowDropCancelledEvent(<WindowDropCancelledEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowDropCompletedEvent(value) => Ok(Self::WindowDropCompletedEvent(<WindowDropCompletedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowDropStartedEvent(value) => Ok(Self::WindowDropStartedEvent(<WindowDropStartedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowFileDroppedEvent(value) => Ok(Self::WindowFileDroppedEvent(<WindowFileDroppedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowFileHoverLeftEvent(value) => Ok(Self::WindowFileHoverLeftEvent(<WindowFileHoverLeftEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowFileHoveredEvent(value) => Ok(Self::WindowFileHoveredEvent(<WindowFileHoveredEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowFocusChangedEvent(value) => Ok(Self::WindowFocusChangedEvent(<WindowFocusChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowModalChangedEvent(value) => Ok(Self::WindowModalChangedEvent(<WindowModalChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowModeChangedEvent(value) => Ok(Self::WindowModeChangedEvent(<WindowModeChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowMousePassthroughChangedEvent(value) => Ok(Self::WindowMousePassthroughChangedEvent(<WindowMousePassthroughChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowOcclusionChangedEvent(value) => Ok(Self::WindowOcclusionChangedEvent(<WindowOcclusionChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowOpacityChangedEvent(value) => Ok(Self::WindowOpacityChangedEvent(<WindowOpacityChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowParentChangedEvent(value) => Ok(Self::WindowParentChangedEvent(<WindowParentChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowPositionChangedEvent(value) => Ok(Self::WindowPositionChangedEvent(<WindowPositionChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowRefreshRequestedEvent(value) => Ok(Self::WindowRefreshRequestedEvent(<WindowRefreshRequestedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowSafeAreaChangedEvent(value) => Ok(Self::WindowSafeAreaChangedEvent(<WindowSafeAreaChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowScaleFactorChangedEvent(value) => Ok(Self::WindowScaleFactorChangedEvent(<WindowScaleFactorChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowSizeChangedEvent(value) => Ok(Self::WindowSizeChangedEvent(<WindowSizeChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowTaskbarVisibilityChangedEvent(value) => Ok(Self::WindowTaskbarVisibilityChangedEvent(<WindowTaskbarVisibilityChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowTextDroppedEvent(value) => Ok(Self::WindowTextDroppedEvent(<WindowTextDroppedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowThemeChangedEvent(value) => Ok(Self::WindowThemeChangedEvent(<WindowThemeChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowTransientChangedEvent(value) => Ok(Self::WindowTransientChangedEvent(<WindowTransientChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowEventValue::WindowVisibilityChangedEvent(value) => Ok(Self::WindowVisibilityChangedEvent(<WindowVisibilityChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
+            WindowEventValue::WindowAspectRatioChangedEvent(value) => {
+                Ok(Self::WindowAspectRatioChangedEvent(
+                    <WindowAspectRatioChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowChromeChangedEvent(value) => {
+                Ok(Self::WindowChromeChangedEvent(
+                    <WindowChromeChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowCloseRequestedEvent(value) => {
+                Ok(Self::WindowCloseRequestedEvent(
+                    <WindowCloseRequestedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowCreatedEvent(value) => Ok(Self::WindowCreatedEvent(
+                <WindowCreatedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            WindowEventValue::WindowDestroyedEvent(value) => Ok(Self::WindowDestroyedEvent(
+                <WindowDestroyedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            WindowEventValue::WindowDisplayChangedEvent(value) => {
+                Ok(Self::WindowDisplayChangedEvent(
+                    <WindowDisplayChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowDropCancelledEvent(value) => {
+                Ok(Self::WindowDropCancelledEvent(
+                    <WindowDropCancelledEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowDropCompletedEvent(value) => {
+                Ok(Self::WindowDropCompletedEvent(
+                    <WindowDropCompletedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowDropStartedEvent(value) => Ok(Self::WindowDropStartedEvent(
+                <WindowDropStartedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            WindowEventValue::WindowFileDroppedEvent(value) => Ok(Self::WindowFileDroppedEvent(
+                <WindowFileDroppedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            WindowEventValue::WindowFileHoverLeftEvent(value) => {
+                Ok(Self::WindowFileHoverLeftEvent(
+                    <WindowFileHoverLeftEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowFileHoveredEvent(value) => Ok(Self::WindowFileHoveredEvent(
+                <WindowFileHoveredEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            WindowEventValue::WindowFocusChangedEvent(value) => Ok(Self::WindowFocusChangedEvent(
+                <WindowFocusChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            WindowEventValue::WindowModalChangedEvent(value) => Ok(Self::WindowModalChangedEvent(
+                <WindowModalChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            WindowEventValue::WindowModeChangedEvent(value) => Ok(Self::WindowModeChangedEvent(
+                <WindowModeChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            WindowEventValue::WindowMousePassthroughChangedEvent(value) => {
+                Ok(Self::WindowMousePassthroughChangedEvent(
+                    <WindowMousePassthroughChangedEventVm as VmAbiCodec>::from_value(
+                        context, value,
+                    )?,
+                ))
+            }
+            WindowEventValue::WindowOcclusionChangedEvent(value) => {
+                Ok(Self::WindowOcclusionChangedEvent(
+                    <WindowOcclusionChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowOpacityChangedEvent(value) => {
+                Ok(Self::WindowOpacityChangedEvent(
+                    <WindowOpacityChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowParentChangedEvent(value) => {
+                Ok(Self::WindowParentChangedEvent(
+                    <WindowParentChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowPositionChangedEvent(value) => {
+                Ok(Self::WindowPositionChangedEvent(
+                    <WindowPositionChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowRefreshRequestedEvent(value) => {
+                Ok(Self::WindowRefreshRequestedEvent(
+                    <WindowRefreshRequestedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowSafeAreaChangedEvent(value) => {
+                Ok(Self::WindowSafeAreaChangedEvent(
+                    <WindowSafeAreaChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowScaleFactorChangedEvent(value) => {
+                Ok(Self::WindowScaleFactorChangedEvent(
+                    <WindowScaleFactorChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowSizeChangedEvent(value) => Ok(Self::WindowSizeChangedEvent(
+                <WindowSizeChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            WindowEventValue::WindowTaskbarVisibilityChangedEvent(value) => {
+                Ok(Self::WindowTaskbarVisibilityChangedEvent(
+                    <WindowTaskbarVisibilityChangedEventVm as VmAbiCodec>::from_value(
+                        context, value,
+                    )?,
+                ))
+            }
+            WindowEventValue::WindowTextDroppedEvent(value) => Ok(Self::WindowTextDroppedEvent(
+                <WindowTextDroppedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            WindowEventValue::WindowThemeChangedEvent(value) => Ok(Self::WindowThemeChangedEvent(
+                <WindowThemeChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            WindowEventValue::WindowTransientChangedEvent(value) => {
+                Ok(Self::WindowTransientChangedEvent(
+                    <WindowTransientChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowEventValue::WindowVisibilityChangedEvent(value) => {
+                Ok(Self::WindowVisibilityChangedEvent(
+                    <WindowVisibilityChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
         }
     }
 }
@@ -2263,7 +3460,9 @@ pub enum WindowModeOptionsAbi<A: BindingAbi> {
     /// WindowBorderlessModeOptions variant.
     WindowBorderlessModeOptions(platform_display::WindowBorderlessModeOptionsAbi<A>),
     /// WindowExclusiveFullscreenModeOptions variant.
-    WindowExclusiveFullscreenModeOptions(platform_display::WindowExclusiveFullscreenModeOptionsAbi<A>),
+    WindowExclusiveFullscreenModeOptions(
+        platform_display::WindowExclusiveFullscreenModeOptionsAbi<A>,
+    ),
     /// WindowWindowedModeOptions variant.
     WindowWindowedModeOptions(platform_display::WindowWindowedModeOptionsAbi<A>),
 }
@@ -2279,47 +3478,94 @@ impl<A: BindingAbi> std::fmt::Debug for WindowModeOptionsAbi<A> {
 
 impl Copy for WindowModeOptionsAbi<NativeAbi> {}
 impl Clone for WindowModeOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowModeOptionsAbi<VmAbi> {}
 impl Clone for WindowModeOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowModeOptionsAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowModeOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowModeOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            3607132193u32 => Self::WindowBorderlessModeOptions(<WindowBorderlessModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            689450274u32 => Self::WindowExclusiveFullscreenModeOptions(<WindowExclusiveFullscreenModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            624471152u32 => Self::WindowWindowedModeOptions(<WindowWindowedModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown WindowModeOptions tag")).boxed()),
+            3607132193u32 => Self::WindowBorderlessModeOptions(
+                <WindowBorderlessModeOptionsVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            689450274u32 => Self::WindowExclusiveFullscreenModeOptions(
+                <WindowExclusiveFullscreenModeOptionsVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            624471152u32 => Self::WindowWindowedModeOptions(
+                <WindowWindowedModeOptionsVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowModeOptions tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::WindowBorderlessModeOptions(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3607132193u32, context)?;
-                let payload_value = <WindowBorderlessModeOptionsVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3607132193u32, context)?;
+                let payload_value =
+                    <WindowBorderlessModeOptionsVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::WindowExclusiveFullscreenModeOptions(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(689450274u32, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(689450274u32, context)?;
                 let payload_value = <WindowExclusiveFullscreenModeOptionsVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::WindowWindowedModeOptions(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(624471152u32, context)?;
-                let payload_value = <WindowWindowedModeOptionsVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(624471152u32, context)?;
+                let payload_value =
+                    <WindowWindowedModeOptionsVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
         };
@@ -2343,18 +3589,44 @@ impl NativeAbiCodec for WindowModeOptionsAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::WindowBorderlessModeOptions(value) => WindowModeOptionsValue::WindowBorderlessModeOptions(unsafe { <WindowBorderlessModeOptions as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowExclusiveFullscreenModeOptions(value) => WindowModeOptionsValue::WindowExclusiveFullscreenModeOptions(unsafe { <WindowExclusiveFullscreenModeOptions as NativeAbiCodec>::into_value(value)? }),
-            Self::WindowWindowedModeOptions(value) => WindowModeOptionsValue::WindowWindowedModeOptions(unsafe { <WindowWindowedModeOptions as NativeAbiCodec>::into_value(value)? }),
+            Self::WindowBorderlessModeOptions(value) => {
+                WindowModeOptionsValue::WindowBorderlessModeOptions(unsafe {
+                    <WindowBorderlessModeOptions as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowExclusiveFullscreenModeOptions(value) => {
+                WindowModeOptionsValue::WindowExclusiveFullscreenModeOptions(unsafe {
+                    <WindowExclusiveFullscreenModeOptions as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::WindowWindowedModeOptions(value) => {
+                WindowModeOptionsValue::WindowWindowedModeOptions(unsafe {
+                    <WindowWindowedModeOptions as NativeAbiCodec>::into_value(value)?
+                })
+            }
         };
         Ok(owned)
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            WindowModeOptionsValue::WindowBorderlessModeOptions(value) => Self::WindowBorderlessModeOptions(<WindowBorderlessModeOptions as NativeAbiCodec>::from_value(binding, value)),
-            WindowModeOptionsValue::WindowExclusiveFullscreenModeOptions(value) => Self::WindowExclusiveFullscreenModeOptions(<WindowExclusiveFullscreenModeOptions as NativeAbiCodec>::from_value(binding, value)),
-            WindowModeOptionsValue::WindowWindowedModeOptions(value) => Self::WindowWindowedModeOptions(<WindowWindowedModeOptions as NativeAbiCodec>::from_value(binding, value)),
+            WindowModeOptionsValue::WindowBorderlessModeOptions(value) => {
+                Self::WindowBorderlessModeOptions(
+                    <WindowBorderlessModeOptions as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            WindowModeOptionsValue::WindowExclusiveFullscreenModeOptions(value) => {
+                Self::WindowExclusiveFullscreenModeOptions(
+                    <WindowExclusiveFullscreenModeOptions as NativeAbiCodec>::from_value(
+                        binding, value,
+                    ),
+                )
+            }
+            WindowModeOptionsValue::WindowWindowedModeOptions(value) => {
+                Self::WindowWindowedModeOptions(
+                    <WindowWindowedModeOptions as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
         }
     }
 }
@@ -2362,20 +3634,54 @@ impl NativeAbiCodec for WindowModeOptionsAbi<NativeAbi> {
 impl VmAbiCodec for WindowModeOptionsAbi<VmAbi> {
     type Value = WindowModeOptionsValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::WindowBorderlessModeOptions(value) => WindowModeOptionsValue::WindowBorderlessModeOptions(<WindowBorderlessModeOptionsVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowExclusiveFullscreenModeOptions(value) => WindowModeOptionsValue::WindowExclusiveFullscreenModeOptions(<WindowExclusiveFullscreenModeOptionsVm as VmAbiCodec>::into_value(value, context)?),
-            Self::WindowWindowedModeOptions(value) => WindowModeOptionsValue::WindowWindowedModeOptions(<WindowWindowedModeOptionsVm as VmAbiCodec>::into_value(value, context)?),
+            Self::WindowBorderlessModeOptions(value) => {
+                WindowModeOptionsValue::WindowBorderlessModeOptions(
+                    <WindowBorderlessModeOptionsVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::WindowExclusiveFullscreenModeOptions(value) => {
+                WindowModeOptionsValue::WindowExclusiveFullscreenModeOptions(
+                    <WindowExclusiveFullscreenModeOptionsVm as VmAbiCodec>::into_value(
+                        value, context,
+                    )?,
+                )
+            }
+            Self::WindowWindowedModeOptions(value) => {
+                WindowModeOptionsValue::WindowWindowedModeOptions(
+                    <WindowWindowedModeOptionsVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
         };
         Ok(owned)
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         match value {
-            WindowModeOptionsValue::WindowBorderlessModeOptions(value) => Ok(Self::WindowBorderlessModeOptions(<WindowBorderlessModeOptionsVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowModeOptionsValue::WindowExclusiveFullscreenModeOptions(value) => Ok(Self::WindowExclusiveFullscreenModeOptions(<WindowExclusiveFullscreenModeOptionsVm as VmAbiCodec>::from_value(context, value)?)),
-            WindowModeOptionsValue::WindowWindowedModeOptions(value) => Ok(Self::WindowWindowedModeOptions(<WindowWindowedModeOptionsVm as VmAbiCodec>::from_value(context, value)?)),
+            WindowModeOptionsValue::WindowBorderlessModeOptions(value) => {
+                Ok(Self::WindowBorderlessModeOptions(
+                    <WindowBorderlessModeOptionsVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            WindowModeOptionsValue::WindowExclusiveFullscreenModeOptions(value) => {
+                Ok(Self::WindowExclusiveFullscreenModeOptions(
+                    <WindowExclusiveFullscreenModeOptionsVm as VmAbiCodec>::from_value(
+                        context, value,
+                    )?,
+                ))
+            }
+            WindowModeOptionsValue::WindowWindowedModeOptions(value) => {
+                Ok(Self::WindowWindowedModeOptions(
+                    <WindowWindowedModeOptionsVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
         }
     }
 }
@@ -2396,31 +3702,55 @@ pub type DisplayAddedEventVm = DisplayAddedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayAddedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayAddedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayAddedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayAddedEventAbi<NativeAbi> {}
 impl Clone for DisplayAddedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayAddedEventAbi<VmAbi> {}
 impl Clone for DisplayAddedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayAddedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayAddedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayAddedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <DisplayAddedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_payload =
+            <DisplayAddedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -2428,11 +3758,20 @@ impl VmAggregateCodec for DisplayAddedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <DisplayAddedPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <DisplayAddedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2455,7 +3794,9 @@ impl NativeAbiCodec for DisplayAddedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayAddedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <DisplayMonitorEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <DisplayMonitorEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             payload: unsafe { <DisplayAddedPayload as NativeAbiCodec>::into_value(self.payload)? },
         })
     }
@@ -2463,7 +3804,10 @@ impl NativeAbiCodec for DisplayAddedEventAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <DisplayMonitorEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
+            metadata: <DisplayMonitorEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
             payload: <DisplayAddedPayload as NativeAbiCodec>::from_value(binding, value.payload),
         }
     }
@@ -2472,18 +3816,30 @@ impl NativeAbiCodec for DisplayAddedEventAbi<NativeAbi> {
 impl VmAbiCodec for DisplayAddedEventAbi<VmAbi> {
     type Value = DisplayAddedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayAddedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
+            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
             payload: <DisplayAddedPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
+            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
             payload: <DisplayAddedPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
         })
     }
@@ -2501,37 +3857,63 @@ pub type DisplayAddedPayloadVm = DisplayAddedPayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayAddedPayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayAddedPayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayAddedPayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayAddedPayloadAbi<NativeAbi> {}
 impl Clone for DisplayAddedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayAddedPayloadAbi<VmAbi> {}
 impl Clone for DisplayAddedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayAddedPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayAddedPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 1 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
         }
-        let field_descriptor = <DisplayDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_descriptor =
+            <DisplayDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         Ok(Self {
             descriptor: field_descriptor,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <DisplayDescriptorVm as VmAggregateCodec>::encode_with_context(self.descriptor, context)?,
+            <DisplayDescriptorVm as VmAggregateCodec>::encode_with_context(
+                self.descriptor,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2549,13 +3931,18 @@ impl NativeAbiCodec for DisplayAddedPayloadAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayAddedPayloadValue {
-            descriptor: unsafe { <DisplayDescriptor as NativeAbiCodec>::into_value(self.descriptor)? },
+            descriptor: unsafe {
+                <DisplayDescriptor as NativeAbiCodec>::into_value(self.descriptor)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            descriptor: <DisplayDescriptor as NativeAbiCodec>::from_value(binding, value.descriptor),
+            descriptor: <DisplayDescriptor as NativeAbiCodec>::from_value(
+                binding,
+                value.descriptor,
+            ),
         }
     }
 }
@@ -2563,13 +3950,19 @@ impl NativeAbiCodec for DisplayAddedPayloadAbi<NativeAbi> {
 impl VmAbiCodec for DisplayAddedPayloadAbi<VmAbi> {
     type Value = DisplayAddedPayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayAddedPayloadValue {
             descriptor: <DisplayDescriptorVm as VmAbiCodec>::into_value(self.descriptor, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             descriptor: <DisplayDescriptorVm as VmAbiCodec>::from_value(context, value.descriptor)?,
         })
@@ -2596,33 +3989,58 @@ pub type DisplayBackendDescriptorVm = DisplayBackendDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayBackendDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayBackendDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayBackendDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayBackendDescriptorAbi<NativeAbi> {}
 impl Clone for DisplayBackendDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayBackendDescriptorAbi<VmAbi> {}
 impl Clone for DisplayBackendDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayBackendDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayBackendDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayBackendDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_support = <core::BackendSupport as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_support =
+            <core::BackendSupport as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_priority = <u16 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_capability_flags = <DisplayBackendCapabilityFlags as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_capability_flags =
+            <DisplayBackendCapabilityFlags as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
         Ok(Self {
             backend: field_backend,
             name: field_name,
@@ -2632,13 +4050,19 @@ impl VmAggregateCodec for DisplayBackendDescriptorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
             <core::BackendSupport as VmAggregateCodec>::encode_with_context(self.support, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.priority, context)?,
-            <DisplayBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(self.capability_flags, context)?,
+            <DisplayBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(
+                self.capability_flags,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2668,7 +4092,11 @@ impl NativeAbiCodec for DisplayBackendDescriptorAbi<NativeAbi> {
             name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.name)? },
             support: unsafe { <core::BackendSupport as NativeAbiCodec>::into_value(self.support)? },
             priority: unsafe { <u16 as NativeAbiCodec>::into_value(self.priority)? },
-            capability_flags: unsafe { <DisplayBackendCapabilityFlags as NativeAbiCodec>::into_value(self.capability_flags)? },
+            capability_flags: unsafe {
+                <DisplayBackendCapabilityFlags as NativeAbiCodec>::into_value(
+                    self.capability_flags,
+                )?
+            },
         })
     }
 
@@ -2678,7 +4106,10 @@ impl NativeAbiCodec for DisplayBackendDescriptorAbi<NativeAbi> {
             name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.name),
             support: <core::BackendSupport as NativeAbiCodec>::from_value(binding, value.support),
             priority: <u16 as NativeAbiCodec>::from_value(binding, value.priority),
-            capability_flags: <DisplayBackendCapabilityFlags as NativeAbiCodec>::from_value(binding, value.capability_flags),
+            capability_flags: <DisplayBackendCapabilityFlags as NativeAbiCodec>::from_value(
+                binding,
+                value.capability_flags,
+            ),
         }
     }
 }
@@ -2686,23 +4117,35 @@ impl NativeAbiCodec for DisplayBackendDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for DisplayBackendDescriptorAbi<VmAbi> {
     type Value = DisplayBackendDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayBackendDescriptorValue {
             backend: <DisplayBackend as VmAbiCodec>::into_value(self.backend, context)?,
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
             support: <core::BackendSupport as VmAbiCodec>::into_value(self.support, context)?,
             priority: <u16 as VmAbiCodec>::into_value(self.priority, context)?,
-            capability_flags: <DisplayBackendCapabilityFlags as VmAbiCodec>::into_value(self.capability_flags, context)?,
+            capability_flags: <DisplayBackendCapabilityFlags as VmAbiCodec>::into_value(
+                self.capability_flags,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             backend: <DisplayBackend as VmAbiCodec>::from_value(context, value.backend)?,
             name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.name)?,
             support: <core::BackendSupport as VmAbiCodec>::from_value(context, value.support)?,
             priority: <u16 as VmAbiCodec>::from_value(context, value.priority)?,
-            capability_flags: <DisplayBackendCapabilityFlags as VmAbiCodec>::from_value(context, value.capability_flags)?,
+            capability_flags: <DisplayBackendCapabilityFlags as VmAbiCodec>::from_value(
+                context,
+                value.capability_flags,
+            )?,
         })
     }
 }
@@ -2722,17 +4165,33 @@ pub struct DisplayColorState {
 pub type DisplayColorStateVm = DisplayColorState;
 
 impl VmAggregateCodec for DisplayColorState {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayColorState")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayColorState",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_hdr_mode = <DisplayHdrMode as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_color_space = <DisplayColorSpace as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_bits_per_channel = <Option<u16> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_hdr_mode =
+            <DisplayHdrMode as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_color_space =
+            <DisplayColorSpace as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_bits_per_channel =
+            <Option<u16> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             hdr_mode: field_hdr_mode,
             color_space: field_color_space,
@@ -2740,10 +4199,16 @@ impl VmAggregateCodec for DisplayColorState {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayHdrMode as VmAggregateCodec>::encode_with_context(self.hdr_mode, context)?,
-            <DisplayColorSpace as VmAggregateCodec>::encode_with_context(self.color_space, context)?,
+            <DisplayColorSpace as VmAggregateCodec>::encode_with_context(
+                self.color_space,
+                context,
+            )?,
             <Option<u16> as VmAggregateCodec>::encode_with_context(self.bits_per_channel, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -2768,11 +4233,17 @@ impl NativeAbiCodec for DisplayColorState {
 impl VmAbiCodec for DisplayColorState {
     type Value = DisplayColorStateValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -2825,31 +4296,53 @@ pub type DisplayDescriptorVm = DisplayDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayDescriptorAbi<NativeAbi> {}
 impl Clone for DisplayDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayDescriptorAbi<VmAbi> {}
 impl Clone for DisplayDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 19 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 19 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 19 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
@@ -2857,15 +4350,22 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
         let field_height_px = <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_work_area_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         let field_work_area_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_work_area_width_px = <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_work_area_height_px = <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_work_area_width_px =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_work_area_height_px =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
         let field_width_mm = <u32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
         let field_height_mm = <u32 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_scale_factor_milli = <u32 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
-        let field_orientation = <DisplayOrientation as VmAggregateCodec>::decode_with_context(context, slots[15])?;
-        let field_builtin_panel = <DisplaySupportStatus as VmAggregateCodec>::decode_with_context(context, slots[16])?;
-        let field_variable_refresh_support = <DisplaySupportStatus as VmAggregateCodec>::decode_with_context(context, slots[17])?;
-        let field_hdr_support = <DisplaySupportStatus as VmAggregateCodec>::decode_with_context(context, slots[18])?;
+        let field_scale_factor_milli =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_orientation =
+            <DisplayOrientation as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_builtin_panel =
+            <DisplaySupportStatus as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_variable_refresh_support =
+            <DisplaySupportStatus as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_hdr_support =
+            <DisplaySupportStatus as VmAggregateCodec>::decode_with_context(context, slots[18])?;
         Ok(Self {
             backend: field_backend,
             id: field_id,
@@ -2889,7 +4389,10 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
@@ -2906,10 +4409,22 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.width_mm, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.height_mm, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.scale_factor_milli, context)?,
-            <DisplayOrientation as VmAggregateCodec>::encode_with_context(self.orientation, context)?,
-            <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(self.builtin_panel, context)?,
-            <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(self.variable_refresh_support, context)?,
-            <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(self.hdr_support, context)?,
+            <DisplayOrientation as VmAggregateCodec>::encode_with_context(
+                self.orientation,
+                context,
+            )?,
+            <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(
+                self.builtin_panel,
+                context,
+            )?,
+            <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(
+                self.variable_refresh_support,
+                context,
+            )?,
+            <DisplaySupportStatus as VmAggregateCodec>::encode_with_context(
+                self.hdr_support,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2973,15 +4488,29 @@ impl NativeAbiCodec for DisplayDescriptorAbi<NativeAbi> {
             height_px: unsafe { <u32 as NativeAbiCodec>::into_value(self.height_px)? },
             work_area_x: unsafe { <i32 as NativeAbiCodec>::into_value(self.work_area_x)? },
             work_area_y: unsafe { <i32 as NativeAbiCodec>::into_value(self.work_area_y)? },
-            work_area_width_px: unsafe { <u32 as NativeAbiCodec>::into_value(self.work_area_width_px)? },
-            work_area_height_px: unsafe { <u32 as NativeAbiCodec>::into_value(self.work_area_height_px)? },
+            work_area_width_px: unsafe {
+                <u32 as NativeAbiCodec>::into_value(self.work_area_width_px)?
+            },
+            work_area_height_px: unsafe {
+                <u32 as NativeAbiCodec>::into_value(self.work_area_height_px)?
+            },
             width_mm: unsafe { <u32 as NativeAbiCodec>::into_value(self.width_mm)? },
             height_mm: unsafe { <u32 as NativeAbiCodec>::into_value(self.height_mm)? },
-            scale_factor_milli: unsafe { <u32 as NativeAbiCodec>::into_value(self.scale_factor_milli)? },
-            orientation: unsafe { <DisplayOrientation as NativeAbiCodec>::into_value(self.orientation)? },
-            builtin_panel: unsafe { <DisplaySupportStatus as NativeAbiCodec>::into_value(self.builtin_panel)? },
-            variable_refresh_support: unsafe { <DisplaySupportStatus as NativeAbiCodec>::into_value(self.variable_refresh_support)? },
-            hdr_support: unsafe { <DisplaySupportStatus as NativeAbiCodec>::into_value(self.hdr_support)? },
+            scale_factor_milli: unsafe {
+                <u32 as NativeAbiCodec>::into_value(self.scale_factor_milli)?
+            },
+            orientation: unsafe {
+                <DisplayOrientation as NativeAbiCodec>::into_value(self.orientation)?
+            },
+            builtin_panel: unsafe {
+                <DisplaySupportStatus as NativeAbiCodec>::into_value(self.builtin_panel)?
+            },
+            variable_refresh_support: unsafe {
+                <DisplaySupportStatus as NativeAbiCodec>::into_value(self.variable_refresh_support)?
+            },
+            hdr_support: unsafe {
+                <DisplaySupportStatus as NativeAbiCodec>::into_value(self.hdr_support)?
+            },
         })
     }
 
@@ -2997,15 +4526,36 @@ impl NativeAbiCodec for DisplayDescriptorAbi<NativeAbi> {
             height_px: <u32 as NativeAbiCodec>::from_value(binding, value.height_px),
             work_area_x: <i32 as NativeAbiCodec>::from_value(binding, value.work_area_x),
             work_area_y: <i32 as NativeAbiCodec>::from_value(binding, value.work_area_y),
-            work_area_width_px: <u32 as NativeAbiCodec>::from_value(binding, value.work_area_width_px),
-            work_area_height_px: <u32 as NativeAbiCodec>::from_value(binding, value.work_area_height_px),
+            work_area_width_px: <u32 as NativeAbiCodec>::from_value(
+                binding,
+                value.work_area_width_px,
+            ),
+            work_area_height_px: <u32 as NativeAbiCodec>::from_value(
+                binding,
+                value.work_area_height_px,
+            ),
             width_mm: <u32 as NativeAbiCodec>::from_value(binding, value.width_mm),
             height_mm: <u32 as NativeAbiCodec>::from_value(binding, value.height_mm),
-            scale_factor_milli: <u32 as NativeAbiCodec>::from_value(binding, value.scale_factor_milli),
-            orientation: <DisplayOrientation as NativeAbiCodec>::from_value(binding, value.orientation),
-            builtin_panel: <DisplaySupportStatus as NativeAbiCodec>::from_value(binding, value.builtin_panel),
-            variable_refresh_support: <DisplaySupportStatus as NativeAbiCodec>::from_value(binding, value.variable_refresh_support),
-            hdr_support: <DisplaySupportStatus as NativeAbiCodec>::from_value(binding, value.hdr_support),
+            scale_factor_milli: <u32 as NativeAbiCodec>::from_value(
+                binding,
+                value.scale_factor_milli,
+            ),
+            orientation: <DisplayOrientation as NativeAbiCodec>::from_value(
+                binding,
+                value.orientation,
+            ),
+            builtin_panel: <DisplaySupportStatus as NativeAbiCodec>::from_value(
+                binding,
+                value.builtin_panel,
+            ),
+            variable_refresh_support: <DisplaySupportStatus as NativeAbiCodec>::from_value(
+                binding,
+                value.variable_refresh_support,
+            ),
+            hdr_support: <DisplaySupportStatus as NativeAbiCodec>::from_value(
+                binding,
+                value.hdr_support,
+            ),
         }
     }
 }
@@ -3013,7 +4563,10 @@ impl NativeAbiCodec for DisplayDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for DisplayDescriptorAbi<VmAbi> {
     type Value = DisplayDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayDescriptorValue {
             backend: <DisplayBackend as VmAbiCodec>::into_value(self.backend, context)?,
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
@@ -3026,18 +4579,33 @@ impl VmAbiCodec for DisplayDescriptorAbi<VmAbi> {
             work_area_x: <i32 as VmAbiCodec>::into_value(self.work_area_x, context)?,
             work_area_y: <i32 as VmAbiCodec>::into_value(self.work_area_y, context)?,
             work_area_width_px: <u32 as VmAbiCodec>::into_value(self.work_area_width_px, context)?,
-            work_area_height_px: <u32 as VmAbiCodec>::into_value(self.work_area_height_px, context)?,
+            work_area_height_px: <u32 as VmAbiCodec>::into_value(
+                self.work_area_height_px,
+                context,
+            )?,
             width_mm: <u32 as VmAbiCodec>::into_value(self.width_mm, context)?,
             height_mm: <u32 as VmAbiCodec>::into_value(self.height_mm, context)?,
             scale_factor_milli: <u32 as VmAbiCodec>::into_value(self.scale_factor_milli, context)?,
             orientation: <DisplayOrientation as VmAbiCodec>::into_value(self.orientation, context)?,
-            builtin_panel: <DisplaySupportStatus as VmAbiCodec>::into_value(self.builtin_panel, context)?,
-            variable_refresh_support: <DisplaySupportStatus as VmAbiCodec>::into_value(self.variable_refresh_support, context)?,
-            hdr_support: <DisplaySupportStatus as VmAbiCodec>::into_value(self.hdr_support, context)?,
+            builtin_panel: <DisplaySupportStatus as VmAbiCodec>::into_value(
+                self.builtin_panel,
+                context,
+            )?,
+            variable_refresh_support: <DisplaySupportStatus as VmAbiCodec>::into_value(
+                self.variable_refresh_support,
+                context,
+            )?,
+            hdr_support: <DisplaySupportStatus as VmAbiCodec>::into_value(
+                self.hdr_support,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             backend: <DisplayBackend as VmAbiCodec>::from_value(context, value.backend)?,
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
@@ -3050,14 +4618,29 @@ impl VmAbiCodec for DisplayDescriptorAbi<VmAbi> {
             work_area_x: <i32 as VmAbiCodec>::from_value(context, value.work_area_x)?,
             work_area_y: <i32 as VmAbiCodec>::from_value(context, value.work_area_y)?,
             work_area_width_px: <u32 as VmAbiCodec>::from_value(context, value.work_area_width_px)?,
-            work_area_height_px: <u32 as VmAbiCodec>::from_value(context, value.work_area_height_px)?,
+            work_area_height_px: <u32 as VmAbiCodec>::from_value(
+                context,
+                value.work_area_height_px,
+            )?,
             width_mm: <u32 as VmAbiCodec>::from_value(context, value.width_mm)?,
             height_mm: <u32 as VmAbiCodec>::from_value(context, value.height_mm)?,
             scale_factor_milli: <u32 as VmAbiCodec>::from_value(context, value.scale_factor_milli)?,
-            orientation: <DisplayOrientation as VmAbiCodec>::from_value(context, value.orientation)?,
-            builtin_panel: <DisplaySupportStatus as VmAbiCodec>::from_value(context, value.builtin_panel)?,
-            variable_refresh_support: <DisplaySupportStatus as VmAbiCodec>::from_value(context, value.variable_refresh_support)?,
-            hdr_support: <DisplaySupportStatus as VmAbiCodec>::from_value(context, value.hdr_support)?,
+            orientation: <DisplayOrientation as VmAbiCodec>::from_value(
+                context,
+                value.orientation,
+            )?,
+            builtin_panel: <DisplaySupportStatus as VmAbiCodec>::from_value(
+                context,
+                value.builtin_panel,
+            )?,
+            variable_refresh_support: <DisplaySupportStatus as VmAbiCodec>::from_value(
+                context,
+                value.variable_refresh_support,
+            )?,
+            hdr_support: <DisplaySupportStatus as VmAbiCodec>::from_value(
+                context,
+                value.hdr_support,
+            )?,
         })
     }
 }
@@ -3078,31 +4661,57 @@ pub type DisplayDescriptorChangedEventVm = DisplayDescriptorChangedEventAbi<VmAb
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayDescriptorChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayDescriptorChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayDescriptorChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayDescriptorChangedEventAbi<NativeAbi> {}
 impl Clone for DisplayDescriptorChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayDescriptorChangedEventAbi<VmAbi> {}
 impl Clone for DisplayDescriptorChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayDescriptorChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayDescriptorChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <DisplayDescriptorChangedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_payload =
+            <DisplayDescriptorChangedPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -3110,11 +4719,20 @@ impl VmAggregateCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <DisplayDescriptorChangedPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <DisplayDescriptorChangedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3137,16 +4755,26 @@ impl NativeAbiCodec for DisplayDescriptorChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayDescriptorChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <DisplayMonitorEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <DisplayDescriptorChangedPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <DisplayMonitorEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <DisplayDescriptorChangedPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <DisplayMonitorEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <DisplayDescriptorChangedPayload as NativeAbiCodec>::from_value(binding, value.payload),
+            metadata: <DisplayMonitorEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
+            payload: <DisplayDescriptorChangedPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
         }
     }
 }
@@ -3154,19 +4782,37 @@ impl NativeAbiCodec for DisplayDescriptorChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
     type Value = DisplayDescriptorChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayDescriptorChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <DisplayDescriptorChangedPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
+            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
+            payload: <DisplayDescriptorChangedPayloadVm as VmAbiCodec>::into_value(
+                self.payload,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <DisplayDescriptorChangedPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
+            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
+            payload: <DisplayDescriptorChangedPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
         })
     }
 }
@@ -3187,31 +4833,55 @@ pub type DisplayDescriptorChangedPayloadVm = DisplayDescriptorChangedPayloadAbi<
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayDescriptorChangedPayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayDescriptorChangedPayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayDescriptorChangedPayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayDescriptorChangedPayloadAbi<NativeAbi> {}
 impl Clone for DisplayDescriptorChangedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayDescriptorChangedPayloadAbi<VmAbi> {}
 impl Clone for DisplayDescriptorChangedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayDescriptorChangedPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayDescriptorChangedPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_previous = <Option<DisplayDescriptorVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current = <DisplayDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_changed_mask = <DisplayMetricChangedMask as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_previous =
+            <Option<DisplayDescriptorVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_current =
+            <DisplayDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_changed_mask =
+            <DisplayMetricChangedMask as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             previous: field_previous,
             current: field_current,
@@ -3219,11 +4889,20 @@ impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<DisplayDescriptorVm> as VmAggregateCodec>::encode_with_context(self.previous, context)?,
+            <Option<DisplayDescriptorVm> as VmAggregateCodec>::encode_with_context(
+                self.previous,
+                context,
+            )?,
             <DisplayDescriptorVm as VmAggregateCodec>::encode_with_context(self.current, context)?,
-            <DisplayMetricChangedMask as VmAggregateCodec>::encode_with_context(self.changed_mask, context)?,
+            <DisplayMetricChangedMask as VmAggregateCodec>::encode_with_context(
+                self.changed_mask,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3245,17 +4924,27 @@ impl NativeAbiCodec for DisplayDescriptorChangedPayloadAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayDescriptorChangedPayloadValue {
-            previous: unsafe { <Option<DisplayDescriptor> as NativeAbiCodec>::into_value(self.previous)? },
+            previous: unsafe {
+                <Option<DisplayDescriptor> as NativeAbiCodec>::into_value(self.previous)?
+            },
             current: unsafe { <DisplayDescriptor as NativeAbiCodec>::into_value(self.current)? },
-            changed_mask: unsafe { <DisplayMetricChangedMask as NativeAbiCodec>::into_value(self.changed_mask)? },
+            changed_mask: unsafe {
+                <DisplayMetricChangedMask as NativeAbiCodec>::into_value(self.changed_mask)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            previous: <Option<DisplayDescriptor> as NativeAbiCodec>::from_value(binding, value.previous),
+            previous: <Option<DisplayDescriptor> as NativeAbiCodec>::from_value(
+                binding,
+                value.previous,
+            ),
             current: <DisplayDescriptor as NativeAbiCodec>::from_value(binding, value.current),
-            changed_mask: <DisplayMetricChangedMask as NativeAbiCodec>::from_value(binding, value.changed_mask),
+            changed_mask: <DisplayMetricChangedMask as NativeAbiCodec>::from_value(
+                binding,
+                value.changed_mask,
+            ),
         }
     }
 }
@@ -3263,19 +4952,37 @@ impl NativeAbiCodec for DisplayDescriptorChangedPayloadAbi<NativeAbi> {
 impl VmAbiCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
     type Value = DisplayDescriptorChangedPayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayDescriptorChangedPayloadValue {
-            previous: <Option<DisplayDescriptorVm> as VmAbiCodec>::into_value(self.previous, context)?,
+            previous: <Option<DisplayDescriptorVm> as VmAbiCodec>::into_value(
+                self.previous,
+                context,
+            )?,
             current: <DisplayDescriptorVm as VmAbiCodec>::into_value(self.current, context)?,
-            changed_mask: <DisplayMetricChangedMask as VmAbiCodec>::into_value(self.changed_mask, context)?,
+            changed_mask: <DisplayMetricChangedMask as VmAbiCodec>::into_value(
+                self.changed_mask,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
-            previous: <Option<DisplayDescriptorVm> as VmAbiCodec>::from_value(context, value.previous)?,
+            previous: <Option<DisplayDescriptorVm> as VmAbiCodec>::from_value(
+                context,
+                value.previous,
+            )?,
             current: <DisplayDescriptorVm as VmAbiCodec>::from_value(context, value.current)?,
-            changed_mask: <DisplayMetricChangedMask as VmAbiCodec>::from_value(context, value.changed_mask)?,
+            changed_mask: <DisplayMetricChangedMask as VmAbiCodec>::from_value(
+                context,
+                value.changed_mask,
+            )?,
         })
     }
 }
@@ -3293,26 +5000,49 @@ pub struct DisplayEventQueueOptions {
 pub type DisplayEventQueueOptionsVm = DisplayEventQueueOptions;
 
 impl VmAggregateCodec for DisplayEventQueueOptions {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayEventQueueOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayEventQueueOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_queue_capacity = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_overflow_policy = <DisplayEventOverflowPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_queue_capacity =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_overflow_policy =
+            <DisplayEventOverflowPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             queue_capacity: field_queue_capacity,
             overflow_policy: field_overflow_policy,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
-            <DisplayEventOverflowPolicy as VmAggregateCodec>::encode_with_context(self.overflow_policy, context)?,
+            <DisplayEventOverflowPolicy as VmAggregateCodec>::encode_with_context(
+                self.overflow_policy,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3336,11 +5066,17 @@ impl NativeAbiCodec for DisplayEventQueueOptions {
 impl VmAbiCodec for DisplayEventQueueOptions {
     type Value = DisplayEventQueueOptionsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -3361,31 +5097,52 @@ pub type DisplayGammaRampVm = DisplayGammaRampAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayGammaRampAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayGammaRampAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayGammaRampAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayGammaRampAbi<NativeAbi> {}
 impl Clone for DisplayGammaRampAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayGammaRampAbi<VmAbi> {}
 impl Clone for DisplayGammaRampAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayGammaRampAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayGammaRamp")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayGammaRamp",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
         let field_red = <VmSlice<u16> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_green = <VmSlice<u16> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_blue = <VmSlice<u16> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_green =
+            <VmSlice<u16> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_blue =
+            <VmSlice<u16> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             red: field_red,
             green: field_green,
@@ -3393,7 +5150,10 @@ impl VmAggregateCodec for DisplayGammaRampAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <VmSlice<u16> as VmAggregateCodec>::encode_with_context(self.red, context)?,
             <VmSlice<u16> as VmAggregateCodec>::encode_with_context(self.green, context)?,
@@ -3437,7 +5197,10 @@ impl NativeAbiCodec for DisplayGammaRampAbi<NativeAbi> {
 impl VmAbiCodec for DisplayGammaRampAbi<VmAbi> {
     type Value = DisplayGammaRampValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayGammaRampValue {
             red: <VmSlice<u16> as VmAbiCodec>::into_value(self.red, context)?,
             green: <VmSlice<u16> as VmAbiCodec>::into_value(self.green, context)?,
@@ -3445,7 +5208,10 @@ impl VmAbiCodec for DisplayGammaRampAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             red: <VmSlice<u16> as VmAbiCodec>::from_value(context, value.red)?,
             green: <VmSlice<u16> as VmAbiCodec>::from_value(context, value.green)?,
@@ -3473,17 +5239,31 @@ pub struct DisplayMode {
 pub type DisplayModeVm = DisplayMode;
 
 impl VmAggregateCodec for DisplayMode {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayMode")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayMode",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
         let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_refresh_milli_hz = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_refresh_milli_hz =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_bit_depth = <u16 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
@@ -3495,7 +5275,10 @@ impl VmAggregateCodec for DisplayMode {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
@@ -3525,11 +5308,17 @@ impl NativeAbiCodec for DisplayMode {
 impl VmAbiCodec for DisplayMode {
     type Value = DisplayModeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -3550,31 +5339,56 @@ pub type DisplayModeChangedEventVm = DisplayModeChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayModeChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayModeChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayModeChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayModeChangedEventAbi<NativeAbi> {}
 impl Clone for DisplayModeChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayModeChangedEventAbi<VmAbi> {}
 impl Clone for DisplayModeChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayModeChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayModeChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayModeChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <DisplayModeChangedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_payload = <DisplayModeChangedPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -3582,11 +5396,20 @@ impl VmAggregateCodec for DisplayModeChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <DisplayModeChangedPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <DisplayModeChangedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3609,16 +5432,26 @@ impl NativeAbiCodec for DisplayModeChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayModeChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <DisplayMonitorEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <DisplayModeChangedPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <DisplayMonitorEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <DisplayModeChangedPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <DisplayMonitorEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <DisplayModeChangedPayload as NativeAbiCodec>::from_value(binding, value.payload),
+            metadata: <DisplayMonitorEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
+            payload: <DisplayModeChangedPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
         }
     }
 }
@@ -3626,19 +5459,37 @@ impl NativeAbiCodec for DisplayModeChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for DisplayModeChangedEventAbi<VmAbi> {
     type Value = DisplayModeChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayModeChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <DisplayModeChangedPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
+            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
+            payload: <DisplayModeChangedPayloadVm as VmAbiCodec>::into_value(
+                self.payload,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <DisplayModeChangedPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
+            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
+            payload: <DisplayModeChangedPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
         })
     }
 }
@@ -3656,25 +5507,46 @@ pub struct DisplayModeChangedPayload {
 pub type DisplayModeChangedPayloadVm = DisplayModeChangedPayload;
 
 impl VmAggregateCodec for DisplayModeChangedPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayModeChangedPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayModeChangedPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous = <Option<DisplayModeVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current = <DisplayModeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous =
+            <Option<DisplayModeVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current =
+            <DisplayModeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous: field_previous,
             current: field_current,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<DisplayModeVm> as VmAggregateCodec>::encode_with_context(self.previous, context)?,
+            <Option<DisplayModeVm> as VmAggregateCodec>::encode_with_context(
+                self.previous,
+                context,
+            )?,
             <DisplayModeVm as VmAggregateCodec>::encode_with_context(self.current, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -3699,11 +5571,17 @@ impl NativeAbiCodec for DisplayModeChangedPayload {
 impl VmAbiCodec for DisplayModeChangedPayload {
     type Value = DisplayModeChangedPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -3722,40 +5600,72 @@ pub type DisplayMonitorEventFilterVm = DisplayMonitorEventFilterAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayMonitorEventFilterAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayMonitorEventFilterAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayMonitorEventFilterAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayMonitorEventFilterAbi<NativeAbi> {}
 impl Clone for DisplayMonitorEventFilterAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayMonitorEventFilterAbi<VmAbi> {}
 impl Clone for DisplayMonitorEventFilterAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayMonitorEventFilterAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayMonitorEventFilter")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayMonitorEventFilter",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_display_id = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_kind_mask = <Option<DisplayMonitorEventKindMask> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_display_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind_mask =
+            <Option<DisplayMonitorEventKindMask> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             display_id: field_display_id,
             kind_mask: field_kind_mask,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.display_id, context)?,
-            <Option<DisplayMonitorEventKindMask> as VmAggregateCodec>::encode_with_context(self.kind_mask, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.display_id,
+                context,
+            )?,
+            <Option<DisplayMonitorEventKindMask> as VmAggregateCodec>::encode_with_context(
+                self.kind_mask,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3775,15 +5685,25 @@ impl NativeAbiCodec for DisplayMonitorEventFilterAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayMonitorEventFilterValue {
-            display_id: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.display_id)? },
-            kind_mask: unsafe { <Option<DisplayMonitorEventKindMask> as NativeAbiCodec>::into_value(self.kind_mask)? },
+            display_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.display_id)?
+            },
+            kind_mask: unsafe {
+                <Option<DisplayMonitorEventKindMask> as NativeAbiCodec>::into_value(self.kind_mask)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            display_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.display_id),
-            kind_mask: <Option<DisplayMonitorEventKindMask> as NativeAbiCodec>::from_value(binding, value.kind_mask),
+            display_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.display_id,
+            ),
+            kind_mask: <Option<DisplayMonitorEventKindMask> as NativeAbiCodec>::from_value(
+                binding,
+                value.kind_mask,
+            ),
         }
     }
 }
@@ -3791,17 +5711,35 @@ impl NativeAbiCodec for DisplayMonitorEventFilterAbi<NativeAbi> {
 impl VmAbiCodec for DisplayMonitorEventFilterAbi<VmAbi> {
     type Value = DisplayMonitorEventFilterValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayMonitorEventFilterValue {
-            display_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.display_id, context)?,
-            kind_mask: <Option<DisplayMonitorEventKindMask> as VmAbiCodec>::into_value(self.kind_mask, context)?,
+            display_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.display_id,
+                context,
+            )?,
+            kind_mask: <Option<DisplayMonitorEventKindMask> as VmAbiCodec>::into_value(
+                self.kind_mask,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
-            display_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.display_id)?,
-            kind_mask: <Option<DisplayMonitorEventKindMask> as VmAbiCodec>::from_value(context, value.kind_mask)?,
+            display_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.display_id,
+            )?,
+            kind_mask: <Option<DisplayMonitorEventKindMask> as VmAbiCodec>::from_value(
+                context,
+                value.kind_mask,
+            )?,
         })
     }
 }
@@ -3826,33 +5764,55 @@ pub type DisplayMonitorEventMetadataVm = DisplayMonitorEventMetadataAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayMonitorEventMetadataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayMonitorEventMetadataAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayMonitorEventMetadataAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayMonitorEventMetadataAbi<NativeAbi> {}
 impl Clone for DisplayMonitorEventMetadataAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayMonitorEventMetadataAbi<VmAbi> {}
 impl Clone for DisplayMonitorEventMetadataAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayMonitorEventMetadataAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayMonitorEventMetadata")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayMonitorEventMetadata",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_display_id = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_display_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_dropped_count = <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_dropped_count =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             backend: field_backend,
             display_id: field_display_id,
@@ -3862,10 +5822,16 @@ impl VmAggregateCodec for DisplayMonitorEventMetadataAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.display_id, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.display_id,
+                context,
+            )?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?,
@@ -3895,7 +5861,9 @@ impl NativeAbiCodec for DisplayMonitorEventMetadataAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayMonitorEventMetadataValue {
             backend: unsafe { <DisplayBackend as NativeAbiCodec>::into_value(self.backend)? },
-            display_id: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.display_id)? },
+            display_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.display_id)?
+            },
             timestamp_ns: unsafe { <u64 as NativeAbiCodec>::into_value(self.timestamp_ns)? },
             sequence: unsafe { <u64 as NativeAbiCodec>::into_value(self.sequence)? },
             dropped_count: unsafe { <u64 as NativeAbiCodec>::into_value(self.dropped_count)? },
@@ -3905,7 +5873,10 @@ impl NativeAbiCodec for DisplayMonitorEventMetadataAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             backend: <DisplayBackend as NativeAbiCodec>::from_value(binding, value.backend),
-            display_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.display_id),
+            display_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.display_id,
+            ),
             timestamp_ns: <u64 as NativeAbiCodec>::from_value(binding, value.timestamp_ns),
             sequence: <u64 as NativeAbiCodec>::from_value(binding, value.sequence),
             dropped_count: <u64 as NativeAbiCodec>::from_value(binding, value.dropped_count),
@@ -3916,20 +5887,32 @@ impl NativeAbiCodec for DisplayMonitorEventMetadataAbi<NativeAbi> {
 impl VmAbiCodec for DisplayMonitorEventMetadataAbi<VmAbi> {
     type Value = DisplayMonitorEventMetadataValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayMonitorEventMetadataValue {
             backend: <DisplayBackend as VmAbiCodec>::into_value(self.backend, context)?,
-            display_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.display_id, context)?,
+            display_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.display_id,
+                context,
+            )?,
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
             sequence: <u64 as VmAbiCodec>::into_value(self.sequence, context)?,
             dropped_count: <u64 as VmAbiCodec>::into_value(self.dropped_count, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             backend: <DisplayBackend as VmAbiCodec>::from_value(context, value.backend)?,
-            display_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.display_id)?,
+            display_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.display_id,
+            )?,
             timestamp_ns: <u64 as VmAbiCodec>::from_value(context, value.timestamp_ns)?,
             sequence: <u64 as VmAbiCodec>::from_value(context, value.sequence)?,
             dropped_count: <u64 as VmAbiCodec>::from_value(context, value.dropped_count)?,
@@ -3956,32 +5939,60 @@ pub type DisplayMonitorEventOpenOptionsVm = DisplayMonitorEventOpenOptionsAbi<Vm
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayMonitorEventOpenOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayMonitorEventOpenOptionsAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayMonitorEventOpenOptionsAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayMonitorEventOpenOptionsAbi<NativeAbi> {}
 impl Clone for DisplayMonitorEventOpenOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayMonitorEventOpenOptionsAbi<VmAbi> {}
 impl Clone for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayMonitorEventOpenOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayMonitorEventOpenOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_policy = <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_queue = <DisplayEventQueueOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_filter = <Option<DisplayMonitorEventFilterVm> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_queue = <DisplayEventQueueOptionsVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        let field_filter =
+            <Option<DisplayMonitorEventFilterVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -3990,12 +6001,23 @@ impl VmAggregateCodec for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(self.backend_policy, context)?,
-            <DisplayEventQueueOptionsVm as VmAggregateCodec>::encode_with_context(self.queue, context)?,
-            <Option<DisplayMonitorEventFilterVm> as VmAggregateCodec>::encode_with_context(self.filter, context)?,
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
+            <DisplayEventQueueOptionsVm as VmAggregateCodec>::encode_with_context(
+                self.queue, context,
+            )?,
+            <Option<DisplayMonitorEventFilterVm> as VmAggregateCodec>::encode_with_context(
+                self.filter,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -4021,18 +6043,28 @@ impl NativeAbiCodec for DisplayMonitorEventOpenOptionsAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayMonitorEventOpenOptionsValue {
             backend: unsafe { <DisplayBackend as NativeAbiCodec>::into_value(self.backend)? },
-            backend_policy: unsafe { <DisplayBackendSelectionPolicy as NativeAbiCodec>::into_value(self.backend_policy)? },
+            backend_policy: unsafe {
+                <DisplayBackendSelectionPolicy as NativeAbiCodec>::into_value(self.backend_policy)?
+            },
             queue: unsafe { <DisplayEventQueueOptions as NativeAbiCodec>::into_value(self.queue)? },
-            filter: unsafe { <Option<DisplayMonitorEventFilter> as NativeAbiCodec>::into_value(self.filter)? },
+            filter: unsafe {
+                <Option<DisplayMonitorEventFilter> as NativeAbiCodec>::into_value(self.filter)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             backend: <DisplayBackend as NativeAbiCodec>::from_value(binding, value.backend),
-            backend_policy: <DisplayBackendSelectionPolicy as NativeAbiCodec>::from_value(binding, value.backend_policy),
+            backend_policy: <DisplayBackendSelectionPolicy as NativeAbiCodec>::from_value(
+                binding,
+                value.backend_policy,
+            ),
             queue: <DisplayEventQueueOptions as NativeAbiCodec>::from_value(binding, value.queue),
-            filter: <Option<DisplayMonitorEventFilter> as NativeAbiCodec>::from_value(binding, value.filter),
+            filter: <Option<DisplayMonitorEventFilter> as NativeAbiCodec>::from_value(
+                binding,
+                value.filter,
+            ),
         }
     }
 }
@@ -4040,21 +6072,39 @@ impl NativeAbiCodec for DisplayMonitorEventOpenOptionsAbi<NativeAbi> {
 impl VmAbiCodec for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
     type Value = DisplayMonitorEventOpenOptionsValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayMonitorEventOpenOptionsValue {
             backend: <DisplayBackend as VmAbiCodec>::into_value(self.backend, context)?,
-            backend_policy: <DisplayBackendSelectionPolicy as VmAbiCodec>::into_value(self.backend_policy, context)?,
+            backend_policy: <DisplayBackendSelectionPolicy as VmAbiCodec>::into_value(
+                self.backend_policy,
+                context,
+            )?,
             queue: <DisplayEventQueueOptionsVm as VmAbiCodec>::into_value(self.queue, context)?,
-            filter: <Option<DisplayMonitorEventFilterVm> as VmAbiCodec>::into_value(self.filter, context)?,
+            filter: <Option<DisplayMonitorEventFilterVm> as VmAbiCodec>::into_value(
+                self.filter,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             backend: <DisplayBackend as VmAbiCodec>::from_value(context, value.backend)?,
-            backend_policy: <DisplayBackendSelectionPolicy as VmAbiCodec>::from_value(context, value.backend_policy)?,
+            backend_policy: <DisplayBackendSelectionPolicy as VmAbiCodec>::from_value(
+                context,
+                value.backend_policy,
+            )?,
             queue: <DisplayEventQueueOptionsVm as VmAbiCodec>::from_value(context, value.queue)?,
-            filter: <Option<DisplayMonitorEventFilterVm> as VmAbiCodec>::from_value(context, value.filter)?,
+            filter: <Option<DisplayMonitorEventFilterVm> as VmAbiCodec>::from_value(
+                context,
+                value.filter,
+            )?,
         })
     }
 }
@@ -4073,26 +6123,49 @@ pub struct DisplayMonitorListRequest {
 pub type DisplayMonitorListRequestVm = DisplayMonitorListRequest;
 
 impl VmAggregateCodec for DisplayMonitorListRequest {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayMonitorListRequest")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayMonitorListRequest",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_policy = <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(self.backend_policy, context)?,
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -4116,11 +6189,17 @@ impl NativeAbiCodec for DisplayMonitorListRequest {
 impl VmAbiCodec for DisplayMonitorListRequest {
     type Value = DisplayMonitorListRequestValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -4139,26 +6218,49 @@ pub struct DisplayMonitorOpenOptions {
 pub type DisplayMonitorOpenOptionsVm = DisplayMonitorOpenOptions;
 
 impl VmAggregateCodec for DisplayMonitorOpenOptions {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayMonitorOpenOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayMonitorOpenOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_policy = <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(self.backend_policy, context)?,
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -4182,11 +6284,17 @@ impl NativeAbiCodec for DisplayMonitorOpenOptions {
 impl VmAbiCodec for DisplayMonitorOpenOptions {
     type Value = DisplayMonitorOpenOptionsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -4207,31 +6315,55 @@ pub type DisplayPrimaryChangedEventVm = DisplayPrimaryChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayPrimaryChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayPrimaryChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayPrimaryChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayPrimaryChangedEventAbi<NativeAbi> {}
 impl Clone for DisplayPrimaryChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayPrimaryChangedEventAbi<VmAbi> {}
 impl Clone for DisplayPrimaryChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayPrimaryChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayPrimaryChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <DisplayPrimaryPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_payload =
+            <DisplayPrimaryPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -4239,11 +6371,20 @@ impl VmAggregateCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <DisplayPrimaryPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <DisplayPrimaryPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -4266,15 +6407,22 @@ impl NativeAbiCodec for DisplayPrimaryChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayPrimaryChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <DisplayMonitorEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <DisplayPrimaryPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <DisplayMonitorEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <DisplayPrimaryPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <DisplayMonitorEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
+            metadata: <DisplayMonitorEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
             payload: <DisplayPrimaryPayload as NativeAbiCodec>::from_value(binding, value.payload),
         }
     }
@@ -4283,18 +6431,30 @@ impl NativeAbiCodec for DisplayPrimaryChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
     type Value = DisplayPrimaryChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayPrimaryChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
+            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
             payload: <DisplayPrimaryPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
+            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
             payload: <DisplayPrimaryPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
         })
     }
@@ -4314,40 +6474,70 @@ pub type DisplayPrimaryPayloadVm = DisplayPrimaryPayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayPrimaryPayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayPrimaryPayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayPrimaryPayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayPrimaryPayloadAbi<NativeAbi> {}
 impl Clone for DisplayPrimaryPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayPrimaryPayloadAbi<VmAbi> {}
 impl Clone for DisplayPrimaryPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayPrimaryPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayPrimaryPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_id = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_id = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_id: field_previous_id,
             current_id: field_current_id,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.previous_id, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.current_id, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.previous_id,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.current_id,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -4367,15 +6557,25 @@ impl NativeAbiCodec for DisplayPrimaryPayloadAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayPrimaryPayloadValue {
-            previous_id: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.previous_id)? },
-            current_id: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.current_id)? },
+            previous_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.previous_id)?
+            },
+            current_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.current_id)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            previous_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.previous_id),
-            current_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.current_id),
+            previous_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.previous_id,
+            ),
+            current_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.current_id,
+            ),
         }
     }
 }
@@ -4383,17 +6583,35 @@ impl NativeAbiCodec for DisplayPrimaryPayloadAbi<NativeAbi> {
 impl VmAbiCodec for DisplayPrimaryPayloadAbi<VmAbi> {
     type Value = DisplayPrimaryPayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayPrimaryPayloadValue {
-            previous_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.previous_id, context)?,
-            current_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.current_id, context)?,
+            previous_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.previous_id,
+                context,
+            )?,
+            current_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.current_id,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
-            previous_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.previous_id)?,
-            current_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.current_id)?,
+            previous_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.previous_id,
+            )?,
+            current_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.current_id,
+            )?,
         })
     }
 }
@@ -4414,31 +6632,55 @@ pub type DisplayRemovedEventVm = DisplayRemovedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayRemovedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayRemovedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayRemovedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayRemovedEventAbi<NativeAbi> {}
 impl Clone for DisplayRemovedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayRemovedEventAbi<VmAbi> {}
 impl Clone for DisplayRemovedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayRemovedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayRemovedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayRemovedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <DisplayRemovedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_payload =
+            <DisplayRemovedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -4446,11 +6688,20 @@ impl VmAggregateCodec for DisplayRemovedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <DisplayRemovedPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <DisplayMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <DisplayRemovedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -4473,15 +6724,22 @@ impl NativeAbiCodec for DisplayRemovedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayRemovedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <DisplayMonitorEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <DisplayRemovedPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <DisplayMonitorEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <DisplayRemovedPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <DisplayMonitorEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
+            metadata: <DisplayMonitorEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
             payload: <DisplayRemovedPayload as NativeAbiCodec>::from_value(binding, value.payload),
         }
     }
@@ -4490,18 +6748,30 @@ impl NativeAbiCodec for DisplayRemovedEventAbi<NativeAbi> {
 impl VmAbiCodec for DisplayRemovedEventAbi<VmAbi> {
     type Value = DisplayRemovedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayRemovedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
+            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
             payload: <DisplayRemovedPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
+            metadata: <DisplayMonitorEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
             payload: <DisplayRemovedPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
         })
     }
@@ -4521,40 +6791,69 @@ pub type DisplayRemovedPayloadVm = DisplayRemovedPayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayRemovedPayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayRemovedPayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayRemovedPayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayRemovedPayloadAbi<NativeAbi> {}
 impl Clone for DisplayRemovedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayRemovedPayloadAbi<VmAbi> {}
 impl Clone for DisplayRemovedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for DisplayRemovedPayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "DisplayRemovedPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayRemovedPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_descriptor = <Option<DisplayDescriptorVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_descriptor =
+            <Option<DisplayDescriptorVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             id: field_id,
             descriptor: field_descriptor,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
-            <Option<DisplayDescriptorVm> as VmAggregateCodec>::encode_with_context(self.descriptor, context)?,
+            <Option<DisplayDescriptorVm> as VmAggregateCodec>::encode_with_context(
+                self.descriptor,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -4575,14 +6874,19 @@ impl NativeAbiCodec for DisplayRemovedPayloadAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DisplayRemovedPayloadValue {
             id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.id)? },
-            descriptor: unsafe { <Option<DisplayDescriptor> as NativeAbiCodec>::into_value(self.descriptor)? },
+            descriptor: unsafe {
+                <Option<DisplayDescriptor> as NativeAbiCodec>::into_value(self.descriptor)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.id),
-            descriptor: <Option<DisplayDescriptor> as NativeAbiCodec>::from_value(binding, value.descriptor),
+            descriptor: <Option<DisplayDescriptor> as NativeAbiCodec>::from_value(
+                binding,
+                value.descriptor,
+            ),
         }
     }
 }
@@ -4590,17 +6894,29 @@ impl NativeAbiCodec for DisplayRemovedPayloadAbi<NativeAbi> {
 impl VmAbiCodec for DisplayRemovedPayloadAbi<VmAbi> {
     type Value = DisplayRemovedPayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayRemovedPayloadValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
-            descriptor: <Option<DisplayDescriptorVm> as VmAbiCodec>::into_value(self.descriptor, context)?,
+            descriptor: <Option<DisplayDescriptorVm> as VmAbiCodec>::into_value(
+                self.descriptor,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
-            descriptor: <Option<DisplayDescriptorVm> as VmAbiCodec>::from_value(context, value.descriptor)?,
+            descriptor: <Option<DisplayDescriptorVm> as VmAbiCodec>::from_value(
+                context,
+                value.descriptor,
+            )?,
         })
     }
 }
@@ -4619,37 +6935,61 @@ pub type OsPathBytesVm = OsPathBytesAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for OsPathBytesAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("OsPathBytesAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("OsPathBytesAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for OsPathBytesAbi<NativeAbi> {}
 impl Clone for OsPathBytesAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for OsPathBytesAbi<VmAbi> {}
 impl Clone for OsPathBytesAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "OsPathBytes")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "OsPathBytes",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_bytes = <fs::PathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes =
+            <fs::PathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             bytes: field_bytes,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
@@ -4688,14 +7028,20 @@ impl NativeAbiCodec for OsPathBytesAbi<NativeAbi> {
 impl VmAbiCodec for OsPathBytesAbi<VmAbi> {
     type Value = OsPathBytesValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(OsPathBytesValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             bytes: <fs::PathBytesVm as VmAbiCodec>::into_value(self.bytes, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             bytes: <fs::PathBytesVm as VmAbiCodec>::from_value(context, value.bytes)?,
@@ -4717,37 +7063,61 @@ pub type OsPathUtf16Vm = OsPathUtf16Abi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for OsPathUtf16Abi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("OsPathUtf16Abi").finish_non_exhaustive()
+        formatter
+            .debug_struct("OsPathUtf16Abi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for OsPathUtf16Abi<NativeAbi> {}
 impl Clone for OsPathUtf16Abi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for OsPathUtf16Abi<VmAbi> {}
 impl Clone for OsPathUtf16Abi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "OsPathUtf16")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "OsPathUtf16",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_utf16 = <fs::PathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_utf16 =
+            <fs::PathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             utf16: field_utf16,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
@@ -4786,14 +7156,20 @@ impl NativeAbiCodec for OsPathUtf16Abi<NativeAbi> {
 impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
     type Value = OsPathUtf16Value;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(OsPathUtf16Value {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             utf16: <fs::PathUtf16Vm as VmAbiCodec>::into_value(self.utf16, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             utf16: <fs::PathUtf16Vm as VmAbiCodec>::from_value(context, value.utf16)?,
@@ -4814,13 +7190,26 @@ pub struct WindowAspectRatio {
 pub type WindowAspectRatioVm = WindowAspectRatio;
 
 impl VmAggregateCodec for WindowAspectRatio {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowAspectRatio")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowAspectRatio",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let field_numerator = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_denominator = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -4830,7 +7219,10 @@ impl VmAggregateCodec for WindowAspectRatio {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.numerator, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.denominator, context)?,
@@ -4857,11 +7249,17 @@ impl NativeAbiCodec for WindowAspectRatio {
 impl VmAbiCodec for WindowAspectRatio {
     type Value = WindowAspectRatioValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -4882,31 +7280,54 @@ pub type WindowAspectRatioChangedEventVm = WindowAspectRatioChangedEventAbi<VmAb
 
 impl<A: BindingAbi> std::fmt::Debug for WindowAspectRatioChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowAspectRatioChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowAspectRatioChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowAspectRatioChangedEventAbi<NativeAbi> {}
 impl Clone for WindowAspectRatioChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowAspectRatioChangedEventAbi<VmAbi> {}
 impl Clone for WindowAspectRatioChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowAspectRatioChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowAspectRatioChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowAspectRatioPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload = <WindowAspectRatioPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -4914,11 +7335,20 @@ impl VmAggregateCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowAspectRatioPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowAspectRatioPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -4941,8 +7371,12 @@ impl NativeAbiCodec for WindowAspectRatioChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowAspectRatioChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowAspectRatioPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowAspectRatioPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -4950,7 +7384,10 @@ impl NativeAbiCodec for WindowAspectRatioChangedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <WindowEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <WindowAspectRatioPayload as NativeAbiCodec>::from_value(binding, value.payload),
+            payload: <WindowAspectRatioPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
         }
     }
 }
@@ -4958,7 +7395,10 @@ impl NativeAbiCodec for WindowAspectRatioChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
     type Value = WindowAspectRatioChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowAspectRatioChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -4966,11 +7406,17 @@ impl VmAbiCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <WindowAspectRatioPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
+            payload: <WindowAspectRatioPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
         })
     }
 }
@@ -4988,26 +7434,54 @@ pub struct WindowAspectRatioPayload {
 pub type WindowAspectRatioPayloadVm = WindowAspectRatioPayload;
 
 impl VmAggregateCodec for WindowAspectRatioPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowAspectRatioPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowAspectRatioPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_aspect_ratio = <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_aspect_ratio = <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_aspect_ratio =
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_current_aspect_ratio =
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             previous_aspect_ratio: field_previous_aspect_ratio,
             current_aspect_ratio: field_current_aspect_ratio,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(self.previous_aspect_ratio, context)?,
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(self.current_aspect_ratio, context)?,
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
+                self.previous_aspect_ratio,
+                context,
+            )?,
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
+                self.current_aspect_ratio,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -5031,11 +7505,17 @@ impl NativeAbiCodec for WindowAspectRatioPayload {
 impl VmAbiCodec for WindowAspectRatioPayload {
     type Value = WindowAspectRatioPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -5054,40 +7534,69 @@ pub type WindowBorderlessModeOptionsVm = WindowBorderlessModeOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowBorderlessModeOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowBorderlessModeOptionsAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowBorderlessModeOptionsAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowBorderlessModeOptionsAbi<NativeAbi> {}
 impl Clone for WindowBorderlessModeOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowBorderlessModeOptionsAbi<VmAbi> {}
 impl Clone for WindowBorderlessModeOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowBorderlessModeOptionsAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowBorderlessModeOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowBorderlessModeOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_display = <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_display =
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             kind: field_kind,
             display: field_display,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(self.display, context)?,
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
+                self.display,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -5108,14 +7617,19 @@ impl NativeAbiCodec for WindowBorderlessModeOptionsAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowBorderlessModeOptionsValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            display: unsafe { <Option<resource::DisplayHandle> as NativeAbiCodec>::into_value(self.display)? },
+            display: unsafe {
+                <Option<resource::DisplayHandle> as NativeAbiCodec>::into_value(self.display)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            display: <Option<resource::DisplayHandle> as NativeAbiCodec>::from_value(binding, value.display),
+            display: <Option<resource::DisplayHandle> as NativeAbiCodec>::from_value(
+                binding,
+                value.display,
+            ),
         }
     }
 }
@@ -5123,17 +7637,29 @@ impl NativeAbiCodec for WindowBorderlessModeOptionsAbi<NativeAbi> {
 impl VmAbiCodec for WindowBorderlessModeOptionsAbi<VmAbi> {
     type Value = WindowBorderlessModeOptionsValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowBorderlessModeOptionsValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            display: <Option<resource::DisplayHandle> as VmAbiCodec>::into_value(self.display, context)?,
+            display: <Option<resource::DisplayHandle> as VmAbiCodec>::into_value(
+                self.display,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            display: <Option<resource::DisplayHandle> as VmAbiCodec>::from_value(context, value.display)?,
+            display: <Option<resource::DisplayHandle> as VmAbiCodec>::from_value(
+                context,
+                value.display,
+            )?,
         })
     }
 }
@@ -5154,31 +7680,53 @@ pub type WindowChromeChangedEventVm = WindowChromeChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowChromeChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowChromeChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowChromeChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowChromeChangedEventAbi<NativeAbi> {}
 impl Clone for WindowChromeChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowChromeChangedEventAbi<VmAbi> {}
 impl Clone for WindowChromeChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowChromeChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowChromeChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowChromeChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowChromePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowChromePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -5186,11 +7734,20 @@ impl VmAggregateCodec for WindowChromeChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowChromePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowChromePayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -5213,7 +7770,9 @@ impl NativeAbiCodec for WindowChromeChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowChromeChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             payload: unsafe { <WindowChromePayload as NativeAbiCodec>::into_value(self.payload)? },
         })
     }
@@ -5230,7 +7789,10 @@ impl NativeAbiCodec for WindowChromeChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowChromeChangedEventAbi<VmAbi> {
     type Value = WindowChromeChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowChromeChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -5238,7 +7800,10 @@ impl VmAbiCodec for WindowChromeChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -5260,26 +7825,50 @@ pub struct WindowChromePayload {
 pub type WindowChromePayloadVm = WindowChromePayload;
 
 impl VmAggregateCodec for WindowChromePayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowChromePayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowChromePayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_chrome = <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_chrome = <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_chrome =
+            <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_chrome =
+            <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_chrome: field_previous_chrome,
             current_chrome: field_current_chrome,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <WindowChromeKind as VmAggregateCodec>::encode_with_context(self.previous_chrome, context)?,
-            <WindowChromeKind as VmAggregateCodec>::encode_with_context(self.current_chrome, context)?,
+            <WindowChromeKind as VmAggregateCodec>::encode_with_context(
+                self.previous_chrome,
+                context,
+            )?,
+            <WindowChromeKind as VmAggregateCodec>::encode_with_context(
+                self.current_chrome,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -5303,11 +7892,17 @@ impl NativeAbiCodec for WindowChromePayload {
 impl VmAbiCodec for WindowChromePayload {
     type Value = WindowChromePayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -5326,40 +7921,67 @@ pub type WindowCloseRequestedEventVm = WindowCloseRequestedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowCloseRequestedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowCloseRequestedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowCloseRequestedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowCloseRequestedEventAbi<NativeAbi> {}
 impl Clone for WindowCloseRequestedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowCloseRequestedEventAbi<VmAbi> {}
 impl Clone for WindowCloseRequestedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowCloseRequestedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowCloseRequestedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowCloseRequestedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -5380,7 +8002,9 @@ impl NativeAbiCodec for WindowCloseRequestedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowCloseRequestedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
         })
     }
 
@@ -5395,14 +8019,20 @@ impl NativeAbiCodec for WindowCloseRequestedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowCloseRequestedEventAbi<VmAbi> {
     type Value = WindowCloseRequestedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowCloseRequestedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -5424,40 +8054,67 @@ pub type WindowCreatedEventVm = WindowCreatedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowCreatedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowCreatedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowCreatedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowCreatedEventAbi<NativeAbi> {}
 impl Clone for WindowCreatedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowCreatedEventAbi<VmAbi> {}
 impl Clone for WindowCreatedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowCreatedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowCreatedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowCreatedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -5478,7 +8135,9 @@ impl NativeAbiCodec for WindowCreatedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowCreatedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
         })
     }
 
@@ -5493,14 +8152,20 @@ impl NativeAbiCodec for WindowCreatedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowCreatedEventAbi<VmAbi> {
     type Value = WindowCreatedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowCreatedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -5554,46 +8219,86 @@ pub type WindowDescriptorVm = WindowDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowDescriptorAbi<NativeAbi> {}
 impl Clone for WindowDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowDescriptorAbi<VmAbi> {}
 impl Clone for WindowDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 18 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 18 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 18 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_title =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_role = <WindowRole as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_mode = <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_display = <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_mode =
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_display =
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
         let field_resizable = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_decorated = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_chrome = <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_taskbar_visible = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_transparent = <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_chrome =
+            <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_taskbar_visible =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_transparent =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         let field_opacity = <f64 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_always_on_top = <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_parent = <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_transient_for = <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_always_on_top =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_parent =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[13],
+            )?;
+        let field_transient_for =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[14],
+            )?;
         let field_modal = <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
-        let field_mouse_passthrough = <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
-        let field_aspect_ratio = <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_mouse_passthrough =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_aspect_ratio =
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[17],
+            )?;
         Ok(Self {
             backend: field_backend,
             id: field_id,
@@ -5616,14 +8321,20 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
             <WindowRole as VmAggregateCodec>::encode_with_context(self.role, context)?,
             <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(self.mode, context)?,
-            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(self.display, context)?,
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
+                self.display,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.resizable, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.decorated, context)?,
             <WindowChromeKind as VmAggregateCodec>::encode_with_context(self.chrome, context)?,
@@ -5631,11 +8342,20 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.transparent, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.opacity, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.always_on_top, context)?,
-            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(self.parent, context)?,
-            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(self.transient_for, context)?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.parent,
+                context,
+            )?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.transient_for,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.modal, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.mouse_passthrough, context)?,
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(self.aspect_ratio, context)?,
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
+                self.aspect_ratio,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -5692,7 +8412,9 @@ impl NativeAbiCodec for WindowDescriptorAbi<NativeAbi> {
             title: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.title)? },
             role: unsafe { <WindowRole as NativeAbiCodec>::into_value(self.role)? },
             mode: unsafe { <WindowModeOptions as NativeAbiCodec>::into_value(self.mode)? },
-            display: unsafe { <Option<resource::DisplayHandle> as NativeAbiCodec>::into_value(self.display)? },
+            display: unsafe {
+                <Option<resource::DisplayHandle> as NativeAbiCodec>::into_value(self.display)?
+            },
             resizable: unsafe { <bool as NativeAbiCodec>::into_value(self.resizable)? },
             decorated: unsafe { <bool as NativeAbiCodec>::into_value(self.decorated)? },
             chrome: unsafe { <WindowChromeKind as NativeAbiCodec>::into_value(self.chrome)? },
@@ -5700,11 +8422,19 @@ impl NativeAbiCodec for WindowDescriptorAbi<NativeAbi> {
             transparent: unsafe { <bool as NativeAbiCodec>::into_value(self.transparent)? },
             opacity: unsafe { <f64 as NativeAbiCodec>::into_value(self.opacity)? },
             always_on_top: unsafe { <bool as NativeAbiCodec>::into_value(self.always_on_top)? },
-            parent: unsafe { <Option<resource::WindowHandle> as NativeAbiCodec>::into_value(self.parent)? },
-            transient_for: unsafe { <Option<resource::WindowHandle> as NativeAbiCodec>::into_value(self.transient_for)? },
+            parent: unsafe {
+                <Option<resource::WindowHandle> as NativeAbiCodec>::into_value(self.parent)?
+            },
+            transient_for: unsafe {
+                <Option<resource::WindowHandle> as NativeAbiCodec>::into_value(self.transient_for)?
+            },
             modal: unsafe { <bool as NativeAbiCodec>::into_value(self.modal)? },
-            mouse_passthrough: unsafe { <bool as NativeAbiCodec>::into_value(self.mouse_passthrough)? },
-            aspect_ratio: unsafe { <Option<WindowAspectRatio> as NativeAbiCodec>::into_value(self.aspect_ratio)? },
+            mouse_passthrough: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.mouse_passthrough)?
+            },
+            aspect_ratio: unsafe {
+                <Option<WindowAspectRatio> as NativeAbiCodec>::into_value(self.aspect_ratio)?
+            },
         })
     }
 
@@ -5715,7 +8445,10 @@ impl NativeAbiCodec for WindowDescriptorAbi<NativeAbi> {
             title: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.title),
             role: <WindowRole as NativeAbiCodec>::from_value(binding, value.role),
             mode: <WindowModeOptions as NativeAbiCodec>::from_value(binding, value.mode),
-            display: <Option<resource::DisplayHandle> as NativeAbiCodec>::from_value(binding, value.display),
+            display: <Option<resource::DisplayHandle> as NativeAbiCodec>::from_value(
+                binding,
+                value.display,
+            ),
             resizable: <bool as NativeAbiCodec>::from_value(binding, value.resizable),
             decorated: <bool as NativeAbiCodec>::from_value(binding, value.decorated),
             chrome: <WindowChromeKind as NativeAbiCodec>::from_value(binding, value.chrome),
@@ -5723,11 +8456,23 @@ impl NativeAbiCodec for WindowDescriptorAbi<NativeAbi> {
             transparent: <bool as NativeAbiCodec>::from_value(binding, value.transparent),
             opacity: <f64 as NativeAbiCodec>::from_value(binding, value.opacity),
             always_on_top: <bool as NativeAbiCodec>::from_value(binding, value.always_on_top),
-            parent: <Option<resource::WindowHandle> as NativeAbiCodec>::from_value(binding, value.parent),
-            transient_for: <Option<resource::WindowHandle> as NativeAbiCodec>::from_value(binding, value.transient_for),
+            parent: <Option<resource::WindowHandle> as NativeAbiCodec>::from_value(
+                binding,
+                value.parent,
+            ),
+            transient_for: <Option<resource::WindowHandle> as NativeAbiCodec>::from_value(
+                binding,
+                value.transient_for,
+            ),
             modal: <bool as NativeAbiCodec>::from_value(binding, value.modal),
-            mouse_passthrough: <bool as NativeAbiCodec>::from_value(binding, value.mouse_passthrough),
-            aspect_ratio: <Option<WindowAspectRatio> as NativeAbiCodec>::from_value(binding, value.aspect_ratio),
+            mouse_passthrough: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.mouse_passthrough,
+            ),
+            aspect_ratio: <Option<WindowAspectRatio> as NativeAbiCodec>::from_value(
+                binding,
+                value.aspect_ratio,
+            ),
         }
     }
 }
@@ -5735,14 +8480,20 @@ impl NativeAbiCodec for WindowDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for WindowDescriptorAbi<VmAbi> {
     type Value = WindowDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowDescriptorValue {
             backend: <DisplayBackend as VmAbiCodec>::into_value(self.backend, context)?,
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
             title: <vm::StringHandle as VmAbiCodec>::into_value(self.title, context)?,
             role: <WindowRole as VmAbiCodec>::into_value(self.role, context)?,
             mode: <WindowModeOptionsVm as VmAbiCodec>::into_value(self.mode, context)?,
-            display: <Option<resource::DisplayHandle> as VmAbiCodec>::into_value(self.display, context)?,
+            display: <Option<resource::DisplayHandle> as VmAbiCodec>::into_value(
+                self.display,
+                context,
+            )?,
             resizable: <bool as VmAbiCodec>::into_value(self.resizable, context)?,
             decorated: <bool as VmAbiCodec>::into_value(self.decorated, context)?,
             chrome: <WindowChromeKind as VmAbiCodec>::into_value(self.chrome, context)?,
@@ -5750,22 +8501,37 @@ impl VmAbiCodec for WindowDescriptorAbi<VmAbi> {
             transparent: <bool as VmAbiCodec>::into_value(self.transparent, context)?,
             opacity: <f64 as VmAbiCodec>::into_value(self.opacity, context)?,
             always_on_top: <bool as VmAbiCodec>::into_value(self.always_on_top, context)?,
-            parent: <Option<resource::WindowHandle> as VmAbiCodec>::into_value(self.parent, context)?,
-            transient_for: <Option<resource::WindowHandle> as VmAbiCodec>::into_value(self.transient_for, context)?,
+            parent: <Option<resource::WindowHandle> as VmAbiCodec>::into_value(
+                self.parent,
+                context,
+            )?,
+            transient_for: <Option<resource::WindowHandle> as VmAbiCodec>::into_value(
+                self.transient_for,
+                context,
+            )?,
             modal: <bool as VmAbiCodec>::into_value(self.modal, context)?,
             mouse_passthrough: <bool as VmAbiCodec>::into_value(self.mouse_passthrough, context)?,
-            aspect_ratio: <Option<WindowAspectRatioVm> as VmAbiCodec>::into_value(self.aspect_ratio, context)?,
+            aspect_ratio: <Option<WindowAspectRatioVm> as VmAbiCodec>::into_value(
+                self.aspect_ratio,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             backend: <DisplayBackend as VmAbiCodec>::from_value(context, value.backend)?,
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
             title: <vm::StringHandle as VmAbiCodec>::from_value(context, value.title)?,
             role: <WindowRole as VmAbiCodec>::from_value(context, value.role)?,
             mode: <WindowModeOptionsVm as VmAbiCodec>::from_value(context, value.mode)?,
-            display: <Option<resource::DisplayHandle> as VmAbiCodec>::from_value(context, value.display)?,
+            display: <Option<resource::DisplayHandle> as VmAbiCodec>::from_value(
+                context,
+                value.display,
+            )?,
             resizable: <bool as VmAbiCodec>::from_value(context, value.resizable)?,
             decorated: <bool as VmAbiCodec>::from_value(context, value.decorated)?,
             chrome: <WindowChromeKind as VmAbiCodec>::from_value(context, value.chrome)?,
@@ -5773,11 +8539,20 @@ impl VmAbiCodec for WindowDescriptorAbi<VmAbi> {
             transparent: <bool as VmAbiCodec>::from_value(context, value.transparent)?,
             opacity: <f64 as VmAbiCodec>::from_value(context, value.opacity)?,
             always_on_top: <bool as VmAbiCodec>::from_value(context, value.always_on_top)?,
-            parent: <Option<resource::WindowHandle> as VmAbiCodec>::from_value(context, value.parent)?,
-            transient_for: <Option<resource::WindowHandle> as VmAbiCodec>::from_value(context, value.transient_for)?,
+            parent: <Option<resource::WindowHandle> as VmAbiCodec>::from_value(
+                context,
+                value.parent,
+            )?,
+            transient_for: <Option<resource::WindowHandle> as VmAbiCodec>::from_value(
+                context,
+                value.transient_for,
+            )?,
             modal: <bool as VmAbiCodec>::from_value(context, value.modal)?,
             mouse_passthrough: <bool as VmAbiCodec>::from_value(context, value.mouse_passthrough)?,
-            aspect_ratio: <Option<WindowAspectRatioVm> as VmAbiCodec>::from_value(context, value.aspect_ratio)?,
+            aspect_ratio: <Option<WindowAspectRatioVm> as VmAbiCodec>::from_value(
+                context,
+                value.aspect_ratio,
+            )?,
         })
     }
 }
@@ -5796,40 +8571,67 @@ pub type WindowDestroyedEventVm = WindowDestroyedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowDestroyedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowDestroyedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowDestroyedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowDestroyedEventAbi<NativeAbi> {}
 impl Clone for WindowDestroyedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowDestroyedEventAbi<VmAbi> {}
 impl Clone for WindowDestroyedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowDestroyedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowDestroyedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDestroyedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -5850,7 +8652,9 @@ impl NativeAbiCodec for WindowDestroyedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowDestroyedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
         })
     }
 
@@ -5865,14 +8669,20 @@ impl NativeAbiCodec for WindowDestroyedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowDestroyedEventAbi<VmAbi> {
     type Value = WindowDestroyedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowDestroyedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -5896,31 +8706,53 @@ pub type WindowDisplayChangedEventVm = WindowDisplayChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowDisplayChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowDisplayChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowDisplayChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowDisplayChangedEventAbi<NativeAbi> {}
 impl Clone for WindowDisplayChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowDisplayChangedEventAbi<VmAbi> {}
 impl Clone for WindowDisplayChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowDisplayChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowDisplayChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDisplayChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowDisplayPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowDisplayPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -5928,11 +8760,20 @@ impl VmAggregateCodec for WindowDisplayChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowDisplayPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowDisplayPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -5955,7 +8796,9 @@ impl NativeAbiCodec for WindowDisplayChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowDisplayChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             payload: unsafe { <WindowDisplayPayload as NativeAbiCodec>::into_value(self.payload)? },
         })
     }
@@ -5972,7 +8815,10 @@ impl NativeAbiCodec for WindowDisplayChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowDisplayChangedEventAbi<VmAbi> {
     type Value = WindowDisplayChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowDisplayChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -5980,7 +8826,10 @@ impl VmAbiCodec for WindowDisplayChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -6002,26 +8851,54 @@ pub struct WindowDisplayPayload {
 pub type WindowDisplayPayloadVm = WindowDisplayPayload;
 
 impl VmAggregateCodec for WindowDisplayPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowDisplayPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDisplayPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_display = <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_display = <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_display =
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_current_display =
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             previous_display: field_previous_display,
             current_display: field_current_display,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(self.previous_display, context)?,
-            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(self.current_display, context)?,
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
+                self.previous_display,
+                context,
+            )?,
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
+                self.current_display,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6045,11 +8922,17 @@ impl NativeAbiCodec for WindowDisplayPayload {
 impl VmAbiCodec for WindowDisplayPayload {
     type Value = WindowDisplayPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -6068,40 +8951,67 @@ pub type WindowDropCancelledEventVm = WindowDropCancelledEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowDropCancelledEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowDropCancelledEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowDropCancelledEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowDropCancelledEventAbi<NativeAbi> {}
 impl Clone for WindowDropCancelledEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowDropCancelledEventAbi<VmAbi> {}
 impl Clone for WindowDropCancelledEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowDropCancelledEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowDropCancelledEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDropCancelledEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6122,7 +9032,9 @@ impl NativeAbiCodec for WindowDropCancelledEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowDropCancelledEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
         })
     }
 
@@ -6137,14 +9049,20 @@ impl NativeAbiCodec for WindowDropCancelledEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowDropCancelledEventAbi<VmAbi> {
     type Value = WindowDropCancelledEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowDropCancelledEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -6166,40 +9084,67 @@ pub type WindowDropCompletedEventVm = WindowDropCompletedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowDropCompletedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowDropCompletedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowDropCompletedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowDropCompletedEventAbi<NativeAbi> {}
 impl Clone for WindowDropCompletedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowDropCompletedEventAbi<VmAbi> {}
 impl Clone for WindowDropCompletedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowDropCompletedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowDropCompletedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDropCompletedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6220,7 +9165,9 @@ impl NativeAbiCodec for WindowDropCompletedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowDropCompletedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
         })
     }
 
@@ -6235,14 +9182,20 @@ impl NativeAbiCodec for WindowDropCompletedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowDropCompletedEventAbi<VmAbi> {
     type Value = WindowDropCompletedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowDropCompletedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -6264,40 +9217,67 @@ pub type WindowDropFilePayloadVm = WindowDropFilePayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowDropFilePayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowDropFilePayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowDropFilePayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowDropFilePayloadAbi<NativeAbi> {}
 impl Clone for WindowDropFilePayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowDropFilePayloadAbi<VmAbi> {}
 impl Clone for WindowDropFilePayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowDropFilePayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowDropFilePayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDropFilePayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_path = <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_position = <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path =
+            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_position =
+            <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             path: field_path,
             position: field_position,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.path, context)?,
-            <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(self.position, context)?,
+            <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(
+                self.position,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6318,14 +9298,19 @@ impl NativeAbiCodec for WindowDropFilePayloadAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowDropFilePayloadValue {
             path: unsafe { <Option<fs::OsPath> as NativeAbiCodec>::into_value(self.path)? },
-            position: unsafe { <Option<WindowPosition> as NativeAbiCodec>::into_value(self.position)? },
+            position: unsafe {
+                <Option<WindowPosition> as NativeAbiCodec>::into_value(self.position)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(binding, value.path),
-            position: <Option<WindowPosition> as NativeAbiCodec>::from_value(binding, value.position),
+            position: <Option<WindowPosition> as NativeAbiCodec>::from_value(
+                binding,
+                value.position,
+            ),
         }
     }
 }
@@ -6333,17 +9318,26 @@ impl NativeAbiCodec for WindowDropFilePayloadAbi<NativeAbi> {
 impl VmAbiCodec for WindowDropFilePayloadAbi<VmAbi> {
     type Value = WindowDropFilePayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowDropFilePayloadValue {
             path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(self.path, context)?,
             position: <Option<WindowPositionVm> as VmAbiCodec>::into_value(self.position, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(context, value.path)?,
-            position: <Option<WindowPositionVm> as VmAbiCodec>::from_value(context, value.position)?,
+            position: <Option<WindowPositionVm> as VmAbiCodec>::from_value(
+                context,
+                value.position,
+            )?,
         })
     }
 }
@@ -6362,40 +9356,70 @@ pub type WindowDropHoverLeavePayloadVm = WindowDropHoverLeavePayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowDropHoverLeavePayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowDropHoverLeavePayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowDropHoverLeavePayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowDropHoverLeavePayloadAbi<NativeAbi> {}
 impl Clone for WindowDropHoverLeavePayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowDropHoverLeavePayloadAbi<VmAbi> {}
 impl Clone for WindowDropHoverLeavePayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowDropHoverLeavePayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowDropHoverLeavePayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDropHoverLeavePayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_path = <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_position = <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_path =
+            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_position =
+            <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_path: field_previous_path,
             position: field_position,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.previous_path, context)?,
-            <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(self.position, context)?,
+            <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(
+                self.previous_path,
+                context,
+            )?,
+            <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(
+                self.position,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6415,15 +9439,25 @@ impl NativeAbiCodec for WindowDropHoverLeavePayloadAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowDropHoverLeavePayloadValue {
-            previous_path: unsafe { <Option<fs::OsPath> as NativeAbiCodec>::into_value(self.previous_path)? },
-            position: unsafe { <Option<WindowPosition> as NativeAbiCodec>::into_value(self.position)? },
+            previous_path: unsafe {
+                <Option<fs::OsPath> as NativeAbiCodec>::into_value(self.previous_path)?
+            },
+            position: unsafe {
+                <Option<WindowPosition> as NativeAbiCodec>::into_value(self.position)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            previous_path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(binding, value.previous_path),
-            position: <Option<WindowPosition> as NativeAbiCodec>::from_value(binding, value.position),
+            previous_path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(
+                binding,
+                value.previous_path,
+            ),
+            position: <Option<WindowPosition> as NativeAbiCodec>::from_value(
+                binding,
+                value.position,
+            ),
         }
     }
 }
@@ -6431,17 +9465,32 @@ impl NativeAbiCodec for WindowDropHoverLeavePayloadAbi<NativeAbi> {
 impl VmAbiCodec for WindowDropHoverLeavePayloadAbi<VmAbi> {
     type Value = WindowDropHoverLeavePayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowDropHoverLeavePayloadValue {
-            previous_path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(self.previous_path, context)?,
+            previous_path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(
+                self.previous_path,
+                context,
+            )?,
             position: <Option<WindowPositionVm> as VmAbiCodec>::into_value(self.position, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
-            previous_path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(context, value.previous_path)?,
-            position: <Option<WindowPositionVm> as VmAbiCodec>::from_value(context, value.position)?,
+            previous_path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(
+                context,
+                value.previous_path,
+            )?,
+            position: <Option<WindowPositionVm> as VmAbiCodec>::from_value(
+                context,
+                value.position,
+            )?,
         })
     }
 }
@@ -6460,40 +9509,67 @@ pub type WindowDropHoverPayloadVm = WindowDropHoverPayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowDropHoverPayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowDropHoverPayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowDropHoverPayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowDropHoverPayloadAbi<NativeAbi> {}
 impl Clone for WindowDropHoverPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowDropHoverPayloadAbi<VmAbi> {}
 impl Clone for WindowDropHoverPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowDropHoverPayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowDropHoverPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDropHoverPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_path = <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_position = <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path =
+            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_position =
+            <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             path: field_path,
             position: field_position,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.path, context)?,
-            <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(self.position, context)?,
+            <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(
+                self.position,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6514,14 +9590,19 @@ impl NativeAbiCodec for WindowDropHoverPayloadAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowDropHoverPayloadValue {
             path: unsafe { <Option<fs::OsPath> as NativeAbiCodec>::into_value(self.path)? },
-            position: unsafe { <Option<WindowPosition> as NativeAbiCodec>::into_value(self.position)? },
+            position: unsafe {
+                <Option<WindowPosition> as NativeAbiCodec>::into_value(self.position)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(binding, value.path),
-            position: <Option<WindowPosition> as NativeAbiCodec>::from_value(binding, value.position),
+            position: <Option<WindowPosition> as NativeAbiCodec>::from_value(
+                binding,
+                value.position,
+            ),
         }
     }
 }
@@ -6529,17 +9610,26 @@ impl NativeAbiCodec for WindowDropHoverPayloadAbi<NativeAbi> {
 impl VmAbiCodec for WindowDropHoverPayloadAbi<VmAbi> {
     type Value = WindowDropHoverPayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowDropHoverPayloadValue {
             path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(self.path, context)?,
             position: <Option<WindowPositionVm> as VmAbiCodec>::into_value(self.position, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(context, value.path)?,
-            position: <Option<WindowPositionVm> as VmAbiCodec>::from_value(context, value.position)?,
+            position: <Option<WindowPositionVm> as VmAbiCodec>::from_value(
+                context,
+                value.position,
+            )?,
         })
     }
 }
@@ -6558,40 +9648,67 @@ pub type WindowDropStartedEventVm = WindowDropStartedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowDropStartedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowDropStartedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowDropStartedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowDropStartedEventAbi<NativeAbi> {}
 impl Clone for WindowDropStartedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowDropStartedEventAbi<VmAbi> {}
 impl Clone for WindowDropStartedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowDropStartedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowDropStartedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDropStartedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6612,7 +9729,9 @@ impl NativeAbiCodec for WindowDropStartedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowDropStartedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
         })
     }
 
@@ -6627,14 +9746,20 @@ impl NativeAbiCodec for WindowDropStartedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowDropStartedEventAbi<VmAbi> {
     type Value = WindowDropStartedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowDropStartedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -6656,40 +9781,67 @@ pub type WindowDropTextPayloadVm = WindowDropTextPayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowDropTextPayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowDropTextPayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowDropTextPayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowDropTextPayloadAbi<NativeAbi> {}
 impl Clone for WindowDropTextPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowDropTextPayloadAbi<VmAbi> {}
 impl Clone for WindowDropTextPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowDropTextPayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowDropTextPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDropTextPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_text = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_position = <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_text =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_position =
+            <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             text: field_text,
             position: field_position,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?,
-            <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(self.position, context)?,
+            <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(
+                self.position,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6710,14 +9862,19 @@ impl NativeAbiCodec for WindowDropTextPayloadAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowDropTextPayloadValue {
             text: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.text)? },
-            position: unsafe { <Option<WindowPosition> as NativeAbiCodec>::into_value(self.position)? },
+            position: unsafe {
+                <Option<WindowPosition> as NativeAbiCodec>::into_value(self.position)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             text: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.text),
-            position: <Option<WindowPosition> as NativeAbiCodec>::from_value(binding, value.position),
+            position: <Option<WindowPosition> as NativeAbiCodec>::from_value(
+                binding,
+                value.position,
+            ),
         }
     }
 }
@@ -6725,17 +9882,26 @@ impl NativeAbiCodec for WindowDropTextPayloadAbi<NativeAbi> {
 impl VmAbiCodec for WindowDropTextPayloadAbi<VmAbi> {
     type Value = WindowDropTextPayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowDropTextPayloadValue {
             text: <vm::StringHandle as VmAbiCodec>::into_value(self.text, context)?,
             position: <Option<WindowPositionVm> as VmAbiCodec>::into_value(self.position, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             text: <vm::StringHandle as VmAbiCodec>::from_value(context, value.text)?,
-            position: <Option<WindowPositionVm> as VmAbiCodec>::from_value(context, value.position)?,
+            position: <Option<WindowPositionVm> as VmAbiCodec>::from_value(
+                context,
+                value.position,
+            )?,
         })
     }
 }
@@ -6753,26 +9919,54 @@ pub struct WindowEventFilter {
 pub type WindowEventFilterVm = WindowEventFilter;
 
 impl VmAggregateCodec for WindowEventFilter {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowEventFilter")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowEventFilter",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_window = <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_kind_mask = <Option<WindowEventKindMask> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_window =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_kind_mask =
+            <Option<WindowEventKindMask> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             window: field_window,
             kind_mask: field_kind_mask,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(self.window, context)?,
-            <Option<WindowEventKindMask> as VmAggregateCodec>::encode_with_context(self.kind_mask, context)?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.window,
+                context,
+            )?,
+            <Option<WindowEventKindMask> as VmAggregateCodec>::encode_with_context(
+                self.kind_mask,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6796,11 +9990,17 @@ impl NativeAbiCodec for WindowEventFilter {
 impl VmAbiCodec for WindowEventFilter {
     type Value = WindowEventFilterValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -6824,19 +10024,35 @@ pub struct WindowEventMetadata {
 pub type WindowEventMetadataVm = WindowEventMetadata;
 
 impl VmAggregateCodec for WindowEventMetadata {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowEventMetadata")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowEventMetadata",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_window = <resource::WindowHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_window =
+            <resource::WindowHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_dropped_count = <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_dropped_count =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             backend: field_backend,
             window: field_window,
@@ -6846,10 +10062,16 @@ impl VmAggregateCodec for WindowEventMetadata {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <resource::WindowHandle as VmAggregateCodec>::encode_with_context(self.window, context)?,
+            <resource::WindowHandle as VmAggregateCodec>::encode_with_context(
+                self.window,
+                context,
+            )?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?,
@@ -6876,11 +10098,17 @@ impl NativeAbiCodec for WindowEventMetadata {
 impl VmAbiCodec for WindowEventMetadata {
     type Value = WindowEventMetadataValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -6903,18 +10131,39 @@ pub struct WindowEventOpenOptions {
 pub type WindowEventOpenOptionsVm = WindowEventOpenOptions;
 
 impl VmAggregateCodec for WindowEventOpenOptions {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowEventOpenOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowEventOpenOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_policy = <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_queue = <DisplayEventQueueOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_filter = <Option<WindowEventFilterVm> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_queue = <DisplayEventQueueOptionsVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        let field_filter = <Option<WindowEventFilterVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[3],
+        )?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -6923,12 +10172,23 @@ impl VmAggregateCodec for WindowEventOpenOptions {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(self.backend_policy, context)?,
-            <DisplayEventQueueOptionsVm as VmAggregateCodec>::encode_with_context(self.queue, context)?,
-            <Option<WindowEventFilterVm> as VmAggregateCodec>::encode_with_context(self.filter, context)?,
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
+            <DisplayEventQueueOptionsVm as VmAggregateCodec>::encode_with_context(
+                self.queue, context,
+            )?,
+            <Option<WindowEventFilterVm> as VmAggregateCodec>::encode_with_context(
+                self.filter,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6952,11 +10212,17 @@ impl NativeAbiCodec for WindowEventOpenOptions {
 impl VmAbiCodec for WindowEventOpenOptions {
     type Value = WindowEventOpenOptionsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -6977,31 +10243,53 @@ pub type WindowExclusiveFullscreenModeOptionsVm = WindowExclusiveFullscreenModeO
 
 impl<A: BindingAbi> std::fmt::Debug for WindowExclusiveFullscreenModeOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowExclusiveFullscreenModeOptionsAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowExclusiveFullscreenModeOptionsAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowExclusiveFullscreenModeOptionsAbi<NativeAbi> {}
 impl Clone for WindowExclusiveFullscreenModeOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {}
 impl Clone for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowExclusiveFullscreenModeOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowExclusiveFullscreenModeOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_display = <resource::DisplayHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_display_mode = <Option<DisplayModeVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_display =
+            <resource::DisplayHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_display_mode =
+            <Option<DisplayModeVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             display: field_display,
@@ -7009,11 +10297,20 @@ impl VmAggregateCodec for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <resource::DisplayHandle as VmAggregateCodec>::encode_with_context(self.display, context)?,
-            <Option<DisplayModeVm> as VmAggregateCodec>::encode_with_context(self.display_mode, context)?,
+            <resource::DisplayHandle as VmAggregateCodec>::encode_with_context(
+                self.display,
+                context,
+            )?,
+            <Option<DisplayModeVm> as VmAggregateCodec>::encode_with_context(
+                self.display_mode,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -7036,16 +10333,26 @@ impl NativeAbiCodec for WindowExclusiveFullscreenModeOptionsAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowExclusiveFullscreenModeOptionsValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            display: unsafe { <resource::DisplayHandle as NativeAbiCodec>::into_value(self.display)? },
-            display_mode: unsafe { <Option<DisplayMode> as NativeAbiCodec>::into_value(self.display_mode)? },
+            display: unsafe {
+                <resource::DisplayHandle as NativeAbiCodec>::into_value(self.display)?
+            },
+            display_mode: unsafe {
+                <Option<DisplayMode> as NativeAbiCodec>::into_value(self.display_mode)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            display: <resource::DisplayHandle as NativeAbiCodec>::from_value(binding, value.display),
-            display_mode: <Option<DisplayMode> as NativeAbiCodec>::from_value(binding, value.display_mode),
+            display: <resource::DisplayHandle as NativeAbiCodec>::from_value(
+                binding,
+                value.display,
+            ),
+            display_mode: <Option<DisplayMode> as NativeAbiCodec>::from_value(
+                binding,
+                value.display_mode,
+            ),
         }
     }
 }
@@ -7053,19 +10360,31 @@ impl NativeAbiCodec for WindowExclusiveFullscreenModeOptionsAbi<NativeAbi> {
 impl VmAbiCodec for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
     type Value = WindowExclusiveFullscreenModeOptionsValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowExclusiveFullscreenModeOptionsValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             display: <resource::DisplayHandle as VmAbiCodec>::into_value(self.display, context)?,
-            display_mode: <Option<DisplayModeVm> as VmAbiCodec>::into_value(self.display_mode, context)?,
+            display_mode: <Option<DisplayModeVm> as VmAbiCodec>::into_value(
+                self.display_mode,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             display: <resource::DisplayHandle as VmAbiCodec>::from_value(context, value.display)?,
-            display_mode: <Option<DisplayModeVm> as VmAbiCodec>::from_value(context, value.display_mode)?,
+            display_mode: <Option<DisplayModeVm> as VmAbiCodec>::from_value(
+                context,
+                value.display_mode,
+            )?,
         })
     }
 }
@@ -7086,31 +10405,53 @@ pub type WindowFileDroppedEventVm = WindowFileDroppedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowFileDroppedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowFileDroppedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowFileDroppedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowFileDroppedEventAbi<NativeAbi> {}
 impl Clone for WindowFileDroppedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowFileDroppedEventAbi<VmAbi> {}
 impl Clone for WindowFileDroppedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowFileDroppedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowFileDroppedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowFileDroppedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowDropFilePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowDropFilePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -7118,11 +10459,20 @@ impl VmAggregateCodec for WindowFileDroppedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowDropFilePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowDropFilePayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -7145,8 +10495,12 @@ impl NativeAbiCodec for WindowFileDroppedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowFileDroppedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowDropFilePayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowDropFilePayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -7162,7 +10516,10 @@ impl NativeAbiCodec for WindowFileDroppedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowFileDroppedEventAbi<VmAbi> {
     type Value = WindowFileDroppedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowFileDroppedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -7170,7 +10527,10 @@ impl VmAbiCodec for WindowFileDroppedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -7195,31 +10555,55 @@ pub type WindowFileHoverLeftEventVm = WindowFileHoverLeftEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowFileHoverLeftEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowFileHoverLeftEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowFileHoverLeftEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowFileHoverLeftEventAbi<NativeAbi> {}
 impl Clone for WindowFileHoverLeftEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowFileHoverLeftEventAbi<VmAbi> {}
 impl Clone for WindowFileHoverLeftEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowFileHoverLeftEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowFileHoverLeftEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowFileHoverLeftEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowDropHoverLeavePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowDropHoverLeavePayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -7227,11 +10611,20 @@ impl VmAggregateCodec for WindowFileHoverLeftEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowDropHoverLeavePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowDropHoverLeavePayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -7254,8 +10647,12 @@ impl NativeAbiCodec for WindowFileHoverLeftEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowFileHoverLeftEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowDropHoverLeavePayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowDropHoverLeavePayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -7263,7 +10660,10 @@ impl NativeAbiCodec for WindowFileHoverLeftEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <WindowEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <WindowDropHoverLeavePayload as NativeAbiCodec>::from_value(binding, value.payload),
+            payload: <WindowDropHoverLeavePayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
         }
     }
 }
@@ -7271,19 +10671,31 @@ impl NativeAbiCodec for WindowFileHoverLeftEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowFileHoverLeftEventAbi<VmAbi> {
     type Value = WindowFileHoverLeftEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowFileHoverLeftEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <WindowDropHoverLeavePayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
+            payload: <WindowDropHoverLeavePayloadVm as VmAbiCodec>::into_value(
+                self.payload,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <WindowDropHoverLeavePayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
+            payload: <WindowDropHoverLeavePayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
         })
     }
 }
@@ -7304,31 +10716,53 @@ pub type WindowFileHoveredEventVm = WindowFileHoveredEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowFileHoveredEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowFileHoveredEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowFileHoveredEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowFileHoveredEventAbi<NativeAbi> {}
 impl Clone for WindowFileHoveredEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowFileHoveredEventAbi<VmAbi> {}
 impl Clone for WindowFileHoveredEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowFileHoveredEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowFileHoveredEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowFileHoveredEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowDropHoverPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowDropHoverPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -7336,11 +10770,20 @@ impl VmAggregateCodec for WindowFileHoveredEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowDropHoverPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowDropHoverPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -7363,8 +10806,12 @@ impl NativeAbiCodec for WindowFileHoveredEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowFileHoveredEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowDropHoverPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowDropHoverPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -7380,7 +10827,10 @@ impl NativeAbiCodec for WindowFileHoveredEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowFileHoveredEventAbi<VmAbi> {
     type Value = WindowFileHoveredEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowFileHoveredEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -7388,7 +10838,10 @@ impl VmAbiCodec for WindowFileHoveredEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -7413,31 +10866,53 @@ pub type WindowFocusChangedEventVm = WindowFocusChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowFocusChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowFocusChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowFocusChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowFocusChangedEventAbi<NativeAbi> {}
 impl Clone for WindowFocusChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowFocusChangedEventAbi<VmAbi> {}
 impl Clone for WindowFocusChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowFocusChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowFocusChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowFocusChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowFocusPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowFocusPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -7445,10 +10920,16 @@ impl VmAggregateCodec for WindowFocusChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
             <WindowFocusPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -7472,7 +10953,9 @@ impl NativeAbiCodec for WindowFocusChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowFocusChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             payload: unsafe { <WindowFocusPayload as NativeAbiCodec>::into_value(self.payload)? },
         })
     }
@@ -7489,7 +10972,10 @@ impl NativeAbiCodec for WindowFocusChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowFocusChangedEventAbi<VmAbi> {
     type Value = WindowFocusChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowFocusChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -7497,7 +10983,10 @@ impl VmAbiCodec for WindowFocusChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -7519,23 +11008,41 @@ pub struct WindowFocusPayload {
 pub type WindowFocusPayloadVm = WindowFocusPayload;
 
 impl VmAggregateCodec for WindowFocusPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowFocusPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowFocusPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_focused = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_focused = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_focused =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_focused =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_focused: field_previous_focused,
             current_focused: field_current_focused,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <bool as VmAggregateCodec>::encode_with_context(self.previous_focused, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.current_focused, context)?,
@@ -7562,11 +11069,17 @@ impl NativeAbiCodec for WindowFocusPayload {
 impl VmAbiCodec for WindowFocusPayload {
     type Value = WindowFocusPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -7589,32 +11102,53 @@ pub type WindowIconImageVm = WindowIconImageAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowIconImageAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowIconImageAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowIconImageAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowIconImageAbi<NativeAbi> {}
 impl Clone for WindowIconImageAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowIconImageAbi<VmAbi> {}
 impl Clone for WindowIconImageAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowIconImageAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowIconImage")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowIconImage",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
         let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_pixel_format = <WindowIconPixelFormat as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_pixels = <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_pixel_format =
+            <WindowIconPixelFormat as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_pixels =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             width: field_width,
             height: field_height,
@@ -7623,11 +11157,17 @@ impl VmAggregateCodec for WindowIconImageAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
-            <WindowIconPixelFormat as VmAggregateCodec>::encode_with_context(self.pixel_format, context)?,
+            <WindowIconPixelFormat as VmAggregateCodec>::encode_with_context(
+                self.pixel_format,
+                context,
+            )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.pixels, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -7654,7 +11194,9 @@ impl NativeAbiCodec for WindowIconImageAbi<NativeAbi> {
         Ok(WindowIconImageValue {
             width: unsafe { <u32 as NativeAbiCodec>::into_value(self.width)? },
             height: unsafe { <u32 as NativeAbiCodec>::into_value(self.height)? },
-            pixel_format: unsafe { <WindowIconPixelFormat as NativeAbiCodec>::into_value(self.pixel_format)? },
+            pixel_format: unsafe {
+                <WindowIconPixelFormat as NativeAbiCodec>::into_value(self.pixel_format)?
+            },
             pixels: unsafe { <NativeSlice<u8> as NativeAbiCodec>::into_value(self.pixels)? },
         })
     }
@@ -7663,7 +11205,10 @@ impl NativeAbiCodec for WindowIconImageAbi<NativeAbi> {
         Self {
             width: <u32 as NativeAbiCodec>::from_value(binding, value.width),
             height: <u32 as NativeAbiCodec>::from_value(binding, value.height),
-            pixel_format: <WindowIconPixelFormat as NativeAbiCodec>::from_value(binding, value.pixel_format),
+            pixel_format: <WindowIconPixelFormat as NativeAbiCodec>::from_value(
+                binding,
+                value.pixel_format,
+            ),
             pixels: <NativeSlice<u8> as NativeAbiCodec>::from_value(binding, value.pixels),
         }
     }
@@ -7672,20 +11217,32 @@ impl NativeAbiCodec for WindowIconImageAbi<NativeAbi> {
 impl VmAbiCodec for WindowIconImageAbi<VmAbi> {
     type Value = WindowIconImageValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowIconImageValue {
             width: <u32 as VmAbiCodec>::into_value(self.width, context)?,
             height: <u32 as VmAbiCodec>::into_value(self.height, context)?,
-            pixel_format: <WindowIconPixelFormat as VmAbiCodec>::into_value(self.pixel_format, context)?,
+            pixel_format: <WindowIconPixelFormat as VmAbiCodec>::into_value(
+                self.pixel_format,
+                context,
+            )?,
             pixels: <VmSlice<u8> as VmAbiCodec>::into_value(self.pixels, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             width: <u32 as VmAbiCodec>::from_value(context, value.width)?,
             height: <u32 as VmAbiCodec>::from_value(context, value.height)?,
-            pixel_format: <WindowIconPixelFormat as VmAbiCodec>::from_value(context, value.pixel_format)?,
+            pixel_format: <WindowIconPixelFormat as VmAbiCodec>::from_value(
+                context,
+                value.pixel_format,
+            )?,
             pixels: <VmSlice<u8> as VmAbiCodec>::from_value(context, value.pixels)?,
         })
     }
@@ -7703,37 +11260,64 @@ pub type WindowIconSetVm = WindowIconSetAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowIconSetAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowIconSetAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowIconSetAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowIconSetAbi<NativeAbi> {}
 impl Clone for WindowIconSetAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowIconSetAbi<VmAbi> {}
 impl Clone for WindowIconSetAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowIconSetAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowIconSet")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowIconSet",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 1 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
         }
-        let field_images = <VmSlice<WindowIconImageVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_images = <VmSlice<WindowIconImageVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[0],
+        )?;
         Ok(Self {
             images: field_images,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <VmSlice<WindowIconImageVm> as VmAggregateCodec>::encode_with_context(self.images, context)?,
+            <VmSlice<WindowIconImageVm> as VmAggregateCodec>::encode_with_context(
+                self.images,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -7751,13 +11335,18 @@ impl NativeAbiCodec for WindowIconSetAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowIconSetValue {
-            images: unsafe { <NativeSlice<WindowIconImage> as NativeAbiCodec>::into_value(self.images)? },
+            images: unsafe {
+                <NativeSlice<WindowIconImage> as NativeAbiCodec>::into_value(self.images)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            images: <NativeSlice<WindowIconImage> as NativeAbiCodec>::from_value(binding, value.images),
+            images: <NativeSlice<WindowIconImage> as NativeAbiCodec>::from_value(
+                binding,
+                value.images,
+            ),
         }
     }
 }
@@ -7765,13 +11354,19 @@ impl NativeAbiCodec for WindowIconSetAbi<NativeAbi> {
 impl VmAbiCodec for WindowIconSetAbi<VmAbi> {
     type Value = WindowIconSetValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowIconSetValue {
             images: <VmSlice<WindowIconImageVm> as VmAbiCodec>::into_value(self.images, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             images: <VmSlice<WindowIconImageVm> as VmAbiCodec>::from_value(context, value.images)?,
         })
@@ -7791,13 +11386,26 @@ pub struct WindowLogicalSize {
 pub type WindowLogicalSizeVm = WindowLogicalSize;
 
 impl VmAggregateCodec for WindowLogicalSize {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowLogicalSize")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowLogicalSize",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let field_width = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_height = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -7807,7 +11415,10 @@ impl VmAggregateCodec for WindowLogicalSize {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?,
@@ -7834,11 +11445,17 @@ impl NativeAbiCodec for WindowLogicalSize {
 impl VmAbiCodec for WindowLogicalSize {
     type Value = WindowLogicalSizeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -7859,31 +11476,53 @@ pub type WindowModalChangedEventVm = WindowModalChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowModalChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowModalChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowModalChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowModalChangedEventAbi<NativeAbi> {}
 impl Clone for WindowModalChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowModalChangedEventAbi<VmAbi> {}
 impl Clone for WindowModalChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowModalChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowModalChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowModalChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowModalPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowModalPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -7891,10 +11530,16 @@ impl VmAggregateCodec for WindowModalChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
             <WindowModalPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -7918,7 +11563,9 @@ impl NativeAbiCodec for WindowModalChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowModalChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             payload: unsafe { <WindowModalPayload as NativeAbiCodec>::into_value(self.payload)? },
         })
     }
@@ -7935,7 +11582,10 @@ impl NativeAbiCodec for WindowModalChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowModalChangedEventAbi<VmAbi> {
     type Value = WindowModalChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowModalChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -7943,7 +11593,10 @@ impl VmAbiCodec for WindowModalChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -7965,23 +11618,41 @@ pub struct WindowModalPayload {
 pub type WindowModalPayloadVm = WindowModalPayload;
 
 impl VmAggregateCodec for WindowModalPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowModalPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowModalPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_modal = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_modal = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_modal =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_modal =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_modal: field_previous_modal,
             current_modal: field_current_modal,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <bool as VmAggregateCodec>::encode_with_context(self.previous_modal, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.current_modal, context)?,
@@ -8008,11 +11679,17 @@ impl NativeAbiCodec for WindowModalPayload {
 impl VmAbiCodec for WindowModalPayload {
     type Value = WindowModalPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -8033,31 +11710,53 @@ pub type WindowModeChangedEventVm = WindowModeChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowModeChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowModeChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowModeChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowModeChangedEventAbi<NativeAbi> {}
 impl Clone for WindowModeChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowModeChangedEventAbi<VmAbi> {}
 impl Clone for WindowModeChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowModeChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowModeChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowModeChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowModePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowModePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -8065,10 +11764,16 @@ impl VmAggregateCodec for WindowModeChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
             <WindowModePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -8092,7 +11797,9 @@ impl NativeAbiCodec for WindowModeChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowModeChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             payload: unsafe { <WindowModePayload as NativeAbiCodec>::into_value(self.payload)? },
         })
     }
@@ -8109,7 +11816,10 @@ impl NativeAbiCodec for WindowModeChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowModeChangedEventAbi<VmAbi> {
     type Value = WindowModeChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowModeChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -8117,7 +11827,10 @@ impl VmAbiCodec for WindowModeChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -8140,40 +11853,70 @@ pub type WindowModePayloadVm = WindowModePayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowModePayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowModePayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowModePayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowModePayloadAbi<NativeAbi> {}
 impl Clone for WindowModePayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowModePayloadAbi<VmAbi> {}
 impl Clone for WindowModePayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowModePayloadAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowModePayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowModePayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_mode = <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_mode = <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_mode =
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_mode =
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_mode: field_previous_mode,
             current_mode: field_current_mode,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(self.previous_mode, context)?,
-            <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(self.current_mode, context)?,
+            <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(
+                self.previous_mode,
+                context,
+            )?,
+            <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(
+                self.current_mode,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -8193,15 +11936,25 @@ impl NativeAbiCodec for WindowModePayloadAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowModePayloadValue {
-            previous_mode: unsafe { <WindowModeOptions as NativeAbiCodec>::into_value(self.previous_mode)? },
-            current_mode: unsafe { <WindowModeOptions as NativeAbiCodec>::into_value(self.current_mode)? },
+            previous_mode: unsafe {
+                <WindowModeOptions as NativeAbiCodec>::into_value(self.previous_mode)?
+            },
+            current_mode: unsafe {
+                <WindowModeOptions as NativeAbiCodec>::into_value(self.current_mode)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            previous_mode: <WindowModeOptions as NativeAbiCodec>::from_value(binding, value.previous_mode),
-            current_mode: <WindowModeOptions as NativeAbiCodec>::from_value(binding, value.current_mode),
+            previous_mode: <WindowModeOptions as NativeAbiCodec>::from_value(
+                binding,
+                value.previous_mode,
+            ),
+            current_mode: <WindowModeOptions as NativeAbiCodec>::from_value(
+                binding,
+                value.current_mode,
+            ),
         }
     }
 }
@@ -8209,17 +11962,35 @@ impl NativeAbiCodec for WindowModePayloadAbi<NativeAbi> {
 impl VmAbiCodec for WindowModePayloadAbi<VmAbi> {
     type Value = WindowModePayloadValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowModePayloadValue {
-            previous_mode: <WindowModeOptionsVm as VmAbiCodec>::into_value(self.previous_mode, context)?,
-            current_mode: <WindowModeOptionsVm as VmAbiCodec>::into_value(self.current_mode, context)?,
+            previous_mode: <WindowModeOptionsVm as VmAbiCodec>::into_value(
+                self.previous_mode,
+                context,
+            )?,
+            current_mode: <WindowModeOptionsVm as VmAbiCodec>::into_value(
+                self.current_mode,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
-            previous_mode: <WindowModeOptionsVm as VmAbiCodec>::from_value(context, value.previous_mode)?,
-            current_mode: <WindowModeOptionsVm as VmAbiCodec>::from_value(context, value.current_mode)?,
+            previous_mode: <WindowModeOptionsVm as VmAbiCodec>::from_value(
+                context,
+                value.previous_mode,
+            )?,
+            current_mode: <WindowModeOptionsVm as VmAbiCodec>::from_value(
+                context,
+                value.current_mode,
+            )?,
         })
     }
 }
@@ -8240,31 +12011,55 @@ pub type WindowMousePassthroughChangedEventVm = WindowMousePassthroughChangedEve
 
 impl<A: BindingAbi> std::fmt::Debug for WindowMousePassthroughChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowMousePassthroughChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowMousePassthroughChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowMousePassthroughChangedEventAbi<NativeAbi> {}
 impl Clone for WindowMousePassthroughChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowMousePassthroughChangedEventAbi<VmAbi> {}
 impl Clone for WindowMousePassthroughChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowMousePassthroughChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowMousePassthroughChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowMousePassthroughChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowMousePassthroughPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowMousePassthroughPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -8272,11 +12067,20 @@ impl VmAggregateCodec for WindowMousePassthroughChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowMousePassthroughPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowMousePassthroughPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -8299,8 +12103,12 @@ impl NativeAbiCodec for WindowMousePassthroughChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowMousePassthroughChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowMousePassthroughPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowMousePassthroughPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -8308,7 +12116,10 @@ impl NativeAbiCodec for WindowMousePassthroughChangedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <WindowEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <WindowMousePassthroughPayload as NativeAbiCodec>::from_value(binding, value.payload),
+            payload: <WindowMousePassthroughPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
         }
     }
 }
@@ -8316,19 +12127,31 @@ impl NativeAbiCodec for WindowMousePassthroughChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowMousePassthroughChangedEventAbi<VmAbi> {
     type Value = WindowMousePassthroughChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowMousePassthroughChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <WindowMousePassthroughPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
+            payload: <WindowMousePassthroughPayloadVm as VmAbiCodec>::into_value(
+                self.payload,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <WindowMousePassthroughPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
+            payload: <WindowMousePassthroughPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
         })
     }
 }
@@ -8346,26 +12169,50 @@ pub struct WindowMousePassthroughPayload {
 pub type WindowMousePassthroughPayloadVm = WindowMousePassthroughPayload;
 
 impl VmAggregateCodec for WindowMousePassthroughPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowMousePassthroughPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowMousePassthroughPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_mouse_passthrough = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_mouse_passthrough = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_mouse_passthrough =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_mouse_passthrough =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_mouse_passthrough: field_previous_mouse_passthrough,
             current_mouse_passthrough: field_current_mouse_passthrough,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.previous_mouse_passthrough, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.current_mouse_passthrough, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.previous_mouse_passthrough,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.current_mouse_passthrough,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -8389,11 +12236,17 @@ impl NativeAbiCodec for WindowMousePassthroughPayload {
 impl VmAbiCodec for WindowMousePassthroughPayload {
     type Value = WindowMousePassthroughPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -8414,31 +12267,53 @@ pub type WindowOcclusionChangedEventVm = WindowOcclusionChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowOcclusionChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowOcclusionChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowOcclusionChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowOcclusionChangedEventAbi<NativeAbi> {}
 impl Clone for WindowOcclusionChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowOcclusionChangedEventAbi<VmAbi> {}
 impl Clone for WindowOcclusionChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowOcclusionChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowOcclusionChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowOcclusionChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowOcclusionPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowOcclusionPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -8446,11 +12321,20 @@ impl VmAggregateCodec for WindowOcclusionChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowOcclusionPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowOcclusionPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -8473,8 +12357,12 @@ impl NativeAbiCodec for WindowOcclusionChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowOcclusionChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowOcclusionPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowOcclusionPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -8490,7 +12378,10 @@ impl NativeAbiCodec for WindowOcclusionChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowOcclusionChangedEventAbi<VmAbi> {
     type Value = WindowOcclusionChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowOcclusionChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -8498,7 +12389,10 @@ impl VmAbiCodec for WindowOcclusionChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -8520,26 +12414,50 @@ pub struct WindowOcclusionPayload {
 pub type WindowOcclusionPayloadVm = WindowOcclusionPayload;
 
 impl VmAggregateCodec for WindowOcclusionPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowOcclusionPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowOcclusionPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_occlusion = <WindowOcclusionState as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_occlusion = <WindowOcclusionState as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_occlusion =
+            <WindowOcclusionState as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_occlusion =
+            <WindowOcclusionState as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_occlusion: field_previous_occlusion,
             current_occlusion: field_current_occlusion,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <WindowOcclusionState as VmAggregateCodec>::encode_with_context(self.previous_occlusion, context)?,
-            <WindowOcclusionState as VmAggregateCodec>::encode_with_context(self.current_occlusion, context)?,
+            <WindowOcclusionState as VmAggregateCodec>::encode_with_context(
+                self.previous_occlusion,
+                context,
+            )?,
+            <WindowOcclusionState as VmAggregateCodec>::encode_with_context(
+                self.current_occlusion,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -8563,11 +12481,17 @@ impl NativeAbiCodec for WindowOcclusionPayload {
 impl VmAbiCodec for WindowOcclusionPayload {
     type Value = WindowOcclusionPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -8588,31 +12512,53 @@ pub type WindowOpacityChangedEventVm = WindowOpacityChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowOpacityChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowOpacityChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowOpacityChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowOpacityChangedEventAbi<NativeAbi> {}
 impl Clone for WindowOpacityChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowOpacityChangedEventAbi<VmAbi> {}
 impl Clone for WindowOpacityChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowOpacityChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowOpacityChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowOpacityChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowOpacityPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowOpacityPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -8620,11 +12566,20 @@ impl VmAggregateCodec for WindowOpacityChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowOpacityPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowOpacityPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -8647,7 +12602,9 @@ impl NativeAbiCodec for WindowOpacityChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowOpacityChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             payload: unsafe { <WindowOpacityPayload as NativeAbiCodec>::into_value(self.payload)? },
         })
     }
@@ -8664,7 +12621,10 @@ impl NativeAbiCodec for WindowOpacityChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowOpacityChangedEventAbi<VmAbi> {
     type Value = WindowOpacityChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowOpacityChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -8672,7 +12632,10 @@ impl VmAbiCodec for WindowOpacityChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -8694,23 +12657,41 @@ pub struct WindowOpacityPayload {
 pub type WindowOpacityPayloadVm = WindowOpacityPayload;
 
 impl VmAggregateCodec for WindowOpacityPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowOpacityPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowOpacityPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_opacity = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_opacity = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_opacity =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_opacity =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_opacity: field_previous_opacity,
             current_opacity: field_current_opacity,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <f64 as VmAggregateCodec>::encode_with_context(self.previous_opacity, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.current_opacity, context)?,
@@ -8737,11 +12718,17 @@ impl NativeAbiCodec for WindowOpacityPayload {
 impl VmAbiCodec for WindowOpacityPayload {
     type Value = WindowOpacityPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -8806,51 +12793,102 @@ pub type WindowOptionsVm = WindowOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowOptionsAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowOptionsAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowOptionsAbi<NativeAbi> {}
 impl Clone for WindowOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowOptionsAbi<VmAbi> {}
 impl Clone for WindowOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 23 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 23 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 23 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_policy = <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_title = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_title =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_role = <WindowRole as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_size_logical = <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_position = <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_constraints = <Option<WindowSizeConstraintsVm> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_display = <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_mode = <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_visibility = <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_size_logical =
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_position =
+            <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_constraints =
+            <Option<WindowSizeConstraintsVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[6],
+            )?;
+        let field_display =
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[7],
+            )?;
+        let field_mode =
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_visibility =
+            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         let field_resizable = <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         let field_decorated = <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_transparent = <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_chrome = <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_taskbar_visible = <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
-        let field_opacity = <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[15])?;
-        let field_focus_on_show = <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
-        let field_always_on_top = <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
-        let field_parent = <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(context, slots[18])?;
-        let field_transient_for = <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(context, slots[19])?;
-        let field_modal = <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[20])?;
-        let field_mouse_passthrough = <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[21])?;
-        let field_aspect_ratio = <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(context, slots[22])?;
+        let field_transparent =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_chrome =
+            <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_taskbar_visible =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_opacity =
+            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_focus_on_show =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_always_on_top =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_parent =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[18],
+            )?;
+        let field_transient_for =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[19],
+            )?;
+        let field_modal =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[20])?;
+        let field_mouse_passthrough =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[21])?;
+        let field_aspect_ratio =
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[22],
+            )?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -8878,16 +12916,34 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(self.backend_policy, context)?,
+            <DisplayBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
             <WindowRole as VmAggregateCodec>::encode_with_context(self.role, context)?,
-            <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(self.size_logical, context)?,
-            <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(self.position, context)?,
-            <Option<WindowSizeConstraintsVm> as VmAggregateCodec>::encode_with_context(self.constraints, context)?,
-            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(self.display, context)?,
+            <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.size_logical,
+                context,
+            )?,
+            <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(
+                self.position,
+                context,
+            )?,
+            <Option<WindowSizeConstraintsVm> as VmAggregateCodec>::encode_with_context(
+                self.constraints,
+                context,
+            )?,
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
+                self.display,
+                context,
+            )?,
             <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(self.mode, context)?,
             <WindowVisibility as VmAggregateCodec>::encode_with_context(self.visibility, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.resizable, context)?,
@@ -8898,11 +12954,23 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.opacity, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.focus_on_show, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.always_on_top, context)?,
-            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(self.parent, context)?,
-            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(self.transient_for, context)?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.parent,
+                context,
+            )?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.transient_for,
+                context,
+            )?,
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.modal, context)?,
-            <Option<bool> as VmAggregateCodec>::encode_with_context(self.mouse_passthrough, context)?,
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(self.aspect_ratio, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(
+                self.mouse_passthrough,
+                context,
+            )?,
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
+                self.aspect_ratio,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -8969,15 +13037,27 @@ impl NativeAbiCodec for WindowOptionsAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowOptionsValue {
             backend: unsafe { <DisplayBackend as NativeAbiCodec>::into_value(self.backend)? },
-            backend_policy: unsafe { <DisplayBackendSelectionPolicy as NativeAbiCodec>::into_value(self.backend_policy)? },
+            backend_policy: unsafe {
+                <DisplayBackendSelectionPolicy as NativeAbiCodec>::into_value(self.backend_policy)?
+            },
             title: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.title)? },
             role: unsafe { <WindowRole as NativeAbiCodec>::into_value(self.role)? },
-            size_logical: unsafe { <WindowLogicalSize as NativeAbiCodec>::into_value(self.size_logical)? },
-            position: unsafe { <Option<WindowPosition> as NativeAbiCodec>::into_value(self.position)? },
-            constraints: unsafe { <Option<WindowSizeConstraints> as NativeAbiCodec>::into_value(self.constraints)? },
-            display: unsafe { <Option<resource::DisplayHandle> as NativeAbiCodec>::into_value(self.display)? },
+            size_logical: unsafe {
+                <WindowLogicalSize as NativeAbiCodec>::into_value(self.size_logical)?
+            },
+            position: unsafe {
+                <Option<WindowPosition> as NativeAbiCodec>::into_value(self.position)?
+            },
+            constraints: unsafe {
+                <Option<WindowSizeConstraints> as NativeAbiCodec>::into_value(self.constraints)?
+            },
+            display: unsafe {
+                <Option<resource::DisplayHandle> as NativeAbiCodec>::into_value(self.display)?
+            },
             mode: unsafe { <WindowModeOptions as NativeAbiCodec>::into_value(self.mode)? },
-            visibility: unsafe { <WindowVisibility as NativeAbiCodec>::into_value(self.visibility)? },
+            visibility: unsafe {
+                <WindowVisibility as NativeAbiCodec>::into_value(self.visibility)?
+            },
             resizable: unsafe { <bool as NativeAbiCodec>::into_value(self.resizable)? },
             decorated: unsafe { <bool as NativeAbiCodec>::into_value(self.decorated)? },
             transparent: unsafe { <bool as NativeAbiCodec>::into_value(self.transparent)? },
@@ -8986,24 +13066,47 @@ impl NativeAbiCodec for WindowOptionsAbi<NativeAbi> {
             opacity: unsafe { <Option<f64> as NativeAbiCodec>::into_value(self.opacity)? },
             focus_on_show: unsafe { <bool as NativeAbiCodec>::into_value(self.focus_on_show)? },
             always_on_top: unsafe { <bool as NativeAbiCodec>::into_value(self.always_on_top)? },
-            parent: unsafe { <Option<resource::WindowHandle> as NativeAbiCodec>::into_value(self.parent)? },
-            transient_for: unsafe { <Option<resource::WindowHandle> as NativeAbiCodec>::into_value(self.transient_for)? },
+            parent: unsafe {
+                <Option<resource::WindowHandle> as NativeAbiCodec>::into_value(self.parent)?
+            },
+            transient_for: unsafe {
+                <Option<resource::WindowHandle> as NativeAbiCodec>::into_value(self.transient_for)?
+            },
             modal: unsafe { <Option<bool> as NativeAbiCodec>::into_value(self.modal)? },
-            mouse_passthrough: unsafe { <Option<bool> as NativeAbiCodec>::into_value(self.mouse_passthrough)? },
-            aspect_ratio: unsafe { <Option<WindowAspectRatio> as NativeAbiCodec>::into_value(self.aspect_ratio)? },
+            mouse_passthrough: unsafe {
+                <Option<bool> as NativeAbiCodec>::into_value(self.mouse_passthrough)?
+            },
+            aspect_ratio: unsafe {
+                <Option<WindowAspectRatio> as NativeAbiCodec>::into_value(self.aspect_ratio)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             backend: <DisplayBackend as NativeAbiCodec>::from_value(binding, value.backend),
-            backend_policy: <DisplayBackendSelectionPolicy as NativeAbiCodec>::from_value(binding, value.backend_policy),
+            backend_policy: <DisplayBackendSelectionPolicy as NativeAbiCodec>::from_value(
+                binding,
+                value.backend_policy,
+            ),
             title: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.title),
             role: <WindowRole as NativeAbiCodec>::from_value(binding, value.role),
-            size_logical: <WindowLogicalSize as NativeAbiCodec>::from_value(binding, value.size_logical),
-            position: <Option<WindowPosition> as NativeAbiCodec>::from_value(binding, value.position),
-            constraints: <Option<WindowSizeConstraints> as NativeAbiCodec>::from_value(binding, value.constraints),
-            display: <Option<resource::DisplayHandle> as NativeAbiCodec>::from_value(binding, value.display),
+            size_logical: <WindowLogicalSize as NativeAbiCodec>::from_value(
+                binding,
+                value.size_logical,
+            ),
+            position: <Option<WindowPosition> as NativeAbiCodec>::from_value(
+                binding,
+                value.position,
+            ),
+            constraints: <Option<WindowSizeConstraints> as NativeAbiCodec>::from_value(
+                binding,
+                value.constraints,
+            ),
+            display: <Option<resource::DisplayHandle> as NativeAbiCodec>::from_value(
+                binding,
+                value.display,
+            ),
             mode: <WindowModeOptions as NativeAbiCodec>::from_value(binding, value.mode),
             visibility: <WindowVisibility as NativeAbiCodec>::from_value(binding, value.visibility),
             resizable: <bool as NativeAbiCodec>::from_value(binding, value.resizable),
@@ -9014,11 +13117,23 @@ impl NativeAbiCodec for WindowOptionsAbi<NativeAbi> {
             opacity: <Option<f64> as NativeAbiCodec>::from_value(binding, value.opacity),
             focus_on_show: <bool as NativeAbiCodec>::from_value(binding, value.focus_on_show),
             always_on_top: <bool as NativeAbiCodec>::from_value(binding, value.always_on_top),
-            parent: <Option<resource::WindowHandle> as NativeAbiCodec>::from_value(binding, value.parent),
-            transient_for: <Option<resource::WindowHandle> as NativeAbiCodec>::from_value(binding, value.transient_for),
+            parent: <Option<resource::WindowHandle> as NativeAbiCodec>::from_value(
+                binding,
+                value.parent,
+            ),
+            transient_for: <Option<resource::WindowHandle> as NativeAbiCodec>::from_value(
+                binding,
+                value.transient_for,
+            ),
             modal: <Option<bool> as NativeAbiCodec>::from_value(binding, value.modal),
-            mouse_passthrough: <Option<bool> as NativeAbiCodec>::from_value(binding, value.mouse_passthrough),
-            aspect_ratio: <Option<WindowAspectRatio> as NativeAbiCodec>::from_value(binding, value.aspect_ratio),
+            mouse_passthrough: <Option<bool> as NativeAbiCodec>::from_value(
+                binding,
+                value.mouse_passthrough,
+            ),
+            aspect_ratio: <Option<WindowAspectRatio> as NativeAbiCodec>::from_value(
+                binding,
+                value.aspect_ratio,
+            ),
         }
     }
 }
@@ -9026,16 +13141,31 @@ impl NativeAbiCodec for WindowOptionsAbi<NativeAbi> {
 impl VmAbiCodec for WindowOptionsAbi<VmAbi> {
     type Value = WindowOptionsValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowOptionsValue {
             backend: <DisplayBackend as VmAbiCodec>::into_value(self.backend, context)?,
-            backend_policy: <DisplayBackendSelectionPolicy as VmAbiCodec>::into_value(self.backend_policy, context)?,
+            backend_policy: <DisplayBackendSelectionPolicy as VmAbiCodec>::into_value(
+                self.backend_policy,
+                context,
+            )?,
             title: <vm::StringHandle as VmAbiCodec>::into_value(self.title, context)?,
             role: <WindowRole as VmAbiCodec>::into_value(self.role, context)?,
-            size_logical: <WindowLogicalSizeVm as VmAbiCodec>::into_value(self.size_logical, context)?,
+            size_logical: <WindowLogicalSizeVm as VmAbiCodec>::into_value(
+                self.size_logical,
+                context,
+            )?,
             position: <Option<WindowPositionVm> as VmAbiCodec>::into_value(self.position, context)?,
-            constraints: <Option<WindowSizeConstraintsVm> as VmAbiCodec>::into_value(self.constraints, context)?,
-            display: <Option<resource::DisplayHandle> as VmAbiCodec>::into_value(self.display, context)?,
+            constraints: <Option<WindowSizeConstraintsVm> as VmAbiCodec>::into_value(
+                self.constraints,
+                context,
+            )?,
+            display: <Option<resource::DisplayHandle> as VmAbiCodec>::into_value(
+                self.display,
+                context,
+            )?,
             mode: <WindowModeOptionsVm as VmAbiCodec>::into_value(self.mode, context)?,
             visibility: <WindowVisibility as VmAbiCodec>::into_value(self.visibility, context)?,
             resizable: <bool as VmAbiCodec>::into_value(self.resizable, context)?,
@@ -9046,24 +13176,54 @@ impl VmAbiCodec for WindowOptionsAbi<VmAbi> {
             opacity: <Option<f64> as VmAbiCodec>::into_value(self.opacity, context)?,
             focus_on_show: <bool as VmAbiCodec>::into_value(self.focus_on_show, context)?,
             always_on_top: <bool as VmAbiCodec>::into_value(self.always_on_top, context)?,
-            parent: <Option<resource::WindowHandle> as VmAbiCodec>::into_value(self.parent, context)?,
-            transient_for: <Option<resource::WindowHandle> as VmAbiCodec>::into_value(self.transient_for, context)?,
+            parent: <Option<resource::WindowHandle> as VmAbiCodec>::into_value(
+                self.parent,
+                context,
+            )?,
+            transient_for: <Option<resource::WindowHandle> as VmAbiCodec>::into_value(
+                self.transient_for,
+                context,
+            )?,
             modal: <Option<bool> as VmAbiCodec>::into_value(self.modal, context)?,
-            mouse_passthrough: <Option<bool> as VmAbiCodec>::into_value(self.mouse_passthrough, context)?,
-            aspect_ratio: <Option<WindowAspectRatioVm> as VmAbiCodec>::into_value(self.aspect_ratio, context)?,
+            mouse_passthrough: <Option<bool> as VmAbiCodec>::into_value(
+                self.mouse_passthrough,
+                context,
+            )?,
+            aspect_ratio: <Option<WindowAspectRatioVm> as VmAbiCodec>::into_value(
+                self.aspect_ratio,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             backend: <DisplayBackend as VmAbiCodec>::from_value(context, value.backend)?,
-            backend_policy: <DisplayBackendSelectionPolicy as VmAbiCodec>::from_value(context, value.backend_policy)?,
+            backend_policy: <DisplayBackendSelectionPolicy as VmAbiCodec>::from_value(
+                context,
+                value.backend_policy,
+            )?,
             title: <vm::StringHandle as VmAbiCodec>::from_value(context, value.title)?,
             role: <WindowRole as VmAbiCodec>::from_value(context, value.role)?,
-            size_logical: <WindowLogicalSizeVm as VmAbiCodec>::from_value(context, value.size_logical)?,
-            position: <Option<WindowPositionVm> as VmAbiCodec>::from_value(context, value.position)?,
-            constraints: <Option<WindowSizeConstraintsVm> as VmAbiCodec>::from_value(context, value.constraints)?,
-            display: <Option<resource::DisplayHandle> as VmAbiCodec>::from_value(context, value.display)?,
+            size_logical: <WindowLogicalSizeVm as VmAbiCodec>::from_value(
+                context,
+                value.size_logical,
+            )?,
+            position: <Option<WindowPositionVm> as VmAbiCodec>::from_value(
+                context,
+                value.position,
+            )?,
+            constraints: <Option<WindowSizeConstraintsVm> as VmAbiCodec>::from_value(
+                context,
+                value.constraints,
+            )?,
+            display: <Option<resource::DisplayHandle> as VmAbiCodec>::from_value(
+                context,
+                value.display,
+            )?,
             mode: <WindowModeOptionsVm as VmAbiCodec>::from_value(context, value.mode)?,
             visibility: <WindowVisibility as VmAbiCodec>::from_value(context, value.visibility)?,
             resizable: <bool as VmAbiCodec>::from_value(context, value.resizable)?,
@@ -9074,11 +13234,23 @@ impl VmAbiCodec for WindowOptionsAbi<VmAbi> {
             opacity: <Option<f64> as VmAbiCodec>::from_value(context, value.opacity)?,
             focus_on_show: <bool as VmAbiCodec>::from_value(context, value.focus_on_show)?,
             always_on_top: <bool as VmAbiCodec>::from_value(context, value.always_on_top)?,
-            parent: <Option<resource::WindowHandle> as VmAbiCodec>::from_value(context, value.parent)?,
-            transient_for: <Option<resource::WindowHandle> as VmAbiCodec>::from_value(context, value.transient_for)?,
+            parent: <Option<resource::WindowHandle> as VmAbiCodec>::from_value(
+                context,
+                value.parent,
+            )?,
+            transient_for: <Option<resource::WindowHandle> as VmAbiCodec>::from_value(
+                context,
+                value.transient_for,
+            )?,
             modal: <Option<bool> as VmAbiCodec>::from_value(context, value.modal)?,
-            mouse_passthrough: <Option<bool> as VmAbiCodec>::from_value(context, value.mouse_passthrough)?,
-            aspect_ratio: <Option<WindowAspectRatioVm> as VmAbiCodec>::from_value(context, value.aspect_ratio)?,
+            mouse_passthrough: <Option<bool> as VmAbiCodec>::from_value(
+                context,
+                value.mouse_passthrough,
+            )?,
+            aspect_ratio: <Option<WindowAspectRatioVm> as VmAbiCodec>::from_value(
+                context,
+                value.aspect_ratio,
+            )?,
         })
     }
 }
@@ -9099,31 +13271,53 @@ pub type WindowParentChangedEventVm = WindowParentChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowParentChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowParentChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowParentChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowParentChangedEventAbi<NativeAbi> {}
 impl Clone for WindowParentChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowParentChangedEventAbi<VmAbi> {}
 impl Clone for WindowParentChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowParentChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowParentChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowParentChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowParentPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowParentPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -9131,11 +13325,20 @@ impl VmAggregateCodec for WindowParentChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowParentPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowParentPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -9158,7 +13361,9 @@ impl NativeAbiCodec for WindowParentChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowParentChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             payload: unsafe { <WindowParentPayload as NativeAbiCodec>::into_value(self.payload)? },
         })
     }
@@ -9175,7 +13380,10 @@ impl NativeAbiCodec for WindowParentChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowParentChangedEventAbi<VmAbi> {
     type Value = WindowParentChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowParentChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -9183,7 +13391,10 @@ impl VmAbiCodec for WindowParentChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -9205,26 +13416,54 @@ pub struct WindowParentPayload {
 pub type WindowParentPayloadVm = WindowParentPayload;
 
 impl VmAggregateCodec for WindowParentPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowParentPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowParentPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_parent = <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_parent = <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_parent =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_current_parent =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             previous_parent: field_previous_parent,
             current_parent: field_current_parent,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(self.previous_parent, context)?,
-            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(self.current_parent, context)?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.previous_parent,
+                context,
+            )?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.current_parent,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -9248,11 +13487,17 @@ impl NativeAbiCodec for WindowParentPayload {
 impl VmAbiCodec for WindowParentPayload {
     type Value = WindowParentPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -9270,13 +13515,26 @@ pub struct WindowPhysicalSize {
 pub type WindowPhysicalSizeVm = WindowPhysicalSize;
 
 impl VmAggregateCodec for WindowPhysicalSize {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowPhysicalSize")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowPhysicalSize",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -9286,7 +13544,10 @@ impl VmAggregateCodec for WindowPhysicalSize {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
@@ -9313,11 +13574,17 @@ impl NativeAbiCodec for WindowPhysicalSize {
 impl VmAbiCodec for WindowPhysicalSize {
     type Value = WindowPhysicalSizeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -9335,13 +13602,26 @@ pub struct WindowPosition {
 pub type WindowPositionVm = WindowPosition;
 
 impl VmAggregateCodec for WindowPosition {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowPosition")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowPosition",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -9351,7 +13631,10 @@ impl VmAggregateCodec for WindowPosition {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
@@ -9378,11 +13661,17 @@ impl NativeAbiCodec for WindowPosition {
 impl VmAbiCodec for WindowPosition {
     type Value = WindowPositionValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -9403,31 +13692,53 @@ pub type WindowPositionChangedEventVm = WindowPositionChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowPositionChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowPositionChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowPositionChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowPositionChangedEventAbi<NativeAbi> {}
 impl Clone for WindowPositionChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowPositionChangedEventAbi<VmAbi> {}
 impl Clone for WindowPositionChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowPositionChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowPositionChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowPositionChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowPositionPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowPositionPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -9435,11 +13746,20 @@ impl VmAggregateCodec for WindowPositionChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowPositionPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowPositionPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -9462,8 +13782,12 @@ impl NativeAbiCodec for WindowPositionChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowPositionChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowPositionPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowPositionPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -9479,7 +13803,10 @@ impl NativeAbiCodec for WindowPositionChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowPositionChangedEventAbi<VmAbi> {
     type Value = WindowPositionChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowPositionChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -9487,7 +13814,10 @@ impl VmAbiCodec for WindowPositionChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -9509,26 +13839,50 @@ pub struct WindowPositionPayload {
 pub type WindowPositionPayloadVm = WindowPositionPayload;
 
 impl VmAggregateCodec for WindowPositionPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowPositionPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowPositionPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_position = <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_position = <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_position =
+            <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_position =
+            <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_position: field_previous_position,
             current_position: field_current_position,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <WindowPositionVm as VmAggregateCodec>::encode_with_context(self.previous_position, context)?,
-            <WindowPositionVm as VmAggregateCodec>::encode_with_context(self.current_position, context)?,
+            <WindowPositionVm as VmAggregateCodec>::encode_with_context(
+                self.previous_position,
+                context,
+            )?,
+            <WindowPositionVm as VmAggregateCodec>::encode_with_context(
+                self.current_position,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -9552,11 +13906,17 @@ impl NativeAbiCodec for WindowPositionPayload {
 impl VmAbiCodec for WindowPositionPayload {
     type Value = WindowPositionPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -9575,40 +13935,67 @@ pub type WindowRefreshRequestedEventVm = WindowRefreshRequestedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowRefreshRequestedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowRefreshRequestedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowRefreshRequestedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowRefreshRequestedEventAbi<NativeAbi> {}
 impl Clone for WindowRefreshRequestedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowRefreshRequestedEventAbi<VmAbi> {}
 impl Clone for WindowRefreshRequestedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowRefreshRequestedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowRefreshRequestedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowRefreshRequestedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -9629,7 +14016,9 @@ impl NativeAbiCodec for WindowRefreshRequestedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowRefreshRequestedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
         })
     }
 
@@ -9644,14 +14033,20 @@ impl NativeAbiCodec for WindowRefreshRequestedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowRefreshRequestedEventAbi<VmAbi> {
     type Value = WindowRefreshRequestedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowRefreshRequestedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -9675,31 +14070,53 @@ pub type WindowSafeAreaChangedEventVm = WindowSafeAreaChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowSafeAreaChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowSafeAreaChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowSafeAreaChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowSafeAreaChangedEventAbi<NativeAbi> {}
 impl Clone for WindowSafeAreaChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowSafeAreaChangedEventAbi<VmAbi> {}
 impl Clone for WindowSafeAreaChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowSafeAreaChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowSafeAreaChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowSafeAreaPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowSafeAreaPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -9707,11 +14124,20 @@ impl VmAggregateCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowSafeAreaPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowSafeAreaPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -9734,8 +14160,12 @@ impl NativeAbiCodec for WindowSafeAreaChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowSafeAreaChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowSafeAreaPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowSafeAreaPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -9751,7 +14181,10 @@ impl NativeAbiCodec for WindowSafeAreaChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
     type Value = WindowSafeAreaChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowSafeAreaChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -9759,7 +14192,10 @@ impl VmAbiCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -9785,13 +14221,26 @@ pub struct WindowSafeAreaInsets {
 pub type WindowSafeAreaInsetsVm = WindowSafeAreaInsets;
 
 impl VmAggregateCodec for WindowSafeAreaInsets {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowSafeAreaInsets")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowSafeAreaInsets",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
         let field_left_px = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_top_px = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -9805,7 +14254,10 @@ impl VmAggregateCodec for WindowSafeAreaInsets {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.left_px, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.top_px, context)?,
@@ -9834,11 +14286,17 @@ impl NativeAbiCodec for WindowSafeAreaInsets {
 impl VmAbiCodec for WindowSafeAreaInsets {
     type Value = WindowSafeAreaInsetsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -9856,26 +14314,54 @@ pub struct WindowSafeAreaPayload {
 pub type WindowSafeAreaPayloadVm = WindowSafeAreaPayload;
 
 impl VmAggregateCodec for WindowSafeAreaPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowSafeAreaPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowSafeAreaPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_safe_area_insets = <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_safe_area_insets = <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_safe_area_insets =
+            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_current_safe_area_insets =
+            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             previous_safe_area_insets: field_previous_safe_area_insets,
             current_safe_area_insets: field_current_safe_area_insets,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::encode_with_context(self.previous_safe_area_insets, context)?,
-            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::encode_with_context(self.current_safe_area_insets, context)?,
+            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::encode_with_context(
+                self.previous_safe_area_insets,
+                context,
+            )?,
+            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::encode_with_context(
+                self.current_safe_area_insets,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -9899,11 +14385,17 @@ impl NativeAbiCodec for WindowSafeAreaPayload {
 impl VmAbiCodec for WindowSafeAreaPayload {
     type Value = WindowSafeAreaPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -9924,31 +14416,54 @@ pub type WindowScaleFactorChangedEventVm = WindowScaleFactorChangedEventAbi<VmAb
 
 impl<A: BindingAbi> std::fmt::Debug for WindowScaleFactorChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowScaleFactorChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowScaleFactorChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowScaleFactorChangedEventAbi<NativeAbi> {}
 impl Clone for WindowScaleFactorChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowScaleFactorChangedEventAbi<VmAbi> {}
 impl Clone for WindowScaleFactorChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowScaleFactorChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowScaleFactorChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowScaleFactorPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload = <WindowScaleFactorPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -9956,11 +14471,20 @@ impl VmAggregateCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowScaleFactorPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowScaleFactorPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -9983,8 +14507,12 @@ impl NativeAbiCodec for WindowScaleFactorChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowScaleFactorChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowScaleFactorPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowScaleFactorPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -9992,7 +14520,10 @@ impl NativeAbiCodec for WindowScaleFactorChangedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <WindowEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <WindowScaleFactorPayload as NativeAbiCodec>::from_value(binding, value.payload),
+            payload: <WindowScaleFactorPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
         }
     }
 }
@@ -10000,7 +14531,10 @@ impl NativeAbiCodec for WindowScaleFactorChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
     type Value = WindowScaleFactorChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowScaleFactorChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -10008,11 +14542,17 @@ impl VmAbiCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <WindowScaleFactorPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
+            payload: <WindowScaleFactorPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
         })
     }
 }
@@ -10030,26 +14570,50 @@ pub struct WindowScaleFactorPayload {
 pub type WindowScaleFactorPayloadVm = WindowScaleFactorPayload;
 
 impl VmAggregateCodec for WindowScaleFactorPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowScaleFactorPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowScaleFactorPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_scale_factor_milli = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_scale_factor_milli = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_scale_factor_milli =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_scale_factor_milli =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_scale_factor_milli: field_previous_scale_factor_milli,
             current_scale_factor_milli: field_current_scale_factor_milli,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.previous_scale_factor_milli, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.current_scale_factor_milli, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.previous_scale_factor_milli,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.current_scale_factor_milli,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -10073,11 +14637,17 @@ impl NativeAbiCodec for WindowScaleFactorPayload {
 impl VmAbiCodec for WindowScaleFactorPayload {
     type Value = WindowScaleFactorPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -10098,31 +14668,53 @@ pub type WindowSizeChangedEventVm = WindowSizeChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowSizeChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowSizeChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowSizeChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowSizeChangedEventAbi<NativeAbi> {}
 impl Clone for WindowSizeChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowSizeChangedEventAbi<VmAbi> {}
 impl Clone for WindowSizeChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowSizeChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowSizeChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowSizeChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowSizePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowSizePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -10130,10 +14722,16 @@ impl VmAggregateCodec for WindowSizeChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
             <WindowSizePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -10157,7 +14755,9 @@ impl NativeAbiCodec for WindowSizeChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowSizeChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             payload: unsafe { <WindowSizePayload as NativeAbiCodec>::into_value(self.payload)? },
         })
     }
@@ -10174,7 +14774,10 @@ impl NativeAbiCodec for WindowSizeChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowSizeChangedEventAbi<VmAbi> {
     type Value = WindowSizeChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowSizeChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -10182,7 +14785,10 @@ impl VmAbiCodec for WindowSizeChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -10204,26 +14810,50 @@ pub struct WindowSizeConstraints {
 pub type WindowSizeConstraintsVm = WindowSizeConstraints;
 
 impl VmAggregateCodec for WindowSizeConstraints {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowSizeConstraints")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowSizeConstraints",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_min = <Option<WindowLogicalSizeVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_max = <Option<WindowLogicalSizeVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_min = <Option<WindowLogicalSizeVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[0],
+        )?;
+        let field_max = <Option<WindowLogicalSizeVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[1],
+        )?;
         Ok(Self {
             min: field_min,
             max: field_max,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::encode_with_context(self.min, context)?,
-            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::encode_with_context(self.max, context)?,
+            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::encode_with_context(
+                self.min, context,
+            )?,
+            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::encode_with_context(
+                self.max, context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -10247,11 +14877,17 @@ impl NativeAbiCodec for WindowSizeConstraints {
 impl VmAbiCodec for WindowSizeConstraints {
     type Value = WindowSizeConstraintsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -10273,18 +14909,35 @@ pub struct WindowSizePayload {
 pub type WindowSizePayloadVm = WindowSizePayload;
 
 impl VmAggregateCodec for WindowSizePayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowSizePayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowSizePayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
-        let field_previous_size_logical = <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_previous_size_physical = <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_current_size_logical = <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_current_size_physical = <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_previous_size_logical =
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_previous_size_physical =
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_current_size_logical =
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_current_size_physical =
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             previous_size_logical: field_previous_size_logical,
             previous_size_physical: field_previous_size_physical,
@@ -10293,12 +14946,27 @@ impl VmAggregateCodec for WindowSizePayload {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(self.previous_size_logical, context)?,
-            <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(self.previous_size_physical, context)?,
-            <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(self.current_size_logical, context)?,
-            <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(self.current_size_physical, context)?,
+            <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.previous_size_logical,
+                context,
+            )?,
+            <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.previous_size_physical,
+                context,
+            )?,
+            <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.current_size_logical,
+                context,
+            )?,
+            <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.current_size_physical,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -10322,11 +14990,17 @@ impl NativeAbiCodec for WindowSizePayload {
 impl VmAbiCodec for WindowSizePayload {
     type Value = WindowSizePayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -10382,35 +15056,75 @@ pub struct WindowState {
 pub type WindowStateVm = WindowState;
 
 impl VmAggregateCodec for WindowState {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowState")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowState",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 21 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 21 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 21 fields",
+            ))
+            .boxed());
         }
-        let field_backend = <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_role = <WindowRole as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_position = <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_size_logical = <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_size_physical = <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_scale_factor_milli = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_visibility = <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_display = <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_position =
+            <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_size_logical =
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_size_physical =
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_scale_factor_milli =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_visibility =
+            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_display =
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[7],
+            )?;
         let field_focused = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_occlusion = <WindowOcclusionState as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_safe_area_insets = <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_theme = <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_chrome = <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_taskbar_visible = <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_occlusion =
+            <WindowOcclusionState as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_safe_area_insets =
+            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[10],
+            )?;
+        let field_theme =
+            <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_chrome =
+            <WindowChromeKind as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_taskbar_visible =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
         let field_opacity = <f64 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
-        let field_always_on_top = <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
-        let field_parent = <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(context, slots[16])?;
-        let field_transient_for = <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_always_on_top =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_parent =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[16],
+            )?;
+        let field_transient_for =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[17],
+            )?;
         let field_modal = <bool as VmAggregateCodec>::decode_with_context(context, slots[18])?;
-        let field_mouse_passthrough = <bool as VmAggregateCodec>::decode_with_context(context, slots[19])?;
-        let field_aspect_ratio = <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(context, slots[20])?;
+        let field_mouse_passthrough =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[19])?;
+        let field_aspect_ratio =
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[20],
+            )?;
         Ok(Self {
             backend: field_backend,
             role: field_role,
@@ -10436,29 +15150,56 @@ impl VmAggregateCodec for WindowState {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <WindowRole as VmAggregateCodec>::encode_with_context(self.role, context)?,
             <WindowPositionVm as VmAggregateCodec>::encode_with_context(self.position, context)?,
-            <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(self.size_logical, context)?,
-            <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(self.size_physical, context)?,
+            <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.size_logical,
+                context,
+            )?,
+            <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.size_physical,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.scale_factor_milli, context)?,
             <WindowVisibility as VmAggregateCodec>::encode_with_context(self.visibility, context)?,
-            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(self.display, context)?,
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
+                self.display,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.focused, context)?,
-            <WindowOcclusionState as VmAggregateCodec>::encode_with_context(self.occlusion, context)?,
-            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::encode_with_context(self.safe_area_insets, context)?,
+            <WindowOcclusionState as VmAggregateCodec>::encode_with_context(
+                self.occlusion,
+                context,
+            )?,
+            <Option<WindowSafeAreaInsetsVm> as VmAggregateCodec>::encode_with_context(
+                self.safe_area_insets,
+                context,
+            )?,
             <WindowTheme as VmAggregateCodec>::encode_with_context(self.theme, context)?,
             <WindowChromeKind as VmAggregateCodec>::encode_with_context(self.chrome, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.taskbar_visible, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.opacity, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.always_on_top, context)?,
-            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(self.parent, context)?,
-            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(self.transient_for, context)?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.parent,
+                context,
+            )?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.transient_for,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.modal, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.mouse_passthrough, context)?,
-            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(self.aspect_ratio, context)?,
+            <Option<WindowAspectRatioVm> as VmAggregateCodec>::encode_with_context(
+                self.aspect_ratio,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -10482,11 +15223,17 @@ impl NativeAbiCodec for WindowState {
 impl VmAbiCodec for WindowState {
     type Value = WindowStateValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -10507,31 +15254,55 @@ pub type WindowTaskbarVisibilityChangedEventVm = WindowTaskbarVisibilityChangedE
 
 impl<A: BindingAbi> std::fmt::Debug for WindowTaskbarVisibilityChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowTaskbarVisibilityChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowTaskbarVisibilityChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowTaskbarVisibilityChangedEventAbi<NativeAbi> {}
 impl Clone for WindowTaskbarVisibilityChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {}
 impl Clone for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowTaskbarVisibilityChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowTaskbarVisibilityChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowTaskbarVisibilityPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowTaskbarVisibilityPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -10539,11 +15310,20 @@ impl VmAggregateCodec for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowTaskbarVisibilityPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowTaskbarVisibilityPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -10566,8 +15346,12 @@ impl NativeAbiCodec for WindowTaskbarVisibilityChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowTaskbarVisibilityChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowTaskbarVisibilityPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowTaskbarVisibilityPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -10575,7 +15359,10 @@ impl NativeAbiCodec for WindowTaskbarVisibilityChangedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <WindowEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <WindowTaskbarVisibilityPayload as NativeAbiCodec>::from_value(binding, value.payload),
+            payload: <WindowTaskbarVisibilityPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
         }
     }
 }
@@ -10583,19 +15370,31 @@ impl NativeAbiCodec for WindowTaskbarVisibilityChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
     type Value = WindowTaskbarVisibilityChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowTaskbarVisibilityChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <WindowTaskbarVisibilityPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
+            payload: <WindowTaskbarVisibilityPayloadVm as VmAbiCodec>::into_value(
+                self.payload,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <WindowTaskbarVisibilityPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
+            payload: <WindowTaskbarVisibilityPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
         })
     }
 }
@@ -10613,25 +15412,46 @@ pub struct WindowTaskbarVisibilityPayload {
 pub type WindowTaskbarVisibilityPayloadVm = WindowTaskbarVisibilityPayload;
 
 impl VmAggregateCodec for WindowTaskbarVisibilityPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowTaskbarVisibilityPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowTaskbarVisibilityPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_taskbar_visible = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_taskbar_visible = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_taskbar_visible =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_taskbar_visible =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_taskbar_visible: field_previous_taskbar_visible,
             current_taskbar_visible: field_current_taskbar_visible,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.previous_taskbar_visible, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.previous_taskbar_visible,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.current_taskbar_visible, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -10656,11 +15476,17 @@ impl NativeAbiCodec for WindowTaskbarVisibilityPayload {
 impl VmAbiCodec for WindowTaskbarVisibilityPayload {
     type Value = WindowTaskbarVisibilityPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -10681,31 +15507,53 @@ pub type WindowTextDroppedEventVm = WindowTextDroppedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowTextDroppedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowTextDroppedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowTextDroppedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowTextDroppedEventAbi<NativeAbi> {}
 impl Clone for WindowTextDroppedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowTextDroppedEventAbi<VmAbi> {}
 impl Clone for WindowTextDroppedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowTextDroppedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowTextDroppedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowTextDroppedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowDropTextPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowDropTextPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -10713,11 +15561,20 @@ impl VmAggregateCodec for WindowTextDroppedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowDropTextPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowDropTextPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -10740,8 +15597,12 @@ impl NativeAbiCodec for WindowTextDroppedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowTextDroppedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowDropTextPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowDropTextPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -10757,7 +15618,10 @@ impl NativeAbiCodec for WindowTextDroppedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowTextDroppedEventAbi<VmAbi> {
     type Value = WindowTextDroppedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowTextDroppedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -10765,7 +15629,10 @@ impl VmAbiCodec for WindowTextDroppedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -10790,31 +15657,53 @@ pub type WindowThemeChangedEventVm = WindowThemeChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowThemeChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowThemeChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowThemeChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowThemeChangedEventAbi<NativeAbi> {}
 impl Clone for WindowThemeChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowThemeChangedEventAbi<VmAbi> {}
 impl Clone for WindowThemeChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowThemeChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowThemeChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowThemeChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowThemePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowThemePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -10822,10 +15711,16 @@ impl VmAggregateCodec for WindowThemeChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
             <WindowThemePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -10849,7 +15744,9 @@ impl NativeAbiCodec for WindowThemeChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowThemeChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             payload: unsafe { <WindowThemePayload as NativeAbiCodec>::into_value(self.payload)? },
         })
     }
@@ -10866,7 +15763,10 @@ impl NativeAbiCodec for WindowThemeChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowThemeChangedEventAbi<VmAbi> {
     type Value = WindowThemeChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowThemeChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -10874,7 +15774,10 @@ impl VmAbiCodec for WindowThemeChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -10896,23 +15799,41 @@ pub struct WindowThemePayload {
 pub type WindowThemePayloadVm = WindowThemePayload;
 
 impl VmAggregateCodec for WindowThemePayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowThemePayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowThemePayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_theme = <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_theme = <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_theme =
+            <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_theme =
+            <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_theme: field_previous_theme,
             current_theme: field_current_theme,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <WindowTheme as VmAggregateCodec>::encode_with_context(self.previous_theme, context)?,
             <WindowTheme as VmAggregateCodec>::encode_with_context(self.current_theme, context)?,
@@ -10939,11 +15860,17 @@ impl NativeAbiCodec for WindowThemePayload {
 impl VmAbiCodec for WindowThemePayload {
     type Value = WindowThemePayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -10964,31 +15891,53 @@ pub type WindowTransientChangedEventVm = WindowTransientChangedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowTransientChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowTransientChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowTransientChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowTransientChangedEventAbi<NativeAbi> {}
 impl Clone for WindowTransientChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowTransientChangedEventAbi<VmAbi> {}
 impl Clone for WindowTransientChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowTransientChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowTransientChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowTransientChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowTransientPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <WindowTransientPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -10996,11 +15945,20 @@ impl VmAggregateCodec for WindowTransientChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowTransientPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowTransientPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -11023,8 +15981,12 @@ impl NativeAbiCodec for WindowTransientChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowTransientChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowTransientPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowTransientPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -11040,7 +16002,10 @@ impl NativeAbiCodec for WindowTransientChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowTransientChangedEventAbi<VmAbi> {
     type Value = WindowTransientChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowTransientChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -11048,7 +16013,10 @@ impl VmAbiCodec for WindowTransientChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -11070,26 +16038,54 @@ pub struct WindowTransientPayload {
 pub type WindowTransientPayloadVm = WindowTransientPayload;
 
 impl VmAggregateCodec for WindowTransientPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowTransientPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowTransientPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_transient_for = <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_transient_for = <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_transient_for =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_current_transient_for =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             previous_transient_for: field_previous_transient_for,
             current_transient_for: field_current_transient_for,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(self.previous_transient_for, context)?,
-            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(self.current_transient_for, context)?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.previous_transient_for,
+                context,
+            )?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.current_transient_for,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -11113,11 +16109,17 @@ impl NativeAbiCodec for WindowTransientPayload {
 impl VmAbiCodec for WindowTransientPayload {
     type Value = WindowTransientPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -11138,31 +16140,54 @@ pub type WindowVisibilityChangedEventVm = WindowVisibilityChangedEventAbi<VmAbi>
 
 impl<A: BindingAbi> std::fmt::Debug for WindowVisibilityChangedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowVisibilityChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowVisibilityChangedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowVisibilityChangedEventAbi<NativeAbi> {}
 impl Clone for WindowVisibilityChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowVisibilityChangedEventAbi<VmAbi> {}
 impl Clone for WindowVisibilityChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowVisibilityChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowVisibilityChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowVisibilityChangedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <WindowVisibilityPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WindowEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload = <WindowVisibilityPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -11170,11 +16195,20 @@ impl VmAggregateCodec for WindowVisibilityChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <WindowVisibilityPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <WindowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <WindowVisibilityPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -11197,8 +16231,12 @@ impl NativeAbiCodec for WindowVisibilityChangedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(WindowVisibilityChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <WindowVisibilityPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <WindowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <WindowVisibilityPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -11206,7 +16244,10 @@ impl NativeAbiCodec for WindowVisibilityChangedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <WindowEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <WindowVisibilityPayload as NativeAbiCodec>::from_value(binding, value.payload),
+            payload: <WindowVisibilityPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
         }
     }
 }
@@ -11214,7 +16255,10 @@ impl NativeAbiCodec for WindowVisibilityChangedEventAbi<NativeAbi> {
 impl VmAbiCodec for WindowVisibilityChangedEventAbi<VmAbi> {
     type Value = WindowVisibilityChangedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowVisibilityChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -11222,7 +16266,10 @@ impl VmAbiCodec for WindowVisibilityChangedEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <WindowEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -11244,26 +16291,50 @@ pub struct WindowVisibilityPayload {
 pub type WindowVisibilityPayloadVm = WindowVisibilityPayload;
 
 impl VmAggregateCodec for WindowVisibilityPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowVisibilityPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowVisibilityPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_previous_visibility = <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_current_visibility = <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_previous_visibility =
+            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_current_visibility =
+            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             previous_visibility: field_previous_visibility,
             current_visibility: field_current_visibility,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <WindowVisibility as VmAggregateCodec>::encode_with_context(self.previous_visibility, context)?,
-            <WindowVisibility as VmAggregateCodec>::encode_with_context(self.current_visibility, context)?,
+            <WindowVisibility as VmAggregateCodec>::encode_with_context(
+                self.previous_visibility,
+                context,
+            )?,
+            <WindowVisibility as VmAggregateCodec>::encode_with_context(
+                self.current_visibility,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -11287,11 +16358,17 @@ impl NativeAbiCodec for WindowVisibilityPayload {
 impl VmAbiCodec for WindowVisibilityPayload {
     type Value = WindowVisibilityPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -11308,38 +16385,59 @@ pub type WindowWindowedModeOptionsVm = WindowWindowedModeOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowWindowedModeOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowWindowedModeOptionsAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowWindowedModeOptionsAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowWindowedModeOptionsAbi<NativeAbi> {}
 impl Clone for WindowWindowedModeOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowWindowedModeOptionsAbi<VmAbi> {}
 impl Clone for WindowWindowedModeOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for WindowWindowedModeOptionsAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "WindowWindowedModeOptions")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowWindowedModeOptions",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 1 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self {
-            kind: field_kind,
-        })
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { kind: field_kind })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-        ];
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
+        )?];
         Ok(context.allocate_aggregate(slots))
     }
 }
@@ -11370,13 +16468,19 @@ impl NativeAbiCodec for WindowWindowedModeOptionsAbi<NativeAbi> {
 impl VmAbiCodec for WindowWindowedModeOptionsAbi<VmAbi> {
     type Value = WindowWindowedModeOptionsValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(WindowWindowedModeOptionsValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
         })
@@ -12191,115 +17295,152 @@ pub enum WindowmodeoptionsReplayRecord {
 }
 
 /// Backend capability flag bit for always-on-top state control.
-pub const DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(262144u64);
+pub const DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(262144u64);
 
 /// Backend capability flag bit for host-level attention requests.
-pub const DISPLAY_BACKEND_CAP_ATTENTION_REQUEST: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(524288u64);
+pub const DISPLAY_BACKEND_CAP_ATTENTION_REQUEST: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(524288u64);
 
 /// Backend capability flag bit for borderless fullscreen.
-pub const DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(1024u64);
+pub const DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(1024u64);
 
 /// Backend capability flag bit for cursor confine mode.
-pub const DISPLAY_BACKEND_CAP_CURSOR_CONFINE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(4096u64);
+pub const DISPLAY_BACKEND_CAP_CURSOR_CONFINE: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(4096u64);
 
 /// Backend capability flag bit for cursor icon selection.
-pub const DISPLAY_BACKEND_CAP_CURSOR_ICON: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(16384u64);
+pub const DISPLAY_BACKEND_CAP_CURSOR_ICON: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(16384u64);
 
 /// Backend capability flag bit for cursor lock mode.
-pub const DISPLAY_BACKEND_CAP_CURSOR_LOCK: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(2048u64);
+pub const DISPLAY_BACKEND_CAP_CURSOR_LOCK: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(2048u64);
 
 /// Backend capability flag bit for explicit cursor visibility control.
-pub const DISPLAY_BACKEND_CAP_CURSOR_VISIBILITY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(32768u64);
+pub const DISPLAY_BACKEND_CAP_CURSOR_VISIBILITY: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(32768u64);
 
 /// Backend capability flag bit for cursor warping and explicit cursor-position updates.
-pub const DISPLAY_BACKEND_CAP_CURSOR_WARP: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(8192u64);
+pub const DISPLAY_BACKEND_CAP_CURSOR_WARP: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(8192u64);
 
 /// Backend capability flag bit for exclusive fullscreen.
-pub const DISPLAY_BACKEND_CAP_EXCLUSIVE_FULLSCREEN: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(512u64);
+pub const DISPLAY_BACKEND_CAP_EXCLUSIVE_FULLSCREEN: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(512u64);
 
 /// Backend capability flag bit for monitor enumeration and mode management.
-pub const DISPLAY_BACKEND_CAP_MONITOR: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(4u64);
+pub const DISPLAY_BACKEND_CAP_MONITOR: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(4u64);
 
 /// Backend capability flag bit for monitor color-state queries.
-pub const DISPLAY_BACKEND_CAP_MONITOR_COLOR_STATE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(64u64);
+pub const DISPLAY_BACKEND_CAP_MONITOR_COLOR_STATE: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(64u64);
 
 /// Backend capability flag bit for monitor-event streams.
-pub const DISPLAY_BACKEND_CAP_MONITOR_EVENTS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(16u64);
+pub const DISPLAY_BACKEND_CAP_MONITOR_EVENTS: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(16u64);
 
 /// Backend capability flag bit for monitor gamma-ramp control.
-pub const DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(256u64);
+pub const DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(256u64);
 
 /// Backend capability flag bit for monitor HDR-mode control.
-pub const DISPLAY_BACKEND_CAP_MONITOR_HDR_CONTROL: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(128u64);
+pub const DISPLAY_BACKEND_CAP_MONITOR_HDR_CONTROL: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(128u64);
 
 /// Backend capability flag bit for monitor mode-setting operations.
-pub const DISPLAY_BACKEND_CAP_MONITOR_MODE_SET: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(32u64);
+pub const DISPLAY_BACKEND_CAP_MONITOR_MODE_SET: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(32u64);
 
 /// Backend capability flag bit for occlusion reporting.
-pub const DISPLAY_BACKEND_CAP_OCCLUSION: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(4194304u64);
+pub const DISPLAY_BACKEND_CAP_OCCLUSION: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(4194304u64);
 
 /// Backend capability flag bit for explicit refresh-request signaling.
-pub const DISPLAY_BACKEND_CAP_REFRESH_REQUEST: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(1048576u64);
+pub const DISPLAY_BACKEND_CAP_REFRESH_REQUEST: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(1048576u64);
 
 /// Backend capability flag bit for safe-area and inset reporting.
-pub const DISPLAY_BACKEND_CAP_SAFE_AREA: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(8388608u64);
+pub const DISPLAY_BACKEND_CAP_SAFE_AREA: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(8388608u64);
 
 /// Backend capability flag bit for window theme reporting.
-pub const DISPLAY_BACKEND_CAP_THEME: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(2097152u64);
+pub const DISPLAY_BACKEND_CAP_THEME: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(2097152u64);
 
 /// Backend capability flag bit for compositor transparency.
-pub const DISPLAY_BACKEND_CAP_TRANSPARENCY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(131072u64);
+pub const DISPLAY_BACKEND_CAP_TRANSPARENCY: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(131072u64);
 
 /// Backend capability flag bit for window creation and management.
-pub const DISPLAY_BACKEND_CAP_WINDOW: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(1u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(1u64);
 
 /// Backend capability flag bit for aspect-ratio lock control.
-pub const DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(4294967296u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(4294967296u64);
 
 /// Backend capability flag bit for window chrome-style control.
-pub const DISPLAY_BACKEND_CAP_WINDOW_CHROME: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(17179869184u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_CHROME: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(17179869184u64);
 
 /// Backend capability flag bit for native move-drag and resize-drag operations.
-pub const DISPLAY_BACKEND_CAP_WINDOW_DRAG_INTERACTION: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(536870912u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_DRAG_INTERACTION: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(536870912u64);
 
 /// Backend capability flag bit for file and text drop window events.
-pub const DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(8589934592u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(8589934592u64);
 
 /// Backend capability flag bit for window-event streams.
-pub const DISPLAY_BACKEND_CAP_WINDOW_EVENTS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(8u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_EVENTS: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(8u64);
 
 /// Backend capability flag bit for explicit focus requests.
-pub const DISPLAY_BACKEND_CAP_WINDOW_FOCUS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(67108864u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_FOCUS: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(67108864u64);
 
 /// Backend capability flag bit for mouse passthrough and hit-test policy control.
-pub const DISPLAY_BACKEND_CAP_WINDOW_HIT_TEST: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(268435456u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_HIT_TEST: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(268435456u64);
 
 /// Backend capability flag bit for native window icon updates.
-pub const DISPLAY_BACKEND_CAP_WINDOW_ICON: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(16777216u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_ICON: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(16777216u64);
 
 /// Backend capability flag bit for modal window behavior.
-pub const DISPLAY_BACKEND_CAP_WINDOW_MODAL: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(2147483648u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_MODAL: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(2147483648u64);
 
 /// Backend capability flag bit for whole-window opacity control.
-pub const DISPLAY_BACKEND_CAP_WINDOW_OPACITY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(33554432u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_OPACITY: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(33554432u64);
 
 /// Backend capability flag bit for parent and transient window relationships.
-pub const DISPLAY_BACKEND_CAP_WINDOW_PARENTING: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(1073741824u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_PARENTING: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(1073741824u64);
 
 /// Backend capability flag bit for explicit raise and stack-order requests.
-pub const DISPLAY_BACKEND_CAP_WINDOW_RAISE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(134217728u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_RAISE: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(134217728u64);
 
 /// Backend capability flag bit for overlay window role support.
-pub const DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(137438953472u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(137438953472u64);
 
 /// Backend capability flag bit for popup window role support.
-pub const DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(68719476736u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(68719476736u64);
 
 /// Backend capability flag bit for point-in-time window state and descriptor reads.
-pub const DISPLAY_BACKEND_CAP_WINDOW_STATE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(2u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_STATE: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(2u64);
 
 /// Backend capability flag bit for taskbar and dock visibility control.
-pub const DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(34359738368u64);
+pub const DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(34359738368u64);
 
 /// Display metric changed-mask bit for desktop-bounds updates.
 pub const DISPLAY_METRIC_CHANGED_BOUNDS: DisplayMetricChangedMask = DisplayMetricChangedMask(4u32);
@@ -12308,34 +17449,43 @@ pub const DISPLAY_METRIC_CHANGED_BOUNDS: DisplayMetricChangedMask = DisplayMetri
 pub const DISPLAY_METRIC_CHANGED_NAME: DisplayMetricChangedMask = DisplayMetricChangedMask(1u32);
 
 /// Display metric changed-mask bit for orientation updates.
-pub const DISPLAY_METRIC_CHANGED_ORIENTATION: DisplayMetricChangedMask = DisplayMetricChangedMask(32u32);
+pub const DISPLAY_METRIC_CHANGED_ORIENTATION: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(32u32);
 
 /// Display metric changed-mask bit for primary-display updates.
 pub const DISPLAY_METRIC_CHANGED_PRIMARY: DisplayMetricChangedMask = DisplayMetricChangedMask(2u32);
 
 /// Display metric changed-mask bit for scale-factor updates.
-pub const DISPLAY_METRIC_CHANGED_SCALE_FACTOR: DisplayMetricChangedMask = DisplayMetricChangedMask(16u32);
+pub const DISPLAY_METRIC_CHANGED_SCALE_FACTOR: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(16u32);
 
 /// Display metric changed-mask bit for work-area updates.
-pub const DISPLAY_METRIC_CHANGED_WORK_AREA: DisplayMetricChangedMask = DisplayMetricChangedMask(8u32);
+pub const DISPLAY_METRIC_CHANGED_WORK_AREA: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(8u32);
 
 /// Event kind bit for `added`.
-pub const DISPLAY_MONITOR_EVENT_KIND_ADDED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(1u32);
+pub const DISPLAY_MONITOR_EVENT_KIND_ADDED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(1u32);
 
 /// Event kind bit for `descriptorChanged`.
-pub const DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(8u32);
+pub const DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(8u32);
 
 /// Event kind bit for `modeChanged`.
-pub const DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(16u32);
+pub const DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(16u32);
 
 /// Event kind bit for `primaryChanged`.
-pub const DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(4u32);
+pub const DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(4u32);
 
 /// Event kind bit for `removed`.
-pub const DISPLAY_MONITOR_EVENT_KIND_REMOVED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(2u32);
+pub const DISPLAY_MONITOR_EVENT_KIND_REMOVED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(2u32);
 
 /// Event kind bit for `aspectRatioChanged`.
-pub const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: WindowEventKindMask = WindowEventKindMask(2097152u64);
+pub const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(2097152u64);
 
 /// Event kind bit for `chromeChanged`.
 pub const WINDOW_EVENT_KIND_CHROME_CHANGED: WindowEventKindMask = WindowEventKindMask(8192u64);
@@ -12380,7 +17530,8 @@ pub const WINDOW_EVENT_KIND_MODAL_CHANGED: WindowEventKindMask = WindowEventKind
 pub const WINDOW_EVENT_KIND_MODE_CHANGED: WindowEventKindMask = WindowEventKindMask(1024u64);
 
 /// Event kind bit for `mousePassthroughChanged`.
-pub const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: WindowEventKindMask = WindowEventKindMask(1048576u64);
+pub const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(1048576u64);
 
 /// Event kind bit for `occlusionChanged`.
 pub const WINDOW_EVENT_KIND_OCCLUSION_CHANGED: WindowEventKindMask = WindowEventKindMask(32u64);
@@ -12407,7 +17558,8 @@ pub const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: WindowEventKindMask = WindowEv
 pub const WINDOW_EVENT_KIND_SIZE_CHANGED: WindowEventKindMask = WindowEventKindMask(128u64);
 
 /// Event kind bit for `taskbarVisibilityChanged`.
-pub const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: WindowEventKindMask = WindowEventKindMask(16384u64);
+pub const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(16384u64);
 
 /// Event kind bit for `textDropped`.
 pub const WINDOW_EVENT_KIND_TEXT_DROPPED: WindowEventKindMask = WindowEventKindMask(268435456u64);
@@ -12420,4 +17572,3 @@ pub const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: WindowEventKindMask = WindowEvent
 
 /// Event kind bit for `visibilityChanged`.
 pub const WINDOW_EVENT_KIND_VISIBILITY_CHANGED: WindowEventKindMask = WindowEventKindMask(16u64);
-
