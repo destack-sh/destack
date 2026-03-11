@@ -695,7 +695,7 @@ fn test_protocol_workspace_query_hover() {
     // build the hover query
     let offset = content.find("announce(name").unwrap_or(0) as u32 + 1;
     let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
-        expected_revision: Some(0),
+        expected_revision: None,
         request: QueryRequest::Hover(HoverRequest {
             uri: Uri::from_path(&file_path),
             offset,

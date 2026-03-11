@@ -11,7 +11,7 @@ default-run = "destack"
 [features]
 default = ["dev"]
 dev = ["tiktoken-rs"]
-schema = ["schemars"]
+schema = ["schemars", "destack_daemon/schema"]
 
 [lib]
 path = "src/lib.rs"

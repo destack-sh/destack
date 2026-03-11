@@ -7,6 +7,9 @@ use destack_source::{Diagnostic, DiagnosticCollection};
 use crate::Daemon;
 use crate::command::context::CommandContext;
 use crate::command::{CommandPayload, CommonCommandOptions, DaemonCommandError};
+use crate::protocol::{
+    CommandCacheStats, CommandOutputChunk, CommandStats, CommandTimingTagStats, OutputStream,
+};
 
 /// Result of executing a daemon command.
 #[derive(Debug, Clone)]
@@ -18,7 +21,7 @@ pub struct DaemonCommandResult {
     /// Diagnostics produced by the command.
     pub diagnostics: Vec<Diagnostic>,
     /// Output collected during execution.
-    pub output: Vec<DaemonCommandOutputChunk>,
+    pub output: Vec<CommandOutputChunk>,
     /// Command-specific payload.
     pub data: Option<serde_json::Value>,
     /// Count of modules involved.
@@ -28,106 +31,35 @@ pub struct DaemonCommandResult {
     /// Count of targets involved.
     pub target_count: usize,
     /// Optional stats payload.
-    pub stats: Option<DaemonCommandStats>,
+    pub stats: Option<CommandStats>,
 }
 
 /// Buffered output for command execution.
 #[derive(Debug, Default)]
 pub(super) struct CommandOutputBuffer {
     /// Output chunks emitted by the command.
-    pub(super) chunks: Vec<DaemonCommandOutputChunk>,
+    pub(super) chunks: Vec<CommandOutputChunk>,
 }
 
 impl CommandOutputBuffer {
     /// Push stdout bytes into the buffer.
     pub(super) fn push_stdout(&mut self, bytes: Vec<u8>) {
-        self.push(DaemonOutputStream::Stdout, bytes);
+        self.push(OutputStream::Stdout, bytes);
     }
 
     /// Push stderr bytes into the buffer.
     pub(super) fn push_stderr(&mut self, bytes: Vec<u8>) {
-        self.push(DaemonOutputStream::Stderr, bytes);
+        self.push(OutputStream::Stderr, bytes);
     }
 
     /// Push bytes into the buffer for the provided stream.
-    pub(super) fn push(&mut self, stream: DaemonOutputStream, bytes: Vec<u8>) {
+    pub(super) fn push(&mut self, stream: OutputStream, bytes: Vec<u8>) {
         if bytes.is_empty() {
             return;
         }
 
-        self.chunks.push(DaemonCommandOutputChunk { stream, bytes });
+        self.chunks.push(CommandOutputChunk { stream, bytes });
     }
-}
-
-/// Command output chunk from daemon command execution.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DaemonCommandOutputChunk {
-    /// Output stream kind.
-    pub stream: DaemonOutputStream,
-    /// Output bytes.
-    pub bytes: Vec<u8>,
-}
-
-/// Command output stream kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DaemonOutputStream {
-    /// Standard output.
-    Stdout,
-    /// Standard error.
-    Stderr,
-}
-
-/// Command cache statistics payload.
-#[derive(Debug, Clone, PartialEq)]
-pub struct DaemonCommandCacheStats {
-    /// Cache hits from memory.
-    pub hits_memory: u64,
-    /// Cache hits from disk.
-    pub hits_disk: u64,
-    /// Cache misses.
-    pub misses: u64,
-    /// Cache writes to memory.
-    pub writes_memory: u64,
-    /// Cache writes to disk.
-    pub writes_disk: u64,
-    /// Cache errors.
-    pub errors: u64,
-    /// Cache hit rate across all cache kinds.
-    pub hit_rate: f32,
-}
-
-/// Timing tag statistics for command payloads.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DaemonCommandTimingTagStats {
-    /// Timing tag name.
-    pub name: String,
-    /// Total time spent in this tag (milliseconds).
-    pub duration_ms: u64,
-    /// Number of samples recorded.
-    pub sample_count: u64,
-}
-
-/// Command statistics payload.
-#[derive(Debug, Clone, PartialEq)]
-pub struct DaemonCommandStats {
-    /// Elapsed time in milliseconds.
-    pub elapsed_ms: u64,
-    /// Number of tasks completed.
-    pub tasks_completed: u64,
-    /// Number of tasks failed.
-    pub tasks_failed: u64,
-    /// Number of tasks skipped.
-    pub tasks_skipped: u64,
-    /// Number of modules processed.
-    pub modules_processed: u64,
-    /// Number of lines processed.
-    pub lines_processed: u64,
-    /// Number of slow tasks detected.
-    pub slow_tasks: u64,
-    /// Cache statistics when available.
-    pub cache: Option<DaemonCommandCacheStats>,
-    /// Timing tag statistics when available.
-    pub timings: Option<Vec<DaemonCommandTimingTagStats>>,
 }
 
 /// Command outcome used for response assembly.
@@ -247,11 +179,11 @@ impl Daemon {
 }
 
 /// Map stats snapshots into daemon command payloads.
-fn command_stats_from_snapshot(snapshot: &StatsSnapshot, elapsed: Duration) -> DaemonCommandStats {
+fn command_stats_from_snapshot(snapshot: &StatsSnapshot, elapsed: Duration) -> CommandStats {
     // collect cache totals
     let elapsed_ms = elapsed.as_millis() as u64;
     let cache_totals = snapshot.cache_totals();
-    let cache = DaemonCommandCacheStats {
+    let cache = CommandCacheStats {
         hits_memory: cache_totals.hits_memory as u64,
         hits_disk: cache_totals.hits_disk as u64,
         misses: cache_totals.misses as u64,
@@ -267,7 +199,7 @@ fn command_stats_from_snapshot(snapshot: &StatsSnapshot, elapsed: Duration) -> D
             snapshot
                 .timings
                 .iter()
-                .map(|entry| DaemonCommandTimingTagStats {
+                .map(|entry| CommandTimingTagStats {
                     name: entry.name.clone(),
                     duration_ms: entry.duration.as_millis() as u64,
                     sample_count: entry.sample_count as u64,
@@ -277,7 +209,7 @@ fn command_stats_from_snapshot(snapshot: &StatsSnapshot, elapsed: Duration) -> D
     };
 
     // build stats payload
-    DaemonCommandStats {
+    CommandStats {
         elapsed_ms,
         tasks_completed: snapshot.tasks.completed as u64,
         tasks_failed: snapshot.tasks.failed as u64,

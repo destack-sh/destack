@@ -100,6 +100,7 @@ pub struct OutputInfo {
 
 /// Command cache statistics payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CommandCacheStats {
     /// Cache hits from memory.
     pub hits_memory: u64,
@@ -119,6 +120,7 @@ pub struct CommandCacheStats {
 
 /// Command statistics payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CommandStats {
     /// Elapsed time in milliseconds.
     pub elapsed_ms: u64,
@@ -142,6 +144,7 @@ pub struct CommandStats {
 
 /// Timing tag statistics for command payloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CommandTimingTagStats {
     /// Timing tag name.
     pub name: String,
