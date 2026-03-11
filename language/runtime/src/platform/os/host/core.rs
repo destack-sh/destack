@@ -1,9 +1,11 @@
 #[cfg(unix)]
 use std::ffi::CStr;
 
+use destack_vm as vm;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::os::HostIdentity;
+use crate::platform::os::{HostIdentity, HostIdentityVm};
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
@@ -120,4 +122,23 @@ pub(crate) unsafe fn destack_os_host_identity(
     }
 
     Ok(())
+}
+
+/// Read host identity through the VM ABI surface.
+pub(crate) fn destack_os_host_identity_vm(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<HostIdentityVm> {
+    // read one normalized host identity payload
+    let identity = backend::read_host_identity(binding)?;
+
+    // encode the payload in the VM call context
+    let output = HostIdentityVm {
+        hostname: vm::StringHandle::new(context.intern_string(&identity.hostname)),
+        kernel: vm::StringHandle::new(context.intern_string(&identity.kernel)),
+        release: vm::StringHandle::new(context.intern_string(&identity.release)),
+        architecture: vm::StringHandle::new(context.intern_string(&identity.architecture)),
+    };
+
+    Ok(output)
 }
