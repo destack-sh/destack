@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use destack_core::{ImmutableStringPool, StringPool};
 use destack_source::{FileId, Span};
 
-use crate::validate::{Validator, ValidatorOptions};
+use crate::validate::Validator;
 use crate::{
-    AllocationMode, Block, Field, Function, Global, Lifetime, Linkage, LocalNodeId, NodeTree,
-    PointerAttributes, Type,
+    AllocationMode, Block, CallBehavior, Field, Function, Global, Lifetime, Linkage, LocalNodeId,
+    MemoryEffect, NodeTree, PointerAttributes, Type,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -41,8 +41,6 @@ pub struct Parser<'a> {
     pub(super) strings: StringPool,
     /// The source file id for spans.
     pub(super) file_id: FileId,
-    /// Parser options.
-    pub(super) options: ParseOptions,
     /// Map from block names to their ids (for forward references).
     pub(super) block_map: HashMap<String, LocalNodeId<Block>>,
     /// Map from function names to their ids (for forward references).
@@ -66,13 +64,14 @@ impl<'a> Parser<'a> {
     /// Create a new parser for a specific file.
     pub fn new(file_id: FileId, source: &'a str, options: ParseOptions) -> Self {
         let tokens = Lexer::lex(source);
+        let mut tree = NodeTree::new();
+        tree.set_pointer_bytes(options.pointer_bytes);
         Self {
             tokens,
             pos: 0,
-            tree: NodeTree::new(),
+            tree,
             strings: StringPool::new(),
             file_id,
-            options,
             block_map: HashMap::new(),
             function_map: HashMap::new(),
             global_map: HashMap::new(),
@@ -199,15 +198,20 @@ impl<'a> Parser<'a> {
 
     /// Parse an instruction opcode.
     ///
-    /// Opcodes can be identifiers or the `struct` keyword (which conflicts
-    /// with the type keyword but is also a valid instruction name).
+    /// Opcodes can be identifiers or reserved opcode keywords that also have
+    /// dedicated token kinds.
     pub(super) fn eat_opcode(&mut self) -> ParseResult<(&'a str, usize)> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("opcode", self.pos()))?;
 
         match token.ty {
-            TokenType::Identifier | TokenType::Struct => {
+            TokenType::Identifier
+            | TokenType::Struct
+            | TokenType::Call
+            | TokenType::CallIndirect
+            | TokenType::CallVirtual
+            | TokenType::CallInterface => {
                 let text = token.text;
                 let start = token.start;
                 self.bump();
@@ -267,10 +271,10 @@ impl<'a> Parser<'a> {
         }
 
         // set up the validator
-        let validator = Validator::new_with_options(&self.tree, ValidatorOptions::strict());
+        let validator = Validator::new(&self.tree);
 
         // map validation errors to source positions
-        validator.validate_module().map_err(|error| {
+        validator.validate().map_err(|error| {
             let position = error
                 .anchor()
                 .and_then(|anchor| self.tree.get_span_by_id(anchor.node.id))
@@ -368,8 +372,8 @@ impl<'a> Parser<'a> {
                                 value_types: Vec::new(),
                                 return_type: void_ty,
                                 return_lifetime: Lifetime::Inferred,
-                                memory_effects: None,
-                                call_behavior: None,
+                                memory_effects: MemoryEffect::unknown(),
+                                call_behavior: CallBehavior::unknown(),
                                 alloc_size: None,
                                 parameter_attributes,
                                 return_attributes: PointerAttributes::default(),

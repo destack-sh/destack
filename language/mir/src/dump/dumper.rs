@@ -1,8 +1,8 @@
 use crate::{
     AddressSpace, BinaryOperator, Block, CastOperator, CheckConstraint, Constant, Function, Global,
-    GlobalInitializer, Instruction, Local, LocalNodeId, MemoryLocationSet, MemorySemantics,
+    GlobalInitializer, Instruction, Local, LocalNodeId, MemoryRegionSet, MemorySemantics,
     Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership, ReferenceKind, SwitchCase,
-    Terminator, Type, UnaryOperator, Value,
+    Terminator, TrapKind, Type, UnaryOperator, Value,
 };
 use destack_core::{Color, StringPool};
 
@@ -147,7 +147,8 @@ impl<'a> Dumper<'a> {
             Type::Isize => "isize".to_string(),
             Type::Usize => "usize".to_string(),
             Type::Float { width } => format!("f{width}"),
-            Type::Type => "type".to_string(),
+            Type::TypeDescriptor => "type_descriptor".to_string(),
+            Type::TypeId => "type_id".to_string(),
             Type::Reference {
                 kind,
                 address_space,
@@ -192,6 +193,7 @@ impl<'a> Dumper<'a> {
             Type::Tensor { shape, .. } => format!("tensor<{}>", shape.len()),
             Type::TensorReference { shape, .. } => format!("tensor_ref<{}>", shape.len()),
             Type::FunctionPointer { parameters, .. } => format!("fn({})", parameters.len()),
+            Type::FunctionValue { .. } => "fnvalue".to_string(),
         }
     }
 
@@ -218,26 +220,26 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    fn collect_memory_location_names(&self, locations: MemoryLocationSet) -> Vec<&'static str> {
+    fn collect_memory_location_names(&self, locations: MemoryRegionSet) -> Vec<&'static str> {
         // handle named location sets
-        if locations == MemoryLocationSet::NONE {
+        if locations == MemoryRegionSet::NONE {
             return vec!["none"];
         }
-        if locations == MemoryLocationSet::ANY {
+        if locations == MemoryRegionSet::ANY {
             return vec!["any"];
         }
 
-        // collect ordered locations
+        // collect ordered regions
         let ordered = [
-            ("arguments", MemoryLocationSet::ARGUMENTS),
-            ("heap", MemoryLocationSet::HEAP),
-            ("stack", MemoryLocationSet::STACK),
-            ("global", MemoryLocationSet::GLOBAL),
-            ("shared", MemoryLocationSet::SHARED),
-            ("local", MemoryLocationSet::LOCAL),
-            ("constant", MemoryLocationSet::CONSTANT),
-            ("inaccessible", MemoryLocationSet::INACCESSIBLE),
-            ("io", MemoryLocationSet::IO),
+            ("managed_heap", MemoryRegionSet::MANAGED_HEAP),
+            ("immortal_heap", MemoryRegionSet::IMMORTAL_HEAP),
+            ("raw_heap", MemoryRegionSet::RAW_HEAP),
+            ("stack", MemoryRegionSet::STACK),
+            ("global", MemoryRegionSet::GLOBAL),
+            ("shared", MemoryRegionSet::SHARED),
+            ("local", MemoryRegionSet::LOCAL),
+            ("constant", MemoryRegionSet::CONSTANT),
+            ("io", MemoryRegionSet::IO),
         ];
         let mut names = Vec::new();
         for (name, set) in ordered {
@@ -1338,7 +1340,6 @@ impl<'a> Dumper<'a> {
                 arguments,
                 declaring_type,
                 slot_id,
-                declared_target,
                 signature,
                 ..
             } => {
@@ -1351,11 +1352,7 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write_colored(&self.format_type_id(*declaring_type), Color::Magenta);
                 self.write(", ");
-                self.write(&slot_id.to_string());
-                if let Some(target) = declared_target {
-                    self.write(", ");
-                    self.write(&self.format_function_id(*target));
-                }
+                self.write(&slot_id.0.to_string());
                 self.write("(");
                 let args = self.tree.get_arguments(*arguments);
                 for (i, arg) in args.iter().enumerate() {
@@ -1375,7 +1372,6 @@ impl<'a> Dumper<'a> {
                 arguments,
                 declaring_type,
                 slot_id,
-                declared_target,
                 signature,
                 ..
             } => {
@@ -1388,11 +1384,7 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write_colored(&self.format_type_id(*declaring_type), Color::Magenta);
                 self.write(", ");
-                self.write(&slot_id.to_string());
-                if let Some(target) = declared_target {
-                    self.write(", ");
-                    self.write(&self.format_function_id(*target));
-                }
+                self.write(&slot_id.0.to_string());
                 self.write("(");
                 let args = self.tree.get_arguments(*arguments);
                 for (i, arg) in args.iter().enumerate() {
@@ -1496,14 +1488,146 @@ impl<'a> Dumper<'a> {
                 self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
-            Instruction::Intrinsic {
+            Instruction::AtomicLoad {
                 destination,
-                intrinsic,
-                arguments,
+                pointer,
                 ordering,
                 scope,
                 memory_scope,
                 semantics,
+                ..
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = atomic.load ");
+                self.write(&self.format_value(*pointer));
+                self.write(", ");
+                self.write_colored(&format!("ordering={ordering}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored("semantics=", Color::Yellow);
+                self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
+            }
+
+            Instruction::AtomicStore {
+                pointer,
+                value,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            } => {
+                self.write("atomic.store ");
+                self.write(&self.format_value(*pointer));
+                self.write(", ");
+                self.write(&self.format_value(*value));
+                self.write(", ");
+                self.write_colored(&format!("ordering={ordering}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored("semantics=", Color::Yellow);
+                self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
+            }
+
+            Instruction::AtomicCompareExchange {
+                destination,
+                pointer,
+                expected,
+                new_value,
+                is_weak,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                if *is_weak {
+                    self.write(" = atomic.cas.weak ");
+                } else {
+                    self.write(" = atomic.cas ");
+                }
+                self.write(&self.format_value(*pointer));
+                self.write(", ");
+                self.write(&self.format_value(*expected));
+                self.write(", ");
+                self.write(&self.format_value(*new_value));
+                self.write(", ");
+                self.write_colored(&format!("ordering={ordering}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored("semantics=", Color::Yellow);
+                self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
+            }
+
+            Instruction::AtomicRmw {
+                destination,
+                operator,
+                pointer,
+                value,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(&format!(" = atomic.rmw.{operator} "));
+                self.write(&self.format_value(*pointer));
+                self.write(", ");
+                self.write(&self.format_value(*value));
+                self.write(", ");
+                self.write_colored(&format!("ordering={ordering}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored("semantics=", Color::Yellow);
+                self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
+            }
+
+            Instruction::AtomicFence {
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            } => {
+                self.write("atomic.fence ");
+                self.write_colored(&format!("ordering={ordering}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored("semantics=", Color::Yellow);
+                self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
+            }
+
+            Instruction::Barrier {
+                scope,
+                memory_scope,
+                semantics,
+            } => {
+                self.write("barrier ");
+                self.write_colored(&format!("scope={scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored(&format!("memory_scope={memory_scope}"), Color::Yellow);
+                self.write(", ");
+                self.write_colored("semantics=", Color::Yellow);
+                self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
+            }
+
+            Instruction::Intrinsic {
+                destination,
+                intrinsic,
+                arguments,
             } => {
                 if let Some(dst) = destination {
                     self.write_colored(&self.format_value(*dst), Color::Green);
@@ -1517,38 +1641,6 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                     }
                     self.write(&self.format_value(*arg));
-                }
-                if let Some(ord) = ordering {
-                    if !args.is_empty() {
-                        self.write(", ");
-                    }
-                    self.write_colored(&format!("ordering={}", ord.to_str()), Color::Yellow);
-                }
-                if let Some(scope) = scope {
-                    if !args.is_empty() || ordering.is_some() {
-                        self.write(", ");
-                    }
-                    self.write_colored(&format!("scope={}", scope.to_str()), Color::Yellow);
-                }
-                if let Some(memory_scope) = memory_scope {
-                    if !args.is_empty() || ordering.is_some() || scope.is_some() {
-                        self.write(", ");
-                    }
-                    self.write_colored(
-                        &format!("memory_scope={}", memory_scope.to_str()),
-                        Color::Yellow,
-                    );
-                }
-                if let Some(semantics) = semantics {
-                    if !args.is_empty()
-                        || ordering.is_some()
-                        || scope.is_some()
-                        || memory_scope.is_some()
-                    {
-                        self.write(", ");
-                    }
-                    self.write_colored("semantics=", Color::Yellow);
-                    self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
                 }
                 self.write(")");
             }
@@ -1672,17 +1764,17 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                         self.write(&expected.to_string());
                     }
-                    CheckConstraint::Vtable { receiver, expected } => {
-                        self.write("vtable ");
+                    CheckConstraint::ReceiverType { receiver, expected } => {
+                        self.write("receiver_type ");
                         self.write(&self.format_value(*receiver));
                         self.write(", ");
                         self.write(&self.format_type_id(*expected));
                     }
-                    CheckConstraint::Itab { receiver, expected } => {
-                        self.write("itab ");
+                    CheckConstraint::Implements { receiver, expected } => {
+                        self.write("implements ");
                         self.write(&self.format_value(*receiver));
                         self.write(", ");
-                        self.write(&expected.index().to_string());
+                        self.write(&self.format_type_id(*expected));
                     }
                     CheckConstraint::ShiftRange {
                         value,
@@ -1828,6 +1920,235 @@ impl<'a> Dumper<'a> {
                 }
             }
 
+            Terminator::Call {
+                function,
+                arguments,
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+            } => {
+                self.write_colored("call", Color::Red);
+                self.write(" ");
+                self.write(&self.format_function_id(*function));
+                self.write("(");
+                for (i, arg) in arguments.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+                self.write(" normal ");
+                self.write(&self.format_block_id(*normal_target));
+                if !normal_arguments.is_empty() {
+                    self.write("(");
+                    for (i, arg) in normal_arguments.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write(")");
+                }
+                self.write(" unwind ");
+                self.write(&self.format_block_id(*unwind_target));
+                if !unwind_arguments.is_empty() {
+                    self.write("(");
+                    for (i, arg) in unwind_arguments.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write(")");
+                }
+            }
+
+            Terminator::CallIndirect {
+                callee,
+                env,
+                arguments,
+                signature,
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+            } => {
+                self.write_colored("call.indirect", Color::Red);
+                self.write(" ");
+                self.write(&self.format_value(*callee));
+                self.write("(");
+                for (i, arg) in arguments.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                if let Some(env) = env {
+                    if !arguments.is_empty() {
+                        self.write(", ");
+                    }
+                    self.write("env=");
+                    self.write(&self.format_value(*env));
+                }
+                self.write(")");
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write(" normal ");
+                self.write(&self.format_block_id(*normal_target));
+                if !normal_arguments.is_empty() {
+                    self.write("(");
+                    for (i, arg) in normal_arguments.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write(")");
+                }
+                self.write(" unwind ");
+                self.write(&self.format_block_id(*unwind_target));
+                if !unwind_arguments.is_empty() {
+                    self.write("(");
+                    for (i, arg) in unwind_arguments.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write(")");
+                }
+            }
+
+            Terminator::CallVirtual {
+                receiver,
+                arguments,
+                declaring_type,
+                slot_id,
+                signature,
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+            } => {
+                self.write_colored("call.virtual", Color::Red);
+                self.write(" ");
+                self.write(&self.format_value(*receiver));
+                self.write(", ");
+                self.write_colored(&self.format_type_id(*declaring_type), Color::Magenta);
+                self.write(", ");
+                self.write(&slot_id.0.to_string());
+                self.write("(");
+                for (i, arg) in arguments.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write(" normal ");
+                self.write(&self.format_block_id(*normal_target));
+                if !normal_arguments.is_empty() {
+                    self.write("(");
+                    for (i, arg) in normal_arguments.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write(")");
+                }
+                self.write(" unwind ");
+                self.write(&self.format_block_id(*unwind_target));
+                if !unwind_arguments.is_empty() {
+                    self.write("(");
+                    for (i, arg) in unwind_arguments.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write(")");
+                }
+            }
+
+            Terminator::CallInterface {
+                receiver,
+                arguments,
+                declaring_type,
+                slot_id,
+                signature,
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+            } => {
+                self.write_colored("call.interface", Color::Red);
+                self.write(" ");
+                self.write(&self.format_value(*receiver));
+                self.write(", ");
+                self.write_colored(&self.format_type_id(*declaring_type), Color::Magenta);
+                self.write(", ");
+                self.write(&slot_id.0.to_string());
+                self.write("(");
+                for (i, arg) in arguments.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+                self.write(" normal ");
+                self.write(&self.format_block_id(*normal_target));
+                if !normal_arguments.is_empty() {
+                    self.write("(");
+                    for (i, arg) in normal_arguments.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write(")");
+                }
+                self.write(" unwind ");
+                self.write(&self.format_block_id(*unwind_target));
+                if !unwind_arguments.is_empty() {
+                    self.write("(");
+                    for (i, arg) in unwind_arguments.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write(")");
+                }
+            }
+
+            Terminator::Throw { value } => {
+                self.write_colored("throw", Color::Red);
+                self.write(" ");
+                self.write(&self.format_value(*value));
+            }
+
+            Terminator::Trap { kind, payload } => {
+                self.write_colored("trap", Color::Red);
+                self.write(" ");
+                self.write(match kind {
+                    TrapKind::Abort => "abort",
+                    TrapKind::Panic => "panic",
+                });
+
+                if let Some(payload) = payload {
+                    self.write(" ");
+                    self.write(&self.format_value(*payload));
+                }
+            }
+
             Terminator::TailCall {
                 function,
                 arguments,
@@ -1878,8 +2199,8 @@ impl<'a> Dumper<'a> {
                 arguments,
                 declaring_type,
                 slot_id,
-                declared_target,
                 signature,
+                ..
             } => {
                 self.write_colored("tailcall.virtual", Color::Red);
                 self.write(" ");
@@ -1887,11 +2208,7 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write_colored(&self.format_type_id(*declaring_type), Color::Magenta);
                 self.write(", ");
-                self.write(&slot_id.to_string());
-                if let Some(target) = declared_target {
-                    self.write(", ");
-                    self.write(&self.format_function_id(*target));
-                }
+                self.write(&slot_id.0.to_string());
                 self.write("(");
                 for (i, arg) in arguments.iter().enumerate() {
                     if i > 0 {
@@ -1909,8 +2226,8 @@ impl<'a> Dumper<'a> {
                 arguments,
                 declaring_type,
                 slot_id,
-                declared_target,
                 signature,
+                ..
             } => {
                 self.write_colored("tailcall.interface", Color::Red);
                 self.write(" ");
@@ -1918,11 +2235,7 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write_colored(&self.format_type_id(*declaring_type), Color::Magenta);
                 self.write(", ");
-                self.write(&slot_id.to_string());
-                if let Some(target) = declared_target {
-                    self.write(", ");
-                    self.write(&self.format_function_id(*target));
-                }
+                self.write(&slot_id.0.to_string());
                 self.write("(");
                 for (i, arg) in arguments.iter().enumerate() {
                     if i > 0 {

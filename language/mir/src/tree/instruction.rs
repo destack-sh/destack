@@ -5,11 +5,12 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    AtomicScope, BinaryOperator, CallEffects, Constant, Function, Global, Intrinsic, Local,
-    LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics, Node, NodeType, TensorConvertMode,
-    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
-    TensorScatterMode, Type, UnaryOperator, Value, VectorConvertMode, VectorReduceOperator,
+    AtomicRmwOperator, AtomicScope, BinaryOperator, CallEffects, Constant, Function, Global,
+    InterfaceSlotId, Intrinsic, Local, LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics,
+    Node, NodeType, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
+    TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, Value,
+    VectorConvertMode, VectorReduceOperator, VtableSlotId,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
@@ -52,12 +53,12 @@ pub enum CallDispatchKind {
     /// Virtual call through a vtable slot.
     Virtual {
         /// The vtable slot id for the method.
-        slot_id: u32,
+        slot_id: VtableSlotId,
     },
     /// Interface call through an itab slot.
     Interface {
         /// The itab slot id for the method.
-        slot_id: u32,
+        slot_id: InterfaceSlotId,
     },
     /// Indirect call through a function pointer.
     Indirect,
@@ -640,9 +641,7 @@ pub enum Instruction {
         /// The declaring type for this virtual call.
         declaring_type: LocalNodeId<Type>,
         /// The vtable slot id for the method.
-        slot_id: u32,
-        /// The declared target function, when known.
-        declared_target: Option<LocalNodeId<Function>>,
+        slot_id: VtableSlotId,
         /// The signature type for the callee.
         signature: LocalNodeId<Type>,
         /// Optional callsite effects and attributes.
@@ -659,9 +658,7 @@ pub enum Instruction {
         /// The declaring interface type for this call.
         declaring_type: LocalNodeId<Type>,
         /// The itab slot id for the method.
-        slot_id: u32,
-        /// The declared target function, when known.
-        declared_target: Option<LocalNodeId<Function>>,
+        slot_id: InterfaceSlotId,
         /// The signature type for the callee.
         signature: LocalNodeId<Type>,
         /// Optional callsite effects and attributes.
@@ -749,6 +746,100 @@ pub enum Instruction {
         value: Value,
     },
 
+    // atomic memory operations
+    /// Load from memory atomically.
+    AtomicLoad {
+        /// The SSA value to define with the loaded result.
+        destination: Value,
+        /// The pointer to load from.
+        pointer: Value,
+        /// The loaded value type.
+        result_type: LocalNodeId<Type>,
+        /// The memory ordering to apply.
+        ordering: MemoryOrdering,
+        /// The execution scope for the operation.
+        scope: AtomicScope,
+        /// The memory scope for the operation.
+        memory_scope: MemoryScope,
+        /// The memory semantics for the operation.
+        semantics: MemorySemantics,
+    },
+    /// Store to memory atomically.
+    AtomicStore {
+        /// The pointer to store to.
+        pointer: Value,
+        /// The value to store.
+        value: Value,
+        /// The memory ordering to apply.
+        ordering: MemoryOrdering,
+        /// The execution scope for the operation.
+        scope: AtomicScope,
+        /// The memory scope for the operation.
+        memory_scope: MemoryScope,
+        /// The memory semantics for the operation.
+        semantics: MemorySemantics,
+    },
+    /// Compare exchange one memory location atomically.
+    AtomicCompareExchange {
+        /// The SSA value to define with the old value and success flag.
+        destination: Value,
+        /// The pointer to update.
+        pointer: Value,
+        /// The expected current value.
+        expected: Value,
+        /// The replacement value.
+        new_value: Value,
+        /// Whether the compare exchange is weak.
+        is_weak: bool,
+        /// The memory ordering to apply.
+        ordering: MemoryOrdering,
+        /// The execution scope for the operation.
+        scope: AtomicScope,
+        /// The memory scope for the operation.
+        memory_scope: MemoryScope,
+        /// The memory semantics for the operation.
+        semantics: MemorySemantics,
+    },
+    /// Apply one atomic read modify write operation.
+    AtomicRmw {
+        /// The SSA value to define with the old value.
+        destination: Value,
+        /// The read modify write operator.
+        operator: AtomicRmwOperator,
+        /// The pointer to update.
+        pointer: Value,
+        /// The value argument for the operator.
+        value: Value,
+        /// The memory ordering to apply.
+        ordering: MemoryOrdering,
+        /// The execution scope for the operation.
+        scope: AtomicScope,
+        /// The memory scope for the operation.
+        memory_scope: MemoryScope,
+        /// The memory semantics for the operation.
+        semantics: MemorySemantics,
+    },
+    /// Publish one memory fence.
+    AtomicFence {
+        /// The memory ordering to apply.
+        ordering: MemoryOrdering,
+        /// The execution scope for the operation.
+        scope: AtomicScope,
+        /// The memory scope for the operation.
+        memory_scope: MemoryScope,
+        /// The memory semantics for the operation.
+        semantics: MemorySemantics,
+    },
+    /// Publish one execution and memory barrier.
+    Barrier {
+        /// The execution scope for the operation.
+        scope: AtomicScope,
+        /// The memory scope for the operation.
+        memory_scope: MemoryScope,
+        /// The memory semantics for the operation.
+        semantics: MemorySemantics,
+    },
+
     // assumptions and hints
     /// Assume a condition is true (UB if false).
     Assume {
@@ -770,14 +861,6 @@ pub enum Instruction {
         intrinsic: Intrinsic,
         /// The arguments to pass.
         arguments: ArgumentSlice,
-        /// Memory ordering for atomic operations (None for non-atomic intrinsics).
-        ordering: Option<MemoryOrdering>,
-        /// Execution scope for synchronization.
-        scope: Option<AtomicScope>,
-        /// Memory scope for synchronization.
-        memory_scope: Option<MemoryScope>,
-        /// Memory semantics for atomic operations and barriers.
-        semantics: Option<MemorySemantics>,
     },
 }
 
@@ -851,6 +934,12 @@ impl Instruction {
             Instruction::RawDrop { .. } => None,
             Instruction::StackAlloc { destination, .. } => Some(*destination),
             Instruction::StackDrop { .. } => None,
+            Instruction::AtomicLoad { destination, .. } => Some(*destination),
+            Instruction::AtomicStore { .. } => None,
+            Instruction::AtomicCompareExchange { destination, .. } => Some(*destination),
+            Instruction::AtomicRmw { destination, .. } => Some(*destination),
+            Instruction::AtomicFence { .. } => None,
+            Instruction::Barrier { .. } => None,
             Instruction::Assume { .. } => None,
             Instruction::Intrinsic { destination, .. } => *destination,
         }
@@ -972,6 +1061,17 @@ impl Instruction {
             Instruction::RawDrop { value } => smallvec![*value],
             Instruction::StackAlloc { .. } => smallvec![],
             Instruction::StackDrop { value } => smallvec![*value],
+            Instruction::AtomicLoad { pointer, .. } => smallvec![*pointer],
+            Instruction::AtomicStore { pointer, value, .. } => smallvec![*pointer, *value],
+            Instruction::AtomicCompareExchange {
+                pointer,
+                expected,
+                new_value,
+                ..
+            } => smallvec![*pointer, *expected, *new_value],
+            Instruction::AtomicRmw { pointer, value, .. } => smallvec![*pointer, *value],
+            Instruction::AtomicFence { .. } => smallvec![],
+            Instruction::Barrier { .. } => smallvec![],
             Instruction::Assume { condition } => smallvec![*condition],
             // Arguments stored externally - return empty
             Instruction::Intrinsic { .. } => smallvec![],
@@ -1034,12 +1134,6 @@ impl Instruction {
     pub fn call_declared_target(&self) -> Option<LocalNodeId<Function>> {
         match self {
             Instruction::Call { function, .. } => Some(*function),
-            Instruction::CallVirtual {
-                declared_target, ..
-            }
-            | Instruction::CallInterface {
-                declared_target, ..
-            } => *declared_target,
             _ => None,
         }
     }

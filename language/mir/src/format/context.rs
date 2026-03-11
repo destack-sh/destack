@@ -441,7 +441,10 @@ fn build_synthetic_aliases(
 /// Check whether a type is eligible for synthetic aliasing.
 fn should_alias_type(ty: &Type) -> bool {
     // allow aliasing for common aggregate shapes
-    matches!(ty, Type::Struct { .. } | Type::Tuple { .. })
+    matches!(
+        ty,
+        Type::Struct { .. } | Type::Tuple { .. } | Type::FunctionValue { .. }
+    )
 }
 
 /// Choose an alias name for a candidate group.
@@ -517,6 +520,7 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
         Type::Array { .. } => "Array",
         Type::Reference { .. } => "Ref",
         Type::FunctionPointer { .. } => "Fn",
+        Type::FunctionValue { .. } => "FnValue",
         _ => "Type",
     }
 }
@@ -530,8 +534,7 @@ fn metadata_name_for_type(
 ) -> Option<String> {
     // read the metadata name when available
     tree.type_table
-        .type_metadata(ty)
-        .and_then(|metadata| metadata.name)
+        .display_name(ty)
         .map(|name_id| strings.get(name_id).to_string())
         .map(|name| {
             if use_local_names {
@@ -584,7 +587,8 @@ fn type_key_for_alias(
         Type::Isize => "isize".to_string(),
         Type::Usize => "usize".to_string(),
         Type::Float { width } => format!("f{width}"),
-        Type::Type => "type".to_string(),
+        Type::TypeDescriptor => "type_descriptor".to_string(),
+        Type::TypeId => "type_id".to_string(),
         Type::Reference {
             kind,
             address_space,
@@ -743,6 +747,14 @@ fn type_key_for_alias(
                 .join(", ");
             let result = type_key_for_alias(tree, strings, *result);
             format!("fn({params}) -> {result}")
+        }
+        Type::FunctionValue {
+            signature,
+            environment,
+        } => {
+            let signature = type_key_for_alias(tree, strings, *signature);
+            let environment = type_key_for_alias(tree, strings, *environment);
+            format!("fnvalue<{signature}, {environment}>")
         }
     }
 }
@@ -989,13 +1001,21 @@ fn record_type_use_inner(
             }
             record_type_use_inner(tree, *result, counts, visited);
         }
+        Type::FunctionValue {
+            signature,
+            environment,
+        } => {
+            record_type_use_inner(tree, *signature, counts, visited);
+            record_type_use_inner(tree, *environment, counts, visited);
+        }
         Type::Void
         | Type::Boolean
         | Type::Int { .. }
         | Type::Isize
         | Type::Usize
         | Type::Float { .. }
-        | Type::Type => {}
+        | Type::TypeDescriptor
+        | Type::TypeId => {}
     }
 }
 
@@ -1183,13 +1203,27 @@ fn collect_alias_dependencies(
                 }
                 record_dependency(*result, root, alias_types, &mut dependencies, &mut stack);
             }
+            Type::FunctionValue {
+                signature,
+                environment,
+            } => {
+                record_dependency(*signature, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(
+                    *environment,
+                    root,
+                    alias_types,
+                    &mut dependencies,
+                    &mut stack,
+                );
+            }
             Type::Void
             | Type::Boolean
             | Type::Int { .. }
             | Type::Isize
             | Type::Usize
             | Type::Float { .. }
-            | Type::Type => {}
+            | Type::TypeDescriptor
+            | Type::TypeId => {}
         }
     }
 

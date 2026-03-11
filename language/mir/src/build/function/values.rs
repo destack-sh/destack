@@ -1,9 +1,8 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    AtomicScope, BinaryOperator, CastOperator, Constant, Instruction, Intrinsic, LocalNodeId,
-    MemoryOrdering, MemoryScope, MemorySemantics, Type, UnaryOperator, Value,
+    AtomicRmwOperator, AtomicScope, BinaryOperator, CastOperator, Constant, Instruction, Intrinsic,
+    LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics, Type, UnaryOperator, Value,
 };
-
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Insert a null reference constant.
@@ -305,10 +304,6 @@ impl<'a> FunctionBuilder<'a> {
             destination: Some(destination),
             intrinsic,
             arguments,
-            ordering: None,
-            scope: None,
-            memory_scope: None,
-            semantics: None,
         });
         self.define_value(destination, result_type);
         destination
@@ -321,18 +316,13 @@ impl<'a> FunctionBuilder<'a> {
             destination: None,
             intrinsic,
             arguments,
-            ordering: None,
-            scope: None,
-            memory_scope: None,
-            semantics: None,
         });
     }
 
-    /// Call an atomic intrinsic that returns a value.
-    pub fn atomic_intrinsic(
+    /// Load one value atomically.
+    pub fn atomic_load(
         &mut self,
-        intrinsic: Intrinsic,
-        args: Vec<Value>,
+        pointer: Value,
         ordering: MemoryOrdering,
         scope: AtomicScope,
         memory_scope: MemoryScope,
@@ -340,39 +330,122 @@ impl<'a> FunctionBuilder<'a> {
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
-        let arguments = self.tree.add_arguments(&args);
-        self.insert_instruction(Instruction::Intrinsic {
-            destination: Some(destination),
-            intrinsic,
-            arguments,
-            ordering: Some(ordering),
-            scope: Some(scope),
-            memory_scope: Some(memory_scope),
-            semantics: Some(semantics),
+        self.insert_instruction(Instruction::AtomicLoad {
+            destination,
+            pointer,
+            result_type,
+            ordering,
+            scope,
+            memory_scope,
+            semantics,
         });
         self.define_value(destination, result_type);
         destination
     }
 
-    /// Call an atomic intrinsic with no return value.
-    pub fn atomic_intrinsic_void(
+    /// Store one value atomically.
+    pub fn atomic_store(
         &mut self,
-        intrinsic: Intrinsic,
-        args: Vec<Value>,
+        pointer: Value,
+        value: Value,
         ordering: MemoryOrdering,
         scope: AtomicScope,
         memory_scope: MemoryScope,
         semantics: MemorySemantics,
     ) {
-        let arguments = self.tree.add_arguments(&args);
-        self.insert_instruction(Instruction::Intrinsic {
-            destination: None,
-            intrinsic,
-            arguments,
-            ordering: Some(ordering),
-            scope: Some(scope),
-            memory_scope: Some(memory_scope),
-            semantics: Some(semantics),
+        self.insert_instruction(Instruction::AtomicStore {
+            pointer,
+            value,
+            ordering,
+            scope,
+            memory_scope,
+            semantics,
+        });
+    }
+
+    /// Compare exchange one memory location atomically.
+    pub fn atomic_compare_exchange(
+        &mut self,
+        pointer: Value,
+        expected: Value,
+        new_value: Value,
+        is_weak: bool,
+        ordering: MemoryOrdering,
+        scope: AtomicScope,
+        memory_scope: MemoryScope,
+        semantics: MemorySemantics,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::AtomicCompareExchange {
+            destination,
+            pointer,
+            expected,
+            new_value,
+            is_weak,
+            ordering,
+            scope,
+            memory_scope,
+            semantics,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Apply one atomic read modify write operation.
+    pub fn atomic_rmw(
+        &mut self,
+        operator: AtomicRmwOperator,
+        pointer: Value,
+        value: Value,
+        ordering: MemoryOrdering,
+        scope: AtomicScope,
+        memory_scope: MemoryScope,
+        semantics: MemorySemantics,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::AtomicRmw {
+            destination,
+            operator,
+            pointer,
+            value,
+            ordering,
+            scope,
+            memory_scope,
+            semantics,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Publish one atomic fence.
+    pub fn atomic_fence(
+        &mut self,
+        ordering: MemoryOrdering,
+        scope: AtomicScope,
+        memory_scope: MemoryScope,
+        semantics: MemorySemantics,
+    ) {
+        self.insert_instruction(Instruction::AtomicFence {
+            ordering,
+            scope,
+            memory_scope,
+            semantics,
+        });
+    }
+
+    /// Publish one execution and memory barrier.
+    pub fn barrier(
+        &mut self,
+        scope: AtomicScope,
+        memory_scope: MemoryScope,
+        semantics: MemorySemantics,
+    ) {
+        self.insert_instruction(Instruction::Barrier {
+            scope,
+            memory_scope,
+            semantics,
         });
     }
 }

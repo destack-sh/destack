@@ -3,8 +3,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    Block, CheckConstraint, FormatMirNode, Function, LocalNodeId, MirFormatContext, MirFormatter,
-    Terminator, Value,
+    Block, CheckConstraint, FormatMirNode, LocalNodeId, MirFormatContext, MirFormatter, Terminator,
+    TrapKind, Value,
 };
 
 impl<'a> FormatMirNode<'a, Block> for Block {
@@ -209,6 +209,142 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             Ok(())
         }
 
+        Terminator::Call {
+            function,
+            arguments,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => {
+            let tree = f.context().tree;
+            let strings = f.context().strings;
+            let func = tree.get(*function);
+            let name = strings.get(func.name);
+            write!(f, [token("call"), space(), token("@"), text(name)])?;
+            format_value_list(arguments, f)?;
+            format_call_continuations(
+                *normal_target,
+                normal_arguments,
+                *unwind_target,
+                unwind_arguments,
+                f,
+            )
+        }
+
+        Terminator::CallIndirect {
+            callee,
+            env,
+            arguments,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => {
+            write!(f, [token("call.indirect"), space(), callee])?;
+            format_value_list_with_env(arguments, *env, f)?;
+            write!(f, [space(), token("->"), space(), signature])?;
+            format_call_continuations(
+                *normal_target,
+                normal_arguments,
+                *unwind_target,
+                unwind_arguments,
+                f,
+            )
+        }
+
+        Terminator::CallVirtual {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => {
+            write!(
+                f,
+                [
+                    token("call.virtual"),
+                    space(),
+                    receiver,
+                    token(","),
+                    space(),
+                    declaring_type,
+                    token(","),
+                    space(),
+                    text(&slot_id.0.to_string())
+                ]
+            )?;
+            format_value_list(arguments, f)?;
+            write!(f, [space(), token("->"), space(), signature])?;
+            format_call_continuations(
+                *normal_target,
+                normal_arguments,
+                *unwind_target,
+                unwind_arguments,
+                f,
+            )
+        }
+
+        Terminator::CallInterface {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => {
+            write!(
+                f,
+                [
+                    token("call.interface"),
+                    space(),
+                    receiver,
+                    token(","),
+                    space(),
+                    declaring_type,
+                    token(","),
+                    space(),
+                    text(&slot_id.0.to_string())
+                ]
+            )?;
+            format_value_list(arguments, f)?;
+            write!(f, [space(), token("->"), space(), signature])?;
+            format_call_continuations(
+                *normal_target,
+                normal_arguments,
+                *unwind_target,
+                unwind_arguments,
+                f,
+            )
+        }
+
+        Terminator::Throw { value } => {
+            write!(f, [token("throw"), space(), value])
+        }
+
+        Terminator::Trap { kind, payload } => {
+            let trap_kind = match kind {
+                TrapKind::Abort => "abort",
+                TrapKind::Panic => "panic",
+            };
+
+            write!(f, [token("trap"), space(), text(trap_kind)])?;
+
+            if let Some(payload) = payload {
+                write!(f, [space(), payload])?;
+            }
+
+            Ok(())
+        }
+
         Terminator::TailCall {
             function,
             arguments,
@@ -237,8 +373,8 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             arguments,
             declaring_type,
             slot_id,
-            declared_target,
             signature,
+            ..
         } => {
             write!(
                 f,
@@ -251,13 +387,9 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     declaring_type,
                     token(","),
                     space(),
-                    text(&slot_id.to_string())
+                    text(&slot_id.0.to_string())
                 ]
             )?;
-            if let Some(target) = declared_target {
-                write!(f, [token(","), space()])?;
-                format_function_reference(*target, f)?;
-            }
             format_value_list(arguments, f)?;
             write!(f, [space(), token("->"), space(), signature])
         }
@@ -267,8 +399,8 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             arguments,
             declaring_type,
             slot_id,
-            declared_target,
             signature,
+            ..
         } => {
             write!(
                 f,
@@ -281,17 +413,52 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     declaring_type,
                     token(","),
                     space(),
-                    text(&slot_id.to_string())
+                    text(&slot_id.0.to_string())
                 ]
             )?;
-            if let Some(target) = declared_target {
-                write!(f, [token(","), space()])?;
-                format_function_reference(*target, f)?;
-            }
             format_value_list(arguments, f)?;
             write!(f, [space(), token("->"), space(), signature])
         }
     }
+}
+
+fn format_call_continuations<'a>(
+    normal_target: LocalNodeId<Block>,
+    normal_arguments: &[Value],
+    unwind_target: LocalNodeId<Block>,
+    unwind_arguments: &[Value],
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    let normal_index = f.context().block_index(normal_target);
+    let unwind_index = f.context().block_index(unwind_target);
+
+    write!(
+        f,
+        [
+            space(),
+            text("normal"),
+            space(),
+            text(&format!("block{normal_index}"))
+        ]
+    )?;
+    if !normal_arguments.is_empty() {
+        format_value_list(normal_arguments, f)?;
+    }
+
+    write!(
+        f,
+        [
+            space(),
+            text("unwind"),
+            space(),
+            text(&format!("block{unwind_index}"))
+        ]
+    )?;
+    if !unwind_arguments.is_empty() {
+        format_value_list(unwind_arguments, f)?;
+    }
+
+    Ok(())
 }
 
 /// Format a check constraint.
@@ -407,10 +574,10 @@ fn format_check_constraint<'a>(
                 text(&expected.to_string())
             ]
         ),
-        CheckConstraint::Vtable { receiver, expected } => write!(
+        CheckConstraint::ReceiverType { receiver, expected } => write!(
             f,
             [
-                token("vtable"),
+                token("receiver_type"),
                 space(),
                 receiver,
                 token(","),
@@ -418,15 +585,15 @@ fn format_check_constraint<'a>(
                 expected
             ]
         ),
-        CheckConstraint::Itab { receiver, expected } => write!(
+        CheckConstraint::Implements { receiver, expected } => write!(
             f,
             [
-                token("itab"),
+                token("implements"),
                 space(),
                 receiver,
                 token(","),
                 space(),
-                text(&expected.index().to_string())
+                expected
             ]
         ),
     }
@@ -469,14 +636,4 @@ fn format_value_list_with_env<'a>(
     }
 
     write!(f, [token(")")])
-}
-
-/// Format a function reference.
-fn format_function_reference<'a>(
-    function_id: LocalNodeId<Function>,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    // resolve the function name before formatting
-    let name = f.context().function_name(function_id).to_string();
-    write!(f, [token("@"), text(&name)])
 }

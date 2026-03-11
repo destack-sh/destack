@@ -1,6 +1,7 @@
 use crate::{
-    AllocationMode, Attribute, Block, Function, Instruction, Lifetime, Linkage, Local, LocalNodeId,
-    Mutability, Ownership, PointerAttributes, Terminator, Type, TypedValue, Value,
+    AllocationMode, Attribute, Block, CallBehavior, CallSite, Function, Instruction, Lifetime,
+    Linkage, Local, LocalNodeId, MemoryEffect, Mutability, Ownership, PointerAttributes,
+    Terminator, Type, TypedValue, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -61,8 +62,8 @@ impl<'a> Parser<'a> {
                 value_types,
                 return_type,
                 return_lifetime: Lifetime::Inferred,
-                memory_effects: None,
-                call_behavior: None,
+                memory_effects: MemoryEffect::unknown(),
+                call_behavior: CallBehavior::unknown(),
                 alloc_size: None,
                 parameter_attributes,
                 return_attributes: PointerAttributes::default(),
@@ -105,8 +106,8 @@ impl<'a> Parser<'a> {
         function.value_types = seed_value_types(&parameters);
         function.return_type = return_type;
         function.linkage = linkage;
-        function.memory_effects = None;
-        function.call_behavior = None;
+        function.memory_effects = MemoryEffect::unknown();
+        function.call_behavior = CallBehavior::unknown();
         function.alloc_size = None;
         function.parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
         function.return_attributes = PointerAttributes::default();
@@ -277,6 +278,7 @@ impl<'a> Parser<'a> {
         // block contents
         let mut instructions = Vec::new();
         let mut terminator = None;
+        let mut terminator_dispatch_facts = None;
 
         while !self.peek_token(TokenType::BlockRefence)
             && !self.peek_token(TokenType::CloseBrace)
@@ -284,16 +286,26 @@ impl<'a> Parser<'a> {
         {
             // terminator check
             if self.peek_token(TokenType::Return)
+                || self.peek_token(TokenType::Call)
                 || self.peek_token(TokenType::Jump)
                 || self.peek_token(TokenType::Branch)
                 || self.peek_token(TokenType::Check)
                 || self.peek_token(TokenType::Switch)
                 || self.peek_token(TokenType::Yield)
+                || self.peek_token(TokenType::Throw)
+                || self.peek_token(TokenType::Trap)
                 || self.peek_token(TokenType::Unreachable)
+                || self.peek_token(TokenType::CallIndirect)
+                || self.peek_token(TokenType::CallVirtual)
+                || self.peek_token(TokenType::CallInterface)
                 || self.peek_token(TokenType::TailCall)
                 || self.peek_token(TokenType::TailCallIndirect)
+                || self.peek_token(TokenType::TailCallVirtual)
+                || self.peek_token(TokenType::TailCallInterface)
             {
-                terminator = Some(self.parse_terminator()?);
+                let (parsed_terminator, dispatch_facts) = self.parse_terminator()?;
+                terminator = Some(parsed_terminator);
+                terminator_dispatch_facts = dispatch_facts;
                 break;
             }
 
@@ -311,6 +323,11 @@ impl<'a> Parser<'a> {
 
         let id = self.tree.insert(block);
         self.tree.set_span(id, block_span);
+        if let Some(facts) = terminator_dispatch_facts {
+            self.tree
+                .dispatch_table
+                .insert_callsite_metadata(CallSite::Terminator(id), facts);
+        }
         self.block_map.insert(block_name, id);
 
         Ok((id, source_idx))
@@ -332,11 +349,36 @@ impl<'a> Parser<'a> {
         // rewrite terminator targets
         match &mut block.terminator {
             Terminator::Return { .. }
+            | Terminator::Throw { .. }
+            | Terminator::Trap { .. }
             | Terminator::Unreachable
             | Terminator::TailCall { .. }
             | Terminator::TailCallIndirect { .. }
             | Terminator::TailCallVirtual { .. }
             | Terminator::TailCallInterface { .. } => {}
+            Terminator::Call {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | Terminator::CallIndirect {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | Terminator::CallVirtual {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | Terminator::CallInterface {
+                normal_target,
+                unwind_target,
+                ..
+            } => {
+                *normal_target = resolve(*normal_target, source_to_actual);
+                *unwind_target = resolve(*unwind_target, source_to_actual);
+            }
             Terminator::Jump { target, .. } => {
                 *target = resolve(*target, source_to_actual);
             }

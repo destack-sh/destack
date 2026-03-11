@@ -214,6 +214,36 @@ block2(v2: ref<managed readonly i32>):
     assert_eq!(output, expected);
 }
 
+/// Trap terminators format as explicit control exits.
+#[test]
+fn test_build_function_with_trap_terminator() {
+    // setup
+    let mut module = ModuleBuilder::unchecked();
+    let i32_type = module.type_i32();
+    let string_type = module.type_managed_reference(i32_type);
+    let void_type = module.type_void();
+
+    // build function
+    let mut builder = module.function("trapper", &[], void_type);
+    let entry_block = builder.block();
+    builder.switch_to_block(entry_block);
+    let payload = builder.null(string_type);
+    builder.trap_panic(payload);
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @trapper() -> void {
+block0:
+    v0: ref<managed readonly i32> = iconst null
+    trap panic v0
+}";
+    assert_eq!(output, expected);
+}
+
 /// SSA variable definition and use within a single block.
 #[test]
 fn test_ssa_define_use_single_block() {
@@ -931,8 +961,6 @@ block0(v0: f64, v1: f64):
 /// Void intrinsic instruction via the builder.
 #[test]
 fn test_build_void_intrinsic() {
-    use crate::Intrinsic;
-
     // setup
     let mut module = ModuleBuilder::unchecked();
     let void_type = module.type_void();
@@ -941,9 +969,7 @@ fn test_build_void_intrinsic() {
     let mut builder = module.function("fence_test", &[], void_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
-    builder.atomic_intrinsic_void(
-        Intrinsic::AtomicFence,
-        vec![],
+    builder.atomic_fence(
         MemoryOrdering::SeqCst,
         AtomicScope::Device,
         MemoryScope::Device,
@@ -959,7 +985,7 @@ fn test_build_void_intrinsic() {
     let expected = "\
 function @fence_test() -> void {
 block0:
-    intrinsic.atomic.fence(ordering=seq_cst, scope=device, memory_scope=device, semantics=any)
+    atomic.fence, ordering=seq_cst, scope=device, memory_scope=device, semantics=any
     return
 }";
     assert_eq!(output, expected);

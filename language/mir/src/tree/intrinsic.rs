@@ -95,12 +95,6 @@ pub enum Intrinsic {
     /// Compare memory regions, returns comparison result.
     /// `(ptr, ptr, len: usize) -> i32`
     Memcmp,
-    /// Volatile load (not optimized away, for memory-mapped I/O).
-    /// `(ptr<T>) -> T`
-    VolatileLoad,
-    /// Volatile store (not optimized away, for memory-mapped I/O).
-    /// `(ptr<T>, T) -> ()`
-    VolatileStore,
     /// Prefetch memory for reading (hint to CPU cache).
     /// `(ptr) -> ()`
     PrefetchRead,
@@ -127,66 +121,6 @@ pub enum Intrinsic {
     /// Called before writing a managed reference to shade the new value grey.
     /// `(ptr, val) -> ()`
     GcWriteBarrier,
-
-    // atomics
-    // Memory ordering is specified via an argument to the instruction.
-    /// Atomic load.
-    /// `(ptr<T>) -> T`
-    AtomicLoad,
-    /// Atomic store.
-    /// `(ptr<T>, T) -> ()`
-    AtomicStore,
-    /// Atomic compare-and-swap.
-    /// `(ptr<T>, expected: T, new: T) -> (T, bool)`
-    AtomicCas,
-    /// Atomic compare-and-swap (weak).
-    /// `(ptr<T>, expected: T, new: T) -> (T, bool)`
-    AtomicCasWeak,
-    /// Atomic exchange.
-    /// `(ptr<T>, value: T) -> T`
-    AtomicExchange,
-    /// Atomic fetch-and-add, returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchAdd,
-    /// Atomic fetch-and-subtract, returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchSub,
-    /// Atomic fetch-and-bitwise-and, returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchAnd,
-    /// Atomic fetch-and-bitwise-or, returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchOr,
-    /// Atomic fetch-and-bitwise-xor, returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchXor,
-    /// Atomic fetch-and-min (signed), returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchMin,
-    /// Atomic fetch-and-max (signed), returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchMax,
-    /// Atomic fetch-and-min (unsigned), returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchUmin,
-    /// Atomic fetch-and-max (unsigned), returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchUmax,
-    /// Atomic fetch-and-add (float), returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchFadd,
-    /// Atomic fetch-and-min (float), returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchFmin,
-    /// Atomic fetch-and-max (float), returns old value.
-    /// `(ptr<T>, T) -> T`
-    AtomicFetchFmax,
-    /// Memory fence/barrier.
-    /// `() -> ()`
-    AtomicFence,
-    /// Execution and memory barrier.
-    /// `() -> ()`
-    Barrier,
 
     // float math
     /// Square root.
@@ -260,18 +194,9 @@ pub enum Intrinsic {
     Round,
 
     // control flow and debugging
-    /// Mark code as unreachable (UB if executed).
-    /// `() -> !`
-    Unreachable,
     /// Trigger a debugger breakpoint.
     /// `() -> ()`
     Breakpoint,
-    /// Abort execution immediately.
-    /// `() -> !`
-    Abort,
-    /// Panic with a message.
-    /// `(string) -> !`
-    Panic,
     /// Get the return address of the current function.
     /// `() -> ptr`
     ReturnAddress,
@@ -281,12 +206,6 @@ pub enum Intrinsic {
     /// Hint that condition is expected to be the given value.
     /// `(bool, bool) -> bool`
     Expect,
-    /// Hint that condition is likely true.
-    /// `(bool) -> bool`
-    Likely,
-    /// Hint that condition is likely false.
-    /// `(bool) -> bool`
-    Unlikely,
     /// Optimization barrier (prevent optimizations through this value).
     /// `(T) -> T`
     BlackBox,
@@ -333,8 +252,6 @@ impl Intrinsic {
             Intrinsic::Memmove => "memmove",
             Intrinsic::Memset => "memset",
             Intrinsic::Memcmp => "memcmp",
-            Intrinsic::VolatileLoad => "volatile.load",
-            Intrinsic::VolatileStore => "volatile.store",
             Intrinsic::PrefetchRead => "prefetch.read",
             Intrinsic::PrefetchWrite => "prefetch.write",
 
@@ -346,27 +263,6 @@ impl Intrinsic {
 
             // garbage collection
             Intrinsic::GcWriteBarrier => "gc.write_barrier",
-
-            // atomics
-            Intrinsic::AtomicLoad => "atomic.load",
-            Intrinsic::AtomicStore => "atomic.store",
-            Intrinsic::AtomicCas => "atomic.cas",
-            Intrinsic::AtomicCasWeak => "atomic.cas.weak",
-            Intrinsic::AtomicExchange => "atomic.xchg",
-            Intrinsic::AtomicFetchAdd => "atomic.fetch.add",
-            Intrinsic::AtomicFetchSub => "atomic.fetch.sub",
-            Intrinsic::AtomicFetchAnd => "atomic.fetch.and",
-            Intrinsic::AtomicFetchOr => "atomic.fetch.or",
-            Intrinsic::AtomicFetchXor => "atomic.fetch.xor",
-            Intrinsic::AtomicFetchMin => "atomic.fetch.min",
-            Intrinsic::AtomicFetchMax => "atomic.fetch.max",
-            Intrinsic::AtomicFetchUmin => "atomic.fetch.umin",
-            Intrinsic::AtomicFetchUmax => "atomic.fetch.umax",
-            Intrinsic::AtomicFetchFadd => "atomic.fetch.fadd",
-            Intrinsic::AtomicFetchFmin => "atomic.fetch.fmin",
-            Intrinsic::AtomicFetchFmax => "atomic.fetch.fmax",
-            Intrinsic::AtomicFence => "atomic.fence",
-            Intrinsic::Barrier => "barrier",
 
             // float
             Intrinsic::Sqrt => "sqrt",
@@ -394,15 +290,10 @@ impl Intrinsic {
             Intrinsic::Round => "round",
 
             // control flow and debugging
-            Intrinsic::Unreachable => "unreachable",
             Intrinsic::Breakpoint => "breakpoint",
-            Intrinsic::Abort => "abort",
-            Intrinsic::Panic => "panic",
             Intrinsic::ReturnAddress => "return_address",
             Intrinsic::FrameAddress => "frame_address",
             Intrinsic::Expect => "expect",
-            Intrinsic::Likely => "likely",
-            Intrinsic::Unlikely => "unlikely",
             Intrinsic::BlackBox => "black_box",
         }
     }
@@ -470,8 +361,6 @@ impl Intrinsic {
                 | Intrinsic::Trunc
                 | Intrinsic::Round
                 | Intrinsic::Expect
-                | Intrinsic::Likely
-                | Intrinsic::Unlikely
                 | Intrinsic::BlackBox
         )
     }
@@ -484,30 +373,9 @@ impl Intrinsic {
                 | Intrinsic::Memmove
                 | Intrinsic::Memset
                 | Intrinsic::Memcmp
-                | Intrinsic::VolatileLoad
-                | Intrinsic::VolatileStore
                 | Intrinsic::PrefetchRead
                 | Intrinsic::PrefetchWrite
                 | Intrinsic::GcWriteBarrier
-                | Intrinsic::AtomicLoad
-                | Intrinsic::AtomicStore
-                | Intrinsic::AtomicCas
-                | Intrinsic::AtomicCasWeak
-                | Intrinsic::AtomicExchange
-                | Intrinsic::AtomicFetchAdd
-                | Intrinsic::AtomicFetchSub
-                | Intrinsic::AtomicFetchAnd
-                | Intrinsic::AtomicFetchOr
-                | Intrinsic::AtomicFetchXor
-                | Intrinsic::AtomicFetchMin
-                | Intrinsic::AtomicFetchMax
-                | Intrinsic::AtomicFetchUmin
-                | Intrinsic::AtomicFetchUmax
-                | Intrinsic::AtomicFetchFadd
-                | Intrinsic::AtomicFetchFmin
-                | Intrinsic::AtomicFetchFmax
-                | Intrinsic::AtomicFence
-                | Intrinsic::Barrier
         )
     }
 }
@@ -549,8 +417,6 @@ impl FromStr for Intrinsic {
             "memmove" => Ok(Intrinsic::Memmove),
             "memset" => Ok(Intrinsic::Memset),
             "memcmp" => Ok(Intrinsic::Memcmp),
-            "volatile.load" => Ok(Intrinsic::VolatileLoad),
-            "volatile.store" => Ok(Intrinsic::VolatileStore),
             "prefetch.read" => Ok(Intrinsic::PrefetchRead),
             "prefetch.write" => Ok(Intrinsic::PrefetchWrite),
             "transmute" => Ok(Intrinsic::Transmute),
@@ -558,25 +424,6 @@ impl FromStr for Intrinsic {
             "ptr_offset_from" => Ok(Intrinsic::PtrOffsetFrom),
             "raw_eq" => Ok(Intrinsic::RawEq),
             "gc.write_barrier" => Ok(Intrinsic::GcWriteBarrier),
-            "atomic.load" => Ok(Intrinsic::AtomicLoad),
-            "atomic.store" => Ok(Intrinsic::AtomicStore),
-            "atomic.cas" => Ok(Intrinsic::AtomicCas),
-            "atomic.cas.weak" => Ok(Intrinsic::AtomicCasWeak),
-            "atomic.xchg" => Ok(Intrinsic::AtomicExchange),
-            "atomic.fetch.add" => Ok(Intrinsic::AtomicFetchAdd),
-            "atomic.fetch.sub" => Ok(Intrinsic::AtomicFetchSub),
-            "atomic.fetch.and" => Ok(Intrinsic::AtomicFetchAnd),
-            "atomic.fetch.or" => Ok(Intrinsic::AtomicFetchOr),
-            "atomic.fetch.xor" => Ok(Intrinsic::AtomicFetchXor),
-            "atomic.fetch.min" => Ok(Intrinsic::AtomicFetchMin),
-            "atomic.fetch.max" => Ok(Intrinsic::AtomicFetchMax),
-            "atomic.fetch.umin" => Ok(Intrinsic::AtomicFetchUmin),
-            "atomic.fetch.umax" => Ok(Intrinsic::AtomicFetchUmax),
-            "atomic.fetch.fadd" => Ok(Intrinsic::AtomicFetchFadd),
-            "atomic.fetch.fmin" => Ok(Intrinsic::AtomicFetchFmin),
-            "atomic.fetch.fmax" => Ok(Intrinsic::AtomicFetchFmax),
-            "atomic.fence" => Ok(Intrinsic::AtomicFence),
-            "barrier" => Ok(Intrinsic::Barrier),
             "sqrt" => Ok(Intrinsic::Sqrt),
             "abs" => Ok(Intrinsic::Abs),
             "fma" => Ok(Intrinsic::Fma),
@@ -600,15 +447,10 @@ impl FromStr for Intrinsic {
             "ceil" => Ok(Intrinsic::Ceil),
             "trunc" => Ok(Intrinsic::Trunc),
             "round" => Ok(Intrinsic::Round),
-            "unreachable" => Ok(Intrinsic::Unreachable),
             "breakpoint" => Ok(Intrinsic::Breakpoint),
-            "abort" => Ok(Intrinsic::Abort),
-            "panic" => Ok(Intrinsic::Panic),
             "return_address" => Ok(Intrinsic::ReturnAddress),
             "frame_address" => Ok(Intrinsic::FrameAddress),
             "expect" => Ok(Intrinsic::Expect),
-            "likely" => Ok(Intrinsic::Likely),
-            "unlikely" => Ok(Intrinsic::Unlikely),
             "black_box" => Ok(Intrinsic::BlackBox),
             _ => Err(()),
         }
@@ -652,27 +494,17 @@ pub enum IntrinsicSignature {
     /// Memory comparison: (ptr, ptr, len) -> i32
     MemoryCompare,
 
-    /// Volatile memory access
-    /// volatile_load(ptr), volatile_store(ptr, val)
-    Volatile { args: u8, has_result: bool },
-
     /// Prefetch hint (no result)
     Prefetch,
 
     /// GC barrier (no result)
     GcBarrier { args: u8 },
 
-    /// Atomic operation (requires MemoryOrdering)
-    Atomic { args: u8, has_result: bool },
-
     /// Reflection (comptime only): () -> usize or (T) -> Type
     Reflection { args: u8 },
 
     /// Control flow / debugging (no result, may not return)
     Control { args: u8 },
-
-    /// Barrier operation with explicit scope and semantics.
-    Barrier,
 
     /// Branch hint: (bool) -> bool or (bool, bool) -> bool
     BranchHint { args: u8 },
@@ -721,14 +553,6 @@ impl Intrinsic {
             Intrinsic::Memcpy | Intrinsic::Memmove => IntrinsicSignature::Memory { args: 3 },
             Intrinsic::Memset => IntrinsicSignature::Memory { args: 3 },
             Intrinsic::Memcmp => IntrinsicSignature::MemoryCompare,
-            Intrinsic::VolatileLoad => IntrinsicSignature::Volatile {
-                args: 1,
-                has_result: true,
-            },
-            Intrinsic::VolatileStore => IntrinsicSignature::Volatile {
-                args: 2,
-                has_result: false,
-            },
             Intrinsic::PrefetchRead | Intrinsic::PrefetchWrite => IntrinsicSignature::Prefetch,
 
             // type punning and pointer ops
@@ -738,48 +562,6 @@ impl Intrinsic {
 
             // garbage collection
             Intrinsic::GcWriteBarrier => IntrinsicSignature::GcBarrier { args: 2 },
-
-            // atomics (all require ordering)
-            Intrinsic::AtomicLoad => IntrinsicSignature::Atomic {
-                args: 1,
-                has_result: true,
-            },
-            Intrinsic::AtomicStore => IntrinsicSignature::Atomic {
-                args: 2,
-                has_result: false,
-            },
-            Intrinsic::AtomicCas => IntrinsicSignature::Atomic {
-                args: 3,
-                has_result: true,
-            },
-            Intrinsic::AtomicCasWeak => IntrinsicSignature::Atomic {
-                args: 3,
-                has_result: true,
-            },
-            Intrinsic::AtomicExchange => IntrinsicSignature::Atomic {
-                args: 2,
-                has_result: true,
-            },
-            Intrinsic::AtomicFetchAdd
-            | Intrinsic::AtomicFetchSub
-            | Intrinsic::AtomicFetchAnd
-            | Intrinsic::AtomicFetchOr
-            | Intrinsic::AtomicFetchXor
-            | Intrinsic::AtomicFetchMin
-            | Intrinsic::AtomicFetchMax
-            | Intrinsic::AtomicFetchUmin
-            | Intrinsic::AtomicFetchUmax
-            | Intrinsic::AtomicFetchFadd
-            | Intrinsic::AtomicFetchFmin
-            | Intrinsic::AtomicFetchFmax => IntrinsicSignature::Atomic {
-                args: 2,
-                has_result: true,
-            },
-            Intrinsic::AtomicFence => IntrinsicSignature::Atomic {
-                args: 0,
-                has_result: false,
-            },
-            Intrinsic::Barrier => IntrinsicSignature::Barrier,
 
             // float math (unary)
             Intrinsic::Sqrt
@@ -811,29 +593,22 @@ impl Intrinsic {
             Intrinsic::Fma => IntrinsicSignature::Ternary,
 
             // control flow and debugging
-            Intrinsic::Unreachable => IntrinsicSignature::Control { args: 0 },
             Intrinsic::Breakpoint => IntrinsicSignature::Control { args: 0 },
-            Intrinsic::Abort => IntrinsicSignature::Control { args: 0 },
-            Intrinsic::Panic => IntrinsicSignature::Control { args: 1 },
             Intrinsic::ReturnAddress => IntrinsicSignature::Control { args: 0 },
             Intrinsic::FrameAddress => IntrinsicSignature::Control { args: 0 },
             Intrinsic::Expect => IntrinsicSignature::BranchHint { args: 2 },
-            Intrinsic::Likely | Intrinsic::Unlikely => IntrinsicSignature::BranchHint { args: 1 },
             Intrinsic::BlackBox => IntrinsicSignature::Passthrough,
         }
     }
 
     /// Whether this intrinsic requires a memory ordering argument.
     pub fn requires_ordering(self) -> bool {
-        matches!(self.signature(), IntrinsicSignature::Atomic { .. })
+        false
     }
 
     /// Whether this intrinsic requires a scope and memory semantics.
     pub fn requires_memory_semantics(self) -> bool {
-        matches!(
-            self.signature(),
-            IntrinsicSignature::Atomic { .. } | IntrinsicSignature::Barrier
-        )
+        false
     }
 
     /// Get the expected number of value arguments for this intrinsic.
@@ -848,13 +623,10 @@ impl Intrinsic {
             IntrinsicSignature::PointerDiff => 2,
             IntrinsicSignature::Memory { args } => args,
             IntrinsicSignature::MemoryCompare => 3,
-            IntrinsicSignature::Volatile { args, .. } => args,
             IntrinsicSignature::Prefetch => 1,
             IntrinsicSignature::GcBarrier { args } => args,
-            IntrinsicSignature::Atomic { args, .. } => args,
             IntrinsicSignature::Reflection { args } => args,
             IntrinsicSignature::Control { args } => args,
-            IntrinsicSignature::Barrier => 0,
             IntrinsicSignature::BranchHint { args } => args,
             IntrinsicSignature::Passthrough => 1,
         }
@@ -872,13 +644,10 @@ impl Intrinsic {
             IntrinsicSignature::PointerDiff => true,
             IntrinsicSignature::Memory { .. } => false,
             IntrinsicSignature::MemoryCompare => true,
-            IntrinsicSignature::Volatile { has_result, .. } => has_result,
             IntrinsicSignature::Prefetch => false,
             IntrinsicSignature::GcBarrier { .. } => false,
-            IntrinsicSignature::Atomic { has_result, .. } => has_result,
             IntrinsicSignature::Reflection { .. } => true,
             IntrinsicSignature::Control { .. } => false,
-            IntrinsicSignature::Barrier => false,
             IntrinsicSignature::BranchHint { .. } => true,
             IntrinsicSignature::Passthrough => true,
         }
@@ -896,7 +665,7 @@ impl Intrinsic {
         match self {
             // reflection: fixed types
             Intrinsic::SizeOf | Intrinsic::AlignOf => IntrinsicResultType::Usize,
-            Intrinsic::TypeOf => IntrinsicResultType::TypeTag,
+            Intrinsic::TypeOf => IntrinsicResultType::TypeDescriptor,
 
             // comparisons: bool
             Intrinsic::RawEq => IntrinsicResultType::Bool,
@@ -913,32 +682,7 @@ impl Intrinsic {
             Intrinsic::PtrOffsetFrom => IntrinsicResultType::Isize,
 
             // branch hints: bool (input and output)
-            Intrinsic::Likely | Intrinsic::Unlikely | Intrinsic::Expect => {
-                IntrinsicResultType::Bool
-            }
-
-            // atomic load, volatile load: pointee type
-            Intrinsic::AtomicLoad | Intrinsic::VolatileLoad => IntrinsicResultType::Pointee(0),
-
-            // atomic compare-and-swap returns (old value, success)
-            Intrinsic::AtomicCas | Intrinsic::AtomicCasWeak => {
-                IntrinsicResultType::PointeeAndBool(0)
-            }
-
-            // atomic fetch operations: pointee type (returns old value)
-            Intrinsic::AtomicExchange
-            | Intrinsic::AtomicFetchAdd
-            | Intrinsic::AtomicFetchSub
-            | Intrinsic::AtomicFetchAnd
-            | Intrinsic::AtomicFetchOr
-            | Intrinsic::AtomicFetchXor
-            | Intrinsic::AtomicFetchMin
-            | Intrinsic::AtomicFetchMax
-            | Intrinsic::AtomicFetchUmin
-            | Intrinsic::AtomicFetchUmax
-            | Intrinsic::AtomicFetchFadd
-            | Intrinsic::AtomicFetchFmin
-            | Intrinsic::AtomicFetchFmax => IntrinsicResultType::Pointee(0),
+            Intrinsic::Expect => IntrinsicResultType::Bool,
 
             // transmute and addrspace cast: explicit target type (caller must know)
             Intrinsic::Transmute | Intrinsic::AddrSpaceCast => IntrinsicResultType::Explicit,
@@ -996,9 +740,9 @@ pub enum IntrinsicResultType {
     /// Result type is usize.
     Usize,
 
-    /// Result type is a type descriptor (Type<T>).
+    /// Result type is a type descriptor handle.
     /// Used for typeof.
-    TypeTag,
+    TypeDescriptor,
 
     /// Result type must be explicitly provided (can't be inferred).
     /// Used for transmute where the target type comes from context.

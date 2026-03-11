@@ -104,7 +104,7 @@ pub struct DebugLocation {
 
 /// Table of debug information for MIR nodes.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct DebugInfoTable {
+pub struct DebugTable {
     /// Debug scopes indexed by id.
     pub scopes: Vec<DebugScope>,
     /// Debug variables indexed by id.
@@ -119,7 +119,7 @@ pub struct DebugInfoTable {
     pub variable_locations: HashMap<DebugVariableId, DebugValueLocation>,
 }
 
-impl DebugInfoTable {
+impl DebugTable {
     /// Create a new empty debug info table.
     pub fn new() -> Self {
         Self::default()

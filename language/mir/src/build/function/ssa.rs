@@ -292,7 +292,10 @@ impl<'a> FunctionBuilder<'a> {
                 }
                 | Instruction::RawFree { pointer: argument }
                 | Instruction::RawDrop { value: argument }
-                | Instruction::StackDrop { value: argument } => {
+                | Instruction::StackDrop { value: argument }
+                | Instruction::AtomicLoad {
+                    pointer: argument, ..
+                } => {
                     Self::replace_value_in_slot(argument, from, to);
                 }
                 Instruction::CallIndirect { callee, env, .. } => {
@@ -419,10 +422,6 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::LocalSet { value, .. } => {
                     Self::replace_value_in_slot(value, from, to);
                 }
-                Instruction::Store { pointer, value } => {
-                    Self::replace_value_in_slot(pointer, from, to);
-                    Self::replace_value_in_slot(value, from, to);
-                }
                 Instruction::FieldGet { aggregate, .. }
                 | Instruction::FieldAddr { aggregate, .. } => {
                     Self::replace_value_in_slot(aggregate, from, to);
@@ -451,6 +450,26 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::ManagedAllocArray { length, .. } => {
                     Self::replace_value_in_slot(length, from, to);
                 }
+                Instruction::AtomicStore { pointer, value, .. }
+                | Instruction::Store { pointer, value } => {
+                    Self::replace_value_in_slot(pointer, from, to);
+                    Self::replace_value_in_slot(value, from, to);
+                }
+                Instruction::AtomicCompareExchange {
+                    pointer,
+                    expected,
+                    new_value,
+                    ..
+                } => {
+                    Self::replace_value_in_slot(pointer, from, to);
+                    Self::replace_value_in_slot(expected, from, to);
+                    Self::replace_value_in_slot(new_value, from, to);
+                }
+                Instruction::AtomicRmw { pointer, value, .. } => {
+                    Self::replace_value_in_slot(pointer, from, to);
+                    Self::replace_value_in_slot(value, from, to);
+                }
+                Instruction::AtomicFence { .. } | Instruction::Barrier { .. } => {}
                 Instruction::Assume { condition } => {
                     Self::replace_value_in_slot(condition, from, to);
                 }
@@ -578,6 +597,11 @@ impl<'a> FunctionBuilder<'a> {
             }
             Terminator::Throw { value } => {
                 Self::replace_value_in_slot(value, from, to);
+            }
+            Terminator::Trap { payload, .. } => {
+                if let Some(payload) = payload {
+                    Self::replace_value_in_slot(payload, from, to);
+                }
             }
             Terminator::Unreachable => {}
             Terminator::TailCall { arguments, .. } => {

@@ -50,13 +50,9 @@ impl<'a> Parser<'a> {
         };
         let id = self.tree.insert(alias);
         self.tree.set_span(id, name_span);
-        let metadata = self
-            .tree
+        self.tree
             .type_table
-            .type_metadata_by_id
-            .entry(placeholder_id)
-            .or_default();
-        metadata.name = Some(name_id);
+            .set_display_name(placeholder_id, name_id);
         if ty != placeholder_id {
             let resolved = self.tree.get(ty).clone();
             *self.tree.get_mut(placeholder_id) = resolved;

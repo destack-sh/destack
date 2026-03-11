@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Function, Instruction, ItabId, LocalNodeId, Node, NodeType, Type, TypedValue,
-    Value,
+    BinaryOperator, Function, Instruction, InterfaceSlotId, LocalNodeId, Node, NodeType, Type,
+    TypedValue, Value, VtableSlotId,
 };
 
 /// A basic block is a sequence of instructions with:
@@ -60,6 +60,15 @@ pub struct CheckTarget {
     pub arguments: Vec<Value>,
 }
 
+/// Unrecoverable runtime termination kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TrapKind {
+    /// Abort execution immediately without a payload.
+    Abort,
+    /// Panic with a runtime payload.
+    Panic,
+}
+
 /// Semantic constraint for a runtime check.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CheckConstraint {
@@ -113,11 +122,11 @@ pub enum CheckConstraint {
         /// Whether the overflow check is signed.
         is_signed: bool,
     },
-    /// Type tag check for a runtime value.
+    /// Runtime type descriptor check for a value.
     Type {
-        /// The tag value being checked.
+        /// The descriptor value being checked.
         value: Value,
-        /// The expected type for this tag.
+        /// The expected dynamic type for this descriptor.
         expected: LocalNodeId<Type>,
     },
     /// Union tag check for a discriminated union value.
@@ -127,19 +136,19 @@ pub enum CheckConstraint {
         /// The expected tag index.
         expected: u64,
     },
-    /// Vtable identity check for a class receiver.
-    Vtable {
+    /// Dynamic receiver type check for a class or concrete receiver.
+    ReceiverType {
         /// The receiver being checked.
         receiver: Value,
-        /// The expected class type.
+        /// The expected concrete receiver type.
         expected: LocalNodeId<Type>,
     },
-    /// Itab identity check for an interface receiver.
-    Itab {
+    /// Interface conformance check for a receiver.
+    Implements {
         /// The receiver being checked.
         receiver: Value,
-        /// The expected itab id.
-        expected: ItabId,
+        /// The expected interface type.
+        expected: LocalNodeId<Type>,
     },
 }
 
@@ -161,8 +170,8 @@ impl CheckConstraint {
             CheckConstraint::Overflow { left, right, .. } => smallvec![*left, *right],
             CheckConstraint::Type { value, .. } => smallvec![*value],
             CheckConstraint::Union { value, .. } => smallvec![*value],
-            CheckConstraint::Vtable { receiver, .. } => smallvec![*receiver],
-            CheckConstraint::Itab { receiver, .. } => smallvec![*receiver],
+            CheckConstraint::ReceiverType { receiver, .. } => smallvec![*receiver],
+            CheckConstraint::Implements { receiver, .. } => smallvec![*receiver],
         }
     }
 }
@@ -240,6 +249,120 @@ pub enum Terminator {
         resume_arguments: Vec<Value>,
     },
 
+    /// Direct call with explicit normal and unwind continuations.
+    ///
+    /// The normal target receives the call result as its leading block parameter
+    /// when the callee returns a non-void value.
+    /// The unwind target receives the thrown managed exception object as its
+    /// leading block parameter.
+    Call {
+        /// The direct callee function.
+        function: LocalNodeId<Function>,
+        /// The arguments to pass to the callee.
+        arguments: Vec<Value>,
+        /// The normal continuation block.
+        normal_target: LocalNodeId<Block>,
+        /// Arguments for the normal continuation after the implicit result.
+        normal_arguments: Vec<Value>,
+        /// The unwind continuation block.
+        unwind_target: LocalNodeId<Block>,
+        /// Arguments for the unwind continuation after the implicit exception.
+        unwind_arguments: Vec<Value>,
+    },
+
+    /// Indirect call with explicit normal and unwind continuations.
+    ///
+    /// The normal target receives the call result as its leading block parameter
+    /// when the callee returns a non-void value.
+    /// The unwind target receives the thrown managed exception object as its
+    /// leading block parameter.
+    CallIndirect {
+        /// The function pointer to call.
+        callee: Value,
+        /// Optional closure environment to pass to the callee.
+        env: Option<Value>,
+        /// The arguments to pass to the callee.
+        arguments: Vec<Value>,
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
+        /// The normal continuation block.
+        normal_target: LocalNodeId<Block>,
+        /// Arguments for the normal continuation after the implicit result.
+        normal_arguments: Vec<Value>,
+        /// The unwind continuation block.
+        unwind_target: LocalNodeId<Block>,
+        /// Arguments for the unwind continuation after the implicit exception.
+        unwind_arguments: Vec<Value>,
+    },
+
+    /// Virtual call with explicit normal and unwind continuations.
+    ///
+    /// The normal target receives the call result as its leading block parameter
+    /// when the callee returns a non-void value.
+    /// The unwind target receives the thrown managed exception object as its
+    /// leading block parameter.
+    CallVirtual {
+        /// The receiver value for dispatch.
+        receiver: Value,
+        /// The arguments to pass to the callee.
+        arguments: Vec<Value>,
+        /// The declaring type for this virtual call.
+        declaring_type: LocalNodeId<Type>,
+        /// The vtable slot id for the method.
+        slot_id: VtableSlotId,
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
+        /// The normal continuation block.
+        normal_target: LocalNodeId<Block>,
+        /// Arguments for the normal continuation after the implicit result.
+        normal_arguments: Vec<Value>,
+        /// The unwind continuation block.
+        unwind_target: LocalNodeId<Block>,
+        /// Arguments for the unwind continuation after the implicit exception.
+        unwind_arguments: Vec<Value>,
+    },
+
+    /// Interface call with explicit normal and unwind continuations.
+    ///
+    /// The normal target receives the call result as its leading block parameter
+    /// when the callee returns a non-void value.
+    /// The unwind target receives the thrown managed exception object as its
+    /// leading block parameter.
+    CallInterface {
+        /// The receiver value for dispatch.
+        receiver: Value,
+        /// The arguments to pass to the callee.
+        arguments: Vec<Value>,
+        /// The declaring interface type for this call.
+        declaring_type: LocalNodeId<Type>,
+        /// The interface slot id for the method.
+        slot_id: InterfaceSlotId,
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
+        /// The normal continuation block.
+        normal_target: LocalNodeId<Block>,
+        /// Arguments for the normal continuation after the implicit result.
+        normal_arguments: Vec<Value>,
+        /// The unwind continuation block.
+        unwind_target: LocalNodeId<Block>,
+        /// Arguments for the unwind continuation after the implicit exception.
+        unwind_arguments: Vec<Value>,
+    },
+
+    /// Throw a managed exception object.
+    Throw {
+        /// The thrown exception payload.
+        value: Value,
+    },
+
+    /// Unrecoverable runtime termination.
+    Trap {
+        /// The trap kind.
+        kind: TrapKind,
+        /// Optional trap payload.
+        payload: Option<Value>,
+    },
+
     /// Unreachable code (triggers undefined behavior if executed).
     Unreachable,
 
@@ -280,9 +403,7 @@ pub enum Terminator {
         /// The declaring type for this virtual call.
         declaring_type: LocalNodeId<Type>,
         /// The vtable slot id for the method.
-        slot_id: u32,
-        /// The declared target function, when known.
-        declared_target: Option<LocalNodeId<Function>>,
+        slot_id: VtableSlotId,
         /// The signature type for the callee.
         signature: LocalNodeId<Type>,
     },
@@ -296,10 +417,8 @@ pub enum Terminator {
         arguments: Vec<Value>,
         /// The declaring interface type for this call.
         declaring_type: LocalNodeId<Type>,
-        /// The itab slot id for the method.
-        slot_id: u32,
-        /// The declared target function, when known.
-        declared_target: Option<LocalNodeId<Function>>,
+        /// The interface slot id for the method.
+        slot_id: InterfaceSlotId,
         /// The signature type for the callee.
         signature: LocalNodeId<Type>,
     },
@@ -327,6 +446,28 @@ impl Terminator {
                 successors
             }
             Terminator::Yield { resume, .. } => smallvec![*resume],
+            Terminator::Call {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | Terminator::CallIndirect {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | Terminator::CallVirtual {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | Terminator::CallInterface {
+                normal_target,
+                unwind_target,
+                ..
+            } => smallvec![*normal_target, *unwind_target],
+            Terminator::Throw { .. } => smallvec![],
+            Terminator::Trap { .. } => smallvec![],
             Terminator::Unreachable => smallvec![],
             // tail calls don't return to this function, so no successors
             Terminator::TailCall { .. } => smallvec![],
@@ -386,6 +527,56 @@ impl Terminator {
                 uses.extend(resume_arguments.iter().copied());
                 uses
             }
+            Terminator::Call {
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                let mut uses: SmallVec<[Value; 4]> = arguments.iter().copied().collect();
+                uses.extend(normal_arguments.iter().copied());
+                uses.extend(unwind_arguments.iter().copied());
+                uses
+            }
+            Terminator::CallIndirect {
+                callee,
+                env,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                let mut uses = smallvec![*callee];
+                if let Some(env) = env {
+                    uses.push(*env);
+                }
+                uses.extend(arguments.iter().copied());
+                uses.extend(normal_arguments.iter().copied());
+                uses.extend(unwind_arguments.iter().copied());
+                uses
+            }
+            Terminator::CallVirtual {
+                receiver,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            }
+            | Terminator::CallInterface {
+                receiver,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                let mut uses = smallvec![*receiver];
+                uses.extend(arguments.iter().copied());
+                uses.extend(normal_arguments.iter().copied());
+                uses.extend(unwind_arguments.iter().copied());
+                uses
+            }
+            Terminator::Throw { value } => smallvec![*value],
+            Terminator::Trap { payload, .. } => payload.iter().copied().collect(),
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { arguments, .. } => arguments.iter().copied().collect(),
             Terminator::TailCallIndirect {
