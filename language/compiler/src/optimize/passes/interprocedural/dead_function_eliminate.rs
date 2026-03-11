@@ -214,7 +214,8 @@ fn unknown_call_constraints(
             }
         }
 
-        if let Some(constraint) = call_constraint_from_terminator(tree, &block.terminator) {
+        if let Some(constraint) = call_constraint_from_terminator(tree, block_id, &block.terminator)
+        {
             constraints.push(constraint);
         }
     }
@@ -237,27 +238,40 @@ fn call_constraint_from_instruction(
     call_constraint_from_signature(tree, signature, declared_target)
 }
 
-/// Resolve a call constraint from a tail call terminator.
+/// Resolve a call constraint from a call terminator.
 fn call_constraint_from_terminator(
     tree: &mir::NodeTree,
+    block_id: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
 ) -> Option<CallConstraint> {
-    // classify tail call terminators
+    // resolve declared target metadata for dynamic call terminators
+    let callsite = mir::CallSite::Terminator(block_id);
+    let declared_target = tree
+        .dispatch_metadata(callsite)
+        .and_then(|metadata| metadata.declared_target);
+
+    // classify call terminators
     match terminator {
+        mir::Terminator::Call { .. } => None,
+        mir::Terminator::CallIndirect { signature, .. } => {
+            call_constraint_from_signature(tree, *signature, None)
+        }
+        mir::Terminator::CallVirtual { signature, .. } => {
+            call_constraint_from_signature(tree, *signature, declared_target)
+        }
+        mir::Terminator::CallInterface { signature, .. } => {
+            call_constraint_from_signature(tree, *signature, declared_target)
+        }
         mir::Terminator::TailCall { .. } => None,
         mir::Terminator::TailCallIndirect { signature, .. } => {
             call_constraint_from_signature(tree, *signature, None)
         }
-        mir::Terminator::TailCallVirtual {
-            signature,
-            declared_target,
-            ..
-        } => call_constraint_from_signature(tree, *signature, *declared_target),
-        mir::Terminator::TailCallInterface {
-            signature,
-            declared_target,
-            ..
-        } => call_constraint_from_signature(tree, *signature, *declared_target),
+        mir::Terminator::TailCallVirtual { signature, .. } => {
+            call_constraint_from_signature(tree, *signature, declared_target)
+        }
+        mir::Terminator::TailCallInterface { signature, .. } => {
+            call_constraint_from_signature(tree, *signature, declared_target)
+        }
         _ => None,
     }
 }
@@ -292,7 +306,7 @@ fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut 
     }
 
     // read the function scope before clearing debug metadata
-    let function_scope = tree.debug_info.function_scopes.get(&function_id).copied();
+    let function_scope = tree.debug_table.function_scopes.get(&function_id).copied();
 
     // convert the definition into an import declaration
     let function = tree.get_mut(function_id);
@@ -303,7 +317,7 @@ fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut 
 
     // remove per block debug scopes
     for block_id in block_ids {
-        tree.debug_info.block_scopes.remove(&block_id);
+        tree.debug_table.block_scopes.remove(&block_id);
     }
 
     // remove instruction metadata tied to stripped blocks
@@ -311,7 +325,7 @@ fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut 
         tree.memory_table
             .memory_accesses_by_instruction_id
             .remove(&instruction_id);
-        tree.debug_info
+        tree.debug_table
             .instruction_locations
             .remove(&instruction_id);
     }
@@ -319,16 +333,16 @@ fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut 
     // clear debug variable locations tied to the stripped function
     if let Some(function_scope) = function_scope {
         // rewrite debug locations for variables in the function scope
-        for (index, variable) in tree.debug_info.variables.iter().enumerate() {
+        for (index, variable) in tree.debug_table.variables.iter().enumerate() {
             // skip variables outside the function scope
-            if !scope_in_function(variable.scope, function_scope, &tree.debug_info) {
+            if !scope_in_function(variable.scope, function_scope, &tree.debug_table) {
                 continue;
             }
 
             // update variable locations to undefined
             let var_id = mir::DebugVariableId::new(index as u32);
-            if tree.debug_info.variable_locations.contains_key(&var_id) {
-                tree.debug_info
+            if tree.debug_table.variable_locations.contains_key(&var_id) {
+                tree.debug_table
                     .variable_locations
                     .insert(var_id, mir::DebugValueLocation::Undefined);
             }
@@ -336,14 +350,14 @@ fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut 
     }
 
     // remove the function scope entry
-    tree.debug_info.function_scopes.remove(&function_id);
+    tree.debug_table.function_scopes.remove(&function_id);
 }
 
 /// Return true when a debug scope belongs to a function scope.
 fn scope_in_function(
     scope: mir::DebugScopeId,
     function_scope: mir::DebugScopeId,
-    debug_info: &mir::DebugInfoTable,
+    debug_info: &mir::DebugTable,
 ) -> bool {
     // walk the scope chain to find the function scope
     let mut current = Some(scope);
@@ -472,6 +486,45 @@ extern function @drop(i64) -> i64"#;
         test.assert_output(expected);
     }
 
+    /// Signature constrained indirect call terminators keep matching functions only.
+    #[test]
+    fn test_dead_function_eliminate_signature_indirect_terminator() {
+        let input = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> i32 {
+block0(v0: fn(i32) -> i32, v1: i32):
+    call.indirect v0(v1) -> fn(i32) -> i32 normal block1 unwind block2
+block1(v2: i32):
+    return v2
+block2(v3: ref<managed readonly i32>):
+    throw v3
+}
+function @keep(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @drop(v0: i64) -> i64 {
+block0(v0: i64):
+    return v0
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&DeadFunctionEliminate);
+        let expected = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> i32 {
+block0(v0: fn(i32) -> i32, v1: i32):
+    call.indirect v0(v1) -> fn(i32) -> i32 normal block1 unwind block2
+block1(v2: i32):
+    return v2
+block2(v3: ref<managed readonly i32>):
+    throw v3
+}
+function @keep(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+extern function @drop(i64) -> i64"#;
+
+        test.assert_output(expected);
+    }
+
     /// Tailcall indirect sites keep all functions.
     #[test]
     fn test_dead_function_eliminate_tailcall_indirect() {
@@ -534,24 +587,24 @@ extern function @dead(i32) -> i32"#;
         let span = Span::empty(file_id);
         let function_scope =
             test.tree
-                .debug_info
+                .debug_table
                 .create_scope(mir::DebugScopeKind::Function, None, span, None);
         test.tree
-            .debug_info
+            .debug_table
             .function_scopes
             .insert(dead_id, function_scope);
-        let variable_id = test.tree.debug_info.create_variable(
+        let variable_id = test.tree.debug_table.create_variable(
             test.tree.get(dead_id).name,
             test.tree.get(dead_id).parameters[0].ty,
             function_scope,
             true,
             false,
         );
-        test.tree.debug_info.variable_locations.insert(
+        test.tree.debug_table.variable_locations.insert(
             variable_id,
             mir::DebugValueLocation::Value(test.tree.get(dead_id).parameters[0].value),
         );
-        test.tree.debug_info.instruction_locations.insert(
+        test.tree.debug_table.instruction_locations.insert(
             dead_instruction,
             mir::DebugLocation {
                 span,
@@ -563,15 +616,15 @@ extern function @dead(i32) -> i32"#;
         test.run_module_pass(&DeadFunctionEliminate);
         test.assert_output(expected);
 
-        assert!(!test.tree.debug_info.function_scopes.contains_key(&dead_id));
+        assert!(!test.tree.debug_table.function_scopes.contains_key(&dead_id));
         assert_eq!(
-            test.tree.debug_info.variable_locations.get(&variable_id),
+            test.tree.debug_table.variable_locations.get(&variable_id),
             Some(&mir::DebugValueLocation::Undefined)
         );
         assert!(
             !test
                 .tree
-                .debug_info
+                .debug_table
                 .instruction_locations
                 .contains_key(&dead_instruction)
         );

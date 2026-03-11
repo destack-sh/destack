@@ -149,7 +149,7 @@ fn run_global_opt(tree: &mut mir::NodeTree) -> bool {
                 // remove the global.addr instruction after rewriting loads
                 let block = tree.get_mut(entry.block_id);
                 block.instructions.retain(|id| *id != entry.instruction_id);
-                tree.debug_info
+                tree.debug_table
                     .instruction_locations
                     .remove(&entry.instruction_id);
                 update_debug_for_removed_global_addr(
@@ -367,7 +367,7 @@ fn collect_written_globals(
                 if let mir::Instruction::Call { arguments, .. }
                 | mir::Instruction::CallVirtual { arguments, .. }
                 | mir::Instruction::CallInterface { arguments, .. } = instruction
-                    && call_writes_memory(instruction)
+                    && call_writes_memory(tree, instruction)
                     && any_argument_global(arguments, &definitions, addr_info, tree)
                 {
                     written.extend(globals_from_arguments(
@@ -380,7 +380,7 @@ fn collect_written_globals(
                 }
 
                 if let mir::Instruction::CallIndirect { arguments, env, .. } = instruction
-                    && call_writes_memory(instruction)
+                    && call_writes_memory(tree, instruction)
                 {
                     let mut args = tree.get_arguments(*arguments).to_vec();
                     if let Some(env) = env {
@@ -393,26 +393,18 @@ fn collect_written_globals(
                 }
             }
 
-            // detect tail calls that may write memory
-            if let mir::Terminator::TailCall { arguments, .. } = &block.terminator
-                && any_argument_global_values(arguments, &definitions, addr_info, tree)
+            // detect call terminators that may write memory
+            let terminator_arguments =
+                terminator_write_arguments(tree, block_id, &block.terminator);
+            if let Some(arguments) = terminator_arguments
+                && any_argument_global_values(&arguments, &definitions, addr_info, tree)
             {
                 written.extend(globals_from_values(
-                    arguments,
+                    &arguments,
                     &definitions,
                     addr_info,
                     tree,
                 ));
-            }
-
-            if let mir::Terminator::TailCallIndirect { arguments, env, .. } = &block.terminator {
-                let mut args = arguments.clone();
-                if let Some(env) = env {
-                    args.push(*env);
-                }
-                if any_argument_global_values(&args, &definitions, addr_info, tree) {
-                    written.extend(globals_from_values(&args, &definitions, addr_info, tree));
-                }
             }
         }
     }
@@ -534,22 +526,22 @@ fn update_debug_for_removed_global_addr(
     tree: &mut mir::NodeTree,
 ) {
     // read the function scope for debug updates
-    let Some(function_scope) = tree.debug_info.function_scopes.get(&function_id).copied() else {
+    let Some(function_scope) = tree.debug_table.function_scopes.get(&function_id).copied() else {
         return;
     };
 
     // collect debug variables referencing the removed value
     let mut to_update = Vec::new();
-    for (index, variable) in tree.debug_info.variables.iter().enumerate() {
+    for (index, variable) in tree.debug_table.variables.iter().enumerate() {
         // skip variables outside the function scope
-        if !scope_in_function(variable.scope, function_scope, &tree.debug_info) {
+        if !scope_in_function(variable.scope, function_scope, &tree.debug_table) {
             continue;
         }
 
         // read the current debug value location
         let var_id = mir::DebugVariableId::new(index as u32);
         let Some(mir::DebugValueLocation::Value(value)) =
-            tree.debug_info.variable_locations.get(&var_id)
+            tree.debug_table.variable_locations.get(&var_id)
         else {
             continue;
         };
@@ -562,7 +554,7 @@ fn update_debug_for_removed_global_addr(
 
     // rewrite debug locations to the global value
     for var_id in to_update {
-        tree.debug_info
+        tree.debug_table
             .variable_locations
             .insert(var_id, mir::DebugValueLocation::Global(global_id));
     }
@@ -572,7 +564,7 @@ fn update_debug_for_removed_global_addr(
 fn scope_in_function(
     scope: mir::DebugScopeId,
     function_scope: mir::DebugScopeId,
-    debug_info: &mir::DebugInfoTable,
+    debug_info: &mir::DebugTable,
 ) -> bool {
     // walk the scope chain to find the function scope
     let mut current = Some(scope);
@@ -597,38 +589,109 @@ fn intrinsic_writes_memory(intrinsic: mir::Intrinsic) -> bool {
         mir::Intrinsic::Memcpy
             | mir::Intrinsic::Memmove
             | mir::Intrinsic::Memset
-            | mir::Intrinsic::VolatileStore
-            | mir::Intrinsic::AtomicStore
-            | mir::Intrinsic::AtomicCas
-            | mir::Intrinsic::AtomicCasWeak
-            | mir::Intrinsic::AtomicExchange
-            | mir::Intrinsic::AtomicFetchAdd
-            | mir::Intrinsic::AtomicFetchSub
-            | mir::Intrinsic::AtomicFetchAnd
-            | mir::Intrinsic::AtomicFetchOr
-            | mir::Intrinsic::AtomicFetchXor
-            | mir::Intrinsic::AtomicFetchMin
-            | mir::Intrinsic::AtomicFetchMax
-            | mir::Intrinsic::AtomicFetchUmin
-            | mir::Intrinsic::AtomicFetchUmax
-            | mir::Intrinsic::AtomicFetchFadd
-            | mir::Intrinsic::AtomicFetchFmin
-            | mir::Intrinsic::AtomicFetchFmax
             | mir::Intrinsic::GcWriteBarrier
     )
 }
 
 /// Return true when a callsite may write memory.
-fn call_writes_memory(instruction: &mir::Instruction) -> bool {
+fn call_writes_memory(tree: &mir::NodeTree, instruction: &mir::Instruction) -> bool {
     let Some(metadata) = instruction.call_effects() else {
-        return true;
+        let Some(function) = instruction.call_declared_target() else {
+            return true;
+        };
+
+        return function_memory_writes_from_tree(tree, function);
     };
 
     let Some(effects) = metadata.memory_effects.as_ref() else {
-        return true;
+        let Some(function) = instruction.call_declared_target() else {
+            return true;
+        };
+
+        return function_memory_writes_from_tree(tree, function);
     };
 
     effects.writes
+}
+
+/// Return terminator arguments when the terminator may write memory.
+fn terminator_write_arguments(
+    tree: &mir::NodeTree,
+    block_id: mir::LocalNodeId<mir::Block>,
+    terminator: &mir::Terminator,
+) -> Option<Vec<mir::Value>> {
+    match terminator {
+        mir::Terminator::Call {
+            function,
+            arguments,
+            ..
+        } => function_memory_writes_from_tree(tree, *function).then(|| arguments.clone()),
+        mir::Terminator::CallIndirect { arguments, env, .. } => {
+            let mut values = arguments.clone();
+            if let Some(env) = env {
+                values.push(*env);
+            }
+
+            Some(values)
+        }
+        mir::Terminator::CallVirtual {
+            receiver,
+            arguments,
+            ..
+        }
+        | mir::Terminator::CallInterface {
+            receiver,
+            arguments,
+            ..
+        }
+        | mir::Terminator::TailCallVirtual {
+            receiver,
+            arguments,
+            ..
+        }
+        | mir::Terminator::TailCallInterface {
+            receiver,
+            arguments,
+            ..
+        } => {
+            let declared_target = tree
+                .dispatch_metadata(mir::CallSite::Terminator(block_id))
+                .and_then(|metadata| metadata.declared_target);
+
+            let may_write = declared_target
+                .map(|function| function_memory_writes_from_tree(tree, function))
+                .unwrap_or(true);
+
+            if !may_write {
+                return None;
+            }
+
+            let mut values = arguments.clone();
+            values.push(*receiver);
+            Some(values)
+        }
+        mir::Terminator::TailCall {
+            function,
+            arguments,
+        } => function_memory_writes_from_tree(tree, *function).then(|| arguments.clone()),
+        mir::Terminator::TailCallIndirect { arguments, env, .. } => {
+            let mut values = arguments.clone();
+            if let Some(env) = env {
+                values.push(*env);
+            }
+
+            Some(values)
+        }
+        _ => None,
+    }
+}
+
+/// Return true when a function summary may write memory.
+fn function_memory_writes_from_tree(
+    tree: &mir::NodeTree,
+    function: mir::LocalNodeId<mir::Function>,
+) -> bool {
+    tree.get(function).memory_effects.writes
 }
 
 #[cfg(test)]
@@ -756,21 +819,21 @@ block0:
         let span = Span::empty(file_id);
         let scope_id =
             test.tree
-                .debug_info
+                .debug_table
                 .create_scope(mir::DebugScopeKind::Function, None, span, None);
         test.tree
-            .debug_info
+            .debug_table
             .function_scopes
             .insert(root_id, scope_id);
         let var_id =
             test.tree
-                .debug_info
+                .debug_table
                 .create_variable(root_name, global_type, scope_id, false, false);
         test.tree
-            .debug_info
+            .debug_table
             .variable_locations
             .insert(var_id, mir::DebugValueLocation::Value(destination));
-        test.tree.debug_info.instruction_locations.insert(
+        test.tree.debug_table.instruction_locations.insert(
             instruction_id,
             mir::DebugLocation {
                 span,
@@ -783,7 +846,7 @@ block0:
         test.assert_output(expected);
         let location = test
             .tree
-            .debug_info
+            .debug_table
             .variable_locations
             .get(&var_id)
             .expect("missing debug variable location");
@@ -792,9 +855,34 @@ block0:
         assert!(
             !test
                 .tree
-                .debug_info
+                .debug_table
                 .instruction_locations
                 .contains_key(&instruction_id)
         );
+    }
+
+    /// Exceptional call terminators keep written globals mutable.
+    #[test]
+    fn test_global_opt_skips_call_terminator_global_write() {
+        let input = r#"global @value: i32 = 0i32 ;
+function @write(v0: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>):
+    v1: i32 = iconst 1i32
+    store v0, v1
+    return
+}
+function @root(v0: ref<managed readonly void>) -> void {
+block0(v0: ref<managed readonly void>):
+    v1: ref<raw i32> = global.addr @value
+    call @write(v1) normal block1 unwind block2
+block1:
+    return
+block2(v2: ref<managed readonly void>):
+    throw v2
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&GlobalOpt);
+        test.assert_output(input);
     }
 }

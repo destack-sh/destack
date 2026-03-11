@@ -74,8 +74,8 @@ impl ModulePass for DeadArgEliminate {
 enum DirectCallSite {
     /// Direct call instruction.
     Instruction(mir::LocalNodeId<mir::Instruction>),
-    /// Direct tail call terminator.
-    TailCall(mir::LocalNodeId<mir::Block>),
+    /// Direct call terminator.
+    Terminator(mir::LocalNodeId<mir::Block>),
 }
 
 /// Collected callsite data for dead argument elimination.
@@ -172,13 +172,26 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                 }
             }
 
-            // record tailcall callsites
+            // record call terminators
             match &block.terminator {
+                mir::Terminator::Call { function, .. } => {
+                    data.direct_calls
+                        .entry(*function)
+                        .or_default()
+                        .push(DirectCallSite::Terminator(block_id));
+                }
+                mir::Terminator::CallIndirect { signature, .. }
+                | mir::Terminator::CallVirtual { signature, .. }
+                | mir::Terminator::CallInterface { signature, .. } => {
+                    if let Some(signature) = SignatureKey::from_signature_type(tree, *signature) {
+                        data.indirect_signatures.insert(signature);
+                    }
+                }
                 mir::Terminator::TailCall { function, .. } => {
                     data.direct_calls
                         .entry(*function)
                         .or_default()
-                        .push(DirectCallSite::TailCall(block_id));
+                        .push(DirectCallSite::Terminator(block_id));
                 }
                 mir::Terminator::TailCallIndirect { signature, .. }
                 | mir::Terminator::TailCallVirtual { signature, .. }
@@ -319,23 +332,43 @@ fn update_call_sites(
                 };
                 *tree.get_mut(instruction_id) = updated;
             }
-            DirectCallSite::TailCall(block_id) => {
+            DirectCallSite::Terminator(block_id) => {
                 let block = tree.get_mut(block_id);
-                let mir::Terminator::TailCall {
-                    function,
-                    arguments,
-                } = &block.terminator
-                else {
-                    continue;
-                };
+                match &block.terminator {
+                    mir::Terminator::Call {
+                        function,
+                        arguments,
+                        normal_target,
+                        normal_arguments,
+                        unwind_target,
+                        unwind_arguments,
+                    } => {
+                        // filter the argument list
+                        let new_arguments = remap.filter_by_index(arguments);
 
-                // filter the argument list
-                let new_arguments = remap.filter_by_index(arguments);
+                        block.terminator = mir::Terminator::Call {
+                            function: *function,
+                            arguments: new_arguments,
+                            normal_target: *normal_target,
+                            normal_arguments: normal_arguments.clone(),
+                            unwind_target: *unwind_target,
+                            unwind_arguments: unwind_arguments.clone(),
+                        };
+                    }
+                    mir::Terminator::TailCall {
+                        function,
+                        arguments,
+                    } => {
+                        // filter the argument list
+                        let new_arguments = remap.filter_by_index(arguments);
 
-                block.terminator = mir::Terminator::TailCall {
-                    function: *function,
-                    arguments: new_arguments,
-                };
+                        block.terminator = mir::Terminator::TailCall {
+                            function: *function,
+                            arguments: new_arguments,
+                        };
+                    }
+                    _ => {}
+                }
             }
         }
     }
@@ -348,27 +381,27 @@ fn update_debug_for_removed_parameters(
     tree: &mut mir::NodeTree,
 ) {
     // read the function scope for parameter variables
-    let Some(function_scope) = tree.debug_info.function_scopes.get(&function_id).copied() else {
+    let Some(function_scope) = tree.debug_table.function_scopes.get(&function_id).copied() else {
         return;
     };
 
     // collect debug variables that reference removed values
     let mut to_update = Vec::new();
-    for (index, variable) in tree.debug_info.variables.iter().enumerate() {
+    for (index, variable) in tree.debug_table.variables.iter().enumerate() {
         // skip non parameter variables
         if !variable.is_parameter {
             continue;
         }
 
         // skip variables outside the function scope
-        if !scope_in_function(variable.scope, function_scope, &tree.debug_info) {
+        if !scope_in_function(variable.scope, function_scope, &tree.debug_table) {
             continue;
         }
 
         // read the current debug value location
         let var_id = mir::DebugVariableId::new(index as u32);
         let Some(mir::DebugValueLocation::Value(value)) =
-            tree.debug_info.variable_locations.get(&var_id)
+            tree.debug_table.variable_locations.get(&var_id)
         else {
             continue;
         };
@@ -381,7 +414,7 @@ fn update_debug_for_removed_parameters(
 
     // rewrite removed parameter locations to undefined
     for var_id in to_update {
-        tree.debug_info
+        tree.debug_table
             .variable_locations
             .insert(var_id, mir::DebugValueLocation::Undefined);
     }
@@ -391,7 +424,7 @@ fn update_debug_for_removed_parameters(
 fn scope_in_function(
     scope: mir::DebugScopeId,
     function_scope: mir::DebugScopeId,
-    debug_info: &mir::DebugInfoTable,
+    debug_info: &mir::DebugTable,
 ) -> bool {
     // walk the scope chain to find the function scope
     let mut current = Some(scope);
@@ -462,6 +495,40 @@ block0(v0: i32):
 function @root(v0: i32) -> i32 {
 block0(v0: i32):
     tailcall @callee(v0)
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&DeadArgEliminate);
+        test.assert_output(expected);
+    }
+
+    /// Exceptional direct call terminators are trimmed for unused parameters.
+    #[test]
+    fn test_dead_arg_eliminate_updates_call_terminator() {
+        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    return v0
+}
+function @root(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    call @callee(v0, v1) normal block1 unwind block2
+block1(v2: i32):
+    return v2
+block2(v3: ref<managed readonly i32>):
+    throw v3
+}"#;
+
+        let expected = r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @root(v0: i32) -> i32 {
+block0(v0: i32):
+    call @callee(v0) normal block1 unwind block2
+block1(v1: i32):
+    return v1
+block2(v2: ref<managed readonly i32>):
+    throw v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -729,18 +796,18 @@ block0(v0: i32):
         let span = Span::empty(file_id);
         let scope_id =
             test.tree
-                .debug_info
+                .debug_table
                 .create_scope(mir::DebugScopeKind::Function, None, span, None);
         test.tree
-            .debug_info
+            .debug_table
             .function_scopes
             .insert(callee_id, scope_id);
         let var_id =
             test.tree
-                .debug_info
+                .debug_table
                 .create_variable(callee_name, param_type, scope_id, true, false);
         test.tree
-            .debug_info
+            .debug_table
             .variable_locations
             .insert(var_id, mir::DebugValueLocation::Value(param_value));
 
@@ -748,7 +815,7 @@ block0(v0: i32):
         test.assert_output(expected);
         let location = test
             .tree
-            .debug_info
+            .debug_table
             .variable_locations
             .get(&var_id)
             .expect("missing debug variable location");

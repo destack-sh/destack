@@ -228,6 +228,8 @@ where
         if matches!(
             block.terminator,
             mir::Terminator::Return { .. }
+                | mir::Terminator::Throw { .. }
+                | mir::Terminator::Trap { .. }
                 | mir::Terminator::Unreachable
                 | mir::Terminator::TailCall { .. }
                 | mir::Terminator::TailCallVirtual { .. }
@@ -459,6 +461,37 @@ block0(v0: i32):
         );
 
         let exit = result.exit(entry).expect("missing tailcall exit");
+        assert!(exit.contains(&entry));
+    }
+
+    /// Throw terminators act as backward dataflow exits.
+    #[test]
+    fn test_backward_dataflow_throw_exit() {
+        let program = TestProgram::new(
+            r#"function @test(v0: ref<managed readonly void>) -> void {
+block0(v0: ref<managed readonly void>):
+    throw v0
+}"#,
+        );
+
+        let function_id = program.function_id_by_name("test");
+        let function = program.tree.get(function_id);
+        let cfg = ControlFlowGraph::build(function, &program.tree);
+        let entry = function.entry.expect("missing entry");
+
+        let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
+        let result = backward_dataflow(
+            function,
+            &program.tree,
+            &cfg,
+            exit_state,
+            |block_id, mut state, _| {
+                state.insert(block_id);
+                state
+            },
+        );
+
+        let exit = result.exit(entry).expect("missing throw exit");
         assert!(exit.contains(&entry));
     }
 }
