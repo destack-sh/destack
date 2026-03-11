@@ -1498,7 +1498,6 @@ pub(crate) unsafe fn destack_runtime_snapshot_list(
                 RuntimeDescriptorCodec::snapshot_entry(entry),
             )
         })
-        .into_iter()
         .map(|(snapshot_id, entry)| {
             let runtime_binding = NativeRuntimeBinding::new(binding);
             let descriptor: SnapshotDescriptor = runtime_binding.encode(
@@ -1616,15 +1615,7 @@ pub(crate) unsafe fn destack_runtime_trace_describe(
     let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
     let descriptor = TraceDescriptor {
         branch_id: RuntimeHandleCodec::encode_branch_id(world.branch_id())?,
-        sequence: TraceSequence(
-            u64::try_from(world.trace().log().next_sequence().get()).map_err(|_| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "sequence",
-                    "world trace sequence exceeds uint64",
-                ))
-                .boxed()
-            })?,
-        ),
+        sequence: TraceSequence(world.trace().log().next_sequence().get()),
     };
 
     unsafe { out.write(descriptor) };
@@ -1801,13 +1792,7 @@ pub(crate) unsafe fn destack_runtime_trace_tell(
     let (_world, cursor) =
         table.trace_cursor(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
     let sequence = cursor.tell();
-    let sequence = TraceSequence(u64::try_from(sequence.get()).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "sequence",
-            "world trace sequence exceeds uint64",
-        ))
-        .boxed()
-    })?);
+    let sequence = TraceSequence(sequence.get());
 
     unsafe { out.write(sequence) };
 

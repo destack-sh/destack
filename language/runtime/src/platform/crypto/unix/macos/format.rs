@@ -89,10 +89,7 @@ pub(super) fn rsa_signature_algorithm(
                     _ => {
                         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                             "parameters.digest",
-                            format!(
-                                "digest {:?} is not supported for keychain rsa pkcs1v15 signing",
-                                digest
-                            ),
+                            format!("digest {digest:?} is not supported for keychain rsa pkcs1v15 signing"),
                         ))
                         .boxed());
                     }
@@ -106,7 +103,7 @@ pub(super) fn rsa_signature_algorithm(
             let Some(digest_size) = digest_output_size_bytes(digest) else {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "parameters.digest",
-                    format!("digest {:?} is not supported for keychain rsa pss", digest),
+                    format!("digest {digest:?} is not supported for keychain rsa pss"),
                 ))
                 .boxed());
             };
@@ -126,8 +123,7 @@ pub(super) fn rsa_signature_algorithm(
                         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                             "parameters.digest",
                             format!(
-                                "digest {:?} is not supported for keychain rsa pss signing",
-                                digest
+                                "digest {digest:?} is not supported for keychain rsa pss signing"
                             ),
                         ))
                         .boxed());
@@ -166,10 +162,7 @@ pub(super) fn rsa_decrypt_algorithm(
                     _ => {
                         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                             "parameters.digest",
-                            format!(
-                                "digest {:?} is not supported for keychain rsa oaep decryption",
-                                digest
-                            ),
+                            format!("digest {digest:?} is not supported for keychain rsa oaep decryption"),
                         ))
                         .boxed());
                     }

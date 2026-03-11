@@ -171,9 +171,7 @@ pub fn format_parameter_hover(
     let name = match param {
         dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
         dir::Parameter::Pattern { .. } => "_".to_string(),
-        dir::Parameter::VariadicNamed { name, .. } => {
-            format!("...{}", strings.get(*name).to_string())
-        }
+        dir::Parameter::VariadicNamed { name, .. } => format!("...{}", &*strings.get(*name)),
         dir::Parameter::VariadicPattern { .. } => "...<pattern>".to_string(),
     };
 

@@ -64,7 +64,7 @@ fn legacy_packet_buffer(record: &MidiOutputRecordValue) -> RuntimeResult<Vec<u8>
 
 /// Build one UMP event-list buffer from one record.
 fn modern_event_buffer(record: &MidiOutputRecordValue) -> RuntimeResult<Vec<u8>> {
-    if record.data.len() % 4 != 0 {
+    if !record.data.len().is_multiple_of(4) {
         return Err(core_platform::invalid_argument(
             "records",
             "UMP record payload must be a multiple of 4 bytes",
@@ -407,21 +407,21 @@ pub(crate) fn midi_output_virtual_create(
         ));
     }
 
-    if let Some(manufacturer) = manufacturer.as_ref() {
-        if let Some(value) = create_cf_string(manufacturer) {
-            unsafe {
-                let _ = MIDIObjectSetStringProperty(endpoint, kMIDIPropertyManufacturer, value);
-            }
-            release_cf(value.cast());
+    if let Some(manufacturer) = manufacturer.as_ref()
+        && let Some(value) = create_cf_string(manufacturer)
+    {
+        unsafe {
+            let _ = MIDIObjectSetStringProperty(endpoint, kMIDIPropertyManufacturer, value);
         }
+        release_cf(value.cast());
     }
-    if let Some(model) = model.as_ref() {
-        if let Some(value) = create_cf_string(model) {
-            unsafe {
-                let _ = MIDIObjectSetStringProperty(endpoint, kMIDIPropertyModel, value);
-            }
-            release_cf(value.cast());
+    if let Some(model) = model.as_ref()
+        && let Some(value) = create_cf_string(model)
+    {
+        unsafe {
+            let _ = MIDIObjectSetStringProperty(endpoint, kMIDIPropertyModel, value);
         }
+        release_cf(value.cast());
     }
     if let Some(version) = version.as_ref()
         && let Ok(version_value) = version.parse::<i32>()

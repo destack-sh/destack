@@ -12,7 +12,9 @@ use crate::runtime::control::inspect::{
     ImageListFilter, ResourceListFilter, RevisionListFilter, RuntimeListFilter,
 };
 use crate::runtime::world::ObservationOptions;
-use destack_workspace::{ExecutionMode, RuntimeOptions, RuntimeWorld, TimeMode};
+use destack_workspace::{
+    ExecutionMode, RuntimeAgentOptions, RuntimeOptions, RuntimeWorld, TimeMode,
+};
 
 use super::RuntimeHandleCodec;
 
@@ -115,11 +117,11 @@ impl RuntimeRequestCodec {
         name: Option<String>,
         labels: Option<Vec<RuntimeLabelValue>>,
     ) -> RuntimeOptions {
-        let mut runtime_options = RuntimeOptions::default();
-        runtime_options.name = name;
-        runtime_options.labels = Self::labels_from_value(labels);
-
-        runtime_options
+        RuntimeOptions {
+            name,
+            labels: Self::labels_from_value(labels),
+            ..RuntimeOptions::default()
+        }
     }
 
     /// Build one agent-create options object from decoded agent fields.
@@ -127,11 +129,13 @@ impl RuntimeRequestCodec {
         name: Option<String>,
         labels: Option<Vec<RuntimeLabelValue>>,
     ) -> RuntimeOptions {
-        let mut runtime_options = RuntimeOptions::default();
-        runtime_options.primary_agent.name = name;
-        runtime_options.primary_agent.labels = Self::labels_from_value(labels);
-
-        runtime_options
+        RuntimeOptions {
+            primary_agent: RuntimeAgentOptions {
+                name,
+                labels: Self::labels_from_value(labels),
+            },
+            ..RuntimeOptions::default()
+        }
     }
 
     /// Convert one world kind and execution mode pair into runtime options.

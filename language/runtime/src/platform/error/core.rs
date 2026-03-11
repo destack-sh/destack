@@ -180,9 +180,7 @@ fn platform_path_native(
     store: &NativeStringStore<'_>,
     payload: Option<&DiagnosticPlatformPathPayload>,
 ) -> Option<PlatformPathPayload> {
-    let Some(payload) = payload else {
-        return None;
-    };
+    let payload = payload?;
 
     match payload.encoding {
         DiagnosticPlatformPathEncoding::Bytes => Some(
@@ -385,9 +383,7 @@ fn platform_context_native(
     store: &NativeStringStore<'_>,
     context: Option<&DiagnosticPlatformErrorContext>,
 ) -> Option<PlatformErrorContext> {
-    let Some(context) = context else {
-        return None;
-    };
+    let context = context?;
 
     match context.kind {
         DiagnosticPlatformErrorContextKind::Audio => Some(

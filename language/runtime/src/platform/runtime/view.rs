@@ -1,8 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
+use crate::diagnostic::RuntimeResult;
 use crate::platform::runtime::{
     AgentDescriptorValue, EngineDescriptor, EventLoopDescriptor, HeapDescriptor, ImageDescriptor,
     ResourceDescriptorValue, RevisionDescriptor, RuntimeDescriptorValue, TopologyEdgeValue,
@@ -74,17 +73,9 @@ impl PinnedWorldView {
 
     /// Return one owned trace descriptor from this pinned world view.
     pub(crate) fn trace_descriptor(&self) -> RuntimeResult<TraceDescriptor> {
-        let sequence = u64::try_from(self.revision.sequence.get()).map_err(|_| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "sequence",
-                "world trace sequence exceeds uint64",
-            ))
-            .boxed()
-        })?;
-
         Ok(TraceDescriptor {
             branch_id: RuntimeHandleCodec::encode_branch_id(self.revision.branch_id)?,
-            sequence: TraceSequence(sequence),
+            sequence: TraceSequence(self.revision.sequence.get()),
         })
     }
 

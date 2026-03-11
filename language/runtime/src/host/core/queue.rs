@@ -186,16 +186,13 @@ fn enforce_capacity_before_enqueue(payload: &mut HostQueuePayload, event: &HostE
         return true;
     };
 
-    // permission results must stay lossless
-    if is_lossless_event(event) {
-        return true;
-    }
-
+    // drop older drop-eligible events before accepting new pressure
     while payload.events.len() >= capacity {
         // remove the oldest drop-eligible event first
         let Some(index) = oldest_drop_eligible_event_index(&payload.events) else {
-            // coalesced state events should still be accepted when only lossless events are queued
-            if is_coalescing_event(event) {
+            // allow overflow when only lossless events remain, or when a coalescing
+            // signal must sit alongside them
+            if is_lossless_event(event) || is_coalescing_event(event) {
                 return true;
             }
 

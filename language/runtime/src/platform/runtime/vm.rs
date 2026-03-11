@@ -337,7 +337,7 @@ pub(crate) fn destack_runtime_trace_view(
     let table = control_table().read();
     let world_view = PinnedWorldView::from_handle(&table, view)?;
 
-    Ok(world_view.trace_descriptor()?)
+    world_view.trace_descriptor()
 }
 
 /// List runtimes visible through one pinned world view.
@@ -1200,7 +1200,6 @@ pub(crate) fn destack_runtime_snapshot_list(
                 RuntimeDescriptorCodec::snapshot_entry(entry),
             )
         })
-        .into_iter()
         .map(|(snapshot_id, entry)| {
             let mut runtime_binding = VmRuntimeBinding::new(context);
 
@@ -1304,15 +1303,7 @@ pub(crate) fn destack_runtime_trace_describe(
 
     Ok(TraceDescriptorVm {
         branch_id: RuntimeHandleCodec::encode_branch_id(world.branch_id())?,
-        sequence: TraceSequence(
-            u64::try_from(world.trace().log().next_sequence().get()).map_err(|_| {
-                RuntimeError::from(PlatformError::invalid_argument_value(
-                    "sequence",
-                    "world trace sequence exceeds uint64",
-                ))
-                .boxed()
-            })?,
-        ),
+        sequence: TraceSequence(world.trace().log().next_sequence().get()),
     })
 }
 
@@ -1453,13 +1444,5 @@ pub(crate) fn destack_runtime_trace_tell(
         table.trace_cursor(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
     let sequence = cursor.tell();
 
-    Ok(TraceSequence(u64::try_from(sequence.get()).map_err(
-        |_| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "sequence",
-                "world trace sequence exceeds uint64",
-            ))
-            .boxed()
-        },
-    )?))
+    Ok(TraceSequence(sequence.get()))
 }

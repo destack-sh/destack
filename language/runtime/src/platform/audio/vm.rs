@@ -9,14 +9,14 @@ use super::{
     AudioStreamDescriptorVm, AudioStreamOpenOptionsVm, AudioStreamStateVm, AudioStreamSupportVm,
     AudioStreamTimingVm, native as native_audio,
 };
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 use crate::platform;
 use crate::platform::core::{
     bytes_to_vm, call_out, intern_string_to_vm as string_to_vm, map_native_slice_to_vm,
     store_bytes_from_vm as bytes_from_vm, store_string_from_vm as string_from_vm,
     store_vm_byte_slices,
 };
-use crate::platform::{PlatformError, VmArray, VmSlice, resource};
+use crate::platform::{VmSlice, resource};
 use crate::runtime::{BindingCallContext, NativeSlice};
 
 type NativeByteVectors = NativeSlice<NativeSlice<u8>>;
@@ -29,13 +29,9 @@ fn device_descriptor_to_vm(
 ) -> RuntimeResult<AudioDeviceDescriptorVm> {
     Ok(AudioDeviceDescriptorVm {
         id: StringHandle::new(context.intern_string(unsafe { value.id.as_str()? })),
-        group_id: StringHandle::new(
-            context.intern_string(unsafe { value.group_id.as_str()? }),
-        ),
+        group_id: StringHandle::new(context.intern_string(unsafe { value.group_id.as_str()? })),
         name: StringHandle::new(context.intern_string(unsafe { value.name.as_str()? })),
-        transport: StringHandle::new(
-            context.intern_string(unsafe { value.transport.as_str()? }),
-        ),
+        transport: StringHandle::new(context.intern_string(unsafe { value.transport.as_str()? })),
         backend: value.backend,
         direction: value.direction,
         connected: value.connected,
@@ -295,12 +291,8 @@ fn stream_descriptor_to_vm(
 ) -> RuntimeResult<AudioStreamDescriptorVm> {
     Ok(AudioStreamDescriptorVm {
         backend: value.backend,
-        backend_id: StringHandle::new(
-            context.intern_string(unsafe { value.backend_id.as_str()? }),
-        ),
-        device_id: StringHandle::new(
-            context.intern_string(unsafe { value.device_id.as_str()? }),
-        ),
+        backend_id: StringHandle::new(context.intern_string(unsafe { value.backend_id.as_str()? })),
+        device_id: StringHandle::new(context.intern_string(unsafe { value.device_id.as_str()? })),
         sample_rate: value.sample_rate,
         channels: value.channels,
         channel_layout: value.channel_layout,
@@ -1557,192 +1549,4 @@ pub(crate) fn destack_audio_stream_write_atv(
             presentationtimens,
         )
     })
-}
-/// Flush queued MIDI output.
-///
-/// Request immediate flush of queued outbound MIDI messages for one opened output endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific MIDI flush operations where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_audio_midi_flush(
-    _binding: &BindingCallContext,
-    _context: &mut ExternalCallContext<'_>,
-    handle: resource::MidiPortHandle,
-) -> RuntimeResult<()> {
-    let _ = handle;
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.flush")).boxed())
-}
-
-/// Close one MIDI endpoint.
-///
-/// Close one opened MIDI endpoint and release host resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific MIDI close operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_audio_midi_port_close(
-    _binding: &BindingCallContext,
-    _context: &mut ExternalCallContext<'_>,
-    handle: resource::MidiPortHandle,
-) -> RuntimeResult<()> {
-    let _ = handle;
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.portClose")).boxed())
-}
-
-/// List available MIDI endpoints.
-///
-/// Enumerate host MIDI endpoints for one selected direction.
-/// Endpoint visibility and ordering follow host MIDI subsystem behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses CoreMIDI or ALSA sequencer or WinMM or UWP MIDI APIs depending on backend availability.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_audio_midi_port_list(
-    _binding: &BindingCallContext,
-    _context: &mut ExternalCallContext<'_>,
-    direction: MidiPortDirection,
-) -> RuntimeResult<VmSlice<MidiPortDescriptorVm>> {
-    let _ = direction;
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.portList")).boxed())
-}
-
-/// Open one MIDI endpoint.
-///
-/// Open one host MIDI endpoint for input or output operations.
-/// Endpoint open behavior follows host MIDI session policy and sharing semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific MIDI endpoint open operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_audio_midi_port_open(
-    _binding: &BindingCallContext,
-    _context: &mut ExternalCallContext<'_>,
-    id: StringHandle,
-    direction: MidiPortDirection,
-) -> RuntimeResult<resource::MidiPortHandle> {
-    let _ = (id, direction);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.portOpen")).boxed())
-}
-
-/// Read MIDI messages.
-///
-/// Read up to `maxMessages` queued MIDI messages from one opened input endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend MIDI queue receive operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_audio_midi_read(
-    _binding: &BindingCallContext,
-    _context: &mut ExternalCallContext<'_>,
-    handle: resource::MidiPortHandle,
-    maxmessages: u32,
-    timeoutns: u64,
-) -> RuntimeResult<VmArray<MidiMessageVm>> {
-    let _ = (handle, maxmessages, timeoutns);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.read")).boxed())
-}
-
-/// Poll MIDI messages without blocking.
-///
-/// Read up to `maxMessages` queued MIDI messages from one opened input endpoint without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend nonblocking MIDI queue receive operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_audio_midi_try_read(
-    _binding: &BindingCallContext,
-    _context: &mut ExternalCallContext<'_>,
-    handle: resource::MidiPortHandle,
-    maxmessages: u32,
-) -> RuntimeResult<VmArray<MidiMessageVm>> {
-    let _ = (handle, maxmessages);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.tryRead")).boxed())
-}
-
-/// Write MIDI messages.
-///
-/// Submit one batch of MIDI messages to one opened output endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend MIDI queue send operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.midi`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_audio_midi_write(
-    _binding: &BindingCallContext,
-    _context: &mut ExternalCallContext<'_>,
-    handle: resource::MidiPortHandle,
-    messages: VmArray<MidiMessageVm>,
-) -> RuntimeResult<u32> {
-    let _ = (handle, messages);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.midi.write")).boxed())
 }
