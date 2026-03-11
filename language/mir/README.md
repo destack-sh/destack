@@ -61,6 +61,8 @@ The terminators themselves are also quite straightforward: essentially, control 
  - potentially-unwinding calls are also terminators: `call`, `call.indirect`, `call.virtual`, and `call.interface` branch to explicit `normal` and `unwind` successors.
  - `yield` is a special `return` that remembers some values for resuming execution later in a "resume block".
  - `throw` abruptly exits through the exception path and carries a managed exception object.
+ - `trap` is unrecoverable runtime termination, with `abort` and `panic` as the current trap kinds.
+ - `trap panic` canonically carries a non null readonly managed string payload, while the verifier requires a non null readonly managed reference payload and leaves the runtime string convention to Lower and the runtime.
  - `unreachable` is just a way of signaling "trust me, I can't prove it, but we'll never get here"
 
 ## Instructions
@@ -98,6 +100,7 @@ Blocks end with a terminator that transfers control:
 | `yield` | Suspend coroutine (generators, async) |
 | `call*` terminators | Potentially-unwinding call with explicit `normal` and `unwind` successors |
 | `throw` | Abrupt exceptional exit with a managed exception object |
+| `trap` | Unrecoverable runtime termination (`abort`, `panic`) |
 | `check` | Checked branch with semantic constraint |
 | `unreachable` | UB if reached (traps/panics somehow) |
 
@@ -135,7 +138,7 @@ MIR carries callsite and access metadata through inline `CallEffects` on call in
 Atomic operations and barriers carry explicit execution scope, memory scope, and memory semantics for GPU and parallel targets.
 Optimizations use it to reason about aliasing, effects, and access sizes (without having to re-derive them).
 The memory metadata includes:
-- **Function memory effects**: `readnone`, `readonly`, `writeonly`, or `readwrite`, plus a location set indicating which memory regions may be accessed (`arguments`, `managed_heap`, `immortal_heap`, `raw_heap`, `stack`, `global`, `shared`, `local`, `constant`, `inaccessible`, `io`), an optional address space mask when known, and flags for `argmemonly`, `inaccessibleMemOnly`, and `nosync`.
+- **Function memory effects**: `readnone`, `readonly`, `writeonly`, or `readwrite`, plus a region set indicating which semantic memory regions may be accessed (`managed_heap`, `immortal_heap`, `raw_heap`, `stack`, `global`, `shared`, `local`, `constant`, `io`), an optional address space mask when known, and flags for `argmemonly`, `inaccessibleMemOnly`, and `nosync`.
 - **Function behaviors**: `repeatability` (`pure`, `repeatable`, `non_repeatable`), `unwind_behavior` (`cannot_unwind`, `may_unwind`), `may_suspend`, `noreturn`, `will_return`, `convergent`, plus `allocates`/`frees` with optional location and address space refinements.
 - **Allocator size metadata**: `alloc_size` ties allocator returns to parameter sizes for more precise aliasing and bounds reasoning.
 - **Pointer attributes** for parameters and returns: `noalias`, `capture`, `readonly`, `writeonly`, `nonnull`, `noundef`, `dereferenceable`, `dereferenceable_or_null`, `align`, and `returned`.
@@ -167,6 +170,11 @@ Union metadata describes logical union semantics, while the layout table describ
 
 Intrinsics are primitive operations handled directly by backends.
 They have no function body; hosts implement intrinsics however they like.
+Canonical MIR keeps only one branch hint form: `expect(cond, expected)`.
+Atomics and barriers are first class MIR instructions, not intrinsics.
+Target specific accelerator and backend operations do not belong in canonical MIR intrinsics.
+Canonical MIR also keeps the intrinsic set intentionally small:
+control flow lives in terminators, concurrency lives in dedicated instructions, and target specific operations belong in lowered target layers rather than the core MIR.
 
 | Category | Examples |
 |----------|----------|
@@ -177,13 +185,19 @@ They have no function body; hosts implement intrinsics however they like.
 | Saturating arithmetic | `add.sat`, `sub.sat` |
 | Pointer ops | `transmute`, `addrspace.cast`, `ptr_offset_from`, `raw_eq` |
 | Memory | `memcpy`, `memmove`, `memset`, `memcmp`, `prefetch.read`, `prefetch.write` |
-| Atomics | `atomic.load`, `atomic.store`, `atomic.cas`, `atomic.xchg`, `atomic.fetch.add`, `atomic.fetch.sub`, `atomic.fetch.and`, `atomic.fetch.or`, `atomic.fetch.xor`, `atomic.fetch.min`, `atomic.fetch.max`, `atomic.fetch.fadd`, etc. |
-| Barriers | `atomic.fence`, `barrier` |
 | Float math | `sqrt`, `abs`, `fma`, `copysign`, `min`, `max`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `exp`, `exp2`, `log`, `log2`, `log10`, `pow`, `floor`, `ceil`, `trunc`, `round` |
 | GC barriers | `gc.write_barrier` |
-| Control | `unreachable`, `abort`, `breakpoint`, `panic`, `return_address`, `frame_address` |
-| Branch hints | `expect`, `likely`, `unlikely` |
+| Control | `breakpoint`, `return_address`, `frame_address` |
+| Branch hints | `expect` |
 | Optimization | `black_box` |
+
+### Canonical operation boundaries
+
+Canonical MIR keeps vectors and tensors as first class instruction families because they carry target independent semantics that optimizers should preserve before lowering.
+Vectors are the fixed width SIMD layer and stay deliberately small: splat, extract, insert, shuffle, select, compare, reduce, and convert.
+Tensors are the structured N dimensional value layer and stay semantic rather than target flavored: shape, view, broadcast, transpose, pad, reduce, dot, convolution, gather, scatter, and related structural transforms.
+Backend or vendor specific operations such as warp, subgroup, matrix core, or async copy primitives do not belong in canonical MIR.
+Those belong in later target lowering layers once MIR has already preserved the portable vector, tensor, memory, and control semantics.
 
 
 ## Types
@@ -224,6 +238,22 @@ Tensor view types represent reference-like views into tensor-shaped memory.
 Use `tensor_ref<kind addrspace(space) readonly T, [d0, d1, ...], layout=...>` in MIR text.
 The `kind` is one of `managed`, `owned`, `borrowed`, or `raw`.
 The `readonly` marker and `addrspace(...)` clause follow the same rules as `ref<...>` syntax.
+
+Canonical MIR keeps vectors small and target independent.
+The core vector family is lane-oriented and covers splat, extract, insert, shuffle, select, compare, reduce, and convert.
+Backend-specific subgroup, warp, matrix-core, or vendor vector operations do not belong in canonical MIR.
+
+Canonical MIR keeps tensors semantic and target independent.
+`tensor.reshape` preserves element order and only changes the ranked shape view.
+`tensor.broadcast` has pure expansion semantics and does not imply a specific materialization strategy.
+`tensor.transpose` applies an explicit axis permutation.
+`tensor.view` is a view-only operation over tensor-shaped memory and does not copy.
+`tensor.slice`, `tensor.pad`, and `tensor.concat` have exact offset, extent, stride, and axis semantics.
+`tensor.compare` and `tensor.select` are elementwise.
+`tensor.reduce` preserves the declared reduction axes and operator semantics, and backends may only reorder reductions when the selected operation semantics allow it.
+`tensor.dot` and `tensor.convolution` preserve explicit contraction, window, padding, dilation, and result-shape semantics.
+`tensor.gather` and `tensor.scatter` must preserve the operation's explicit indexing mode and do not permit backend-specific out of bounds or duplicate-index behavior to leak into canonical MIR semantics.
+Target-specific accelerator operations stay out of canonical MIR and belong in later lowering layers.
 
 ### Pointers
 
@@ -311,6 +341,7 @@ Lineage tracks parent types, interfaces, and sealed or final flags.
 `TypeDescriptor` is the canonical runtime type identity object in MIR.
 `TypeId` is a compact runtime identity token for lowered fast paths and runtime representations.
 Canonical MIR uses `type_of` to produce `TypeDescriptor` values.
+`TypeDescriptor` is also the canonical root for runtime scan, layout, and dispatch metadata queries.
 `TypeTable.layout_by_type`, `lineage_by_type`, `union_layout_by_type`, `descriptor_by_type`, `vtable_by_type`, and `itabs_by_type` are the canonical per-type fact maps.
 `display_name_by_type` and `field_map_by_type` are convenience lookup maps, not semantic sources of truth.
 
@@ -341,6 +372,10 @@ Volatile memory behavior is modeled on memory access metadata attached to `load`
 Class instance types are represented as `ref<managed @Payload>` or `ref<managed readonly @Payload>` where `@Payload` is the class field layout.
 Dispatch metadata is stored out of line, and polymorphic classes include a vtable pointer in the payload layout when dynamic dispatch remains.
 Boxing a value is represented as `managed.alloc` of the payload layout followed by `store` of the value.
+`managed.alloc` defines semantic managed allocation only.
+Canonical MIR does not commit to one collector, object header scheme, or managed reference representation.
+Native collectors, VM heaps, and WasmGC backends are all valid implementations of MIR managed allocation.
+`immortal_heap` is a distinct semantic region for process-lifetime managed storage and is not required to use the same allocation or collection strategy as `managed_heap`.
 
 ### Type Aliases
 

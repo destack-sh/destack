@@ -28,14 +28,26 @@ pub enum TokenType {
     Switch,
     /// `yield`
     Yield,
+    /// `call`
+    Call,
+    /// `throw`
+    Throw,
+    /// `trap`
+    Trap,
     /// `unreachable`
     Unreachable,
     /// `tailcall`
     TailCall,
+    /// `call.indirect`
+    CallIndirect,
     /// `tailcall.indirect`
     TailCallIndirect,
+    /// `call.virtual`
+    CallVirtual,
     /// `tailcall.virtual`
     TailCallVirtual,
+    /// `call.interface`
+    CallInterface,
     /// `tailcall.interface`
     TailCallInterface,
 
@@ -60,6 +72,8 @@ pub enum TokenType {
     AddrSpace,
     /// `fn`
     Fn,
+    /// `fnvalue`
+    FnValue,
     /// `struct`
     Struct,
     /// `newtype`

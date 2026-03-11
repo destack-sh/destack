@@ -3,8 +3,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    AtomicScope, FormatMirNode, Function, Global, Instruction, LocalNodeId, MemoryLocationSet,
-    MemoryOrdering, MemoryScope, MemorySemantics, MirFormatter, TensorConvolutionDimensionNumbers,
+    AtomicScope, FormatMirNode, Function, Global, Instruction, LocalNodeId, MemoryOrdering,
+    MemoryRegionSet, MemoryScope, MemorySemantics, MirFormatter, TensorConvolutionDimensionNumbers,
     TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
     TensorScatterDimensionNumbers, Value,
 };
@@ -1193,7 +1193,6 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 arguments,
                 declaring_type,
                 slot_id,
-                declared_target,
                 signature,
                 ..
             } => {
@@ -1212,13 +1211,9 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         declaring_type,
                         token(","),
                         space(),
-                        text(&slot_id.to_string())
+                        text(&slot_id.0.to_string())
                     ]
                 )?;
-                if let Some(target) = declared_target {
-                    write!(f, [token(","), space()])?;
-                    format_function_reference(*target, f)?;
-                }
                 let args = f.context().tree.get_arguments(*arguments);
                 format_value_list(args, f)?;
                 write!(f, [space(), token("->"), space(), signature])
@@ -1230,7 +1225,6 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 arguments,
                 declaring_type,
                 slot_id,
-                declared_target,
                 signature,
                 ..
             } => {
@@ -1249,13 +1243,9 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         declaring_type,
                         token(","),
                         space(),
-                        text(&slot_id.to_string())
+                        text(&slot_id.0.to_string())
                     ]
                 )?;
-                if let Some(target) = declared_target {
-                    write!(f, [token(","), space()])?;
-                    format_function_reference(*target, f)?;
-                }
                 let args = f.context().tree.get_arguments(*arguments);
                 format_value_list(args, f)?;
                 write!(f, [space(), token("->"), space(), signature])
@@ -1363,14 +1353,136 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::Intrinsic {
+            Instruction::AtomicLoad {
                 destination,
-                intrinsic,
-                arguments,
+                pointer,
                 ordering,
                 scope,
                 memory_scope,
                 semantics,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("atomic.load"),
+                        space(),
+                        pointer
+                    ]
+                )?;
+                format_atomic_suffix(*ordering, *scope, *memory_scope, *semantics, f)
+            }
+
+            Instruction::AtomicStore {
+                pointer,
+                value,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            } => {
+                write!(
+                    f,
+                    [
+                        token("atomic.store"),
+                        space(),
+                        pointer,
+                        token(","),
+                        space(),
+                        value
+                    ]
+                )?;
+                format_atomic_suffix(*ordering, *scope, *memory_scope, *semantics, f)
+            }
+
+            Instruction::AtomicCompareExchange {
+                destination,
+                pointer,
+                expected,
+                new_value,
+                is_weak,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(f, [space(), token("="), space()])?;
+                let opcode = if *is_weak {
+                    "atomic.cas.weak"
+                } else {
+                    "atomic.cas"
+                };
+                write!(
+                    f,
+                    [
+                        token(opcode),
+                        space(),
+                        pointer,
+                        token(","),
+                        space(),
+                        expected,
+                        token(","),
+                        space(),
+                        new_value
+                    ]
+                )?;
+                format_atomic_suffix(*ordering, *scope, *memory_scope, *semantics, f)
+            }
+
+            Instruction::AtomicRmw {
+                destination,
+                operator,
+                pointer,
+                value,
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(f, [space(), token("="), space(), token("atomic.rmw.")])?;
+                write!(
+                    f,
+                    [
+                        token(operator.to_str()),
+                        space(),
+                        pointer,
+                        token(","),
+                        space(),
+                        value
+                    ]
+                )?;
+                format_atomic_suffix(*ordering, *scope, *memory_scope, *semantics, f)
+            }
+
+            Instruction::AtomicFence {
+                ordering,
+                scope,
+                memory_scope,
+                semantics,
+            } => {
+                write!(f, [token("atomic.fence")])?;
+                format_atomic_suffix(*ordering, *scope, *memory_scope, *semantics, f)
+            }
+
+            Instruction::Barrier {
+                scope,
+                memory_scope,
+                semantics,
+            } => {
+                write!(f, [token("barrier"), space()])?;
+                format_barrier_suffix(*scope, *memory_scope, *semantics, f)
+            }
+
+            Instruction::Intrinsic {
+                destination,
+                intrinsic,
+                arguments,
             } => {
                 if let Some(dst) = destination {
                     format_typed_destination(*dst, f)?;
@@ -1378,7 +1490,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 }
                 write!(f, [token("intrinsic."), token(intrinsic.to_str())])?;
                 let args = f.context().tree.get_arguments(*arguments);
-                format_intrinsic_args(args, *ordering, *scope, *memory_scope, *semantics, f)
+                format_intrinsic_args(args, f)
             }
         }
     }
@@ -1717,59 +1829,61 @@ fn split_tensor_padding(
 }
 
 /// Format intrinsic arguments with optional memory ordering.
-fn format_intrinsic_args<'a>(
-    values: &[Value],
-    ordering: Option<MemoryOrdering>,
-    scope: Option<AtomicScope>,
-    memory_scope: Option<MemoryScope>,
-    semantics: Option<MemorySemantics>,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_intrinsic_args<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     write!(f, [token("(")])?;
-    let mut has_arg = false;
     for (i, val) in values.iter().enumerate() {
-        if i > 0 || has_arg {
+        if i > 0 {
             write!(f, [token(","), space()])?;
         }
         write!(f, [val])?;
-        has_arg = true;
-    }
-    if let Some(ord) = ordering {
-        if has_arg {
-            write!(f, [token(","), space()])?;
-        }
-        write!(f, [token("ordering"), token("="), token(ord.to_str())])?;
-        has_arg = true;
-    }
-    if let Some(scope) = scope {
-        if has_arg {
-            write!(f, [token(","), space()])?;
-        }
-        write!(f, [token("scope"), token("="), token(scope.to_str())])?;
-        has_arg = true;
-    }
-    if let Some(memory_scope) = memory_scope {
-        if has_arg {
-            write!(f, [token(","), space()])?;
-        }
-        write!(
-            f,
-            [
-                token("memory_scope"),
-                token("="),
-                token(memory_scope.to_str())
-            ]
-        )?;
-        has_arg = true;
-    }
-    if let Some(semantics) = semantics {
-        if has_arg {
-            write!(f, [token(","), space()])?;
-        }
-        write!(f, [token("semantics"), token("=")])?;
-        format_memory_semantics(semantics, f)?;
     }
     write!(f, [token(")")])
+}
+
+/// Format one atomic ordering, scope, memory scope, and semantics suffix.
+fn format_atomic_suffix<'a>(
+    ordering: MemoryOrdering,
+    scope: AtomicScope,
+    memory_scope: MemoryScope,
+    semantics: MemorySemantics,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [token(","), space()])?;
+    write!(f, [token("ordering"), token("="), token(ordering.to_str())])?;
+    write!(f, [token(","), space()])?;
+    write!(f, [token("scope"), token("="), token(scope.to_str())])?;
+    write!(f, [token(","), space()])?;
+    write!(
+        f,
+        [
+            token("memory_scope"),
+            token("="),
+            token(memory_scope.to_str())
+        ]
+    )?;
+    write!(f, [token(","), space(), token("semantics"), token("=")])?;
+    format_memory_semantics(semantics, f)
+}
+
+/// Format one barrier scope, memory scope, and semantics suffix.
+fn format_barrier_suffix<'a>(
+    scope: AtomicScope,
+    memory_scope: MemoryScope,
+    semantics: MemorySemantics,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [token("scope"), token("="), token(scope.to_str())])?;
+    write!(f, [token(","), space()])?;
+    write!(
+        f,
+        [
+            token("memory_scope"),
+            token("="),
+            token(memory_scope.to_str())
+        ]
+    )?;
+    write!(f, [token(","), space(), token("semantics"), token("=")])?;
+    format_memory_semantics(semantics, f)
 }
 
 /// Format memory semantics for atomics and barriers.
@@ -1808,28 +1922,28 @@ fn collect_memory_semantics_names(semantics: MemorySemantics) -> Vec<&'static st
     names
 }
 
-/// Collect named memory locations in formatting order.
-fn collect_memory_location_names(locations: MemoryLocationSet) -> Vec<&'static str> {
+/// Collect named memory regions in formatting order.
+fn collect_memory_location_names(locations: MemoryRegionSet) -> Vec<&'static str> {
     // special cases for named sets
-    if locations == MemoryLocationSet::NONE {
+    if locations == MemoryRegionSet::NONE {
         return vec!["none"];
     }
-    if locations == MemoryLocationSet::ANY {
+    if locations == MemoryRegionSet::ANY {
         return vec!["any"];
     }
 
-    // collect named locations in canonical order
+    // collect named regions in canonical order
     let mut names = Vec::new();
     let ordered = [
-        ("arguments", MemoryLocationSet::ARGUMENTS),
-        ("heap", MemoryLocationSet::HEAP),
-        ("stack", MemoryLocationSet::STACK),
-        ("global", MemoryLocationSet::GLOBAL),
-        ("shared", MemoryLocationSet::SHARED),
-        ("local", MemoryLocationSet::LOCAL),
-        ("constant", MemoryLocationSet::CONSTANT),
-        ("inaccessible", MemoryLocationSet::INACCESSIBLE),
-        ("io", MemoryLocationSet::IO),
+        ("managed_heap", MemoryRegionSet::MANAGED_HEAP),
+        ("immortal_heap", MemoryRegionSet::IMMORTAL_HEAP),
+        ("raw_heap", MemoryRegionSet::RAW_HEAP),
+        ("stack", MemoryRegionSet::STACK),
+        ("global", MemoryRegionSet::GLOBAL),
+        ("shared", MemoryRegionSet::SHARED),
+        ("local", MemoryRegionSet::LOCAL),
+        ("constant", MemoryRegionSet::CONSTANT),
+        ("io", MemoryRegionSet::IO),
     ];
     for (name, set) in ordered {
         if locations.contains(set) {

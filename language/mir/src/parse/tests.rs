@@ -34,6 +34,17 @@ block0:
 }
 
 #[test]
+fn test_roundtrip_function_value_type() {
+    roundtrip(
+        r#"type @Callable = fnvalue<fn(i32) -> i32, ref?<managed void>>
+function @use(v0: @Callable) -> @Callable {
+block0(v0: @Callable):
+    return v0
+}"#,
+    );
+}
+
+#[test]
 fn test_roundtrip_function_workgroup_short_form() {
     roundtrip(
         r#"#[execution_model(kernel)]
@@ -97,8 +108,8 @@ block0:
 #[test]
 fn test_roundtrip_pointer_sized_types() {
     roundtrip(
-        r#"function @pointerSized(v0: isize, v1: usize, v2: type) -> isize {
-block0(v0: isize, v1: usize, v2: type):
+        r#"function @pointerSized(v0: isize, v1: usize, v2: type_descriptor, v3: type_id) -> isize {
+block0(v0: isize, v1: usize, v2: type_descriptor, v3: type_id):
     return v0
 }"#,
     );
@@ -153,10 +164,10 @@ block1:
     check v3, union v0, 1, block4, block5
 block2:
     v4: bool = icmp_eq v0, v0
-    check v4, vtable v1, i32, block2, block4
+    check v4, receiver_type v1, i32, block2, block4
 block3:
     v5: bool = icmp_eq v0, v0
-    check v5, itab v1, 0, block3, block5
+    check v5, implements v1, i32, block3, block5
 block4:
     v6: i32 = iconst 0i32
     return v6
@@ -176,6 +187,33 @@ block0:
     v1: i32 = iconst 2i32
     v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_exceptional_call_terminator() {
+    roundtrip(
+        r#"extern function @callee(i32) -> i32
+function @caller(v0: i32) -> i32 {
+block0(v0: i32):
+    call @callee(v0) normal block1 unwind block2
+block1(v1: i32):
+    return v1
+block2(v2: ref<managed readonly i32>):
+    throw v2
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_trap_terminator() {
+    roundtrip(
+        r#"global @message: ref<managed readonly void> = "boom" ; readonly
+function @trapper() -> void {
+block0:
+    v0: ref<managed readonly void> = global.const @message
+    trap panic v0
 }"#,
     );
 }
@@ -461,7 +499,7 @@ fn test_roundtrip_intrinsic_void() {
     roundtrip(
         r#"function @fenceTest() -> void {
 block0:
-    intrinsic.atomic.fence(ordering=seq_cst, scope=device, memory_scope=device, semantics=any)
+    atomic.fence, ordering=seq_cst, scope=device, memory_scope=device, semantics=any
     return
 }"#,
     );
@@ -499,7 +537,7 @@ fn test_roundtrip_intrinsic_atomic() {
     roundtrip(
         r#"function @atomicTest(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1: i32 = intrinsic.atomic.load(v0, ordering=acquire, scope=device, memory_scope=device, semantics=[global, make_visible])
+    v1: i32 = atomic.load v0, ordering=acquire, scope=device, memory_scope=device, semantics=[global, make_visible]
     return v1
 }"#,
     );
@@ -511,7 +549,7 @@ fn test_roundtrip_intrinsic_atomic_fence() {
     roundtrip(
         r#"function @fenceTest() -> void {
 block0:
-    intrinsic.atomic.fence(ordering=seq_cst, scope=device, memory_scope=device, semantics=any)
+    atomic.fence, ordering=seq_cst, scope=device, memory_scope=device, semantics=any
     return
 }"#,
     );

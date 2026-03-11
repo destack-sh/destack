@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
     Block, CallSite, CheckConstraint, CheckTarget, DevirtualizationMetadata, Function,
-    InterfaceSlotId, LocalNodeId, Terminator, Type, Value, VtableSlotId,
+    InterfaceSlotId, LocalNodeId, Terminator, TrapKind, Type, Value, VtableSlotId,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -77,6 +77,26 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.current_block();
         let block_data = self.tree.get_mut(block);
         block_data.terminator = Terminator::Throw { value };
+    }
+
+    /// Abort execution immediately.
+    pub fn trap_abort(&mut self) {
+        let block = self.current_block();
+        let block_data = self.tree.get_mut(block);
+        block_data.terminator = Terminator::Trap {
+            kind: TrapKind::Abort,
+            payload: None,
+        };
+    }
+
+    /// Panic with a runtime payload.
+    pub fn trap_panic(&mut self, payload: Value) {
+        let block = self.current_block();
+        let block_data = self.tree.get_mut(block);
+        block_data.terminator = Terminator::Trap {
+            kind: TrapKind::Panic,
+            payload: Some(payload),
+        };
     }
 
     /// Call a function with explicit normal and unwind continuations.

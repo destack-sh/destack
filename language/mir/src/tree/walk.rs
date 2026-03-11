@@ -167,13 +167,24 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let result_ty = tree.get(*result);
             visitor.visit_type(tree, *result, result_ty);
         }
+        Type::FunctionValue {
+            signature,
+            environment,
+        } => {
+            let signature_ty = tree.get(*signature);
+            visitor.visit_type(tree, *signature, signature_ty);
+
+            let environment_ty = tree.get(*environment);
+            visitor.visit_type(tree, *environment, environment_ty);
+        }
         Type::Void
         | Type::Boolean
         | Type::Int { .. }
         | Type::Isize
         | Type::Usize
         | Type::Float { .. }
-        | Type::Type => {}
+        | Type::TypeDescriptor
+        | Type::TypeId => {}
     }
 }
 
