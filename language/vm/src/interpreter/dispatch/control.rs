@@ -861,6 +861,44 @@ pub(crate) fn handle_switch_table_int(
 }
 
 /// Handle unreachable (errors).
+pub(crate) fn handle_trap(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    let ThreadedInstructionData::Trap { kind, payload } = &block[pc].data else {
+        unreachable!()
+    };
+
+    match kind {
+        mir::TrapKind::Abort => ControlFlow::Error(Error::Abort),
+        mir::TrapKind::Panic => {
+            // decode the panic payload as a managed string when present
+            if is_invalid_value(*payload) {
+                return ControlFlow::Error(Error::TypeMismatch {
+                    expected: "non null readonly managed string".to_string(),
+                    actual: "missing panic payload".to_string(),
+                });
+            }
+
+            let payload = state.get(*payload);
+            let message = match state.interpreter.isolate.string_interner.string_value(
+                state.interpreter.heap.managed(),
+                state.interpreter.heap.raw(),
+                payload,
+            ) {
+                Ok(message) => message,
+                Err(error) => return ControlFlow::Error(error),
+            };
+
+            ControlFlow::Error(Error::Panic { message })
+        }
+    }
+}
+
+/// Handle unreachable (errors).
 pub(crate) fn handle_unreachable(
     state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],

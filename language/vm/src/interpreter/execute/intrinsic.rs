@@ -8,16 +8,11 @@ use super::super::state::InterpreterContext;
 #[allow(clippy::too_many_arguments)]
 impl<'a> InterpreterContext<'a> {
     /// Execute an intrinsic with already-resolved argument values.
-    ///
-    /// Used by threaded interpreter where values are pre-resolved.
+    /// Used by the threaded interpreter where values are pre-resolved.
     pub(crate) fn execute_intrinsic_resolved(
         &mut self,
         intrinsic: mir::Intrinsic,
         args: &[Value],
-        _ordering: Option<mir::MemoryOrdering>,
-        _scope: Option<mir::AtomicScope>,
-        _memory_scope: Option<mir::MemoryScope>,
-        _semantics: Option<mir::MemorySemantics>,
     ) -> RuntimeResult<Value> {
         match intrinsic {
             // bit manipulation
@@ -79,13 +74,6 @@ impl<'a> InterpreterContext<'a> {
             mir::Intrinsic::Fma => self.execute_fma(args),
 
             // branch hints (passthrough)
-            mir::Intrinsic::Likely | mir::Intrinsic::Unlikely => {
-                args.first().copied().ok_or_else(|| {
-                    self.make_error(Error::InvalidIntrinsicArguments {
-                        intrinsic: intrinsic.to_str().to_string(),
-                    })
-                })
-            }
             mir::Intrinsic::Expect => args.first().copied().ok_or_else(|| {
                 self.make_error(Error::InvalidIntrinsicArguments {
                     intrinsic: intrinsic.to_str().to_string(),
@@ -119,26 +107,7 @@ impl<'a> InterpreterContext<'a> {
             mir::Intrinsic::Memcmp => self.execute_memcmp(args),
 
             // control flow
-            mir::Intrinsic::Unreachable => Err(self.make_error(Error::Unreachable)),
             mir::Intrinsic::Breakpoint => Ok(Value::VOID),
-            mir::Intrinsic::Abort => Err(self.make_error(Error::Abort)),
-            mir::Intrinsic::Panic => {
-                // load panic message
-                let message_value = args.first().copied().ok_or_else(|| {
-                    self.make_error(Error::InvalidIntrinsicArguments {
-                        intrinsic: intrinsic.to_str().to_string(),
-                    })
-                })?;
-                let message = self
-                    .isolate
-                    .string_interner
-                    .string_value(self.heap.managed(), self.heap.raw(), message_value)
-                    .map_err(|error| self.make_error(error))?;
-
-                // surface panic as a runtime error
-                Err(self.make_error(Error::Panic { message }))
-            }
-
             // reflection (should be resolved at compile time)
             mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => Err(self
                 .make_error(Error::UnsupportedInstruction {
@@ -148,42 +117,11 @@ impl<'a> InterpreterContext<'a> {
                     ),
                 })),
 
-            // volatile operations
-            mir::Intrinsic::VolatileLoad => self.execute_volatile_load(args),
-            mir::Intrinsic::VolatileStore => {
-                self.execute_volatile_store(args)?;
-                Ok(Value::VOID)
-            }
-
             // prefetch (no-ops in interpreter)
             mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => Ok(Value::VOID),
 
             // gc write barrier (no-op in interpreter)
             mir::Intrinsic::GcWriteBarrier => Ok(Value::VOID),
-
-            // atomics (single-threaded interpreter)
-            mir::Intrinsic::AtomicLoad => self.execute_atomic_load(args),
-            mir::Intrinsic::AtomicStore => {
-                self.execute_atomic_store(args)?;
-                Ok(Value::VOID)
-            }
-            mir::Intrinsic::AtomicCas => self.execute_atomic_cas(args),
-            mir::Intrinsic::AtomicCasWeak => self.execute_atomic_cas_weak(args),
-            mir::Intrinsic::AtomicExchange => self.execute_atomic_exchange(args),
-            mir::Intrinsic::AtomicFetchAdd => self.execute_atomic_fetch_add(args),
-            mir::Intrinsic::AtomicFetchSub => self.execute_atomic_fetch_sub(args),
-            mir::Intrinsic::AtomicFetchAnd => self.execute_atomic_fetch_and(args),
-            mir::Intrinsic::AtomicFetchOr => self.execute_atomic_fetch_or(args),
-            mir::Intrinsic::AtomicFetchXor => self.execute_atomic_fetch_xor(args),
-            mir::Intrinsic::AtomicFetchMin => self.execute_atomic_fetch_min(args),
-            mir::Intrinsic::AtomicFetchMax => self.execute_atomic_fetch_max(args),
-            mir::Intrinsic::AtomicFetchUmin => self.execute_atomic_fetch_umin(args),
-            mir::Intrinsic::AtomicFetchUmax => self.execute_atomic_fetch_umax(args),
-            mir::Intrinsic::AtomicFetchFadd => self.execute_atomic_fetch_fadd(args),
-            mir::Intrinsic::AtomicFetchFmin => self.execute_atomic_fetch_fmin(args),
-            mir::Intrinsic::AtomicFetchFmax => self.execute_atomic_fetch_fmax(args),
-            mir::Intrinsic::AtomicFence => Ok(Value::VOID),
-            mir::Intrinsic::Barrier => Ok(Value::VOID),
 
             // runtime introspection
             mir::Intrinsic::ReturnAddress => self.execute_return_address(),
@@ -1469,31 +1407,107 @@ impl<'a> InterpreterContext<'a> {
         }
     }
 
-    // volatile operations
-
-    /// Load a value with volatile semantics.
-    fn execute_volatile_load(&self, args: &[Value]) -> RuntimeResult<Value> {
-        let ptr = args.first().ok_or_else(|| {
-            self.make_error(Error::InvalidIntrinsicArguments {
-                intrinsic: "volatile.load".to_string(),
-            })
-        })?;
-        self.read_memory_slot(ptr, 0)
-    }
-
-    /// Store a value with volatile semantics.
-    fn execute_volatile_store(&mut self, args: &[Value]) -> RuntimeResult<()> {
-        if args.len() < 2 {
-            return Err(self.make_error(Error::InvalidIntrinsicArguments {
-                intrinsic: "volatile.store".to_string(),
-            }));
-        }
-        let ptr = args[0];
-        let value = args[1];
-        self.write_memory_slot(&ptr, 0, value)
-    }
-
     // atomic operations
+
+    /// Execute an atomic load.
+    pub(crate) fn execute_atomic_load_value(
+        &self,
+        pointer: Value,
+        _ordering: mir::MemoryOrdering,
+        _scope: mir::AtomicScope,
+        _memory_scope: mir::MemoryScope,
+        _semantics: mir::MemorySemantics,
+    ) -> RuntimeResult<Value> {
+        let args = [pointer];
+        self.execute_atomic_load(&args)
+    }
+
+    /// Execute an atomic store.
+    pub(crate) fn execute_atomic_store_value(
+        &mut self,
+        pointer: Value,
+        value: Value,
+        _ordering: mir::MemoryOrdering,
+        _scope: mir::AtomicScope,
+        _memory_scope: mir::MemoryScope,
+        _semantics: mir::MemorySemantics,
+    ) -> RuntimeResult<()> {
+        let args = [pointer, value];
+        self.execute_atomic_store(&args)
+    }
+
+    /// Execute an atomic compare exchange.
+    pub(crate) fn execute_atomic_compare_exchange_value(
+        &mut self,
+        pointer: Value,
+        expected: Value,
+        new_value: Value,
+        is_weak: bool,
+        _ordering: mir::MemoryOrdering,
+        _scope: mir::AtomicScope,
+        _memory_scope: mir::MemoryScope,
+        _semantics: mir::MemorySemantics,
+    ) -> RuntimeResult<Value> {
+        let args = [pointer, expected, new_value];
+
+        // the interpreter uses strong semantics for the weak variant
+        if is_weak {
+            return self.execute_atomic_cas_weak(&args);
+        }
+
+        self.execute_atomic_cas(&args)
+    }
+
+    /// Execute an atomic read modify write.
+    pub(crate) fn execute_atomic_rmw_value(
+        &mut self,
+        operator: mir::AtomicRmwOperator,
+        pointer: Value,
+        value: Value,
+        _ordering: mir::MemoryOrdering,
+        _scope: mir::AtomicScope,
+        _memory_scope: mir::MemoryScope,
+        _semantics: mir::MemorySemantics,
+    ) -> RuntimeResult<Value> {
+        let args = [pointer, value];
+
+        match operator {
+            mir::AtomicRmwOperator::Exchange => self.execute_atomic_exchange(&args),
+            mir::AtomicRmwOperator::Add => self.execute_atomic_fetch_add(&args),
+            mir::AtomicRmwOperator::Sub => self.execute_atomic_fetch_sub(&args),
+            mir::AtomicRmwOperator::And => self.execute_atomic_fetch_and(&args),
+            mir::AtomicRmwOperator::Or => self.execute_atomic_fetch_or(&args),
+            mir::AtomicRmwOperator::Xor => self.execute_atomic_fetch_xor(&args),
+            mir::AtomicRmwOperator::Min => self.execute_atomic_fetch_min(&args),
+            mir::AtomicRmwOperator::Max => self.execute_atomic_fetch_max(&args),
+            mir::AtomicRmwOperator::Umin => self.execute_atomic_fetch_umin(&args),
+            mir::AtomicRmwOperator::Umax => self.execute_atomic_fetch_umax(&args),
+            mir::AtomicRmwOperator::Fadd => self.execute_atomic_fetch_fadd(&args),
+            mir::AtomicRmwOperator::Fmin => self.execute_atomic_fetch_fmin(&args),
+            mir::AtomicRmwOperator::Fmax => self.execute_atomic_fetch_fmax(&args),
+        }
+    }
+
+    /// Execute an atomic fence.
+    pub(crate) fn execute_atomic_fence(
+        &mut self,
+        _ordering: mir::MemoryOrdering,
+        _scope: mir::AtomicScope,
+        _memory_scope: mir::MemoryScope,
+        _semantics: mir::MemorySemantics,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Execute a synchronization barrier.
+    pub(crate) fn execute_barrier(
+        &mut self,
+        _scope: mir::AtomicScope,
+        _memory_scope: mir::MemoryScope,
+        _semantics: mir::MemorySemantics,
+    ) -> RuntimeResult<()> {
+        Ok(())
+    }
 
     /// Atomic load (single-threaded: same as regular load).
     fn execute_atomic_load(&self, args: &[Value]) -> RuntimeResult<Value> {

@@ -823,11 +823,41 @@ pub enum ThreadedInstructionData {
         dest: mir::Value,
         intrinsic: mir::Intrinsic,
         arguments: ArgumentRange,
-        ordering: Option<mir::MemoryOrdering>,
-        scope: Option<mir::AtomicScope>,
-        memory_scope: Option<mir::MemoryScope>,
-        semantics: Option<mir::MemorySemantics>,
     },
+
+    /// Atomic load.
+    AtomicLoad {
+        dest: mir::Value,
+        pointer: mir::Value,
+    },
+
+    /// Atomic store.
+    AtomicStore {
+        pointer: mir::Value,
+        value: mir::Value,
+    },
+
+    /// Atomic compare exchange.
+    AtomicCompareExchange {
+        dest: mir::Value,
+        pointer: mir::Value,
+        expected: mir::Value,
+        new_value: mir::Value,
+    },
+
+    /// Atomic read modify write.
+    AtomicRmw {
+        dest: mir::Value,
+        operator: mir::AtomicRmwOperator,
+        pointer: mir::Value,
+        value: mir::Value,
+    },
+
+    /// Atomic fence.
+    AtomicFence,
+
+    /// Synchronization barrier.
+    Barrier,
 
     /// Return from function.
     Return { value: mir::Value },
@@ -893,6 +923,12 @@ pub enum ThreadedInstructionData {
         table: SwitchRange,
         default_target: u32,
         default_copies: CopyRange,
+    },
+
+    /// Unrecoverable runtime termination.
+    Trap {
+        kind: mir::TrapKind,
+        payload: mir::Value,
     },
 
     /// Unreachable code.
@@ -1017,6 +1053,12 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::StackDrop { .. } => "stack_drop",
             ThreadedInstructionData::Assume { .. } => "assume",
             ThreadedInstructionData::Intrinsic { .. } => "intrinsic",
+            ThreadedInstructionData::AtomicLoad { .. } => "atomic_load",
+            ThreadedInstructionData::AtomicStore { .. } => "atomic_store",
+            ThreadedInstructionData::AtomicCompareExchange { .. } => "atomic_compare_exchange",
+            ThreadedInstructionData::AtomicRmw { .. } => "atomic_rmw",
+            ThreadedInstructionData::AtomicFence => "atomic_fence",
+            ThreadedInstructionData::Barrier => "barrier",
             ThreadedInstructionData::Return { .. } => "return",
             ThreadedInstructionData::Yield { .. } => "yield",
             ThreadedInstructionData::Jump { .. } => "jump",
@@ -1025,6 +1067,7 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::CompareAndBranchConst { .. } => "compare_and_branch_const",
             ThreadedInstructionData::Switch { .. } => "switch",
             ThreadedInstructionData::SwitchTable { .. } => "switch_table",
+            ThreadedInstructionData::Trap { .. } => "trap",
             ThreadedInstructionData::Unreachable => "unreachable",
             ThreadedInstructionData::TailCall { .. } => "tail_call",
             ThreadedInstructionData::TailCallSelf { .. } => "tail_call_self",
@@ -1287,19 +1330,8 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         &mut self,
         intrinsic: mir::Intrinsic,
         args: &[Value],
-        ordering: Option<mir::MemoryOrdering>,
-        scope: Option<mir::AtomicScope>,
-        memory_scope: Option<mir::MemoryScope>,
-        semantics: Option<mir::MemorySemantics>,
     ) -> RuntimeResult<Value> {
-        self.interpreter.execute_intrinsic_resolved(
-            intrinsic,
-            args,
-            ordering,
-            scope,
-            memory_scope,
-            semantics,
-        )
+        self.interpreter.execute_intrinsic_resolved(intrinsic, args)
     }
 
     /// Get the slot count for a raw pointer.

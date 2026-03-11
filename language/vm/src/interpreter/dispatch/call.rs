@@ -52,7 +52,7 @@ fn resolve_virtual_dispatch_target(
         .isolate
         .image
         .tree
-        .type_table
+        .dispatch_table
         .vtable(table_id);
     let slot = table
         .entries
@@ -98,7 +98,7 @@ fn resolve_interface_dispatch_target(
         .isolate
         .image
         .tree
-        .type_table
+        .dispatch_table
         .itab(table_id);
     let slot = table
         .entries

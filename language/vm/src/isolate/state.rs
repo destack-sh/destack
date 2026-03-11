@@ -203,7 +203,7 @@ fn build_function_name_map(
 /// Build a lookup table from vtable globals to vtable ids.
 fn build_vtable_map(tree: &mir::NodeTree) -> HashMap<mir::LocalNodeId<mir::Global>, mir::VtableId> {
     let mut map = HashMap::new();
-    for (table_id, table) in tree.type_table.iter_vtables() {
+    for (table_id, table) in tree.dispatch_table.iter_vtables() {
         let mir::VtableStorage::Global(global) = table.storage;
         map.insert(global, table_id);
     }

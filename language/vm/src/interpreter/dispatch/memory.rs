@@ -262,6 +262,205 @@ pub(crate) fn handle_store(
     next!(state, block, pc)
 }
 
+/// Handle atomic load.
+pub(crate) fn handle_atomic_load(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::AtomicLoad { dest, pointer } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load pointer
+    let pointer = state.get(*pointer);
+
+    // execute the load
+    let value = match state.interpreter.execute_atomic_load_value(
+        pointer,
+        mir::MemoryOrdering::SeqCst,
+        mir::AtomicScope::Device,
+        mir::MemoryScope::Device,
+        mir::MemorySemantics::default(),
+    ) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error.error),
+    };
+
+    // store the result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle atomic store.
+pub(crate) fn handle_atomic_store(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::AtomicStore { pointer, value } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load operands
+    let pointer = state.get(*pointer);
+    let value = state.get(*value);
+
+    // execute the store
+    if let Err(error) = state.interpreter.execute_atomic_store_value(
+        pointer,
+        value,
+        mir::MemoryOrdering::SeqCst,
+        mir::AtomicScope::Device,
+        mir::MemoryScope::Device,
+        mir::MemorySemantics::default(),
+    ) {
+        return ControlFlow::Error(error.error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle atomic compare exchange.
+pub(crate) fn handle_atomic_compare_exchange(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::AtomicCompareExchange {
+        dest,
+        pointer,
+        expected,
+        new_value,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let pointer = state.get(*pointer);
+    let expected = state.get(*expected);
+    let new_value = state.get(*new_value);
+
+    // execute the compare exchange
+    let result = match state.interpreter.execute_atomic_compare_exchange_value(
+        pointer,
+        expected,
+        new_value,
+        false,
+        mir::MemoryOrdering::SeqCst,
+        mir::AtomicScope::Device,
+        mir::MemoryScope::Device,
+        mir::MemorySemantics::default(),
+    ) {
+        Ok(result) => result,
+        Err(error) => return ControlFlow::Error(error.error),
+    };
+
+    // store the result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle atomic read modify write.
+pub(crate) fn handle_atomic_rmw(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::AtomicRmw {
+        dest,
+        operator,
+        pointer,
+        value,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let pointer = state.get(*pointer);
+    let value = state.get(*value);
+
+    // execute the read modify write
+    let result = match state.interpreter.execute_atomic_rmw_value(
+        *operator,
+        pointer,
+        value,
+        mir::MemoryOrdering::SeqCst,
+        mir::AtomicScope::Device,
+        mir::MemoryScope::Device,
+        mir::MemorySemantics::default(),
+    ) {
+        Ok(result) => result,
+        Err(error) => return ControlFlow::Error(error.error),
+    };
+
+    // store the result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle atomic fence.
+pub(crate) fn handle_atomic_fence(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::AtomicFence = &block[pc].data else {
+        unreachable!()
+    };
+
+    // execute the fence
+    if let Err(error) = state.interpreter.execute_atomic_fence(
+        mir::MemoryOrdering::SeqCst,
+        mir::AtomicScope::Device,
+        mir::MemoryScope::Device,
+        mir::MemorySemantics::default(),
+    ) {
+        return ControlFlow::Error(error.error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle a synchronization barrier.
+pub(crate) fn handle_barrier(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Barrier = &block[pc].data else {
+        unreachable!()
+    };
+
+    // execute the barrier
+    if let Err(error) = state.interpreter.execute_barrier(
+        mir::AtomicScope::Device,
+        mir::MemoryScope::Device,
+        mir::MemorySemantics::default(),
+    ) {
+        return ControlFlow::Error(error.error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle managed pointer load.
 #[inline(always)]
 pub(crate) fn handle_load_managed(

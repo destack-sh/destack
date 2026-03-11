@@ -210,7 +210,42 @@ fn propagate_block_param_kinds(
             } => {
                 changed |= propagate_target_kinds(tree, value_kinds, *resume, resume_arguments);
             }
+            mir::Terminator::Call {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            }
+            | mir::Terminator::CallIndirect {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            }
+            | mir::Terminator::CallVirtual {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            }
+            | mir::Terminator::CallInterface {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            } => {
+                changed |=
+                    propagate_target_kinds(tree, value_kinds, *normal_target, normal_arguments);
+                changed |=
+                    propagate_target_kinds(tree, value_kinds, *unwind_target, unwind_arguments);
+            }
             mir::Terminator::Return { .. }
+            | mir::Terminator::Throw { .. }
+            | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }
             | mir::Terminator::TailCallIndirect { .. }
@@ -693,6 +728,21 @@ pub(crate) fn thread_function(
     // read entry block
     let entry_block = func.entry?;
 
+    // reject exception edges until the threaded interpreter supports them
+    for block_id in &func.blocks {
+        let block = tree.get(*block_id);
+        if matches!(
+            block.terminator,
+            mir::Terminator::Call { .. }
+                | mir::Terminator::CallIndirect { .. }
+                | mir::Terminator::CallVirtual { .. }
+                | mir::Terminator::CallInterface { .. }
+        ) {
+            // TODO #Incomplete: support exception edges in VM
+            return None;
+        }
+    }
+
     // prepare block index mapping
     let mut block_index_map: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
     let mut mir_blocks: Vec<mir::LocalNodeId<mir::Block>> = Vec::new();
@@ -742,7 +792,32 @@ pub(crate) fn thread_function(
             mir::Terminator::Yield { resume, .. } => {
                 queue.push(*resume);
             }
+            mir::Terminator::Call {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | mir::Terminator::CallIndirect {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | mir::Terminator::CallVirtual {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | mir::Terminator::CallInterface {
+                normal_target,
+                unwind_target,
+                ..
+            } => {
+                queue.push(*normal_target);
+                queue.push(*unwind_target);
+            }
             mir::Terminator::Return { .. }
+            | mir::Terminator::Throw { .. }
+            | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }
             | mir::Terminator::TailCallIndirect { .. }
@@ -1608,7 +1683,7 @@ fn thread_instruction(
                 data: ThreadedInstructionData::CallVirtual {
                     dest: pack_optional_value(*destination),
                     receiver: *receiver,
-                    slot_id: *slot_id,
+                    slot_id: slot_id.0,
                     arguments: args_range,
                 },
             }
@@ -1628,7 +1703,7 @@ fn thread_instruction(
                 data: ThreadedInstructionData::CallInterface {
                     dest: pack_optional_value(*destination),
                     receiver: *receiver,
-                    slot_id: *slot_id,
+                    slot_id: slot_id.0,
                     arguments: args_range,
                 },
             }
@@ -2531,10 +2606,6 @@ fn thread_instruction(
             destination,
             intrinsic,
             arguments,
-            ordering,
-            scope,
-            memory_scope,
-            semantics,
         } => {
             let args = push_argument_range(argument_pool, tree.get_arguments(*arguments));
             ThreadedInstruction {
@@ -2543,13 +2614,71 @@ fn thread_instruction(
                     dest: pack_optional_value(*destination),
                     intrinsic: *intrinsic,
                     arguments: args,
-                    ordering: *ordering,
-                    scope: *scope,
-                    memory_scope: *memory_scope,
-                    semantics: *semantics,
                 },
             }
         }
+
+        mir::Instruction::AtomicLoad {
+            destination,
+            pointer,
+            ..
+        } => ThreadedInstruction {
+            handler: dispatch::handle_atomic_load,
+            data: ThreadedInstructionData::AtomicLoad {
+                dest: *destination,
+                pointer: *pointer,
+            },
+        },
+
+        mir::Instruction::AtomicStore { pointer, value, .. } => ThreadedInstruction {
+            handler: dispatch::handle_atomic_store,
+            data: ThreadedInstructionData::AtomicStore {
+                pointer: *pointer,
+                value: *value,
+            },
+        },
+
+        mir::Instruction::AtomicCompareExchange {
+            destination,
+            pointer,
+            expected,
+            new_value,
+            ..
+        } => ThreadedInstruction {
+            handler: dispatch::handle_atomic_compare_exchange,
+            data: ThreadedInstructionData::AtomicCompareExchange {
+                dest: *destination,
+                pointer: *pointer,
+                expected: *expected,
+                new_value: *new_value,
+            },
+        },
+
+        mir::Instruction::AtomicRmw {
+            destination,
+            operator,
+            pointer,
+            value,
+            ..
+        } => ThreadedInstruction {
+            handler: dispatch::handle_atomic_rmw,
+            data: ThreadedInstructionData::AtomicRmw {
+                dest: *destination,
+                operator: *operator,
+                pointer: *pointer,
+                value: *value,
+            },
+        },
+
+        mir::Instruction::AtomicFence { .. } => ThreadedInstruction {
+            handler: dispatch::handle_atomic_fence,
+            data: ThreadedInstructionData::AtomicFence,
+        },
+
+        mir::Instruction::Barrier { .. } => ThreadedInstruction {
+            handler: dispatch::handle_barrier,
+            data: ThreadedInstructionData::Barrier,
+        },
     }
 }
 
@@ -2846,6 +2975,14 @@ fn infer_instruction_kind(
         | mir::Instruction::StackAlloc { result_type, .. } => {
             Some(kind_from_type(tree, *result_type))
         }
+        mir::Instruction::AtomicLoad { result_type, .. } => {
+            Some(kind_from_type(tree, *result_type))
+        }
+        mir::Instruction::AtomicCompareExchange { destination, .. }
+        | mir::Instruction::AtomicRmw { destination, .. } => {
+            let ty = value_type_for_value(*destination, value_types);
+            Some(kind_from_type(tree, ty))
+        }
         mir::Instruction::Intrinsic {
             intrinsic,
             arguments,
@@ -2853,6 +2990,9 @@ fn infer_instruction_kind(
         } => infer_intrinsic_kind(tree, *intrinsic, *arguments, value_kinds),
         mir::Instruction::LocalSet { .. }
         | mir::Instruction::Store { .. }
+        | mir::Instruction::AtomicStore { .. }
+        | mir::Instruction::AtomicFence { .. }
+        | mir::Instruction::Barrier { .. }
         | mir::Instruction::RawFree { .. }
         | mir::Instruction::RawDrop { .. }
         | mir::Instruction::StackDrop { .. }
@@ -2897,7 +3037,7 @@ fn infer_intrinsic_kind(
         }
         mir::IntrinsicResultType::CheckedArithmetic => Some(ValueKind::Unknown),
         mir::IntrinsicResultType::PointeeAndBool(_) => Some(ValueKind::Unknown),
-        mir::IntrinsicResultType::TypeTag => Some(ValueKind::Unknown),
+        mir::IntrinsicResultType::TypeDescriptor => Some(ValueKind::Unknown),
         mir::IntrinsicResultType::Explicit => Some(ValueKind::Unknown),
     }
 }
@@ -2923,7 +3063,7 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
         mir::Type::Float { width } => ValueKind::Float {
             width: *width as u8,
         },
-        mir::Type::Type => ValueKind::Int {
+        mir::Type::TypeDescriptor | mir::Type::TypeId => ValueKind::Int {
             width: usize::BITS as u8,
             signed: false,
         },
@@ -2948,7 +3088,8 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
             length: *length,
         },
         mir::Type::Newtype { inner, .. } => kind_from_type(tree, *inner),
-        mir::Type::Tuple { .. }
+        mir::Type::FunctionValue { .. }
+        | mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
         | mir::Type::Vector { .. }
         | mir::Type::Tensor { .. } => ValueKind::Aggregate { ty },
@@ -2975,10 +3116,6 @@ fn pointer_storage_from_reference(
     match address_space {
         mir::AddressSpace::Stack => PointerStorage::Stack,
         mir::AddressSpace::Global | mir::AddressSpace::Constant => PointerStorage::Global,
-        mir::AddressSpace::Heap => match kind {
-            mir::ReferenceKind::Managed => PointerStorage::Managed,
-            _ => PointerStorage::Raw,
-        },
         mir::AddressSpace::Shared | mir::AddressSpace::Local | mir::AddressSpace::Target(_) => {
             PointerStorage::Unknown
         }
@@ -3074,13 +3211,15 @@ fn slot_count_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -
         } => u32::try_from(elements.len()).ok(),
         mir::Type::Array { length, .. } => u32::try_from(*length).ok(),
         mir::Type::Newtype { inner, .. } => slot_count_from_type(tree, *inner),
+        mir::Type::FunctionValue { .. } => Some(2),
         mir::Type::Void => Some(1),
         mir::Type::Boolean
         | mir::Type::Int { .. }
         | mir::Type::Isize
         | mir::Type::Usize
         | mir::Type::Float { .. }
-        | mir::Type::Type
+        | mir::Type::TypeDescriptor
+        | mir::Type::TypeId
         | mir::Type::Reference { .. }
         | mir::Type::FunctionPointer { .. }
         | mir::Type::Vector { .. }
@@ -3684,6 +3823,14 @@ fn thread_terminator(
             }
         }
 
+        mir::Terminator::Trap { kind, payload } => ThreadedInstruction {
+            handler: dispatch::handle_trap,
+            data: ThreadedInstructionData::Trap {
+                kind: *kind,
+                payload: pack_optional_value(*payload),
+            },
+        },
+
         mir::Terminator::Unreachable => ThreadedInstruction {
             handler: dispatch::handle_unreachable,
             data: ThreadedInstructionData::Unreachable,
@@ -3720,6 +3867,19 @@ fn thread_terminator(
                     resume_value,
                 },
             }
+        }
+
+        mir::Terminator::Throw { .. } => ThreadedInstruction {
+            handler: dispatch::handle_unreachable,
+            data: ThreadedInstructionData::Unreachable,
+        },
+
+        // exception edges are rejected during threading, so reaching one here is a bug
+        mir::Terminator::Call { .. }
+        | mir::Terminator::CallIndirect { .. }
+        | mir::Terminator::CallVirtual { .. }
+        | mir::Terminator::CallInterface { .. } => {
+            panic!("exceptional call terminators are not supported in the threaded interpreter yet")
         }
 
         mir::Terminator::TailCall {
@@ -3784,7 +3944,7 @@ fn thread_terminator(
                 handler: dispatch::handle_tail_call_virtual,
                 data: ThreadedInstructionData::TailCallVirtual {
                     receiver: *receiver,
-                    slot_id: *slot_id,
+                    slot_id: slot_id.0,
                     arguments: args,
                 },
             }
@@ -3801,7 +3961,7 @@ fn thread_terminator(
                 handler: dispatch::handle_tail_call_interface,
                 data: ThreadedInstructionData::TailCallInterface {
                     receiver: *receiver,
-                    slot_id: *slot_id,
+                    slot_id: slot_id.0,
                     arguments: args,
                 },
             }

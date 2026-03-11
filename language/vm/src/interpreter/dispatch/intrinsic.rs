@@ -11,10 +11,6 @@ pub(crate) fn handle_intrinsic(
         dest,
         intrinsic,
         arguments,
-        ordering,
-        scope,
-        memory_scope,
-        semantics,
     } = &block[pc].data
     else {
         unreachable!()
@@ -24,14 +20,7 @@ pub(crate) fn handle_intrinsic(
     let args = collect_values(state, *arguments);
 
     // execute intrinsic
-    match state.execute_intrinsic(
-        *intrinsic,
-        args.as_slice(),
-        *ordering,
-        *scope,
-        *memory_scope,
-        *semantics,
-    ) {
+    match state.execute_intrinsic(*intrinsic, args.as_slice()) {
         // store result and continue
         Ok(result) => {
             if !is_invalid_value(*dest) {
