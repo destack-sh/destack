@@ -93,7 +93,6 @@ impl<'a> RenderSpec<'a> {
             writer.write_replay_payloads();
         }
         writer.write_descriptor_consts();
-        writer.write_bindings_slice();
         writer.write_native_set();
         if self.usage.uses_binding_replay {
             writer.write_native_replay_helpers();

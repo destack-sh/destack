@@ -10,18 +10,6 @@ pub(crate) fn invalid_argument(
     RuntimeError::from(PlatformError::invalid_argument_value(field, message)).boxed()
 }
 
-/// Build one unknown-handle runtime error.
-#[cfg(unix)]
-pub(crate) fn unknown_handle(
-    field: impl Into<String>,
-    handle_kind: impl Into<String>,
-) -> Box<RuntimeError> {
-    let field = field.into();
-    let handle_kind = handle_kind.into();
-
-    invalid_argument(field, format!("unknown {handle_kind} handle"))
-}
-
 /// Build one not-supported runtime error.
 pub(crate) fn not_supported(operation: impl Into<String>) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::not_supported(operation)).boxed()
@@ -64,7 +52,6 @@ pub(crate) fn io_busy(operation: &str, message: impl Into<String>) -> Box<Runtim
 }
 
 /// Build one invalid-state runtime error.
-#[cfg(unix)]
 #[allow(dead_code)]
 pub(crate) fn invalid_state(message: impl Into<String>) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::generic(

@@ -3,10 +3,8 @@ mod abi_generated;
 #[path = "bindings.generated.rs"]
 mod bindings_generated;
 
-#[allow(unused_imports, unreachable_pub)]
-pub use abi_generated::*;
-#[allow(unused_imports, unreachable_pub)]
-pub use bindings_generated::*;
+pub(crate) use abi_generated::*;
+pub(crate) use bindings_generated::*;
 mod core;
 mod host;
 pub mod native;

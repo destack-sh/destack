@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -842,7 +843,7 @@ struct IpcUnixSendReplayRecord {
 }
 
 /// Binding descriptor for destack.ipc.message.queueClose.
-pub const IPC_MESSAGE_QUEUE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_MESSAGE_QUEUE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.message.queueClose",
     "export function messageQueueClose(handle: MessageQueueHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -856,7 +857,7 @@ pub const IPC_MESSAGE_QUEUE_CLOSE: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueOpen.
-pub const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.message.queueOpen",
     "export function messageQueueOpen(name: string, flags: uint32, mode: uint32, maxMessages: uint32, maxMessageBytes: uint32): Result<MessageQueueHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -870,7 +871,7 @@ pub const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueReceive.
-pub const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.message.queueReceive",
     "export function messageQueueReceive(handle: MessageQueueHandle, timeoutNs: uint64, buffer: Slice<uint8>): Result<MessageQueueReceive, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -884,7 +885,7 @@ pub const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueSend.
-pub const IPC_MESSAGE_QUEUE_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_MESSAGE_QUEUE_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.message.queueSend",
     "export function messageQueueSend(handle: MessageQueueHandle, priority: uint32, timeoutNs: uint64, payload: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -898,7 +899,7 @@ pub const IPC_MESSAGE_QUEUE_SEND: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueUnlink.
-pub const IPC_MESSAGE_QUEUE_UNLINK: BindingDescriptor =
+pub(crate) const IPC_MESSAGE_QUEUE_UNLINK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ipc.message.queueUnlink",
         "export function messageQueueUnlink(name: string): Result<void, PlatformError>",
@@ -926,7 +927,7 @@ pub const IPC_MESSAGE_QUEUE_UNLINK: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.ipc.pipe.close.
-pub const IPC_PIPE_CLOSE: BindingDescriptor =
+pub(crate) const IPC_PIPE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ipc.pipe.close",
         "export function pipeClose(handle: PipeHandle): Result<void, PlatformError>",
@@ -954,7 +955,7 @@ pub const IPC_PIPE_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.ipc.pipe.open.
-pub const IPC_PIPE_OPEN: BindingDescriptor =
+pub(crate) const IPC_PIPE_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ipc.pipe.open",
         "export function pipeOpen(flags: uint32): Result<PipePair, PlatformError>",
@@ -982,7 +983,7 @@ pub const IPC_PIPE_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.ipc.pipe.read.
-pub const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.pipe.read",
     "export function pipeRead(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -996,7 +997,7 @@ pub const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::external_with_re
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.pipe.write.
-pub const IPC_PIPE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_PIPE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.pipe.write",
     "export function pipeWrite(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1010,7 +1011,7 @@ pub const IPC_PIPE_WRITE: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.close.
-pub const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sharedMemory.close",
     "export function sharedMemoryClose(handle: SharedMemoryHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1024,7 +1025,7 @@ pub const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.create.
-pub const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sharedMemory.create",
     "export function sharedMemoryCreate(name: string, size: uint64, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1038,7 +1039,7 @@ pub const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.map.
-pub const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sharedMemory.map",
     "export function sharedMemoryMap(handle: SharedMemoryHandle, offset: uint64, length: uint64, flags: uint32): Result<SharedMemoryMapping, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1052,7 +1053,7 @@ pub const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.open.
-pub const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sharedMemory.open",
     "export function sharedMemoryOpen(name: string, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1066,7 +1067,7 @@ pub const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.unmap.
-pub const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sharedMemory.unmap",
     "export function sharedMemoryUnmap(address: uint64, length: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1080,7 +1081,7 @@ pub const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.futexWait.
-pub const IPC_SYNC_FUTEX_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_SYNC_FUTEX_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sync.futexWait",
     "export function futexWait(sharedMemory: SharedMemoryHandle, offset: uint64, expected: uint32, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1094,7 +1095,7 @@ pub const IPC_SYNC_FUTEX_WAIT: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.futexWake.
-pub const IPC_SYNC_FUTEX_WAKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_SYNC_FUTEX_WAKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sync.futexWake",
     "export function futexWake(sharedMemory: SharedMemoryHandle, offset: uint64, count: uint32): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1108,7 +1109,7 @@ pub const IPC_SYNC_FUTEX_WAKE: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphoreCreate.
-pub const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sync.semaphoreCreate",
     "export function semaphoreCreate(name: string, initial: uint32, flags: uint32): Result<SemaphoreHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1122,7 +1123,7 @@ pub const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphorePost.
-pub const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sync.semaphorePost",
     "export function semaphorePost(handle: SemaphoreHandle, count: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1136,7 +1137,7 @@ pub const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphoreWait.
-pub const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.sync.semaphoreWait",
     "export function semaphoreWait(handle: SemaphoreHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1150,7 +1151,7 @@ pub const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.unix.receive.
-pub const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.unix.receive",
     "export function unixReceive(socket: SocketHandle, maxHandles: uint32): Result<UnixReceiveAncillary, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1164,7 +1165,7 @@ pub const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.ipc.unix.send.
-pub const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ipc.unix.send",
     "export function unixSend(socket: SocketHandle, payload: Slice<uint8>, handles: Slice<TransferredHandle>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1177,33 +1178,8 @@ pub const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::external_with_re
     .with_namespace("ipc")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
-/// Binding descriptors for ipc.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    IPC_MESSAGE_QUEUE_CLOSE,
-    IPC_MESSAGE_QUEUE_OPEN,
-    IPC_MESSAGE_QUEUE_RECEIVE,
-    IPC_MESSAGE_QUEUE_SEND,
-    IPC_MESSAGE_QUEUE_UNLINK,
-    IPC_PIPE_CLOSE,
-    IPC_PIPE_OPEN,
-    IPC_PIPE_READ,
-    IPC_PIPE_WRITE,
-    IPC_SHARED_MEMORY_CLOSE,
-    IPC_SHARED_MEMORY_CREATE,
-    IPC_SHARED_MEMORY_MAP,
-    IPC_SHARED_MEMORY_OPEN,
-    IPC_SHARED_MEMORY_UNMAP,
-    IPC_SYNC_FUTEX_WAIT,
-    IPC_SYNC_FUTEX_WAKE,
-    IPC_SYNC_SEMAPHORE_CREATE,
-    IPC_SYNC_SEMAPHORE_POST,
-    IPC_SYNC_SEMAPHORE_WAIT,
-    IPC_UNIX_RECEIVE,
-    IPC_UNIX_SEND,
-];
-
 /// Native binding set for ipc.
-pub const IPC_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const IPC_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "ipc",
     bindings: &[
         NativeBinding::new(
@@ -2584,7 +2560,7 @@ fn destack_ipc_unix_send_replay(
 
 /// Native export wrappers for ipc bindings.
 #[unsafe(export_name = "destack.ipc.message.queueClose")]
-pub unsafe extern "C" fn destack_ipc_message_queue_close(
+pub(crate) unsafe extern "C" fn destack_ipc_message_queue_close(
     handle: resource::MessageQueueHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2597,7 +2573,7 @@ pub unsafe extern "C" fn destack_ipc_message_queue_close(
 }
 
 #[unsafe(export_name = "destack.ipc.message.queueOpen")]
-pub unsafe extern "C" fn destack_ipc_message_queue_open(
+pub(crate) unsafe extern "C" fn destack_ipc_message_queue_open(
     out: *mut resource::MessageQueueHandle,
     name: NativeStringRef,
     flags: u32,
@@ -2627,7 +2603,7 @@ pub unsafe extern "C" fn destack_ipc_message_queue_open(
 }
 
 #[unsafe(export_name = "destack.ipc.message.queueReceive")]
-pub unsafe extern "C" fn destack_ipc_message_queue_receive(
+pub(crate) unsafe extern "C" fn destack_ipc_message_queue_receive(
     out: *mut MessageQueueReceive,
     handle: resource::MessageQueueHandle,
     timeoutns: u64,
@@ -2646,7 +2622,7 @@ pub unsafe extern "C" fn destack_ipc_message_queue_receive(
 }
 
 #[unsafe(export_name = "destack.ipc.message.queueSend")]
-pub unsafe extern "C" fn destack_ipc_message_queue_send(
+pub(crate) unsafe extern "C" fn destack_ipc_message_queue_send(
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
@@ -2669,7 +2645,9 @@ pub unsafe extern "C" fn destack_ipc_message_queue_send(
 }
 
 #[unsafe(export_name = "destack.ipc.message.queueUnlink")]
-pub unsafe extern "C" fn destack_ipc_message_queue_unlink(name: NativeStringRef) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_ipc_message_queue_unlink(
+    name: NativeStringRef,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &name;
 
@@ -2680,7 +2658,9 @@ pub unsafe extern "C" fn destack_ipc_message_queue_unlink(name: NativeStringRef)
 }
 
 #[unsafe(export_name = "destack.ipc.pipe.close")]
-pub unsafe extern "C" fn destack_ipc_pipe_close(handle: resource::PipeHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_ipc_pipe_close(
+    handle: resource::PipeHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -2691,7 +2671,10 @@ pub unsafe extern "C" fn destack_ipc_pipe_close(handle: resource::PipeHandle) ->
 }
 
 #[unsafe(export_name = "destack.ipc.pipe.open")]
-pub unsafe extern "C" fn destack_ipc_pipe_open(out: *mut PipePair, flags: u32) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_ipc_pipe_open(
+    out: *mut PipePair,
+    flags: u32,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -2705,7 +2688,7 @@ pub unsafe extern "C" fn destack_ipc_pipe_open(out: *mut PipePair, flags: u32) -
 }
 
 #[unsafe(export_name = "destack.ipc.pipe.read")]
-pub unsafe extern "C" fn destack_ipc_pipe_read(
+pub(crate) unsafe extern "C" fn destack_ipc_pipe_read(
     out: *mut u64,
     handle: resource::PipeHandle,
     buffer: NativeSlice<u8>,
@@ -2723,7 +2706,7 @@ pub unsafe extern "C" fn destack_ipc_pipe_read(
 }
 
 #[unsafe(export_name = "destack.ipc.pipe.write")]
-pub unsafe extern "C" fn destack_ipc_pipe_write(
+pub(crate) unsafe extern "C" fn destack_ipc_pipe_write(
     out: *mut u64,
     handle: resource::PipeHandle,
     buffer: NativeSlice<u8>,
@@ -2741,7 +2724,7 @@ pub unsafe extern "C" fn destack_ipc_pipe_write(
 }
 
 #[unsafe(export_name = "destack.ipc.sharedMemory.close")]
-pub unsafe extern "C" fn destack_ipc_shared_memory_close(
+pub(crate) unsafe extern "C" fn destack_ipc_shared_memory_close(
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2754,7 +2737,7 @@ pub unsafe extern "C" fn destack_ipc_shared_memory_close(
 }
 
 #[unsafe(export_name = "destack.ipc.sharedMemory.create")]
-pub unsafe extern "C" fn destack_ipc_shared_memory_create(
+pub(crate) unsafe extern "C" fn destack_ipc_shared_memory_create(
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
     size: u64,
@@ -2773,7 +2756,7 @@ pub unsafe extern "C" fn destack_ipc_shared_memory_create(
 }
 
 #[unsafe(export_name = "destack.ipc.sharedMemory.map")]
-pub unsafe extern "C" fn destack_ipc_shared_memory_map(
+pub(crate) unsafe extern "C" fn destack_ipc_shared_memory_map(
     out: *mut SharedMemoryMapping,
     handle: resource::SharedMemoryHandle,
     offset: u64,
@@ -2793,7 +2776,7 @@ pub unsafe extern "C" fn destack_ipc_shared_memory_map(
 }
 
 #[unsafe(export_name = "destack.ipc.sharedMemory.open")]
-pub unsafe extern "C" fn destack_ipc_shared_memory_open(
+pub(crate) unsafe extern "C" fn destack_ipc_shared_memory_open(
     out: *mut resource::SharedMemoryHandle,
     name: NativeStringRef,
     flags: u32,
@@ -2811,7 +2794,7 @@ pub unsafe extern "C" fn destack_ipc_shared_memory_open(
 }
 
 #[unsafe(export_name = "destack.ipc.sharedMemory.unmap")]
-pub unsafe extern "C" fn destack_ipc_shared_memory_unmap(
+pub(crate) unsafe extern "C" fn destack_ipc_shared_memory_unmap(
     address: u64,
     length: u64,
 ) -> RuntimeStatus {
@@ -2825,7 +2808,7 @@ pub unsafe extern "C" fn destack_ipc_shared_memory_unmap(
 }
 
 #[unsafe(export_name = "destack.ipc.sync.futexWait")]
-pub unsafe extern "C" fn destack_ipc_sync_futex_wait(
+pub(crate) unsafe extern "C" fn destack_ipc_sync_futex_wait(
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
     expected: u32,
@@ -2848,7 +2831,7 @@ pub unsafe extern "C" fn destack_ipc_sync_futex_wait(
 }
 
 #[unsafe(export_name = "destack.ipc.sync.futexWake")]
-pub unsafe extern "C" fn destack_ipc_sync_futex_wake(
+pub(crate) unsafe extern "C" fn destack_ipc_sync_futex_wake(
     out: *mut u32,
     sharedmemory: resource::SharedMemoryHandle,
     offset: u64,
@@ -2867,7 +2850,7 @@ pub unsafe extern "C" fn destack_ipc_sync_futex_wake(
 }
 
 #[unsafe(export_name = "destack.ipc.sync.semaphoreCreate")]
-pub unsafe extern "C" fn destack_ipc_sync_semaphore_create(
+pub(crate) unsafe extern "C" fn destack_ipc_sync_semaphore_create(
     out: *mut resource::SemaphoreHandle,
     name: NativeStringRef,
     initial: u32,
@@ -2886,7 +2869,7 @@ pub unsafe extern "C" fn destack_ipc_sync_semaphore_create(
 }
 
 #[unsafe(export_name = "destack.ipc.sync.semaphorePost")]
-pub unsafe extern "C" fn destack_ipc_sync_semaphore_post(
+pub(crate) unsafe extern "C" fn destack_ipc_sync_semaphore_post(
     handle: resource::SemaphoreHandle,
     count: u32,
 ) -> RuntimeStatus {
@@ -2900,7 +2883,7 @@ pub unsafe extern "C" fn destack_ipc_sync_semaphore_post(
 }
 
 #[unsafe(export_name = "destack.ipc.sync.semaphoreWait")]
-pub unsafe extern "C" fn destack_ipc_sync_semaphore_wait(
+pub(crate) unsafe extern "C" fn destack_ipc_sync_semaphore_wait(
     handle: resource::SemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeStatus {
@@ -2914,7 +2897,7 @@ pub unsafe extern "C" fn destack_ipc_sync_semaphore_wait(
 }
 
 #[unsafe(export_name = "destack.ipc.unix.receive")]
-pub unsafe extern "C" fn destack_ipc_unix_receive(
+pub(crate) unsafe extern "C" fn destack_ipc_unix_receive(
     out: *mut UnixReceiveAncillary,
     socket: resource::SocketHandle,
     maxhandles: u32,
@@ -2932,7 +2915,7 @@ pub unsafe extern "C" fn destack_ipc_unix_receive(
 }
 
 #[unsafe(export_name = "destack.ipc.unix.send")]
-pub unsafe extern "C" fn destack_ipc_unix_send(
+pub(crate) unsafe extern "C" fn destack_ipc_unix_send(
     out: *mut u64,
     socket: resource::SocketHandle,
     argument_payload: NativeSlice<u8>,
@@ -4261,7 +4244,7 @@ fn destack_ipc_unix_send_vm_replay(
 }
 
 /// Register VM bindings for ipc.
-pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -4699,8 +4682,8 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 }
 
 /// Install VM bindings for ipc.
-pub fn install_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_ipc_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub IPC_VM_BINDINGS, "ipc", install_ipc_vm_bindings);
+vm_binding_set!(pub(crate) IPC_VM_BINDINGS, "ipc", install_ipc_vm_bindings);

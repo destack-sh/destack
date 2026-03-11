@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -4474,7 +4475,7 @@ struct FsXattrSetxattrBytesReplayRecord {
 }
 
 /// Binding descriptor for destack.fs.attrs.access.
-pub const FS_ATTRS_ACCESS: BindingDescriptor =
+pub(crate) const FS_ATTRS_ACCESS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.attrs.access",
         "export function access(path: OsPath, mode: AccessMode): Result<void, PlatformError>",
@@ -4502,7 +4503,7 @@ pub const FS_ATTRS_ACCESS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.attrs.accessat.
-pub const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.accessat",
     "export function accessat(dir: DirectoryHandle, path: OsPath, mode: AccessMode, flags: AtFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4516,7 +4517,7 @@ pub const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.chmod.
-pub const FS_ATTRS_CHMOD: BindingDescriptor =
+pub(crate) const FS_ATTRS_CHMOD: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.attrs.chmod",
         "export function chmod(path: OsPath, mode: FileMode): Result<void, PlatformError>",
@@ -4544,7 +4545,7 @@ pub const FS_ATTRS_CHMOD: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.attrs.chown.
-pub const FS_ATTRS_CHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_ATTRS_CHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.chown",
     "export function chown(path: OsPath, uid: uint32, gid: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4558,7 +4559,7 @@ pub const FS_ATTRS_CHOWN: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchmod.
-pub const FS_ATTRS_FCHMOD: BindingDescriptor =
+pub(crate) const FS_ATTRS_FCHMOD: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.attrs.fchmod",
         "export function fchmod(handle: FileHandle, mode: FileMode): Result<void, PlatformError>",
@@ -4586,7 +4587,7 @@ pub const FS_ATTRS_FCHMOD: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.attrs.fchmodat.
-pub const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.fchmodat",
     "export function fchmodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, flags: AtFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4600,7 +4601,7 @@ pub const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchown.
-pub const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.fchown",
     "export function fchown(handle: FileHandle, uid: uint32, gid: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4614,7 +4615,7 @@ pub const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchownat.
-pub const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.fchownat",
     "export function fchownat(dir: DirectoryHandle, path: OsPath, uid: uint32, gid: uint32, flags: AtFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4628,7 +4629,7 @@ pub const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.futimes.
-pub const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.futimes",
     "export function futimes(handle: FileHandle, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4642,7 +4643,7 @@ pub const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.lutimes.
-pub const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.lutimes",
     "export function lutimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4656,7 +4657,7 @@ pub const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.utimensat.
-pub const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.utimensat",
     "export function utimensat(dir: DirectoryHandle, path: OsPath, atimeNs: uint64, mtimeNs: uint64, flags: AtFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4670,7 +4671,7 @@ pub const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.utimes.
-pub const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.attrs.utimes",
     "export function utimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4684,7 +4685,7 @@ pub const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.closedir.
-pub const FS_DIR_CLOSEDIR: BindingDescriptor =
+pub(crate) const FS_DIR_CLOSEDIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.closedir",
         "export function closedir(handle: DirectoryHandle): Result<void, PlatformError>",
@@ -4712,61 +4713,63 @@ pub const FS_DIR_CLOSEDIR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.dir.dirfd.
-pub const FS_DIR_DIRFD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.dir.dirfd",
-    "export function dirfd(handle: DirectoryHandle): Result<FileHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["fs.handle"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-.with_namespace("fs")
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
+pub(crate) const FS_DIR_DIRFD: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.dir.dirfd",
+        "export function dirfd(handle: DirectoryHandle): Result<FileHandle, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["fs.handle"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
+    .with_namespace("fs")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.dir.mkdir.
-pub const FS_DIR_MKDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.dir.mkdir",
-    "export function mkdir(path: OsPath, mode: FileMode): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["fs.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-.with_namespace("fs")
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
+pub(crate) const FS_DIR_MKDIR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.dir.mkdir",
+        "export function mkdir(path: OsPath, mode: FileMode): Result<void, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["fs.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
+    .with_namespace("fs")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.dir.mkdirat.
-pub const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.dir.mkdirat",
     "export function mkdirat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4780,7 +4783,7 @@ pub const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.mkdtemp.
-pub const FS_DIR_MKDTEMP: BindingDescriptor =
+pub(crate) const FS_DIR_MKDTEMP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.mkdtemp",
         "export function mkdtemp(template: OsPath): Result<OsPath, PlatformError>",
@@ -4808,7 +4811,7 @@ pub const FS_DIR_MKDTEMP: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.dir.opendir.
-pub const FS_DIR_OPENDIR: BindingDescriptor =
+pub(crate) const FS_DIR_OPENDIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.opendir",
         "export function opendir(path: OsPath): Result<DirectoryHandle, PlatformError>",
@@ -4836,7 +4839,7 @@ pub const FS_DIR_OPENDIR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.dir.readdir.
-pub const FS_DIR_READDIR: BindingDescriptor =
+pub(crate) const FS_DIR_READDIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.readdir",
         "export function readdir(handle: DirectoryHandle): Result<Dirent[], PlatformError>",
@@ -4864,7 +4867,7 @@ pub const FS_DIR_READDIR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.dir.readdirNext.
-pub const FS_DIR_READDIR_NEXT: BindingDescriptor =
+pub(crate) const FS_DIR_READDIR_NEXT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.readdirNext",
         "export function readdirNext(handle: DirectoryHandle): Result<DirentNext, PlatformError>",
@@ -4892,7 +4895,7 @@ pub const FS_DIR_READDIR_NEXT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.dir.rewinddir.
-pub const FS_DIR_REWINDDIR: BindingDescriptor =
+pub(crate) const FS_DIR_REWINDDIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.rewinddir",
         "export function rewinddir(handle: DirectoryHandle): Result<void, PlatformError>",
@@ -4920,34 +4923,35 @@ pub const FS_DIR_REWINDDIR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.dir.rmdir.
-pub const FS_DIR_RMDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.dir.rmdir",
-    "export function rmdir(path: OsPath): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["fs.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-.with_namespace("fs")
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
+pub(crate) const FS_DIR_RMDIR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.dir.rmdir",
+        "export function rmdir(path: OsPath): Result<void, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["fs.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
+    .with_namespace("fs")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.file.close.
-pub const FS_FILE_CLOSE: BindingDescriptor =
+pub(crate) const FS_FILE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.close",
         "export function close(handle: FileHandle): Result<void, PlatformError>",
@@ -4975,7 +4979,7 @@ pub const FS_FILE_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.file.copyFileRange.
-pub const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.copyFileRange",
     "export function copyFileRange(src: FileHandle, srcOffset: FileOffset, dst: FileHandle, dstOffset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4989,34 +4993,35 @@ pub const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup.
-pub const FS_FILE_DUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.dup",
-    "export function dup(handle: FileHandle): Result<FileHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["fs.handle"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-.with_namespace("fs")
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
+pub(crate) const FS_FILE_DUP: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.file.dup",
+        "export function dup(handle: FileHandle): Result<FileHandle, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["fs.handle"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
+    .with_namespace("fs")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.file.dup2.
-pub const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.dup2",
     "export function dup2(handle: FileHandle, target: FileHandle): Result<FileHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5030,7 +5035,7 @@ pub const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_req
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup3.
-pub const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.dup3",
     "export function dup3(handle: FileHandle, target: FileHandle, flags: OpenFlags): Result<FileHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5044,7 +5049,7 @@ pub const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_req
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fadvise.
-pub const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.fadvise",
     "export function fadvise(handle: FileHandle, offset: FileOffset, length: FileSize, advice: FileAdvice): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5058,7 +5063,7 @@ pub const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fallocate.
-pub const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.fallocate",
     "export function fallocate(handle: FileHandle, offset: FileOffset, length: FileSize, flags: AllocFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5072,7 +5077,7 @@ pub const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fdatasync.
-pub const FS_FILE_FDATASYNC: BindingDescriptor =
+pub(crate) const FS_FILE_FDATASYNC: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.fdatasync",
         "export function fdatasync(handle: FileHandle): Result<void, PlatformError>",
@@ -5100,7 +5105,7 @@ pub const FS_FILE_FDATASYNC: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.file.fsync.
-pub const FS_FILE_FSYNC: BindingDescriptor =
+pub(crate) const FS_FILE_FSYNC: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.fsync",
         "export function fsync(handle: FileHandle): Result<void, PlatformError>",
@@ -5128,7 +5133,7 @@ pub const FS_FILE_FSYNC: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.file.ftruncate.
-pub const FS_FILE_FTRUNCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_FTRUNCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.ftruncate",
     "export function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5142,7 +5147,7 @@ pub const FS_FILE_FTRUNCATE: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.getFdFlags.
-pub const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
+pub(crate) const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.getFdFlags",
         "export function getFdFlags(handle: FileHandle): Result<FdFlags, PlatformError>",
@@ -5170,7 +5175,7 @@ pub const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.file.getStatusFlags.
-pub const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
+pub(crate) const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.getStatusFlags",
         "export function getStatusFlags(handle: FileHandle): Result<StatusFlags, PlatformError>",
@@ -5198,7 +5203,7 @@ pub const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.file.lock.
-pub const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.lock",
     "export function lock(handle: FileHandle, flags: FileLockFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5208,24 +5213,11 @@ pub const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_req
     BindingBlocking::Sometimes,
     BindingAffinity::Any,
 )
-.with_namespace("fs")
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
+    .with_namespace("fs")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.open.
-pub const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.open",
     "export function open(path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5239,7 +5231,7 @@ pub const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.openat.
-pub const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.openat",
     "export function openat(dir: DirectoryHandle, path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5253,7 +5245,7 @@ pub const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.openat2.
-pub const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.openat2",
     "export function openat2(dir: DirectoryHandle, path: OsPath, how: OpenOptions): Result<FileHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5267,7 +5259,7 @@ pub const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pread.
-pub const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.pread",
     "export function pread(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5281,7 +5273,7 @@ pub const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_re
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.preadv.
-pub const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.preadv",
     "export function preadv(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5295,7 +5287,7 @@ pub const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.preadv2.
-pub const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.preadv2",
     "export function preadv2(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset, flags: ReadWriteFlags): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5309,7 +5301,7 @@ pub const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwrite.
-pub const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.pwrite",
     "export function pwrite(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5323,7 +5315,7 @@ pub const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwritev.
-pub const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.pwritev",
     "export function pwritev(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5337,7 +5329,7 @@ pub const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwritev2.
-pub const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.pwritev2",
     "export function pwritev2(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset, flags: ReadWriteFlags): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5351,7 +5343,7 @@ pub const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.read.
-pub const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.read",
     "export function read(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5361,24 +5353,11 @@ pub const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_req
     BindingBlocking::Sometimes,
     BindingAffinity::Any,
 )
-.with_namespace("fs")
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
+    .with_namespace("fs")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.readv.
-pub const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.readv",
     "export function readv(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5392,7 +5371,7 @@ pub const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_re
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.seek.
-pub const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.seek",
     "export function seek(handle: FileHandle, offset: FileOffset, whence: SeekWhence): Result<FileOffset, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5406,7 +5385,7 @@ pub const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_req
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.sendfile.
-pub const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.sendfile",
     "export function sendfile(socket: SocketHandle, file: FileHandle, offset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5420,7 +5399,7 @@ pub const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.setFdFlags.
-pub const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.setFdFlags",
     "export function setFdFlags(handle: FileHandle, flags: FdFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5434,7 +5413,7 @@ pub const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.setStatusFlags.
-pub const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.setStatusFlags",
     "export function setStatusFlags(handle: FileHandle, flags: StatusFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5448,7 +5427,7 @@ pub const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.splice.
-pub const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.splice",
     "export function splice(source: ResourceId, sourceCursor: SpliceCursor, target: ResourceId, targetCursor: SpliceCursor, length: FileSize, flags: SpliceFlags): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5462,7 +5441,7 @@ pub const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.syncFileRange.
-pub const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.syncFileRange",
     "export function syncFileRange(handle: FileHandle, offset: FileOffset, length: FileSize, flags: SyncFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5476,7 +5455,7 @@ pub const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.syncfs.
-pub const FS_FILE_SYNCFS: BindingDescriptor =
+pub(crate) const FS_FILE_SYNCFS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.syncfs",
         "export function syncfs(handle: FileHandle): Result<void, PlatformError>",
@@ -5504,7 +5483,7 @@ pub const FS_FILE_SYNCFS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.file.tee.
-pub const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.tee",
     "export function tee(sourcePipe: PipeHandle, targetPipe: PipeHandle, length: FileSize, flags: SpliceFlags): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5518,7 +5497,7 @@ pub const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_with_requ
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.truncate.
-pub const FS_FILE_TRUNCATE: BindingDescriptor =
+pub(crate) const FS_FILE_TRUNCATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.file.truncate",
         "export function truncate(path: OsPath, size: FileOffset): Result<void, PlatformError>",
@@ -5546,7 +5525,7 @@ pub const FS_FILE_TRUNCATE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.file.vmsplice.
-pub const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.vmsplice",
     "export function vmsplice(pipe: PipeHandle, buffers: Slice<Slice<uint8>>, flags: SpliceFlags): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5560,7 +5539,7 @@ pub const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.write.
-pub const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.write",
     "export function write(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5574,7 +5553,7 @@ pub const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_re
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.writev.
-pub const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.file.writev",
     "export function writev(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5588,7 +5567,7 @@ pub const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.madvise.
-pub const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.madvise",
     "export function madvise(mapping: Slice<uint8>, advice: MmapAdvice): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5602,7 +5581,7 @@ pub const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mmapAnonymous.
-pub const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.mmapAnonymous",
     "export function mmapAnonymous(length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5616,7 +5595,7 @@ pub const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mmapFile.
-pub const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.mmapFile",
     "export function mmapFile(handle: FileHandle, offset: FileOffset, length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5630,7 +5609,7 @@ pub const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mprotect.
-pub const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.mprotect",
     "export function mprotect(mapping: Slice<uint8>, prot: MmapProt): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5644,7 +5623,7 @@ pub const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.msync.
-pub const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.mmap.msync",
     "export function msync(mapping: Slice<uint8>, flags: MmapSyncFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5658,7 +5637,7 @@ pub const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_with_re
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.munmap.
-pub const FS_MMAP_MUNMAP: BindingDescriptor =
+pub(crate) const FS_MMAP_MUNMAP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.mmap.munmap",
         "export function munmap(mapping: Slice<uint8>): Result<void, PlatformError>",
@@ -5686,7 +5665,7 @@ pub const FS_MMAP_MUNMAP: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.path.copyfile.
-pub const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.copyfile",
     "export function copyfile(from: OsPath, to: OsPath, flags: CopyFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5700,34 +5679,35 @@ pub const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.link.
-pub const FS_PATH_LINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.path.link",
-    "export function link(existingPath: OsPath, newPath: OsPath): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["fs.link"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-.with_namespace("fs")
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
+pub(crate) const FS_PATH_LINK: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.path.link",
+        "export function link(existingPath: OsPath, newPath: OsPath): Result<void, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["fs.link"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
+    .with_namespace("fs")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.path.linkat.
-pub const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.linkat",
     "export function linkat(existingDir: DirectoryHandle, existingPath: OsPath, newDir: DirectoryHandle, newPath: OsPath, flags: AtFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5741,7 +5721,7 @@ pub const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.mkfifo.
-pub const FS_PATH_MKFIFO: BindingDescriptor =
+pub(crate) const FS_PATH_MKFIFO: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.path.mkfifo",
         "export function mkfifo(path: OsPath, mode: FileMode): Result<void, PlatformError>",
@@ -5768,7 +5748,7 @@ pub const FS_PATH_MKFIFO: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.path.mkfifoat.
-pub const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.mkfifoat",
     "export function mkfifoat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5782,7 +5762,7 @@ pub const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.fs.path.mknod.
-pub const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.mknod",
     "export function mknod(path: OsPath, mode: FileMode, device: NodeDevice): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5796,7 +5776,7 @@ pub const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_re
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.fs.path.mknodat.
-pub const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.mknodat",
     "export function mknodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, device: NodeDevice): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5810,7 +5790,7 @@ pub const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.fs.path.readlink.
-pub const FS_PATH_READLINK: BindingDescriptor =
+pub(crate) const FS_PATH_READLINK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.path.readlink",
         "export function readlink(path: OsPath): Result<OsPath, PlatformError>",
@@ -5838,7 +5818,7 @@ pub const FS_PATH_READLINK: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.path.readlinkat.
-pub const FS_PATH_READLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_PATH_READLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.readlinkat",
     "export function readlinkat(dir: DirectoryHandle, path: OsPath): Result<OsPath, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5852,7 +5832,7 @@ pub const FS_PATH_READLINKAT: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.realpath.
-pub const FS_PATH_REALPATH: BindingDescriptor =
+pub(crate) const FS_PATH_REALPATH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.path.realpath",
         "export function realpath(path: OsPath): Result<OsPath, PlatformError>",
@@ -5880,7 +5860,7 @@ pub const FS_PATH_REALPATH: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.path.rename.
-pub const FS_PATH_RENAME: BindingDescriptor =
+pub(crate) const FS_PATH_RENAME: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.path.rename",
         "export function rename(from: OsPath, to: OsPath): Result<void, PlatformError>",
@@ -5908,7 +5888,7 @@ pub const FS_PATH_RENAME: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.path.renameat.
-pub const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.renameat",
     "export function renameat(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5922,7 +5902,7 @@ pub const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.renameat2.
-pub const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.renameat2",
     "export function renameat2(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath, flags: RenameFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5936,7 +5916,7 @@ pub const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.symlink.
-pub const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.symlink",
     "export function symlink(target: OsPath, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5950,7 +5930,7 @@ pub const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.symlinkat.
-pub const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.symlinkat",
     "export function symlinkat(target: OsPath, dir: DirectoryHandle, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5964,7 +5944,7 @@ pub const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.unlink.
-pub const FS_PATH_UNLINK: BindingDescriptor =
+pub(crate) const FS_PATH_UNLINK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.path.unlink",
         "export function unlink(path: OsPath): Result<void, PlatformError>",
@@ -5992,7 +5972,7 @@ pub const FS_PATH_UNLINK: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.path.unlinkat.
-pub const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.path.unlinkat",
     "export function unlinkat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6006,7 +5986,7 @@ pub const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.fstat.
-pub const FS_STAT_FSTAT: BindingDescriptor =
+pub(crate) const FS_STAT_FSTAT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.stat.fstat",
         "export function fstat(handle: FileHandle): Result<Stat, PlatformError>",
@@ -6034,7 +6014,7 @@ pub const FS_STAT_FSTAT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.stat.fstatfs.
-pub const FS_STAT_FSTATFS: BindingDescriptor =
+pub(crate) const FS_STAT_FSTATFS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.stat.fstatfs",
         "export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError>",
@@ -6062,7 +6042,7 @@ pub const FS_STAT_FSTATFS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.stat.lstat.
-pub const FS_STAT_LSTAT: BindingDescriptor =
+pub(crate) const FS_STAT_LSTAT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.stat.lstat",
         "export function lstat(path: OsPath): Result<Stat, PlatformError>",
@@ -6090,34 +6070,35 @@ pub const FS_STAT_LSTAT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.stat.path.
-pub const FS_STAT_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.stat.path",
-    "export function stat(path: OsPath): Result<Stat, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["fs.metadata"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-.with_namespace("fs")
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
+pub(crate) const FS_STAT_PATH: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.stat.path",
+        "export function stat(path: OsPath): Result<Stat, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["fs.metadata"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
+    .with_namespace("fs")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.stat.pathat.
-pub const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.stat.pathat",
     "export function statat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<Stat, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6131,7 +6112,7 @@ pub const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.pathfs.
-pub const FS_STAT_PATHFS: BindingDescriptor =
+pub(crate) const FS_STAT_PATHFS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.stat.pathfs",
         "export function statfs(path: OsPath): Result<StatFs, PlatformError>",
@@ -6159,7 +6140,7 @@ pub const FS_STAT_PATHFS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.stat.pathx.
-pub const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.stat.pathx",
     "export function statx(dir: DirectoryHandle, path: OsPath, flags: StatxFlags, mask: StatxMask): Result<Statx, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6173,7 +6154,7 @@ pub const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_with_re
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.open.
-pub const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.watch.open",
     "export function watch(path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6187,7 +6168,7 @@ pub const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_re
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.openClose.
-pub const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
+pub(crate) const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.watch.openClose",
         "export function watchClose(handle: WatchHandle): Result<void, PlatformError>",
@@ -6215,7 +6196,7 @@ pub const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.watch.openRead.
-pub const FS_WATCH_OPEN_READ: BindingDescriptor =
+pub(crate) const FS_WATCH_OPEN_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.watch.openRead",
         "export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>",
@@ -6243,7 +6224,7 @@ pub const FS_WATCH_OPEN_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.watch.openat.
-pub const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.watch.openat",
     "export function watchat(directory: DirectoryHandle, path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6257,7 +6238,7 @@ pub const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fgetxattr.
-pub const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fgetxattr",
     "export function fgetxattr(handle: FileHandle, name: string): Result<uint8[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6271,7 +6252,7 @@ pub const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fgetxattrBytes.
-pub const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fgetxattrBytes",
     "export function fgetxattrBytes(handle: FileHandle, name: Slice<uint8>): Result<uint8[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6285,7 +6266,7 @@ pub const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.flistxattr.
-pub const FS_XATTR_FLISTXATTR: BindingDescriptor =
+pub(crate) const FS_XATTR_FLISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.flistxattr",
         "export function flistxattr(handle: FileHandle): Result<string[], PlatformError>",
@@ -6313,7 +6294,7 @@ pub const FS_XATTR_FLISTXATTR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.flistxattrBytes.
-pub const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
+pub(crate) const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.flistxattrBytes",
         "export function flistxattrBytes(handle: FileHandle): Result<uint8[][], PlatformError>",
@@ -6341,7 +6322,7 @@ pub const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.fremovexattr.
-pub const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fremovexattr",
     "export function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6355,7 +6336,7 @@ pub const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fremovexattrBytes.
-pub const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fremovexattrBytes",
     "export function fremovexattrBytes(handle: FileHandle, name: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6369,7 +6350,7 @@ pub const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fsetxattr.
-pub const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fsetxattr",
     "export function fsetxattr(handle: FileHandle, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6383,7 +6364,7 @@ pub const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fsetxattrBytes.
-pub const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fsetxattrBytes",
     "export function fsetxattrBytes(handle: FileHandle, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6397,7 +6378,7 @@ pub const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.getxattr.
-pub const FS_XATTR_GETXATTR: BindingDescriptor =
+pub(crate) const FS_XATTR_GETXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.getxattr",
         "export function getxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
@@ -6425,7 +6406,7 @@ pub const FS_XATTR_GETXATTR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.getxattrBytes.
-pub const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.getxattrBytes",
     "export function getxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6439,7 +6420,7 @@ pub const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattr.
-pub const FS_XATTR_LGETXATTR: BindingDescriptor =
+pub(crate) const FS_XATTR_LGETXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.lgetxattr",
         "export function lgetxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
@@ -6467,7 +6448,7 @@ pub const FS_XATTR_LGETXATTR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattrBytes.
-pub const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.lgetxattrBytes",
     "export function lgetxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6481,7 +6462,7 @@ pub const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.listxattr.
-pub const FS_XATTR_LISTXATTR: BindingDescriptor =
+pub(crate) const FS_XATTR_LISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.listxattr",
         "export function listxattr(path: OsPath): Result<string[], PlatformError>",
@@ -6509,7 +6490,7 @@ pub const FS_XATTR_LISTXATTR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.listxattrBytes.
-pub const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
+pub(crate) const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.listxattrBytes",
         "export function listxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
@@ -6537,7 +6518,7 @@ pub const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.llistxattr.
-pub const FS_XATTR_LLISTXATTR: BindingDescriptor =
+pub(crate) const FS_XATTR_LLISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.llistxattr",
         "export function llistxattr(path: OsPath): Result<string[], PlatformError>",
@@ -6565,7 +6546,7 @@ pub const FS_XATTR_LLISTXATTR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.llistxattrBytes.
-pub const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
+pub(crate) const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.llistxattrBytes",
         "export function llistxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
@@ -6593,7 +6574,7 @@ pub const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.lremovexattr.
-pub const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
+pub(crate) const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.lremovexattr",
         "export function lremovexattr(path: OsPath, name: string): Result<void, PlatformError>",
@@ -6621,7 +6602,7 @@ pub const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.lremovexattrBytes.
-pub const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.lremovexattrBytes",
     "export function lremovexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6635,7 +6616,7 @@ pub const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lsetxattr.
-pub const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.lsetxattr",
     "export function lsetxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6649,7 +6630,7 @@ pub const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lsetxattrBytes.
-pub const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.lsetxattrBytes",
     "export function lsetxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6663,7 +6644,7 @@ pub const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.removexattr.
-pub const FS_XATTR_REMOVEXATTR: BindingDescriptor =
+pub(crate) const FS_XATTR_REMOVEXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.removexattr",
         "export function removexattr(path: OsPath, name: string): Result<void, PlatformError>",
@@ -6691,7 +6672,7 @@ pub const FS_XATTR_REMOVEXATTR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.removexattrBytes.
-pub const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.removexattrBytes",
     "export function removexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6705,7 +6686,7 @@ pub const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.setxattr.
-pub const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.setxattr",
     "export function setxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6719,7 +6700,7 @@ pub const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.setxattrBytes.
-pub const FS_XATTR_SETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FS_XATTR_SETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.setxattrBytes",
     "export function setxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6732,128 +6713,8 @@ pub const FS_XATTR_SETXATTR_BYTES: BindingDescriptor = BindingDescriptor::extern
     .with_namespace("fs")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptors for fs.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    FS_ATTRS_ACCESS,
-    FS_ATTRS_ACCESSAT,
-    FS_ATTRS_CHMOD,
-    FS_ATTRS_CHOWN,
-    FS_ATTRS_FCHMOD,
-    FS_ATTRS_FCHMODAT,
-    FS_ATTRS_FCHOWN,
-    FS_ATTRS_FCHOWNAT,
-    FS_ATTRS_FUTIMES,
-    FS_ATTRS_LUTIMES,
-    FS_ATTRS_UTIMENSAT,
-    FS_ATTRS_UTIMES,
-    FS_DIR_CLOSEDIR,
-    FS_DIR_DIRFD,
-    FS_DIR_MKDIR,
-    FS_DIR_MKDIRAT,
-    FS_DIR_MKDTEMP,
-    FS_DIR_OPENDIR,
-    FS_DIR_READDIR,
-    FS_DIR_READDIR_NEXT,
-    FS_DIR_REWINDDIR,
-    FS_DIR_RMDIR,
-    FS_FILE_CLOSE,
-    FS_FILE_COPY_FILE_RANGE,
-    FS_FILE_DUP,
-    FS_FILE_DUP2,
-    FS_FILE_DUP3,
-    FS_FILE_FADVISE,
-    FS_FILE_FALLOCATE,
-    FS_FILE_FDATASYNC,
-    FS_FILE_FSYNC,
-    FS_FILE_FTRUNCATE,
-    FS_FILE_GET_FD_FLAGS,
-    FS_FILE_GET_STATUS_FLAGS,
-    FS_FILE_LOCK,
-    FS_FILE_OPEN,
-    FS_FILE_OPENAT,
-    FS_FILE_OPENAT2,
-    FS_FILE_PREAD,
-    FS_FILE_PREADV,
-    FS_FILE_PREADV2,
-    FS_FILE_PWRITE,
-    FS_FILE_PWRITEV,
-    FS_FILE_PWRITEV2,
-    FS_FILE_READ,
-    FS_FILE_READV,
-    FS_FILE_SEEK,
-    FS_FILE_SENDFILE,
-    FS_FILE_SET_FD_FLAGS,
-    FS_FILE_SET_STATUS_FLAGS,
-    FS_FILE_SPLICE,
-    FS_FILE_SYNC_FILE_RANGE,
-    FS_FILE_SYNCFS,
-    FS_FILE_TEE,
-    FS_FILE_TRUNCATE,
-    FS_FILE_VMSPLICE,
-    FS_FILE_WRITE,
-    FS_FILE_WRITEV,
-    FS_MMAP_MADVISE,
-    FS_MMAP_MMAP_ANONYMOUS,
-    FS_MMAP_MMAP_FILE,
-    FS_MMAP_MPROTECT,
-    FS_MMAP_MSYNC,
-    FS_MMAP_MUNMAP,
-    FS_PATH_COPYFILE,
-    FS_PATH_LINK,
-    FS_PATH_LINKAT,
-    FS_PATH_MKFIFO,
-    FS_PATH_MKFIFOAT,
-    FS_PATH_MKNOD,
-    FS_PATH_MKNODAT,
-    FS_PATH_READLINK,
-    FS_PATH_READLINKAT,
-    FS_PATH_REALPATH,
-    FS_PATH_RENAME,
-    FS_PATH_RENAMEAT,
-    FS_PATH_RENAMEAT2,
-    FS_PATH_SYMLINK,
-    FS_PATH_SYMLINKAT,
-    FS_PATH_UNLINK,
-    FS_PATH_UNLINKAT,
-    FS_STAT_FSTAT,
-    FS_STAT_FSTATFS,
-    FS_STAT_LSTAT,
-    FS_STAT_PATH,
-    FS_STAT_PATHAT,
-    FS_STAT_PATHFS,
-    FS_STAT_PATHX,
-    FS_WATCH_OPEN,
-    FS_WATCH_OPEN_CLOSE,
-    FS_WATCH_OPEN_READ,
-    FS_WATCH_OPENAT,
-    FS_XATTR_FGETXATTR,
-    FS_XATTR_FGETXATTR_BYTES,
-    FS_XATTR_FLISTXATTR,
-    FS_XATTR_FLISTXATTR_BYTES,
-    FS_XATTR_FREMOVEXATTR,
-    FS_XATTR_FREMOVEXATTR_BYTES,
-    FS_XATTR_FSETXATTR,
-    FS_XATTR_FSETXATTR_BYTES,
-    FS_XATTR_GETXATTR,
-    FS_XATTR_GETXATTR_BYTES,
-    FS_XATTR_LGETXATTR,
-    FS_XATTR_LGETXATTR_BYTES,
-    FS_XATTR_LISTXATTR,
-    FS_XATTR_LISTXATTR_BYTES,
-    FS_XATTR_LLISTXATTR,
-    FS_XATTR_LLISTXATTR_BYTES,
-    FS_XATTR_LREMOVEXATTR,
-    FS_XATTR_LREMOVEXATTR_BYTES,
-    FS_XATTR_LSETXATTR,
-    FS_XATTR_LSETXATTR_BYTES,
-    FS_XATTR_REMOVEXATTR,
-    FS_XATTR_REMOVEXATTR_BYTES,
-    FS_XATTR_SETXATTR,
-    FS_XATTR_SETXATTR_BYTES,
-];
-
 /// Native binding set for fs.
-pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "fs",
     bindings: &[
         NativeBinding::new(
@@ -15224,7 +15085,10 @@ fn destack_fs_xattr_setxattr_bytes_replay(
 
 /// Native export wrappers for fs bindings.
 #[unsafe(export_name = "destack.fs.attrs.access")]
-pub unsafe extern "C" fn destack_fs_attrs_access(path: OsPath, mode: AccessMode) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_attrs_access(
+    path: OsPath,
+    mode: AccessMode,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&path, &mode);
 
@@ -15235,7 +15099,7 @@ pub unsafe extern "C" fn destack_fs_attrs_access(path: OsPath, mode: AccessMode)
 }
 
 #[unsafe(export_name = "destack.fs.attrs.accessat")]
-pub unsafe extern "C" fn destack_fs_attrs_accessat(
+pub(crate) unsafe extern "C" fn destack_fs_attrs_accessat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: AccessMode,
@@ -15251,7 +15115,10 @@ pub unsafe extern "C" fn destack_fs_attrs_accessat(
 }
 
 #[unsafe(export_name = "destack.fs.attrs.chmod")]
-pub unsafe extern "C" fn destack_fs_attrs_chmod(path: OsPath, mode: FileMode) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_attrs_chmod(
+    path: OsPath,
+    mode: FileMode,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&path, &mode);
 
@@ -15262,7 +15129,11 @@ pub unsafe extern "C" fn destack_fs_attrs_chmod(path: OsPath, mode: FileMode) ->
 }
 
 #[unsafe(export_name = "destack.fs.attrs.chown")]
-pub unsafe extern "C" fn destack_fs_attrs_chown(path: OsPath, uid: u32, gid: u32) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_attrs_chown(
+    path: OsPath,
+    uid: u32,
+    gid: u32,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&path, &uid, &gid);
 
@@ -15273,7 +15144,7 @@ pub unsafe extern "C" fn destack_fs_attrs_chown(path: OsPath, uid: u32, gid: u32
 }
 
 #[unsafe(export_name = "destack.fs.attrs.fchmod")]
-pub unsafe extern "C" fn destack_fs_attrs_fchmod(
+pub(crate) unsafe extern "C" fn destack_fs_attrs_fchmod(
     handle: resource::FileHandle,
     mode: FileMode,
 ) -> RuntimeStatus {
@@ -15287,7 +15158,7 @@ pub unsafe extern "C" fn destack_fs_attrs_fchmod(
 }
 
 #[unsafe(export_name = "destack.fs.attrs.fchmodat")]
-pub unsafe extern "C" fn destack_fs_attrs_fchmodat(
+pub(crate) unsafe extern "C" fn destack_fs_attrs_fchmodat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
@@ -15303,7 +15174,7 @@ pub unsafe extern "C" fn destack_fs_attrs_fchmodat(
 }
 
 #[unsafe(export_name = "destack.fs.attrs.fchown")]
-pub unsafe extern "C" fn destack_fs_attrs_fchown(
+pub(crate) unsafe extern "C" fn destack_fs_attrs_fchown(
     handle: resource::FileHandle,
     uid: u32,
     gid: u32,
@@ -15318,7 +15189,7 @@ pub unsafe extern "C" fn destack_fs_attrs_fchown(
 }
 
 #[unsafe(export_name = "destack.fs.attrs.fchownat")]
-pub unsafe extern "C" fn destack_fs_attrs_fchownat(
+pub(crate) unsafe extern "C" fn destack_fs_attrs_fchownat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     uid: u32,
@@ -15335,7 +15206,7 @@ pub unsafe extern "C" fn destack_fs_attrs_fchownat(
 }
 
 #[unsafe(export_name = "destack.fs.attrs.futimes")]
-pub unsafe extern "C" fn destack_fs_attrs_futimes(
+pub(crate) unsafe extern "C" fn destack_fs_attrs_futimes(
     handle: resource::FileHandle,
     atimens: u64,
     mtimens: u64,
@@ -15350,7 +15221,7 @@ pub unsafe extern "C" fn destack_fs_attrs_futimes(
 }
 
 #[unsafe(export_name = "destack.fs.attrs.lutimes")]
-pub unsafe extern "C" fn destack_fs_attrs_lutimes(
+pub(crate) unsafe extern "C" fn destack_fs_attrs_lutimes(
     path: OsPath,
     atimens: u64,
     mtimens: u64,
@@ -15365,7 +15236,7 @@ pub unsafe extern "C" fn destack_fs_attrs_lutimes(
 }
 
 #[unsafe(export_name = "destack.fs.attrs.utimensat")]
-pub unsafe extern "C" fn destack_fs_attrs_utimensat(
+pub(crate) unsafe extern "C" fn destack_fs_attrs_utimensat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     atimens: u64,
@@ -15382,7 +15253,7 @@ pub unsafe extern "C" fn destack_fs_attrs_utimensat(
 }
 
 #[unsafe(export_name = "destack.fs.attrs.utimes")]
-pub unsafe extern "C" fn destack_fs_attrs_utimes(
+pub(crate) unsafe extern "C" fn destack_fs_attrs_utimes(
     path: OsPath,
     atimens: u64,
     mtimens: u64,
@@ -15397,7 +15268,7 @@ pub unsafe extern "C" fn destack_fs_attrs_utimes(
 }
 
 #[unsafe(export_name = "destack.fs.dir.closedir")]
-pub unsafe extern "C" fn destack_fs_dir_closedir(
+pub(crate) unsafe extern "C" fn destack_fs_dir_closedir(
     handle: resource::DirectoryHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -15410,7 +15281,7 @@ pub unsafe extern "C" fn destack_fs_dir_closedir(
 }
 
 #[unsafe(export_name = "destack.fs.dir.dirfd")]
-pub unsafe extern "C" fn destack_fs_dir_dirfd(
+pub(crate) unsafe extern "C" fn destack_fs_dir_dirfd(
     out: *mut resource::FileHandle,
     handle: resource::DirectoryHandle,
 ) -> RuntimeStatus {
@@ -15426,7 +15297,10 @@ pub unsafe extern "C" fn destack_fs_dir_dirfd(
 }
 
 #[unsafe(export_name = "destack.fs.dir.mkdir")]
-pub unsafe extern "C" fn destack_fs_dir_mkdir(path: OsPath, mode: FileMode) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_dir_mkdir(
+    path: OsPath,
+    mode: FileMode,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&path, &mode);
 
@@ -15436,7 +15310,7 @@ pub unsafe extern "C" fn destack_fs_dir_mkdir(path: OsPath, mode: FileMode) -> R
 }
 
 #[unsafe(export_name = "destack.fs.dir.mkdirat")]
-pub unsafe extern "C" fn destack_fs_dir_mkdirat(
+pub(crate) unsafe extern "C" fn destack_fs_dir_mkdirat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
@@ -15451,7 +15325,7 @@ pub unsafe extern "C" fn destack_fs_dir_mkdirat(
 }
 
 #[unsafe(export_name = "destack.fs.dir.mkdtemp")]
-pub unsafe extern "C" fn destack_fs_dir_mkdtemp(
+pub(crate) unsafe extern "C" fn destack_fs_dir_mkdtemp(
     out: *mut OsPath,
     template: OsPath,
 ) -> RuntimeStatus {
@@ -15468,7 +15342,7 @@ pub unsafe extern "C" fn destack_fs_dir_mkdtemp(
 }
 
 #[unsafe(export_name = "destack.fs.dir.opendir")]
-pub unsafe extern "C" fn destack_fs_dir_opendir(
+pub(crate) unsafe extern "C" fn destack_fs_dir_opendir(
     out: *mut resource::DirectoryHandle,
     path: OsPath,
 ) -> RuntimeStatus {
@@ -15485,7 +15359,7 @@ pub unsafe extern "C" fn destack_fs_dir_opendir(
 }
 
 #[unsafe(export_name = "destack.fs.dir.readdir")]
-pub unsafe extern "C" fn destack_fs_dir_readdir(
+pub(crate) unsafe extern "C" fn destack_fs_dir_readdir(
     out: *mut NativeArray<Dirent>,
     handle: resource::DirectoryHandle,
 ) -> RuntimeStatus {
@@ -15502,7 +15376,7 @@ pub unsafe extern "C" fn destack_fs_dir_readdir(
 }
 
 #[unsafe(export_name = "destack.fs.dir.readdirNext")]
-pub unsafe extern "C" fn destack_fs_dir_readdir_next(
+pub(crate) unsafe extern "C" fn destack_fs_dir_readdir_next(
     out: *mut DirentNext,
     handle: resource::DirectoryHandle,
 ) -> RuntimeStatus {
@@ -15519,7 +15393,7 @@ pub unsafe extern "C" fn destack_fs_dir_readdir_next(
 }
 
 #[unsafe(export_name = "destack.fs.dir.rewinddir")]
-pub unsafe extern "C" fn destack_fs_dir_rewinddir(
+pub(crate) unsafe extern "C" fn destack_fs_dir_rewinddir(
     handle: resource::DirectoryHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -15532,7 +15406,7 @@ pub unsafe extern "C" fn destack_fs_dir_rewinddir(
 }
 
 #[unsafe(export_name = "destack.fs.dir.rmdir")]
-pub unsafe extern "C" fn destack_fs_dir_rmdir(path: OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_dir_rmdir(path: OsPath) -> RuntimeStatus {
     native_call(|context| {
         let _ = &path;
 
@@ -15542,7 +15416,9 @@ pub unsafe extern "C" fn destack_fs_dir_rmdir(path: OsPath) -> RuntimeStatus {
 }
 
 #[unsafe(export_name = "destack.fs.file.close")]
-pub unsafe extern "C" fn destack_fs_file_close(handle: resource::FileHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_file_close(
+    handle: resource::FileHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -15553,7 +15429,7 @@ pub unsafe extern "C" fn destack_fs_file_close(handle: resource::FileHandle) -> 
 }
 
 #[unsafe(export_name = "destack.fs.file.copyFileRange")]
-pub unsafe extern "C" fn destack_fs_file_copy_file_range(
+pub(crate) unsafe extern "C" fn destack_fs_file_copy_file_range(
     out: *mut u64,
     src: resource::FileHandle,
     srcoffset: FileOffset,
@@ -15576,7 +15452,7 @@ pub unsafe extern "C" fn destack_fs_file_copy_file_range(
 }
 
 #[unsafe(export_name = "destack.fs.file.dup")]
-pub unsafe extern "C" fn destack_fs_file_dup(
+pub(crate) unsafe extern "C" fn destack_fs_file_dup(
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
@@ -15592,7 +15468,7 @@ pub unsafe extern "C" fn destack_fs_file_dup(
 }
 
 #[unsafe(export_name = "destack.fs.file.dup2")]
-pub unsafe extern "C" fn destack_fs_file_dup2(
+pub(crate) unsafe extern "C" fn destack_fs_file_dup2(
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
     target: resource::FileHandle,
@@ -15609,7 +15485,7 @@ pub unsafe extern "C" fn destack_fs_file_dup2(
 }
 
 #[unsafe(export_name = "destack.fs.file.dup3")]
-pub unsafe extern "C" fn destack_fs_file_dup3(
+pub(crate) unsafe extern "C" fn destack_fs_file_dup3(
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
     target: resource::FileHandle,
@@ -15627,7 +15503,7 @@ pub unsafe extern "C" fn destack_fs_file_dup3(
 }
 
 #[unsafe(export_name = "destack.fs.file.fadvise")]
-pub unsafe extern "C" fn destack_fs_file_fadvise(
+pub(crate) unsafe extern "C" fn destack_fs_file_fadvise(
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -15643,7 +15519,7 @@ pub unsafe extern "C" fn destack_fs_file_fadvise(
 }
 
 #[unsafe(export_name = "destack.fs.file.fallocate")]
-pub unsafe extern "C" fn destack_fs_file_fallocate(
+pub(crate) unsafe extern "C" fn destack_fs_file_fallocate(
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -15659,7 +15535,9 @@ pub unsafe extern "C" fn destack_fs_file_fallocate(
 }
 
 #[unsafe(export_name = "destack.fs.file.fdatasync")]
-pub unsafe extern "C" fn destack_fs_file_fdatasync(handle: resource::FileHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_file_fdatasync(
+    handle: resource::FileHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -15670,7 +15548,9 @@ pub unsafe extern "C" fn destack_fs_file_fdatasync(handle: resource::FileHandle)
 }
 
 #[unsafe(export_name = "destack.fs.file.fsync")]
-pub unsafe extern "C" fn destack_fs_file_fsync(handle: resource::FileHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_file_fsync(
+    handle: resource::FileHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -15681,7 +15561,7 @@ pub unsafe extern "C" fn destack_fs_file_fsync(handle: resource::FileHandle) -> 
 }
 
 #[unsafe(export_name = "destack.fs.file.ftruncate")]
-pub unsafe extern "C" fn destack_fs_file_ftruncate(
+pub(crate) unsafe extern "C" fn destack_fs_file_ftruncate(
     handle: resource::FileHandle,
     size: FileOffset,
 ) -> RuntimeStatus {
@@ -15695,7 +15575,7 @@ pub unsafe extern "C" fn destack_fs_file_ftruncate(
 }
 
 #[unsafe(export_name = "destack.fs.file.getFdFlags")]
-pub unsafe extern "C" fn destack_fs_file_get_fd_flags(
+pub(crate) unsafe extern "C" fn destack_fs_file_get_fd_flags(
     out: *mut FdFlags,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
@@ -15712,7 +15592,7 @@ pub unsafe extern "C" fn destack_fs_file_get_fd_flags(
 }
 
 #[unsafe(export_name = "destack.fs.file.getStatusFlags")]
-pub unsafe extern "C" fn destack_fs_file_get_status_flags(
+pub(crate) unsafe extern "C" fn destack_fs_file_get_status_flags(
     out: *mut StatusFlags,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
@@ -15729,7 +15609,7 @@ pub unsafe extern "C" fn destack_fs_file_get_status_flags(
 }
 
 #[unsafe(export_name = "destack.fs.file.lock")]
-pub unsafe extern "C" fn destack_fs_file_lock(
+pub(crate) unsafe extern "C" fn destack_fs_file_lock(
     handle: resource::FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeStatus {
@@ -15742,7 +15622,7 @@ pub unsafe extern "C" fn destack_fs_file_lock(
 }
 
 #[unsafe(export_name = "destack.fs.file.open")]
-pub unsafe extern "C" fn destack_fs_file_open(
+pub(crate) unsafe extern "C" fn destack_fs_file_open(
     out: *mut resource::FileHandle,
     path: OsPath,
     flags: OpenFlags,
@@ -15760,7 +15640,7 @@ pub unsafe extern "C" fn destack_fs_file_open(
 }
 
 #[unsafe(export_name = "destack.fs.file.openat")]
-pub unsafe extern "C" fn destack_fs_file_openat(
+pub(crate) unsafe extern "C" fn destack_fs_file_openat(
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -15780,7 +15660,7 @@ pub unsafe extern "C" fn destack_fs_file_openat(
 }
 
 #[unsafe(export_name = "destack.fs.file.openat2")]
-pub unsafe extern "C" fn destack_fs_file_openat2(
+pub(crate) unsafe extern "C" fn destack_fs_file_openat2(
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -15799,7 +15679,7 @@ pub unsafe extern "C" fn destack_fs_file_openat2(
 }
 
 #[unsafe(export_name = "destack.fs.file.pread")]
-pub unsafe extern "C" fn destack_fs_file_pread(
+pub(crate) unsafe extern "C" fn destack_fs_file_pread(
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
@@ -15818,7 +15698,7 @@ pub unsafe extern "C" fn destack_fs_file_pread(
 }
 
 #[unsafe(export_name = "destack.fs.file.preadv")]
-pub unsafe extern "C" fn destack_fs_file_preadv(
+pub(crate) unsafe extern "C" fn destack_fs_file_preadv(
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -15837,7 +15717,7 @@ pub unsafe extern "C" fn destack_fs_file_preadv(
 }
 
 #[unsafe(export_name = "destack.fs.file.preadv2")]
-pub unsafe extern "C" fn destack_fs_file_preadv2(
+pub(crate) unsafe extern "C" fn destack_fs_file_preadv2(
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -15857,7 +15737,7 @@ pub unsafe extern "C" fn destack_fs_file_preadv2(
 }
 
 #[unsafe(export_name = "destack.fs.file.pwrite")]
-pub unsafe extern "C" fn destack_fs_file_pwrite(
+pub(crate) unsafe extern "C" fn destack_fs_file_pwrite(
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
@@ -15876,7 +15756,7 @@ pub unsafe extern "C" fn destack_fs_file_pwrite(
 }
 
 #[unsafe(export_name = "destack.fs.file.pwritev")]
-pub unsafe extern "C" fn destack_fs_file_pwritev(
+pub(crate) unsafe extern "C" fn destack_fs_file_pwritev(
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -15895,7 +15775,7 @@ pub unsafe extern "C" fn destack_fs_file_pwritev(
 }
 
 #[unsafe(export_name = "destack.fs.file.pwritev2")]
-pub unsafe extern "C" fn destack_fs_file_pwritev2(
+pub(crate) unsafe extern "C" fn destack_fs_file_pwritev2(
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -15915,7 +15795,7 @@ pub unsafe extern "C" fn destack_fs_file_pwritev2(
 }
 
 #[unsafe(export_name = "destack.fs.file.read")]
-pub unsafe extern "C" fn destack_fs_file_read(
+pub(crate) unsafe extern "C" fn destack_fs_file_read(
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
@@ -15932,7 +15812,7 @@ pub unsafe extern "C" fn destack_fs_file_read(
 }
 
 #[unsafe(export_name = "destack.fs.file.readv")]
-pub unsafe extern "C" fn destack_fs_file_readv(
+pub(crate) unsafe extern "C" fn destack_fs_file_readv(
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -15950,7 +15830,7 @@ pub unsafe extern "C" fn destack_fs_file_readv(
 }
 
 #[unsafe(export_name = "destack.fs.file.seek")]
-pub unsafe extern "C" fn destack_fs_file_seek(
+pub(crate) unsafe extern "C" fn destack_fs_file_seek(
     out: *mut FileOffset,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -15968,7 +15848,7 @@ pub unsafe extern "C" fn destack_fs_file_seek(
 }
 
 #[unsafe(export_name = "destack.fs.file.sendfile")]
-pub unsafe extern "C" fn destack_fs_file_sendfile(
+pub(crate) unsafe extern "C" fn destack_fs_file_sendfile(
     out: *mut u64,
     socket: resource::SocketHandle,
     file: resource::FileHandle,
@@ -15988,7 +15868,7 @@ pub unsafe extern "C" fn destack_fs_file_sendfile(
 }
 
 #[unsafe(export_name = "destack.fs.file.setFdFlags")]
-pub unsafe extern "C" fn destack_fs_file_set_fd_flags(
+pub(crate) unsafe extern "C" fn destack_fs_file_set_fd_flags(
     handle: resource::FileHandle,
     flags: FdFlags,
 ) -> RuntimeStatus {
@@ -16002,7 +15882,7 @@ pub unsafe extern "C" fn destack_fs_file_set_fd_flags(
 }
 
 #[unsafe(export_name = "destack.fs.file.setStatusFlags")]
-pub unsafe extern "C" fn destack_fs_file_set_status_flags(
+pub(crate) unsafe extern "C" fn destack_fs_file_set_status_flags(
     handle: resource::FileHandle,
     flags: StatusFlags,
 ) -> RuntimeStatus {
@@ -16016,7 +15896,7 @@ pub unsafe extern "C" fn destack_fs_file_set_status_flags(
 }
 
 #[unsafe(export_name = "destack.fs.file.splice")]
-pub unsafe extern "C" fn destack_fs_file_splice(
+pub(crate) unsafe extern "C" fn destack_fs_file_splice(
     out: *mut u64,
     source: resource::ResourceId,
     sourcecursor: SpliceCursor,
@@ -16056,7 +15936,7 @@ pub unsafe extern "C" fn destack_fs_file_splice(
 }
 
 #[unsafe(export_name = "destack.fs.file.syncFileRange")]
-pub unsafe extern "C" fn destack_fs_file_sync_file_range(
+pub(crate) unsafe extern "C" fn destack_fs_file_sync_file_range(
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
@@ -16072,7 +15952,9 @@ pub unsafe extern "C" fn destack_fs_file_sync_file_range(
 }
 
 #[unsafe(export_name = "destack.fs.file.syncfs")]
-pub unsafe extern "C" fn destack_fs_file_syncfs(handle: resource::FileHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_file_syncfs(
+    handle: resource::FileHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -16083,7 +15965,7 @@ pub unsafe extern "C" fn destack_fs_file_syncfs(handle: resource::FileHandle) ->
 }
 
 #[unsafe(export_name = "destack.fs.file.tee")]
-pub unsafe extern "C" fn destack_fs_file_tee(
+pub(crate) unsafe extern "C" fn destack_fs_file_tee(
     out: *mut u64,
     sourcepipe: resource::PipeHandle,
     targetpipe: resource::PipeHandle,
@@ -16102,7 +15984,10 @@ pub unsafe extern "C" fn destack_fs_file_tee(
 }
 
 #[unsafe(export_name = "destack.fs.file.truncate")]
-pub unsafe extern "C" fn destack_fs_file_truncate(path: OsPath, size: FileOffset) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_file_truncate(
+    path: OsPath,
+    size: FileOffset,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&path, &size);
 
@@ -16113,7 +15998,7 @@ pub unsafe extern "C" fn destack_fs_file_truncate(path: OsPath, size: FileOffset
 }
 
 #[unsafe(export_name = "destack.fs.file.vmsplice")]
-pub unsafe extern "C" fn destack_fs_file_vmsplice(
+pub(crate) unsafe extern "C" fn destack_fs_file_vmsplice(
     out: *mut u64,
     pipe: resource::PipeHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -16132,7 +16017,7 @@ pub unsafe extern "C" fn destack_fs_file_vmsplice(
 }
 
 #[unsafe(export_name = "destack.fs.file.write")]
-pub unsafe extern "C" fn destack_fs_file_write(
+pub(crate) unsafe extern "C" fn destack_fs_file_write(
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
@@ -16150,7 +16035,7 @@ pub unsafe extern "C" fn destack_fs_file_write(
 }
 
 #[unsafe(export_name = "destack.fs.file.writev")]
-pub unsafe extern "C" fn destack_fs_file_writev(
+pub(crate) unsafe extern "C" fn destack_fs_file_writev(
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -16168,7 +16053,7 @@ pub unsafe extern "C" fn destack_fs_file_writev(
 }
 
 #[unsafe(export_name = "destack.fs.mmap.madvise")]
-pub unsafe extern "C" fn destack_fs_mmap_madvise(
+pub(crate) unsafe extern "C" fn destack_fs_mmap_madvise(
     mapping: NativeSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeStatus {
@@ -16182,7 +16067,7 @@ pub unsafe extern "C" fn destack_fs_mmap_madvise(
 }
 
 #[unsafe(export_name = "destack.fs.mmap.mmapAnonymous")]
-pub unsafe extern "C" fn destack_fs_mmap_mmap_anonymous(
+pub(crate) unsafe extern "C" fn destack_fs_mmap_mmap_anonymous(
     out: *mut NativeSlice<u8>,
     length: FileSize,
     prot: MmapProt,
@@ -16201,7 +16086,7 @@ pub unsafe extern "C" fn destack_fs_mmap_mmap_anonymous(
 }
 
 #[unsafe(export_name = "destack.fs.mmap.mmapFile")]
-pub unsafe extern "C" fn destack_fs_mmap_mmap_file(
+pub(crate) unsafe extern "C" fn destack_fs_mmap_mmap_file(
     out: *mut NativeSlice<u8>,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -16222,7 +16107,7 @@ pub unsafe extern "C" fn destack_fs_mmap_mmap_file(
 }
 
 #[unsafe(export_name = "destack.fs.mmap.mprotect")]
-pub unsafe extern "C" fn destack_fs_mmap_mprotect(
+pub(crate) unsafe extern "C" fn destack_fs_mmap_mprotect(
     mapping: NativeSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeStatus {
@@ -16236,7 +16121,7 @@ pub unsafe extern "C" fn destack_fs_mmap_mprotect(
 }
 
 #[unsafe(export_name = "destack.fs.mmap.msync")]
-pub unsafe extern "C" fn destack_fs_mmap_msync(
+pub(crate) unsafe extern "C" fn destack_fs_mmap_msync(
     mapping: NativeSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeStatus {
@@ -16250,7 +16135,7 @@ pub unsafe extern "C" fn destack_fs_mmap_msync(
 }
 
 #[unsafe(export_name = "destack.fs.mmap.munmap")]
-pub unsafe extern "C" fn destack_fs_mmap_munmap(mapping: NativeSlice<u8>) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_mmap_munmap(mapping: NativeSlice<u8>) -> RuntimeStatus {
     native_call(|context| {
         let _ = &mapping;
 
@@ -16261,7 +16146,7 @@ pub unsafe extern "C" fn destack_fs_mmap_munmap(mapping: NativeSlice<u8>) -> Run
 }
 
 #[unsafe(export_name = "destack.fs.path.copyfile")]
-pub unsafe extern "C" fn destack_fs_path_copyfile(
+pub(crate) unsafe extern "C" fn destack_fs_path_copyfile(
     from: OsPath,
     to: OsPath,
     flags: CopyFlags,
@@ -16276,7 +16161,7 @@ pub unsafe extern "C" fn destack_fs_path_copyfile(
 }
 
 #[unsafe(export_name = "destack.fs.path.link")]
-pub unsafe extern "C" fn destack_fs_path_link(
+pub(crate) unsafe extern "C" fn destack_fs_path_link(
     existingpath: OsPath,
     newpath: OsPath,
 ) -> RuntimeStatus {
@@ -16289,7 +16174,7 @@ pub unsafe extern "C" fn destack_fs_path_link(
 }
 
 #[unsafe(export_name = "destack.fs.path.linkat")]
-pub unsafe extern "C" fn destack_fs_path_linkat(
+pub(crate) unsafe extern "C" fn destack_fs_path_linkat(
     existingdir: resource::DirectoryHandle,
     existingpath: OsPath,
     newdir: resource::DirectoryHandle,
@@ -16314,7 +16199,10 @@ pub unsafe extern "C" fn destack_fs_path_linkat(
 }
 
 #[unsafe(export_name = "destack.fs.path.mkfifo")]
-pub unsafe extern "C" fn destack_fs_path_mkfifo(path: OsPath, mode: FileMode) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_path_mkfifo(
+    path: OsPath,
+    mode: FileMode,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&path, &mode);
 
@@ -16325,7 +16213,7 @@ pub unsafe extern "C" fn destack_fs_path_mkfifo(path: OsPath, mode: FileMode) ->
 }
 
 #[unsafe(export_name = "destack.fs.path.mkfifoat")]
-pub unsafe extern "C" fn destack_fs_path_mkfifoat(
+pub(crate) unsafe extern "C" fn destack_fs_path_mkfifoat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
@@ -16340,7 +16228,7 @@ pub unsafe extern "C" fn destack_fs_path_mkfifoat(
 }
 
 #[unsafe(export_name = "destack.fs.path.mknod")]
-pub unsafe extern "C" fn destack_fs_path_mknod(
+pub(crate) unsafe extern "C" fn destack_fs_path_mknod(
     path: OsPath,
     mode: FileMode,
     device: NodeDevice,
@@ -16355,7 +16243,7 @@ pub unsafe extern "C" fn destack_fs_path_mknod(
 }
 
 #[unsafe(export_name = "destack.fs.path.mknodat")]
-pub unsafe extern "C" fn destack_fs_path_mknodat(
+pub(crate) unsafe extern "C" fn destack_fs_path_mknodat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
@@ -16371,7 +16259,10 @@ pub unsafe extern "C" fn destack_fs_path_mknodat(
 }
 
 #[unsafe(export_name = "destack.fs.path.readlink")]
-pub unsafe extern "C" fn destack_fs_path_readlink(out: *mut OsPath, path: OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_path_readlink(
+    out: *mut OsPath,
+    path: OsPath,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -16385,7 +16276,7 @@ pub unsafe extern "C" fn destack_fs_path_readlink(out: *mut OsPath, path: OsPath
 }
 
 #[unsafe(export_name = "destack.fs.path.readlinkat")]
-pub unsafe extern "C" fn destack_fs_path_readlinkat(
+pub(crate) unsafe extern "C" fn destack_fs_path_readlinkat(
     out: *mut OsPath,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -16403,7 +16294,10 @@ pub unsafe extern "C" fn destack_fs_path_readlinkat(
 }
 
 #[unsafe(export_name = "destack.fs.path.realpath")]
-pub unsafe extern "C" fn destack_fs_path_realpath(out: *mut OsPath, path: OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_path_realpath(
+    out: *mut OsPath,
+    path: OsPath,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -16417,7 +16311,7 @@ pub unsafe extern "C" fn destack_fs_path_realpath(out: *mut OsPath, path: OsPath
 }
 
 #[unsafe(export_name = "destack.fs.path.rename")]
-pub unsafe extern "C" fn destack_fs_path_rename(from: OsPath, to: OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_path_rename(from: OsPath, to: OsPath) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&from, &to);
 
@@ -16428,7 +16322,7 @@ pub unsafe extern "C" fn destack_fs_path_rename(from: OsPath, to: OsPath) -> Run
 }
 
 #[unsafe(export_name = "destack.fs.path.renameat")]
-pub unsafe extern "C" fn destack_fs_path_renameat(
+pub(crate) unsafe extern "C" fn destack_fs_path_renameat(
     fromdir: resource::DirectoryHandle,
     from: OsPath,
     todir: resource::DirectoryHandle,
@@ -16444,7 +16338,7 @@ pub unsafe extern "C" fn destack_fs_path_renameat(
 }
 
 #[unsafe(export_name = "destack.fs.path.renameat2")]
-pub unsafe extern "C" fn destack_fs_path_renameat2(
+pub(crate) unsafe extern "C" fn destack_fs_path_renameat2(
     fromdir: resource::DirectoryHandle,
     from: OsPath,
     todir: resource::DirectoryHandle,
@@ -16461,7 +16355,7 @@ pub unsafe extern "C" fn destack_fs_path_renameat2(
 }
 
 #[unsafe(export_name = "destack.fs.path.symlink")]
-pub unsafe extern "C" fn destack_fs_path_symlink(
+pub(crate) unsafe extern "C" fn destack_fs_path_symlink(
     target: OsPath,
     path: OsPath,
     kind: SymlinkType,
@@ -16476,7 +16370,7 @@ pub unsafe extern "C" fn destack_fs_path_symlink(
 }
 
 #[unsafe(export_name = "destack.fs.path.symlinkat")]
-pub unsafe extern "C" fn destack_fs_path_symlinkat(
+pub(crate) unsafe extern "C" fn destack_fs_path_symlinkat(
     target: OsPath,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -16492,7 +16386,7 @@ pub unsafe extern "C" fn destack_fs_path_symlinkat(
 }
 
 #[unsafe(export_name = "destack.fs.path.unlink")]
-pub unsafe extern "C" fn destack_fs_path_unlink(path: OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_path_unlink(path: OsPath) -> RuntimeStatus {
     native_call(|context| {
         let _ = &path;
 
@@ -16503,7 +16397,7 @@ pub unsafe extern "C" fn destack_fs_path_unlink(path: OsPath) -> RuntimeStatus {
 }
 
 #[unsafe(export_name = "destack.fs.path.unlinkat")]
-pub unsafe extern "C" fn destack_fs_path_unlinkat(
+pub(crate) unsafe extern "C" fn destack_fs_path_unlinkat(
     dir: resource::DirectoryHandle,
     path: OsPath,
     flags: AtFlags,
@@ -16518,7 +16412,7 @@ pub unsafe extern "C" fn destack_fs_path_unlinkat(
 }
 
 #[unsafe(export_name = "destack.fs.stat.fstat")]
-pub unsafe extern "C" fn destack_fs_stat_fstat(
+pub(crate) unsafe extern "C" fn destack_fs_stat_fstat(
     out: *mut Stat,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
@@ -16535,7 +16429,7 @@ pub unsafe extern "C" fn destack_fs_stat_fstat(
 }
 
 #[unsafe(export_name = "destack.fs.stat.fstatfs")]
-pub unsafe extern "C" fn destack_fs_stat_fstatfs(
+pub(crate) unsafe extern "C" fn destack_fs_stat_fstatfs(
     out: *mut StatFs,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
@@ -16552,7 +16446,10 @@ pub unsafe extern "C" fn destack_fs_stat_fstatfs(
 }
 
 #[unsafe(export_name = "destack.fs.stat.lstat")]
-pub unsafe extern "C" fn destack_fs_stat_lstat(out: *mut Stat, path: OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_stat_lstat(
+    out: *mut Stat,
+    path: OsPath,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -16566,7 +16463,10 @@ pub unsafe extern "C" fn destack_fs_stat_lstat(out: *mut Stat, path: OsPath) -> 
 }
 
 #[unsafe(export_name = "destack.fs.stat.path")]
-pub unsafe extern "C" fn destack_fs_stat_path(out: *mut Stat, path: OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_stat_path(
+    out: *mut Stat,
+    path: OsPath,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -16579,7 +16479,7 @@ pub unsafe extern "C" fn destack_fs_stat_path(out: *mut Stat, path: OsPath) -> R
 }
 
 #[unsafe(export_name = "destack.fs.stat.pathat")]
-pub unsafe extern "C" fn destack_fs_stat_pathat(
+pub(crate) unsafe extern "C" fn destack_fs_stat_pathat(
     out: *mut Stat,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -16598,7 +16498,10 @@ pub unsafe extern "C" fn destack_fs_stat_pathat(
 }
 
 #[unsafe(export_name = "destack.fs.stat.pathfs")]
-pub unsafe extern "C" fn destack_fs_stat_pathfs(out: *mut StatFs, path: OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_fs_stat_pathfs(
+    out: *mut StatFs,
+    path: OsPath,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -16612,7 +16515,7 @@ pub unsafe extern "C" fn destack_fs_stat_pathfs(out: *mut StatFs, path: OsPath) 
 }
 
 #[unsafe(export_name = "destack.fs.stat.pathx")]
-pub unsafe extern "C" fn destack_fs_stat_pathx(
+pub(crate) unsafe extern "C" fn destack_fs_stat_pathx(
     out: *mut Statx,
     dir: resource::DirectoryHandle,
     path: OsPath,
@@ -16632,7 +16535,7 @@ pub unsafe extern "C" fn destack_fs_stat_pathx(
 }
 
 #[unsafe(export_name = "destack.fs.watch.open")]
-pub unsafe extern "C" fn destack_fs_watch_open(
+pub(crate) unsafe extern "C" fn destack_fs_watch_open(
     out: *mut resource::WatchHandle,
     path: OsPath,
     options: WatchOptions,
@@ -16650,7 +16553,7 @@ pub unsafe extern "C" fn destack_fs_watch_open(
 }
 
 #[unsafe(export_name = "destack.fs.watch.openClose")]
-pub unsafe extern "C" fn destack_fs_watch_open_close(
+pub(crate) unsafe extern "C" fn destack_fs_watch_open_close(
     handle: resource::WatchHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -16663,7 +16566,7 @@ pub unsafe extern "C" fn destack_fs_watch_open_close(
 }
 
 #[unsafe(export_name = "destack.fs.watch.openRead")]
-pub unsafe extern "C" fn destack_fs_watch_open_read(
+pub(crate) unsafe extern "C" fn destack_fs_watch_open_read(
     out: *mut WatchBatch,
     handle: resource::WatchHandle,
 ) -> RuntimeStatus {
@@ -16680,7 +16583,7 @@ pub unsafe extern "C" fn destack_fs_watch_open_read(
 }
 
 #[unsafe(export_name = "destack.fs.watch.openat")]
-pub unsafe extern "C" fn destack_fs_watch_openat(
+pub(crate) unsafe extern "C" fn destack_fs_watch_openat(
     out: *mut resource::WatchHandle,
     directory: resource::DirectoryHandle,
     path: OsPath,
@@ -16699,7 +16602,7 @@ pub unsafe extern "C" fn destack_fs_watch_openat(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.fgetxattr")]
-pub unsafe extern "C" fn destack_fs_xattr_fgetxattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_fgetxattr(
     out: *mut NativeArray<u8>,
     handle: resource::FileHandle,
     name: NativeStringRef,
@@ -16717,7 +16620,7 @@ pub unsafe extern "C" fn destack_fs_xattr_fgetxattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.fgetxattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_fgetxattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_fgetxattr_bytes(
     out: *mut NativeArray<u8>,
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
@@ -16735,7 +16638,7 @@ pub unsafe extern "C" fn destack_fs_xattr_fgetxattr_bytes(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.flistxattr")]
-pub unsafe extern "C" fn destack_fs_xattr_flistxattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_flistxattr(
     out: *mut NativeArray<NativeStringRef>,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
@@ -16752,7 +16655,7 @@ pub unsafe extern "C" fn destack_fs_xattr_flistxattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.flistxattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_flistxattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_flistxattr_bytes(
     out: *mut NativeArray<NativeArray<u8>>,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
@@ -16769,7 +16672,7 @@ pub unsafe extern "C" fn destack_fs_xattr_flistxattr_bytes(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.fremovexattr")]
-pub unsafe extern "C" fn destack_fs_xattr_fremovexattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_fremovexattr(
     handle: resource::FileHandle,
     name: NativeStringRef,
 ) -> RuntimeStatus {
@@ -16783,7 +16686,7 @@ pub unsafe extern "C" fn destack_fs_xattr_fremovexattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.fremovexattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_fremovexattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_fremovexattr_bytes(
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -16797,7 +16700,7 @@ pub unsafe extern "C" fn destack_fs_xattr_fremovexattr_bytes(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.fsetxattr")]
-pub unsafe extern "C" fn destack_fs_xattr_fsetxattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_fsetxattr(
     handle: resource::FileHandle,
     name: NativeStringRef,
     argument_value: NativeSlice<u8>,
@@ -16813,7 +16716,7 @@ pub unsafe extern "C" fn destack_fs_xattr_fsetxattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.fsetxattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_fsetxattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_fsetxattr_bytes(
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
@@ -16829,7 +16732,7 @@ pub unsafe extern "C" fn destack_fs_xattr_fsetxattr_bytes(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.getxattr")]
-pub unsafe extern "C" fn destack_fs_xattr_getxattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_getxattr(
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeStringRef,
@@ -16847,7 +16750,7 @@ pub unsafe extern "C" fn destack_fs_xattr_getxattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.getxattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_getxattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_getxattr_bytes(
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeSlice<u8>,
@@ -16865,7 +16768,7 @@ pub unsafe extern "C" fn destack_fs_xattr_getxattr_bytes(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.lgetxattr")]
-pub unsafe extern "C" fn destack_fs_xattr_lgetxattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_lgetxattr(
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeStringRef,
@@ -16883,7 +16786,7 @@ pub unsafe extern "C" fn destack_fs_xattr_lgetxattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.lgetxattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_lgetxattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_lgetxattr_bytes(
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeSlice<u8>,
@@ -16901,7 +16804,7 @@ pub unsafe extern "C" fn destack_fs_xattr_lgetxattr_bytes(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.listxattr")]
-pub unsafe extern "C" fn destack_fs_xattr_listxattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_listxattr(
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeStatus {
@@ -16918,7 +16821,7 @@ pub unsafe extern "C" fn destack_fs_xattr_listxattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.listxattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_listxattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_listxattr_bytes(
     out: *mut NativeArray<NativeArray<u8>>,
     path: OsPath,
 ) -> RuntimeStatus {
@@ -16935,7 +16838,7 @@ pub unsafe extern "C" fn destack_fs_xattr_listxattr_bytes(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.llistxattr")]
-pub unsafe extern "C" fn destack_fs_xattr_llistxattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_llistxattr(
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeStatus {
@@ -16952,7 +16855,7 @@ pub unsafe extern "C" fn destack_fs_xattr_llistxattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.llistxattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_llistxattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_llistxattr_bytes(
     out: *mut NativeArray<NativeArray<u8>>,
     path: OsPath,
 ) -> RuntimeStatus {
@@ -16969,7 +16872,7 @@ pub unsafe extern "C" fn destack_fs_xattr_llistxattr_bytes(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.lremovexattr")]
-pub unsafe extern "C" fn destack_fs_xattr_lremovexattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_lremovexattr(
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeStatus {
@@ -16983,7 +16886,7 @@ pub unsafe extern "C" fn destack_fs_xattr_lremovexattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.lremovexattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_lremovexattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_lremovexattr_bytes(
     path: OsPath,
     name: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -16997,7 +16900,7 @@ pub unsafe extern "C" fn destack_fs_xattr_lremovexattr_bytes(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.lsetxattr")]
-pub unsafe extern "C" fn destack_fs_xattr_lsetxattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_lsetxattr(
     path: OsPath,
     name: NativeStringRef,
     argument_value: NativeSlice<u8>,
@@ -17013,7 +16916,7 @@ pub unsafe extern "C" fn destack_fs_xattr_lsetxattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.lsetxattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_lsetxattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_lsetxattr_bytes(
     path: OsPath,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
@@ -17029,7 +16932,7 @@ pub unsafe extern "C" fn destack_fs_xattr_lsetxattr_bytes(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.removexattr")]
-pub unsafe extern "C" fn destack_fs_xattr_removexattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_removexattr(
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeStatus {
@@ -17043,7 +16946,7 @@ pub unsafe extern "C" fn destack_fs_xattr_removexattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.removexattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_removexattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_removexattr_bytes(
     path: OsPath,
     name: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -17057,7 +16960,7 @@ pub unsafe extern "C" fn destack_fs_xattr_removexattr_bytes(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.setxattr")]
-pub unsafe extern "C" fn destack_fs_xattr_setxattr(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_setxattr(
     path: OsPath,
     name: NativeStringRef,
     argument_value: NativeSlice<u8>,
@@ -17073,7 +16976,7 @@ pub unsafe extern "C" fn destack_fs_xattr_setxattr(
 }
 
 #[unsafe(export_name = "destack.fs.xattr.setxattrBytes")]
-pub unsafe extern "C" fn destack_fs_xattr_setxattr_bytes(
+pub(crate) unsafe extern "C" fn destack_fs_xattr_setxattr_bytes(
     path: OsPath,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
@@ -25173,7 +25076,7 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
 }
 
 /// Register VM bindings for fs.
-pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(registry, isolate, FS_ATTRS_ACCESS, move |context, args| {
             with_binding_call_context(|binding| {
@@ -27171,8 +27074,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 }
 
 /// Install VM bindings for fs.
-pub fn install_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_fs_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub FS_VM_BINDINGS, "fs", install_fs_vm_bindings);
+vm_binding_set!(pub(crate) FS_VM_BINDINGS, "fs", install_fs_vm_bindings);

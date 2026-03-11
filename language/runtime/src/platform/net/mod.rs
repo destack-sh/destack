@@ -12,8 +12,6 @@ mod tests;
 pub mod vm;
 
 pub use crate::platform::resource::{ListenerHandle, SocketHandle};
-#[allow(unused_imports, unreachable_pub)]
-pub use abi_generated::*;
-#[allow(unused_imports, unreachable_pub)]
-pub use bindings_generated::*;
+pub(crate) use abi_generated::*;
+pub(crate) use bindings_generated::*;
 pub(crate) use state::*;

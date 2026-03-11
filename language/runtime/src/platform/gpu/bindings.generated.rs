@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -7714,7 +7715,7 @@ struct GpuSyncQueueWorkDoneReplayRecord {
 }
 
 /// Binding descriptor for destack.gpu.adapter.close.
-pub const GPU_ADAPTER_CLOSE: BindingDescriptor =
+pub(crate) const GPU_ADAPTER_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.adapter.close",
         "export function adapterClose(handle: GpuAdapterHandle): Result<void, PlatformError>",
@@ -7742,7 +7743,7 @@ pub const GPU_ADAPTER_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.adapter.features.
-pub const GPU_ADAPTER_FEATURES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_FEATURES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.features",
     "export function adapterFeatures(handle: GpuAdapterHandle): Result<Slice<GpuFeatureId>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7756,7 +7757,7 @@ pub const GPU_ADAPTER_FEATURES: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.formatCapabilities.
-pub const GPU_ADAPTER_FORMAT_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_FORMAT_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.formatCapabilities",
     "export function adapterFormatCapabilities(handle: GpuAdapterHandle, format: uint32): Result<GpuAdapterFormatCapabilities, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7770,7 +7771,7 @@ pub const GPU_ADAPTER_FORMAT_CAPABILITIES: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.hasFeature.
-pub const GPU_ADAPTER_HAS_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_HAS_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.hasFeature",
     "export function adapterHasFeature(handle: GpuAdapterHandle, feature: GpuFeatureId): Result<boolean, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7784,7 +7785,7 @@ pub const GPU_ADAPTER_HAS_FEATURE: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.info.
-pub const GPU_ADAPTER_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.info",
     "export function adapterInfo(handle: GpuAdapterHandle): Result<GpuAdapterInfo, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7798,7 +7799,7 @@ pub const GPU_ADAPTER_INFO: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.limits.
-pub const GPU_ADAPTER_LIMITS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_LIMITS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.limits",
     "export function adapterLimits(handle: GpuAdapterHandle): Result<GpuAdapterLimits, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7812,7 +7813,7 @@ pub const GPU_ADAPTER_LIMITS: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.list.
-pub const GPU_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.list",
     "export function adapterList(request: GpuAdapterRequest): Result<GpuAdapterInfo[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7826,7 +7827,7 @@ pub const GPU_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.open.
-pub const GPU_ADAPTER_OPEN: BindingDescriptor =
+pub(crate) const GPU_ADAPTER_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.adapter.open",
         "export function adapterOpen(id: string): Result<GpuAdapterHandle, PlatformError>",
@@ -7854,7 +7855,7 @@ pub const GPU_ADAPTER_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.bind.groupCreate.
-pub const GPU_BIND_GROUP_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_BIND_GROUP_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.bind.groupCreate",
     "export function bindGroupCreate(device: GpuDeviceHandle, layout: GpuBindGroupLayoutHandle, entries: Slice<GpuBindGroupEntry>, flags: uint32): Result<GpuBindGroupHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7868,7 +7869,7 @@ pub const GPU_BIND_GROUP_CREATE: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.groupDestroy.
-pub const GPU_BIND_GROUP_DESTROY: BindingDescriptor =
+pub(crate) const GPU_BIND_GROUP_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.bind.groupDestroy",
         "export function bindGroupDestroy(handle: GpuBindGroupHandle): Result<void, PlatformError>",
@@ -7896,7 +7897,7 @@ pub const GPU_BIND_GROUP_DESTROY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.bind.groupLayoutCreate.
-pub const GPU_BIND_GROUP_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_BIND_GROUP_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.bind.groupLayoutCreate",
     "export function bindGroupLayoutCreate(device: GpuDeviceHandle, entries: Slice<GpuBindGroupLayoutEntry>, flags: uint32): Result<GpuBindGroupLayoutHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7910,7 +7911,7 @@ pub const GPU_BIND_GROUP_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.groupLayoutDestroy.
-pub const GPU_BIND_GROUP_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_BIND_GROUP_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.bind.groupLayoutDestroy",
     "export function bindGroupLayoutDestroy(handle: GpuBindGroupLayoutHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7924,7 +7925,7 @@ pub const GPU_BIND_GROUP_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.pipelineLayoutCreate.
-pub const GPU_BIND_PIPELINE_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_BIND_PIPELINE_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.bind.pipelineLayoutCreate",
     "export function pipelineLayoutCreate(device: GpuDeviceHandle, options: GpuPipelineLayoutOptions): Result<GpuPipelineLayoutHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7938,7 +7939,7 @@ pub const GPU_BIND_PIPELINE_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.pipelineLayoutDestroy.
-pub const GPU_BIND_PIPELINE_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_BIND_PIPELINE_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.bind.pipelineLayoutDestroy",
     "export function pipelineLayoutDestroy(handle: GpuPipelineLayoutHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7952,7 +7953,7 @@ pub const GPU_BIND_PIPELINE_LAYOUT_DESTROY: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.bindComputePipeline.
-pub const GPU_COMMAND_BIND_COMPUTE_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_BIND_COMPUTE_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.bindComputePipeline",
     "export function commandBindComputePipeline(handle: GpuComputePassHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7966,7 +7967,7 @@ pub const GPU_COMMAND_BIND_COMPUTE_PIPELINE: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.bindRenderPipeline.
-pub const GPU_COMMAND_BIND_RENDER_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_BIND_RENDER_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.bindRenderPipeline",
     "export function commandBindRenderPipeline(handle: GpuRenderPassHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7980,7 +7981,7 @@ pub const GPU_COMMAND_BIND_RENDER_PIPELINE: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.clearBuffer.
-pub const GPU_COMMAND_CLEAR_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_CLEAR_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.clearBuffer",
     "export function commandClearBuffer(handle: GpuCommandListHandle, buffer: GpuBufferHandle, offset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7994,7 +7995,7 @@ pub const GPU_COMMAND_CLEAR_BUFFER: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassBegin.
-pub const GPU_COMMAND_COMPUTE_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COMPUTE_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassBegin",
     "export function commandComputePassBegin(handle: GpuCommandListHandle, options: GpuComputePassOptions): Result<GpuComputePassHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8008,7 +8009,7 @@ pub const GPU_COMMAND_COMPUTE_PASS_BEGIN: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassEnd.
-pub const GPU_COMMAND_COMPUTE_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COMPUTE_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassEnd",
     "export function commandComputePassEnd(handle: GpuComputePassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8022,7 +8023,7 @@ pub const GPU_COMMAND_COMPUTE_PASS_END: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassInsertDebugMarker.
-pub const GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassInsertDebugMarker",
     "export function commandComputePassInsertDebugMarker(handle: GpuComputePassHandle, marker: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8036,7 +8037,7 @@ pub const GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = Bind
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassPopDebugGroup.
-pub const GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassPopDebugGroup",
     "export function commandComputePassPopDebugGroup(handle: GpuComputePassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8050,7 +8051,7 @@ pub const GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingD
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassPushDebugGroup.
-pub const GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.computePassPushDebugGroup",
     "export function commandComputePassPushDebugGroup(handle: GpuComputePassHandle, label: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8064,7 +8065,7 @@ pub const GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = Binding
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyBuffer.
-pub const GPU_COMMAND_COPY_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COPY_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.copyBuffer",
     "export function commandCopyBuffer(handle: GpuCommandListHandle, src: GpuBufferHandle, srcOffset: uint64, dst: GpuBufferHandle, dstOffset: uint64, bytes: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8078,7 +8079,7 @@ pub const GPU_COMMAND_COPY_BUFFER: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyBufferToTexture.
-pub const GPU_COMMAND_COPY_BUFFER_TO_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COPY_BUFFER_TO_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.copyBufferToTexture",
     "export function commandCopyBufferToTexture(handle: GpuCommandListHandle, source: GpuBufferCopy, destination: GpuTextureCopy, size: GpuExtent3D): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8092,7 +8093,7 @@ pub const GPU_COMMAND_COPY_BUFFER_TO_TEXTURE: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyTextureToBuffer.
-pub const GPU_COMMAND_COPY_TEXTURE_TO_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COPY_TEXTURE_TO_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.copyTextureToBuffer",
     "export function commandCopyTextureToBuffer(handle: GpuCommandListHandle, source: GpuTextureCopy, destination: GpuBufferCopy, size: GpuExtent3D): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8106,7 +8107,7 @@ pub const GPU_COMMAND_COPY_TEXTURE_TO_BUFFER: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyTextureToTexture.
-pub const GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.copyTextureToTexture",
     "export function commandCopyTextureToTexture(handle: GpuCommandListHandle, source: GpuTextureCopy, destination: GpuTextureCopy, size: GpuExtent3D): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8120,7 +8121,7 @@ pub const GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE: BindingDescriptor = BindingDescri
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.dispatch.
-pub const GPU_COMMAND_DISPATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DISPATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.dispatch",
     "export function commandDispatch(handle: GpuComputePassHandle, groupX: uint32, groupY: uint32, groupZ: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8134,7 +8135,7 @@ pub const GPU_COMMAND_DISPATCH: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.dispatchIndirect.
-pub const GPU_COMMAND_DISPATCH_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DISPATCH_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.dispatchIndirect",
     "export function commandDispatchIndirect(handle: GpuComputePassHandle, buffer: GpuBufferHandle, offset: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8148,7 +8149,7 @@ pub const GPU_COMMAND_DISPATCH_INDIRECT: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.draw.
-pub const GPU_COMMAND_DRAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DRAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.draw",
     "export function commandDraw(handle: GpuRenderPassHandle, vertexCount: uint32, instanceCount: uint32, firstVertex: uint32, firstInstance: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8162,7 +8163,7 @@ pub const GPU_COMMAND_DRAW: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.drawIndexed.
-pub const GPU_COMMAND_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.drawIndexed",
     "export function commandDrawIndexed(handle: GpuRenderPassHandle, indexCount: uint32, instanceCount: uint32, firstIndex: uint32, baseVertex: int32, firstInstance: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8176,7 +8177,7 @@ pub const GPU_COMMAND_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.drawIndexedIndirect.
-pub const GPU_COMMAND_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.drawIndexedIndirect",
     "export function commandDrawIndexedIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8190,7 +8191,7 @@ pub const GPU_COMMAND_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.drawIndirect.
-pub const GPU_COMMAND_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.drawIndirect",
     "export function commandDrawIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8204,7 +8205,7 @@ pub const GPU_COMMAND_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.encoderClose.
-pub const GPU_COMMAND_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.encoderClose",
     "export function commandEncoderClose(handle: GpuCommandListHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8218,7 +8219,7 @@ pub const GPU_COMMAND_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.encoderFinish.
-pub const GPU_COMMAND_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.encoderFinish",
     "export function commandEncoderFinish(handle: GpuCommandListHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8232,7 +8233,7 @@ pub const GPU_COMMAND_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.encoderOpen.
-pub const GPU_COMMAND_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.encoderOpen",
     "export function commandEncoderOpen(device: GpuDeviceHandle, options: GpuCommandEncoderOptions): Result<GpuCommandListHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8246,7 +8247,7 @@ pub const GPU_COMMAND_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.executeBundles.
-pub const GPU_COMMAND_EXECUTE_BUNDLES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_EXECUTE_BUNDLES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.executeBundles",
     "export function commandExecuteBundles(handle: GpuRenderPassHandle, bundles: Slice<GpuRenderBundleHandle>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8260,7 +8261,7 @@ pub const GPU_COMMAND_EXECUTE_BUNDLES: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.insertDebugMarker.
-pub const GPU_COMMAND_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.insertDebugMarker",
     "export function commandInsertDebugMarker(handle: GpuCommandListHandle, marker: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8274,7 +8275,7 @@ pub const GPU_COMMAND_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndexedIndirect.
-pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndexedIndirect",
     "export function commandMultiDrawIndexedIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8288,7 +8289,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDe
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndexedIndirectCount.
-pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndexedIndirectCount",
     "export function commandMultiDrawIndexedIndirectCount(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8302,7 +8303,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT: BindingDescriptor = Bin
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndirect.
-pub const GPU_COMMAND_MULTI_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_MULTI_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndirect",
     "export function commandMultiDrawIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8316,7 +8317,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndirectCount.
-pub const GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.multiDrawIndirectCount",
     "export function commandMultiDrawIndirectCount(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8330,7 +8331,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT: BindingDescriptor = BindingDesc
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.popDebugGroup.
-pub const GPU_COMMAND_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.popDebugGroup",
     "export function commandPopDebugGroup(handle: GpuCommandListHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8344,7 +8345,7 @@ pub const GPU_COMMAND_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.pushDebugGroup.
-pub const GPU_COMMAND_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.pushDebugGroup",
     "export function commandPushDebugGroup(handle: GpuCommandListHandle, label: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8358,7 +8359,7 @@ pub const GPU_COMMAND_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueSubmit.
-pub const GPU_COMMAND_QUEUE_SUBMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_QUEUE_SUBMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.queueSubmit",
     "export function queueSubmit(queue: GpuQueueHandle, commandLists: Slice<GpuCommandListHandle>, options: GpuSubmitOptions): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8372,7 +8373,7 @@ pub const GPU_COMMAND_QUEUE_SUBMIT: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueWaitIdle.
-pub const GPU_COMMAND_QUEUE_WAIT_IDLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_QUEUE_WAIT_IDLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.queueWaitIdle",
     "export function queueWaitIdle(queue: GpuQueueHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8386,7 +8387,7 @@ pub const GPU_COMMAND_QUEUE_WAIT_IDLE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueWriteBuffer.
-pub const GPU_COMMAND_QUEUE_WRITE_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_QUEUE_WRITE_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.queueWriteBuffer",
     "export function queueWriteBuffer(queue: GpuQueueHandle, buffer: GpuBufferHandle, bufferOffset: uint64, data: Slice<uint8>, dataOffset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8400,7 +8401,7 @@ pub const GPU_COMMAND_QUEUE_WRITE_BUFFER: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueWriteTexture.
-pub const GPU_COMMAND_QUEUE_WRITE_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_QUEUE_WRITE_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.queueWriteTexture",
     "export function queueWriteTexture(queue: GpuQueueHandle, destination: GpuTextureCopy, data: Slice<uint8>, layout: GpuBufferCopyLayout, size: GpuExtent3D): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8414,7 +8415,7 @@ pub const GPU_COMMAND_QUEUE_WRITE_TEXTURE: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDestroy.
-pub const GPU_COMMAND_RENDER_BUNDLE_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleDestroy",
     "export function renderBundleDestroy(handle: GpuRenderBundleHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8428,7 +8429,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DESTROY: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDraw.
-pub const GPU_COMMAND_RENDER_BUNDLE_DRAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleDraw",
     "export function renderBundleDraw(handle: GpuRenderBundleEncoderHandle, vertexCount: uint32, instanceCount: uint32, firstVertex: uint32, firstInstance: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8442,7 +8443,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDrawIndexed.
-pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleDrawIndexed",
     "export function renderBundleDrawIndexed(handle: GpuRenderBundleEncoderHandle, indexCount: uint32, instanceCount: uint32, firstIndex: uint32, baseVertex: int32, firstInstance: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8456,7 +8457,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED: BindingDescriptor = BindingDes
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDrawIndexedIndirect.
-pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleDrawIndexedIndirect",
     "export function renderBundleDrawIndexedIndirect(handle: GpuRenderBundleEncoderHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8470,7 +8471,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT: BindingDescriptor = B
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDrawIndirect.
-pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleDrawIndirect",
     "export function renderBundleDrawIndirect(handle: GpuRenderBundleEncoderHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8484,7 +8485,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT: BindingDescriptor = BindingDe
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleEncoderClose.
-pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleEncoderClose",
     "export function renderBundleEncoderClose(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8498,7 +8499,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE: BindingDescriptor = BindingDe
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleEncoderFinish.
-pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleEncoderFinish",
     "export function renderBundleEncoderFinish(handle: GpuRenderBundleEncoderHandle): Result<GpuRenderBundleHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8512,7 +8513,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH: BindingDescriptor = BindingD
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleEncoderOpen.
-pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleEncoderOpen",
     "export function renderBundleEncoderOpen(device: GpuDeviceHandle, options: GpuRenderBundleEncoderOptions): Result<GpuRenderBundleEncoderHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8526,7 +8527,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN: BindingDescriptor = BindingDes
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleInsertDebugMarker.
-pub const GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleInsertDebugMarker",
     "export function renderBundleInsertDebugMarker(handle: GpuRenderBundleEncoderHandle, marker: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8540,7 +8541,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER: BindingDescriptor = Bin
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundlePopDebugGroup.
-pub const GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundlePopDebugGroup",
     "export function renderBundlePopDebugGroup(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8554,7 +8555,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP: BindingDescriptor = Binding
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundlePushDebugGroup.
-pub const GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundlePushDebugGroup",
     "export function renderBundlePushDebugGroup(handle: GpuRenderBundleEncoderHandle, label: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8568,7 +8569,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP: BindingDescriptor = Bindin
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetBindGroup.
-pub const GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleSetBindGroup",
     "export function renderBundleSetBindGroup(handle: GpuRenderBundleEncoderHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8582,7 +8583,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP: BindingDescriptor = BindingD
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetIndexBuffer.
-pub const GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleSetIndexBuffer",
     "export function renderBundleSetIndexBuffer(handle: GpuRenderBundleEncoderHandle, buffer: GpuBufferHandle, format: GpuIndexFormat, offset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8596,7 +8597,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER: BindingDescriptor = Bindin
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetPipeline.
-pub const GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleSetPipeline",
     "export function renderBundleSetPipeline(handle: GpuRenderBundleEncoderHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8610,7 +8611,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE: BindingDescriptor = BindingDes
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetVertexBuffer.
-pub const GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderBundleSetVertexBuffer",
     "export function renderBundleSetVertexBuffer(handle: GpuRenderBundleEncoderHandle, slot: uint32, buffer: GpuBufferHandle, offset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8624,7 +8625,7 @@ pub const GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER: BindingDescriptor = Bindi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassBegin.
-pub const GPU_COMMAND_RENDER_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassBegin",
     "export function commandRenderPassBegin(handle: GpuCommandListHandle, options: GpuRenderPassOptions): Result<GpuRenderPassHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8638,7 +8639,7 @@ pub const GPU_COMMAND_RENDER_PASS_BEGIN: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassEnd.
-pub const GPU_COMMAND_RENDER_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassEnd",
     "export function commandRenderPassEnd(handle: GpuRenderPassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8652,7 +8653,7 @@ pub const GPU_COMMAND_RENDER_PASS_END: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassInsertDebugMarker.
-pub const GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassInsertDebugMarker",
     "export function commandRenderPassInsertDebugMarker(handle: GpuRenderPassHandle, marker: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8666,7 +8667,7 @@ pub const GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = Bindi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassPopDebugGroup.
-pub const GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassPopDebugGroup",
     "export function commandRenderPassPopDebugGroup(handle: GpuRenderPassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8680,7 +8681,7 @@ pub const GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDe
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassPushDebugGroup.
-pub const GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.renderPassPushDebugGroup",
     "export function commandRenderPassPushDebugGroup(handle: GpuRenderPassHandle, label: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8694,7 +8695,7 @@ pub const GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingD
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setBlendConstant.
-pub const GPU_COMMAND_SET_BLEND_CONSTANT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_BLEND_CONSTANT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setBlendConstant",
     "export function commandSetBlendConstant(handle: GpuRenderPassHandle, r: float64, g: float64, b: float64, a: float64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8708,7 +8709,7 @@ pub const GPU_COMMAND_SET_BLEND_CONSTANT: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setComputeBindGroup.
-pub const GPU_COMMAND_SET_COMPUTE_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_COMPUTE_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setComputeBindGroup",
     "export function commandSetComputeBindGroup(handle: GpuComputePassHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8722,7 +8723,7 @@ pub const GPU_COMMAND_SET_COMPUTE_BIND_GROUP: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setIndexBuffer.
-pub const GPU_COMMAND_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setIndexBuffer",
     "export function commandSetIndexBuffer(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, format: GpuIndexFormat, offset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8736,7 +8737,7 @@ pub const GPU_COMMAND_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setRenderBindGroup.
-pub const GPU_COMMAND_SET_RENDER_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_RENDER_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setRenderBindGroup",
     "export function commandSetRenderBindGroup(handle: GpuRenderPassHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8750,7 +8751,7 @@ pub const GPU_COMMAND_SET_RENDER_BIND_GROUP: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setScissor.
-pub const GPU_COMMAND_SET_SCISSOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_SCISSOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setScissor",
     "export function commandSetScissor(handle: GpuRenderPassHandle, x: uint32, y: uint32, width: uint32, height: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8764,7 +8765,7 @@ pub const GPU_COMMAND_SET_SCISSOR: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setStencilReference.
-pub const GPU_COMMAND_SET_STENCIL_REFERENCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_STENCIL_REFERENCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setStencilReference",
     "export function commandSetStencilReference(handle: GpuRenderPassHandle, reference: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8778,7 +8779,7 @@ pub const GPU_COMMAND_SET_STENCIL_REFERENCE: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setVertexBuffer.
-pub const GPU_COMMAND_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setVertexBuffer",
     "export function commandSetVertexBuffer(handle: GpuRenderPassHandle, slot: uint32, buffer: GpuBufferHandle, offset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8792,7 +8793,7 @@ pub const GPU_COMMAND_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setViewport.
-pub const GPU_COMMAND_SET_VIEWPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_VIEWPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.command.setViewport",
     "export function commandSetViewport(handle: GpuRenderPassHandle, x: float64, y: float64, width: float64, height: float64, minDepth: float64, maxDepth: float64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8806,7 +8807,7 @@ pub const GPU_COMMAND_SET_VIEWPORT: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.debug.setLabel.
-pub const GPU_DEBUG_SET_LABEL: BindingDescriptor =
+pub(crate) const GPU_DEBUG_SET_LABEL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.debug.setLabel",
         "export function setLabel(handle: ResourceId, label: string): Result<void, PlatformError>",
@@ -8834,7 +8835,7 @@ pub const GPU_DEBUG_SET_LABEL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.device.close.
-pub const GPU_DEVICE_CLOSE: BindingDescriptor =
+pub(crate) const GPU_DEVICE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.device.close",
         "export function deviceClose(handle: GpuDeviceHandle): Result<void, PlatformError>",
@@ -8862,7 +8863,7 @@ pub const GPU_DEVICE_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.device.features.
-pub const GPU_DEVICE_FEATURES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_FEATURES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.features",
     "export function deviceFeatures(device: GpuDeviceHandle): Result<Slice<GpuFeatureId>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8876,7 +8877,7 @@ pub const GPU_DEVICE_FEATURES: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.hasFeature.
-pub const GPU_DEVICE_HAS_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_HAS_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.hasFeature",
     "export function deviceHasFeature(device: GpuDeviceHandle, feature: GpuFeatureId): Result<boolean, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8890,7 +8891,7 @@ pub const GPU_DEVICE_HAS_FEATURE: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.info.
-pub const GPU_DEVICE_INFO: BindingDescriptor =
+pub(crate) const GPU_DEVICE_INFO: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.device.info",
         "export function deviceInfo(device: GpuDeviceHandle): Result<GpuDeviceInfo, PlatformError>",
@@ -8918,7 +8919,7 @@ pub const GPU_DEVICE_INFO: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.device.limits.
-pub const GPU_DEVICE_LIMITS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_LIMITS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.limits",
     "export function deviceLimits(device: GpuDeviceHandle): Result<GpuAdapterLimits, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8932,7 +8933,7 @@ pub const GPU_DEVICE_LIMITS: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.open.
-pub const GPU_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.open",
     "export function deviceOpen(adapter: GpuAdapterHandle, options: GpuDeviceOptions): Result<GpuDeviceHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8946,7 +8947,7 @@ pub const GPU_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.poll.
-pub const GPU_DEVICE_POLL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_POLL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.poll",
     "export function devicePoll(device: GpuDeviceHandle, wait: boolean, timeoutNs: uint64): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8960,7 +8961,7 @@ pub const GPU_DEVICE_POLL: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.popErrorScope.
-pub const GPU_DEVICE_POP_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_POP_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.popErrorScope",
     "export function devicePopErrorScope(device: GpuDeviceHandle, timeoutNs: uint64): Result<GpuCapturedError, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8974,7 +8975,7 @@ pub const GPU_DEVICE_POP_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.pushErrorScope.
-pub const GPU_DEVICE_PUSH_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_PUSH_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.pushErrorScope",
     "export function devicePushErrorScope(device: GpuDeviceHandle, filter: GpuErrorFilter): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -8988,7 +8989,7 @@ pub const GPU_DEVICE_PUSH_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.queue.
-pub const GPU_DEVICE_QUEUE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_QUEUE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.queue",
     "export function deviceQueue(device: GpuDeviceHandle): Result<GpuQueueHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9002,7 +9003,7 @@ pub const GPU_DEVICE_QUEUE: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.status.
-pub const GPU_DEVICE_STATUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_STATUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.device.status",
     "export function deviceStatus(device: GpuDeviceHandle): Result<GpuDeviceStatus, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9016,7 +9017,7 @@ pub const GPU_DEVICE_STATUS: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.bindGroupLayout.
-pub const GPU_PIPELINE_BIND_GROUP_LAYOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PIPELINE_BIND_GROUP_LAYOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.pipeline.bindGroupLayout",
     "export function pipelineBindGroupLayout(pipeline: GpuPipelineHandle, groupIndex: uint32): Result<GpuBindGroupLayoutHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9030,7 +9031,7 @@ pub const GPU_PIPELINE_BIND_GROUP_LAYOUT: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.computeCreate.
-pub const GPU_PIPELINE_COMPUTE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PIPELINE_COMPUTE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.pipeline.computeCreate",
     "export function computePipelineCreate(device: GpuDeviceHandle, options: GpuComputePipelineOptions): Result<GpuPipelineHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9044,7 +9045,7 @@ pub const GPU_PIPELINE_COMPUTE_CREATE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.destroy.
-pub const GPU_PIPELINE_DESTROY: BindingDescriptor =
+pub(crate) const GPU_PIPELINE_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.pipeline.destroy",
         "export function pipelineDestroy(handle: GpuPipelineHandle): Result<void, PlatformError>",
@@ -9072,7 +9073,7 @@ pub const GPU_PIPELINE_DESTROY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.pipeline.renderCreate.
-pub const GPU_PIPELINE_RENDER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PIPELINE_RENDER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.pipeline.renderCreate",
     "export function renderPipelineCreate(device: GpuDeviceHandle, options: GpuRenderPipelineOptions): Result<GpuPipelineHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9086,7 +9087,7 @@ pub const GPU_PIPELINE_RENDER_CREATE: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.shaderCompilationInfo.
-pub const GPU_PIPELINE_SHADER_COMPILATION_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PIPELINE_SHADER_COMPILATION_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.pipeline.shaderCompilationInfo",
     "export function shaderCompilationInfo(handle: GpuShaderHandle, timeoutNs: uint64): Result<GpuCompilationInfo, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9100,7 +9101,7 @@ pub const GPU_PIPELINE_SHADER_COMPILATION_INFO: BindingDescriptor = BindingDescr
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.shaderCreate.
-pub const GPU_PIPELINE_SHADER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PIPELINE_SHADER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.pipeline.shaderCreate",
     "export function shaderCreate(device: GpuDeviceHandle, options: GpuShaderOptions, bytes: Slice<uint8>): Result<GpuShaderHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9114,7 +9115,7 @@ pub const GPU_PIPELINE_SHADER_CREATE: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.shaderDestroy.
-pub const GPU_PIPELINE_SHADER_DESTROY: BindingDescriptor =
+pub(crate) const GPU_PIPELINE_SHADER_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.pipeline.shaderDestroy",
         "export function shaderDestroy(handle: GpuShaderHandle): Result<void, PlatformError>",
@@ -9142,7 +9143,7 @@ pub const GPU_PIPELINE_SHADER_DESTROY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.present.surfaceAcquire.
-pub const GPU_PRESENT_SURFACE_ACQUIRE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_ACQUIRE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfaceAcquire",
     "export function surfaceAcquire(surface: GpuSurfaceHandle, timeoutNs: uint64): Result<GpuSurfaceFrame, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -9156,7 +9157,7 @@ pub const GPU_PRESENT_SURFACE_ACQUIRE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceCapabilities.
-pub const GPU_PRESENT_SURFACE_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfaceCapabilities",
     "export function surfaceCapabilities(surface: GpuSurfaceHandle, adapter: GpuAdapterHandle): Result<GpuSurfaceCapabilities, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -9170,7 +9171,7 @@ pub const GPU_PRESENT_SURFACE_CAPABILITIES: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceClose.
-pub const GPU_PRESENT_SURFACE_CLOSE: BindingDescriptor =
+pub(crate) const GPU_PRESENT_SURFACE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.present.surfaceClose",
         "export function surfaceClose(surface: GpuSurfaceHandle): Result<void, PlatformError>",
@@ -9198,7 +9199,7 @@ pub const GPU_PRESENT_SURFACE_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.present.surfaceConfigure.
-pub const GPU_PRESENT_SURFACE_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfaceConfigure",
     "export function surfaceConfigure(device: GpuDeviceHandle, surface: GpuSurfaceHandle, options: GpuSurfaceOptions): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -9212,7 +9213,7 @@ pub const GPU_PRESENT_SURFACE_CONFIGURE: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceOpen.
-pub const GPU_PRESENT_SURFACE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfaceOpen",
     "export function surfaceOpen(window: WindowHandle): Result<GpuSurfaceHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -9226,7 +9227,7 @@ pub const GPU_PRESENT_SURFACE_OPEN: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfacePresent.
-pub const GPU_PRESENT_SURFACE_PRESENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_PRESENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfacePresent",
     "export function surfacePresent(surface: GpuSurfaceHandle, options: GpuPresentOptions): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -9240,7 +9241,7 @@ pub const GPU_PRESENT_SURFACE_PRESENT: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceUnconfigure.
-pub const GPU_PRESENT_SURFACE_UNCONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_UNCONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.present.surfaceUnconfigure",
     "export function surfaceUnconfigure(surface: GpuSurfaceHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -9254,7 +9255,7 @@ pub const GPU_PRESENT_SURFACE_UNCONFIGURE: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferCreate.
-pub const GPU_RESOURCE_BUFFER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_BUFFER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.bufferCreate",
     "export function bufferCreate(device: GpuDeviceHandle, options: GpuBufferOptions): Result<GpuBufferHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9268,7 +9269,7 @@ pub const GPU_RESOURCE_BUFFER_CREATE: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferDestroy.
-pub const GPU_RESOURCE_BUFFER_DESTROY: BindingDescriptor =
+pub(crate) const GPU_RESOURCE_BUFFER_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.resource.bufferDestroy",
         "export function bufferDestroy(handle: GpuBufferHandle): Result<void, PlatformError>",
@@ -9296,7 +9297,7 @@ pub const GPU_RESOURCE_BUFFER_DESTROY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.resource.bufferInfo.
-pub const GPU_RESOURCE_BUFFER_INFO: BindingDescriptor =
+pub(crate) const GPU_RESOURCE_BUFFER_INFO: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.resource.bufferInfo",
         "export function bufferInfo(handle: GpuBufferHandle): Result<GpuBufferInfo, PlatformError>",
@@ -9324,7 +9325,7 @@ pub const GPU_RESOURCE_BUFFER_INFO: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.resource.bufferMap.
-pub const GPU_RESOURCE_BUFFER_MAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_BUFFER_MAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.bufferMap",
     "export function bufferMap(handle: GpuBufferHandle, offset: uint64, length: uint64, mode: GpuMapMode): Result<GpuMappedBufferRange, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9338,7 +9339,7 @@ pub const GPU_RESOURCE_BUFFER_MAP: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferRead.
-pub const GPU_RESOURCE_BUFFER_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_BUFFER_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.bufferRead",
     "export function bufferRead(handle: GpuBufferHandle, offset: uint64, length: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9352,7 +9353,7 @@ pub const GPU_RESOURCE_BUFFER_READ: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferUnmap.
-pub const GPU_RESOURCE_BUFFER_UNMAP: BindingDescriptor =
+pub(crate) const GPU_RESOURCE_BUFFER_UNMAP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.resource.bufferUnmap",
         "export function bufferUnmap(handle: GpuBufferHandle): Result<void, PlatformError>",
@@ -9380,7 +9381,7 @@ pub const GPU_RESOURCE_BUFFER_UNMAP: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.resource.bufferWrite.
-pub const GPU_RESOURCE_BUFFER_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_BUFFER_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.bufferWrite",
     "export function bufferWrite(handle: GpuBufferHandle, offset: uint64, bytes: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9394,7 +9395,7 @@ pub const GPU_RESOURCE_BUFFER_WRITE: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.samplerCreate.
-pub const GPU_RESOURCE_SAMPLER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_SAMPLER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.samplerCreate",
     "export function samplerCreate(device: GpuDeviceHandle, options: GpuSamplerOptions): Result<GpuSamplerHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9408,7 +9409,7 @@ pub const GPU_RESOURCE_SAMPLER_CREATE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.samplerDestroy.
-pub const GPU_RESOURCE_SAMPLER_DESTROY: BindingDescriptor =
+pub(crate) const GPU_RESOURCE_SAMPLER_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.resource.samplerDestroy",
         "export function samplerDestroy(handle: GpuSamplerHandle): Result<void, PlatformError>",
@@ -9436,7 +9437,7 @@ pub const GPU_RESOURCE_SAMPLER_DESTROY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.resource.textureCreate.
-pub const GPU_RESOURCE_TEXTURE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_TEXTURE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.textureCreate",
     "export function textureCreate(device: GpuDeviceHandle, options: GpuTextureOptions): Result<GpuTextureHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9450,7 +9451,7 @@ pub const GPU_RESOURCE_TEXTURE_CREATE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.textureDestroy.
-pub const GPU_RESOURCE_TEXTURE_DESTROY: BindingDescriptor =
+pub(crate) const GPU_RESOURCE_TEXTURE_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.resource.textureDestroy",
         "export function textureDestroy(handle: GpuTextureHandle): Result<void, PlatformError>",
@@ -9478,7 +9479,7 @@ pub const GPU_RESOURCE_TEXTURE_DESTROY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.resource.textureInfo.
-pub const GPU_RESOURCE_TEXTURE_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_TEXTURE_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.textureInfo",
     "export function textureInfo(handle: GpuTextureHandle): Result<GpuTextureInfo, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9492,7 +9493,7 @@ pub const GPU_RESOURCE_TEXTURE_INFO: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.textureViewCreate.
-pub const GPU_RESOURCE_TEXTURE_VIEW_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_TEXTURE_VIEW_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.textureViewCreate",
     "export function textureViewCreate(texture: GpuTextureHandle, options: GpuTextureViewOptions): Result<GpuTextureViewHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9506,7 +9507,7 @@ pub const GPU_RESOURCE_TEXTURE_VIEW_CREATE: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.textureViewDestroy.
-pub const GPU_RESOURCE_TEXTURE_VIEW_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_TEXTURE_VIEW_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.resource.textureViewDestroy",
     "export function textureViewDestroy(handle: GpuTextureViewHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9520,7 +9521,7 @@ pub const GPU_RESOURCE_TEXTURE_VIEW_DESTROY: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandBeginComputePipelineStatisticsQuery.
-pub const GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandBeginComputePipelineStatisticsQuery",
     "export function commandBeginComputePipelineStatisticsQuery(computePass: GpuComputePassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9534,7 +9535,7 @@ pub const GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescr
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandBeginOcclusionQuery.
-pub const GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandBeginOcclusionQuery",
     "export function commandBeginOcclusionQuery(renderPass: GpuRenderPassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9548,7 +9549,7 @@ pub const GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY: BindingDescriptor = BindingDes
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery.
-pub const GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery",
     "export function commandBeginRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9562,7 +9563,7 @@ pub const GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescri
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandEndComputePipelineStatisticsQuery.
-pub const GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandEndComputePipelineStatisticsQuery",
     "export function commandEndComputePipelineStatisticsQuery(computePass: GpuComputePassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9576,7 +9577,7 @@ pub const GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandEndOcclusionQuery.
-pub const GPU_SYNC_COMMAND_END_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_END_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandEndOcclusionQuery",
     "export function commandEndOcclusionQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9590,7 +9591,7 @@ pub const GPU_SYNC_COMMAND_END_OCCLUSION_QUERY: BindingDescriptor = BindingDescr
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandEndRenderPipelineStatisticsQuery.
-pub const GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandEndRenderPipelineStatisticsQuery",
     "export function commandEndRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9604,7 +9605,7 @@ pub const GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandResolveQueries.
-pub const GPU_SYNC_COMMAND_RESOLVE_QUERIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_RESOLVE_QUERIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandResolveQueries",
     "export function commandResolveQueries(commandList: GpuCommandListHandle, querySet: GpuQuerySetHandle, firstQuery: uint32, queryCount: uint32, destination: GpuBufferHandle, destinationOffset: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9618,7 +9619,7 @@ pub const GPU_SYNC_COMMAND_RESOLVE_QUERIES: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandWriteTimestamp.
-pub const GPU_SYNC_COMMAND_WRITE_TIMESTAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_WRITE_TIMESTAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.commandWriteTimestamp",
     "export function commandWriteTimestamp(commandList: GpuCommandListHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9632,7 +9633,7 @@ pub const GPU_SYNC_COMMAND_WRITE_TIMESTAMP: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.fenceCreate.
-pub const GPU_SYNC_FENCE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_FENCE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.fenceCreate",
     "export function fenceCreate(device: GpuDeviceHandle, options: GpuFenceOptions): Result<GpuFenceHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9646,7 +9647,7 @@ pub const GPU_SYNC_FENCE_CREATE: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.fenceDestroy.
-pub const GPU_SYNC_FENCE_DESTROY: BindingDescriptor =
+pub(crate) const GPU_SYNC_FENCE_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.sync.fenceDestroy",
         "export function fenceDestroy(handle: GpuFenceHandle): Result<void, PlatformError>",
@@ -9674,7 +9675,7 @@ pub const GPU_SYNC_FENCE_DESTROY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.sync.querySetCreate.
-pub const GPU_SYNC_QUERY_SET_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUERY_SET_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.querySetCreate",
     "export function querySetCreate(device: GpuDeviceHandle, options: GpuQuerySetOptions): Result<GpuQuerySetHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9688,7 +9689,7 @@ pub const GPU_SYNC_QUERY_SET_CREATE: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.querySetDestroy.
-pub const GPU_SYNC_QUERY_SET_DESTROY: BindingDescriptor =
+pub(crate) const GPU_SYNC_QUERY_SET_DESTROY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.gpu.sync.querySetDestroy",
         "export function querySetDestroy(handle: GpuQuerySetHandle): Result<void, PlatformError>",
@@ -9716,7 +9717,7 @@ pub const GPU_SYNC_QUERY_SET_DESTROY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.gpu.sync.querySetInfo.
-pub const GPU_SYNC_QUERY_SET_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUERY_SET_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.querySetInfo",
     "export function querySetInfo(handle: GpuQuerySetHandle): Result<GpuQuerySetInfo, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9730,7 +9731,7 @@ pub const GPU_SYNC_QUERY_SET_INFO: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueSignal.
-pub const GPU_SYNC_QUEUE_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUEUE_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.queueSignal",
     "export function queueSignal(queue: GpuQueueHandle, fence: GpuFenceHandle, value: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9744,7 +9745,7 @@ pub const GPU_SYNC_QUEUE_SIGNAL: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueTimestampPeriod.
-pub const GPU_SYNC_QUEUE_TIMESTAMP_PERIOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUEUE_TIMESTAMP_PERIOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.queueTimestampPeriod",
     "export function queueTimestampPeriod(queue: GpuQueueHandle): Result<float64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9758,7 +9759,7 @@ pub const GPU_SYNC_QUEUE_TIMESTAMP_PERIOD: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueWait.
-pub const GPU_SYNC_QUEUE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUEUE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.queueWait",
     "export function queueWait(queue: GpuQueueHandle, fence: GpuFenceHandle, value: uint64, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9772,7 +9773,7 @@ pub const GPU_SYNC_QUEUE_WAIT: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueWorkDone.
-pub const GPU_SYNC_QUEUE_WORK_DONE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUEUE_WORK_DONE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.sync.queueWorkDone",
     "export function queueWorkDone(queue: GpuQueueHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -9785,144 +9786,8 @@ pub const GPU_SYNC_QUEUE_WORK_DONE: BindingDescriptor = BindingDescriptor::exter
     .with_namespace("gpu")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptors for gpu.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    GPU_ADAPTER_CLOSE,
-    GPU_ADAPTER_FEATURES,
-    GPU_ADAPTER_FORMAT_CAPABILITIES,
-    GPU_ADAPTER_HAS_FEATURE,
-    GPU_ADAPTER_INFO,
-    GPU_ADAPTER_LIMITS,
-    GPU_ADAPTER_LIST,
-    GPU_ADAPTER_OPEN,
-    GPU_BIND_GROUP_CREATE,
-    GPU_BIND_GROUP_DESTROY,
-    GPU_BIND_GROUP_LAYOUT_CREATE,
-    GPU_BIND_GROUP_LAYOUT_DESTROY,
-    GPU_BIND_PIPELINE_LAYOUT_CREATE,
-    GPU_BIND_PIPELINE_LAYOUT_DESTROY,
-    GPU_COMMAND_BIND_COMPUTE_PIPELINE,
-    GPU_COMMAND_BIND_RENDER_PIPELINE,
-    GPU_COMMAND_CLEAR_BUFFER,
-    GPU_COMMAND_COMPUTE_PASS_BEGIN,
-    GPU_COMMAND_COMPUTE_PASS_END,
-    GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
-    GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
-    GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
-    GPU_COMMAND_COPY_BUFFER,
-    GPU_COMMAND_COPY_BUFFER_TO_TEXTURE,
-    GPU_COMMAND_COPY_TEXTURE_TO_BUFFER,
-    GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE,
-    GPU_COMMAND_DISPATCH,
-    GPU_COMMAND_DISPATCH_INDIRECT,
-    GPU_COMMAND_DRAW,
-    GPU_COMMAND_DRAW_INDEXED,
-    GPU_COMMAND_DRAW_INDEXED_INDIRECT,
-    GPU_COMMAND_DRAW_INDIRECT,
-    GPU_COMMAND_ENCODER_CLOSE,
-    GPU_COMMAND_ENCODER_FINISH,
-    GPU_COMMAND_ENCODER_OPEN,
-    GPU_COMMAND_EXECUTE_BUNDLES,
-    GPU_COMMAND_INSERT_DEBUG_MARKER,
-    GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT,
-    GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
-    GPU_COMMAND_MULTI_DRAW_INDIRECT,
-    GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT,
-    GPU_COMMAND_POP_DEBUG_GROUP,
-    GPU_COMMAND_PUSH_DEBUG_GROUP,
-    GPU_COMMAND_QUEUE_SUBMIT,
-    GPU_COMMAND_QUEUE_WAIT_IDLE,
-    GPU_COMMAND_QUEUE_WRITE_BUFFER,
-    GPU_COMMAND_QUEUE_WRITE_TEXTURE,
-    GPU_COMMAND_RENDER_BUNDLE_DESTROY,
-    GPU_COMMAND_RENDER_BUNDLE_DRAW,
-    GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED,
-    GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
-    GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT,
-    GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE,
-    GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
-    GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN,
-    GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
-    GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
-    GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
-    GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
-    GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
-    GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE,
-    GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
-    GPU_COMMAND_RENDER_PASS_BEGIN,
-    GPU_COMMAND_RENDER_PASS_END,
-    GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
-    GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP,
-    GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
-    GPU_COMMAND_SET_BLEND_CONSTANT,
-    GPU_COMMAND_SET_COMPUTE_BIND_GROUP,
-    GPU_COMMAND_SET_INDEX_BUFFER,
-    GPU_COMMAND_SET_RENDER_BIND_GROUP,
-    GPU_COMMAND_SET_SCISSOR,
-    GPU_COMMAND_SET_STENCIL_REFERENCE,
-    GPU_COMMAND_SET_VERTEX_BUFFER,
-    GPU_COMMAND_SET_VIEWPORT,
-    GPU_DEBUG_SET_LABEL,
-    GPU_DEVICE_CLOSE,
-    GPU_DEVICE_FEATURES,
-    GPU_DEVICE_HAS_FEATURE,
-    GPU_DEVICE_INFO,
-    GPU_DEVICE_LIMITS,
-    GPU_DEVICE_OPEN,
-    GPU_DEVICE_POLL,
-    GPU_DEVICE_POP_ERROR_SCOPE,
-    GPU_DEVICE_PUSH_ERROR_SCOPE,
-    GPU_DEVICE_QUEUE,
-    GPU_DEVICE_STATUS,
-    GPU_PIPELINE_BIND_GROUP_LAYOUT,
-    GPU_PIPELINE_COMPUTE_CREATE,
-    GPU_PIPELINE_DESTROY,
-    GPU_PIPELINE_RENDER_CREATE,
-    GPU_PIPELINE_SHADER_COMPILATION_INFO,
-    GPU_PIPELINE_SHADER_CREATE,
-    GPU_PIPELINE_SHADER_DESTROY,
-    GPU_PRESENT_SURFACE_ACQUIRE,
-    GPU_PRESENT_SURFACE_CAPABILITIES,
-    GPU_PRESENT_SURFACE_CLOSE,
-    GPU_PRESENT_SURFACE_CONFIGURE,
-    GPU_PRESENT_SURFACE_OPEN,
-    GPU_PRESENT_SURFACE_PRESENT,
-    GPU_PRESENT_SURFACE_UNCONFIGURE,
-    GPU_RESOURCE_BUFFER_CREATE,
-    GPU_RESOURCE_BUFFER_DESTROY,
-    GPU_RESOURCE_BUFFER_INFO,
-    GPU_RESOURCE_BUFFER_MAP,
-    GPU_RESOURCE_BUFFER_READ,
-    GPU_RESOURCE_BUFFER_UNMAP,
-    GPU_RESOURCE_BUFFER_WRITE,
-    GPU_RESOURCE_SAMPLER_CREATE,
-    GPU_RESOURCE_SAMPLER_DESTROY,
-    GPU_RESOURCE_TEXTURE_CREATE,
-    GPU_RESOURCE_TEXTURE_DESTROY,
-    GPU_RESOURCE_TEXTURE_INFO,
-    GPU_RESOURCE_TEXTURE_VIEW_CREATE,
-    GPU_RESOURCE_TEXTURE_VIEW_DESTROY,
-    GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
-    GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY,
-    GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
-    GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
-    GPU_SYNC_COMMAND_END_OCCLUSION_QUERY,
-    GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
-    GPU_SYNC_COMMAND_RESOLVE_QUERIES,
-    GPU_SYNC_COMMAND_WRITE_TIMESTAMP,
-    GPU_SYNC_FENCE_CREATE,
-    GPU_SYNC_FENCE_DESTROY,
-    GPU_SYNC_QUERY_SET_CREATE,
-    GPU_SYNC_QUERY_SET_DESTROY,
-    GPU_SYNC_QUERY_SET_INFO,
-    GPU_SYNC_QUEUE_SIGNAL,
-    GPU_SYNC_QUEUE_TIMESTAMP_PERIOD,
-    GPU_SYNC_QUEUE_WAIT,
-    GPU_SYNC_QUEUE_WORK_DONE,
-];
-
 /// Native binding set for gpu.
-pub const GPU_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const GPU_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "gpu",
     bindings: &[
         NativeBinding::new(
@@ -18815,7 +18680,7 @@ fn destack_gpu_sync_queue_work_done_replay(
 
 /// Native export wrappers for gpu bindings.
 #[unsafe(export_name = "destack.gpu.adapter.close")]
-pub unsafe extern "C" fn destack_gpu_adapter_close(
+pub(crate) unsafe extern "C" fn destack_gpu_adapter_close(
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -18828,7 +18693,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_close(
 }
 
 #[unsafe(export_name = "destack.gpu.adapter.features")]
-pub unsafe extern "C" fn destack_gpu_adapter_features(
+pub(crate) unsafe extern "C" fn destack_gpu_adapter_features(
     out: *mut NativeSlice<GpuFeatureId>,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeStatus {
@@ -18845,7 +18710,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_features(
 }
 
 #[unsafe(export_name = "destack.gpu.adapter.formatCapabilities")]
-pub unsafe extern "C" fn destack_gpu_adapter_format_capabilities(
+pub(crate) unsafe extern "C" fn destack_gpu_adapter_format_capabilities(
     out: *mut GpuAdapterFormatCapabilities,
     handle: resource::GpuAdapterHandle,
     format: u32,
@@ -18863,7 +18728,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_format_capabilities(
 }
 
 #[unsafe(export_name = "destack.gpu.adapter.hasFeature")]
-pub unsafe extern "C" fn destack_gpu_adapter_has_feature(
+pub(crate) unsafe extern "C" fn destack_gpu_adapter_has_feature(
     out: *mut bool,
     handle: resource::GpuAdapterHandle,
     feature: GpuFeatureId,
@@ -18881,7 +18746,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_has_feature(
 }
 
 #[unsafe(export_name = "destack.gpu.adapter.info")]
-pub unsafe extern "C" fn destack_gpu_adapter_info(
+pub(crate) unsafe extern "C" fn destack_gpu_adapter_info(
     out: *mut GpuAdapterInfo,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeStatus {
@@ -18898,7 +18763,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_info(
 }
 
 #[unsafe(export_name = "destack.gpu.adapter.limits")]
-pub unsafe extern "C" fn destack_gpu_adapter_limits(
+pub(crate) unsafe extern "C" fn destack_gpu_adapter_limits(
     out: *mut GpuAdapterLimits,
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeStatus {
@@ -18915,7 +18780,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_limits(
 }
 
 #[unsafe(export_name = "destack.gpu.adapter.list")]
-pub unsafe extern "C" fn destack_gpu_adapter_list(
+pub(crate) unsafe extern "C" fn destack_gpu_adapter_list(
     out: *mut NativeArray<GpuAdapterInfo>,
     request: GpuAdapterRequest,
 ) -> RuntimeStatus {
@@ -18932,7 +18797,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_list(
 }
 
 #[unsafe(export_name = "destack.gpu.adapter.open")]
-pub unsafe extern "C" fn destack_gpu_adapter_open(
+pub(crate) unsafe extern "C" fn destack_gpu_adapter_open(
     out: *mut resource::GpuAdapterHandle,
     id: NativeStringRef,
 ) -> RuntimeStatus {
@@ -18949,7 +18814,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_open(
 }
 
 #[unsafe(export_name = "destack.gpu.bind.groupCreate")]
-pub unsafe extern "C" fn destack_gpu_bind_group_create(
+pub(crate) unsafe extern "C" fn destack_gpu_bind_group_create(
     out: *mut resource::GpuBindGroupHandle,
     device: resource::GpuDeviceHandle,
     layout: resource::GpuBindGroupLayoutHandle,
@@ -18969,7 +18834,7 @@ pub unsafe extern "C" fn destack_gpu_bind_group_create(
 }
 
 #[unsafe(export_name = "destack.gpu.bind.groupDestroy")]
-pub unsafe extern "C" fn destack_gpu_bind_group_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_bind_group_destroy(
     handle: resource::GpuBindGroupHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -18982,7 +18847,7 @@ pub unsafe extern "C" fn destack_gpu_bind_group_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.bind.groupLayoutCreate")]
-pub unsafe extern "C" fn destack_gpu_bind_group_layout_create(
+pub(crate) unsafe extern "C" fn destack_gpu_bind_group_layout_create(
     out: *mut resource::GpuBindGroupLayoutHandle,
     device: resource::GpuDeviceHandle,
     entries: NativeSlice<GpuBindGroupLayoutEntry>,
@@ -19001,7 +18866,7 @@ pub unsafe extern "C" fn destack_gpu_bind_group_layout_create(
 }
 
 #[unsafe(export_name = "destack.gpu.bind.groupLayoutDestroy")]
-pub unsafe extern "C" fn destack_gpu_bind_group_layout_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_bind_group_layout_destroy(
     handle: resource::GpuBindGroupLayoutHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -19014,7 +18879,7 @@ pub unsafe extern "C" fn destack_gpu_bind_group_layout_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.bind.pipelineLayoutCreate")]
-pub unsafe extern "C" fn destack_gpu_bind_pipeline_layout_create(
+pub(crate) unsafe extern "C" fn destack_gpu_bind_pipeline_layout_create(
     out: *mut resource::GpuPipelineLayoutHandle,
     device: resource::GpuDeviceHandle,
     options: GpuPipelineLayoutOptions,
@@ -19032,7 +18897,7 @@ pub unsafe extern "C" fn destack_gpu_bind_pipeline_layout_create(
 }
 
 #[unsafe(export_name = "destack.gpu.bind.pipelineLayoutDestroy")]
-pub unsafe extern "C" fn destack_gpu_bind_pipeline_layout_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_bind_pipeline_layout_destroy(
     handle: resource::GpuPipelineLayoutHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -19045,7 +18910,7 @@ pub unsafe extern "C" fn destack_gpu_bind_pipeline_layout_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.command.bindComputePipeline")]
-pub unsafe extern "C" fn destack_gpu_command_bind_compute_pipeline(
+pub(crate) unsafe extern "C" fn destack_gpu_command_bind_compute_pipeline(
     handle: resource::GpuComputePassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeStatus {
@@ -19059,7 +18924,7 @@ pub unsafe extern "C" fn destack_gpu_command_bind_compute_pipeline(
 }
 
 #[unsafe(export_name = "destack.gpu.command.bindRenderPipeline")]
-pub unsafe extern "C" fn destack_gpu_command_bind_render_pipeline(
+pub(crate) unsafe extern "C" fn destack_gpu_command_bind_render_pipeline(
     handle: resource::GpuRenderPassHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeStatus {
@@ -19073,7 +18938,7 @@ pub unsafe extern "C" fn destack_gpu_command_bind_render_pipeline(
 }
 
 #[unsafe(export_name = "destack.gpu.command.clearBuffer")]
-pub unsafe extern "C" fn destack_gpu_command_clear_buffer(
+pub(crate) unsafe extern "C" fn destack_gpu_command_clear_buffer(
     handle: resource::GpuCommandListHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -19089,7 +18954,7 @@ pub unsafe extern "C" fn destack_gpu_command_clear_buffer(
 }
 
 #[unsafe(export_name = "destack.gpu.command.computePassBegin")]
-pub unsafe extern "C" fn destack_gpu_command_compute_pass_begin(
+pub(crate) unsafe extern "C" fn destack_gpu_command_compute_pass_begin(
     out: *mut resource::GpuComputePassHandle,
     handle: resource::GpuCommandListHandle,
     options: GpuComputePassOptions,
@@ -19107,7 +18972,7 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_begin(
 }
 
 #[unsafe(export_name = "destack.gpu.command.computePassEnd")]
-pub unsafe extern "C" fn destack_gpu_command_compute_pass_end(
+pub(crate) unsafe extern "C" fn destack_gpu_command_compute_pass_end(
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -19120,7 +18985,7 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_end(
 }
 
 #[unsafe(export_name = "destack.gpu.command.computePassInsertDebugMarker")]
-pub unsafe extern "C" fn destack_gpu_command_compute_pass_insert_debug_marker(
+pub(crate) unsafe extern "C" fn destack_gpu_command_compute_pass_insert_debug_marker(
     handle: resource::GpuComputePassHandle,
     marker: NativeStringRef,
 ) -> RuntimeStatus {
@@ -19134,7 +18999,7 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_insert_debug_marker(
 }
 
 #[unsafe(export_name = "destack.gpu.command.computePassPopDebugGroup")]
-pub unsafe extern "C" fn destack_gpu_command_compute_pass_pop_debug_group(
+pub(crate) unsafe extern "C" fn destack_gpu_command_compute_pass_pop_debug_group(
     handle: resource::GpuComputePassHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -19147,7 +19012,7 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_pop_debug_group(
 }
 
 #[unsafe(export_name = "destack.gpu.command.computePassPushDebugGroup")]
-pub unsafe extern "C" fn destack_gpu_command_compute_pass_push_debug_group(
+pub(crate) unsafe extern "C" fn destack_gpu_command_compute_pass_push_debug_group(
     handle: resource::GpuComputePassHandle,
     label: NativeStringRef,
 ) -> RuntimeStatus {
@@ -19161,7 +19026,7 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_push_debug_group(
 }
 
 #[unsafe(export_name = "destack.gpu.command.copyBuffer")]
-pub unsafe extern "C" fn destack_gpu_command_copy_buffer(
+pub(crate) unsafe extern "C" fn destack_gpu_command_copy_buffer(
     handle: resource::GpuCommandListHandle,
     src: resource::GpuBufferHandle,
     srcoffset: u64,
@@ -19188,7 +19053,7 @@ pub unsafe extern "C" fn destack_gpu_command_copy_buffer(
 }
 
 #[unsafe(export_name = "destack.gpu.command.copyBufferToTexture")]
-pub unsafe extern "C" fn destack_gpu_command_copy_buffer_to_texture(
+pub(crate) unsafe extern "C" fn destack_gpu_command_copy_buffer_to_texture(
     handle: resource::GpuCommandListHandle,
     source: GpuBufferCopy,
     destination: GpuTextureCopy,
@@ -19211,7 +19076,7 @@ pub unsafe extern "C" fn destack_gpu_command_copy_buffer_to_texture(
 }
 
 #[unsafe(export_name = "destack.gpu.command.copyTextureToBuffer")]
-pub unsafe extern "C" fn destack_gpu_command_copy_texture_to_buffer(
+pub(crate) unsafe extern "C" fn destack_gpu_command_copy_texture_to_buffer(
     handle: resource::GpuCommandListHandle,
     source: GpuTextureCopy,
     destination: GpuBufferCopy,
@@ -19234,7 +19099,7 @@ pub unsafe extern "C" fn destack_gpu_command_copy_texture_to_buffer(
 }
 
 #[unsafe(export_name = "destack.gpu.command.copyTextureToTexture")]
-pub unsafe extern "C" fn destack_gpu_command_copy_texture_to_texture(
+pub(crate) unsafe extern "C" fn destack_gpu_command_copy_texture_to_texture(
     handle: resource::GpuCommandListHandle,
     source: GpuTextureCopy,
     destination: GpuTextureCopy,
@@ -19257,7 +19122,7 @@ pub unsafe extern "C" fn destack_gpu_command_copy_texture_to_texture(
 }
 
 #[unsafe(export_name = "destack.gpu.command.dispatch")]
-pub unsafe extern "C" fn destack_gpu_command_dispatch(
+pub(crate) unsafe extern "C" fn destack_gpu_command_dispatch(
     handle: resource::GpuComputePassHandle,
     groupx: u32,
     groupy: u32,
@@ -19273,7 +19138,7 @@ pub unsafe extern "C" fn destack_gpu_command_dispatch(
 }
 
 #[unsafe(export_name = "destack.gpu.command.dispatchIndirect")]
-pub unsafe extern "C" fn destack_gpu_command_dispatch_indirect(
+pub(crate) unsafe extern "C" fn destack_gpu_command_dispatch_indirect(
     handle: resource::GpuComputePassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -19288,7 +19153,7 @@ pub unsafe extern "C" fn destack_gpu_command_dispatch_indirect(
 }
 
 #[unsafe(export_name = "destack.gpu.command.draw")]
-pub unsafe extern "C" fn destack_gpu_command_draw(
+pub(crate) unsafe extern "C" fn destack_gpu_command_draw(
     handle: resource::GpuRenderPassHandle,
     vertexcount: u32,
     instancecount: u32,
@@ -19319,7 +19184,7 @@ pub unsafe extern "C" fn destack_gpu_command_draw(
 }
 
 #[unsafe(export_name = "destack.gpu.command.drawIndexed")]
-pub unsafe extern "C" fn destack_gpu_command_draw_indexed(
+pub(crate) unsafe extern "C" fn destack_gpu_command_draw_indexed(
     handle: resource::GpuRenderPassHandle,
     indexcount: u32,
     instancecount: u32,
@@ -19353,7 +19218,7 @@ pub unsafe extern "C" fn destack_gpu_command_draw_indexed(
 }
 
 #[unsafe(export_name = "destack.gpu.command.drawIndexedIndirect")]
-pub unsafe extern "C" fn destack_gpu_command_draw_indexed_indirect(
+pub(crate) unsafe extern "C" fn destack_gpu_command_draw_indexed_indirect(
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -19372,7 +19237,7 @@ pub unsafe extern "C" fn destack_gpu_command_draw_indexed_indirect(
 }
 
 #[unsafe(export_name = "destack.gpu.command.drawIndirect")]
-pub unsafe extern "C" fn destack_gpu_command_draw_indirect(
+pub(crate) unsafe extern "C" fn destack_gpu_command_draw_indirect(
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -19391,7 +19256,7 @@ pub unsafe extern "C" fn destack_gpu_command_draw_indirect(
 }
 
 #[unsafe(export_name = "destack.gpu.command.encoderClose")]
-pub unsafe extern "C" fn destack_gpu_command_encoder_close(
+pub(crate) unsafe extern "C" fn destack_gpu_command_encoder_close(
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -19404,7 +19269,7 @@ pub unsafe extern "C" fn destack_gpu_command_encoder_close(
 }
 
 #[unsafe(export_name = "destack.gpu.command.encoderFinish")]
-pub unsafe extern "C" fn destack_gpu_command_encoder_finish(
+pub(crate) unsafe extern "C" fn destack_gpu_command_encoder_finish(
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -19417,7 +19282,7 @@ pub unsafe extern "C" fn destack_gpu_command_encoder_finish(
 }
 
 #[unsafe(export_name = "destack.gpu.command.encoderOpen")]
-pub unsafe extern "C" fn destack_gpu_command_encoder_open(
+pub(crate) unsafe extern "C" fn destack_gpu_command_encoder_open(
     out: *mut resource::GpuCommandListHandle,
     device: resource::GpuDeviceHandle,
     options: GpuCommandEncoderOptions,
@@ -19435,7 +19300,7 @@ pub unsafe extern "C" fn destack_gpu_command_encoder_open(
 }
 
 #[unsafe(export_name = "destack.gpu.command.executeBundles")]
-pub unsafe extern "C" fn destack_gpu_command_execute_bundles(
+pub(crate) unsafe extern "C" fn destack_gpu_command_execute_bundles(
     handle: resource::GpuRenderPassHandle,
     bundles: NativeSlice<resource::GpuRenderBundleHandle>,
 ) -> RuntimeStatus {
@@ -19449,7 +19314,7 @@ pub unsafe extern "C" fn destack_gpu_command_execute_bundles(
 }
 
 #[unsafe(export_name = "destack.gpu.command.insertDebugMarker")]
-pub unsafe extern "C" fn destack_gpu_command_insert_debug_marker(
+pub(crate) unsafe extern "C" fn destack_gpu_command_insert_debug_marker(
     handle: resource::GpuCommandListHandle,
     marker: NativeStringRef,
 ) -> RuntimeStatus {
@@ -19463,7 +19328,7 @@ pub unsafe extern "C" fn destack_gpu_command_insert_debug_marker(
 }
 
 #[unsafe(export_name = "destack.gpu.command.multiDrawIndexedIndirect")]
-pub unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect(
+pub(crate) unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect(
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -19482,7 +19347,7 @@ pub unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect(
 }
 
 #[unsafe(export_name = "destack.gpu.command.multiDrawIndexedIndirectCount")]
-pub unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect_count(
+pub(crate) unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect_count(
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -19519,7 +19384,7 @@ pub unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect_count(
 }
 
 #[unsafe(export_name = "destack.gpu.command.multiDrawIndirect")]
-pub unsafe extern "C" fn destack_gpu_command_multi_draw_indirect(
+pub(crate) unsafe extern "C" fn destack_gpu_command_multi_draw_indirect(
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -19538,7 +19403,7 @@ pub unsafe extern "C" fn destack_gpu_command_multi_draw_indirect(
 }
 
 #[unsafe(export_name = "destack.gpu.command.multiDrawIndirectCount")]
-pub unsafe extern "C" fn destack_gpu_command_multi_draw_indirect_count(
+pub(crate) unsafe extern "C" fn destack_gpu_command_multi_draw_indirect_count(
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -19575,7 +19440,7 @@ pub unsafe extern "C" fn destack_gpu_command_multi_draw_indirect_count(
 }
 
 #[unsafe(export_name = "destack.gpu.command.popDebugGroup")]
-pub unsafe extern "C" fn destack_gpu_command_pop_debug_group(
+pub(crate) unsafe extern "C" fn destack_gpu_command_pop_debug_group(
     handle: resource::GpuCommandListHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -19588,7 +19453,7 @@ pub unsafe extern "C" fn destack_gpu_command_pop_debug_group(
 }
 
 #[unsafe(export_name = "destack.gpu.command.pushDebugGroup")]
-pub unsafe extern "C" fn destack_gpu_command_push_debug_group(
+pub(crate) unsafe extern "C" fn destack_gpu_command_push_debug_group(
     handle: resource::GpuCommandListHandle,
     label: NativeStringRef,
 ) -> RuntimeStatus {
@@ -19602,7 +19467,7 @@ pub unsafe extern "C" fn destack_gpu_command_push_debug_group(
 }
 
 #[unsafe(export_name = "destack.gpu.command.queueSubmit")]
-pub unsafe extern "C" fn destack_gpu_command_queue_submit(
+pub(crate) unsafe extern "C" fn destack_gpu_command_queue_submit(
     queue: resource::GpuQueueHandle,
     commandlists: NativeSlice<resource::GpuCommandListHandle>,
     options: GpuSubmitOptions,
@@ -19617,7 +19482,7 @@ pub unsafe extern "C" fn destack_gpu_command_queue_submit(
 }
 
 #[unsafe(export_name = "destack.gpu.command.queueWaitIdle")]
-pub unsafe extern "C" fn destack_gpu_command_queue_wait_idle(
+pub(crate) unsafe extern "C" fn destack_gpu_command_queue_wait_idle(
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeStatus {
@@ -19631,7 +19496,7 @@ pub unsafe extern "C" fn destack_gpu_command_queue_wait_idle(
 }
 
 #[unsafe(export_name = "destack.gpu.command.queueWriteBuffer")]
-pub unsafe extern "C" fn destack_gpu_command_queue_write_buffer(
+pub(crate) unsafe extern "C" fn destack_gpu_command_queue_write_buffer(
     queue: resource::GpuQueueHandle,
     buffer: resource::GpuBufferHandle,
     bufferoffset: u64,
@@ -19658,7 +19523,7 @@ pub unsafe extern "C" fn destack_gpu_command_queue_write_buffer(
 }
 
 #[unsafe(export_name = "destack.gpu.command.queueWriteTexture")]
-pub unsafe extern "C" fn destack_gpu_command_queue_write_texture(
+pub(crate) unsafe extern "C" fn destack_gpu_command_queue_write_texture(
     queue: resource::GpuQueueHandle,
     destination: GpuTextureCopy,
     data: NativeSlice<u8>,
@@ -19683,7 +19548,7 @@ pub unsafe extern "C" fn destack_gpu_command_queue_write_texture(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleDestroy")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_destroy(
     handle: resource::GpuRenderBundleHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -19696,7 +19561,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleDraw")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_draw(
     handle: resource::GpuRenderBundleEncoderHandle,
     vertexcount: u32,
     instancecount: u32,
@@ -19727,7 +19592,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleDrawIndexed")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indexed(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indexed(
     handle: resource::GpuRenderBundleEncoderHandle,
     indexcount: u32,
     instancecount: u32,
@@ -19761,7 +19626,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indexed(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleDrawIndexedIndirect")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indexed_indirect(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indexed_indirect(
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -19780,7 +19645,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indexed_indirect
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleDrawIndirect")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indirect(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indirect(
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
@@ -19799,7 +19664,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indirect(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleEncoderClose")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_close(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_close(
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -19812,7 +19677,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_close(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleEncoderFinish")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_finish(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_finish(
     out: *mut resource::GpuRenderBundleHandle,
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeStatus {
@@ -19829,7 +19694,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_finish(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleEncoderOpen")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_open(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_open(
     out: *mut resource::GpuRenderBundleEncoderHandle,
     device: resource::GpuDeviceHandle,
     options: GpuRenderBundleEncoderOptions,
@@ -19847,7 +19712,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_open(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleInsertDebugMarker")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_insert_debug_marker(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_insert_debug_marker(
     handle: resource::GpuRenderBundleEncoderHandle,
     marker: NativeStringRef,
 ) -> RuntimeStatus {
@@ -19861,7 +19726,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_insert_debug_marker(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundlePopDebugGroup")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_pop_debug_group(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_pop_debug_group(
     handle: resource::GpuRenderBundleEncoderHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -19874,7 +19739,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_pop_debug_group(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundlePushDebugGroup")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_push_debug_group(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_push_debug_group(
     handle: resource::GpuRenderBundleEncoderHandle,
     label: NativeStringRef,
 ) -> RuntimeStatus {
@@ -19888,7 +19753,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_push_debug_group(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleSetBindGroup")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_bind_group(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_set_bind_group(
     handle: resource::GpuRenderBundleEncoderHandle,
     index: u32,
     bindgroup: resource::GpuBindGroupHandle,
@@ -19911,7 +19776,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_bind_group(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleSetIndexBuffer")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_index_buffer(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_set_index_buffer(
     handle: resource::GpuRenderBundleEncoderHandle,
     buffer: resource::GpuBufferHandle,
     format: GpuIndexFormat,
@@ -19930,7 +19795,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_index_buffer(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleSetPipeline")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_pipeline(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_set_pipeline(
     handle: resource::GpuRenderBundleEncoderHandle,
     pipeline: resource::GpuPipelineHandle,
 ) -> RuntimeStatus {
@@ -19944,7 +19809,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_pipeline(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderBundleSetVertexBuffer")]
-pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_vertex_buffer(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_bundle_set_vertex_buffer(
     handle: resource::GpuRenderBundleEncoderHandle,
     slot: u32,
     buffer: resource::GpuBufferHandle,
@@ -19963,7 +19828,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_vertex_buffer(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderPassBegin")]
-pub unsafe extern "C" fn destack_gpu_command_render_pass_begin(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_pass_begin(
     out: *mut resource::GpuRenderPassHandle,
     handle: resource::GpuCommandListHandle,
     options: GpuRenderPassOptions,
@@ -19981,7 +19846,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_begin(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderPassEnd")]
-pub unsafe extern "C" fn destack_gpu_command_render_pass_end(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_pass_end(
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -19994,7 +19859,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_end(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderPassInsertDebugMarker")]
-pub unsafe extern "C" fn destack_gpu_command_render_pass_insert_debug_marker(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_pass_insert_debug_marker(
     handle: resource::GpuRenderPassHandle,
     marker: NativeStringRef,
 ) -> RuntimeStatus {
@@ -20008,7 +19873,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_insert_debug_marker(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderPassPopDebugGroup")]
-pub unsafe extern "C" fn destack_gpu_command_render_pass_pop_debug_group(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_pass_pop_debug_group(
     handle: resource::GpuRenderPassHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20021,7 +19886,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_pop_debug_group(
 }
 
 #[unsafe(export_name = "destack.gpu.command.renderPassPushDebugGroup")]
-pub unsafe extern "C" fn destack_gpu_command_render_pass_push_debug_group(
+pub(crate) unsafe extern "C" fn destack_gpu_command_render_pass_push_debug_group(
     handle: resource::GpuRenderPassHandle,
     label: NativeStringRef,
 ) -> RuntimeStatus {
@@ -20035,7 +19900,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_push_debug_group(
 }
 
 #[unsafe(export_name = "destack.gpu.command.setBlendConstant")]
-pub unsafe extern "C" fn destack_gpu_command_set_blend_constant(
+pub(crate) unsafe extern "C" fn destack_gpu_command_set_blend_constant(
     handle: resource::GpuRenderPassHandle,
     r: f64,
     g: f64,
@@ -20052,7 +19917,7 @@ pub unsafe extern "C" fn destack_gpu_command_set_blend_constant(
 }
 
 #[unsafe(export_name = "destack.gpu.command.setComputeBindGroup")]
-pub unsafe extern "C" fn destack_gpu_command_set_compute_bind_group(
+pub(crate) unsafe extern "C" fn destack_gpu_command_set_compute_bind_group(
     handle: resource::GpuComputePassHandle,
     index: u32,
     bindgroup: resource::GpuBindGroupHandle,
@@ -20075,7 +19940,7 @@ pub unsafe extern "C" fn destack_gpu_command_set_compute_bind_group(
 }
 
 #[unsafe(export_name = "destack.gpu.command.setIndexBuffer")]
-pub unsafe extern "C" fn destack_gpu_command_set_index_buffer(
+pub(crate) unsafe extern "C" fn destack_gpu_command_set_index_buffer(
     handle: resource::GpuRenderPassHandle,
     buffer: resource::GpuBufferHandle,
     format: GpuIndexFormat,
@@ -20094,7 +19959,7 @@ pub unsafe extern "C" fn destack_gpu_command_set_index_buffer(
 }
 
 #[unsafe(export_name = "destack.gpu.command.setRenderBindGroup")]
-pub unsafe extern "C" fn destack_gpu_command_set_render_bind_group(
+pub(crate) unsafe extern "C" fn destack_gpu_command_set_render_bind_group(
     handle: resource::GpuRenderPassHandle,
     index: u32,
     bindgroup: resource::GpuBindGroupHandle,
@@ -20117,7 +19982,7 @@ pub unsafe extern "C" fn destack_gpu_command_set_render_bind_group(
 }
 
 #[unsafe(export_name = "destack.gpu.command.setScissor")]
-pub unsafe extern "C" fn destack_gpu_command_set_scissor(
+pub(crate) unsafe extern "C" fn destack_gpu_command_set_scissor(
     handle: resource::GpuRenderPassHandle,
     x: u32,
     y: u32,
@@ -20134,7 +19999,7 @@ pub unsafe extern "C" fn destack_gpu_command_set_scissor(
 }
 
 #[unsafe(export_name = "destack.gpu.command.setStencilReference")]
-pub unsafe extern "C" fn destack_gpu_command_set_stencil_reference(
+pub(crate) unsafe extern "C" fn destack_gpu_command_set_stencil_reference(
     handle: resource::GpuRenderPassHandle,
     reference: u32,
 ) -> RuntimeStatus {
@@ -20148,7 +20013,7 @@ pub unsafe extern "C" fn destack_gpu_command_set_stencil_reference(
 }
 
 #[unsafe(export_name = "destack.gpu.command.setVertexBuffer")]
-pub unsafe extern "C" fn destack_gpu_command_set_vertex_buffer(
+pub(crate) unsafe extern "C" fn destack_gpu_command_set_vertex_buffer(
     handle: resource::GpuRenderPassHandle,
     slot: u32,
     buffer: resource::GpuBufferHandle,
@@ -20167,7 +20032,7 @@ pub unsafe extern "C" fn destack_gpu_command_set_vertex_buffer(
 }
 
 #[unsafe(export_name = "destack.gpu.command.setViewport")]
-pub unsafe extern "C" fn destack_gpu_command_set_viewport(
+pub(crate) unsafe extern "C" fn destack_gpu_command_set_viewport(
     handle: resource::GpuRenderPassHandle,
     x: f64,
     y: f64,
@@ -20188,7 +20053,7 @@ pub unsafe extern "C" fn destack_gpu_command_set_viewport(
 }
 
 #[unsafe(export_name = "destack.gpu.debug.setLabel")]
-pub unsafe extern "C" fn destack_gpu_debug_set_label(
+pub(crate) unsafe extern "C" fn destack_gpu_debug_set_label(
     handle: resource::ResourceId,
     label: NativeStringRef,
 ) -> RuntimeStatus {
@@ -20202,7 +20067,7 @@ pub unsafe extern "C" fn destack_gpu_debug_set_label(
 }
 
 #[unsafe(export_name = "destack.gpu.device.close")]
-pub unsafe extern "C" fn destack_gpu_device_close(
+pub(crate) unsafe extern "C" fn destack_gpu_device_close(
     handle: resource::GpuDeviceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20215,7 +20080,7 @@ pub unsafe extern "C" fn destack_gpu_device_close(
 }
 
 #[unsafe(export_name = "destack.gpu.device.features")]
-pub unsafe extern "C" fn destack_gpu_device_features(
+pub(crate) unsafe extern "C" fn destack_gpu_device_features(
     out: *mut NativeSlice<GpuFeatureId>,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeStatus {
@@ -20232,7 +20097,7 @@ pub unsafe extern "C" fn destack_gpu_device_features(
 }
 
 #[unsafe(export_name = "destack.gpu.device.hasFeature")]
-pub unsafe extern "C" fn destack_gpu_device_has_feature(
+pub(crate) unsafe extern "C" fn destack_gpu_device_has_feature(
     out: *mut bool,
     device: resource::GpuDeviceHandle,
     feature: GpuFeatureId,
@@ -20250,7 +20115,7 @@ pub unsafe extern "C" fn destack_gpu_device_has_feature(
 }
 
 #[unsafe(export_name = "destack.gpu.device.info")]
-pub unsafe extern "C" fn destack_gpu_device_info(
+pub(crate) unsafe extern "C" fn destack_gpu_device_info(
     out: *mut GpuDeviceInfo,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeStatus {
@@ -20267,7 +20132,7 @@ pub unsafe extern "C" fn destack_gpu_device_info(
 }
 
 #[unsafe(export_name = "destack.gpu.device.limits")]
-pub unsafe extern "C" fn destack_gpu_device_limits(
+pub(crate) unsafe extern "C" fn destack_gpu_device_limits(
     out: *mut GpuAdapterLimits,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeStatus {
@@ -20284,7 +20149,7 @@ pub unsafe extern "C" fn destack_gpu_device_limits(
 }
 
 #[unsafe(export_name = "destack.gpu.device.open")]
-pub unsafe extern "C" fn destack_gpu_device_open(
+pub(crate) unsafe extern "C" fn destack_gpu_device_open(
     out: *mut resource::GpuDeviceHandle,
     adapter: resource::GpuAdapterHandle,
     options: GpuDeviceOptions,
@@ -20302,7 +20167,7 @@ pub unsafe extern "C" fn destack_gpu_device_open(
 }
 
 #[unsafe(export_name = "destack.gpu.device.poll")]
-pub unsafe extern "C" fn destack_gpu_device_poll(
+pub(crate) unsafe extern "C" fn destack_gpu_device_poll(
     out: *mut u32,
     device: resource::GpuDeviceHandle,
     wait: bool,
@@ -20321,7 +20186,7 @@ pub unsafe extern "C" fn destack_gpu_device_poll(
 }
 
 #[unsafe(export_name = "destack.gpu.device.popErrorScope")]
-pub unsafe extern "C" fn destack_gpu_device_pop_error_scope(
+pub(crate) unsafe extern "C" fn destack_gpu_device_pop_error_scope(
     out: *mut GpuCapturedError,
     device: resource::GpuDeviceHandle,
     timeoutns: u64,
@@ -20339,7 +20204,7 @@ pub unsafe extern "C" fn destack_gpu_device_pop_error_scope(
 }
 
 #[unsafe(export_name = "destack.gpu.device.pushErrorScope")]
-pub unsafe extern "C" fn destack_gpu_device_push_error_scope(
+pub(crate) unsafe extern "C" fn destack_gpu_device_push_error_scope(
     device: resource::GpuDeviceHandle,
     filter: GpuErrorFilter,
 ) -> RuntimeStatus {
@@ -20353,7 +20218,7 @@ pub unsafe extern "C" fn destack_gpu_device_push_error_scope(
 }
 
 #[unsafe(export_name = "destack.gpu.device.queue")]
-pub unsafe extern "C" fn destack_gpu_device_queue(
+pub(crate) unsafe extern "C" fn destack_gpu_device_queue(
     out: *mut resource::GpuQueueHandle,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeStatus {
@@ -20370,7 +20235,7 @@ pub unsafe extern "C" fn destack_gpu_device_queue(
 }
 
 #[unsafe(export_name = "destack.gpu.device.status")]
-pub unsafe extern "C" fn destack_gpu_device_status(
+pub(crate) unsafe extern "C" fn destack_gpu_device_status(
     out: *mut GpuDeviceStatus,
     device: resource::GpuDeviceHandle,
 ) -> RuntimeStatus {
@@ -20387,7 +20252,7 @@ pub unsafe extern "C" fn destack_gpu_device_status(
 }
 
 #[unsafe(export_name = "destack.gpu.pipeline.bindGroupLayout")]
-pub unsafe extern "C" fn destack_gpu_pipeline_bind_group_layout(
+pub(crate) unsafe extern "C" fn destack_gpu_pipeline_bind_group_layout(
     out: *mut resource::GpuBindGroupLayoutHandle,
     pipeline: resource::GpuPipelineHandle,
     groupindex: u32,
@@ -20405,7 +20270,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_bind_group_layout(
 }
 
 #[unsafe(export_name = "destack.gpu.pipeline.computeCreate")]
-pub unsafe extern "C" fn destack_gpu_pipeline_compute_create(
+pub(crate) unsafe extern "C" fn destack_gpu_pipeline_compute_create(
     out: *mut resource::GpuPipelineHandle,
     device: resource::GpuDeviceHandle,
     options: GpuComputePipelineOptions,
@@ -20423,7 +20288,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_compute_create(
 }
 
 #[unsafe(export_name = "destack.gpu.pipeline.destroy")]
-pub unsafe extern "C" fn destack_gpu_pipeline_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_pipeline_destroy(
     handle: resource::GpuPipelineHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20436,7 +20301,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.pipeline.renderCreate")]
-pub unsafe extern "C" fn destack_gpu_pipeline_render_create(
+pub(crate) unsafe extern "C" fn destack_gpu_pipeline_render_create(
     out: *mut resource::GpuPipelineHandle,
     device: resource::GpuDeviceHandle,
     options: GpuRenderPipelineOptions,
@@ -20454,7 +20319,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_render_create(
 }
 
 #[unsafe(export_name = "destack.gpu.pipeline.shaderCompilationInfo")]
-pub unsafe extern "C" fn destack_gpu_pipeline_shader_compilation_info(
+pub(crate) unsafe extern "C" fn destack_gpu_pipeline_shader_compilation_info(
     out: *mut GpuCompilationInfo,
     handle: resource::GpuShaderHandle,
     timeoutns: u64,
@@ -20472,7 +20337,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_shader_compilation_info(
 }
 
 #[unsafe(export_name = "destack.gpu.pipeline.shaderCreate")]
-pub unsafe extern "C" fn destack_gpu_pipeline_shader_create(
+pub(crate) unsafe extern "C" fn destack_gpu_pipeline_shader_create(
     out: *mut resource::GpuShaderHandle,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptions,
@@ -20498,7 +20363,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_shader_create(
 }
 
 #[unsafe(export_name = "destack.gpu.pipeline.shaderDestroy")]
-pub unsafe extern "C" fn destack_gpu_pipeline_shader_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_pipeline_shader_destroy(
     handle: resource::GpuShaderHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20511,7 +20376,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_shader_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.present.surfaceAcquire")]
-pub unsafe extern "C" fn destack_gpu_present_surface_acquire(
+pub(crate) unsafe extern "C" fn destack_gpu_present_surface_acquire(
     out: *mut GpuSurfaceFrame,
     surface: resource::GpuSurfaceHandle,
     timeoutns: u64,
@@ -20540,7 +20405,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_acquire(
 }
 
 #[unsafe(export_name = "destack.gpu.present.surfaceCapabilities")]
-pub unsafe extern "C" fn destack_gpu_present_surface_capabilities(
+pub(crate) unsafe extern "C" fn destack_gpu_present_surface_capabilities(
     out: *mut GpuSurfaceCapabilities,
     surface: resource::GpuSurfaceHandle,
     adapter: resource::GpuAdapterHandle,
@@ -20571,7 +20436,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_capabilities(
 }
 
 #[unsafe(export_name = "destack.gpu.present.surfaceClose")]
-pub unsafe extern "C" fn destack_gpu_present_surface_close(
+pub(crate) unsafe extern "C" fn destack_gpu_present_surface_close(
     surface: resource::GpuSurfaceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20593,7 +20458,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_close(
 }
 
 #[unsafe(export_name = "destack.gpu.present.surfaceConfigure")]
-pub unsafe extern "C" fn destack_gpu_present_surface_configure(
+pub(crate) unsafe extern "C" fn destack_gpu_present_surface_configure(
     device: resource::GpuDeviceHandle,
     surface: resource::GpuSurfaceHandle,
     options: GpuSurfaceOptions,
@@ -20621,7 +20486,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_configure(
 }
 
 #[unsafe(export_name = "destack.gpu.present.surfaceOpen")]
-pub unsafe extern "C" fn destack_gpu_present_surface_open(
+pub(crate) unsafe extern "C" fn destack_gpu_present_surface_open(
     out: *mut resource::GpuSurfaceHandle,
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
@@ -20647,7 +20512,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_open(
 }
 
 #[unsafe(export_name = "destack.gpu.present.surfacePresent")]
-pub unsafe extern "C" fn destack_gpu_present_surface_present(
+pub(crate) unsafe extern "C" fn destack_gpu_present_surface_present(
     surface: resource::GpuSurfaceHandle,
     options: GpuPresentOptions,
 ) -> RuntimeStatus {
@@ -20672,7 +20537,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_present(
 }
 
 #[unsafe(export_name = "destack.gpu.present.surfaceUnconfigure")]
-pub unsafe extern "C" fn destack_gpu_present_surface_unconfigure(
+pub(crate) unsafe extern "C" fn destack_gpu_present_surface_unconfigure(
     surface: resource::GpuSurfaceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20694,7 +20559,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_unconfigure(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.bufferCreate")]
-pub unsafe extern "C" fn destack_gpu_resource_buffer_create(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_buffer_create(
     out: *mut resource::GpuBufferHandle,
     device: resource::GpuDeviceHandle,
     options: GpuBufferOptions,
@@ -20712,7 +20577,7 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_create(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.bufferDestroy")]
-pub unsafe extern "C" fn destack_gpu_resource_buffer_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_buffer_destroy(
     handle: resource::GpuBufferHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20725,7 +20590,7 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.bufferInfo")]
-pub unsafe extern "C" fn destack_gpu_resource_buffer_info(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_buffer_info(
     out: *mut GpuBufferInfo,
     handle: resource::GpuBufferHandle,
 ) -> RuntimeStatus {
@@ -20742,7 +20607,7 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_info(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.bufferMap")]
-pub unsafe extern "C" fn destack_gpu_resource_buffer_map(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_buffer_map(
     out: *mut GpuMappedBufferRange,
     handle: resource::GpuBufferHandle,
     offset: u64,
@@ -20762,7 +20627,7 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_map(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.bufferRead")]
-pub unsafe extern "C" fn destack_gpu_resource_buffer_read(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_buffer_read(
     out: *mut NativeSlice<u8>,
     handle: resource::GpuBufferHandle,
     offset: u64,
@@ -20781,7 +20646,7 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_read(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.bufferUnmap")]
-pub unsafe extern "C" fn destack_gpu_resource_buffer_unmap(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_buffer_unmap(
     handle: resource::GpuBufferHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20794,7 +20659,7 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_unmap(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.bufferWrite")]
-pub unsafe extern "C" fn destack_gpu_resource_buffer_write(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_buffer_write(
     handle: resource::GpuBufferHandle,
     offset: u64,
     argument_bytes: NativeSlice<u8>,
@@ -20809,7 +20674,7 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_write(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.samplerCreate")]
-pub unsafe extern "C" fn destack_gpu_resource_sampler_create(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_sampler_create(
     out: *mut resource::GpuSamplerHandle,
     device: resource::GpuDeviceHandle,
     options: GpuSamplerOptions,
@@ -20827,7 +20692,7 @@ pub unsafe extern "C" fn destack_gpu_resource_sampler_create(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.samplerDestroy")]
-pub unsafe extern "C" fn destack_gpu_resource_sampler_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_sampler_destroy(
     handle: resource::GpuSamplerHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20840,7 +20705,7 @@ pub unsafe extern "C" fn destack_gpu_resource_sampler_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.textureCreate")]
-pub unsafe extern "C" fn destack_gpu_resource_texture_create(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_texture_create(
     out: *mut resource::GpuTextureHandle,
     device: resource::GpuDeviceHandle,
     options: GpuTextureOptions,
@@ -20858,7 +20723,7 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_create(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.textureDestroy")]
-pub unsafe extern "C" fn destack_gpu_resource_texture_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_texture_destroy(
     handle: resource::GpuTextureHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20871,7 +20736,7 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.textureInfo")]
-pub unsafe extern "C" fn destack_gpu_resource_texture_info(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_texture_info(
     out: *mut GpuTextureInfo,
     handle: resource::GpuTextureHandle,
 ) -> RuntimeStatus {
@@ -20888,7 +20753,7 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_info(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.textureViewCreate")]
-pub unsafe extern "C" fn destack_gpu_resource_texture_view_create(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_texture_view_create(
     out: *mut resource::GpuTextureViewHandle,
     texture: resource::GpuTextureHandle,
     options: GpuTextureViewOptions,
@@ -20906,7 +20771,7 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_view_create(
 }
 
 #[unsafe(export_name = "destack.gpu.resource.textureViewDestroy")]
-pub unsafe extern "C" fn destack_gpu_resource_texture_view_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_resource_texture_view_destroy(
     handle: resource::GpuTextureViewHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20919,7 +20784,7 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_view_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.commandBeginComputePipelineStatisticsQuery")]
-pub unsafe extern "C" fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_command_begin_compute_pipeline_statistics_query(
     computepass: resource::GpuComputePassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
@@ -20941,7 +20806,7 @@ pub unsafe extern "C" fn destack_gpu_sync_command_begin_compute_pipeline_statist
 }
 
 #[unsafe(export_name = "destack.gpu.sync.commandBeginOcclusionQuery")]
-pub unsafe extern "C" fn destack_gpu_sync_command_begin_occlusion_query(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_command_begin_occlusion_query(
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
@@ -20958,7 +20823,7 @@ pub unsafe extern "C" fn destack_gpu_sync_command_begin_occlusion_query(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery")]
-pub unsafe extern "C" fn destack_gpu_sync_command_begin_render_pipeline_statistics_query(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_command_begin_render_pipeline_statistics_query(
     renderpass: resource::GpuRenderPassHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
@@ -20976,7 +20841,7 @@ pub unsafe extern "C" fn destack_gpu_sync_command_begin_render_pipeline_statisti
 }
 
 #[unsafe(export_name = "destack.gpu.sync.commandEndComputePipelineStatisticsQuery")]
-pub unsafe extern "C" fn destack_gpu_sync_command_end_compute_pipeline_statistics_query(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_command_end_compute_pipeline_statistics_query(
     computepass: resource::GpuComputePassHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -20994,7 +20859,7 @@ pub unsafe extern "C" fn destack_gpu_sync_command_end_compute_pipeline_statistic
 }
 
 #[unsafe(export_name = "destack.gpu.sync.commandEndOcclusionQuery")]
-pub unsafe extern "C" fn destack_gpu_sync_command_end_occlusion_query(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_command_end_occlusion_query(
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -21007,7 +20872,7 @@ pub unsafe extern "C" fn destack_gpu_sync_command_end_occlusion_query(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.commandEndRenderPipelineStatisticsQuery")]
-pub unsafe extern "C" fn destack_gpu_sync_command_end_render_pipeline_statistics_query(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_command_end_render_pipeline_statistics_query(
     renderpass: resource::GpuRenderPassHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -21023,7 +20888,7 @@ pub unsafe extern "C" fn destack_gpu_sync_command_end_render_pipeline_statistics
 }
 
 #[unsafe(export_name = "destack.gpu.sync.commandResolveQueries")]
-pub unsafe extern "C" fn destack_gpu_sync_command_resolve_queries(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_command_resolve_queries(
     commandlist: resource::GpuCommandListHandle,
     queryset: resource::GpuQuerySetHandle,
     firstquery: u32,
@@ -21057,7 +20922,7 @@ pub unsafe extern "C" fn destack_gpu_sync_command_resolve_queries(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.commandWriteTimestamp")]
-pub unsafe extern "C" fn destack_gpu_sync_command_write_timestamp(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_command_write_timestamp(
     commandlist: resource::GpuCommandListHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
@@ -21078,7 +20943,7 @@ pub unsafe extern "C" fn destack_gpu_sync_command_write_timestamp(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.fenceCreate")]
-pub unsafe extern "C" fn destack_gpu_sync_fence_create(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_fence_create(
     out: *mut resource::GpuFenceHandle,
     device: resource::GpuDeviceHandle,
     options: GpuFenceOptions,
@@ -21096,7 +20961,7 @@ pub unsafe extern "C" fn destack_gpu_sync_fence_create(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.fenceDestroy")]
-pub unsafe extern "C" fn destack_gpu_sync_fence_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_fence_destroy(
     handle: resource::GpuFenceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -21109,7 +20974,7 @@ pub unsafe extern "C" fn destack_gpu_sync_fence_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.querySetCreate")]
-pub unsafe extern "C" fn destack_gpu_sync_query_set_create(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_query_set_create(
     out: *mut resource::GpuQuerySetHandle,
     device: resource::GpuDeviceHandle,
     options: GpuQuerySetOptions,
@@ -21127,7 +20992,7 @@ pub unsafe extern "C" fn destack_gpu_sync_query_set_create(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.querySetDestroy")]
-pub unsafe extern "C" fn destack_gpu_sync_query_set_destroy(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_query_set_destroy(
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -21140,7 +21005,7 @@ pub unsafe extern "C" fn destack_gpu_sync_query_set_destroy(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.querySetInfo")]
-pub unsafe extern "C" fn destack_gpu_sync_query_set_info(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_query_set_info(
     out: *mut GpuQuerySetInfo,
     handle: resource::GpuQuerySetHandle,
 ) -> RuntimeStatus {
@@ -21157,7 +21022,7 @@ pub unsafe extern "C" fn destack_gpu_sync_query_set_info(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.queueSignal")]
-pub unsafe extern "C" fn destack_gpu_sync_queue_signal(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_queue_signal(
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
     argument_value: u64,
@@ -21172,7 +21037,7 @@ pub unsafe extern "C" fn destack_gpu_sync_queue_signal(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.queueTimestampPeriod")]
-pub unsafe extern "C" fn destack_gpu_sync_queue_timestamp_period(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_queue_timestamp_period(
     out: *mut f64,
     queue: resource::GpuQueueHandle,
 ) -> RuntimeStatus {
@@ -21189,7 +21054,7 @@ pub unsafe extern "C" fn destack_gpu_sync_queue_timestamp_period(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.queueWait")]
-pub unsafe extern "C" fn destack_gpu_sync_queue_wait(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_queue_wait(
     queue: resource::GpuQueueHandle,
     fence: resource::GpuFenceHandle,
     argument_value: u64,
@@ -21205,7 +21070,7 @@ pub unsafe extern "C" fn destack_gpu_sync_queue_wait(
 }
 
 #[unsafe(export_name = "destack.gpu.sync.queueWorkDone")]
-pub unsafe extern "C" fn destack_gpu_sync_queue_work_done(
+pub(crate) unsafe extern "C" fn destack_gpu_sync_queue_work_done(
     queue: resource::GpuQueueHandle,
     timeoutns: u64,
 ) -> RuntimeStatus {
@@ -30016,7 +29881,7 @@ fn destack_gpu_sync_queue_work_done_vm_replay(
 }
 
 /// Register VM bindings for gpu.
-pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -33044,8 +32909,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 }
 
 /// Install VM bindings for gpu.
-pub fn install_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_gpu_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub GPU_VM_BINDINGS, "gpu", install_gpu_vm_bindings);
+vm_binding_set!(pub(crate) GPU_VM_BINDINGS, "gpu", install_gpu_vm_bindings);

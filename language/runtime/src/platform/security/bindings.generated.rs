@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -364,7 +365,7 @@ struct SecuritySandboxExitReplayRecord {
 }
 
 /// Binding descriptor for destack.security.capability.has.
-pub const SECURITY_CAPABILITY_HAS: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const SECURITY_CAPABILITY_HAS: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.security.capability.has",
     "export function capabilityHas(capability: PlatformCapability): Result<boolean, PlatformError>",
     &["security.policy.read"],
@@ -376,7 +377,7 @@ pub const SECURITY_CAPABILITY_HAS: BindingDescriptor = BindingDescriptor::determ
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.capability.list.
-pub const SECURITY_CAPABILITY_LIST: BindingDescriptor =
+pub(crate) const SECURITY_CAPABILITY_LIST: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.security.capability.list",
         "export function capabilityList(): Result<Slice<PlatformCapability>, PlatformError>",
@@ -402,7 +403,7 @@ pub const SECURITY_CAPABILITY_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.security.enforce.sandboxSeal.
-pub const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
+pub(crate) const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.security.enforce.sandboxSeal",
         "export function sandboxSeal(handle: SandboxHandle): Result<void, PlatformError>",
@@ -428,7 +429,7 @@ pub const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.security.enforce.sandboxSetCapabilities.
-pub const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.security.enforce.sandboxSetCapabilities",
     "export function sandboxSetCapabilities(handle: SandboxHandle, capabilities: Slice<PlatformCapability>): Result<void, PlatformError>",
     &["security.restrict"],
@@ -440,7 +441,7 @@ pub const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = Binding
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.enforce.setWriteXorExecute.
-pub const SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
+pub(crate) const SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.security.enforce.setWriteXorExecute",
         "export function setWriteXorExecute(enabled: boolean): Result<void, PlatformError>",
@@ -466,7 +467,7 @@ pub const SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.security.policy.get.
-pub const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.security.policy.get",
     "export function policyGet(scope: string): Result<Slice<PlatformCapability>, PlatformError>",
     &["security.policy.read"],
@@ -478,7 +479,7 @@ pub const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::determinis
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.policy.getRules.
-pub const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.security.policy.getRules",
     "export function policyGetRules(scope: string): Result<Slice<SecurityPolicyRule>, PlatformError>",
     &["security.policy.read"],
@@ -490,7 +491,7 @@ pub const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::dete
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.policy.set.
-pub const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.security.policy.set",
     "export function policySet(scope: string, capabilities: Slice<PlatformCapability>): Result<void, PlatformError>",
     &["security.policy.write"],
@@ -502,7 +503,7 @@ pub const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::determinis
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.policy.setRules.
-pub const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.security.policy.setRules",
     "export function policySetRules(scope: string, rules: Slice<SecurityPolicyRule>): Result<void, PlatformError>",
     &["security.policy.write"],
@@ -514,7 +515,7 @@ pub const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::dete
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.sandbox.enter.
-pub const SECURITY_SANDBOX_ENTER: BindingDescriptor =
+pub(crate) const SECURITY_SANDBOX_ENTER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.security.sandbox.enter",
         "export function sandboxEnter(name: string): Result<SandboxHandle, PlatformError>",
@@ -542,7 +543,7 @@ pub const SECURITY_SANDBOX_ENTER: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.security.sandbox.exit.
-pub const SECURITY_SANDBOX_EXIT: BindingDescriptor =
+pub(crate) const SECURITY_SANDBOX_EXIT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.security.sandbox.exit",
         "export function sandboxExit(handle: SandboxHandle): Result<void, PlatformError>",
@@ -569,23 +570,8 @@ pub const SECURITY_SANDBOX_EXIT: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptors for security.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    SECURITY_CAPABILITY_HAS,
-    SECURITY_CAPABILITY_LIST,
-    SECURITY_ENFORCE_SANDBOX_SEAL,
-    SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES,
-    SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE,
-    SECURITY_POLICY_GET,
-    SECURITY_POLICY_GET_RULES,
-    SECURITY_POLICY_SET,
-    SECURITY_POLICY_SET_RULES,
-    SECURITY_SANDBOX_ENTER,
-    SECURITY_SANDBOX_EXIT,
-];
-
 /// Native binding set for security.
-pub const SECURITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const SECURITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "security",
     bindings: &[
         NativeBinding::new(
@@ -734,7 +720,7 @@ fn destack_security_sandbox_exit_replay(
 
 /// Native export wrappers for security bindings.
 #[unsafe(export_name = "destack.security.capability.has")]
-pub unsafe extern "C" fn destack_security_capability_has(
+pub(crate) unsafe extern "C" fn destack_security_capability_has(
     out: *mut bool,
     capability: NativeStringRef,
 ) -> RuntimeStatus {
@@ -754,7 +740,7 @@ pub unsafe extern "C" fn destack_security_capability_has(
 }
 
 #[unsafe(export_name = "destack.security.capability.list")]
-pub unsafe extern "C" fn destack_security_capability_list(
+pub(crate) unsafe extern "C" fn destack_security_capability_list(
     out: *mut NativeStringSlice,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -771,7 +757,7 @@ pub unsafe extern "C" fn destack_security_capability_list(
 }
 
 #[unsafe(export_name = "destack.security.enforce.sandboxSeal")]
-pub unsafe extern "C" fn destack_security_enforce_sandbox_seal(
+pub(crate) unsafe extern "C" fn destack_security_enforce_sandbox_seal(
     handle: resource::SandboxHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -785,7 +771,7 @@ pub unsafe extern "C" fn destack_security_enforce_sandbox_seal(
 }
 
 #[unsafe(export_name = "destack.security.enforce.sandboxSetCapabilities")]
-pub unsafe extern "C" fn destack_security_enforce_sandbox_set_capabilities(
+pub(crate) unsafe extern "C" fn destack_security_enforce_sandbox_set_capabilities(
     handle: resource::SandboxHandle,
     capabilities: NativeStringSlice,
 ) -> RuntimeStatus {
@@ -807,7 +793,7 @@ pub unsafe extern "C" fn destack_security_enforce_sandbox_set_capabilities(
 }
 
 #[unsafe(export_name = "destack.security.enforce.setWriteXorExecute")]
-pub unsafe extern "C" fn destack_security_enforce_set_write_xor_execute(
+pub(crate) unsafe extern "C" fn destack_security_enforce_set_write_xor_execute(
     enabled: bool,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -824,7 +810,7 @@ pub unsafe extern "C" fn destack_security_enforce_set_write_xor_execute(
 }
 
 #[unsafe(export_name = "destack.security.policy.get")]
-pub unsafe extern "C" fn destack_security_policy_get(
+pub(crate) unsafe extern "C" fn destack_security_policy_get(
     out: *mut NativeStringSlice,
     scope: NativeStringRef,
 ) -> RuntimeStatus {
@@ -842,7 +828,7 @@ pub unsafe extern "C" fn destack_security_policy_get(
 }
 
 #[unsafe(export_name = "destack.security.policy.getRules")]
-pub unsafe extern "C" fn destack_security_policy_get_rules(
+pub(crate) unsafe extern "C" fn destack_security_policy_get_rules(
     out: *mut NativeSlice<SecurityPolicyRule>,
     scope: NativeStringRef,
 ) -> RuntimeStatus {
@@ -862,7 +848,7 @@ pub unsafe extern "C" fn destack_security_policy_get_rules(
 }
 
 #[unsafe(export_name = "destack.security.policy.set")]
-pub unsafe extern "C" fn destack_security_policy_set(
+pub(crate) unsafe extern "C" fn destack_security_policy_set(
     scope: NativeStringRef,
     capabilities: NativeStringSlice,
 ) -> RuntimeStatus {
@@ -879,7 +865,7 @@ pub unsafe extern "C" fn destack_security_policy_set(
 }
 
 #[unsafe(export_name = "destack.security.policy.setRules")]
-pub unsafe extern "C" fn destack_security_policy_set_rules(
+pub(crate) unsafe extern "C" fn destack_security_policy_set_rules(
     scope: NativeStringRef,
     rules: NativeSlice<SecurityPolicyRule>,
 ) -> RuntimeStatus {
@@ -896,7 +882,7 @@ pub unsafe extern "C" fn destack_security_policy_set_rules(
 }
 
 #[unsafe(export_name = "destack.security.sandbox.enter")]
-pub unsafe extern "C" fn destack_security_sandbox_enter(
+pub(crate) unsafe extern "C" fn destack_security_sandbox_enter(
     out: *mut resource::SandboxHandle,
     name: NativeStringRef,
 ) -> RuntimeStatus {
@@ -912,7 +898,7 @@ pub unsafe extern "C" fn destack_security_sandbox_enter(
 }
 
 #[unsafe(export_name = "destack.security.sandbox.exit")]
-pub unsafe extern "C" fn destack_security_sandbox_exit(
+pub(crate) unsafe extern "C" fn destack_security_sandbox_exit(
     handle: resource::SandboxHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1017,7 +1003,7 @@ fn destack_security_sandbox_exit_vm_replay(
 }
 
 /// Register VM bindings for security.
-pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -1275,8 +1261,8 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
 }
 
 /// Install VM bindings for security.
-pub fn install_security_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_security_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_security_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub SECURITY_VM_BINDINGS, "security", install_security_vm_bindings);
+vm_binding_set!(pub(crate) SECURITY_VM_BINDINGS, "security", install_security_vm_bindings);

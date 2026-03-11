@@ -4,9 +4,9 @@ use crate::platform::fs::{OsPath, XattrFlags};
 use crate::platform::resource::FileHandle;
 use crate::runtime::{BindingCallContext, NativeSlice};
 
-use super::host as host_fs;
-#[allow(unused_imports)]
 pub(crate) use super::host::*;
+
+use super::host as host_fs;
 
 /// Read an extended attribute by path with a raw name payload.
 ///

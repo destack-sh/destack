@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #![cfg_attr(any(target_os = "macos", windows), allow(dead_code))]
 
 use crate::diagnostic::RuntimeResult;

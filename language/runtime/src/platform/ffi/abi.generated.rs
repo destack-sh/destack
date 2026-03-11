@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
+#![allow(clippy::enum_variant_names)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{

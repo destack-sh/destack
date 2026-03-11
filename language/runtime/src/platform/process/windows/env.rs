@@ -1,22 +1,10 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::process::{bindings_generated as bindings, core as core_process};
+use crate::platform::process::core as core_process;
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 use crate::runtime::BindingCallContext;
-use bindings::*;
-
-use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
-    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
-    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
-    ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags, ProcessWaitStatus, Signal, SignalEvent,
-    SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
-};
-use crate::platform::{fs, resource};
 
 /// Delete an environment variable by UTF-8 name.
 ///

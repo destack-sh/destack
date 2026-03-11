@@ -1,14 +1,11 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::process::{bindings_generated as bindings, core as core_process};
+use crate::platform::process::core as core_process;
 use crate::platform::resource::{ResourceFinalizer, ResourceId};
-use crate::platform::{NativeArray, PlatformError, core as core_platform};
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::platform::{PlatformError, core as core_platform};
+use crate::runtime::{NativeSlice, NativeStringSlice};
 
 use crate::runtime::BindingCallContext;
-use bindings::*;
 use windows_sys::Win32::Foundation::{
     CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, HANDLE, INVALID_HANDLE_VALUE,
 };
@@ -27,11 +24,7 @@ use windows_sys::Win32::System::Threading::{
 
 use crate::platform::fs::core as core_fs;
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
-    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
-    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
-    ProcessStdioInherit, ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags, ProcessWaitStatus,
-    Signal, SignalEvent, SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
+    ProcessFdAction, ProcessId, ProcessSpawnOptions, ProcessStdio, ProcessStdioInherit,
 };
 use crate::platform::{fs, resource};
 

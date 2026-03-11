@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -1529,7 +1530,7 @@ struct IoUringUnregisterFilesReplayRecord {
 }
 
 /// Binding descriptor for destack.io.completion.cancel.
-pub const IO_COMPLETION_CANCEL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_COMPLETION_CANCEL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.cancel",
     "export function completionCancel(handle: CompletionHandle, target: ResourceId): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1543,7 +1544,7 @@ pub const IO_COMPLETION_CANCEL: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.close.
-pub const IO_COMPLETION_CLOSE: BindingDescriptor =
+pub(crate) const IO_COMPLETION_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.completion.close",
         "export function completionClose(handle: CompletionHandle): Result<void, PlatformError>",
@@ -1571,7 +1572,7 @@ pub const IO_COMPLETION_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.io.completion.enter.
-pub const IO_COMPLETION_ENTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_COMPLETION_ENTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.enter",
     "export function completionEnter(handle: CompletionHandle, minComplete: uint32, timeoutNs: uint64, flags: uint32): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1585,7 +1586,7 @@ pub const IO_COMPLETION_ENTER: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.open.
-pub const IO_COMPLETION_OPEN: BindingDescriptor =
+pub(crate) const IO_COMPLETION_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.completion.open",
         "export function completionOpen(entries: uint32): Result<CompletionHandle, PlatformError>",
@@ -1613,7 +1614,7 @@ pub const IO_COMPLETION_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.io.completion.submit.
-pub const IO_COMPLETION_SUBMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_COMPLETION_SUBMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.submit",
     "export function completionSubmit(handle: CompletionHandle, operation: CompletionOperation): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1627,7 +1628,7 @@ pub const IO_COMPLETION_SUBMIT: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.submitBatch.
-pub const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.submitBatch",
     "export function completionSubmitBatch(handle: CompletionHandle, operationWords: Slice<uint64>, operationCount: uint32, operationWordStride: uint32): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1641,7 +1642,7 @@ pub const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.wait.
-pub const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.wait",
     "export function completionWait(handle: CompletionHandle, timeoutNs: uint64, maxEvents: uint32): Result<CompletionEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1655,7 +1656,7 @@ pub const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.control.fcntl.
-pub const IO_CONTROL_FCNTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_CONTROL_FCNTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.control.fcntl",
     "export function controlFcntl(handle: ResourceId, command: DescriptorControlCommand, argument: uint64, flags: DescriptorControlFlags): Result<int64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1669,7 +1670,7 @@ pub const IO_CONTROL_FCNTL: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.control.ioctl.
-pub const IO_CONTROL_IOCTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_CONTROL_IOCTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.control.ioctl",
     "export function controlIoctl(handle: ResourceId, request: DescriptorRequest): Result<DescriptorResult, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1683,7 +1684,7 @@ pub const IO_CONTROL_IOCTL: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.device.close.
-pub const IO_DEVICE_CLOSE: BindingDescriptor =
+pub(crate) const IO_DEVICE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.device.close",
         "export function deviceClose(handle: DeviceHandle): Result<void, PlatformError>",
@@ -1711,7 +1712,7 @@ pub const IO_DEVICE_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.io.device.control.
-pub const IO_DEVICE_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_DEVICE_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.device.control",
     "export function deviceControl(handle: DeviceHandle, request: DescriptorRequest): Result<DescriptorResult, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1725,7 +1726,7 @@ pub const IO_DEVICE_CONTROL: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.device.open.
-pub const IO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.device.open",
     "export function deviceOpen(path: OsPath, flags: uint32, mode: uint32): Result<DeviceHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1739,7 +1740,7 @@ pub const IO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.device.read.
-pub const IO_DEVICE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_DEVICE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.device.read",
     "export function deviceRead(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1753,7 +1754,7 @@ pub const IO_DEVICE_READ: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.device.write.
-pub const IO_DEVICE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_DEVICE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.device.write",
     "export function deviceWrite(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1767,7 +1768,7 @@ pub const IO_DEVICE_WRITE: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.event.attach.
-pub const IO_EVENT_ATTACH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_EVENT_ATTACH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.event.attach",
     "export function eventAttach(token: EventToken, target: ResourceId, key: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1781,7 +1782,7 @@ pub const IO_EVENT_ATTACH: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.event.close.
-pub const IO_EVENT_CLOSE: BindingDescriptor =
+pub(crate) const IO_EVENT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.event.close",
         "export function eventClose(token: EventToken): Result<void, PlatformError>",
@@ -1809,7 +1810,7 @@ pub const IO_EVENT_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.io.event.open.
-pub const IO_EVENT_OPEN: BindingDescriptor =
+pub(crate) const IO_EVENT_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.event.open",
         "export function eventOpen(initial: uint64): Result<EventToken, PlatformError>",
@@ -1837,7 +1838,7 @@ pub const IO_EVENT_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.io.event.signal.
-pub const IO_EVENT_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_EVENT_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.event.signal",
     "export function eventSignal(token: EventToken, value: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1851,7 +1852,7 @@ pub const IO_EVENT_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.poll.close.
-pub const IO_POLL_CLOSE: BindingDescriptor =
+pub(crate) const IO_POLL_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.poll.close",
         "export function pollClose(handle: PollHandle): Result<void, PlatformError>",
@@ -1879,7 +1880,7 @@ pub const IO_POLL_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.io.poll.deregister.
-pub const IO_POLL_DEREGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_POLL_DEREGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.poll.deregister",
     "export function pollDeregister(handle: PollHandle, target: ResourceId): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1893,34 +1894,35 @@ pub const IO_POLL_DEREGISTER: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.poll.open.
-pub const IO_POLL_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.poll.open",
-    "export function pollOpen(backend: PollBackend): Result<PollHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["io.poll"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-.with_namespace("io")
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
+pub(crate) const IO_POLL_OPEN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.poll.open",
+        "export function pollOpen(backend: PollBackend): Result<PollHandle, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["io.poll"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
+    .with_namespace("io")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.io.poll.register.
-pub const IO_POLL_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_POLL_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.poll.register",
     "export function pollRegister(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1934,7 +1936,7 @@ pub const IO_POLL_REGISTER: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.poll.update.
-pub const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.poll.update",
     "export function pollUpdate(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1948,7 +1950,7 @@ pub const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.poll.wait.
-pub const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.poll.wait",
     "export function pollWait(handle: PollHandle, timeoutNs: uint64, maxEvents: uint32): Result<PollEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1962,7 +1964,7 @@ pub const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_req
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.timerfd.close.
-pub const IO_TIMERFD_CLOSE: BindingDescriptor =
+pub(crate) const IO_TIMERFD_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.timerfd.close",
         "export function timerFdClose(handle: TimerFdHandle): Result<void, PlatformError>",
@@ -1990,7 +1992,7 @@ pub const IO_TIMERFD_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.io.timerfd.get.
-pub const IO_TIMERFD_GET: BindingDescriptor =
+pub(crate) const IO_TIMERFD_GET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.timerfd.get",
         "export function timerFdGet(handle: TimerFdHandle): Result<TimerFdSpec, PlatformError>",
@@ -2018,7 +2020,7 @@ pub const IO_TIMERFD_GET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.io.timerfd.open.
-pub const IO_TIMERFD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_TIMERFD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.timerfd.open",
     "export function timerFdOpen(clock: TimerFdClock, flags: TimerFdFlags): Result<TimerFdHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2032,7 +2034,7 @@ pub const IO_TIMERFD_OPEN: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.timerfd.read.
-pub const IO_TIMERFD_READ: BindingDescriptor =
+pub(crate) const IO_TIMERFD_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.timerfd.read",
         "export function timerFdRead(handle: TimerFdHandle): Result<uint64, PlatformError>",
@@ -2060,7 +2062,7 @@ pub const IO_TIMERFD_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.io.timerfd.set.
-pub const IO_TIMERFD_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_TIMERFD_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.timerfd.set",
     "export function timerFdSet(handle: TimerFdHandle, spec: TimerFdSpec, flags: TimerFdSetFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2074,7 +2076,7 @@ pub const IO_TIMERFD_SET: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.uring.close.
-pub const IO_URING_CLOSE: BindingDescriptor =
+pub(crate) const IO_URING_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.uring.close",
         "export function uringClose(handle: UringHandle): Result<void, PlatformError>",
@@ -2089,7 +2091,7 @@ pub const IO_URING_CLOSE: BindingDescriptor =
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.features.
-pub const IO_URING_FEATURES: BindingDescriptor =
+pub(crate) const IO_URING_FEATURES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.uring.features",
         "export function uringFeatures(handle: UringHandle): Result<UringFeatures, PlatformError>",
@@ -2104,7 +2106,7 @@ pub const IO_URING_FEATURES: BindingDescriptor =
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.open.
-pub const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.uring.open",
     "export function uringOpen(parameters: UringParameters): Result<UringHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2118,7 +2120,7 @@ pub const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_re
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.registerBuffers.
-pub const IO_URING_REGISTER_BUFFERS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_URING_REGISTER_BUFFERS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.uring.registerBuffers",
     "export function uringRegisterBuffers(handle: UringHandle, addresses: Slice<uint64>, lengths: Slice<uint32>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2132,7 +2134,7 @@ pub const IO_URING_REGISTER_BUFFERS: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.registerFiles.
-pub const IO_URING_REGISTER_FILES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_URING_REGISTER_FILES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.uring.registerFiles",
     "export function uringRegisterFiles(handle: UringHandle, files: Slice<ResourceId>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2146,7 +2148,7 @@ pub const IO_URING_REGISTER_FILES: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.unregisterBuffers.
-pub const IO_URING_UNREGISTER_BUFFERS: BindingDescriptor =
+pub(crate) const IO_URING_UNREGISTER_BUFFERS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.uring.unregisterBuffers",
         "export function uringUnregisterBuffers(handle: UringHandle): Result<void, PlatformError>",
@@ -2161,7 +2163,7 @@ pub const IO_URING_UNREGISTER_BUFFERS: BindingDescriptor =
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.unregisterFiles.
-pub const IO_URING_UNREGISTER_FILES: BindingDescriptor =
+pub(crate) const IO_URING_UNREGISTER_FILES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.io.uring.unregisterFiles",
         "export function uringUnregisterFiles(handle: UringHandle): Result<void, PlatformError>",
@@ -2175,48 +2177,8 @@ pub const IO_URING_UNREGISTER_FILES: BindingDescriptor =
     .with_namespace("io")
     .with_host_platforms(&["linux"]);
 
-/// Binding descriptors for io.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    IO_COMPLETION_CANCEL,
-    IO_COMPLETION_CLOSE,
-    IO_COMPLETION_ENTER,
-    IO_COMPLETION_OPEN,
-    IO_COMPLETION_SUBMIT,
-    IO_COMPLETION_SUBMIT_BATCH,
-    IO_COMPLETION_WAIT,
-    IO_CONTROL_FCNTL,
-    IO_CONTROL_IOCTL,
-    IO_DEVICE_CLOSE,
-    IO_DEVICE_CONTROL,
-    IO_DEVICE_OPEN,
-    IO_DEVICE_READ,
-    IO_DEVICE_WRITE,
-    IO_EVENT_ATTACH,
-    IO_EVENT_CLOSE,
-    IO_EVENT_OPEN,
-    IO_EVENT_SIGNAL,
-    IO_POLL_CLOSE,
-    IO_POLL_DEREGISTER,
-    IO_POLL_OPEN,
-    IO_POLL_REGISTER,
-    IO_POLL_UPDATE,
-    IO_POLL_WAIT,
-    IO_TIMERFD_CLOSE,
-    IO_TIMERFD_GET,
-    IO_TIMERFD_OPEN,
-    IO_TIMERFD_READ,
-    IO_TIMERFD_SET,
-    IO_URING_CLOSE,
-    IO_URING_FEATURES,
-    IO_URING_OPEN,
-    IO_URING_REGISTER_BUFFERS,
-    IO_URING_REGISTER_FILES,
-    IO_URING_UNREGISTER_BUFFERS,
-    IO_URING_UNREGISTER_FILES,
-];
-
 /// Native binding set for io.
-pub const IO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const IO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "io",
     bindings: &[
         NativeBinding::new(
@@ -4444,7 +4406,7 @@ fn destack_io_uring_unregister_files_replay(
 
 /// Native export wrappers for io bindings.
 #[unsafe(export_name = "destack.io.completion.cancel")]
-pub unsafe extern "C" fn destack_io_completion_cancel(
+pub(crate) unsafe extern "C" fn destack_io_completion_cancel(
     out: *mut u32,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
@@ -4462,7 +4424,7 @@ pub unsafe extern "C" fn destack_io_completion_cancel(
 }
 
 #[unsafe(export_name = "destack.io.completion.close")]
-pub unsafe extern "C" fn destack_io_completion_close(
+pub(crate) unsafe extern "C" fn destack_io_completion_close(
     handle: resource::CompletionHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -4475,7 +4437,7 @@ pub unsafe extern "C" fn destack_io_completion_close(
 }
 
 #[unsafe(export_name = "destack.io.completion.enter")]
-pub unsafe extern "C" fn destack_io_completion_enter(
+pub(crate) unsafe extern "C" fn destack_io_completion_enter(
     out: *mut u32,
     handle: resource::CompletionHandle,
     mincomplete: u32,
@@ -4503,7 +4465,7 @@ pub unsafe extern "C" fn destack_io_completion_enter(
 }
 
 #[unsafe(export_name = "destack.io.completion.open")]
-pub unsafe extern "C" fn destack_io_completion_open(
+pub(crate) unsafe extern "C" fn destack_io_completion_open(
     out: *mut resource::CompletionHandle,
     entries: u32,
 ) -> RuntimeStatus {
@@ -4520,7 +4482,7 @@ pub unsafe extern "C" fn destack_io_completion_open(
 }
 
 #[unsafe(export_name = "destack.io.completion.submit")]
-pub unsafe extern "C" fn destack_io_completion_submit(
+pub(crate) unsafe extern "C" fn destack_io_completion_submit(
     handle: resource::CompletionHandle,
     operation: CompletionOperation,
 ) -> RuntimeStatus {
@@ -4534,7 +4496,7 @@ pub unsafe extern "C" fn destack_io_completion_submit(
 }
 
 #[unsafe(export_name = "destack.io.completion.submitBatch")]
-pub unsafe extern "C" fn destack_io_completion_submit_batch(
+pub(crate) unsafe extern "C" fn destack_io_completion_submit_batch(
     out: *mut u32,
     handle: resource::CompletionHandle,
     operationwords: NativeSlice<u64>,
@@ -4568,7 +4530,7 @@ pub unsafe extern "C" fn destack_io_completion_submit_batch(
 }
 
 #[unsafe(export_name = "destack.io.completion.wait")]
-pub unsafe extern "C" fn destack_io_completion_wait(
+pub(crate) unsafe extern "C" fn destack_io_completion_wait(
     out: *mut NativeArray<CompletionEvent>,
     handle: resource::CompletionHandle,
     timeoutns: u64,
@@ -4587,7 +4549,7 @@ pub unsafe extern "C" fn destack_io_completion_wait(
 }
 
 #[unsafe(export_name = "destack.io.control.fcntl")]
-pub unsafe extern "C" fn destack_io_control_fcntl(
+pub(crate) unsafe extern "C" fn destack_io_control_fcntl(
     out: *mut i64,
     handle: resource::ResourceId,
     command: DescriptorControlCommand,
@@ -4607,7 +4569,7 @@ pub unsafe extern "C" fn destack_io_control_fcntl(
 }
 
 #[unsafe(export_name = "destack.io.control.ioctl")]
-pub unsafe extern "C" fn destack_io_control_ioctl(
+pub(crate) unsafe extern "C" fn destack_io_control_ioctl(
     out: *mut DescriptorResult,
     handle: resource::ResourceId,
     request: DescriptorRequest,
@@ -4625,7 +4587,9 @@ pub unsafe extern "C" fn destack_io_control_ioctl(
 }
 
 #[unsafe(export_name = "destack.io.device.close")]
-pub unsafe extern "C" fn destack_io_device_close(handle: resource::DeviceHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_io_device_close(
+    handle: resource::DeviceHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -4636,7 +4600,7 @@ pub unsafe extern "C" fn destack_io_device_close(handle: resource::DeviceHandle)
 }
 
 #[unsafe(export_name = "destack.io.device.control")]
-pub unsafe extern "C" fn destack_io_device_control(
+pub(crate) unsafe extern "C" fn destack_io_device_control(
     out: *mut DescriptorResult,
     handle: resource::DeviceHandle,
     request: DescriptorRequest,
@@ -4654,7 +4618,7 @@ pub unsafe extern "C" fn destack_io_device_control(
 }
 
 #[unsafe(export_name = "destack.io.device.open")]
-pub unsafe extern "C" fn destack_io_device_open(
+pub(crate) unsafe extern "C" fn destack_io_device_open(
     out: *mut resource::DeviceHandle,
     path: fs::OsPath,
     flags: u32,
@@ -4673,7 +4637,7 @@ pub unsafe extern "C" fn destack_io_device_open(
 }
 
 #[unsafe(export_name = "destack.io.device.read")]
-pub unsafe extern "C" fn destack_io_device_read(
+pub(crate) unsafe extern "C" fn destack_io_device_read(
     out: *mut u64,
     handle: resource::DeviceHandle,
     buffer: NativeSlice<u8>,
@@ -4691,7 +4655,7 @@ pub unsafe extern "C" fn destack_io_device_read(
 }
 
 #[unsafe(export_name = "destack.io.device.write")]
-pub unsafe extern "C" fn destack_io_device_write(
+pub(crate) unsafe extern "C" fn destack_io_device_write(
     out: *mut u64,
     handle: resource::DeviceHandle,
     buffer: NativeSlice<u8>,
@@ -4709,7 +4673,7 @@ pub unsafe extern "C" fn destack_io_device_write(
 }
 
 #[unsafe(export_name = "destack.io.event.attach")]
-pub unsafe extern "C" fn destack_io_event_attach(
+pub(crate) unsafe extern "C" fn destack_io_event_attach(
     token: EventToken,
     target: resource::ResourceId,
     key: u64,
@@ -4724,7 +4688,7 @@ pub unsafe extern "C" fn destack_io_event_attach(
 }
 
 #[unsafe(export_name = "destack.io.event.close")]
-pub unsafe extern "C" fn destack_io_event_close(token: EventToken) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_io_event_close(token: EventToken) -> RuntimeStatus {
     native_call(|context| {
         let _ = &token;
 
@@ -4735,7 +4699,7 @@ pub unsafe extern "C" fn destack_io_event_close(token: EventToken) -> RuntimeSta
 }
 
 #[unsafe(export_name = "destack.io.event.open")]
-pub unsafe extern "C" fn destack_io_event_open(
+pub(crate) unsafe extern "C" fn destack_io_event_open(
     out: *mut EventToken,
     initial: u64,
 ) -> RuntimeStatus {
@@ -4752,7 +4716,7 @@ pub unsafe extern "C" fn destack_io_event_open(
 }
 
 #[unsafe(export_name = "destack.io.event.signal")]
-pub unsafe extern "C" fn destack_io_event_signal(
+pub(crate) unsafe extern "C" fn destack_io_event_signal(
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeStatus {
@@ -4766,7 +4730,9 @@ pub unsafe extern "C" fn destack_io_event_signal(
 }
 
 #[unsafe(export_name = "destack.io.poll.close")]
-pub unsafe extern "C" fn destack_io_poll_close(handle: resource::PollHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_io_poll_close(
+    handle: resource::PollHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -4777,7 +4743,7 @@ pub unsafe extern "C" fn destack_io_poll_close(handle: resource::PollHandle) -> 
 }
 
 #[unsafe(export_name = "destack.io.poll.deregister")]
-pub unsafe extern "C" fn destack_io_poll_deregister(
+pub(crate) unsafe extern "C" fn destack_io_poll_deregister(
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeStatus {
@@ -4791,7 +4757,7 @@ pub unsafe extern "C" fn destack_io_poll_deregister(
 }
 
 #[unsafe(export_name = "destack.io.poll.open")]
-pub unsafe extern "C" fn destack_io_poll_open(
+pub(crate) unsafe extern "C" fn destack_io_poll_open(
     out: *mut resource::PollHandle,
     backend: PollBackend,
 ) -> RuntimeStatus {
@@ -4807,7 +4773,7 @@ pub unsafe extern "C" fn destack_io_poll_open(
 }
 
 #[unsafe(export_name = "destack.io.poll.register")]
-pub unsafe extern "C" fn destack_io_poll_register(
+pub(crate) unsafe extern "C" fn destack_io_poll_register(
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
@@ -4823,7 +4789,7 @@ pub unsafe extern "C" fn destack_io_poll_register(
 }
 
 #[unsafe(export_name = "destack.io.poll.update")]
-pub unsafe extern "C" fn destack_io_poll_update(
+pub(crate) unsafe extern "C" fn destack_io_poll_update(
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
@@ -4839,7 +4805,7 @@ pub unsafe extern "C" fn destack_io_poll_update(
 }
 
 #[unsafe(export_name = "destack.io.poll.wait")]
-pub unsafe extern "C" fn destack_io_poll_wait(
+pub(crate) unsafe extern "C" fn destack_io_poll_wait(
     out: *mut NativeArray<PollEvent>,
     handle: resource::PollHandle,
     timeoutns: u64,
@@ -4857,7 +4823,7 @@ pub unsafe extern "C" fn destack_io_poll_wait(
 }
 
 #[unsafe(export_name = "destack.io.timerfd.close")]
-pub unsafe extern "C" fn destack_io_timerfd_close(
+pub(crate) unsafe extern "C" fn destack_io_timerfd_close(
     handle: resource::TimerFdHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -4870,7 +4836,7 @@ pub unsafe extern "C" fn destack_io_timerfd_close(
 }
 
 #[unsafe(export_name = "destack.io.timerfd.get")]
-pub unsafe extern "C" fn destack_io_timerfd_get(
+pub(crate) unsafe extern "C" fn destack_io_timerfd_get(
     out: *mut TimerFdSpec,
     handle: resource::TimerFdHandle,
 ) -> RuntimeStatus {
@@ -4887,7 +4853,7 @@ pub unsafe extern "C" fn destack_io_timerfd_get(
 }
 
 #[unsafe(export_name = "destack.io.timerfd.open")]
-pub unsafe extern "C" fn destack_io_timerfd_open(
+pub(crate) unsafe extern "C" fn destack_io_timerfd_open(
     out: *mut resource::TimerFdHandle,
     clock: TimerFdClock,
     flags: TimerFdFlags,
@@ -4905,7 +4871,7 @@ pub unsafe extern "C" fn destack_io_timerfd_open(
 }
 
 #[unsafe(export_name = "destack.io.timerfd.read")]
-pub unsafe extern "C" fn destack_io_timerfd_read(
+pub(crate) unsafe extern "C" fn destack_io_timerfd_read(
     out: *mut u64,
     handle: resource::TimerFdHandle,
 ) -> RuntimeStatus {
@@ -4922,7 +4888,7 @@ pub unsafe extern "C" fn destack_io_timerfd_read(
 }
 
 #[unsafe(export_name = "destack.io.timerfd.set")]
-pub unsafe extern "C" fn destack_io_timerfd_set(
+pub(crate) unsafe extern "C" fn destack_io_timerfd_set(
     handle: resource::TimerFdHandle,
     spec: TimerFdSpec,
     flags: TimerFdSetFlags,
@@ -4937,7 +4903,9 @@ pub unsafe extern "C" fn destack_io_timerfd_set(
 }
 
 #[unsafe(export_name = "destack.io.uring.close")]
-pub unsafe extern "C" fn destack_io_uring_close(handle: resource::UringHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_io_uring_close(
+    handle: resource::UringHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -4948,7 +4916,7 @@ pub unsafe extern "C" fn destack_io_uring_close(handle: resource::UringHandle) -
 }
 
 #[unsafe(export_name = "destack.io.uring.features")]
-pub unsafe extern "C" fn destack_io_uring_features(
+pub(crate) unsafe extern "C" fn destack_io_uring_features(
     out: *mut UringFeatures,
     handle: resource::UringHandle,
 ) -> RuntimeStatus {
@@ -4965,7 +4933,7 @@ pub unsafe extern "C" fn destack_io_uring_features(
 }
 
 #[unsafe(export_name = "destack.io.uring.open")]
-pub unsafe extern "C" fn destack_io_uring_open(
+pub(crate) unsafe extern "C" fn destack_io_uring_open(
     out: *mut resource::UringHandle,
     parameters: UringParameters,
 ) -> RuntimeStatus {
@@ -4982,7 +4950,7 @@ pub unsafe extern "C" fn destack_io_uring_open(
 }
 
 #[unsafe(export_name = "destack.io.uring.registerBuffers")]
-pub unsafe extern "C" fn destack_io_uring_register_buffers(
+pub(crate) unsafe extern "C" fn destack_io_uring_register_buffers(
     handle: resource::UringHandle,
     addresses: NativeSlice<u64>,
     lengths: NativeSlice<u32>,
@@ -4997,7 +4965,7 @@ pub unsafe extern "C" fn destack_io_uring_register_buffers(
 }
 
 #[unsafe(export_name = "destack.io.uring.registerFiles")]
-pub unsafe extern "C" fn destack_io_uring_register_files(
+pub(crate) unsafe extern "C" fn destack_io_uring_register_files(
     handle: resource::UringHandle,
     files: NativeSlice<resource::ResourceId>,
 ) -> RuntimeStatus {
@@ -5011,7 +4979,7 @@ pub unsafe extern "C" fn destack_io_uring_register_files(
 }
 
 #[unsafe(export_name = "destack.io.uring.unregisterBuffers")]
-pub unsafe extern "C" fn destack_io_uring_unregister_buffers(
+pub(crate) unsafe extern "C" fn destack_io_uring_unregister_buffers(
     handle: resource::UringHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -5024,7 +4992,7 @@ pub unsafe extern "C" fn destack_io_uring_unregister_buffers(
 }
 
 #[unsafe(export_name = "destack.io.uring.unregisterFiles")]
-pub unsafe extern "C" fn destack_io_uring_unregister_files(
+pub(crate) unsafe extern "C" fn destack_io_uring_unregister_files(
     handle: resource::UringHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -7190,7 +7158,7 @@ fn destack_io_uring_unregister_files_vm_replay(
 }
 
 /// Register VM bindings for io.
-pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -7810,8 +7778,8 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 }
 
 /// Install VM bindings for io.
-pub fn install_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_io_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub IO_VM_BINDINGS, "io", install_io_vm_bindings);
+vm_binding_set!(pub(crate) IO_VM_BINDINGS, "io", install_io_vm_bindings);

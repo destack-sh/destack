@@ -1,25 +1,16 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::process::{bindings_generated as bindings, core as core_process};
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, PlatformErrorCode,
-};
+use crate::platform::process::core as core_process;
+use crate::platform::{PlatformError, PlatformErrorCode};
 
 use crate::runtime::BindingCallContext;
-use bindings::*;
 
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
-    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
-    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
-    ProcessUnshareFlags, ProcessUserIds, ProcessWaitContinuedStatus, ProcessWaitExitedStatus,
-    ProcessWaitFlags, ProcessWaitRunningStatus, ProcessWaitSignaledStatus, ProcessWaitStatus,
-    ProcessWaitStoppedStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
-    SyscallFilterFlags, UserId,
+    ProcessId, ProcessWaitContinuedStatus, ProcessWaitExitedStatus, ProcessWaitFlags,
+    ProcessWaitRunningStatus, ProcessWaitSignaledStatus, ProcessWaitStatus,
+    ProcessWaitStoppedStatus, Signal,
 };
-use crate::platform::{fs, resource};
+use crate::platform::resource;
 use std::time::{Duration, Instant};
 
 /// Resolve a process handle into its process id payload.

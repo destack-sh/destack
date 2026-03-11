@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -3940,7 +3941,7 @@ struct CryptoStoreProbeKindsReplayRecord {
 }
 
 /// Binding descriptor for destack.crypto.agreement.deriveKey.
-pub const CRYPTO_AGREEMENT_DERIVE_KEY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_AGREEMENT_DERIVE_KEY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.agreement.deriveKey",
     "export function agreementDeriveKey(privateKey: CryptoKeyHandle, peerPublicKey: CryptoKeyHandle, request: CryptoAgreementDeriveKeyRequest): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -3954,7 +3955,7 @@ pub const CRYPTO_AGREEMENT_DERIVE_KEY: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.agreement.deriveSharedSecret.
-pub const CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.agreement.deriveSharedSecret",
     "export function agreementDeriveSharedSecret(privateKey: CryptoKeyHandle, peerPublicKey: CryptoKeyHandle, algorithm: CryptoKeyAgreementAlgorithm): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -3968,7 +3969,7 @@ pub const CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET: BindingDescriptor = BindingDesc
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.delete.
-pub const CRYPTO_CERTIFICATE_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CERTIFICATE_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.certificate.delete",
     "export function certificateDelete(handle: CryptoCertificateHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -3982,7 +3983,7 @@ pub const CRYPTO_CERTIFICATE_DELETE: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.descriptor.
-pub const CRYPTO_CERTIFICATE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CERTIFICATE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.certificate.descriptor",
     "export function certificateDescriptor(handle: CryptoCertificateHandle): Result<CryptoCertificateDescriptor, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -3996,7 +3997,7 @@ pub const CRYPTO_CERTIFICATE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.export.
-pub const CRYPTO_CERTIFICATE_EXPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CERTIFICATE_EXPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.certificate.export",
     "export function certificateExport(handle: CryptoCertificateHandle, format: CryptoCertificateFormat): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4010,7 +4011,7 @@ pub const CRYPTO_CERTIFICATE_EXPORT: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.import.
-pub const CRYPTO_CERTIFICATE_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CERTIFICATE_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.certificate.import",
     "export function certificateImport(store: CryptoStoreHandle, format: CryptoCertificateFormat, certificate: Slice<uint8>): Result<CryptoCertificateHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4024,7 +4025,7 @@ pub const CRYPTO_CERTIFICATE_IMPORT: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.verify.
-pub const CRYPTO_CERTIFICATE_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CERTIFICATE_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.certificate.verify",
     "export function certificateVerify(request: CryptoCertificateVerifyRequest): Result<CryptoCertificateVerifyResult, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4038,7 +4039,7 @@ pub const CRYPTO_CERTIFICATE_VERIFY: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.close.
-pub const CRYPTO_CIPHER_CLOSE: BindingDescriptor =
+pub(crate) const CRYPTO_CIPHER_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.cipher.close",
         "export function cipherClose(handle: CryptoCipherHandle): Result<void, PlatformError>",
@@ -4066,7 +4067,7 @@ pub const CRYPTO_CIPHER_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.cipher.decrypt.
-pub const CRYPTO_CIPHER_DECRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_DECRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.cipher.decrypt",
     "export function cipherDecrypt(key: CryptoKeyHandle, parameters: CryptoCipherParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4080,7 +4081,7 @@ pub const CRYPTO_CIPHER_DECRYPT: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.encrypt.
-pub const CRYPTO_CIPHER_ENCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_ENCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.cipher.encrypt",
     "export function cipherEncrypt(key: CryptoKeyHandle, parameters: CryptoCipherParameters, payload: Slice<uint8>): Result<CryptoCipherOutput, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4094,7 +4095,7 @@ pub const CRYPTO_CIPHER_ENCRYPT: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.finish.
-pub const CRYPTO_CIPHER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.cipher.finish",
     "export function cipherFinish(handle: CryptoCipherHandle, finalPayload: Slice<uint8>): Result<CryptoCipherOutput, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4108,7 +4109,7 @@ pub const CRYPTO_CIPHER_FINISH: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.open.
-pub const CRYPTO_CIPHER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.cipher.open",
     "export function cipherOpen(key: CryptoKeyHandle, direction: CryptoCipherDirection, parameters: CryptoCipherParameters): Result<CryptoCipherHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4122,7 +4123,7 @@ pub const CRYPTO_CIPHER_OPEN: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.reset.
-pub const CRYPTO_CIPHER_RESET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_RESET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.cipher.reset",
     "export function cipherReset(handle: CryptoCipherHandle, parameters: CryptoCipherParameters): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4136,7 +4137,7 @@ pub const CRYPTO_CIPHER_RESET: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.update.
-pub const CRYPTO_CIPHER_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.cipher.update",
     "export function cipherUpdate(handle: CryptoCipherHandle, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4150,7 +4151,7 @@ pub const CRYPTO_CIPHER_UPDATE: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.updateAdditionalData.
-pub const CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.cipher.updateAdditionalData",
     "export function cipherUpdateAdditionalData(handle: CryptoCipherHandle, additionalData: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4164,7 +4165,7 @@ pub const CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA: BindingDescriptor = BindingDescr
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.close.
-pub const CRYPTO_DIGEST_CLOSE: BindingDescriptor =
+pub(crate) const CRYPTO_DIGEST_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.digest.close",
         "export function digestClose(handle: CryptoDigestHandle): Result<void, PlatformError>",
@@ -4192,7 +4193,7 @@ pub const CRYPTO_DIGEST_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.digest.compute.
-pub const CRYPTO_DIGEST_COMPUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_DIGEST_COMPUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.digest.compute",
     "export function digestCompute(algorithm: CryptoDigestAlgorithm, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4206,7 +4207,7 @@ pub const CRYPTO_DIGEST_COMPUTE: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.finish.
-pub const CRYPTO_DIGEST_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_DIGEST_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.digest.finish",
     "export function digestFinish(handle: CryptoDigestHandle): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4220,7 +4221,7 @@ pub const CRYPTO_DIGEST_FINISH: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.open.
-pub const CRYPTO_DIGEST_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_DIGEST_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.digest.open",
     "export function digestOpen(algorithm: CryptoDigestAlgorithm): Result<CryptoDigestHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4234,7 +4235,7 @@ pub const CRYPTO_DIGEST_OPEN: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.reset.
-pub const CRYPTO_DIGEST_RESET: BindingDescriptor =
+pub(crate) const CRYPTO_DIGEST_RESET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.digest.reset",
         "export function digestReset(handle: CryptoDigestHandle): Result<void, PlatformError>",
@@ -4262,7 +4263,7 @@ pub const CRYPTO_DIGEST_RESET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.digest.update.
-pub const CRYPTO_DIGEST_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_DIGEST_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.digest.update",
     "export function digestUpdate(handle: CryptoDigestHandle, payload: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4276,7 +4277,7 @@ pub const CRYPTO_DIGEST_UPDATE: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.kdf.argon2id.
-pub const CRYPTO_KDF_ARGON2ID: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KDF_ARGON2ID: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.kdf.argon2id",
     "export function kdfArgon2id(request: CryptoArgon2idRequest): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4290,7 +4291,7 @@ pub const CRYPTO_KDF_ARGON2ID: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.kdf.hkdf.
-pub const CRYPTO_KDF_HKDF: BindingDescriptor =
+pub(crate) const CRYPTO_KDF_HKDF: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.kdf.hkdf",
         "export function kdfHkdf(request: CryptoHkdfRequest): Result<Slice<uint8>, PlatformError>",
@@ -4318,7 +4319,7 @@ pub const CRYPTO_KDF_HKDF: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.kdf.pbkdf2.
-pub const CRYPTO_KDF_PBKDF2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KDF_PBKDF2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.kdf.pbkdf2",
     "export function kdfPbkdf2(request: CryptoPbkdf2Request): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4332,7 +4333,7 @@ pub const CRYPTO_KDF_PBKDF2: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.kdf.scrypt.
-pub const CRYPTO_KDF_SCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KDF_SCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.kdf.scrypt",
     "export function kdfScrypt(request: CryptoScryptRequest): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4346,7 +4347,7 @@ pub const CRYPTO_KDF_SCRYPT: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.decrypt.
-pub const CRYPTO_KEY_DECRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_DECRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.decrypt",
     "export function keyDecrypt(handle: CryptoKeyHandle, parameters: CryptoAsymmetricEncryptionParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4360,7 +4361,7 @@ pub const CRYPTO_KEY_DECRYPT: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.delete.
-pub const CRYPTO_KEY_DELETE: BindingDescriptor =
+pub(crate) const CRYPTO_KEY_DELETE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.key.delete",
         "export function keyDelete(handle: CryptoKeyHandle): Result<void, PlatformError>",
@@ -4388,7 +4389,7 @@ pub const CRYPTO_KEY_DELETE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.key.descriptor.
-pub const CRYPTO_KEY_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.descriptor",
     "export function keyDescriptor(handle: CryptoKeyHandle): Result<CryptoKeyDescriptor, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4402,7 +4403,7 @@ pub const CRYPTO_KEY_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.encrypt.
-pub const CRYPTO_KEY_ENCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_ENCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.encrypt",
     "export function keyEncrypt(handle: CryptoKeyHandle, parameters: CryptoAsymmetricEncryptionParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4416,7 +4417,7 @@ pub const CRYPTO_KEY_ENCRYPT: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.exportPrivate.
-pub const CRYPTO_KEY_EXPORT_PRIVATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_EXPORT_PRIVATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.exportPrivate",
     "export function keyExportPrivate(handle: CryptoKeyHandle, request: CryptoPrivateKeyExportRequest): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4430,7 +4431,7 @@ pub const CRYPTO_KEY_EXPORT_PRIVATE: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.exportPublic.
-pub const CRYPTO_KEY_EXPORT_PUBLIC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_EXPORT_PUBLIC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.exportPublic",
     "export function keyExportPublic(handle: CryptoKeyHandle, format: CryptoKeyFormat): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4444,7 +4445,7 @@ pub const CRYPTO_KEY_EXPORT_PUBLIC: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.exportSecret.
-pub const CRYPTO_KEY_EXPORT_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_EXPORT_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.exportSecret",
     "export function keyExportSecret(handle: CryptoKeyHandle, format: CryptoKeyFormat): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4458,7 +4459,7 @@ pub const CRYPTO_KEY_EXPORT_SECRET: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.generatePair.
-pub const CRYPTO_KEY_GENERATE_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_GENERATE_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.generatePair",
     "export function keyGeneratePair(store: CryptoStoreHandle, request: CryptoKeyGenerationRequest): Result<CryptoKeyPair, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4472,7 +4473,7 @@ pub const CRYPTO_KEY_GENERATE_PAIR: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.generateSecret.
-pub const CRYPTO_KEY_GENERATE_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_GENERATE_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.generateSecret",
     "export function keyGenerateSecret(store: CryptoStoreHandle, request: CryptoKeyGenerationRequest): Result<CryptoKeyHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4486,7 +4487,7 @@ pub const CRYPTO_KEY_GENERATE_SECRET: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.import.
-pub const CRYPTO_KEY_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.import",
     "export function keyImport(store: CryptoStoreHandle, request: CryptoKeyImportRequest): Result<CryptoKeyHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4500,7 +4501,7 @@ pub const CRYPTO_KEY_IMPORT: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.sign.
-pub const CRYPTO_KEY_SIGN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_SIGN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.sign",
     "export function keySign(handle: CryptoKeyHandle, parameters: CryptoSignatureParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4514,7 +4515,7 @@ pub const CRYPTO_KEY_SIGN: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.unwrap.
-pub const CRYPTO_KEY_UNWRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_UNWRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.unwrap",
     "export function keyUnwrap(store: CryptoStoreHandle, wrappingKey: CryptoKeyHandle, wrappedKey: Slice<uint8>, parameters: CryptoKeyWrapParameters, request: CryptoKeyImportRequest): Result<CryptoKeyHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4528,7 +4529,7 @@ pub const CRYPTO_KEY_UNWRAP: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.verify.
-pub const CRYPTO_KEY_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.verify",
     "export function keyVerify(handle: CryptoKeyHandle, parameters: CryptoSignatureParameters, payload: Slice<uint8>, signature: Slice<uint8>): Result<boolean, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4542,7 +4543,7 @@ pub const CRYPTO_KEY_VERIFY: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.wrap.
-pub const CRYPTO_KEY_WRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_WRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.wrap",
     "export function keyWrap(wrappingKey: CryptoKeyHandle, keyToWrap: CryptoKeyHandle, format: CryptoKeyFormat, parameters: CryptoKeyWrapParameters): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4556,7 +4557,7 @@ pub const CRYPTO_KEY_WRAP: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.close.
-pub const CRYPTO_MAC_CLOSE: BindingDescriptor =
+pub(crate) const CRYPTO_MAC_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.mac.close",
         "export function macClose(handle: CryptoMacHandle): Result<void, PlatformError>",
@@ -4584,7 +4585,7 @@ pub const CRYPTO_MAC_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.mac.compute.
-pub const CRYPTO_MAC_COMPUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_MAC_COMPUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.mac.compute",
     "export function macCompute(key: CryptoKeyHandle, parameters: CryptoMacParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4598,7 +4599,7 @@ pub const CRYPTO_MAC_COMPUTE: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.finish.
-pub const CRYPTO_MAC_FINISH: BindingDescriptor =
+pub(crate) const CRYPTO_MAC_FINISH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.mac.finish",
         "export function macFinish(handle: CryptoMacHandle): Result<Slice<uint8>, PlatformError>",
@@ -4626,7 +4627,7 @@ pub const CRYPTO_MAC_FINISH: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.mac.open.
-pub const CRYPTO_MAC_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_MAC_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.mac.open",
     "export function macOpen(key: CryptoKeyHandle, parameters: CryptoMacParameters): Result<CryptoMacHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4640,7 +4641,7 @@ pub const CRYPTO_MAC_OPEN: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.reset.
-pub const CRYPTO_MAC_RESET: BindingDescriptor =
+pub(crate) const CRYPTO_MAC_RESET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.mac.reset",
         "export function macReset(handle: CryptoMacHandle): Result<void, PlatformError>",
@@ -4668,7 +4669,7 @@ pub const CRYPTO_MAC_RESET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.mac.update.
-pub const CRYPTO_MAC_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_MAC_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.mac.update",
     "export function macUpdate(handle: CryptoMacHandle, payload: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4682,7 +4683,7 @@ pub const CRYPTO_MAC_UPDATE: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.verify.
-pub const CRYPTO_MAC_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_MAC_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.mac.verify",
     "export function macVerify(key: CryptoKeyHandle, parameters: CryptoMacParameters, payload: Slice<uint8>, tag: Slice<uint8>): Result<boolean, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4696,7 +4697,7 @@ pub const CRYPTO_MAC_VERIFY: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.agreementAlgorithms.
-pub const CRYPTO_PROBE_AGREEMENT_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_PROBE_AGREEMENT_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.probe.agreementAlgorithms",
     "export function probeAgreementAlgorithms(): Result<Slice<CryptoKeyAgreementAlgorithm>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4710,7 +4711,7 @@ pub const CRYPTO_PROBE_AGREEMENT_ALGORITHMS: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.cipherAlgorithms.
-pub const CRYPTO_PROBE_CIPHER_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_PROBE_CIPHER_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.probe.cipherAlgorithms",
     "export function probeCipherAlgorithms(): Result<Slice<CryptoCipherAlgorithm>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4724,7 +4725,7 @@ pub const CRYPTO_PROBE_CIPHER_ALGORITHMS: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.digestAlgorithms.
-pub const CRYPTO_PROBE_DIGEST_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_PROBE_DIGEST_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.probe.digestAlgorithms",
     "export function probeDigestAlgorithms(): Result<Slice<CryptoDigestAlgorithm>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4738,7 +4739,7 @@ pub const CRYPTO_PROBE_DIGEST_ALGORITHMS: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.kdfAlgorithms.
-pub const CRYPTO_PROBE_KDF_ALGORITHMS: BindingDescriptor =
+pub(crate) const CRYPTO_PROBE_KDF_ALGORITHMS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.probe.kdfAlgorithms",
         "export function probeKdfAlgorithms(): Result<Slice<CryptoKdfAlgorithm>, PlatformError>",
@@ -4766,7 +4767,7 @@ pub const CRYPTO_PROBE_KDF_ALGORITHMS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.probe.keyAlgorithms.
-pub const CRYPTO_PROBE_KEY_ALGORITHMS: BindingDescriptor =
+pub(crate) const CRYPTO_PROBE_KEY_ALGORITHMS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.probe.keyAlgorithms",
         "export function probeKeyAlgorithms(): Result<Slice<CryptoKeyAlgorithm>, PlatformError>",
@@ -4794,7 +4795,7 @@ pub const CRYPTO_PROBE_KEY_ALGORITHMS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.probe.keyFormats.
-pub const CRYPTO_PROBE_KEY_FORMATS: BindingDescriptor =
+pub(crate) const CRYPTO_PROBE_KEY_FORMATS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.probe.keyFormats",
         "export function probeKeyFormats(): Result<Slice<CryptoKeyFormat>, PlatformError>",
@@ -4822,7 +4823,7 @@ pub const CRYPTO_PROBE_KEY_FORMATS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.probe.keyResidencies.
-pub const CRYPTO_PROBE_KEY_RESIDENCIES: BindingDescriptor =
+pub(crate) const CRYPTO_PROBE_KEY_RESIDENCIES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.probe.keyResidencies",
         "export function probeKeyResidencies(): Result<Slice<CryptoKeyResidency>, PlatformError>",
@@ -4850,7 +4851,7 @@ pub const CRYPTO_PROBE_KEY_RESIDENCIES: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.probe.keyWrapAlgorithms.
-pub const CRYPTO_PROBE_KEY_WRAP_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_PROBE_KEY_WRAP_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.probe.keyWrapAlgorithms",
     "export function probeKeyWrapAlgorithms(): Result<Slice<CryptoKeyWrapAlgorithm>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4864,7 +4865,7 @@ pub const CRYPTO_PROBE_KEY_WRAP_ALGORITHMS: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.macAlgorithms.
-pub const CRYPTO_PROBE_MAC_ALGORITHMS: BindingDescriptor =
+pub(crate) const CRYPTO_PROBE_MAC_ALGORITHMS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.probe.macAlgorithms",
         "export function probeMacAlgorithms(): Result<Slice<CryptoMacAlgorithm>, PlatformError>",
@@ -4892,7 +4893,7 @@ pub const CRYPTO_PROBE_MAC_ALGORITHMS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.probe.namedCurves.
-pub const CRYPTO_PROBE_NAMED_CURVES: BindingDescriptor =
+pub(crate) const CRYPTO_PROBE_NAMED_CURVES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.probe.namedCurves",
         "export function probeNamedCurves(): Result<Slice<CryptoNamedCurve>, PlatformError>",
@@ -4920,7 +4921,7 @@ pub const CRYPTO_PROBE_NAMED_CURVES: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.probe.signatureAlgorithms.
-pub const CRYPTO_PROBE_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_PROBE_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.probe.signatureAlgorithms",
     "export function probeSignatureAlgorithms(): Result<Slice<CryptoSignatureAlgorithm>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4934,7 +4935,7 @@ pub const CRYPTO_PROBE_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.random.bytes.
-pub const CRYPTO_RANDOM_BYTES: BindingDescriptor =
+pub(crate) const CRYPTO_RANDOM_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.random.bytes",
         "export function randomBytes(length: uint32): Result<Slice<uint8>, PlatformError>",
@@ -4962,7 +4963,7 @@ pub const CRYPTO_RANDOM_BYTES: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.random.fill.
-pub const CRYPTO_RANDOM_FILL: BindingDescriptor =
+pub(crate) const CRYPTO_RANDOM_FILL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.random.fill",
         "export function randomFill(buffer: Slice<uint8>): Result<void, PlatformError>",
@@ -4990,7 +4991,7 @@ pub const CRYPTO_RANDOM_FILL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.store.close.
-pub const CRYPTO_STORE_CLOSE: BindingDescriptor =
+pub(crate) const CRYPTO_STORE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.store.close",
         "export function storeClose(handle: CryptoStoreHandle): Result<void, PlatformError>",
@@ -5018,7 +5019,7 @@ pub const CRYPTO_STORE_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.crypto.store.listCertificates.
-pub const CRYPTO_STORE_LIST_CERTIFICATES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_STORE_LIST_CERTIFICATES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.store.listCertificates",
     "export function storeListCertificates(handle: CryptoStoreHandle, query: CryptoCertificateQuery): Result<CryptoCertificateListPage, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5032,7 +5033,7 @@ pub const CRYPTO_STORE_LIST_CERTIFICATES: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.listKeys.
-pub const CRYPTO_STORE_LIST_KEYS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_STORE_LIST_KEYS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.store.listKeys",
     "export function storeListKeys(handle: CryptoStoreHandle, query: CryptoKeyQuery): Result<CryptoKeyListPage, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5046,7 +5047,7 @@ pub const CRYPTO_STORE_LIST_KEYS: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.open.
-pub const CRYPTO_STORE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_STORE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.store.open",
     "export function storeOpen(options: CryptoStoreOptions): Result<CryptoStoreHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5060,7 +5061,7 @@ pub const CRYPTO_STORE_OPEN: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.probeCapability.
-pub const CRYPTO_STORE_PROBE_CAPABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_STORE_PROBE_CAPABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.store.probeCapability",
     "export function storeProbeCapability(kind: CryptoStoreKind, provider: CryptoStoreProvider): Result<CryptoStoreCapability, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5074,7 +5075,7 @@ pub const CRYPTO_STORE_PROBE_CAPABILITY: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.probeKinds.
-pub const CRYPTO_STORE_PROBE_KINDS: BindingDescriptor =
+pub(crate) const CRYPTO_STORE_PROBE_KINDS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.store.probeKinds",
         "export function storeProbeKinds(): Result<CryptoStoreKind[], PlatformError>",
@@ -5101,77 +5102,8 @@ pub const CRYPTO_STORE_PROBE_KINDS: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptors for crypto.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    CRYPTO_AGREEMENT_DERIVE_KEY,
-    CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET,
-    CRYPTO_CERTIFICATE_DELETE,
-    CRYPTO_CERTIFICATE_DESCRIPTOR,
-    CRYPTO_CERTIFICATE_EXPORT,
-    CRYPTO_CERTIFICATE_IMPORT,
-    CRYPTO_CERTIFICATE_VERIFY,
-    CRYPTO_CIPHER_CLOSE,
-    CRYPTO_CIPHER_DECRYPT,
-    CRYPTO_CIPHER_ENCRYPT,
-    CRYPTO_CIPHER_FINISH,
-    CRYPTO_CIPHER_OPEN,
-    CRYPTO_CIPHER_RESET,
-    CRYPTO_CIPHER_UPDATE,
-    CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA,
-    CRYPTO_DIGEST_CLOSE,
-    CRYPTO_DIGEST_COMPUTE,
-    CRYPTO_DIGEST_FINISH,
-    CRYPTO_DIGEST_OPEN,
-    CRYPTO_DIGEST_RESET,
-    CRYPTO_DIGEST_UPDATE,
-    CRYPTO_KDF_ARGON2ID,
-    CRYPTO_KDF_HKDF,
-    CRYPTO_KDF_PBKDF2,
-    CRYPTO_KDF_SCRYPT,
-    CRYPTO_KEY_DECRYPT,
-    CRYPTO_KEY_DELETE,
-    CRYPTO_KEY_DESCRIPTOR,
-    CRYPTO_KEY_ENCRYPT,
-    CRYPTO_KEY_EXPORT_PRIVATE,
-    CRYPTO_KEY_EXPORT_PUBLIC,
-    CRYPTO_KEY_EXPORT_SECRET,
-    CRYPTO_KEY_GENERATE_PAIR,
-    CRYPTO_KEY_GENERATE_SECRET,
-    CRYPTO_KEY_IMPORT,
-    CRYPTO_KEY_SIGN,
-    CRYPTO_KEY_UNWRAP,
-    CRYPTO_KEY_VERIFY,
-    CRYPTO_KEY_WRAP,
-    CRYPTO_MAC_CLOSE,
-    CRYPTO_MAC_COMPUTE,
-    CRYPTO_MAC_FINISH,
-    CRYPTO_MAC_OPEN,
-    CRYPTO_MAC_RESET,
-    CRYPTO_MAC_UPDATE,
-    CRYPTO_MAC_VERIFY,
-    CRYPTO_PROBE_AGREEMENT_ALGORITHMS,
-    CRYPTO_PROBE_CIPHER_ALGORITHMS,
-    CRYPTO_PROBE_DIGEST_ALGORITHMS,
-    CRYPTO_PROBE_KDF_ALGORITHMS,
-    CRYPTO_PROBE_KEY_ALGORITHMS,
-    CRYPTO_PROBE_KEY_FORMATS,
-    CRYPTO_PROBE_KEY_RESIDENCIES,
-    CRYPTO_PROBE_KEY_WRAP_ALGORITHMS,
-    CRYPTO_PROBE_MAC_ALGORITHMS,
-    CRYPTO_PROBE_NAMED_CURVES,
-    CRYPTO_PROBE_SIGNATURE_ALGORITHMS,
-    CRYPTO_RANDOM_BYTES,
-    CRYPTO_RANDOM_FILL,
-    CRYPTO_STORE_CLOSE,
-    CRYPTO_STORE_LIST_CERTIFICATES,
-    CRYPTO_STORE_LIST_KEYS,
-    CRYPTO_STORE_OPEN,
-    CRYPTO_STORE_PROBE_CAPABILITY,
-    CRYPTO_STORE_PROBE_KINDS,
-];
-
 /// Native binding set for crypto.
-pub const CRYPTO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const CRYPTO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "crypto",
     bindings: &[
         NativeBinding::new(
@@ -6746,7 +6678,7 @@ fn destack_crypto_store_probe_kinds_replay(
 
 /// Native export wrappers for crypto bindings.
 #[unsafe(export_name = "destack.crypto.agreement.deriveKey")]
-pub unsafe extern "C" fn destack_crypto_agreement_derive_key(
+pub(crate) unsafe extern "C" fn destack_crypto_agreement_derive_key(
     out: *mut NativeSlice<u8>,
     privatekey: resource::CryptoKeyHandle,
     peerpublickey: resource::CryptoKeyHandle,
@@ -6786,7 +6718,7 @@ pub unsafe extern "C" fn destack_crypto_agreement_derive_key(
 }
 
 #[unsafe(export_name = "destack.crypto.agreement.deriveSharedSecret")]
-pub unsafe extern "C" fn destack_crypto_agreement_derive_shared_secret(
+pub(crate) unsafe extern "C" fn destack_crypto_agreement_derive_shared_secret(
     out: *mut NativeSlice<u8>,
     privatekey: resource::CryptoKeyHandle,
     peerpublickey: resource::CryptoKeyHandle,
@@ -6826,7 +6758,7 @@ pub unsafe extern "C" fn destack_crypto_agreement_derive_shared_secret(
 }
 
 #[unsafe(export_name = "destack.crypto.certificate.delete")]
-pub unsafe extern "C" fn destack_crypto_certificate_delete(
+pub(crate) unsafe extern "C" fn destack_crypto_certificate_delete(
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -6848,7 +6780,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_delete(
 }
 
 #[unsafe(export_name = "destack.crypto.certificate.descriptor")]
-pub unsafe extern "C" fn destack_crypto_certificate_descriptor(
+pub(crate) unsafe extern "C" fn destack_crypto_certificate_descriptor(
     out: *mut CryptoCertificateDescriptor,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeStatus {
@@ -6876,7 +6808,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_descriptor(
 }
 
 #[unsafe(export_name = "destack.crypto.certificate.export")]
-pub unsafe extern "C" fn destack_crypto_certificate_export(
+pub(crate) unsafe extern "C" fn destack_crypto_certificate_export(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoCertificateHandle,
     format: CryptoCertificateFormat,
@@ -6905,7 +6837,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_export(
 }
 
 #[unsafe(export_name = "destack.crypto.certificate.import")]
-pub unsafe extern "C" fn destack_crypto_certificate_import(
+pub(crate) unsafe extern "C" fn destack_crypto_certificate_import(
     out: *mut resource::CryptoCertificateHandle,
     store: resource::CryptoStoreHandle,
     format: CryptoCertificateFormat,
@@ -6945,7 +6877,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_import(
 }
 
 #[unsafe(export_name = "destack.crypto.certificate.verify")]
-pub unsafe extern "C" fn destack_crypto_certificate_verify(
+pub(crate) unsafe extern "C" fn destack_crypto_certificate_verify(
     out: *mut CryptoCertificateVerifyResult,
     request: CryptoCertificateVerifyRequest,
 ) -> RuntimeStatus {
@@ -6973,7 +6905,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_verify(
 }
 
 #[unsafe(export_name = "destack.crypto.cipher.close")]
-pub unsafe extern "C" fn destack_crypto_cipher_close(
+pub(crate) unsafe extern "C" fn destack_crypto_cipher_close(
     handle: resource::CryptoCipherHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -6995,7 +6927,7 @@ pub unsafe extern "C" fn destack_crypto_cipher_close(
 }
 
 #[unsafe(export_name = "destack.crypto.cipher.decrypt")]
-pub unsafe extern "C" fn destack_crypto_cipher_decrypt(
+pub(crate) unsafe extern "C" fn destack_crypto_cipher_decrypt(
     out: *mut NativeSlice<u8>,
     key: resource::CryptoKeyHandle,
     parameters: CryptoCipherParameters,
@@ -7035,7 +6967,7 @@ pub unsafe extern "C" fn destack_crypto_cipher_decrypt(
 }
 
 #[unsafe(export_name = "destack.crypto.cipher.encrypt")]
-pub unsafe extern "C" fn destack_crypto_cipher_encrypt(
+pub(crate) unsafe extern "C" fn destack_crypto_cipher_encrypt(
     out: *mut CryptoCipherOutput,
     key: resource::CryptoKeyHandle,
     parameters: CryptoCipherParameters,
@@ -7075,7 +7007,7 @@ pub unsafe extern "C" fn destack_crypto_cipher_encrypt(
 }
 
 #[unsafe(export_name = "destack.crypto.cipher.finish")]
-pub unsafe extern "C" fn destack_crypto_cipher_finish(
+pub(crate) unsafe extern "C" fn destack_crypto_cipher_finish(
     out: *mut CryptoCipherOutput,
     handle: resource::CryptoCipherHandle,
     finalpayload: NativeSlice<u8>,
@@ -7112,7 +7044,7 @@ pub unsafe extern "C" fn destack_crypto_cipher_finish(
 }
 
 #[unsafe(export_name = "destack.crypto.cipher.open")]
-pub unsafe extern "C" fn destack_crypto_cipher_open(
+pub(crate) unsafe extern "C" fn destack_crypto_cipher_open(
     out: *mut resource::CryptoCipherHandle,
     key: resource::CryptoKeyHandle,
     direction: CryptoCipherDirection,
@@ -7144,7 +7076,7 @@ pub unsafe extern "C" fn destack_crypto_cipher_open(
 }
 
 #[unsafe(export_name = "destack.crypto.cipher.reset")]
-pub unsafe extern "C" fn destack_crypto_cipher_reset(
+pub(crate) unsafe extern "C" fn destack_crypto_cipher_reset(
     handle: resource::CryptoCipherHandle,
     parameters: CryptoCipherParameters,
 ) -> RuntimeStatus {
@@ -7169,7 +7101,7 @@ pub unsafe extern "C" fn destack_crypto_cipher_reset(
 }
 
 #[unsafe(export_name = "destack.crypto.cipher.update")]
-pub unsafe extern "C" fn destack_crypto_cipher_update(
+pub(crate) unsafe extern "C" fn destack_crypto_cipher_update(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoCipherHandle,
     argument_payload: NativeSlice<u8>,
@@ -7206,7 +7138,7 @@ pub unsafe extern "C" fn destack_crypto_cipher_update(
 }
 
 #[unsafe(export_name = "destack.crypto.cipher.updateAdditionalData")]
-pub unsafe extern "C" fn destack_crypto_cipher_update_additional_data(
+pub(crate) unsafe extern "C" fn destack_crypto_cipher_update_additional_data(
     handle: resource::CryptoCipherHandle,
     additionaldata: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -7237,7 +7169,7 @@ pub unsafe extern "C" fn destack_crypto_cipher_update_additional_data(
 }
 
 #[unsafe(export_name = "destack.crypto.digest.close")]
-pub unsafe extern "C" fn destack_crypto_digest_close(
+pub(crate) unsafe extern "C" fn destack_crypto_digest_close(
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -7259,7 +7191,7 @@ pub unsafe extern "C" fn destack_crypto_digest_close(
 }
 
 #[unsafe(export_name = "destack.crypto.digest.compute")]
-pub unsafe extern "C" fn destack_crypto_digest_compute(
+pub(crate) unsafe extern "C" fn destack_crypto_digest_compute(
     out: *mut NativeSlice<u8>,
     algorithm: CryptoDigestAlgorithm,
     argument_payload: NativeSlice<u8>,
@@ -7296,7 +7228,7 @@ pub unsafe extern "C" fn destack_crypto_digest_compute(
 }
 
 #[unsafe(export_name = "destack.crypto.digest.finish")]
-pub unsafe extern "C" fn destack_crypto_digest_finish(
+pub(crate) unsafe extern "C" fn destack_crypto_digest_finish(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeStatus {
@@ -7322,7 +7254,7 @@ pub unsafe extern "C" fn destack_crypto_digest_finish(
 }
 
 #[unsafe(export_name = "destack.crypto.digest.open")]
-pub unsafe extern "C" fn destack_crypto_digest_open(
+pub(crate) unsafe extern "C" fn destack_crypto_digest_open(
     out: *mut resource::CryptoDigestHandle,
     algorithm: CryptoDigestAlgorithm,
 ) -> RuntimeStatus {
@@ -7348,7 +7280,7 @@ pub unsafe extern "C" fn destack_crypto_digest_open(
 }
 
 #[unsafe(export_name = "destack.crypto.digest.reset")]
-pub unsafe extern "C" fn destack_crypto_digest_reset(
+pub(crate) unsafe extern "C" fn destack_crypto_digest_reset(
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -7370,7 +7302,7 @@ pub unsafe extern "C" fn destack_crypto_digest_reset(
 }
 
 #[unsafe(export_name = "destack.crypto.digest.update")]
-pub unsafe extern "C" fn destack_crypto_digest_update(
+pub(crate) unsafe extern "C" fn destack_crypto_digest_update(
     handle: resource::CryptoDigestHandle,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -7397,7 +7329,7 @@ pub unsafe extern "C" fn destack_crypto_digest_update(
 }
 
 #[unsafe(export_name = "destack.crypto.kdf.argon2id")]
-pub unsafe extern "C" fn destack_crypto_kdf_argon2id(
+pub(crate) unsafe extern "C" fn destack_crypto_kdf_argon2id(
     out: *mut NativeSlice<u8>,
     request: CryptoArgon2idRequest,
 ) -> RuntimeStatus {
@@ -7423,7 +7355,7 @@ pub unsafe extern "C" fn destack_crypto_kdf_argon2id(
 }
 
 #[unsafe(export_name = "destack.crypto.kdf.hkdf")]
-pub unsafe extern "C" fn destack_crypto_kdf_hkdf(
+pub(crate) unsafe extern "C" fn destack_crypto_kdf_hkdf(
     out: *mut NativeSlice<u8>,
     request: CryptoHkdfRequest,
 ) -> RuntimeStatus {
@@ -7449,7 +7381,7 @@ pub unsafe extern "C" fn destack_crypto_kdf_hkdf(
 }
 
 #[unsafe(export_name = "destack.crypto.kdf.pbkdf2")]
-pub unsafe extern "C" fn destack_crypto_kdf_pbkdf2(
+pub(crate) unsafe extern "C" fn destack_crypto_kdf_pbkdf2(
     out: *mut NativeSlice<u8>,
     request: CryptoPbkdf2Request,
 ) -> RuntimeStatus {
@@ -7475,7 +7407,7 @@ pub unsafe extern "C" fn destack_crypto_kdf_pbkdf2(
 }
 
 #[unsafe(export_name = "destack.crypto.kdf.scrypt")]
-pub unsafe extern "C" fn destack_crypto_kdf_scrypt(
+pub(crate) unsafe extern "C" fn destack_crypto_kdf_scrypt(
     out: *mut NativeSlice<u8>,
     request: CryptoScryptRequest,
 ) -> RuntimeStatus {
@@ -7501,7 +7433,7 @@ pub unsafe extern "C" fn destack_crypto_kdf_scrypt(
 }
 
 #[unsafe(export_name = "destack.crypto.key.decrypt")]
-pub unsafe extern "C" fn destack_crypto_key_decrypt(
+pub(crate) unsafe extern "C" fn destack_crypto_key_decrypt(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParameters,
@@ -7541,7 +7473,7 @@ pub unsafe extern "C" fn destack_crypto_key_decrypt(
 }
 
 #[unsafe(export_name = "destack.crypto.key.delete")]
-pub unsafe extern "C" fn destack_crypto_key_delete(
+pub(crate) unsafe extern "C" fn destack_crypto_key_delete(
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -7563,7 +7495,7 @@ pub unsafe extern "C" fn destack_crypto_key_delete(
 }
 
 #[unsafe(export_name = "destack.crypto.key.descriptor")]
-pub unsafe extern "C" fn destack_crypto_key_descriptor(
+pub(crate) unsafe extern "C" fn destack_crypto_key_descriptor(
     out: *mut CryptoKeyDescriptor,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeStatus {
@@ -7589,7 +7521,7 @@ pub unsafe extern "C" fn destack_crypto_key_descriptor(
 }
 
 #[unsafe(export_name = "destack.crypto.key.encrypt")]
-pub unsafe extern "C" fn destack_crypto_key_encrypt(
+pub(crate) unsafe extern "C" fn destack_crypto_key_encrypt(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoAsymmetricEncryptionParameters,
@@ -7629,7 +7561,7 @@ pub unsafe extern "C" fn destack_crypto_key_encrypt(
 }
 
 #[unsafe(export_name = "destack.crypto.key.exportPrivate")]
-pub unsafe extern "C" fn destack_crypto_key_export_private(
+pub(crate) unsafe extern "C" fn destack_crypto_key_export_private(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     request: CryptoPrivateKeyExportRequest,
@@ -7660,7 +7592,7 @@ pub unsafe extern "C" fn destack_crypto_key_export_private(
 }
 
 #[unsafe(export_name = "destack.crypto.key.exportPublic")]
-pub unsafe extern "C" fn destack_crypto_key_export_public(
+pub(crate) unsafe extern "C" fn destack_crypto_key_export_public(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
@@ -7689,7 +7621,7 @@ pub unsafe extern "C" fn destack_crypto_key_export_public(
 }
 
 #[unsafe(export_name = "destack.crypto.key.exportSecret")]
-pub unsafe extern "C" fn destack_crypto_key_export_secret(
+pub(crate) unsafe extern "C" fn destack_crypto_key_export_secret(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
@@ -7718,7 +7650,7 @@ pub unsafe extern "C" fn destack_crypto_key_export_secret(
 }
 
 #[unsafe(export_name = "destack.crypto.key.generatePair")]
-pub unsafe extern "C" fn destack_crypto_key_generate_pair(
+pub(crate) unsafe extern "C" fn destack_crypto_key_generate_pair(
     out: *mut CryptoKeyPair,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequest,
@@ -7747,7 +7679,7 @@ pub unsafe extern "C" fn destack_crypto_key_generate_pair(
 }
 
 #[unsafe(export_name = "destack.crypto.key.generateSecret")]
-pub unsafe extern "C" fn destack_crypto_key_generate_secret(
+pub(crate) unsafe extern "C" fn destack_crypto_key_generate_secret(
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequest,
@@ -7778,7 +7710,7 @@ pub unsafe extern "C" fn destack_crypto_key_generate_secret(
 }
 
 #[unsafe(export_name = "destack.crypto.key.import")]
-pub unsafe extern "C" fn destack_crypto_key_import(
+pub(crate) unsafe extern "C" fn destack_crypto_key_import(
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     request: CryptoKeyImportRequest,
@@ -7807,7 +7739,7 @@ pub unsafe extern "C" fn destack_crypto_key_import(
 }
 
 #[unsafe(export_name = "destack.crypto.key.sign")]
-pub unsafe extern "C" fn destack_crypto_key_sign(
+pub(crate) unsafe extern "C" fn destack_crypto_key_sign(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoSignatureParameters,
@@ -7847,7 +7779,7 @@ pub unsafe extern "C" fn destack_crypto_key_sign(
 }
 
 #[unsafe(export_name = "destack.crypto.key.unwrap")]
-pub unsafe extern "C" fn destack_crypto_key_unwrap(
+pub(crate) unsafe extern "C" fn destack_crypto_key_unwrap(
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     wrappingkey: resource::CryptoKeyHandle,
@@ -7900,7 +7832,7 @@ pub unsafe extern "C" fn destack_crypto_key_unwrap(
 }
 
 #[unsafe(export_name = "destack.crypto.key.verify")]
-pub unsafe extern "C" fn destack_crypto_key_verify(
+pub(crate) unsafe extern "C" fn destack_crypto_key_verify(
     out: *mut bool,
     handle: resource::CryptoKeyHandle,
     parameters: CryptoSignatureParameters,
@@ -7943,7 +7875,7 @@ pub unsafe extern "C" fn destack_crypto_key_verify(
 }
 
 #[unsafe(export_name = "destack.crypto.key.wrap")]
-pub unsafe extern "C" fn destack_crypto_key_wrap(
+pub(crate) unsafe extern "C" fn destack_crypto_key_wrap(
     out: *mut NativeSlice<u8>,
     wrappingkey: resource::CryptoKeyHandle,
     keytowrap: resource::CryptoKeyHandle,
@@ -7986,7 +7918,7 @@ pub unsafe extern "C" fn destack_crypto_key_wrap(
 }
 
 #[unsafe(export_name = "destack.crypto.mac.close")]
-pub unsafe extern "C" fn destack_crypto_mac_close(
+pub(crate) unsafe extern "C" fn destack_crypto_mac_close(
     handle: resource::CryptoMacHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8008,7 +7940,7 @@ pub unsafe extern "C" fn destack_crypto_mac_close(
 }
 
 #[unsafe(export_name = "destack.crypto.mac.compute")]
-pub unsafe extern "C" fn destack_crypto_mac_compute(
+pub(crate) unsafe extern "C" fn destack_crypto_mac_compute(
     out: *mut NativeSlice<u8>,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
@@ -8048,7 +7980,7 @@ pub unsafe extern "C" fn destack_crypto_mac_compute(
 }
 
 #[unsafe(export_name = "destack.crypto.mac.finish")]
-pub unsafe extern "C" fn destack_crypto_mac_finish(
+pub(crate) unsafe extern "C" fn destack_crypto_mac_finish(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoMacHandle,
 ) -> RuntimeStatus {
@@ -8074,7 +8006,7 @@ pub unsafe extern "C" fn destack_crypto_mac_finish(
 }
 
 #[unsafe(export_name = "destack.crypto.mac.open")]
-pub unsafe extern "C" fn destack_crypto_mac_open(
+pub(crate) unsafe extern "C" fn destack_crypto_mac_open(
     out: *mut resource::CryptoMacHandle,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
@@ -8103,7 +8035,7 @@ pub unsafe extern "C" fn destack_crypto_mac_open(
 }
 
 #[unsafe(export_name = "destack.crypto.mac.reset")]
-pub unsafe extern "C" fn destack_crypto_mac_reset(
+pub(crate) unsafe extern "C" fn destack_crypto_mac_reset(
     handle: resource::CryptoMacHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8125,7 +8057,7 @@ pub unsafe extern "C" fn destack_crypto_mac_reset(
 }
 
 #[unsafe(export_name = "destack.crypto.mac.update")]
-pub unsafe extern "C" fn destack_crypto_mac_update(
+pub(crate) unsafe extern "C" fn destack_crypto_mac_update(
     handle: resource::CryptoMacHandle,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -8152,7 +8084,7 @@ pub unsafe extern "C" fn destack_crypto_mac_update(
 }
 
 #[unsafe(export_name = "destack.crypto.mac.verify")]
-pub unsafe extern "C" fn destack_crypto_mac_verify(
+pub(crate) unsafe extern "C" fn destack_crypto_mac_verify(
     out: *mut bool,
     key: resource::CryptoKeyHandle,
     parameters: CryptoMacParameters,
@@ -8195,7 +8127,7 @@ pub unsafe extern "C" fn destack_crypto_mac_verify(
 }
 
 #[unsafe(export_name = "destack.crypto.probe.agreementAlgorithms")]
-pub unsafe extern "C" fn destack_crypto_probe_agreement_algorithms(
+pub(crate) unsafe extern "C" fn destack_crypto_probe_agreement_algorithms(
     out: *mut NativeSlice<CryptoKeyAgreementAlgorithm>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8211,7 +8143,7 @@ pub unsafe extern "C" fn destack_crypto_probe_agreement_algorithms(
 }
 
 #[unsafe(export_name = "destack.crypto.probe.cipherAlgorithms")]
-pub unsafe extern "C" fn destack_crypto_probe_cipher_algorithms(
+pub(crate) unsafe extern "C" fn destack_crypto_probe_cipher_algorithms(
     out: *mut NativeSlice<CryptoCipherAlgorithm>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8227,7 +8159,7 @@ pub unsafe extern "C" fn destack_crypto_probe_cipher_algorithms(
 }
 
 #[unsafe(export_name = "destack.crypto.probe.digestAlgorithms")]
-pub unsafe extern "C" fn destack_crypto_probe_digest_algorithms(
+pub(crate) unsafe extern "C" fn destack_crypto_probe_digest_algorithms(
     out: *mut NativeSlice<CryptoDigestAlgorithm>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8243,7 +8175,7 @@ pub unsafe extern "C" fn destack_crypto_probe_digest_algorithms(
 }
 
 #[unsafe(export_name = "destack.crypto.probe.kdfAlgorithms")]
-pub unsafe extern "C" fn destack_crypto_probe_kdf_algorithms(
+pub(crate) unsafe extern "C" fn destack_crypto_probe_kdf_algorithms(
     out: *mut NativeSlice<CryptoKdfAlgorithm>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8259,7 +8191,7 @@ pub unsafe extern "C" fn destack_crypto_probe_kdf_algorithms(
 }
 
 #[unsafe(export_name = "destack.crypto.probe.keyAlgorithms")]
-pub unsafe extern "C" fn destack_crypto_probe_key_algorithms(
+pub(crate) unsafe extern "C" fn destack_crypto_probe_key_algorithms(
     out: *mut NativeSlice<CryptoKeyAlgorithm>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8275,7 +8207,7 @@ pub unsafe extern "C" fn destack_crypto_probe_key_algorithms(
 }
 
 #[unsafe(export_name = "destack.crypto.probe.keyFormats")]
-pub unsafe extern "C" fn destack_crypto_probe_key_formats(
+pub(crate) unsafe extern "C" fn destack_crypto_probe_key_formats(
     out: *mut NativeSlice<CryptoKeyFormat>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8291,7 +8223,7 @@ pub unsafe extern "C" fn destack_crypto_probe_key_formats(
 }
 
 #[unsafe(export_name = "destack.crypto.probe.keyResidencies")]
-pub unsafe extern "C" fn destack_crypto_probe_key_residencies(
+pub(crate) unsafe extern "C" fn destack_crypto_probe_key_residencies(
     out: *mut NativeSlice<CryptoKeyResidency>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8307,7 +8239,7 @@ pub unsafe extern "C" fn destack_crypto_probe_key_residencies(
 }
 
 #[unsafe(export_name = "destack.crypto.probe.keyWrapAlgorithms")]
-pub unsafe extern "C" fn destack_crypto_probe_key_wrap_algorithms(
+pub(crate) unsafe extern "C" fn destack_crypto_probe_key_wrap_algorithms(
     out: *mut NativeSlice<CryptoKeyWrapAlgorithm>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8323,7 +8255,7 @@ pub unsafe extern "C" fn destack_crypto_probe_key_wrap_algorithms(
 }
 
 #[unsafe(export_name = "destack.crypto.probe.macAlgorithms")]
-pub unsafe extern "C" fn destack_crypto_probe_mac_algorithms(
+pub(crate) unsafe extern "C" fn destack_crypto_probe_mac_algorithms(
     out: *mut NativeSlice<CryptoMacAlgorithm>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8339,7 +8271,7 @@ pub unsafe extern "C" fn destack_crypto_probe_mac_algorithms(
 }
 
 #[unsafe(export_name = "destack.crypto.probe.namedCurves")]
-pub unsafe extern "C" fn destack_crypto_probe_named_curves(
+pub(crate) unsafe extern "C" fn destack_crypto_probe_named_curves(
     out: *mut NativeSlice<CryptoNamedCurve>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8355,7 +8287,7 @@ pub unsafe extern "C" fn destack_crypto_probe_named_curves(
 }
 
 #[unsafe(export_name = "destack.crypto.probe.signatureAlgorithms")]
-pub unsafe extern "C" fn destack_crypto_probe_signature_algorithms(
+pub(crate) unsafe extern "C" fn destack_crypto_probe_signature_algorithms(
     out: *mut NativeSlice<CryptoSignatureAlgorithm>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8371,7 +8303,7 @@ pub unsafe extern "C" fn destack_crypto_probe_signature_algorithms(
 }
 
 #[unsafe(export_name = "destack.crypto.random.bytes")]
-pub unsafe extern "C" fn destack_crypto_random_bytes(
+pub(crate) unsafe extern "C" fn destack_crypto_random_bytes(
     out: *mut NativeSlice<u8>,
     length: u32,
 ) -> RuntimeStatus {
@@ -8397,7 +8329,9 @@ pub unsafe extern "C" fn destack_crypto_random_bytes(
 }
 
 #[unsafe(export_name = "destack.crypto.random.fill")]
-pub unsafe extern "C" fn destack_crypto_random_fill(buffer: NativeSlice<u8>) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_crypto_random_fill(
+    buffer: NativeSlice<u8>,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &buffer;
 
@@ -8417,7 +8351,7 @@ pub unsafe extern "C" fn destack_crypto_random_fill(buffer: NativeSlice<u8>) -> 
 }
 
 #[unsafe(export_name = "destack.crypto.store.close")]
-pub unsafe extern "C" fn destack_crypto_store_close(
+pub(crate) unsafe extern "C" fn destack_crypto_store_close(
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8439,7 +8373,7 @@ pub unsafe extern "C" fn destack_crypto_store_close(
 }
 
 #[unsafe(export_name = "destack.crypto.store.listCertificates")]
-pub unsafe extern "C" fn destack_crypto_store_list_certificates(
+pub(crate) unsafe extern "C" fn destack_crypto_store_list_certificates(
     out: *mut CryptoCertificateListPage,
     handle: resource::CryptoStoreHandle,
     query: CryptoCertificateQuery,
@@ -8470,7 +8404,7 @@ pub unsafe extern "C" fn destack_crypto_store_list_certificates(
 }
 
 #[unsafe(export_name = "destack.crypto.store.listKeys")]
-pub unsafe extern "C" fn destack_crypto_store_list_keys(
+pub(crate) unsafe extern "C" fn destack_crypto_store_list_keys(
     out: *mut CryptoKeyListPage,
     handle: resource::CryptoStoreHandle,
     query: CryptoKeyQuery,
@@ -8499,7 +8433,7 @@ pub unsafe extern "C" fn destack_crypto_store_list_keys(
 }
 
 #[unsafe(export_name = "destack.crypto.store.open")]
-pub unsafe extern "C" fn destack_crypto_store_open(
+pub(crate) unsafe extern "C" fn destack_crypto_store_open(
     out: *mut resource::CryptoStoreHandle,
     options: CryptoStoreOptions,
 ) -> RuntimeStatus {
@@ -8525,7 +8459,7 @@ pub unsafe extern "C" fn destack_crypto_store_open(
 }
 
 #[unsafe(export_name = "destack.crypto.store.probeCapability")]
-pub unsafe extern "C" fn destack_crypto_store_probe_capability(
+pub(crate) unsafe extern "C" fn destack_crypto_store_probe_capability(
     out: *mut CryptoStoreCapability,
     kind: CryptoStoreKind,
     provider: Option<CryptoStoreProvider>,
@@ -8543,7 +8477,7 @@ pub unsafe extern "C" fn destack_crypto_store_probe_capability(
 }
 
 #[unsafe(export_name = "destack.crypto.store.probeKinds")]
-pub unsafe extern "C" fn destack_crypto_store_probe_kinds(
+pub(crate) unsafe extern "C" fn destack_crypto_store_probe_kinds(
     out: *mut NativeArray<CryptoStoreKind>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10298,7 +10232,7 @@ fn destack_crypto_store_probe_kinds_vm_replay(
 }
 
 /// Register VM bindings for crypto.
-pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -12252,8 +12186,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 }
 
 /// Install VM bindings for crypto.
-pub fn install_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_crypto_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub CRYPTO_VM_BINDINGS, "crypto", install_crypto_vm_bindings);
+vm_binding_set!(pub(crate) CRYPTO_VM_BINDINGS, "crypto", install_crypto_vm_bindings);

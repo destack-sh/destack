@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -2736,7 +2737,7 @@ struct InputTouchStateReplayRecord {
 }
 
 /// Binding descriptor for destack.input.device.capabilities.
-pub const INPUT_DEVICE_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_DEVICE_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.device.capabilities",
     "export function capabilities(handle: InputDeviceHandle): Result<InputDeviceCapabilities, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2750,7 +2751,7 @@ pub const INPUT_DEVICE_CAPABILITIES: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.device.close.
-pub const INPUT_DEVICE_CLOSE: BindingDescriptor =
+pub(crate) const INPUT_DEVICE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.input.device.close",
         "export function close(handle: InputDeviceHandle): Result<void, PlatformError>",
@@ -2778,7 +2779,7 @@ pub const INPUT_DEVICE_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.input.device.list.
-pub const INPUT_DEVICE_LIST: BindingDescriptor =
+pub(crate) const INPUT_DEVICE_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.input.device.list",
         "export function list(): Result<Slice<InputDeviceDescriptor>, PlatformError>",
@@ -2806,7 +2807,7 @@ pub const INPUT_DEVICE_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.input.device.open.
-pub const INPUT_DEVICE_OPEN: BindingDescriptor =
+pub(crate) const INPUT_DEVICE_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.input.device.open",
         "export function open(id: string): Result<InputDeviceHandle, PlatformError>",
@@ -2834,7 +2835,7 @@ pub const INPUT_DEVICE_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.input.event.monitorClose.
-pub const INPUT_EVENT_MONITOR_CLOSE: BindingDescriptor =
+pub(crate) const INPUT_EVENT_MONITOR_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.input.event.monitorClose",
         "export function monitorClose(handle: InputMonitorHandle): Result<void, PlatformError>",
@@ -2862,7 +2863,7 @@ pub const INPUT_EVENT_MONITOR_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.input.event.monitorOpen.
-pub const INPUT_EVENT_MONITOR_OPEN: BindingDescriptor =
+pub(crate) const INPUT_EVENT_MONITOR_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.input.event.monitorOpen",
         "export function monitorOpen(): Result<InputMonitorHandle, PlatformError>",
@@ -2890,7 +2891,7 @@ pub const INPUT_EVENT_MONITOR_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.input.event.monitorRead.
-pub const INPUT_EVENT_MONITOR_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_EVENT_MONITOR_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.event.monitorRead",
     "export function monitorRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2904,7 +2905,7 @@ pub const INPUT_EVENT_MONITOR_READ: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.event.monitorTryRead.
-pub const INPUT_EVENT_MONITOR_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_EVENT_MONITOR_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.event.monitorTryRead",
     "export function monitorTryRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2918,7 +2919,7 @@ pub const INPUT_EVENT_MONITOR_TRY_READ: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.event.read.
-pub const INPUT_EVENT_READ: BindingDescriptor =
+pub(crate) const INPUT_EVENT_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.input.event.read",
         "export function read(handle: InputDeviceHandle): Result<InputEvent, PlatformError>",
@@ -2946,7 +2947,7 @@ pub const INPUT_EVENT_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.input.event.readBatch.
-pub const INPUT_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.event.readBatch",
     "export function readBatch(handle: InputDeviceHandle, maxEvents: uint32): Result<InputEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2960,7 +2961,7 @@ pub const INPUT_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.event.setExclusiveGrab.
-pub const INPUT_EVENT_SET_EXCLUSIVE_GRAB: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_EVENT_SET_EXCLUSIVE_GRAB: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.event.setExclusiveGrab",
     "export function setExclusiveGrab(handle: InputDeviceHandle, enable: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2974,7 +2975,7 @@ pub const INPUT_EVENT_SET_EXCLUSIVE_GRAB: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.event.setReadMode.
-pub const INPUT_EVENT_SET_READ_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_EVENT_SET_READ_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.event.setReadMode",
     "export function setReadMode(handle: InputDeviceHandle, mode: InputReadMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2988,7 +2989,7 @@ pub const INPUT_EVENT_SET_READ_MODE: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.event.tryRead.
-pub const INPUT_EVENT_TRY_READ: BindingDescriptor =
+pub(crate) const INPUT_EVENT_TRY_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.input.event.tryRead",
         "export function tryRead(handle: InputDeviceHandle): Result<InputEvent, PlatformError>",
@@ -3016,7 +3017,7 @@ pub const INPUT_EVENT_TRY_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.input.gamepad.setLight.
-pub const INPUT_GAMEPAD_SET_LIGHT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_GAMEPAD_SET_LIGHT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.gamepad.setLight",
     "export function gamepadSetLight(handle: InputDeviceHandle, red: uint8, green: uint8, blue: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3030,7 +3031,7 @@ pub const INPUT_GAMEPAD_SET_LIGHT: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.setPlayerIndex.
-pub const INPUT_GAMEPAD_SET_PLAYER_INDEX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_GAMEPAD_SET_PLAYER_INDEX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.gamepad.setPlayerIndex",
     "export function gamepadSetPlayerIndex(handle: InputDeviceHandle, playerIndex: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3044,7 +3045,7 @@ pub const INPUT_GAMEPAD_SET_PLAYER_INDEX: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.state.
-pub const INPUT_GAMEPAD_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_GAMEPAD_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.gamepad.state",
     "export function gamepadState(handle: InputDeviceHandle): Result<InputGamepadState, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3058,7 +3059,7 @@ pub const INPUT_GAMEPAD_STATE: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.haptics.effects.
-pub const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.haptics.effects",
     "export function hapticsEffects(handle: InputDeviceHandle): Result<InputHapticEffectType[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3072,7 +3073,7 @@ pub const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.haptics.play.
-pub const INPUT_HAPTICS_PLAY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_HAPTICS_PLAY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.haptics.play",
     "export function hapticsPlay(handle: InputDeviceHandle, effect: InputHapticEffectType, parameters: InputHapticEffectParameters): Result<InputHapticsResult, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3086,7 +3087,7 @@ pub const INPUT_HAPTICS_PLAY: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.haptics.stop.
-pub const INPUT_HAPTICS_STOP: BindingDescriptor =
+pub(crate) const INPUT_HAPTICS_STOP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.input.haptics.stop",
         "export function hapticsStop(handle: InputDeviceHandle): Result<void, PlatformError>",
@@ -3114,7 +3115,7 @@ pub const INPUT_HAPTICS_STOP: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.input.keyboard.state.
-pub const INPUT_KEYBOARD_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_KEYBOARD_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.keyboard.state",
     "export function keyboardState(handle: InputDeviceHandle): Result<InputKeyboardState, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3128,7 +3129,7 @@ pub const INPUT_KEYBOARD_STATE: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.capture.
-pub const INPUT_POINTER_CAPTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_POINTER_CAPTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.pointer.capture",
     "export function pointerCapture(handle: InputDeviceHandle, target: InputWindowTarget, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3142,7 +3143,7 @@ pub const INPUT_POINTER_CAPTURE: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.relativeState.
-pub const INPUT_POINTER_RELATIVE_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_POINTER_RELATIVE_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.pointer.relativeState",
     "export function pointerRelativeState(handle: InputDeviceHandle): Result<InputPointerState, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3156,7 +3157,7 @@ pub const INPUT_POINTER_RELATIVE_STATE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.setGrabMode.
-pub const INPUT_POINTER_SET_GRAB_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_POINTER_SET_GRAB_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.pointer.setGrabMode",
     "export function pointerSetGrabMode(handle: InputDeviceHandle, target: InputWindowTarget, mode: InputPointerGrabMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3170,7 +3171,7 @@ pub const INPUT_POINTER_SET_GRAB_MODE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.setRelativeMode.
-pub const INPUT_POINTER_SET_RELATIVE_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_POINTER_SET_RELATIVE_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.pointer.setRelativeMode",
     "export function pointerSetRelativeMode(handle: InputDeviceHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3184,7 +3185,7 @@ pub const INPUT_POINTER_SET_RELATIVE_MODE: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.state.
-pub const INPUT_POINTER_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_POINTER_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.pointer.state",
     "export function pointerState(handle: InputDeviceHandle): Result<InputPointerState, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3198,7 +3199,7 @@ pub const INPUT_POINTER_STATE: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.warp.
-pub const INPUT_POINTER_WARP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_POINTER_WARP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.pointer.warp",
     "export function pointerWarp(handle: InputDeviceHandle, target: InputWindowTarget, x: float64, y: float64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3212,7 +3213,7 @@ pub const INPUT_POINTER_WARP: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.getFeature.
-pub const INPUT_RAWHID_GET_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_RAWHID_GET_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.rawhid.getFeature",
     "export function rawHidGetFeature(handle: InputDeviceHandle, reportId: uint8, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3226,7 +3227,7 @@ pub const INPUT_RAWHID_GET_FEATURE: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.read.
-pub const INPUT_RAWHID_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_RAWHID_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.rawhid.read",
     "export function rawHidRead(handle: InputDeviceHandle, maxBytes: uint32, timeoutNs: uint64): Result<InputRawHidReport, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3240,7 +3241,7 @@ pub const INPUT_RAWHID_READ: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.setFeature.
-pub const INPUT_RAWHID_SET_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_RAWHID_SET_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.rawhid.setFeature",
     "export function rawHidSetFeature(handle: InputDeviceHandle, reportId: uint8, data: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3254,7 +3255,7 @@ pub const INPUT_RAWHID_SET_FEATURE: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.tryRead.
-pub const INPUT_RAWHID_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_RAWHID_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.rawhid.tryRead",
     "export function rawHidTryRead(handle: InputDeviceHandle, maxBytes: uint32): Result<InputRawHidReport, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3268,7 +3269,7 @@ pub const INPUT_RAWHID_TRY_READ: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.write.
-pub const INPUT_RAWHID_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_RAWHID_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.rawhid.write",
     "export function rawHidWrite(handle: InputDeviceHandle, reportId: uint8, data: Slice<uint8>): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3282,7 +3283,7 @@ pub const INPUT_RAWHID_WRITE: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.configure.
-pub const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.sensor.configure",
     "export function sensorConfigure(handle: InputDeviceHandle, kind: InputSensorKind, config: InputSensorConfig): Result<InputSensorEffectiveConfig, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3296,7 +3297,7 @@ pub const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.list.
-pub const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.sensor.list",
     "export function sensorList(handle: InputDeviceHandle): Result<InputSensorDescriptor[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3310,7 +3311,7 @@ pub const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.read.
-pub const INPUT_SENSOR_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_SENSOR_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.sensor.read",
     "export function sensorRead(handle: InputDeviceHandle, kind: InputSensorKind): Result<InputSensorSample, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3324,7 +3325,7 @@ pub const INPUT_SENSOR_READ: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.tryRead.
-pub const INPUT_SENSOR_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_SENSOR_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.sensor.tryRead",
     "export function sensorTryRead(handle: InputDeviceHandle, kind: InputSensorKind): Result<InputSensorSample, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3338,7 +3339,7 @@ pub const INPUT_SENSOR_TRY_READ: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.text.getArea.
-pub const INPUT_TEXT_GET_AREA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_TEXT_GET_AREA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.text.getArea",
     "export function textGetArea(handle: InputDeviceHandle, target: InputWindowTarget): Result<InputTextInputArea, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3352,7 +3353,7 @@ pub const INPUT_TEXT_GET_AREA: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.text.isActive.
-pub const INPUT_TEXT_IS_ACTIVE: BindingDescriptor =
+pub(crate) const INPUT_TEXT_IS_ACTIVE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.input.text.isActive",
         "export function textIsActive(handle: InputDeviceHandle): Result<boolean, PlatformError>",
@@ -3380,7 +3381,7 @@ pub const INPUT_TEXT_IS_ACTIVE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.input.text.readComposition.
-pub const INPUT_TEXT_READ_COMPOSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_TEXT_READ_COMPOSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.text.readComposition",
     "export function textReadComposition(handle: InputDeviceHandle): Result<InputCompositionEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3394,7 +3395,7 @@ pub const INPUT_TEXT_READ_COMPOSITION: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.text.setArea.
-pub const INPUT_TEXT_SET_AREA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_TEXT_SET_AREA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.text.setArea",
     "export function textSetArea(handle: InputDeviceHandle, target: InputWindowTarget, area: InputTextInputArea): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3408,7 +3409,7 @@ pub const INPUT_TEXT_SET_AREA: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.text.start.
-pub const INPUT_TEXT_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_TEXT_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.text.start",
     "export function textStart(handle: InputDeviceHandle, target: InputWindowTarget, inputType: InputTextInputType): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3422,7 +3423,7 @@ pub const INPUT_TEXT_START: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.text.stop.
-pub const INPUT_TEXT_STOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_TEXT_STOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.text.stop",
     "export function textStop(handle: InputDeviceHandle, target: InputWindowTarget): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3436,7 +3437,7 @@ pub const INPUT_TEXT_STOP: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.text.tryReadComposition.
-pub const INPUT_TEXT_TRY_READ_COMPOSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_TEXT_TRY_READ_COMPOSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.text.tryReadComposition",
     "export function textTryReadComposition(handle: InputDeviceHandle): Result<InputCompositionEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3450,7 +3451,7 @@ pub const INPUT_TEXT_TRY_READ_COMPOSITION: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.touch.state.
-pub const INPUT_TOUCH_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const INPUT_TOUCH_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.touch.state",
     "export function touchState(handle: InputDeviceHandle): Result<InputTouchState, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3463,55 +3464,8 @@ pub const INPUT_TOUCH_STATE: BindingDescriptor = BindingDescriptor::external_wit
     .with_namespace("input")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptors for input.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    INPUT_DEVICE_CAPABILITIES,
-    INPUT_DEVICE_CLOSE,
-    INPUT_DEVICE_LIST,
-    INPUT_DEVICE_OPEN,
-    INPUT_EVENT_MONITOR_CLOSE,
-    INPUT_EVENT_MONITOR_OPEN,
-    INPUT_EVENT_MONITOR_READ,
-    INPUT_EVENT_MONITOR_TRY_READ,
-    INPUT_EVENT_READ,
-    INPUT_EVENT_READ_BATCH,
-    INPUT_EVENT_SET_EXCLUSIVE_GRAB,
-    INPUT_EVENT_SET_READ_MODE,
-    INPUT_EVENT_TRY_READ,
-    INPUT_GAMEPAD_SET_LIGHT,
-    INPUT_GAMEPAD_SET_PLAYER_INDEX,
-    INPUT_GAMEPAD_STATE,
-    INPUT_HAPTICS_EFFECTS,
-    INPUT_HAPTICS_PLAY,
-    INPUT_HAPTICS_STOP,
-    INPUT_KEYBOARD_STATE,
-    INPUT_POINTER_CAPTURE,
-    INPUT_POINTER_RELATIVE_STATE,
-    INPUT_POINTER_SET_GRAB_MODE,
-    INPUT_POINTER_SET_RELATIVE_MODE,
-    INPUT_POINTER_STATE,
-    INPUT_POINTER_WARP,
-    INPUT_RAWHID_GET_FEATURE,
-    INPUT_RAWHID_READ,
-    INPUT_RAWHID_SET_FEATURE,
-    INPUT_RAWHID_TRY_READ,
-    INPUT_RAWHID_WRITE,
-    INPUT_SENSOR_CONFIGURE,
-    INPUT_SENSOR_LIST,
-    INPUT_SENSOR_READ,
-    INPUT_SENSOR_TRY_READ,
-    INPUT_TEXT_GET_AREA,
-    INPUT_TEXT_IS_ACTIVE,
-    INPUT_TEXT_READ_COMPOSITION,
-    INPUT_TEXT_SET_AREA,
-    INPUT_TEXT_START,
-    INPUT_TEXT_STOP,
-    INPUT_TEXT_TRY_READ_COMPOSITION,
-    INPUT_TOUCH_STATE,
-];
-
 /// Native binding set for input.
-pub const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "input",
     bindings: &[
         NativeBinding::new(
@@ -8934,7 +8888,7 @@ fn destack_input_touch_state_replay(
 
 /// Native export wrappers for input bindings.
 #[unsafe(export_name = "destack.input.device.capabilities")]
-pub unsafe extern "C" fn destack_input_device_capabilities(
+pub(crate) unsafe extern "C" fn destack_input_device_capabilities(
     out: *mut InputDeviceCapabilities,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -8951,7 +8905,7 @@ pub unsafe extern "C" fn destack_input_device_capabilities(
 }
 
 #[unsafe(export_name = "destack.input.device.close")]
-pub unsafe extern "C" fn destack_input_device_close(
+pub(crate) unsafe extern "C" fn destack_input_device_close(
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8964,7 +8918,7 @@ pub unsafe extern "C" fn destack_input_device_close(
 }
 
 #[unsafe(export_name = "destack.input.device.list")]
-pub unsafe extern "C" fn destack_input_device_list(
+pub(crate) unsafe extern "C" fn destack_input_device_list(
     out: *mut NativeSlice<InputDeviceDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -8980,7 +8934,7 @@ pub unsafe extern "C" fn destack_input_device_list(
 }
 
 #[unsafe(export_name = "destack.input.device.open")]
-pub unsafe extern "C" fn destack_input_device_open(
+pub(crate) unsafe extern "C" fn destack_input_device_open(
     out: *mut resource::InputDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeStatus {
@@ -8997,7 +8951,7 @@ pub unsafe extern "C" fn destack_input_device_open(
 }
 
 #[unsafe(export_name = "destack.input.event.monitorClose")]
-pub unsafe extern "C" fn destack_input_event_monitor_close(
+pub(crate) unsafe extern "C" fn destack_input_event_monitor_close(
     handle: resource::InputMonitorHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -9010,7 +8964,7 @@ pub unsafe extern "C" fn destack_input_event_monitor_close(
 }
 
 #[unsafe(export_name = "destack.input.event.monitorOpen")]
-pub unsafe extern "C" fn destack_input_event_monitor_open(
+pub(crate) unsafe extern "C" fn destack_input_event_monitor_open(
     out: *mut resource::InputMonitorHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -9026,7 +8980,7 @@ pub unsafe extern "C" fn destack_input_event_monitor_open(
 }
 
 #[unsafe(export_name = "destack.input.event.monitorRead")]
-pub unsafe extern "C" fn destack_input_event_monitor_read(
+pub(crate) unsafe extern "C" fn destack_input_event_monitor_read(
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeStatus {
@@ -9043,7 +8997,7 @@ pub unsafe extern "C" fn destack_input_event_monitor_read(
 }
 
 #[unsafe(export_name = "destack.input.event.monitorTryRead")]
-pub unsafe extern "C" fn destack_input_event_monitor_try_read(
+pub(crate) unsafe extern "C" fn destack_input_event_monitor_try_read(
     out: *mut InputMonitorEvent,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeStatus {
@@ -9060,7 +9014,7 @@ pub unsafe extern "C" fn destack_input_event_monitor_try_read(
 }
 
 #[unsafe(export_name = "destack.input.event.read")]
-pub unsafe extern "C" fn destack_input_event_read(
+pub(crate) unsafe extern "C" fn destack_input_event_read(
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -9077,7 +9031,7 @@ pub unsafe extern "C" fn destack_input_event_read(
 }
 
 #[unsafe(export_name = "destack.input.event.readBatch")]
-pub unsafe extern "C" fn destack_input_event_read_batch(
+pub(crate) unsafe extern "C" fn destack_input_event_read_batch(
     out: *mut NativeArray<InputEvent>,
     handle: resource::InputDeviceHandle,
     maxevents: u32,
@@ -9095,7 +9049,7 @@ pub unsafe extern "C" fn destack_input_event_read_batch(
 }
 
 #[unsafe(export_name = "destack.input.event.setExclusiveGrab")]
-pub unsafe extern "C" fn destack_input_event_set_exclusive_grab(
+pub(crate) unsafe extern "C" fn destack_input_event_set_exclusive_grab(
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeStatus {
@@ -9109,7 +9063,7 @@ pub unsafe extern "C" fn destack_input_event_set_exclusive_grab(
 }
 
 #[unsafe(export_name = "destack.input.event.setReadMode")]
-pub unsafe extern "C" fn destack_input_event_set_read_mode(
+pub(crate) unsafe extern "C" fn destack_input_event_set_read_mode(
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
 ) -> RuntimeStatus {
@@ -9123,7 +9077,7 @@ pub unsafe extern "C" fn destack_input_event_set_read_mode(
 }
 
 #[unsafe(export_name = "destack.input.event.tryRead")]
-pub unsafe extern "C" fn destack_input_event_try_read(
+pub(crate) unsafe extern "C" fn destack_input_event_try_read(
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -9140,7 +9094,7 @@ pub unsafe extern "C" fn destack_input_event_try_read(
 }
 
 #[unsafe(export_name = "destack.input.gamepad.setLight")]
-pub unsafe extern "C" fn destack_input_gamepad_set_light(
+pub(crate) unsafe extern "C" fn destack_input_gamepad_set_light(
     handle: resource::InputDeviceHandle,
     red: u8,
     green: u8,
@@ -9156,7 +9110,7 @@ pub unsafe extern "C" fn destack_input_gamepad_set_light(
 }
 
 #[unsafe(export_name = "destack.input.gamepad.setPlayerIndex")]
-pub unsafe extern "C" fn destack_input_gamepad_set_player_index(
+pub(crate) unsafe extern "C" fn destack_input_gamepad_set_player_index(
     handle: resource::InputDeviceHandle,
     playerindex: u8,
 ) -> RuntimeStatus {
@@ -9170,7 +9124,7 @@ pub unsafe extern "C" fn destack_input_gamepad_set_player_index(
 }
 
 #[unsafe(export_name = "destack.input.gamepad.state")]
-pub unsafe extern "C" fn destack_input_gamepad_state(
+pub(crate) unsafe extern "C" fn destack_input_gamepad_state(
     out: *mut InputGamepadState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -9187,7 +9141,7 @@ pub unsafe extern "C" fn destack_input_gamepad_state(
 }
 
 #[unsafe(export_name = "destack.input.haptics.effects")]
-pub unsafe extern "C" fn destack_input_haptics_effects(
+pub(crate) unsafe extern "C" fn destack_input_haptics_effects(
     out: *mut NativeArray<InputHapticEffectType>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -9204,7 +9158,7 @@ pub unsafe extern "C" fn destack_input_haptics_effects(
 }
 
 #[unsafe(export_name = "destack.input.haptics.play")]
-pub unsafe extern "C" fn destack_input_haptics_play(
+pub(crate) unsafe extern "C" fn destack_input_haptics_play(
     out: *mut InputHapticsResult,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
@@ -9223,7 +9177,7 @@ pub unsafe extern "C" fn destack_input_haptics_play(
 }
 
 #[unsafe(export_name = "destack.input.haptics.stop")]
-pub unsafe extern "C" fn destack_input_haptics_stop(
+pub(crate) unsafe extern "C" fn destack_input_haptics_stop(
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -9236,7 +9190,7 @@ pub unsafe extern "C" fn destack_input_haptics_stop(
 }
 
 #[unsafe(export_name = "destack.input.keyboard.state")]
-pub unsafe extern "C" fn destack_input_keyboard_state(
+pub(crate) unsafe extern "C" fn destack_input_keyboard_state(
     out: *mut InputKeyboardState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -9253,7 +9207,7 @@ pub unsafe extern "C" fn destack_input_keyboard_state(
 }
 
 #[unsafe(export_name = "destack.input.pointer.capture")]
-pub unsafe extern "C" fn destack_input_pointer_capture(
+pub(crate) unsafe extern "C" fn destack_input_pointer_capture(
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     enabled: bool,
@@ -9268,7 +9222,7 @@ pub unsafe extern "C" fn destack_input_pointer_capture(
 }
 
 #[unsafe(export_name = "destack.input.pointer.relativeState")]
-pub unsafe extern "C" fn destack_input_pointer_relative_state(
+pub(crate) unsafe extern "C" fn destack_input_pointer_relative_state(
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -9285,7 +9239,7 @@ pub unsafe extern "C" fn destack_input_pointer_relative_state(
 }
 
 #[unsafe(export_name = "destack.input.pointer.setGrabMode")]
-pub unsafe extern "C" fn destack_input_pointer_set_grab_mode(
+pub(crate) unsafe extern "C" fn destack_input_pointer_set_grab_mode(
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     mode: InputPointerGrabMode,
@@ -9300,7 +9254,7 @@ pub unsafe extern "C" fn destack_input_pointer_set_grab_mode(
 }
 
 #[unsafe(export_name = "destack.input.pointer.setRelativeMode")]
-pub unsafe extern "C" fn destack_input_pointer_set_relative_mode(
+pub(crate) unsafe extern "C" fn destack_input_pointer_set_relative_mode(
     handle: resource::InputDeviceHandle,
     enabled: bool,
 ) -> RuntimeStatus {
@@ -9314,7 +9268,7 @@ pub unsafe extern "C" fn destack_input_pointer_set_relative_mode(
 }
 
 #[unsafe(export_name = "destack.input.pointer.state")]
-pub unsafe extern "C" fn destack_input_pointer_state(
+pub(crate) unsafe extern "C" fn destack_input_pointer_state(
     out: *mut InputPointerState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -9331,7 +9285,7 @@ pub unsafe extern "C" fn destack_input_pointer_state(
 }
 
 #[unsafe(export_name = "destack.input.pointer.warp")]
-pub unsafe extern "C" fn destack_input_pointer_warp(
+pub(crate) unsafe extern "C" fn destack_input_pointer_warp(
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     x: f64,
@@ -9347,7 +9301,7 @@ pub unsafe extern "C" fn destack_input_pointer_warp(
 }
 
 #[unsafe(export_name = "destack.input.rawhid.getFeature")]
-pub unsafe extern "C" fn destack_input_rawhid_get_feature(
+pub(crate) unsafe extern "C" fn destack_input_rawhid_get_feature(
     out: *mut NativeSlice<u8>,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -9366,7 +9320,7 @@ pub unsafe extern "C" fn destack_input_rawhid_get_feature(
 }
 
 #[unsafe(export_name = "destack.input.rawhid.read")]
-pub unsafe extern "C" fn destack_input_rawhid_read(
+pub(crate) unsafe extern "C" fn destack_input_rawhid_read(
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -9385,7 +9339,7 @@ pub unsafe extern "C" fn destack_input_rawhid_read(
 }
 
 #[unsafe(export_name = "destack.input.rawhid.setFeature")]
-pub unsafe extern "C" fn destack_input_rawhid_set_feature(
+pub(crate) unsafe extern "C" fn destack_input_rawhid_set_feature(
     handle: resource::InputDeviceHandle,
     reportid: u8,
     data: NativeSlice<u8>,
@@ -9400,7 +9354,7 @@ pub unsafe extern "C" fn destack_input_rawhid_set_feature(
 }
 
 #[unsafe(export_name = "destack.input.rawhid.tryRead")]
-pub unsafe extern "C" fn destack_input_rawhid_try_read(
+pub(crate) unsafe extern "C" fn destack_input_rawhid_try_read(
     out: *mut InputRawHidReport,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
@@ -9418,7 +9372,7 @@ pub unsafe extern "C" fn destack_input_rawhid_try_read(
 }
 
 #[unsafe(export_name = "destack.input.rawhid.write")]
-pub unsafe extern "C" fn destack_input_rawhid_write(
+pub(crate) unsafe extern "C" fn destack_input_rawhid_write(
     out: *mut u32,
     handle: resource::InputDeviceHandle,
     reportid: u8,
@@ -9437,7 +9391,7 @@ pub unsafe extern "C" fn destack_input_rawhid_write(
 }
 
 #[unsafe(export_name = "destack.input.sensor.configure")]
-pub unsafe extern "C" fn destack_input_sensor_configure(
+pub(crate) unsafe extern "C" fn destack_input_sensor_configure(
     out: *mut InputSensorEffectiveConfig,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -9456,7 +9410,7 @@ pub unsafe extern "C" fn destack_input_sensor_configure(
 }
 
 #[unsafe(export_name = "destack.input.sensor.list")]
-pub unsafe extern "C" fn destack_input_sensor_list(
+pub(crate) unsafe extern "C" fn destack_input_sensor_list(
     out: *mut NativeArray<InputSensorDescriptor>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -9473,7 +9427,7 @@ pub unsafe extern "C" fn destack_input_sensor_list(
 }
 
 #[unsafe(export_name = "destack.input.sensor.read")]
-pub unsafe extern "C" fn destack_input_sensor_read(
+pub(crate) unsafe extern "C" fn destack_input_sensor_read(
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -9491,7 +9445,7 @@ pub unsafe extern "C" fn destack_input_sensor_read(
 }
 
 #[unsafe(export_name = "destack.input.sensor.tryRead")]
-pub unsafe extern "C" fn destack_input_sensor_try_read(
+pub(crate) unsafe extern "C" fn destack_input_sensor_try_read(
     out: *mut InputSensorSample,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
@@ -9509,7 +9463,7 @@ pub unsafe extern "C" fn destack_input_sensor_try_read(
 }
 
 #[unsafe(export_name = "destack.input.text.getArea")]
-pub unsafe extern "C" fn destack_input_text_get_area(
+pub(crate) unsafe extern "C" fn destack_input_text_get_area(
     out: *mut InputTextInputArea,
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
@@ -9527,7 +9481,7 @@ pub unsafe extern "C" fn destack_input_text_get_area(
 }
 
 #[unsafe(export_name = "destack.input.text.isActive")]
-pub unsafe extern "C" fn destack_input_text_is_active(
+pub(crate) unsafe extern "C" fn destack_input_text_is_active(
     out: *mut bool,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -9544,7 +9498,7 @@ pub unsafe extern "C" fn destack_input_text_is_active(
 }
 
 #[unsafe(export_name = "destack.input.text.readComposition")]
-pub unsafe extern "C" fn destack_input_text_read_composition(
+pub(crate) unsafe extern "C" fn destack_input_text_read_composition(
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -9561,7 +9515,7 @@ pub unsafe extern "C" fn destack_input_text_read_composition(
 }
 
 #[unsafe(export_name = "destack.input.text.setArea")]
-pub unsafe extern "C" fn destack_input_text_set_area(
+pub(crate) unsafe extern "C" fn destack_input_text_set_area(
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     area: InputTextInputArea,
@@ -9576,7 +9530,7 @@ pub unsafe extern "C" fn destack_input_text_set_area(
 }
 
 #[unsafe(export_name = "destack.input.text.start")]
-pub unsafe extern "C" fn destack_input_text_start(
+pub(crate) unsafe extern "C" fn destack_input_text_start(
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
     inputtype: InputTextInputType,
@@ -9591,7 +9545,7 @@ pub unsafe extern "C" fn destack_input_text_start(
 }
 
 #[unsafe(export_name = "destack.input.text.stop")]
-pub unsafe extern "C" fn destack_input_text_stop(
+pub(crate) unsafe extern "C" fn destack_input_text_stop(
     handle: resource::InputDeviceHandle,
     target: InputWindowTarget,
 ) -> RuntimeStatus {
@@ -9605,7 +9559,7 @@ pub unsafe extern "C" fn destack_input_text_stop(
 }
 
 #[unsafe(export_name = "destack.input.text.tryReadComposition")]
-pub unsafe extern "C" fn destack_input_text_try_read_composition(
+pub(crate) unsafe extern "C" fn destack_input_text_try_read_composition(
     out: *mut InputCompositionEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -9622,7 +9576,7 @@ pub unsafe extern "C" fn destack_input_text_try_read_composition(
 }
 
 #[unsafe(export_name = "destack.input.touch.state")]
-pub unsafe extern "C" fn destack_input_touch_state(
+pub(crate) unsafe extern "C" fn destack_input_touch_state(
     out: *mut InputTouchState,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeStatus {
@@ -15792,7 +15746,7 @@ fn destack_input_touch_state_vm_replay(
 }
 
 /// Register VM bindings for input.
-pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -16655,8 +16609,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
 }
 
 /// Install VM bindings for input.
-pub fn install_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_input_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub INPUT_VM_BINDINGS, "input", install_input_vm_bindings);
+vm_binding_set!(pub(crate) INPUT_VM_BINDINGS, "input", install_input_vm_bindings);

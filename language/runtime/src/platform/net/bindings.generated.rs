@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -4519,7 +4520,7 @@ struct NetUdsUdsSocketPairReplayRecord {
 }
 
 /// Binding descriptor for destack.net.address.localAddress.
-pub const NET_ADDRESS_LOCAL_ADDRESS: BindingDescriptor =
+pub(crate) const NET_ADDRESS_LOCAL_ADDRESS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.address.localAddress",
         "export function localAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>",
@@ -4547,7 +4548,7 @@ pub const NET_ADDRESS_LOCAL_ADDRESS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.address.peerAddress.
-pub const NET_ADDRESS_PEER_ADDRESS: BindingDescriptor =
+pub(crate) const NET_ADDRESS_PEER_ADDRESS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.address.peerAddress",
         "export function peerAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>",
@@ -4575,7 +4576,7 @@ pub const NET_ADDRESS_PEER_ADDRESS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.interface.interfaceIndex.
-pub const NET_INTERFACE_INTERFACE_INDEX: BindingDescriptor =
+pub(crate) const NET_INTERFACE_INTERFACE_INDEX: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.interface.interfaceIndex",
         "export function interfaceIndex(name: string): Result<uint32, PlatformError>",
@@ -4603,7 +4604,7 @@ pub const NET_INTERFACE_INTERFACE_INDEX: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.interface.interfaceName.
-pub const NET_INTERFACE_INTERFACE_NAME: BindingDescriptor =
+pub(crate) const NET_INTERFACE_INTERFACE_NAME: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.interface.interfaceName",
         "export function interfaceName(index: uint32): Result<string, PlatformError>",
@@ -4631,7 +4632,7 @@ pub const NET_INTERFACE_INTERFACE_NAME: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.interface.listInterfaces.
-pub const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
+pub(crate) const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.interface.listInterfaces",
         "export function listInterfaces(): Result<NetInterface[], PlatformError>",
@@ -4659,7 +4660,7 @@ pub const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.listener.accept.
-pub const NET_LISTENER_ACCEPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_LISTENER_ACCEPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.listener.accept",
     "export function accept(listener: ListenerHandle, flags: AcceptFlags): Result<SocketHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4673,7 +4674,7 @@ pub const NET_LISTENER_ACCEPT: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.listener.bind.
-pub const NET_LISTENER_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_LISTENER_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.listener.bind",
     "export function bind(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4687,7 +4688,7 @@ pub const NET_LISTENER_BIND: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.listener.closeListener.
-pub const NET_LISTENER_CLOSE_LISTENER: BindingDescriptor =
+pub(crate) const NET_LISTENER_CLOSE_LISTENER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.listener.closeListener",
         "export function closeListener(handle: ListenerHandle): Result<void, PlatformError>",
@@ -4715,7 +4716,7 @@ pub const NET_LISTENER_CLOSE_LISTENER: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.listener.listen.
-pub const NET_LISTENER_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_LISTENER_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.listener.listen",
     "export function listen(address: SocketAddress, backlog: uint32): Result<ListenerHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4729,7 +4730,7 @@ pub const NET_LISTENER_LISTEN: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.getBroadcast.
-pub const NET_OPTIONS_GET_BROADCAST: BindingDescriptor =
+pub(crate) const NET_OPTIONS_GET_BROADCAST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.getBroadcast",
         "export function getBroadcast(handle: SocketHandle): Result<boolean, PlatformError>",
@@ -4757,7 +4758,7 @@ pub const NET_OPTIONS_GET_BROADCAST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.getLinger.
-pub const NET_OPTIONS_GET_LINGER: BindingDescriptor =
+pub(crate) const NET_OPTIONS_GET_LINGER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.getLinger",
         "export function getLinger(handle: SocketHandle): Result<Linger, PlatformError>",
@@ -4785,7 +4786,7 @@ pub const NET_OPTIONS_GET_LINGER: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.getOnlyV6.
-pub const NET_OPTIONS_GET_ONLY_V6: BindingDescriptor =
+pub(crate) const NET_OPTIONS_GET_ONLY_V6: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.getOnlyV6",
         "export function getOnlyV6(handle: SocketHandle): Result<boolean, PlatformError>",
@@ -4813,7 +4814,7 @@ pub const NET_OPTIONS_GET_ONLY_V6: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.getPacketMark.
-pub const NET_OPTIONS_GET_PACKET_MARK: BindingDescriptor =
+pub(crate) const NET_OPTIONS_GET_PACKET_MARK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.getPacketMark",
         "export function getPacketMark(handle: SocketHandle): Result<uint32, PlatformError>",
@@ -4840,7 +4841,7 @@ pub const NET_OPTIONS_GET_PACKET_MARK: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.getReadTimeout.
-pub const NET_OPTIONS_GET_READ_TIMEOUT: BindingDescriptor =
+pub(crate) const NET_OPTIONS_GET_READ_TIMEOUT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.getReadTimeout",
         "export function getReadTimeout(handle: SocketHandle): Result<uint32, PlatformError>",
@@ -4868,7 +4869,7 @@ pub const NET_OPTIONS_GET_READ_TIMEOUT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.getRecvBuffer.
-pub const NET_OPTIONS_GET_RECV_BUFFER: BindingDescriptor =
+pub(crate) const NET_OPTIONS_GET_RECV_BUFFER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.getRecvBuffer",
         "export function getRecvBuffer(handle: SocketHandle): Result<uint32, PlatformError>",
@@ -4896,7 +4897,7 @@ pub const NET_OPTIONS_GET_RECV_BUFFER: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.getSendBuffer.
-pub const NET_OPTIONS_GET_SEND_BUFFER: BindingDescriptor =
+pub(crate) const NET_OPTIONS_GET_SEND_BUFFER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.getSendBuffer",
         "export function getSendBuffer(handle: SocketHandle): Result<uint32, PlatformError>",
@@ -4924,7 +4925,7 @@ pub const NET_OPTIONS_GET_SEND_BUFFER: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.getSockOptRaw.
-pub const NET_OPTIONS_GET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_GET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.getSockOptRaw",
     "export function getSockOptRaw(handle: SocketHandle, level: SocketOptionLevel, name: SocketOptionName, maxBytes: uint32): Result<uint8[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4938,7 +4939,7 @@ pub const NET_OPTIONS_GET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.getTimestamping.
-pub const NET_OPTIONS_GET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_GET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.getTimestamping",
     "export function getTimestamping(handle: SocketHandle): Result<SocketTimestampingMode, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4952,7 +4953,7 @@ pub const NET_OPTIONS_GET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.getTos.
-pub const NET_OPTIONS_GET_TOS: BindingDescriptor =
+pub(crate) const NET_OPTIONS_GET_TOS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.getTos",
         "export function getTos(handle: SocketHandle): Result<uint32, PlatformError>",
@@ -4980,7 +4981,7 @@ pub const NET_OPTIONS_GET_TOS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.getTtl.
-pub const NET_OPTIONS_GET_TTL: BindingDescriptor =
+pub(crate) const NET_OPTIONS_GET_TTL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.getTtl",
         "export function getTtl(handle: SocketHandle): Result<uint32, PlatformError>",
@@ -5008,7 +5009,7 @@ pub const NET_OPTIONS_GET_TTL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.getWriteTimeout.
-pub const NET_OPTIONS_GET_WRITE_TIMEOUT: BindingDescriptor =
+pub(crate) const NET_OPTIONS_GET_WRITE_TIMEOUT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.getWriteTimeout",
         "export function getWriteTimeout(handle: SocketHandle): Result<uint32, PlatformError>",
@@ -5036,7 +5037,7 @@ pub const NET_OPTIONS_GET_WRITE_TIMEOUT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.setBroadcast.
-pub const NET_OPTIONS_SET_BROADCAST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_BROADCAST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.setBroadcast",
     "export function setBroadcast(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5050,7 +5051,7 @@ pub const NET_OPTIONS_SET_BROADCAST: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setLinger.
-pub const NET_OPTIONS_SET_LINGER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_LINGER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.setLinger",
     "export function setLinger(handle: SocketHandle, linger: Linger): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5064,7 +5065,7 @@ pub const NET_OPTIONS_SET_LINGER: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setOnlyV6.
-pub const NET_OPTIONS_SET_ONLY_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_ONLY_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.setOnlyV6",
     "export function setOnlyV6(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5078,7 +5079,7 @@ pub const NET_OPTIONS_SET_ONLY_V6: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setPacketMark.
-pub const NET_OPTIONS_SET_PACKET_MARK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_PACKET_MARK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.setPacketMark",
     "export function setPacketMark(handle: SocketHandle, mark: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5092,7 +5093,7 @@ pub const NET_OPTIONS_SET_PACKET_MARK: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.net.options.setReadTimeout.
-pub const NET_OPTIONS_SET_READ_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_READ_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.setReadTimeout",
     "export function setReadTimeout(handle: SocketHandle, timeoutMs: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5106,7 +5107,7 @@ pub const NET_OPTIONS_SET_READ_TIMEOUT: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setRecvBuffer.
-pub const NET_OPTIONS_SET_RECV_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_RECV_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.setRecvBuffer",
     "export function setRecvBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5120,7 +5121,7 @@ pub const NET_OPTIONS_SET_RECV_BUFFER: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setSendBuffer.
-pub const NET_OPTIONS_SET_SEND_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_SEND_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.setSendBuffer",
     "export function setSendBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5134,7 +5135,7 @@ pub const NET_OPTIONS_SET_SEND_BUFFER: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setSockOptRaw.
-pub const NET_OPTIONS_SET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.setSockOptRaw",
     "export function setSockOptRaw(handle: SocketHandle, level: SocketOptionLevel, name: SocketOptionName, value: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5148,7 +5149,7 @@ pub const NET_OPTIONS_SET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setTimestamping.
-pub const NET_OPTIONS_SET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.setTimestamping",
     "export function setTimestamping(handle: SocketHandle, mode: SocketTimestampingMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5162,7 +5163,7 @@ pub const NET_OPTIONS_SET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setTos.
-pub const NET_OPTIONS_SET_TOS: BindingDescriptor =
+pub(crate) const NET_OPTIONS_SET_TOS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.setTos",
         "export function setTos(handle: SocketHandle, tos: uint32): Result<void, PlatformError>",
@@ -5190,7 +5191,7 @@ pub const NET_OPTIONS_SET_TOS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.setTtl.
-pub const NET_OPTIONS_SET_TTL: BindingDescriptor =
+pub(crate) const NET_OPTIONS_SET_TTL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.options.setTtl",
         "export function setTtl(handle: SocketHandle, ttl: uint32): Result<void, PlatformError>",
@@ -5218,7 +5219,7 @@ pub const NET_OPTIONS_SET_TTL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.options.setWriteTimeout.
-pub const NET_OPTIONS_SET_WRITE_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_WRITE_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.options.setWriteTimeout",
     "export function setWriteTimeout(handle: SocketHandle, timeoutMs: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5232,7 +5233,7 @@ pub const NET_OPTIONS_SET_WRITE_TIMEOUT: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetBackendList.
-pub const NET_RAW_PACKET_BACKEND_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_BACKEND_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.packetBackendList",
     "export function packetBackendList(): Result<Slice<PacketBackendDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5246,7 +5247,7 @@ pub const NET_RAW_PACKET_BACKEND_LIST: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetClearFanout.
-pub const NET_RAW_PACKET_CLEAR_FANOUT: BindingDescriptor =
+pub(crate) const NET_RAW_PACKET_CLEAR_FANOUT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.raw.packetClearFanout",
         "export function packetClearFanout(handle: SocketHandle): Result<void, PlatformError>",
@@ -5274,7 +5275,7 @@ pub const NET_RAW_PACKET_CLEAR_FANOUT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.raw.packetClearFilter.
-pub const NET_RAW_PACKET_CLEAR_FILTER: BindingDescriptor =
+pub(crate) const NET_RAW_PACKET_CLEAR_FILTER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.raw.packetClearFilter",
         "export function packetClearFilter(handle: SocketHandle): Result<void, PlatformError>",
@@ -5302,7 +5303,7 @@ pub const NET_RAW_PACKET_CLEAR_FILTER: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.raw.packetClearRing.
-pub const NET_RAW_PACKET_CLEAR_RING: BindingDescriptor =
+pub(crate) const NET_RAW_PACKET_CLEAR_RING: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.raw.packetClearRing",
         "export function packetClearRing(handle: SocketHandle): Result<void, PlatformError>",
@@ -5330,7 +5331,7 @@ pub const NET_RAW_PACKET_CLEAR_RING: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.raw.packetOpen.
-pub const NET_RAW_PACKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.packetOpen",
     "export function packetOpen(options: PacketCaptureOptions): Result<SocketHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5344,7 +5345,7 @@ pub const NET_RAW_PACKET_OPEN: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetReceive.
-pub const NET_RAW_PACKET_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.packetReceive",
     "export function packetReceive(handle: SocketHandle, payload: Slice<uint8>): Result<PacketCaptureRecord, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5358,7 +5359,7 @@ pub const NET_RAW_PACKET_RECEIVE: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSend.
-pub const NET_RAW_PACKET_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.packetSend",
     "export function packetSend(handle: SocketHandle, payload: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5372,7 +5373,7 @@ pub const NET_RAW_PACKET_SEND: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetFanout.
-pub const NET_RAW_PACKET_SET_FANOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SET_FANOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.packetSetFanout",
     "export function packetSetFanout(handle: SocketHandle, options: PacketFanoutOptions): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5386,7 +5387,7 @@ pub const NET_RAW_PACKET_SET_FANOUT: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetFilter.
-pub const NET_RAW_PACKET_SET_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SET_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.packetSetFilter",
     "export function packetSetFilter(handle: SocketHandle, filterProgram: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5400,7 +5401,7 @@ pub const NET_RAW_PACKET_SET_FILTER: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetRxRing.
-pub const NET_RAW_PACKET_SET_RX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SET_RX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.packetSetRxRing",
     "export function packetSetRxRing(handle: SocketHandle, options: PacketRingOptions): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5414,7 +5415,7 @@ pub const NET_RAW_PACKET_SET_RX_RING: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetTimestampMode.
-pub const NET_RAW_PACKET_SET_TIMESTAMP_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SET_TIMESTAMP_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.packetSetTimestampMode",
     "export function packetSetTimestampMode(handle: SocketHandle, mode: PacketTimestampMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5428,7 +5429,7 @@ pub const NET_RAW_PACKET_SET_TIMESTAMP_MODE: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetTxRing.
-pub const NET_RAW_PACKET_SET_TX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SET_TX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.packetSetTxRing",
     "export function packetSetTxRing(handle: SocketHandle, options: PacketRingOptions): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5442,7 +5443,7 @@ pub const NET_RAW_PACKET_SET_TX_RING: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetStats.
-pub const NET_RAW_PACKET_STATS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_STATS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.packetStats",
     "export function packetStats(handle: SocketHandle): Result<PacketCaptureStats, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5456,7 +5457,7 @@ pub const NET_RAW_PACKET_STATS: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.setHeaderIncluded.
-pub const NET_RAW_SET_HEADER_INCLUDED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_SET_HEADER_INCLUDED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.setHeaderIncluded",
     "export function rawSetHeaderIncluded(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5470,7 +5471,7 @@ pub const NET_RAW_SET_HEADER_INCLUDED: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.socket.
-pub const NET_RAW_SOCKET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_SOCKET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.raw.socket",
     "export function rawSocket(family: SocketFamily, protocol: int32): Result<SocketHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5484,7 +5485,7 @@ pub const NET_RAW_SOCKET: BindingDescriptor = BindingDescriptor::external_with_r
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.resolve.lookup.
-pub const NET_RESOLVE_LOOKUP: BindingDescriptor =
+pub(crate) const NET_RESOLVE_LOOKUP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.resolve.lookup",
         "export function resolve(query: ResolveQuery): Result<SocketAddress[], PlatformError>",
@@ -5512,7 +5513,7 @@ pub const NET_RESOLVE_LOOKUP: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.resolve.reverseLookup.
-pub const NET_RESOLVE_REVERSE_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RESOLVE_REVERSE_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.resolve.reverseLookup",
     "export function reverseLookup(address: SocketAddress, flags: ReverseLookupFlags): Result<ReverseLookupName[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5526,7 +5527,7 @@ pub const NET_RESOLVE_REVERSE_LOOKUP: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.reuse.getReuseAddr.
-pub const NET_REUSE_GET_REUSE_ADDR: BindingDescriptor =
+pub(crate) const NET_REUSE_GET_REUSE_ADDR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.reuse.getReuseAddr",
         "export function getReuseAddr(handle: SocketHandle): Result<boolean, PlatformError>",
@@ -5554,7 +5555,7 @@ pub const NET_REUSE_GET_REUSE_ADDR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.reuse.getReusePort.
-pub const NET_REUSE_GET_REUSE_PORT: BindingDescriptor =
+pub(crate) const NET_REUSE_GET_REUSE_PORT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.reuse.getReusePort",
         "export function getReusePort(handle: SocketHandle): Result<boolean, PlatformError>",
@@ -5581,7 +5582,7 @@ pub const NET_REUSE_GET_REUSE_PORT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.reuse.setReuseAddr.
-pub const NET_REUSE_SET_REUSE_ADDR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_REUSE_SET_REUSE_ADDR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.reuse.setReuseAddr",
     "export function setReuseAddr(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5595,7 +5596,7 @@ pub const NET_REUSE_SET_REUSE_ADDR: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.reuse.setReusePort.
-pub const NET_REUSE_SET_REUSE_PORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_REUSE_SET_REUSE_PORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.reuse.setReusePort",
     "export function setReusePort(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5609,7 +5610,7 @@ pub const NET_REUSE_SET_REUSE_PORT: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.net.route.routeAdd.
-pub const NET_ROUTE_ROUTE_ADD: BindingDescriptor =
+pub(crate) const NET_ROUTE_ROUTE_ADD: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.route.routeAdd",
         "export function routeAdd(route: RouteEntry): Result<void, PlatformError>",
@@ -5637,7 +5638,7 @@ pub const NET_ROUTE_ROUTE_ADD: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.route.routeDelete.
-pub const NET_ROUTE_ROUTE_DELETE: BindingDescriptor =
+pub(crate) const NET_ROUTE_ROUTE_DELETE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.route.routeDelete",
         "export function routeDelete(route: RouteEntry): Result<void, PlatformError>",
@@ -5665,7 +5666,7 @@ pub const NET_ROUTE_ROUTE_DELETE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.route.routeList.
-pub const NET_ROUTE_ROUTE_LIST: BindingDescriptor =
+pub(crate) const NET_ROUTE_ROUTE_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.route.routeList",
         "export function routeList(family: SocketFamily): Result<RouteEntry[], PlatformError>",
@@ -5693,7 +5694,7 @@ pub const NET_ROUTE_ROUTE_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.socket.close.
-pub const NET_SOCKET_CLOSE: BindingDescriptor =
+pub(crate) const NET_SOCKET_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.socket.close",
         "export function close(handle: SocketHandle): Result<void, PlatformError>",
@@ -5721,7 +5722,7 @@ pub const NET_SOCKET_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.socket.connect.
-pub const NET_SOCKET_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.connect",
     "export function connect(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5735,7 +5736,7 @@ pub const NET_SOCKET_CONNECT: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.open.
-pub const NET_SOCKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.open",
     "export function socket(family: SocketFamily, socketType: SocketType, protocol: SocketProtocol): Result<SocketHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5749,7 +5750,7 @@ pub const NET_SOCKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.openPair.
-pub const NET_SOCKET_OPEN_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_OPEN_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.openPair",
     "export function socketPair(family: SocketFamily, socketType: SocketType, protocol: SocketProtocol): Result<SocketPair, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5763,7 +5764,7 @@ pub const NET_SOCKET_OPEN_PAIR: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.read.
-pub const NET_SOCKET_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.read",
     "export function read(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5777,7 +5778,7 @@ pub const NET_SOCKET_READ: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.readv.
-pub const NET_SOCKET_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.readv",
     "export function readv(handle: SocketHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5791,7 +5792,7 @@ pub const NET_SOCKET_READV: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.recvFrom.
-pub const NET_SOCKET_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.recvFrom",
     "export function recvFrom(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: SocketMessageFlags): Result<SocketRecvFrom, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5805,7 +5806,7 @@ pub const NET_SOCKET_RECV_FROM: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.recvMmsg.
-pub const NET_SOCKET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.recvMmsg",
     "export function recvMmsg(handle: SocketHandle, requests: Slice<SocketRecvBatchRequest>, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<SocketRecvMessage[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5819,7 +5820,7 @@ pub const NET_SOCKET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.recvMsg.
-pub const NET_SOCKET_RECV_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_RECV_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.recvMsg",
     "export function recvMsg(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: SocketMessageFlags, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<SocketRecvMessage, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5833,7 +5834,7 @@ pub const NET_SOCKET_RECV_MSG: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.sendMmsg.
-pub const NET_SOCKET_SEND_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_SEND_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.sendMmsg",
     "export function sendMmsg(handle: SocketHandle, messages: Slice<SocketSendBatchEntry>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5847,7 +5848,7 @@ pub const NET_SOCKET_SEND_MMSG: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.sendMsg.
-pub const NET_SOCKET_SEND_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_SEND_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.sendMsg",
     "export function sendMsg(handle: SocketHandle, buffer: Slice<uint8>, message: SocketSendMessage): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5861,7 +5862,7 @@ pub const NET_SOCKET_SEND_MSG: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.sendTo.
-pub const NET_SOCKET_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.sendTo",
     "export function sendTo(handle: SocketHandle, buffer: Slice<uint8>, message: SocketSendTo): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5875,7 +5876,7 @@ pub const NET_SOCKET_SEND_TO: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.setNonblocking.
-pub const NET_SOCKET_SET_NONBLOCKING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_SET_NONBLOCKING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.setNonblocking",
     "export function setNonblocking(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5889,7 +5890,7 @@ pub const NET_SOCKET_SET_NONBLOCKING: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.shutdown.
-pub const NET_SOCKET_SHUTDOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_SHUTDOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.shutdown",
     "export function shutdown(handle: SocketHandle, how: SocketShutdown): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5903,7 +5904,7 @@ pub const NET_SOCKET_SHUTDOWN: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.write.
-pub const NET_SOCKET_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.write",
     "export function write(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5917,7 +5918,7 @@ pub const NET_SOCKET_WRITE: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.writev.
-pub const NET_SOCKET_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.writev",
     "export function writev(handle: SocketHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5931,7 +5932,7 @@ pub const NET_SOCKET_WRITEV: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.getKeepAlive.
-pub const NET_TCP_GET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_TCP_GET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.tcp.getKeepAlive",
     "export function getKeepAlive(handle: SocketHandle): Result<KeepAliveConfig, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5945,7 +5946,7 @@ pub const NET_TCP_GET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.getNoDelay.
-pub const NET_TCP_GET_NO_DELAY: BindingDescriptor =
+pub(crate) const NET_TCP_GET_NO_DELAY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.tcp.getNoDelay",
         "export function getNoDelay(handle: SocketHandle): Result<boolean, PlatformError>",
@@ -5973,7 +5974,7 @@ pub const NET_TCP_GET_NO_DELAY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.tcp.setKeepAlive.
-pub const NET_TCP_SET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_TCP_SET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.tcp.setKeepAlive",
     "export function setKeepAlive(handle: SocketHandle, config: KeepAliveConfig): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5987,7 +5988,7 @@ pub const NET_TCP_SET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.setNoDelay.
-pub const NET_TCP_SET_NO_DELAY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_TCP_SET_NO_DELAY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.tcp.setNoDelay",
     "export function setNoDelay(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6001,7 +6002,7 @@ pub const NET_TCP_SET_NO_DELAY: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.bind.
-pub const NET_UDP_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.bind",
     "export function udpBind(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6015,7 +6016,7 @@ pub const NET_UDP_BIND: BindingDescriptor = BindingDescriptor::external_with_req
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.connect.
-pub const NET_UDP_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.connect",
     "export function udpConnect(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6029,7 +6030,7 @@ pub const NET_UDP_CONNECT: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastInterfaceV4.
-pub const NET_UDP_GET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_GET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.getMulticastInterfaceV4",
     "export function getMulticastInterfaceV4(handle: SocketHandle): Result<string, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6043,7 +6044,7 @@ pub const NET_UDP_GET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastInterfaceV6.
-pub const NET_UDP_GET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_GET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.getMulticastInterfaceV6",
     "export function getMulticastInterfaceV6(handle: SocketHandle): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6057,7 +6058,7 @@ pub const NET_UDP_GET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastLoop.
-pub const NET_UDP_GET_MULTICAST_LOOP: BindingDescriptor =
+pub(crate) const NET_UDP_GET_MULTICAST_LOOP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.udp.getMulticastLoop",
         "export function getMulticastLoop(handle: SocketHandle): Result<boolean, PlatformError>",
@@ -6085,7 +6086,7 @@ pub const NET_UDP_GET_MULTICAST_LOOP: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.udp.getMulticastTtl.
-pub const NET_UDP_GET_MULTICAST_TTL: BindingDescriptor =
+pub(crate) const NET_UDP_GET_MULTICAST_TTL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.udp.getMulticastTtl",
         "export function getMulticastTtl(handle: SocketHandle): Result<uint32, PlatformError>",
@@ -6113,7 +6114,7 @@ pub const NET_UDP_GET_MULTICAST_TTL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastSourceV4.
-pub const NET_UDP_JOIN_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_JOIN_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.joinMulticastSourceV4",
     "export function joinMulticastSourceV4(handle: SocketHandle, membership: UdpSourceMembershipV4): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6127,7 +6128,7 @@ pub const NET_UDP_JOIN_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastSourceV6.
-pub const NET_UDP_JOIN_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_JOIN_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.joinMulticastSourceV6",
     "export function joinMulticastSourceV6(handle: SocketHandle, membership: UdpSourceMembershipV6): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6141,7 +6142,7 @@ pub const NET_UDP_JOIN_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastV4.
-pub const NET_UDP_JOIN_MULTICAST_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_JOIN_MULTICAST_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.joinMulticastV4",
     "export function joinMulticastV4(handle: SocketHandle, group: string, interfaceAddress: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6155,7 +6156,7 @@ pub const NET_UDP_JOIN_MULTICAST_V4: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastV6.
-pub const NET_UDP_JOIN_MULTICAST_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_JOIN_MULTICAST_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.joinMulticastV6",
     "export function joinMulticastV6(handle: SocketHandle, group: string, interfaceIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6169,7 +6170,7 @@ pub const NET_UDP_JOIN_MULTICAST_V6: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastSourceV4.
-pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_LEAVE_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.leaveMulticastSourceV4",
     "export function leaveMulticastSourceV4(handle: SocketHandle, membership: UdpSourceMembershipV4): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6183,7 +6184,7 @@ pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastSourceV6.
-pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_LEAVE_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.leaveMulticastSourceV6",
     "export function leaveMulticastSourceV6(handle: SocketHandle, membership: UdpSourceMembershipV6): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6197,7 +6198,7 @@ pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastV4.
-pub const NET_UDP_LEAVE_MULTICAST_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_LEAVE_MULTICAST_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.leaveMulticastV4",
     "export function leaveMulticastV4(handle: SocketHandle, group: string, interfaceAddress: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6211,7 +6212,7 @@ pub const NET_UDP_LEAVE_MULTICAST_V4: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastV6.
-pub const NET_UDP_LEAVE_MULTICAST_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_LEAVE_MULTICAST_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.leaveMulticastV6",
     "export function leaveMulticastV6(handle: SocketHandle, group: string, interfaceIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6225,7 +6226,7 @@ pub const NET_UDP_LEAVE_MULTICAST_V6: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.recvFrom.
-pub const NET_UDP_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.recvFrom",
     "export function udpRecvFrom(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: UdpMessageFlags): Result<UdpReceive, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6239,7 +6240,7 @@ pub const NET_UDP_RECV_FROM: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.sendTo.
-pub const NET_UDP_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.sendTo",
     "export function udpSendTo(handle: SocketHandle, address: SocketAddress, buffer: Slice<uint8>, sendFlags: UdpMessageFlags): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6253,7 +6254,7 @@ pub const NET_UDP_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastInterfaceV4.
-pub const NET_UDP_SET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_SET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.setMulticastInterfaceV4",
     "export function setMulticastInterfaceV4(handle: SocketHandle, interfaceAddress: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6267,7 +6268,7 @@ pub const NET_UDP_SET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastInterfaceV6.
-pub const NET_UDP_SET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_SET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.setMulticastInterfaceV6",
     "export function setMulticastInterfaceV6(handle: SocketHandle, interfaceIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6281,7 +6282,7 @@ pub const NET_UDP_SET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastLoop.
-pub const NET_UDP_SET_MULTICAST_LOOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_SET_MULTICAST_LOOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.setMulticastLoop",
     "export function setMulticastLoop(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6295,7 +6296,7 @@ pub const NET_UDP_SET_MULTICAST_LOOP: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastTtl.
-pub const NET_UDP_SET_MULTICAST_TTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_SET_MULTICAST_TTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.udp.setMulticastTtl",
     "export function setMulticastTtl(handle: SocketHandle, ttl: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6309,7 +6310,7 @@ pub const NET_UDP_SET_MULTICAST_TTL: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.socket.
-pub const NET_UDP_SOCKET: BindingDescriptor =
+pub(crate) const NET_UDP_SOCKET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.udp.socket",
         "export function udpSocket(family: SocketFamily): Result<SocketHandle, PlatformError>",
@@ -6337,7 +6338,7 @@ pub const NET_UDP_SOCKET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.uds.udsAccept.
-pub const NET_UDS_UDS_ACCEPT: BindingDescriptor =
+pub(crate) const NET_UDS_UDS_ACCEPT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.uds.udsAccept",
         "export function udsAccept(listener: ListenerHandle): Result<SocketHandle, PlatformError>",
@@ -6365,7 +6366,7 @@ pub const NET_UDS_UDS_ACCEPT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.uds.udsCloseListener.
-pub const NET_UDS_UDS_CLOSE_LISTENER: BindingDescriptor =
+pub(crate) const NET_UDS_UDS_CLOSE_LISTENER: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.uds.udsCloseListener",
         "export function udsCloseListener(handle: ListenerHandle): Result<void, PlatformError>",
@@ -6393,7 +6394,7 @@ pub const NET_UDS_UDS_CLOSE_LISTENER: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.uds.udsConnect.
-pub const NET_UDS_UDS_CONNECT: BindingDescriptor =
+pub(crate) const NET_UDS_UDS_CONNECT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.uds.udsConnect",
         "export function udsConnect(address: UdsAddress): Result<SocketHandle, PlatformError>",
@@ -6421,7 +6422,7 @@ pub const NET_UDS_UDS_CONNECT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.net.uds.udsListen.
-pub const NET_UDS_UDS_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDS_UDS_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.uds.udsListen",
     "export function udsListen(address: UdsAddress, backlog: uint32): Result<ListenerHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6435,7 +6436,7 @@ pub const NET_UDS_UDS_LISTEN: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.uds.udsSocketPair.
-pub const NET_UDS_UDS_SOCKET_PAIR: BindingDescriptor =
+pub(crate) const NET_UDS_UDS_SOCKET_PAIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.uds.udsSocketPair",
         "export function udsSocketPair(socketType: SocketType): Result<SocketPair, PlatformError>",
@@ -6462,115 +6463,8 @@ pub const NET_UDS_UDS_SOCKET_PAIR: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptors for net.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    NET_ADDRESS_LOCAL_ADDRESS,
-    NET_ADDRESS_PEER_ADDRESS,
-    NET_INTERFACE_INTERFACE_INDEX,
-    NET_INTERFACE_INTERFACE_NAME,
-    NET_INTERFACE_LIST_INTERFACES,
-    NET_LISTENER_ACCEPT,
-    NET_LISTENER_BIND,
-    NET_LISTENER_CLOSE_LISTENER,
-    NET_LISTENER_LISTEN,
-    NET_OPTIONS_GET_BROADCAST,
-    NET_OPTIONS_GET_LINGER,
-    NET_OPTIONS_GET_ONLY_V6,
-    NET_OPTIONS_GET_PACKET_MARK,
-    NET_OPTIONS_GET_READ_TIMEOUT,
-    NET_OPTIONS_GET_RECV_BUFFER,
-    NET_OPTIONS_GET_SEND_BUFFER,
-    NET_OPTIONS_GET_SOCK_OPT_RAW,
-    NET_OPTIONS_GET_TIMESTAMPING,
-    NET_OPTIONS_GET_TOS,
-    NET_OPTIONS_GET_TTL,
-    NET_OPTIONS_GET_WRITE_TIMEOUT,
-    NET_OPTIONS_SET_BROADCAST,
-    NET_OPTIONS_SET_LINGER,
-    NET_OPTIONS_SET_ONLY_V6,
-    NET_OPTIONS_SET_PACKET_MARK,
-    NET_OPTIONS_SET_READ_TIMEOUT,
-    NET_OPTIONS_SET_RECV_BUFFER,
-    NET_OPTIONS_SET_SEND_BUFFER,
-    NET_OPTIONS_SET_SOCK_OPT_RAW,
-    NET_OPTIONS_SET_TIMESTAMPING,
-    NET_OPTIONS_SET_TOS,
-    NET_OPTIONS_SET_TTL,
-    NET_OPTIONS_SET_WRITE_TIMEOUT,
-    NET_RAW_PACKET_BACKEND_LIST,
-    NET_RAW_PACKET_CLEAR_FANOUT,
-    NET_RAW_PACKET_CLEAR_FILTER,
-    NET_RAW_PACKET_CLEAR_RING,
-    NET_RAW_PACKET_OPEN,
-    NET_RAW_PACKET_RECEIVE,
-    NET_RAW_PACKET_SEND,
-    NET_RAW_PACKET_SET_FANOUT,
-    NET_RAW_PACKET_SET_FILTER,
-    NET_RAW_PACKET_SET_RX_RING,
-    NET_RAW_PACKET_SET_TIMESTAMP_MODE,
-    NET_RAW_PACKET_SET_TX_RING,
-    NET_RAW_PACKET_STATS,
-    NET_RAW_SET_HEADER_INCLUDED,
-    NET_RAW_SOCKET,
-    NET_RESOLVE_LOOKUP,
-    NET_RESOLVE_REVERSE_LOOKUP,
-    NET_REUSE_GET_REUSE_ADDR,
-    NET_REUSE_GET_REUSE_PORT,
-    NET_REUSE_SET_REUSE_ADDR,
-    NET_REUSE_SET_REUSE_PORT,
-    NET_ROUTE_ROUTE_ADD,
-    NET_ROUTE_ROUTE_DELETE,
-    NET_ROUTE_ROUTE_LIST,
-    NET_SOCKET_CLOSE,
-    NET_SOCKET_CONNECT,
-    NET_SOCKET_OPEN,
-    NET_SOCKET_OPEN_PAIR,
-    NET_SOCKET_READ,
-    NET_SOCKET_READV,
-    NET_SOCKET_RECV_FROM,
-    NET_SOCKET_RECV_MMSG,
-    NET_SOCKET_RECV_MSG,
-    NET_SOCKET_SEND_MMSG,
-    NET_SOCKET_SEND_MSG,
-    NET_SOCKET_SEND_TO,
-    NET_SOCKET_SET_NONBLOCKING,
-    NET_SOCKET_SHUTDOWN,
-    NET_SOCKET_WRITE,
-    NET_SOCKET_WRITEV,
-    NET_TCP_GET_KEEP_ALIVE,
-    NET_TCP_GET_NO_DELAY,
-    NET_TCP_SET_KEEP_ALIVE,
-    NET_TCP_SET_NO_DELAY,
-    NET_UDP_BIND,
-    NET_UDP_CONNECT,
-    NET_UDP_GET_MULTICAST_INTERFACE_V4,
-    NET_UDP_GET_MULTICAST_INTERFACE_V6,
-    NET_UDP_GET_MULTICAST_LOOP,
-    NET_UDP_GET_MULTICAST_TTL,
-    NET_UDP_JOIN_MULTICAST_SOURCE_V4,
-    NET_UDP_JOIN_MULTICAST_SOURCE_V6,
-    NET_UDP_JOIN_MULTICAST_V4,
-    NET_UDP_JOIN_MULTICAST_V6,
-    NET_UDP_LEAVE_MULTICAST_SOURCE_V4,
-    NET_UDP_LEAVE_MULTICAST_SOURCE_V6,
-    NET_UDP_LEAVE_MULTICAST_V4,
-    NET_UDP_LEAVE_MULTICAST_V6,
-    NET_UDP_RECV_FROM,
-    NET_UDP_SEND_TO,
-    NET_UDP_SET_MULTICAST_INTERFACE_V4,
-    NET_UDP_SET_MULTICAST_INTERFACE_V6,
-    NET_UDP_SET_MULTICAST_LOOP,
-    NET_UDP_SET_MULTICAST_TTL,
-    NET_UDP_SOCKET,
-    NET_UDS_UDS_ACCEPT,
-    NET_UDS_UDS_CLOSE_LISTENER,
-    NET_UDS_UDS_CONNECT,
-    NET_UDS_UDS_LISTEN,
-    NET_UDS_UDS_SOCKET_PAIR,
-];
-
 /// Native binding set for net.
-pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "net",
     bindings: &[
         NativeBinding::new(
@@ -13388,7 +13282,7 @@ fn destack_net_uds_uds_socket_pair_replay(
 
 /// Native export wrappers for net bindings.
 #[unsafe(export_name = "destack.net.address.localAddress")]
-pub unsafe extern "C" fn destack_net_address_local_address(
+pub(crate) unsafe extern "C" fn destack_net_address_local_address(
     out: *mut SocketAddress,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13405,7 +13299,7 @@ pub unsafe extern "C" fn destack_net_address_local_address(
 }
 
 #[unsafe(export_name = "destack.net.address.peerAddress")]
-pub unsafe extern "C" fn destack_net_address_peer_address(
+pub(crate) unsafe extern "C" fn destack_net_address_peer_address(
     out: *mut SocketAddress,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13422,7 +13316,7 @@ pub unsafe extern "C" fn destack_net_address_peer_address(
 }
 
 #[unsafe(export_name = "destack.net.interface.interfaceIndex")]
-pub unsafe extern "C" fn destack_net_interface_interface_index(
+pub(crate) unsafe extern "C" fn destack_net_interface_interface_index(
     out: *mut u32,
     name: NativeStringRef,
 ) -> RuntimeStatus {
@@ -13439,7 +13333,7 @@ pub unsafe extern "C" fn destack_net_interface_interface_index(
 }
 
 #[unsafe(export_name = "destack.net.interface.interfaceName")]
-pub unsafe extern "C" fn destack_net_interface_interface_name(
+pub(crate) unsafe extern "C" fn destack_net_interface_interface_name(
     out: *mut NativeStringRef,
     index: u32,
 ) -> RuntimeStatus {
@@ -13456,7 +13350,7 @@ pub unsafe extern "C" fn destack_net_interface_interface_name(
 }
 
 #[unsafe(export_name = "destack.net.interface.listInterfaces")]
-pub unsafe extern "C" fn destack_net_interface_list_interfaces(
+pub(crate) unsafe extern "C" fn destack_net_interface_list_interfaces(
     out: *mut NativeArray<NetInterface>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13472,7 +13366,7 @@ pub unsafe extern "C" fn destack_net_interface_list_interfaces(
 }
 
 #[unsafe(export_name = "destack.net.listener.accept")]
-pub unsafe extern "C" fn destack_net_listener_accept(
+pub(crate) unsafe extern "C" fn destack_net_listener_accept(
     out: *mut resource::SocketHandle,
     listener: resource::ListenerHandle,
     flags: AcceptFlags,
@@ -13490,7 +13384,7 @@ pub unsafe extern "C" fn destack_net_listener_accept(
 }
 
 #[unsafe(export_name = "destack.net.listener.bind")]
-pub unsafe extern "C" fn destack_net_listener_bind(
+pub(crate) unsafe extern "C" fn destack_net_listener_bind(
     handle: resource::SocketHandle,
     address: SocketAddress,
 ) -> RuntimeStatus {
@@ -13504,7 +13398,7 @@ pub unsafe extern "C" fn destack_net_listener_bind(
 }
 
 #[unsafe(export_name = "destack.net.listener.closeListener")]
-pub unsafe extern "C" fn destack_net_listener_close_listener(
+pub(crate) unsafe extern "C" fn destack_net_listener_close_listener(
     handle: resource::ListenerHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13517,7 +13411,7 @@ pub unsafe extern "C" fn destack_net_listener_close_listener(
 }
 
 #[unsafe(export_name = "destack.net.listener.listen")]
-pub unsafe extern "C" fn destack_net_listener_listen(
+pub(crate) unsafe extern "C" fn destack_net_listener_listen(
     out: *mut resource::ListenerHandle,
     address: SocketAddress,
     backlog: u32,
@@ -13535,7 +13429,7 @@ pub unsafe extern "C" fn destack_net_listener_listen(
 }
 
 #[unsafe(export_name = "destack.net.options.getBroadcast")]
-pub unsafe extern "C" fn destack_net_options_get_broadcast(
+pub(crate) unsafe extern "C" fn destack_net_options_get_broadcast(
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13552,7 +13446,7 @@ pub unsafe extern "C" fn destack_net_options_get_broadcast(
 }
 
 #[unsafe(export_name = "destack.net.options.getLinger")]
-pub unsafe extern "C" fn destack_net_options_get_linger(
+pub(crate) unsafe extern "C" fn destack_net_options_get_linger(
     out: *mut Linger,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13569,7 +13463,7 @@ pub unsafe extern "C" fn destack_net_options_get_linger(
 }
 
 #[unsafe(export_name = "destack.net.options.getOnlyV6")]
-pub unsafe extern "C" fn destack_net_options_get_only_v6(
+pub(crate) unsafe extern "C" fn destack_net_options_get_only_v6(
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13586,7 +13480,7 @@ pub unsafe extern "C" fn destack_net_options_get_only_v6(
 }
 
 #[unsafe(export_name = "destack.net.options.getPacketMark")]
-pub unsafe extern "C" fn destack_net_options_get_packet_mark(
+pub(crate) unsafe extern "C" fn destack_net_options_get_packet_mark(
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13603,7 +13497,7 @@ pub unsafe extern "C" fn destack_net_options_get_packet_mark(
 }
 
 #[unsafe(export_name = "destack.net.options.getReadTimeout")]
-pub unsafe extern "C" fn destack_net_options_get_read_timeout(
+pub(crate) unsafe extern "C" fn destack_net_options_get_read_timeout(
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13620,7 +13514,7 @@ pub unsafe extern "C" fn destack_net_options_get_read_timeout(
 }
 
 #[unsafe(export_name = "destack.net.options.getRecvBuffer")]
-pub unsafe extern "C" fn destack_net_options_get_recv_buffer(
+pub(crate) unsafe extern "C" fn destack_net_options_get_recv_buffer(
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13637,7 +13531,7 @@ pub unsafe extern "C" fn destack_net_options_get_recv_buffer(
 }
 
 #[unsafe(export_name = "destack.net.options.getSendBuffer")]
-pub unsafe extern "C" fn destack_net_options_get_send_buffer(
+pub(crate) unsafe extern "C" fn destack_net_options_get_send_buffer(
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13654,7 +13548,7 @@ pub unsafe extern "C" fn destack_net_options_get_send_buffer(
 }
 
 #[unsafe(export_name = "destack.net.options.getSockOptRaw")]
-pub unsafe extern "C" fn destack_net_options_get_sock_opt_raw(
+pub(crate) unsafe extern "C" fn destack_net_options_get_sock_opt_raw(
     out: *mut NativeArray<u8>,
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
@@ -13676,7 +13570,7 @@ pub unsafe extern "C" fn destack_net_options_get_sock_opt_raw(
 }
 
 #[unsafe(export_name = "destack.net.options.getTimestamping")]
-pub unsafe extern "C" fn destack_net_options_get_timestamping(
+pub(crate) unsafe extern "C" fn destack_net_options_get_timestamping(
     out: *mut SocketTimestampingMode,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13693,7 +13587,7 @@ pub unsafe extern "C" fn destack_net_options_get_timestamping(
 }
 
 #[unsafe(export_name = "destack.net.options.getTos")]
-pub unsafe extern "C" fn destack_net_options_get_tos(
+pub(crate) unsafe extern "C" fn destack_net_options_get_tos(
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13710,7 +13604,7 @@ pub unsafe extern "C" fn destack_net_options_get_tos(
 }
 
 #[unsafe(export_name = "destack.net.options.getTtl")]
-pub unsafe extern "C" fn destack_net_options_get_ttl(
+pub(crate) unsafe extern "C" fn destack_net_options_get_ttl(
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13727,7 +13621,7 @@ pub unsafe extern "C" fn destack_net_options_get_ttl(
 }
 
 #[unsafe(export_name = "destack.net.options.getWriteTimeout")]
-pub unsafe extern "C" fn destack_net_options_get_write_timeout(
+pub(crate) unsafe extern "C" fn destack_net_options_get_write_timeout(
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -13744,7 +13638,7 @@ pub unsafe extern "C" fn destack_net_options_get_write_timeout(
 }
 
 #[unsafe(export_name = "destack.net.options.setBroadcast")]
-pub unsafe extern "C" fn destack_net_options_set_broadcast(
+pub(crate) unsafe extern "C" fn destack_net_options_set_broadcast(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeStatus {
@@ -13758,7 +13652,7 @@ pub unsafe extern "C" fn destack_net_options_set_broadcast(
 }
 
 #[unsafe(export_name = "destack.net.options.setLinger")]
-pub unsafe extern "C" fn destack_net_options_set_linger(
+pub(crate) unsafe extern "C" fn destack_net_options_set_linger(
     handle: resource::SocketHandle,
     linger: Linger,
 ) -> RuntimeStatus {
@@ -13772,7 +13666,7 @@ pub unsafe extern "C" fn destack_net_options_set_linger(
 }
 
 #[unsafe(export_name = "destack.net.options.setOnlyV6")]
-pub unsafe extern "C" fn destack_net_options_set_only_v6(
+pub(crate) unsafe extern "C" fn destack_net_options_set_only_v6(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeStatus {
@@ -13786,7 +13680,7 @@ pub unsafe extern "C" fn destack_net_options_set_only_v6(
 }
 
 #[unsafe(export_name = "destack.net.options.setPacketMark")]
-pub unsafe extern "C" fn destack_net_options_set_packet_mark(
+pub(crate) unsafe extern "C" fn destack_net_options_set_packet_mark(
     handle: resource::SocketHandle,
     mark: u32,
 ) -> RuntimeStatus {
@@ -13800,7 +13694,7 @@ pub unsafe extern "C" fn destack_net_options_set_packet_mark(
 }
 
 #[unsafe(export_name = "destack.net.options.setReadTimeout")]
-pub unsafe extern "C" fn destack_net_options_set_read_timeout(
+pub(crate) unsafe extern "C" fn destack_net_options_set_read_timeout(
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeStatus {
@@ -13814,7 +13708,7 @@ pub unsafe extern "C" fn destack_net_options_set_read_timeout(
 }
 
 #[unsafe(export_name = "destack.net.options.setRecvBuffer")]
-pub unsafe extern "C" fn destack_net_options_set_recv_buffer(
+pub(crate) unsafe extern "C" fn destack_net_options_set_recv_buffer(
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeStatus {
@@ -13828,7 +13722,7 @@ pub unsafe extern "C" fn destack_net_options_set_recv_buffer(
 }
 
 #[unsafe(export_name = "destack.net.options.setSendBuffer")]
-pub unsafe extern "C" fn destack_net_options_set_send_buffer(
+pub(crate) unsafe extern "C" fn destack_net_options_set_send_buffer(
     handle: resource::SocketHandle,
     size: u32,
 ) -> RuntimeStatus {
@@ -13842,7 +13736,7 @@ pub unsafe extern "C" fn destack_net_options_set_send_buffer(
 }
 
 #[unsafe(export_name = "destack.net.options.setSockOptRaw")]
-pub unsafe extern "C" fn destack_net_options_set_sock_opt_raw(
+pub(crate) unsafe extern "C" fn destack_net_options_set_sock_opt_raw(
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
@@ -13865,7 +13759,7 @@ pub unsafe extern "C" fn destack_net_options_set_sock_opt_raw(
 }
 
 #[unsafe(export_name = "destack.net.options.setTimestamping")]
-pub unsafe extern "C" fn destack_net_options_set_timestamping(
+pub(crate) unsafe extern "C" fn destack_net_options_set_timestamping(
     handle: resource::SocketHandle,
     mode: SocketTimestampingMode,
 ) -> RuntimeStatus {
@@ -13879,7 +13773,7 @@ pub unsafe extern "C" fn destack_net_options_set_timestamping(
 }
 
 #[unsafe(export_name = "destack.net.options.setTos")]
-pub unsafe extern "C" fn destack_net_options_set_tos(
+pub(crate) unsafe extern "C" fn destack_net_options_set_tos(
     handle: resource::SocketHandle,
     tos: u32,
 ) -> RuntimeStatus {
@@ -13893,7 +13787,7 @@ pub unsafe extern "C" fn destack_net_options_set_tos(
 }
 
 #[unsafe(export_name = "destack.net.options.setTtl")]
-pub unsafe extern "C" fn destack_net_options_set_ttl(
+pub(crate) unsafe extern "C" fn destack_net_options_set_ttl(
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeStatus {
@@ -13907,7 +13801,7 @@ pub unsafe extern "C" fn destack_net_options_set_ttl(
 }
 
 #[unsafe(export_name = "destack.net.options.setWriteTimeout")]
-pub unsafe extern "C" fn destack_net_options_set_write_timeout(
+pub(crate) unsafe extern "C" fn destack_net_options_set_write_timeout(
     handle: resource::SocketHandle,
     timeoutms: u32,
 ) -> RuntimeStatus {
@@ -13921,7 +13815,7 @@ pub unsafe extern "C" fn destack_net_options_set_write_timeout(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetBackendList")]
-pub unsafe extern "C" fn destack_net_raw_packet_backend_list(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_backend_list(
     out: *mut NativeSlice<PacketBackendDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13937,7 +13831,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_backend_list(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetClearFanout")]
-pub unsafe extern "C" fn destack_net_raw_packet_clear_fanout(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_clear_fanout(
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13950,7 +13844,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_clear_fanout(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetClearFilter")]
-pub unsafe extern "C" fn destack_net_raw_packet_clear_filter(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_clear_filter(
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13963,7 +13857,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_clear_filter(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetClearRing")]
-pub unsafe extern "C" fn destack_net_raw_packet_clear_ring(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_clear_ring(
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13976,7 +13870,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_clear_ring(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetOpen")]
-pub unsafe extern "C" fn destack_net_raw_packet_open(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_open(
     out: *mut resource::SocketHandle,
     options: PacketCaptureOptions,
 ) -> RuntimeStatus {
@@ -13993,7 +13887,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_open(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetReceive")]
-pub unsafe extern "C" fn destack_net_raw_packet_receive(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_receive(
     out: *mut PacketCaptureRecord,
     handle: resource::SocketHandle,
     argument_payload: NativeSlice<u8>,
@@ -14011,7 +13905,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_receive(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetSend")]
-pub unsafe extern "C" fn destack_net_raw_packet_send(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_send(
     out: *mut u64,
     handle: resource::SocketHandle,
     argument_payload: NativeSlice<u8>,
@@ -14029,7 +13923,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_send(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetSetFanout")]
-pub unsafe extern "C" fn destack_net_raw_packet_set_fanout(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_set_fanout(
     handle: resource::SocketHandle,
     options: PacketFanoutOptions,
 ) -> RuntimeStatus {
@@ -14043,7 +13937,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_set_fanout(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetSetFilter")]
-pub unsafe extern "C" fn destack_net_raw_packet_set_filter(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_set_filter(
     handle: resource::SocketHandle,
     filterprogram: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -14057,7 +13951,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_set_filter(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetSetRxRing")]
-pub unsafe extern "C" fn destack_net_raw_packet_set_rx_ring(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_set_rx_ring(
     handle: resource::SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeStatus {
@@ -14071,7 +13965,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_set_rx_ring(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetSetTimestampMode")]
-pub unsafe extern "C" fn destack_net_raw_packet_set_timestamp_mode(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_set_timestamp_mode(
     handle: resource::SocketHandle,
     mode: PacketTimestampMode,
 ) -> RuntimeStatus {
@@ -14085,7 +13979,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_set_timestamp_mode(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetSetTxRing")]
-pub unsafe extern "C" fn destack_net_raw_packet_set_tx_ring(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_set_tx_ring(
     handle: resource::SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeStatus {
@@ -14099,7 +13993,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_set_tx_ring(
 }
 
 #[unsafe(export_name = "destack.net.raw.packetStats")]
-pub unsafe extern "C" fn destack_net_raw_packet_stats(
+pub(crate) unsafe extern "C" fn destack_net_raw_packet_stats(
     out: *mut PacketCaptureStats,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -14116,7 +14010,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_stats(
 }
 
 #[unsafe(export_name = "destack.net.raw.setHeaderIncluded")]
-pub unsafe extern "C" fn destack_net_raw_set_header_included(
+pub(crate) unsafe extern "C" fn destack_net_raw_set_header_included(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeStatus {
@@ -14130,7 +14024,7 @@ pub unsafe extern "C" fn destack_net_raw_set_header_included(
 }
 
 #[unsafe(export_name = "destack.net.raw.socket")]
-pub unsafe extern "C" fn destack_net_raw_socket(
+pub(crate) unsafe extern "C" fn destack_net_raw_socket(
     out: *mut resource::SocketHandle,
     family: SocketFamily,
     protocol: i32,
@@ -14148,7 +14042,7 @@ pub unsafe extern "C" fn destack_net_raw_socket(
 }
 
 #[unsafe(export_name = "destack.net.resolve.lookup")]
-pub unsafe extern "C" fn destack_net_resolve_lookup(
+pub(crate) unsafe extern "C" fn destack_net_resolve_lookup(
     out: *mut NativeArray<SocketAddress>,
     query: ResolveQuery,
 ) -> RuntimeStatus {
@@ -14165,7 +14059,7 @@ pub unsafe extern "C" fn destack_net_resolve_lookup(
 }
 
 #[unsafe(export_name = "destack.net.resolve.reverseLookup")]
-pub unsafe extern "C" fn destack_net_resolve_reverse_lookup(
+pub(crate) unsafe extern "C" fn destack_net_resolve_reverse_lookup(
     out: *mut NativeArray<ReverseLookupName>,
     address: SocketAddress,
     flags: ReverseLookupFlags,
@@ -14183,7 +14077,7 @@ pub unsafe extern "C" fn destack_net_resolve_reverse_lookup(
 }
 
 #[unsafe(export_name = "destack.net.reuse.getReuseAddr")]
-pub unsafe extern "C" fn destack_net_reuse_get_reuse_addr(
+pub(crate) unsafe extern "C" fn destack_net_reuse_get_reuse_addr(
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -14200,7 +14094,7 @@ pub unsafe extern "C" fn destack_net_reuse_get_reuse_addr(
 }
 
 #[unsafe(export_name = "destack.net.reuse.getReusePort")]
-pub unsafe extern "C" fn destack_net_reuse_get_reuse_port(
+pub(crate) unsafe extern "C" fn destack_net_reuse_get_reuse_port(
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -14217,7 +14111,7 @@ pub unsafe extern "C" fn destack_net_reuse_get_reuse_port(
 }
 
 #[unsafe(export_name = "destack.net.reuse.setReuseAddr")]
-pub unsafe extern "C" fn destack_net_reuse_set_reuse_addr(
+pub(crate) unsafe extern "C" fn destack_net_reuse_set_reuse_addr(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeStatus {
@@ -14231,7 +14125,7 @@ pub unsafe extern "C" fn destack_net_reuse_set_reuse_addr(
 }
 
 #[unsafe(export_name = "destack.net.reuse.setReusePort")]
-pub unsafe extern "C" fn destack_net_reuse_set_reuse_port(
+pub(crate) unsafe extern "C" fn destack_net_reuse_set_reuse_port(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeStatus {
@@ -14245,7 +14139,7 @@ pub unsafe extern "C" fn destack_net_reuse_set_reuse_port(
 }
 
 #[unsafe(export_name = "destack.net.route.routeAdd")]
-pub unsafe extern "C" fn destack_net_route_route_add(route: RouteEntry) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_net_route_route_add(route: RouteEntry) -> RuntimeStatus {
     native_call(|context| {
         let _ = &route;
 
@@ -14256,7 +14150,7 @@ pub unsafe extern "C" fn destack_net_route_route_add(route: RouteEntry) -> Runti
 }
 
 #[unsafe(export_name = "destack.net.route.routeDelete")]
-pub unsafe extern "C" fn destack_net_route_route_delete(route: RouteEntry) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_net_route_route_delete(route: RouteEntry) -> RuntimeStatus {
     native_call(|context| {
         let _ = &route;
 
@@ -14267,7 +14161,7 @@ pub unsafe extern "C" fn destack_net_route_route_delete(route: RouteEntry) -> Ru
 }
 
 #[unsafe(export_name = "destack.net.route.routeList")]
-pub unsafe extern "C" fn destack_net_route_route_list(
+pub(crate) unsafe extern "C" fn destack_net_route_route_list(
     out: *mut NativeArray<RouteEntry>,
     family: SocketFamily,
 ) -> RuntimeStatus {
@@ -14284,7 +14178,9 @@ pub unsafe extern "C" fn destack_net_route_route_list(
 }
 
 #[unsafe(export_name = "destack.net.socket.close")]
-pub unsafe extern "C" fn destack_net_socket_close(handle: resource::SocketHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_net_socket_close(
+    handle: resource::SocketHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -14295,7 +14191,7 @@ pub unsafe extern "C" fn destack_net_socket_close(handle: resource::SocketHandle
 }
 
 #[unsafe(export_name = "destack.net.socket.connect")]
-pub unsafe extern "C" fn destack_net_socket_connect(
+pub(crate) unsafe extern "C" fn destack_net_socket_connect(
     handle: resource::SocketHandle,
     address: SocketAddress,
 ) -> RuntimeStatus {
@@ -14309,7 +14205,7 @@ pub unsafe extern "C" fn destack_net_socket_connect(
 }
 
 #[unsafe(export_name = "destack.net.socket.open")]
-pub unsafe extern "C" fn destack_net_socket_open(
+pub(crate) unsafe extern "C" fn destack_net_socket_open(
     out: *mut resource::SocketHandle,
     family: SocketFamily,
     sockettype: SocketType,
@@ -14328,7 +14224,7 @@ pub unsafe extern "C" fn destack_net_socket_open(
 }
 
 #[unsafe(export_name = "destack.net.socket.openPair")]
-pub unsafe extern "C" fn destack_net_socket_open_pair(
+pub(crate) unsafe extern "C" fn destack_net_socket_open_pair(
     out: *mut SocketPair,
     family: SocketFamily,
     sockettype: SocketType,
@@ -14347,7 +14243,7 @@ pub unsafe extern "C" fn destack_net_socket_open_pair(
 }
 
 #[unsafe(export_name = "destack.net.socket.read")]
-pub unsafe extern "C" fn destack_net_socket_read(
+pub(crate) unsafe extern "C" fn destack_net_socket_read(
     out: *mut u64,
     handle: resource::SocketHandle,
     buffer: NativeSlice<u8>,
@@ -14365,7 +14261,7 @@ pub unsafe extern "C" fn destack_net_socket_read(
 }
 
 #[unsafe(export_name = "destack.net.socket.readv")]
-pub unsafe extern "C" fn destack_net_socket_readv(
+pub(crate) unsafe extern "C" fn destack_net_socket_readv(
     out: *mut u64,
     handle: resource::SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -14383,7 +14279,7 @@ pub unsafe extern "C" fn destack_net_socket_readv(
 }
 
 #[unsafe(export_name = "destack.net.socket.recvFrom")]
-pub unsafe extern "C" fn destack_net_socket_recv_from(
+pub(crate) unsafe extern "C" fn destack_net_socket_recv_from(
     out: *mut SocketRecvFrom,
     handle: resource::SocketHandle,
     buffer: NativeSlice<u8>,
@@ -14402,7 +14298,7 @@ pub unsafe extern "C" fn destack_net_socket_recv_from(
 }
 
 #[unsafe(export_name = "destack.net.socket.recvMmsg")]
-pub unsafe extern "C" fn destack_net_socket_recv_mmsg(
+pub(crate) unsafe extern "C" fn destack_net_socket_recv_mmsg(
     out: *mut NativeArray<SocketRecvMessage>,
     handle: resource::SocketHandle,
     requests: NativeSlice<SocketRecvBatchRequest>,
@@ -14439,7 +14335,7 @@ pub unsafe extern "C" fn destack_net_socket_recv_mmsg(
 }
 
 #[unsafe(export_name = "destack.net.socket.recvMsg")]
-pub unsafe extern "C" fn destack_net_socket_recv_msg(
+pub(crate) unsafe extern "C" fn destack_net_socket_recv_msg(
     out: *mut SocketRecvMessage,
     handle: resource::SocketHandle,
     buffer: NativeSlice<u8>,
@@ -14479,7 +14375,7 @@ pub unsafe extern "C" fn destack_net_socket_recv_msg(
 }
 
 #[unsafe(export_name = "destack.net.socket.sendMmsg")]
-pub unsafe extern "C" fn destack_net_socket_send_mmsg(
+pub(crate) unsafe extern "C" fn destack_net_socket_send_mmsg(
     out: *mut u64,
     handle: resource::SocketHandle,
     messages: NativeSlice<SocketSendBatchEntry>,
@@ -14497,7 +14393,7 @@ pub unsafe extern "C" fn destack_net_socket_send_mmsg(
 }
 
 #[unsafe(export_name = "destack.net.socket.sendMsg")]
-pub unsafe extern "C" fn destack_net_socket_send_msg(
+pub(crate) unsafe extern "C" fn destack_net_socket_send_msg(
     out: *mut u64,
     handle: resource::SocketHandle,
     buffer: NativeSlice<u8>,
@@ -14516,7 +14412,7 @@ pub unsafe extern "C" fn destack_net_socket_send_msg(
 }
 
 #[unsafe(export_name = "destack.net.socket.sendTo")]
-pub unsafe extern "C" fn destack_net_socket_send_to(
+pub(crate) unsafe extern "C" fn destack_net_socket_send_to(
     out: *mut u64,
     handle: resource::SocketHandle,
     buffer: NativeSlice<u8>,
@@ -14535,7 +14431,7 @@ pub unsafe extern "C" fn destack_net_socket_send_to(
 }
 
 #[unsafe(export_name = "destack.net.socket.setNonblocking")]
-pub unsafe extern "C" fn destack_net_socket_set_nonblocking(
+pub(crate) unsafe extern "C" fn destack_net_socket_set_nonblocking(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeStatus {
@@ -14549,7 +14445,7 @@ pub unsafe extern "C" fn destack_net_socket_set_nonblocking(
 }
 
 #[unsafe(export_name = "destack.net.socket.shutdown")]
-pub unsafe extern "C" fn destack_net_socket_shutdown(
+pub(crate) unsafe extern "C" fn destack_net_socket_shutdown(
     handle: resource::SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeStatus {
@@ -14563,7 +14459,7 @@ pub unsafe extern "C" fn destack_net_socket_shutdown(
 }
 
 #[unsafe(export_name = "destack.net.socket.write")]
-pub unsafe extern "C" fn destack_net_socket_write(
+pub(crate) unsafe extern "C" fn destack_net_socket_write(
     out: *mut u64,
     handle: resource::SocketHandle,
     buffer: NativeSlice<u8>,
@@ -14581,7 +14477,7 @@ pub unsafe extern "C" fn destack_net_socket_write(
 }
 
 #[unsafe(export_name = "destack.net.socket.writev")]
-pub unsafe extern "C" fn destack_net_socket_writev(
+pub(crate) unsafe extern "C" fn destack_net_socket_writev(
     out: *mut u64,
     handle: resource::SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -14599,7 +14495,7 @@ pub unsafe extern "C" fn destack_net_socket_writev(
 }
 
 #[unsafe(export_name = "destack.net.tcp.getKeepAlive")]
-pub unsafe extern "C" fn destack_net_tcp_get_keep_alive(
+pub(crate) unsafe extern "C" fn destack_net_tcp_get_keep_alive(
     out: *mut KeepAliveConfig,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -14616,7 +14512,7 @@ pub unsafe extern "C" fn destack_net_tcp_get_keep_alive(
 }
 
 #[unsafe(export_name = "destack.net.tcp.getNoDelay")]
-pub unsafe extern "C" fn destack_net_tcp_get_no_delay(
+pub(crate) unsafe extern "C" fn destack_net_tcp_get_no_delay(
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -14633,7 +14529,7 @@ pub unsafe extern "C" fn destack_net_tcp_get_no_delay(
 }
 
 #[unsafe(export_name = "destack.net.tcp.setKeepAlive")]
-pub unsafe extern "C" fn destack_net_tcp_set_keep_alive(
+pub(crate) unsafe extern "C" fn destack_net_tcp_set_keep_alive(
     handle: resource::SocketHandle,
     config: KeepAliveConfig,
 ) -> RuntimeStatus {
@@ -14647,7 +14543,7 @@ pub unsafe extern "C" fn destack_net_tcp_set_keep_alive(
 }
 
 #[unsafe(export_name = "destack.net.tcp.setNoDelay")]
-pub unsafe extern "C" fn destack_net_tcp_set_no_delay(
+pub(crate) unsafe extern "C" fn destack_net_tcp_set_no_delay(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeStatus {
@@ -14661,7 +14557,7 @@ pub unsafe extern "C" fn destack_net_tcp_set_no_delay(
 }
 
 #[unsafe(export_name = "destack.net.udp.bind")]
-pub unsafe extern "C" fn destack_net_udp_bind(
+pub(crate) unsafe extern "C" fn destack_net_udp_bind(
     handle: resource::SocketHandle,
     address: SocketAddress,
 ) -> RuntimeStatus {
@@ -14674,7 +14570,7 @@ pub unsafe extern "C" fn destack_net_udp_bind(
 }
 
 #[unsafe(export_name = "destack.net.udp.connect")]
-pub unsafe extern "C" fn destack_net_udp_connect(
+pub(crate) unsafe extern "C" fn destack_net_udp_connect(
     handle: resource::SocketHandle,
     address: SocketAddress,
 ) -> RuntimeStatus {
@@ -14688,7 +14584,7 @@ pub unsafe extern "C" fn destack_net_udp_connect(
 }
 
 #[unsafe(export_name = "destack.net.udp.getMulticastInterfaceV4")]
-pub unsafe extern "C" fn destack_net_udp_get_multicast_interface_v4(
+pub(crate) unsafe extern "C" fn destack_net_udp_get_multicast_interface_v4(
     out: *mut NativeStringRef,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -14705,7 +14601,7 @@ pub unsafe extern "C" fn destack_net_udp_get_multicast_interface_v4(
 }
 
 #[unsafe(export_name = "destack.net.udp.getMulticastInterfaceV6")]
-pub unsafe extern "C" fn destack_net_udp_get_multicast_interface_v6(
+pub(crate) unsafe extern "C" fn destack_net_udp_get_multicast_interface_v6(
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -14722,7 +14618,7 @@ pub unsafe extern "C" fn destack_net_udp_get_multicast_interface_v6(
 }
 
 #[unsafe(export_name = "destack.net.udp.getMulticastLoop")]
-pub unsafe extern "C" fn destack_net_udp_get_multicast_loop(
+pub(crate) unsafe extern "C" fn destack_net_udp_get_multicast_loop(
     out: *mut bool,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -14739,7 +14635,7 @@ pub unsafe extern "C" fn destack_net_udp_get_multicast_loop(
 }
 
 #[unsafe(export_name = "destack.net.udp.getMulticastTtl")]
-pub unsafe extern "C" fn destack_net_udp_get_multicast_ttl(
+pub(crate) unsafe extern "C" fn destack_net_udp_get_multicast_ttl(
     out: *mut u32,
     handle: resource::SocketHandle,
 ) -> RuntimeStatus {
@@ -14756,7 +14652,7 @@ pub unsafe extern "C" fn destack_net_udp_get_multicast_ttl(
 }
 
 #[unsafe(export_name = "destack.net.udp.joinMulticastSourceV4")]
-pub unsafe extern "C" fn destack_net_udp_join_multicast_source_v4(
+pub(crate) unsafe extern "C" fn destack_net_udp_join_multicast_source_v4(
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeStatus {
@@ -14770,7 +14666,7 @@ pub unsafe extern "C" fn destack_net_udp_join_multicast_source_v4(
 }
 
 #[unsafe(export_name = "destack.net.udp.joinMulticastSourceV6")]
-pub unsafe extern "C" fn destack_net_udp_join_multicast_source_v6(
+pub(crate) unsafe extern "C" fn destack_net_udp_join_multicast_source_v6(
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeStatus {
@@ -14784,7 +14680,7 @@ pub unsafe extern "C" fn destack_net_udp_join_multicast_source_v6(
 }
 
 #[unsafe(export_name = "destack.net.udp.joinMulticastV4")]
-pub unsafe extern "C" fn destack_net_udp_join_multicast_v4(
+pub(crate) unsafe extern "C" fn destack_net_udp_join_multicast_v4(
     handle: resource::SocketHandle,
     group: NativeStringRef,
     interfaceaddress: NativeStringRef,
@@ -14799,7 +14695,7 @@ pub unsafe extern "C" fn destack_net_udp_join_multicast_v4(
 }
 
 #[unsafe(export_name = "destack.net.udp.joinMulticastV6")]
-pub unsafe extern "C" fn destack_net_udp_join_multicast_v6(
+pub(crate) unsafe extern "C" fn destack_net_udp_join_multicast_v6(
     handle: resource::SocketHandle,
     group: NativeStringRef,
     interfaceindex: u32,
@@ -14814,7 +14710,7 @@ pub unsafe extern "C" fn destack_net_udp_join_multicast_v6(
 }
 
 #[unsafe(export_name = "destack.net.udp.leaveMulticastSourceV4")]
-pub unsafe extern "C" fn destack_net_udp_leave_multicast_source_v4(
+pub(crate) unsafe extern "C" fn destack_net_udp_leave_multicast_source_v4(
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeStatus {
@@ -14828,7 +14724,7 @@ pub unsafe extern "C" fn destack_net_udp_leave_multicast_source_v4(
 }
 
 #[unsafe(export_name = "destack.net.udp.leaveMulticastSourceV6")]
-pub unsafe extern "C" fn destack_net_udp_leave_multicast_source_v6(
+pub(crate) unsafe extern "C" fn destack_net_udp_leave_multicast_source_v6(
     handle: resource::SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeStatus {
@@ -14842,7 +14738,7 @@ pub unsafe extern "C" fn destack_net_udp_leave_multicast_source_v6(
 }
 
 #[unsafe(export_name = "destack.net.udp.leaveMulticastV4")]
-pub unsafe extern "C" fn destack_net_udp_leave_multicast_v4(
+pub(crate) unsafe extern "C" fn destack_net_udp_leave_multicast_v4(
     handle: resource::SocketHandle,
     group: NativeStringRef,
     interfaceaddress: NativeStringRef,
@@ -14857,7 +14753,7 @@ pub unsafe extern "C" fn destack_net_udp_leave_multicast_v4(
 }
 
 #[unsafe(export_name = "destack.net.udp.leaveMulticastV6")]
-pub unsafe extern "C" fn destack_net_udp_leave_multicast_v6(
+pub(crate) unsafe extern "C" fn destack_net_udp_leave_multicast_v6(
     handle: resource::SocketHandle,
     group: NativeStringRef,
     interfaceindex: u32,
@@ -14872,7 +14768,7 @@ pub unsafe extern "C" fn destack_net_udp_leave_multicast_v6(
 }
 
 #[unsafe(export_name = "destack.net.udp.recvFrom")]
-pub unsafe extern "C" fn destack_net_udp_recv_from(
+pub(crate) unsafe extern "C" fn destack_net_udp_recv_from(
     out: *mut UdpReceive,
     handle: resource::SocketHandle,
     buffer: NativeSlice<u8>,
@@ -14891,7 +14787,7 @@ pub unsafe extern "C" fn destack_net_udp_recv_from(
 }
 
 #[unsafe(export_name = "destack.net.udp.sendTo")]
-pub unsafe extern "C" fn destack_net_udp_send_to(
+pub(crate) unsafe extern "C" fn destack_net_udp_send_to(
     out: *mut u64,
     handle: resource::SocketHandle,
     address: SocketAddress,
@@ -14911,7 +14807,7 @@ pub unsafe extern "C" fn destack_net_udp_send_to(
 }
 
 #[unsafe(export_name = "destack.net.udp.setMulticastInterfaceV4")]
-pub unsafe extern "C" fn destack_net_udp_set_multicast_interface_v4(
+pub(crate) unsafe extern "C" fn destack_net_udp_set_multicast_interface_v4(
     handle: resource::SocketHandle,
     interfaceaddress: NativeStringRef,
 ) -> RuntimeStatus {
@@ -14925,7 +14821,7 @@ pub unsafe extern "C" fn destack_net_udp_set_multicast_interface_v4(
 }
 
 #[unsafe(export_name = "destack.net.udp.setMulticastInterfaceV6")]
-pub unsafe extern "C" fn destack_net_udp_set_multicast_interface_v6(
+pub(crate) unsafe extern "C" fn destack_net_udp_set_multicast_interface_v6(
     handle: resource::SocketHandle,
     interfaceindex: u32,
 ) -> RuntimeStatus {
@@ -14939,7 +14835,7 @@ pub unsafe extern "C" fn destack_net_udp_set_multicast_interface_v6(
 }
 
 #[unsafe(export_name = "destack.net.udp.setMulticastLoop")]
-pub unsafe extern "C" fn destack_net_udp_set_multicast_loop(
+pub(crate) unsafe extern "C" fn destack_net_udp_set_multicast_loop(
     handle: resource::SocketHandle,
     enabled: bool,
 ) -> RuntimeStatus {
@@ -14953,7 +14849,7 @@ pub unsafe extern "C" fn destack_net_udp_set_multicast_loop(
 }
 
 #[unsafe(export_name = "destack.net.udp.setMulticastTtl")]
-pub unsafe extern "C" fn destack_net_udp_set_multicast_ttl(
+pub(crate) unsafe extern "C" fn destack_net_udp_set_multicast_ttl(
     handle: resource::SocketHandle,
     ttl: u32,
 ) -> RuntimeStatus {
@@ -14967,7 +14863,7 @@ pub unsafe extern "C" fn destack_net_udp_set_multicast_ttl(
 }
 
 #[unsafe(export_name = "destack.net.udp.socket")]
-pub unsafe extern "C" fn destack_net_udp_socket(
+pub(crate) unsafe extern "C" fn destack_net_udp_socket(
     out: *mut resource::SocketHandle,
     family: SocketFamily,
 ) -> RuntimeStatus {
@@ -14984,7 +14880,7 @@ pub unsafe extern "C" fn destack_net_udp_socket(
 }
 
 #[unsafe(export_name = "destack.net.uds.udsAccept")]
-pub unsafe extern "C" fn destack_net_uds_uds_accept(
+pub(crate) unsafe extern "C" fn destack_net_uds_uds_accept(
     out: *mut resource::SocketHandle,
     listener: resource::ListenerHandle,
 ) -> RuntimeStatus {
@@ -15001,7 +14897,7 @@ pub unsafe extern "C" fn destack_net_uds_uds_accept(
 }
 
 #[unsafe(export_name = "destack.net.uds.udsCloseListener")]
-pub unsafe extern "C" fn destack_net_uds_uds_close_listener(
+pub(crate) unsafe extern "C" fn destack_net_uds_uds_close_listener(
     handle: resource::ListenerHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -15014,7 +14910,7 @@ pub unsafe extern "C" fn destack_net_uds_uds_close_listener(
 }
 
 #[unsafe(export_name = "destack.net.uds.udsConnect")]
-pub unsafe extern "C" fn destack_net_uds_uds_connect(
+pub(crate) unsafe extern "C" fn destack_net_uds_uds_connect(
     out: *mut resource::SocketHandle,
     address: UdsAddress,
 ) -> RuntimeStatus {
@@ -15031,7 +14927,7 @@ pub unsafe extern "C" fn destack_net_uds_uds_connect(
 }
 
 #[unsafe(export_name = "destack.net.uds.udsListen")]
-pub unsafe extern "C" fn destack_net_uds_uds_listen(
+pub(crate) unsafe extern "C" fn destack_net_uds_uds_listen(
     out: *mut resource::ListenerHandle,
     address: UdsAddress,
     backlog: u32,
@@ -15049,7 +14945,7 @@ pub unsafe extern "C" fn destack_net_uds_uds_listen(
 }
 
 #[unsafe(export_name = "destack.net.uds.udsSocketPair")]
-pub unsafe extern "C" fn destack_net_uds_uds_socket_pair(
+pub(crate) unsafe extern "C" fn destack_net_uds_uds_socket_pair(
     out: *mut SocketPair,
     sockettype: SocketType,
 ) -> RuntimeStatus {
@@ -22027,7 +21923,7 @@ fn destack_net_uds_uds_socket_pair_vm_replay(
 }
 
 /// Register VM bindings for net.
-pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -24142,8 +24038,8 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 }
 
 /// Install VM bindings for net.
-pub fn install_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_net_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub NET_VM_BINDINGS, "net", install_net_vm_bindings);
+vm_binding_set!(pub(crate) NET_VM_BINDINGS, "net", install_net_vm_bindings);

@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -289,7 +290,7 @@ fn encode_destack_ffi_symbol_lookup_result(
 }
 
 /// Binding descriptor for destack.ffi.call.invoke.
-pub const FFI_CALL_INVOKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FFI_CALL_INVOKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ffi.call.invoke",
     "export function call(symbol: SymbolHandle, abi: uint32, flags: uint32, arguments: Slice<uint8>, resultSize: uint32): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -303,7 +304,7 @@ pub const FFI_CALL_INVOKE: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ffi.library.close.
-pub const FFI_LIBRARY_CLOSE: BindingDescriptor =
+pub(crate) const FFI_LIBRARY_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ffi.library.close",
         "export function close(handle: LibraryHandle): Result<void, PlatformError>",
@@ -331,7 +332,7 @@ pub const FFI_LIBRARY_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.ffi.library.open.
-pub const FFI_LIBRARY_OPEN: BindingDescriptor =
+pub(crate) const FFI_LIBRARY_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ffi.library.open",
         "export function open(path: OsPath, flags: uint32): Result<LibraryHandle, PlatformError>",
@@ -359,7 +360,7 @@ pub const FFI_LIBRARY_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.ffi.pointer.address.
-pub const FFI_POINTER_ADDRESS: BindingDescriptor =
+pub(crate) const FFI_POINTER_ADDRESS: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.ffi.pointer.address",
         "export function address(pointer: FfiPointer): Result<uint64, PlatformError>",
@@ -385,7 +386,7 @@ pub const FFI_POINTER_ADDRESS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.ffi.pointer.fromAddress.
-pub const FFI_POINTER_FROM_ADDRESS: BindingDescriptor =
+pub(crate) const FFI_POINTER_FROM_ADDRESS: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.ffi.pointer.fromAddress",
         "export function fromAddress(address: uint64): Result<FfiPointer, PlatformError>",
@@ -411,7 +412,7 @@ pub const FFI_POINTER_FROM_ADDRESS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.ffi.symbol.address.
-pub const FFI_SYMBOL_ADDRESS: BindingDescriptor =
+pub(crate) const FFI_SYMBOL_ADDRESS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.ffi.symbol.address",
         "export function symbolAddress(symbol: SymbolHandle): Result<uint64, PlatformError>",
@@ -439,7 +440,7 @@ pub const FFI_SYMBOL_ADDRESS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.ffi.symbol.lookup.
-pub const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.ffi.symbol.lookup",
     "export function symbolLookup(library: LibraryHandle, name: string): Result<SymbolHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -452,19 +453,8 @@ pub const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::external_wit
     .with_namespace("ffi")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptors for ffi.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    FFI_CALL_INVOKE,
-    FFI_LIBRARY_CLOSE,
-    FFI_LIBRARY_OPEN,
-    FFI_POINTER_ADDRESS,
-    FFI_POINTER_FROM_ADDRESS,
-    FFI_SYMBOL_ADDRESS,
-    FFI_SYMBOL_LOOKUP,
-];
-
 /// Native binding set for ffi.
-pub const FFI_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const FFI_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "ffi",
     bindings: &[
         NativeBinding::new(
@@ -507,7 +497,7 @@ pub const FFI_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 
 /// Native export wrappers for ffi bindings.
 #[unsafe(export_name = "destack.ffi.call.invoke")]
-pub unsafe extern "C" fn destack_ffi_call_invoke(
+pub(crate) unsafe extern "C" fn destack_ffi_call_invoke(
     out: *mut NativeSlice<u8>,
     symbol: resource::SymbolHandle,
     abi: u32,
@@ -541,7 +531,7 @@ pub unsafe extern "C" fn destack_ffi_call_invoke(
 }
 
 #[unsafe(export_name = "destack.ffi.library.close")]
-pub unsafe extern "C" fn destack_ffi_library_close(
+pub(crate) unsafe extern "C" fn destack_ffi_library_close(
     handle: resource::LibraryHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -563,7 +553,7 @@ pub unsafe extern "C" fn destack_ffi_library_close(
 }
 
 #[unsafe(export_name = "destack.ffi.library.open")]
-pub unsafe extern "C" fn destack_ffi_library_open(
+pub(crate) unsafe extern "C" fn destack_ffi_library_open(
     out: *mut resource::LibraryHandle,
     path: fs::OsPath,
     flags: u32,
@@ -590,7 +580,7 @@ pub unsafe extern "C" fn destack_ffi_library_open(
 }
 
 #[unsafe(export_name = "destack.ffi.pointer.address")]
-pub unsafe extern "C" fn destack_ffi_pointer_address(
+pub(crate) unsafe extern "C" fn destack_ffi_pointer_address(
     out: *mut u64,
     pointer: FfiPointer,
 ) -> RuntimeStatus {
@@ -616,7 +606,7 @@ pub unsafe extern "C" fn destack_ffi_pointer_address(
 }
 
 #[unsafe(export_name = "destack.ffi.pointer.fromAddress")]
-pub unsafe extern "C" fn destack_ffi_pointer_from_address(
+pub(crate) unsafe extern "C" fn destack_ffi_pointer_from_address(
     out: *mut FfiPointer,
     address: u64,
 ) -> RuntimeStatus {
@@ -642,7 +632,7 @@ pub unsafe extern "C" fn destack_ffi_pointer_from_address(
 }
 
 #[unsafe(export_name = "destack.ffi.symbol.address")]
-pub unsafe extern "C" fn destack_ffi_symbol_address(
+pub(crate) unsafe extern "C" fn destack_ffi_symbol_address(
     out: *mut u64,
     symbol: resource::SymbolHandle,
 ) -> RuntimeStatus {
@@ -668,7 +658,7 @@ pub unsafe extern "C" fn destack_ffi_symbol_address(
 }
 
 #[unsafe(export_name = "destack.ffi.symbol.lookup")]
-pub unsafe extern "C" fn destack_ffi_symbol_lookup(
+pub(crate) unsafe extern "C" fn destack_ffi_symbol_lookup(
     out: *mut resource::SymbolHandle,
     library: resource::LibraryHandle,
     name: NativeStringRef,
@@ -697,7 +687,7 @@ pub unsafe extern "C" fn destack_ffi_symbol_lookup(
 }
 
 /// Register VM bindings for ffi.
-pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(registry, isolate, FFI_CALL_INVOKE, move |context, args| {
             with_binding_call_context(|binding| {
@@ -903,8 +893,8 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 }
 
 /// Install VM bindings for ffi.
-pub fn install_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_ffi_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub FFI_VM_BINDINGS, "ffi", install_ffi_vm_bindings);
+vm_binding_set!(pub(crate) FFI_VM_BINDINGS, "ffi", install_ffi_vm_bindings);

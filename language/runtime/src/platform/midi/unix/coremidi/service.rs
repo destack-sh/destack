@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::service::affinity::ServiceAffinity;
-use crate::platform::service::executor::CallerThreadExecutor;
+use crate::platform::service::executor::caller::CallerThreadExecutor;
 use crate::platform::service::{self};
 
 use super::abi::{

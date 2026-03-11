@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -589,7 +590,7 @@ struct MemoryQueryPageSizeReplayRecord {
 }
 
 /// Binding descriptor for destack.memory.advise.adviseRange.
-pub const MEMORY_ADVISE_ADVISE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_ADVISE_ADVISE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.advise.adviseRange",
     "export function advise(address: uint64, length: uint64, advice: MemoryAdvice): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -603,7 +604,7 @@ pub const MEMORY_ADVISE_ADVISE_RANGE: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.advise.discard.
-pub const MEMORY_ADVISE_DISCARD: BindingDescriptor =
+pub(crate) const MEMORY_ADVISE_DISCARD: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.advise.discard",
         "export function discard(address: uint64, length: uint64): Result<void, PlatformError>",
@@ -631,7 +632,7 @@ pub const MEMORY_ADVISE_DISCARD: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.memory.advise.hugePage.
-pub const MEMORY_ADVISE_HUGE_PAGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_ADVISE_HUGE_PAGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.advise.hugePage",
     "export function hugePage(address: uint64, length: uint64, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -645,7 +646,7 @@ pub const MEMORY_ADVISE_HUGE_PAGE: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.lock.lockRange.
-pub const MEMORY_LOCK_LOCK_RANGE: BindingDescriptor =
+pub(crate) const MEMORY_LOCK_LOCK_RANGE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.lock.lockRange",
         "export function lock(address: uint64, length: uint64): Result<void, PlatformError>",
@@ -673,7 +674,7 @@ pub const MEMORY_LOCK_LOCK_RANGE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.memory.lock.unlock.
-pub const MEMORY_LOCK_UNLOCK: BindingDescriptor =
+pub(crate) const MEMORY_LOCK_UNLOCK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.lock.unlock",
         "export function unlock(address: uint64, length: uint64): Result<void, PlatformError>",
@@ -701,7 +702,7 @@ pub const MEMORY_LOCK_UNLOCK: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.memory.map.commit.
-pub const MEMORY_MAP_COMMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_MAP_COMMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.map.commit",
     "export function commit(address: uint64, length: uint64, protection: MemoryProtection): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -715,7 +716,7 @@ pub const MEMORY_MAP_COMMIT: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.map.decommit.
-pub const MEMORY_MAP_DECOMMIT: BindingDescriptor =
+pub(crate) const MEMORY_MAP_DECOMMIT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.map.decommit",
         "export function decommit(address: uint64, length: uint64): Result<void, PlatformError>",
@@ -743,7 +744,7 @@ pub const MEMORY_MAP_DECOMMIT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.memory.map.numaBind.
-pub const MEMORY_MAP_NUMA_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_MAP_NUMA_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.map.numaBind",
     "export function numaBind(address: uint64, length: uint64, policy: MemoryNumaPolicy, nodeMask: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -757,7 +758,7 @@ pub const MEMORY_MAP_NUMA_BIND: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.map.release.
-pub const MEMORY_MAP_RELEASE: BindingDescriptor =
+pub(crate) const MEMORY_MAP_RELEASE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.map.release",
         "export function release(address: uint64, length: uint64): Result<void, PlatformError>",
@@ -785,7 +786,7 @@ pub const MEMORY_MAP_RELEASE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.memory.map.reserve.
-pub const MEMORY_MAP_RESERVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_MAP_RESERVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.map.reserve",
     "export function reserve(length: uint64, addressHint: uint64, flags: MemoryReserveFlags): Result<MemoryRange, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -799,7 +800,7 @@ pub const MEMORY_MAP_RESERVE: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.flushInstructionCache.
-pub const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.protect.flushInstructionCache",
     "export function flushInstructionCache(address: uint64, length: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -813,7 +814,7 @@ pub const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = BindingDes
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.protectRange.
-pub const MEMORY_PROTECT_PROTECT_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_PROTECT_PROTECT_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.protect.protectRange",
     "export function protect(address: uint64, length: uint64, protection: MemoryProtection): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -827,7 +828,7 @@ pub const MEMORY_PROTECT_PROTECT_RANGE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.remap.
-pub const MEMORY_PROTECT_REMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_PROTECT_REMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.memory.protect.remap",
     "export function remap(address: uint64, oldLength: uint64, newLength: uint64, flags: MemoryRemapFlags): Result<ProtectedMemoryRange, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -841,7 +842,7 @@ pub const MEMORY_PROTECT_REMAP: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.query.allocationGranularity.
-pub const MEMORY_QUERY_ALLOCATION_GRANULARITY: BindingDescriptor =
+pub(crate) const MEMORY_QUERY_ALLOCATION_GRANULARITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.query.allocationGranularity",
         "export function allocationGranularity(): Result<uint64, PlatformError>",
@@ -869,7 +870,7 @@ pub const MEMORY_QUERY_ALLOCATION_GRANULARITY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.memory.query.hugePageSize.
-pub const MEMORY_QUERY_HUGE_PAGE_SIZE: BindingDescriptor =
+pub(crate) const MEMORY_QUERY_HUGE_PAGE_SIZE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.query.hugePageSize",
         "export function hugePageSize(): Result<uint64 | void, PlatformError>",
@@ -897,7 +898,7 @@ pub const MEMORY_QUERY_HUGE_PAGE_SIZE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.memory.query.pageSize.
-pub const MEMORY_QUERY_PAGE_SIZE: BindingDescriptor =
+pub(crate) const MEMORY_QUERY_PAGE_SIZE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.memory.query.pageSize",
         "export function pageSize(): Result<uint64, PlatformError>",
@@ -924,28 +925,8 @@ pub const MEMORY_QUERY_PAGE_SIZE: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptors for memory.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    MEMORY_ADVISE_ADVISE_RANGE,
-    MEMORY_ADVISE_DISCARD,
-    MEMORY_ADVISE_HUGE_PAGE,
-    MEMORY_LOCK_LOCK_RANGE,
-    MEMORY_LOCK_UNLOCK,
-    MEMORY_MAP_COMMIT,
-    MEMORY_MAP_DECOMMIT,
-    MEMORY_MAP_NUMA_BIND,
-    MEMORY_MAP_RELEASE,
-    MEMORY_MAP_RESERVE,
-    MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE,
-    MEMORY_PROTECT_PROTECT_RANGE,
-    MEMORY_PROTECT_REMAP,
-    MEMORY_QUERY_ALLOCATION_GRANULARITY,
-    MEMORY_QUERY_HUGE_PAGE_SIZE,
-    MEMORY_QUERY_PAGE_SIZE,
-];
-
 /// Native binding set for memory.
-pub const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "memory",
     bindings: &[
         NativeBinding::new(
@@ -1889,7 +1870,7 @@ fn destack_memory_query_page_size_replay(
 
 /// Native export wrappers for memory bindings.
 #[unsafe(export_name = "destack.memory.advise.adviseRange")]
-pub unsafe extern "C" fn destack_memory_advise_advise_range(
+pub(crate) unsafe extern "C" fn destack_memory_advise_advise_range(
     address: u64,
     length: u64,
     advice: MemoryAdvice,
@@ -1904,7 +1885,10 @@ pub unsafe extern "C" fn destack_memory_advise_advise_range(
 }
 
 #[unsafe(export_name = "destack.memory.advise.discard")]
-pub unsafe extern "C" fn destack_memory_advise_discard(address: u64, length: u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_memory_advise_discard(
+    address: u64,
+    length: u64,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&address, &length);
 
@@ -1915,7 +1899,7 @@ pub unsafe extern "C" fn destack_memory_advise_discard(address: u64, length: u64
 }
 
 #[unsafe(export_name = "destack.memory.advise.hugePage")]
-pub unsafe extern "C" fn destack_memory_advise_huge_page(
+pub(crate) unsafe extern "C" fn destack_memory_advise_huge_page(
     address: u64,
     length: u64,
     enabled: bool,
@@ -1930,7 +1914,7 @@ pub unsafe extern "C" fn destack_memory_advise_huge_page(
 }
 
 #[unsafe(export_name = "destack.memory.lock.lockRange")]
-pub unsafe extern "C" fn destack_memory_lock_lock_range(
+pub(crate) unsafe extern "C" fn destack_memory_lock_lock_range(
     address: u64,
     length: u64,
 ) -> RuntimeStatus {
@@ -1944,7 +1928,10 @@ pub unsafe extern "C" fn destack_memory_lock_lock_range(
 }
 
 #[unsafe(export_name = "destack.memory.lock.unlock")]
-pub unsafe extern "C" fn destack_memory_lock_unlock(address: u64, length: u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_memory_lock_unlock(
+    address: u64,
+    length: u64,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&address, &length);
 
@@ -1955,7 +1942,7 @@ pub unsafe extern "C" fn destack_memory_lock_unlock(address: u64, length: u64) -
 }
 
 #[unsafe(export_name = "destack.memory.map.commit")]
-pub unsafe extern "C" fn destack_memory_map_commit(
+pub(crate) unsafe extern "C" fn destack_memory_map_commit(
     address: u64,
     length: u64,
     protection: MemoryProtection,
@@ -1970,7 +1957,10 @@ pub unsafe extern "C" fn destack_memory_map_commit(
 }
 
 #[unsafe(export_name = "destack.memory.map.decommit")]
-pub unsafe extern "C" fn destack_memory_map_decommit(address: u64, length: u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_memory_map_decommit(
+    address: u64,
+    length: u64,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&address, &length);
 
@@ -1981,7 +1971,7 @@ pub unsafe extern "C" fn destack_memory_map_decommit(address: u64, length: u64) 
 }
 
 #[unsafe(export_name = "destack.memory.map.numaBind")]
-pub unsafe extern "C" fn destack_memory_map_numa_bind(
+pub(crate) unsafe extern "C" fn destack_memory_map_numa_bind(
     address: u64,
     length: u64,
     policy: MemoryNumaPolicy,
@@ -1997,7 +1987,10 @@ pub unsafe extern "C" fn destack_memory_map_numa_bind(
 }
 
 #[unsafe(export_name = "destack.memory.map.release")]
-pub unsafe extern "C" fn destack_memory_map_release(address: u64, length: u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_memory_map_release(
+    address: u64,
+    length: u64,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&address, &length);
 
@@ -2008,7 +2001,7 @@ pub unsafe extern "C" fn destack_memory_map_release(address: u64, length: u64) -
 }
 
 #[unsafe(export_name = "destack.memory.map.reserve")]
-pub unsafe extern "C" fn destack_memory_map_reserve(
+pub(crate) unsafe extern "C" fn destack_memory_map_reserve(
     out: *mut MemoryRange,
     length: u64,
     addresshint: u64,
@@ -2027,7 +2020,7 @@ pub unsafe extern "C" fn destack_memory_map_reserve(
 }
 
 #[unsafe(export_name = "destack.memory.protect.flushInstructionCache")]
-pub unsafe extern "C" fn destack_memory_protect_flush_instruction_cache(
+pub(crate) unsafe extern "C" fn destack_memory_protect_flush_instruction_cache(
     address: u64,
     length: u64,
 ) -> RuntimeStatus {
@@ -2041,7 +2034,7 @@ pub unsafe extern "C" fn destack_memory_protect_flush_instruction_cache(
 }
 
 #[unsafe(export_name = "destack.memory.protect.protectRange")]
-pub unsafe extern "C" fn destack_memory_protect_protect_range(
+pub(crate) unsafe extern "C" fn destack_memory_protect_protect_range(
     address: u64,
     length: u64,
     protection: MemoryProtection,
@@ -2056,7 +2049,7 @@ pub unsafe extern "C" fn destack_memory_protect_protect_range(
 }
 
 #[unsafe(export_name = "destack.memory.protect.remap")]
-pub unsafe extern "C" fn destack_memory_protect_remap(
+pub(crate) unsafe extern "C" fn destack_memory_protect_remap(
     out: *mut ProtectedMemoryRange,
     address: u64,
     oldlength: u64,
@@ -2078,7 +2071,7 @@ pub unsafe extern "C" fn destack_memory_protect_remap(
 }
 
 #[unsafe(export_name = "destack.memory.query.allocationGranularity")]
-pub unsafe extern "C" fn destack_memory_query_allocation_granularity(
+pub(crate) unsafe extern "C" fn destack_memory_query_allocation_granularity(
     out: *mut u64,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2094,7 +2087,7 @@ pub unsafe extern "C" fn destack_memory_query_allocation_granularity(
 }
 
 #[unsafe(export_name = "destack.memory.query.hugePageSize")]
-pub unsafe extern "C" fn destack_memory_query_huge_page_size(
+pub(crate) unsafe extern "C" fn destack_memory_query_huge_page_size(
     out: *mut Option<u64>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2110,7 +2103,7 @@ pub unsafe extern "C" fn destack_memory_query_huge_page_size(
 }
 
 #[unsafe(export_name = "destack.memory.query.pageSize")]
-pub unsafe extern "C" fn destack_memory_query_page_size(out: *mut u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_memory_query_page_size(out: *mut u64) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -3028,7 +3021,7 @@ fn destack_memory_query_page_size_vm_replay(
 }
 
 /// Register VM bindings for memory.
-pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -3362,8 +3355,8 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 }
 
 /// Install VM bindings for memory.
-pub fn install_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_memory_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub MEMORY_VM_BINDINGS, "memory", install_memory_vm_bindings);
+vm_binding_set!(pub(crate) MEMORY_VM_BINDINGS, "memory", install_memory_vm_bindings);

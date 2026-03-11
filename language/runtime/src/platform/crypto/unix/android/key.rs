@@ -97,6 +97,34 @@ fn host_digest_algorithm(
     Ok(encoded)
 }
 
+/// Resolve one signature digest for Android host callback ABI values.
+fn resolved_signature_digest(
+    parameters: CryptoSignatureParameters,
+    operation: &'static str,
+) -> RuntimeResult<u32> {
+    let digest = parameters.digest.unwrap_or(CryptoDigestAlgorithm::Unknown);
+
+    host_digest_algorithm(digest, operation)
+}
+
+/// Resolve one asymmetric decryption digest for Android host callback ABI values.
+fn resolved_asymmetric_digest(
+    parameters: CryptoAsymmetricEncryptionParameters,
+    operation: &'static str,
+) -> RuntimeResult<u32> {
+    let digest = parameters.digest.unwrap_or(CryptoDigestAlgorithm::Unknown);
+
+    host_digest_algorithm(digest, operation)
+}
+
+/// Resolve one MAC digest for Android host callback ABI values.
+fn resolved_mac_digest(
+    parameters: CryptoMacParameters,
+    operation: &'static str,
+) -> RuntimeResult<u32> {
+    host_digest_algorithm(parameters.digest, operation)
+}
+
 /// Encode one asymmetric encryption algorithm for Android host callback ABI values.
 fn host_asymmetric_algorithm(
     algorithm: CryptoAsymmetricEncryptionAlgorithm,
@@ -677,12 +705,15 @@ pub(crate) fn host_key_sign(
 
         let runtime_id = host_runtime_id(binding, operation)?;
 
+        // encode host arguments
         let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
         let encoded_signature_algorithm =
             host_signature_algorithm(parameters.algorithm, operation)?;
-        let encoded_digest = host_digest_algorithm(parameters.digest, operation)?;
+        let encoded_digest = resolved_signature_digest(parameters, operation)?;
+        let salt_length_bytes = parameters.salt_length_bytes.unwrap_or(0);
         let key_label = NativeStringRef::from(&key.key_label);
 
+        // run one host signature operation
         let signature =
             run_host_output(operation, "sign_hardware_key", |output, written| unsafe {
                 destack_host_android_crypto_sign_hardware_key(
@@ -691,7 +722,7 @@ pub(crate) fn host_key_sign(
                     key_label,
                     encoded_signature_algorithm,
                     encoded_digest,
-                    parameters.salt_length_bytes,
+                    salt_length_bytes,
                     NativeSlice {
                         data: payload.as_ptr() as *mut u8,
                         len: payload.len() as u32,
@@ -736,10 +767,11 @@ pub(crate) fn host_key_decrypt(
 
         let runtime_id = host_runtime_id(binding, operation)?;
 
+        // encode host arguments
         let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
         let encoded_asymmetric_algorithm =
             host_asymmetric_algorithm(parameters.algorithm, operation)?;
-        let encoded_digest = host_digest_algorithm(parameters.digest, operation)?;
+        let encoded_digest = resolved_asymmetric_digest(parameters, operation)?;
         let key_label = NativeStringRef::from(&key.key_label);
         let label = if parameters.label.len == 0 {
             Vec::new()
@@ -914,6 +946,7 @@ pub(crate) fn host_key_cipher_encrypt(
     let nonce = crypto_core::decode_native_bytes(parameters.nonce, "parameters.nonce")?;
     let additional_data =
         crypto_core::decode_native_bytes(parameters.additional_data, "parameters.additionalData")?;
+    let tag_length_bytes = parameters.tag_length_bytes.unwrap_or(0);
 
     run_host_cipher_output(
         operation,
@@ -932,7 +965,7 @@ pub(crate) fn host_key_cipher_encrypt(
                     data: additional_data.as_ptr() as *mut u8,
                     len: additional_data.len() as u32,
                 },
-                parameters.tag_length_bytes,
+                tag_length_bytes,
                 NativeSlice {
                     data: payload.as_ptr() as *mut u8,
                     len: payload.len() as u32,
@@ -1026,11 +1059,14 @@ pub(crate) fn host_key_mac_compute(
 
     let runtime_id = host_runtime_id(binding, operation)?;
 
+    // encode host arguments
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
     let encoded_mac_algorithm = host_mac_algorithm(parameters.algorithm, operation)?;
-    let encoded_digest = host_digest_algorithm(parameters.digest, operation)?;
+    let encoded_digest = resolved_mac_digest(parameters, operation)?;
+    let tag_length_bytes = parameters.tag_length_bytes.unwrap_or(0);
     let key_label = NativeStringRef::from(&key.key_label);
 
+    // run one host mac operation
     run_host_output(
         operation,
         "compute_hardware_mac",
@@ -1041,7 +1077,7 @@ pub(crate) fn host_key_mac_compute(
                 key_label,
                 encoded_mac_algorithm,
                 encoded_digest,
-                parameters.tag_length_bytes,
+                tag_length_bytes,
                 NativeSlice {
                     data: payload.as_ptr() as *mut u8,
                     len: payload.len() as u32,

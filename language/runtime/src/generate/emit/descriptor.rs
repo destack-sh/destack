@@ -31,7 +31,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 binding.extern_name
             ));
             output.push_str(&format!(
-                "pub const {}: BindingDescriptor = BindingDescriptor::{}(\n",
+                "pub(crate) const {}: BindingDescriptor = BindingDescriptor::{}(\n",
                 binding.const_name, ctor,
             ));
             output.push_str(&format!("    \"{}\",\n", binding.extern_name));
@@ -112,18 +112,5 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 }
             }
         }
-    }
-
-    /// Render the descriptor slice for a domain.
-    pub(super) fn write_bindings_slice(&mut self) {
-        let output = &mut self.output;
-        let domain = self.spec.module;
-        let consts = &self.spec.consts;
-        output.push_str(&format!("/// Binding descriptors for {domain}.\n"));
-        output.push_str("pub const BINDINGS: &[BindingDescriptor] = &[\n");
-        for binding in consts {
-            output.push_str(&format!("    {},\n", binding.const_name));
-        }
-        output.push_str("];\n\n");
     }
 }

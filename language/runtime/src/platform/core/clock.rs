@@ -1,6 +1,5 @@
 /// Return one process-monotonic timestamp in nanoseconds.
 #[cfg(any(unix, windows))]
-#[allow(dead_code)]
 pub(crate) fn monotonic_now_ns() -> u64 {
     // use the native Apple host-time domain
     #[cfg(target_vendor = "apple")]

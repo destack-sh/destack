@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -3023,7 +3024,7 @@ struct AudioStreamWritevReplayRecord {
 }
 
 /// Binding descriptor for destack.audio.backend.list.
-pub const AUDIO_BACKEND_LIST: BindingDescriptor =
+pub(crate) const AUDIO_BACKEND_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.backend.list",
         "export function backendList(): Result<Slice<AudioBackendDescriptor>, PlatformError>",
@@ -3051,7 +3052,7 @@ pub const AUDIO_BACKEND_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.audio.clock.now.
-pub const AUDIO_CLOCK_NOW: BindingDescriptor =
+pub(crate) const AUDIO_CLOCK_NOW: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.clock.now",
         "export function clockNow(domain: AudioClockDomain): Result<uint64, PlatformError>",
@@ -3079,7 +3080,7 @@ pub const AUDIO_CLOCK_NOW: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.audio.clock.stream.
-pub const AUDIO_CLOCK_STREAM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_CLOCK_STREAM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.clock.stream",
     "export function streamClock(handle: AudioStreamHandle, domain: AudioStreamClockDomain): Result<AudioClockSnapshot, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3093,7 +3094,7 @@ pub const AUDIO_CLOCK_STREAM: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.device.close.
-pub const AUDIO_DEVICE_CLOSE: BindingDescriptor =
+pub(crate) const AUDIO_DEVICE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.device.close",
         "export function deviceClose(handle: AudioDeviceHandle): Result<void, PlatformError>",
@@ -3121,7 +3122,7 @@ pub const AUDIO_DEVICE_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.audio.device.default.
-pub const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.device.default",
     "export function deviceDefault(direction: AudioDeviceDirection, backend: AudioBackend, backendPolicy: AudioBackendSelectionPolicy): Result<string, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3135,7 +3136,7 @@ pub const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.device.descriptor.
-pub const AUDIO_DEVICE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_DEVICE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.device.descriptor",
     "export function deviceDescriptor(handle: AudioDeviceHandle): Result<AudioDeviceDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3149,7 +3150,7 @@ pub const AUDIO_DEVICE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.device.list.
-pub const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.device.list",
     "export function deviceList(request: AudioDeviceListRequest): Result<Slice<AudioDeviceDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3163,7 +3164,7 @@ pub const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.device.open.
-pub const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.device.open",
     "export function deviceOpen(id: string, options: AudioDeviceOpenOptions): Result<AudioDeviceHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3177,7 +3178,7 @@ pub const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.device.rescan.
-pub const AUDIO_DEVICE_RESCAN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_DEVICE_RESCAN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.device.rescan",
     "export function deviceRescan(backend: AudioBackend, backendPolicy: AudioBackendSelectionPolicy): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3191,7 +3192,7 @@ pub const AUDIO_DEVICE_RESCAN: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.event.close.
-pub const AUDIO_EVENT_CLOSE: BindingDescriptor =
+pub(crate) const AUDIO_EVENT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.event.close",
         "export function eventClose(handle: AudioEventHandle): Result<void, PlatformError>",
@@ -3219,7 +3220,7 @@ pub const AUDIO_EVENT_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.audio.event.open.
-pub const AUDIO_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.event.open",
     "export function eventOpen(options: AudioEventSubscriptionOptions): Result<AudioEventHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3233,7 +3234,7 @@ pub const AUDIO_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.event.read.
-pub const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.event.read",
     "export function eventRead(handle: AudioEventHandle, timeoutNs: uint64): Result<AudioEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3247,7 +3248,7 @@ pub const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.event.readBatch.
-pub const AUDIO_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.event.readBatch",
     "export function eventReadBatch(handle: AudioEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<Slice<AudioEvent>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3261,7 +3262,7 @@ pub const AUDIO_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.event.tryRead.
-pub const AUDIO_EVENT_TRY_READ: BindingDescriptor =
+pub(crate) const AUDIO_EVENT_TRY_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.event.tryRead",
         "export function eventTryRead(handle: AudioEventHandle): Result<AudioEvent, PlatformError>",
@@ -3289,7 +3290,7 @@ pub const AUDIO_EVENT_TRY_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.audio.event.tryReadBatch.
-pub const AUDIO_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.event.tryReadBatch",
     "export function eventTryReadBatch(handle: AudioEventHandle, maxEvents: uint32): Result<Slice<AudioEvent>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3303,7 +3304,7 @@ pub const AUDIO_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.abort.
-pub const AUDIO_STREAM_ABORT: BindingDescriptor =
+pub(crate) const AUDIO_STREAM_ABORT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.stream.abort",
         "export function streamAbort(handle: AudioStreamHandle): Result<void, PlatformError>",
@@ -3331,7 +3332,7 @@ pub const AUDIO_STREAM_ABORT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.audio.stream.availability.
-pub const AUDIO_STREAM_AVAILABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_AVAILABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.availability",
     "export function streamAvailability(handle: AudioStreamHandle): Result<AudioStreamAvailability, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3345,7 +3346,7 @@ pub const AUDIO_STREAM_AVAILABILITY: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.close.
-pub const AUDIO_STREAM_CLOSE: BindingDescriptor =
+pub(crate) const AUDIO_STREAM_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.stream.close",
         "export function streamClose(handle: AudioStreamHandle): Result<void, PlatformError>",
@@ -3373,7 +3374,7 @@ pub const AUDIO_STREAM_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.audio.stream.descriptor.
-pub const AUDIO_STREAM_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.descriptor",
     "export function streamDescriptor(handle: AudioStreamHandle): Result<AudioStreamDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3387,7 +3388,7 @@ pub const AUDIO_STREAM_DESCRIPTOR: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.drain.
-pub const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.drain",
     "export function streamDrain(handle: AudioStreamHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3401,7 +3402,7 @@ pub const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.flush.
-pub const AUDIO_STREAM_FLUSH: BindingDescriptor =
+pub(crate) const AUDIO_STREAM_FLUSH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.stream.flush",
         "export function streamFlush(handle: AudioStreamHandle): Result<void, PlatformError>",
@@ -3429,7 +3430,7 @@ pub const AUDIO_STREAM_FLUSH: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.audio.stream.open.
-pub const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.open",
     "export function streamOpen(device: AudioDeviceHandle, config: AudioStreamConfig, options: AudioStreamOpenOptions): Result<AudioStreamHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3443,7 +3444,7 @@ pub const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.pause.
-pub const AUDIO_STREAM_PAUSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_PAUSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.pause",
     "export function streamPause(handle: AudioStreamHandle, pause: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3457,7 +3458,7 @@ pub const AUDIO_STREAM_PAUSE: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.read.
-pub const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.read",
     "export function streamRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3471,7 +3472,7 @@ pub const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.readv.
-pub const AUDIO_STREAM_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.readv",
     "export function streamReadv(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3485,7 +3486,7 @@ pub const AUDIO_STREAM_READV: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.setMute.
-pub const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.setMute",
     "export function streamSetMute(handle: AudioStreamHandle, muted: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3499,7 +3500,7 @@ pub const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.setName.
-pub const AUDIO_STREAM_SET_NAME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_SET_NAME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.setName",
     "export function streamSetName(handle: AudioStreamHandle, name: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3513,7 +3514,7 @@ pub const AUDIO_STREAM_SET_NAME: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.setVolume.
-pub const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.setVolume",
     "export function streamSetVolume(handle: AudioStreamHandle, linearGain: float64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3527,7 +3528,7 @@ pub const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.start.
-pub const AUDIO_STREAM_START: BindingDescriptor =
+pub(crate) const AUDIO_STREAM_START: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.stream.start",
         "export function streamStart(handle: AudioStreamHandle): Result<void, PlatformError>",
@@ -3555,7 +3556,7 @@ pub const AUDIO_STREAM_START: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.audio.stream.state.
-pub const AUDIO_STREAM_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.state",
     "export function streamState(handle: AudioStreamHandle): Result<AudioStreamState, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3569,7 +3570,7 @@ pub const AUDIO_STREAM_STATE: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.stop.
-pub const AUDIO_STREAM_STOP: BindingDescriptor =
+pub(crate) const AUDIO_STREAM_STOP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.audio.stream.stop",
         "export function streamStop(handle: AudioStreamHandle): Result<void, PlatformError>",
@@ -3597,7 +3598,7 @@ pub const AUDIO_STREAM_STOP: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.audio.stream.support.
-pub const AUDIO_STREAM_SUPPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_SUPPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.support",
     "export function streamSupport(device: AudioDeviceHandle, config: AudioStreamConfig, options: AudioStreamOpenOptions): Result<AudioStreamSupport, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3611,7 +3612,7 @@ pub const AUDIO_STREAM_SUPPORT: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.timing.
-pub const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.timing",
     "export function streamTiming(handle: AudioStreamHandle): Result<AudioStreamTiming, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3625,7 +3626,7 @@ pub const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryRead.
-pub const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.tryRead",
     "export function streamTryRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3639,7 +3640,7 @@ pub const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryReadv.
-pub const AUDIO_STREAM_TRY_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_TRY_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.tryReadv",
     "export function streamTryReadv(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3653,7 +3654,7 @@ pub const AUDIO_STREAM_TRY_READV: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryWrite.
-pub const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.tryWrite",
     "export function streamTryWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3667,7 +3668,7 @@ pub const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryWritev.
-pub const AUDIO_STREAM_TRY_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_TRY_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.tryWritev",
     "export function streamTryWritev(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3681,7 +3682,7 @@ pub const AUDIO_STREAM_TRY_WRITEV: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.write.
-pub const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.write",
     "export function streamWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3695,7 +3696,7 @@ pub const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.writeAt.
-pub const AUDIO_STREAM_WRITE_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_WRITE_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.writeAt",
     "export function streamWriteAt(handle: AudioStreamHandle, data: Slice<uint8>, presentationTimeNs: uint64): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3709,7 +3710,7 @@ pub const AUDIO_STREAM_WRITE_AT: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.writeAtv.
-pub const AUDIO_STREAM_WRITE_ATV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_WRITE_ATV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.writeAtv",
     "export function streamWriteAtv(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>, presentationTimeNs: uint64): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3723,7 +3724,7 @@ pub const AUDIO_STREAM_WRITE_ATV: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.writev.
-pub const AUDIO_STREAM_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const AUDIO_STREAM_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.writev",
     "export function streamWritev(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3736,53 +3737,8 @@ pub const AUDIO_STREAM_WRITEV: BindingDescriptor = BindingDescriptor::external_w
     .with_namespace("audio")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptors for audio.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    AUDIO_BACKEND_LIST,
-    AUDIO_CLOCK_NOW,
-    AUDIO_CLOCK_STREAM,
-    AUDIO_DEVICE_CLOSE,
-    AUDIO_DEVICE_DEFAULT,
-    AUDIO_DEVICE_DESCRIPTOR,
-    AUDIO_DEVICE_LIST,
-    AUDIO_DEVICE_OPEN,
-    AUDIO_DEVICE_RESCAN,
-    AUDIO_EVENT_CLOSE,
-    AUDIO_EVENT_OPEN,
-    AUDIO_EVENT_READ,
-    AUDIO_EVENT_READ_BATCH,
-    AUDIO_EVENT_TRY_READ,
-    AUDIO_EVENT_TRY_READ_BATCH,
-    AUDIO_STREAM_ABORT,
-    AUDIO_STREAM_AVAILABILITY,
-    AUDIO_STREAM_CLOSE,
-    AUDIO_STREAM_DESCRIPTOR,
-    AUDIO_STREAM_DRAIN,
-    AUDIO_STREAM_FLUSH,
-    AUDIO_STREAM_OPEN,
-    AUDIO_STREAM_PAUSE,
-    AUDIO_STREAM_READ,
-    AUDIO_STREAM_READV,
-    AUDIO_STREAM_SET_MUTE,
-    AUDIO_STREAM_SET_NAME,
-    AUDIO_STREAM_SET_VOLUME,
-    AUDIO_STREAM_START,
-    AUDIO_STREAM_STATE,
-    AUDIO_STREAM_STOP,
-    AUDIO_STREAM_SUPPORT,
-    AUDIO_STREAM_TIMING,
-    AUDIO_STREAM_TRY_READ,
-    AUDIO_STREAM_TRY_READV,
-    AUDIO_STREAM_TRY_WRITE,
-    AUDIO_STREAM_TRY_WRITEV,
-    AUDIO_STREAM_WRITE,
-    AUDIO_STREAM_WRITE_AT,
-    AUDIO_STREAM_WRITE_ATV,
-    AUDIO_STREAM_WRITEV,
-];
-
 /// Native binding set for audio.
-pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "audio",
     bindings: &[
         NativeBinding::new(
@@ -10908,7 +10864,7 @@ fn destack_audio_stream_writev_replay(
 
 /// Native export wrappers for audio bindings.
 #[unsafe(export_name = "destack.audio.backend.list")]
-pub unsafe extern "C" fn destack_audio_backend_list(
+pub(crate) unsafe extern "C" fn destack_audio_backend_list(
     out: *mut NativeSlice<AudioBackendDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10924,7 +10880,7 @@ pub unsafe extern "C" fn destack_audio_backend_list(
 }
 
 #[unsafe(export_name = "destack.audio.clock.now")]
-pub unsafe extern "C" fn destack_audio_clock_now(
+pub(crate) unsafe extern "C" fn destack_audio_clock_now(
     out: *mut u64,
     domain: AudioClockDomain,
 ) -> RuntimeStatus {
@@ -10941,7 +10897,7 @@ pub unsafe extern "C" fn destack_audio_clock_now(
 }
 
 #[unsafe(export_name = "destack.audio.clock.stream")]
-pub unsafe extern "C" fn destack_audio_clock_stream(
+pub(crate) unsafe extern "C" fn destack_audio_clock_stream(
     out: *mut AudioClockSnapshot,
     handle: resource::AudioStreamHandle,
     domain: AudioStreamClockDomain,
@@ -10959,7 +10915,7 @@ pub unsafe extern "C" fn destack_audio_clock_stream(
 }
 
 #[unsafe(export_name = "destack.audio.device.close")]
-pub unsafe extern "C" fn destack_audio_device_close(
+pub(crate) unsafe extern "C" fn destack_audio_device_close(
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10972,7 +10928,7 @@ pub unsafe extern "C" fn destack_audio_device_close(
 }
 
 #[unsafe(export_name = "destack.audio.device.default")]
-pub unsafe extern "C" fn destack_audio_device_default(
+pub(crate) unsafe extern "C" fn destack_audio_device_default(
     out: *mut NativeStringRef,
     direction: AudioDeviceDirection,
     backend: AudioBackend,
@@ -10991,7 +10947,7 @@ pub unsafe extern "C" fn destack_audio_device_default(
 }
 
 #[unsafe(export_name = "destack.audio.device.descriptor")]
-pub unsafe extern "C" fn destack_audio_device_descriptor(
+pub(crate) unsafe extern "C" fn destack_audio_device_descriptor(
     out: *mut AudioDeviceDescriptor,
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeStatus {
@@ -11008,7 +10964,7 @@ pub unsafe extern "C" fn destack_audio_device_descriptor(
 }
 
 #[unsafe(export_name = "destack.audio.device.list")]
-pub unsafe extern "C" fn destack_audio_device_list(
+pub(crate) unsafe extern "C" fn destack_audio_device_list(
     out: *mut NativeSlice<AudioDeviceDescriptor>,
     request: AudioDeviceListRequest,
 ) -> RuntimeStatus {
@@ -11025,7 +10981,7 @@ pub unsafe extern "C" fn destack_audio_device_list(
 }
 
 #[unsafe(export_name = "destack.audio.device.open")]
-pub unsafe extern "C" fn destack_audio_device_open(
+pub(crate) unsafe extern "C" fn destack_audio_device_open(
     out: *mut resource::AudioDeviceHandle,
     id: NativeStringRef,
     options: AudioDeviceOpenOptions,
@@ -11043,7 +10999,7 @@ pub unsafe extern "C" fn destack_audio_device_open(
 }
 
 #[unsafe(export_name = "destack.audio.device.rescan")]
-pub unsafe extern "C" fn destack_audio_device_rescan(
+pub(crate) unsafe extern "C" fn destack_audio_device_rescan(
     backend: AudioBackend,
     backendpolicy: AudioBackendSelectionPolicy,
 ) -> RuntimeStatus {
@@ -11057,7 +11013,7 @@ pub unsafe extern "C" fn destack_audio_device_rescan(
 }
 
 #[unsafe(export_name = "destack.audio.event.close")]
-pub unsafe extern "C" fn destack_audio_event_close(
+pub(crate) unsafe extern "C" fn destack_audio_event_close(
     handle: resource::AudioEventHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -11070,7 +11026,7 @@ pub unsafe extern "C" fn destack_audio_event_close(
 }
 
 #[unsafe(export_name = "destack.audio.event.open")]
-pub unsafe extern "C" fn destack_audio_event_open(
+pub(crate) unsafe extern "C" fn destack_audio_event_open(
     out: *mut resource::AudioEventHandle,
     options: AudioEventSubscriptionOptions,
 ) -> RuntimeStatus {
@@ -11087,7 +11043,7 @@ pub unsafe extern "C" fn destack_audio_event_open(
 }
 
 #[unsafe(export_name = "destack.audio.event.read")]
-pub unsafe extern "C" fn destack_audio_event_read(
+pub(crate) unsafe extern "C" fn destack_audio_event_read(
     out: *mut AudioEvent,
     handle: resource::AudioEventHandle,
     timeoutns: u64,
@@ -11105,7 +11061,7 @@ pub unsafe extern "C" fn destack_audio_event_read(
 }
 
 #[unsafe(export_name = "destack.audio.event.readBatch")]
-pub unsafe extern "C" fn destack_audio_event_read_batch(
+pub(crate) unsafe extern "C" fn destack_audio_event_read_batch(
     out: *mut NativeSlice<AudioEvent>,
     handle: resource::AudioEventHandle,
     maxevents: u32,
@@ -11124,7 +11080,7 @@ pub unsafe extern "C" fn destack_audio_event_read_batch(
 }
 
 #[unsafe(export_name = "destack.audio.event.tryRead")]
-pub unsafe extern "C" fn destack_audio_event_try_read(
+pub(crate) unsafe extern "C" fn destack_audio_event_try_read(
     out: *mut AudioEvent,
     handle: resource::AudioEventHandle,
 ) -> RuntimeStatus {
@@ -11141,7 +11097,7 @@ pub unsafe extern "C" fn destack_audio_event_try_read(
 }
 
 #[unsafe(export_name = "destack.audio.event.tryReadBatch")]
-pub unsafe extern "C" fn destack_audio_event_try_read_batch(
+pub(crate) unsafe extern "C" fn destack_audio_event_try_read_batch(
     out: *mut NativeSlice<AudioEvent>,
     handle: resource::AudioEventHandle,
     maxevents: u32,
@@ -11159,7 +11115,7 @@ pub unsafe extern "C" fn destack_audio_event_try_read_batch(
 }
 
 #[unsafe(export_name = "destack.audio.stream.abort")]
-pub unsafe extern "C" fn destack_audio_stream_abort(
+pub(crate) unsafe extern "C" fn destack_audio_stream_abort(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -11172,7 +11128,7 @@ pub unsafe extern "C" fn destack_audio_stream_abort(
 }
 
 #[unsafe(export_name = "destack.audio.stream.availability")]
-pub unsafe extern "C" fn destack_audio_stream_availability(
+pub(crate) unsafe extern "C" fn destack_audio_stream_availability(
     out: *mut AudioStreamAvailability,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeStatus {
@@ -11189,7 +11145,7 @@ pub unsafe extern "C" fn destack_audio_stream_availability(
 }
 
 #[unsafe(export_name = "destack.audio.stream.close")]
-pub unsafe extern "C" fn destack_audio_stream_close(
+pub(crate) unsafe extern "C" fn destack_audio_stream_close(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -11202,7 +11158,7 @@ pub unsafe extern "C" fn destack_audio_stream_close(
 }
 
 #[unsafe(export_name = "destack.audio.stream.descriptor")]
-pub unsafe extern "C" fn destack_audio_stream_descriptor(
+pub(crate) unsafe extern "C" fn destack_audio_stream_descriptor(
     out: *mut AudioStreamDescriptor,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeStatus {
@@ -11219,7 +11175,7 @@ pub unsafe extern "C" fn destack_audio_stream_descriptor(
 }
 
 #[unsafe(export_name = "destack.audio.stream.drain")]
-pub unsafe extern "C" fn destack_audio_stream_drain(
+pub(crate) unsafe extern "C" fn destack_audio_stream_drain(
     handle: resource::AudioStreamHandle,
     timeoutns: u64,
 ) -> RuntimeStatus {
@@ -11233,7 +11189,7 @@ pub unsafe extern "C" fn destack_audio_stream_drain(
 }
 
 #[unsafe(export_name = "destack.audio.stream.flush")]
-pub unsafe extern "C" fn destack_audio_stream_flush(
+pub(crate) unsafe extern "C" fn destack_audio_stream_flush(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -11246,7 +11202,7 @@ pub unsafe extern "C" fn destack_audio_stream_flush(
 }
 
 #[unsafe(export_name = "destack.audio.stream.open")]
-pub unsafe extern "C" fn destack_audio_stream_open(
+pub(crate) unsafe extern "C" fn destack_audio_stream_open(
     out: *mut resource::AudioStreamHandle,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfig,
@@ -11265,7 +11221,7 @@ pub unsafe extern "C" fn destack_audio_stream_open(
 }
 
 #[unsafe(export_name = "destack.audio.stream.pause")]
-pub unsafe extern "C" fn destack_audio_stream_pause(
+pub(crate) unsafe extern "C" fn destack_audio_stream_pause(
     handle: resource::AudioStreamHandle,
     pause: bool,
 ) -> RuntimeStatus {
@@ -11279,7 +11235,7 @@ pub unsafe extern "C" fn destack_audio_stream_pause(
 }
 
 #[unsafe(export_name = "destack.audio.stream.read")]
-pub unsafe extern "C" fn destack_audio_stream_read(
+pub(crate) unsafe extern "C" fn destack_audio_stream_read(
     out: *mut NativeSlice<u8>,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
@@ -11297,7 +11253,7 @@ pub unsafe extern "C" fn destack_audio_stream_read(
 }
 
 #[unsafe(export_name = "destack.audio.stream.readv")]
-pub unsafe extern "C" fn destack_audio_stream_readv(
+pub(crate) unsafe extern "C" fn destack_audio_stream_readv(
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -11315,7 +11271,7 @@ pub unsafe extern "C" fn destack_audio_stream_readv(
 }
 
 #[unsafe(export_name = "destack.audio.stream.setMute")]
-pub unsafe extern "C" fn destack_audio_stream_set_mute(
+pub(crate) unsafe extern "C" fn destack_audio_stream_set_mute(
     handle: resource::AudioStreamHandle,
     muted: bool,
 ) -> RuntimeStatus {
@@ -11329,7 +11285,7 @@ pub unsafe extern "C" fn destack_audio_stream_set_mute(
 }
 
 #[unsafe(export_name = "destack.audio.stream.setName")]
-pub unsafe extern "C" fn destack_audio_stream_set_name(
+pub(crate) unsafe extern "C" fn destack_audio_stream_set_name(
     handle: resource::AudioStreamHandle,
     name: NativeStringRef,
 ) -> RuntimeStatus {
@@ -11343,7 +11299,7 @@ pub unsafe extern "C" fn destack_audio_stream_set_name(
 }
 
 #[unsafe(export_name = "destack.audio.stream.setVolume")]
-pub unsafe extern "C" fn destack_audio_stream_set_volume(
+pub(crate) unsafe extern "C" fn destack_audio_stream_set_volume(
     handle: resource::AudioStreamHandle,
     lineargain: f64,
 ) -> RuntimeStatus {
@@ -11357,7 +11313,7 @@ pub unsafe extern "C" fn destack_audio_stream_set_volume(
 }
 
 #[unsafe(export_name = "destack.audio.stream.start")]
-pub unsafe extern "C" fn destack_audio_stream_start(
+pub(crate) unsafe extern "C" fn destack_audio_stream_start(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -11370,7 +11326,7 @@ pub unsafe extern "C" fn destack_audio_stream_start(
 }
 
 #[unsafe(export_name = "destack.audio.stream.state")]
-pub unsafe extern "C" fn destack_audio_stream_state(
+pub(crate) unsafe extern "C" fn destack_audio_stream_state(
     out: *mut AudioStreamState,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeStatus {
@@ -11387,7 +11343,7 @@ pub unsafe extern "C" fn destack_audio_stream_state(
 }
 
 #[unsafe(export_name = "destack.audio.stream.stop")]
-pub unsafe extern "C" fn destack_audio_stream_stop(
+pub(crate) unsafe extern "C" fn destack_audio_stream_stop(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -11400,7 +11356,7 @@ pub unsafe extern "C" fn destack_audio_stream_stop(
 }
 
 #[unsafe(export_name = "destack.audio.stream.support")]
-pub unsafe extern "C" fn destack_audio_stream_support(
+pub(crate) unsafe extern "C" fn destack_audio_stream_support(
     out: *mut AudioStreamSupport,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfig,
@@ -11419,7 +11375,7 @@ pub unsafe extern "C" fn destack_audio_stream_support(
 }
 
 #[unsafe(export_name = "destack.audio.stream.timing")]
-pub unsafe extern "C" fn destack_audio_stream_timing(
+pub(crate) unsafe extern "C" fn destack_audio_stream_timing(
     out: *mut AudioStreamTiming,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeStatus {
@@ -11436,7 +11392,7 @@ pub unsafe extern "C" fn destack_audio_stream_timing(
 }
 
 #[unsafe(export_name = "destack.audio.stream.tryRead")]
-pub unsafe extern "C" fn destack_audio_stream_try_read(
+pub(crate) unsafe extern "C" fn destack_audio_stream_try_read(
     out: *mut NativeSlice<u8>,
     handle: resource::AudioStreamHandle,
     maxbytes: u32,
@@ -11454,7 +11410,7 @@ pub unsafe extern "C" fn destack_audio_stream_try_read(
 }
 
 #[unsafe(export_name = "destack.audio.stream.tryReadv")]
-pub unsafe extern "C" fn destack_audio_stream_try_readv(
+pub(crate) unsafe extern "C" fn destack_audio_stream_try_readv(
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -11472,7 +11428,7 @@ pub unsafe extern "C" fn destack_audio_stream_try_readv(
 }
 
 #[unsafe(export_name = "destack.audio.stream.tryWrite")]
-pub unsafe extern "C" fn destack_audio_stream_try_write(
+pub(crate) unsafe extern "C" fn destack_audio_stream_try_write(
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     data: NativeSlice<u8>,
@@ -11490,7 +11446,7 @@ pub unsafe extern "C" fn destack_audio_stream_try_write(
 }
 
 #[unsafe(export_name = "destack.audio.stream.tryWritev")]
-pub unsafe extern "C" fn destack_audio_stream_try_writev(
+pub(crate) unsafe extern "C" fn destack_audio_stream_try_writev(
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -11508,7 +11464,7 @@ pub unsafe extern "C" fn destack_audio_stream_try_writev(
 }
 
 #[unsafe(export_name = "destack.audio.stream.write")]
-pub unsafe extern "C" fn destack_audio_stream_write(
+pub(crate) unsafe extern "C" fn destack_audio_stream_write(
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     data: NativeSlice<u8>,
@@ -11526,7 +11482,7 @@ pub unsafe extern "C" fn destack_audio_stream_write(
 }
 
 #[unsafe(export_name = "destack.audio.stream.writeAt")]
-pub unsafe extern "C" fn destack_audio_stream_write_at(
+pub(crate) unsafe extern "C" fn destack_audio_stream_write_at(
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     data: NativeSlice<u8>,
@@ -11545,7 +11501,7 @@ pub unsafe extern "C" fn destack_audio_stream_write_at(
 }
 
 #[unsafe(export_name = "destack.audio.stream.writeAtv")]
-pub unsafe extern "C" fn destack_audio_stream_write_atv(
+pub(crate) unsafe extern "C" fn destack_audio_stream_write_atv(
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -11571,7 +11527,7 @@ pub unsafe extern "C" fn destack_audio_stream_write_atv(
 }
 
 #[unsafe(export_name = "destack.audio.stream.writev")]
-pub unsafe extern "C" fn destack_audio_stream_writev(
+pub(crate) unsafe extern "C" fn destack_audio_stream_writev(
     out: *mut u64,
     handle: resource::AudioStreamHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
@@ -19418,7 +19374,7 @@ fn destack_audio_stream_writev_vm_replay(
 }
 
 /// Register VM bindings for audio.
-pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -20239,8 +20195,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
 }
 
 /// Install VM bindings for audio.
-pub fn install_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_audio_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub AUDIO_VM_BINDINGS, "audio", install_audio_vm_bindings);
+vm_binding_set!(pub(crate) AUDIO_VM_BINDINGS, "audio", install_audio_vm_bindings);

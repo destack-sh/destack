@@ -1,23 +1,11 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::process_error_code_from_errno;
-use crate::platform::process::bindings_generated as bindings;
-use crate::platform::{NativeArray, PlatformError, PlatformErrorCode};
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::platform::{PlatformError, PlatformErrorCode};
 
 use crate::runtime::BindingCallContext;
-use bindings::*;
 
-use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
-    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
-    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
-    ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags, ProcessWaitStatus, Signal, SignalEvent,
-    SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
-};
-use crate::platform::{fs, resource};
+use crate::platform::process::ProcessId;
 
 /// Build one process-domain runtime error from errno.
 fn session_errno_error(errno: i32, syscall: &str, message: impl Into<String>) -> Box<RuntimeError> {

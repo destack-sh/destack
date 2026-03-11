@@ -13,7 +13,7 @@ use windows_sys::Win32::Networking::WinSock::WSAGetLastError;
 use windows_sys::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError, PlatformErrorCode};
+use crate::platform::PlatformError;
 
 /// Decoded WaitForSingleObject status category.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,24 +54,6 @@ pub(crate) fn io_error_with_code(syscall: &str, code: i32) -> Box<RuntimeError> 
         None,
         None,
         Some(code),
-        Some(syscall.to_string()),
-        None,
-        message,
-    ))
-    .boxed()
-}
-
-/// Build an I/O runtime error from an explicit Win32 code and mapped platform code.
-pub(crate) fn io_error_with_platform_code(
-    syscall: &str,
-    win32_code: i32,
-    platform_code: PlatformErrorCode,
-) -> Box<RuntimeError> {
-    let message = error_message(syscall, win32_code);
-    RuntimeError::from(PlatformError::io_with(
-        Some(platform_code),
-        None,
-        Some(win32_code),
         Some(syscall.to_string()),
         None,
         message,

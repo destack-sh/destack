@@ -331,7 +331,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
 
         // render the registration function
         output.push_str(&format!("/// Register VM bindings for {domain}.\n"));
-        output.push_str(&format!("pub fn {register_fn}(\n"));
+        output.push_str(&format!("pub(crate) fn {register_fn}(\n"));
         output.push_str("    registry: &mut BindingRegistry,\n");
         output.push_str("    isolate: &mut Isolate,\n");
         output.push_str(") {\n");
@@ -566,7 +566,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         let install_fn = codegen.install_fn_name();
 
         output.push_str(&format!("/// Install VM bindings for {domain}.\n"));
-        output.push_str(&format!("pub fn {install_fn}(\n"));
+        output.push_str(&format!("pub(crate) fn {install_fn}(\n"));
         output.push_str("    registry: &mut BindingRegistry,\n");
         output.push_str("    isolate: &mut Isolate,\n");
         output.push_str(") {\n");
@@ -574,7 +574,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         output.push_str("}\n\n");
 
         output.push_str(&format!(
-            "vm_binding_set!(pub {set_name}, \"{domain}\", {install_fn});\n\n"
+            "vm_binding_set!(pub(crate) {set_name}, \"{domain}\", {install_fn});\n\n"
         ));
     }
 }

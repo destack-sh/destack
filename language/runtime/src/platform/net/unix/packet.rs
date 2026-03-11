@@ -1,23 +1,27 @@
-#![allow(unused_imports)]
-
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use super::core::*;
-use super::os;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::fs::OsPath;
-use crate::platform::net::{core as core_net, *};
+use crate::platform::net::*;
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use crate::platform::resource::{ResourceFinalizer, ResourceId};
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use crate::platform::{core as core_platform, *};
 use crate::runtime::{BindingCallContext, NativeSlice};
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::collections::HashMap;
 
+#[cfg(target_os = "macos")]
 use std::ffi::{CStr, CString};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::os::unix::io::RawFd;
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::sync::LazyLock;
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use parking_lot::Mutex;
 
 /// One sockaddr storage length in bytes.
@@ -1764,7 +1768,7 @@ pub(crate) unsafe fn destack_net_packet_stats(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "linux", target_os = "macos")))]
 mod tests {
     use super::*;
 
