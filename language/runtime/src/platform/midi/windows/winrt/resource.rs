@@ -12,7 +12,7 @@ use super::core::{
     WinRtEventResource, WinRtEventSession, WinRtInputResource, WinRtInputSession,
     WinRtOutputResource, WinRtOutputSession,
 };
-use crate::platform::midi::shared::read_labeled_resource_payload;
+use crate::platform::midi::core::read_labeled_resource_payload;
 
 /// Read one WinRT input resource payload.
 pub(super) fn input_resource(

@@ -1,11 +1,14 @@
 use std::collections::BTreeMap;
-use std::sync::{Arc, OnceLock, Weak};
+use std::sync::{Arc, Weak};
 
 use block2::{Block, RcBlock};
 use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
+use crate::platform::service::affinity::ServiceAffinity;
+use crate::platform::service::executor::CallerThreadExecutor;
+use crate::platform::service::{self};
 
 use super::abi::{
     MIDIClientCreateWithBlock, MIDIClientDispose, MIDIClientRef, MIDINotification,
@@ -14,20 +17,21 @@ use super::abi::{
 use super::core::{CoreMidiEndpointOverride, CoreMidiEventDeliveryKind, CoreMidiEventSession};
 use super::event::dispatch_native_notification;
 
-/// Global CoreMIDI service shared by all sessions.
-static CORE_MIDI_SERVICE: OnceLock<Arc<CoreMidiService>> = OnceLock::new();
-/// Virtual endpoint transport overrides keyed by CoreMIDI unique id.
-static CORE_MIDI_ENDPOINT_OVERRIDES: OnceLock<Mutex<BTreeMap<i32, CoreMidiEndpointOverride>>> =
-    OnceLock::new();
+/// One process-global virtual endpoint override table.
+type CoreMidiEndpointOverrideTable = BTreeMap<i32, CoreMidiEndpointOverride>;
 
 /// One global CoreMIDI client service.
-pub(super) struct CoreMidiService {
+pub(crate) struct CoreMidiService {
+    /// Direct executor for this service.
+    executor: CallerThreadExecutor,
     /// Shared CoreMIDI client used for ports and endpoints.
-    pub(super) operation_client: MIDIClientRef,
+    operation_client: MIDIClientRef,
     /// Shared CoreMIDI client used for topology notifications.
-    pub(super) notify_client: MIDIClientRef,
+    notify_client: MIDIClientRef,
     /// Registered native event subscriptions.
     pub(super) native_event_registry: Arc<Mutex<CoreMidiNativeEventRegistry>>,
+    /// Runtime-owned virtual endpoint transport overrides.
+    endpoint_overrides: Mutex<CoreMidiEndpointOverrideTable>,
     /// Retained notification block.
     _notify_block: CoreMidiNotifyBlock,
 }
@@ -77,6 +81,55 @@ impl Drop for CoreMidiService {
     }
 }
 
+impl CoreMidiService {
+    /// The host-affinity domain for the CoreMIDI backend service.
+    pub(crate) const AFFINITY: ServiceAffinity = ServiceAffinity::CallerThread;
+
+    /// Return one runtime-owned virtual endpoint transport override.
+    pub(super) fn endpoint_override(&self, unique_id: i32) -> Option<CoreMidiEndpointOverride> {
+        self.executor
+            .call("destack.midi.coremidi.endpointOverride", || {
+                Ok(self.endpoint_overrides.lock().get(&unique_id).copied())
+            })
+            .expect("CoreMIDI endpoint override lookup should succeed")
+    }
+
+    /// Register one runtime-owned virtual endpoint transport override.
+    pub(super) fn insert_endpoint_override(
+        &self,
+        unique_id: i32,
+        override_value: CoreMidiEndpointOverride,
+    ) {
+        self.executor
+            .call("destack.midi.coremidi.insertEndpointOverride", || {
+                self.endpoint_overrides
+                    .lock()
+                    .insert(unique_id, override_value);
+                Ok(())
+            })
+            .expect("CoreMIDI endpoint override registration should succeed");
+    }
+
+    /// Remove one runtime-owned virtual endpoint transport override.
+    pub(super) fn remove_endpoint_override(&self, unique_id: i32) {
+        self.executor
+            .call("destack.midi.coremidi.removeEndpointOverride", || {
+                self.endpoint_overrides.lock().remove(&unique_id);
+                Ok(())
+            })
+            .expect("CoreMIDI endpoint override removal should succeed");
+    }
+
+    /// Return the shared CoreMIDI operational client.
+    pub(super) fn operation_client(&self) -> MIDIClientRef {
+        self.executor
+            .call("destack.midi.coremidi.operationClient", || {
+                Ok(self.operation_client)
+            })
+            .expect("CoreMIDI operational client lookup should succeed")
+    }
+}
+
 /// Create one CoreMIDI client reference.
 fn create_core_midi_client(
     name: &str,
@@ -108,39 +161,32 @@ fn create_core_midi_client(
 }
 
 /// Return the shared CoreMIDI client service.
-pub(super) fn core_midi_service(operation: &'static str) -> RuntimeResult<Arc<CoreMidiService>> {
-    if let Some(service) = CORE_MIDI_SERVICE.get() {
-        return Ok(service.clone());
-    }
+pub(crate) fn core_midi_service(operation: &'static str) -> RuntimeResult<Arc<CoreMidiService>> {
+    service::global_service(|| {
+        let service_affinity = CoreMidiService::AFFINITY;
+        debug_assert!(matches!(service_affinity, ServiceAffinity::CallerThread));
 
-    let native_event_registry = Arc::new(Mutex::new(CoreMidiNativeEventRegistry {
-        next_registration_id: 1,
-        sessions: BTreeMap::new(),
-    }));
+        let native_event_registry = Arc::new(Mutex::new(CoreMidiNativeEventRegistry {
+            next_registration_id: 1,
+            sessions: BTreeMap::new(),
+        }));
+        let notify_block = core_midi_notify_block(native_event_registry.clone());
+        let notify_client = create_core_midi_client(
+            "Destack MIDI Notify",
+            operation,
+            Some(unsafe { &*notify_block.raw }),
+        )?;
+        let operation_client = create_core_midi_client("Destack MIDI", operation, None)?;
 
-    let notify_block = core_midi_notify_block(native_event_registry.clone());
-    let notify_client = create_core_midi_client(
-        "Destack MIDI Notify",
-        operation,
-        Some(unsafe { &*notify_block.raw }),
-    )?;
-    let operation_client = create_core_midi_client("Destack MIDI", operation, None)?;
-
-    let service = Arc::new(CoreMidiService {
-        operation_client,
-        notify_client,
-        native_event_registry,
-        _notify_block: notify_block,
-    });
-    let _ = CORE_MIDI_SERVICE.set(service.clone());
-
-    Ok(CORE_MIDI_SERVICE.get().cloned().unwrap_or(service))
-}
-
-/// Return the shared virtual endpoint override map.
-pub(super) fn core_midi_endpoint_overrides()
--> &'static Mutex<BTreeMap<i32, CoreMidiEndpointOverride>> {
-    CORE_MIDI_ENDPOINT_OVERRIDES.get_or_init(|| Mutex::new(BTreeMap::new()))
+        Ok(CoreMidiService {
+            executor: CallerThreadExecutor::new("platform.midi.coremidi"),
+            operation_client,
+            notify_client,
+            native_event_registry,
+            endpoint_overrides: Mutex::new(BTreeMap::new()),
+            _notify_block: notify_block,
+        })
+    })
 }
 
 /// Build one retained CoreMIDI notification block.

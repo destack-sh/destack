@@ -25,12 +25,9 @@ pub(crate) enum ServiceHostLoop {
 }
 
 /// One dedicated service-thread bootstrap mode.
+#[cfg(windows)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ServiceThreadBootstrap {
-    /// Run without extra thread initialization.
-    None,
-
     /// Initialize one Windows multithreaded apartment.
-    #[cfg(windows)]
     WindowsMta,
 }

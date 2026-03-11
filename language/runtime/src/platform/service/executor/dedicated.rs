@@ -11,7 +11,6 @@ use super::super::affinity::ServiceThreadBootstrap;
 use super::super::windows::initialize_windows_winrt_mta;
 
 /// One bootstrap or dispatch command for one dedicated-thread executor.
-#[allow(dead_code)]
 enum DedicatedThreadCommand<S> {
     /// Execute one callback against the service state.
     Run(Box<dyn FnOnce(&mut S) + Send + 'static>),
@@ -20,12 +19,8 @@ enum DedicatedThreadCommand<S> {
 }
 
 /// One thread-bootstrap guard.
-#[allow(dead_code)]
 pub(crate) enum ServiceThreadGuard {
-    /// No thread teardown work is needed.
-    None,
     /// Uninitialize one owned Windows multithreaded apartment.
-    #[cfg(windows)]
     WindowsMta,
 }
 
@@ -42,7 +37,6 @@ impl Drop for ServiceThreadGuard {
 }
 
 /// One dedicated-thread executor for one host-affine platform service.
-#[allow(dead_code)]
 pub(crate) struct DedicatedThreadExecutor<S> {
     /// Logical service name for diagnostics.
     name: String,
@@ -168,7 +162,6 @@ impl<S> Drop for DedicatedThreadExecutor<S> {
 }
 
 /// Bootstrap one service thread and run its command loop.
-#[allow(dead_code)]
 fn service_thread_main<S>(
     name: &str,
     bootstrap: ServiceThreadBootstrap,
@@ -222,13 +215,10 @@ fn service_thread_main<S>(
 /// Initialize one dedicated service thread.
 #[allow(dead_code)]
 fn initialize_service_thread(
-    #[cfg_attr(not(windows), allow(unused_variables))] name: &str,
+    name: &str,
     bootstrap: ServiceThreadBootstrap,
 ) -> RuntimeResult<ServiceThreadGuard> {
     match bootstrap {
-        ServiceThreadBootstrap::None => Ok(ServiceThreadGuard::None),
-
-        #[cfg(windows)]
         ServiceThreadBootstrap::WindowsMta => initialize_windows_winrt_mta(name),
     }
 }

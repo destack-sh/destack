@@ -1,4 +1,5 @@
 use std::ptr;
+use std::sync::Arc;
 
 use core_foundation_sys::string::CFStringRef;
 
@@ -24,7 +25,7 @@ use super::core::{
     CoreMidiEndpointOverride, data_format_flag, endpoint_direction_name, exact_transport_support,
     protocol_flag,
 };
-use super::service::core_midi_endpoint_overrides;
+use super::service::CoreMidiService;
 
 /// Read one integer property from one CoreMIDI object.
 fn integer_property(object: MIDIObjectRef, property: CFStringRef) -> Option<i32> {
@@ -105,6 +106,7 @@ fn endpoint_group_identity(endpoint: MIDIEndpointRef) -> (Option<String>, Option
 
 /// Return supported formats and protocols for one endpoint.
 fn endpoint_transport_support(
+    service: &Arc<CoreMidiService>,
     endpoint: MIDIEndpointRef,
     is_virtual: bool,
 ) -> (
@@ -114,11 +116,7 @@ fn endpoint_transport_support(
     Option<MidiProtocol>,
 ) {
     let unique_id = endpoint_unique_id(endpoint);
-    if let Some(override_value) = core_midi_endpoint_overrides()
-        .lock()
-        .get(&unique_id)
-        .copied()
-    {
+    if let Some(override_value) = service.endpoint_override(unique_id) {
         return exact_transport_support(override_value.data_format, override_value.protocol);
     }
 
@@ -149,6 +147,7 @@ fn endpoint_transport_support(
 
 /// Register one transport override for one runtime-created virtual endpoint.
 pub(super) fn register_endpoint_override(
+    service: &Arc<CoreMidiService>,
     endpoint: MIDIEndpointRef,
     data_format: MidiDataFormat,
     protocol: MidiProtocol,
@@ -160,15 +159,16 @@ pub(super) fn register_endpoint_override(
         protocol,
     };
 
-    core_midi_endpoint_overrides()
-        .lock()
-        .insert(unique_id, override_value);
+    service.insert_endpoint_override(unique_id, override_value);
 }
 
 /// Remove one transport override for one disposed virtual endpoint.
-pub(super) fn unregister_endpoint_override(endpoint: MIDIEndpointRef) {
+pub(super) fn unregister_endpoint_override(
+    service: &Arc<CoreMidiService>,
+    endpoint: MIDIEndpointRef,
+) {
     let unique_id = endpoint_unique_id(endpoint);
-    core_midi_endpoint_overrides().lock().remove(&unique_id);
+    service.remove_endpoint_override(unique_id);
 }
 
 /// Return whether one endpoint is virtual.
@@ -187,6 +187,7 @@ fn endpoint_is_connected(endpoint: MIDIEndpointRef) -> bool {
 
 /// Build one descriptor row for one endpoint.
 pub(super) fn endpoint_descriptor(
+    service: &Arc<CoreMidiService>,
     direction: MidiPortDirection,
     endpoint: MIDIEndpointRef,
 ) -> MidiPortDescriptorValue {
@@ -194,7 +195,7 @@ pub(super) fn endpoint_descriptor(
     let backend_id = Some(endpoint_backend_id(endpoint));
     let is_virtual = endpoint_is_virtual(endpoint);
     let (supported_data_formats, default_data_format, supported_protocols, default_protocol) =
-        endpoint_transport_support(endpoint, is_virtual);
+        endpoint_transport_support(service, endpoint, is_virtual);
     let (group_id, group_name) = endpoint_group_identity(endpoint);
 
     MidiPortDescriptorValue {
@@ -220,7 +221,10 @@ pub(super) fn endpoint_descriptor(
 }
 
 /// Enumerate endpoint descriptors for one direction.
-fn enumerate_endpoint_descriptors(direction: MidiPortDirection) -> Vec<MidiPortDescriptorValue> {
+fn enumerate_endpoint_descriptors(
+    service: &Arc<CoreMidiService>,
+    direction: MidiPortDirection,
+) -> Vec<MidiPortDescriptorValue> {
     let count = match direction {
         MidiPortDirection::Input => unsafe { MIDIGetNumberOfSources() },
         MidiPortDirection::Output => unsafe { MIDIGetNumberOfDestinations() },
@@ -237,7 +241,7 @@ fn enumerate_endpoint_descriptors(direction: MidiPortDirection) -> Vec<MidiPortD
             continue;
         }
 
-        descriptors.push(endpoint_descriptor(direction, endpoint));
+        descriptors.push(endpoint_descriptor(service, direction, endpoint));
     }
 
     descriptors.sort_by(|left, right| left.id.cmp(&right.id));
@@ -246,13 +250,14 @@ fn enumerate_endpoint_descriptors(direction: MidiPortDirection) -> Vec<MidiPortD
 
 /// Filter descriptors according to list flags.
 pub(super) fn filtered_descriptors(
+    service: &Arc<CoreMidiService>,
     direction: MidiPortDirection,
     flags: MidiPortListFlags,
 ) -> Vec<MidiPortDescriptorValue> {
     let include_virtual = flags.0 & MIDI_PORT_LIST_INCLUDE_VIRTUAL.0 != 0;
     let include_disconnected = flags.0 & MIDI_PORT_LIST_INCLUDE_DISCONNECTED.0 != 0;
 
-    enumerate_endpoint_descriptors(direction)
+    enumerate_endpoint_descriptors(service, direction)
         .into_iter()
         .filter(|descriptor| include_virtual || !descriptor.is_virtual)
         .filter(|descriptor| include_disconnected || descriptor.is_connected)
@@ -261,11 +266,12 @@ pub(super) fn filtered_descriptors(
 
 /// Resolve one endpoint object by stable runtime id.
 pub(super) fn resolve_endpoint(
+    service: &Arc<CoreMidiService>,
     direction: MidiPortDirection,
     id: &str,
     operation: &'static str,
 ) -> RuntimeResult<(MIDIEndpointRef, MidiPortDescriptorValue)> {
-    for descriptor in enumerate_endpoint_descriptors(direction) {
+    for descriptor in enumerate_endpoint_descriptors(service, direction) {
         if descriptor.id != id {
             continue;
         }
@@ -284,7 +290,7 @@ pub(super) fn resolve_endpoint(
 
         let status = unsafe { MIDIObjectFindByUniqueID(unique_id, &mut object, &mut object_type) };
         if status != 0 || object == 0 || object_type != K_MIDI_OBJECT_TYPE_ENDPOINT {
-            if let Some(override_value) = core_midi_endpoint_overrides().lock().get(&unique_id) {
+            if let Some(override_value) = service.endpoint_override(unique_id) {
                 return Ok((override_value.endpoint, descriptor));
             }
 

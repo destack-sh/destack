@@ -1,4 +1,5 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmSlice;
 use crate::platform::core::BackendSupport;
 use crate::platform::midi::{
     MidiBackend, MidiBackendCapabilityFlags, MidiBackendDescriptor, MidiBackendDescriptorVm,
@@ -11,7 +12,6 @@ use crate::platform::midi::{
     MidiPortRemovedEventVm, MidiPortRemovedPayload, MidiPortRemovedPayloadVm, MidiProtocol,
     MidiProtocolFlags, MidiRecordFraming,
 };
-use crate::platform::{NativeArray, NativeSlice, PlatformError, VmArray, VmSlice};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
@@ -285,7 +285,7 @@ pub(crate) struct MidiEventMetadataValue {
 
 impl MidiEventMetadataValue {
     /// Encode one event metadata payload for native bindings.
-    fn into_native(self) -> MidiEventMetadata {
+    pub(crate) fn into_native(self) -> MidiEventMetadata {
         MidiEventMetadata {
             timestamp_ns: self.timestamp_ns,
             sequence: self.sequence,
@@ -296,7 +296,7 @@ impl MidiEventMetadataValue {
     }
 
     /// Encode one event metadata payload for VM bindings.
-    fn into_vm(self) -> MidiEventMetadata {
+    pub(crate) fn into_vm(self) -> MidiEventMetadata {
         self.into_native()
     }
 }
@@ -334,7 +334,6 @@ pub(crate) enum MidiEventValue {
         /// Updated descriptor.
         descriptor: MidiPortDescriptorValue,
     },
-    #[allow(dead_code)]
     /// Backend disconnected event.
     BackendDisconnected {
         /// Shared metadata.
@@ -448,156 +447,4 @@ impl MidiEventValue {
             }
         }
     }
-}
-
-/// Store native backend descriptors as one binding slice.
-pub(crate) fn store_backend_descriptors_native(
-    binding: &BindingCallContext,
-    values: Vec<MidiBackendDescriptorValue>,
-) -> NativeSlice<MidiBackendDescriptor> {
-    let descriptors = values
-        .into_iter()
-        .map(|value| value.into_native(binding))
-        .collect();
-
-    binding.store_slice(descriptors)
-}
-
-/// Store VM backend descriptors as one binding slice.
-pub(crate) fn store_backend_descriptors_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: Vec<MidiBackendDescriptorValue>,
-) -> RuntimeResult<VmSlice<MidiBackendDescriptorVm>> {
-    let descriptors = values
-        .into_iter()
-        .map(|value| value.into_vm(context))
-        .collect::<Vec<_>>();
-
-    VmSlice::from_values(context, &descriptors)
-}
-
-/// Store native port descriptors as one binding slice.
-pub(crate) fn store_port_descriptors_native(
-    binding: &BindingCallContext,
-    values: Vec<MidiPortDescriptorValue>,
-) -> NativeSlice<MidiPortDescriptor> {
-    let descriptors = values
-        .into_iter()
-        .map(|value| value.into_native(binding))
-        .collect();
-
-    binding.store_slice(descriptors)
-}
-
-/// Store VM port descriptors as one binding slice.
-pub(crate) fn store_port_descriptors_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: Vec<MidiPortDescriptorValue>,
-) -> RuntimeResult<VmSlice<MidiPortDescriptorVm>> {
-    let descriptors = values
-        .into_iter()
-        .map(|value| value.into_vm(context))
-        .collect::<Vec<_>>();
-
-    VmSlice::from_values(context, &descriptors)
-}
-
-/// Store native input records as one binding array.
-pub(crate) fn store_input_records_native(
-    binding: &BindingCallContext,
-    values: Vec<MidiInputRecordValue>,
-) -> NativeArray<MidiInputRecord> {
-    let records = values
-        .into_iter()
-        .map(|value| value.into_native(binding))
-        .collect();
-
-    binding.store_array(records)
-}
-
-/// Store VM input records as one binding array.
-pub(crate) fn store_input_records_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: Vec<MidiInputRecordValue>,
-) -> RuntimeResult<VmArray<MidiInputRecordVm>> {
-    let records = values
-        .into_iter()
-        .map(|value| value.into_vm(context))
-        .collect::<Vec<_>>();
-
-    VmArray::from_values(context, &records)
-}
-
-/// Store one native input record.
-pub(crate) fn store_input_record_native(
-    binding: &BindingCallContext,
-    value: MidiInputRecordValue,
-) -> MidiInputRecord {
-    value.into_native(binding)
-}
-
-/// Store one VM input record.
-pub(crate) fn store_input_record_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: MidiInputRecordValue,
-) -> MidiInputRecordVm {
-    value.into_vm(context)
-}
-
-/// Store native MIDI events as one binding slice.
-pub(crate) fn store_events_native(
-    binding: &BindingCallContext,
-    values: Vec<MidiEventValue>,
-) -> NativeSlice<MidiEvent> {
-    let events = values
-        .into_iter()
-        .map(|value| value.into_native(binding))
-        .collect();
-
-    binding.store_slice(events)
-}
-
-/// Store VM MIDI events as one binding slice.
-pub(crate) fn store_events_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: Vec<MidiEventValue>,
-) -> RuntimeResult<VmSlice<MidiEventVm>> {
-    let events = values
-        .into_iter()
-        .map(|value| value.into_vm(context))
-        .collect::<Vec<_>>();
-
-    VmSlice::from_values(context, &events)
-}
-
-/// Store one native MIDI event.
-pub(crate) fn store_event_native(binding: &BindingCallContext, value: MidiEventValue) -> MidiEvent {
-    value.into_native(binding)
-}
-
-/// Store one VM MIDI event.
-pub(crate) fn store_event_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: MidiEventValue,
-) -> MidiEventVm {
-    value.into_vm(context)
-}
-
-/// Validate one format and protocol pairing.
-#[cfg_attr(not(any(target_os = "macos", windows)), allow(dead_code))]
-pub(crate) fn validate_record_shape(
-    operation: &'static str,
-    data_format: MidiDataFormat,
-    protocol: Option<MidiProtocol>,
-) -> RuntimeResult<()> {
-    // reject midi2 semantics on byte-stream transport
-    if matches!(protocol, Some(MidiProtocol::Midi2)) && data_format != MidiDataFormat::Ump {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "protocol",
-            format!("{operation}: MIDI 2 requires UMP transport"),
-        ))
-        .boxed());
-    }
-
-    Ok(())
 }

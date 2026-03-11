@@ -6,12 +6,12 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::{self as core_platform};
-use crate::platform::midi::core::{MidiEventValue, MidiInputRecordValue, MidiPortDescriptorValue};
-pub(super) use crate::platform::midi::shared::{
-    MIDI_EVENT_RESOURCE_LABEL, MIDI_INPUT_RESOURCE_LABEL, MIDI_OUTPUT_RESOURCE_LABEL, SharedQueue,
+pub(super) use crate::platform::midi::core::{
+    BoundedQueue, MIDI_EVENT_RESOURCE_LABEL, MIDI_INPUT_RESOURCE_LABEL, MIDI_OUTPUT_RESOURCE_LABEL,
     binding_timestamp_now, direction_mask_includes, endpoint_direction_name, event_poll_interval,
     event_queue_capacity, event_snapshot_list_flags, input_queue_capacity,
 };
+use crate::platform::midi::core::{MidiEventValue, MidiInputRecordValue, MidiPortDescriptorValue};
 use crate::platform::midi::{
     MIDI_DATA_FORMAT_FLAG_MIDI1_BYTES, MIDI_DATA_FORMAT_FLAG_UMP, MIDI_PROTOCOL_FLAG_MIDI1,
     MIDI_PROTOCOL_FLAG_MIDI2, MidiBackend, MidiDataFormat, MidiDataFormatFlags,
@@ -100,7 +100,7 @@ pub(super) struct CoreMidiInputSession {
     /// Current descriptor snapshot.
     pub(super) descriptor: MidiPortDescriptorValue,
     /// Shared input queue.
-    pub(super) queue: Arc<SharedQueue<MidiInputRecordValue>>,
+    pub(super) queue: Arc<BoundedQueue<MidiInputRecordValue>>,
     /// Session resources that must be released.
     pub(super) kind: CoreMidiInputSessionKind,
 }
@@ -152,7 +152,7 @@ pub(super) struct CoreMidiEventSession {
     /// Selected delivery kind.
     pub(super) delivery_kind: CoreMidiEventDeliveryKind,
     /// Pending event queue.
-    pub(super) queue: Arc<SharedQueue<MidiEventValue>>,
+    pub(super) queue: Arc<BoundedQueue<MidiEventValue>>,
     /// Next sequence number.
     pub(super) next_sequence: u64,
     /// Previous endpoint snapshot.
@@ -202,14 +202,14 @@ impl Drop for CoreMidiInputSession {
                 endpoint,
                 _callback_context: _,
             } => unsafe {
-                unregister_endpoint_override(*endpoint);
+                unregister_endpoint_override(&self._service, *endpoint);
                 let _ = MIDIEndpointDispose(*endpoint);
             },
             CoreMidiInputSessionKind::ModernVirtualDestination {
                 endpoint,
                 _receive_block: _,
             } => unsafe {
-                unregister_endpoint_override(*endpoint);
+                unregister_endpoint_override(&self._service, *endpoint);
                 let _ = MIDIEndpointDispose(*endpoint);
             },
         }
@@ -226,7 +226,7 @@ impl Drop for CoreMidiOutputSession {
                 let _ = MIDIPortDispose(*port);
             },
             CoreMidiOutputSessionKind::VirtualSource { endpoint } => unsafe {
-                unregister_endpoint_override(*endpoint);
+                unregister_endpoint_override(&self._service, *endpoint);
                 let _ = MIDIEndpointDispose(*endpoint);
             },
         }

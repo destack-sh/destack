@@ -4,18 +4,18 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use block2::{Block, RcBlock};
 
-use crate::platform::midi::core::MidiInputRecordValue;
+use crate::platform::midi::core::{BoundedQueue, MidiInputRecordValue};
 use crate::platform::midi::{MidiDataFormat, MidiProtocol, MidiRecordFraming};
 
 use super::abi::{
     K_MIDI_PROTOCOL_2_0, MIDIEventList, MIDIPacketList, midi_event_packet_next, midi_packet_next,
 };
-use super::core::{SharedQueue, core_midi_host_time_to_mono_ns};
+use super::core::core_midi_host_time_to_mono_ns;
 
 /// One input callback context passed through CoreMIDI callbacks.
 pub(super) struct LegacyInputCallbackContext {
     /// Queue that receives decoded input records.
-    pub(super) queue: Arc<SharedQueue<MidiInputRecordValue>>,
+    pub(super) queue: Arc<BoundedQueue<MidiInputRecordValue>>,
     /// Stable source id for opened source sessions.
     pub(super) source_id: Option<String>,
     /// Whether the previous legacy packet ended inside one SysEx fragment chain.
@@ -213,7 +213,7 @@ pub(super) unsafe extern "C" fn legacy_input_read_proc(
 
 /// Build one retained modern receive block and its raw context.
 pub(super) fn modern_receive_block(
-    queue: Arc<SharedQueue<MidiInputRecordValue>>,
+    queue: Arc<BoundedQueue<MidiInputRecordValue>>,
     source_id: Option<String>,
 ) -> CoreMidiReceiveBlock {
     let block: RcBlock<dyn Fn(*const MIDIEventList, *mut u8)> = RcBlock::new(

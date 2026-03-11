@@ -1,47 +1,42 @@
-use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::sync::{Arc, OnceLock, Weak};
+use std::sync::{Arc, Weak};
 
 use parking_lot::Mutex;
 use windows::Devices::Enumeration::{
     DeviceInformation, DeviceInformationUpdate, DeviceWatcher, DeviceWatcherStatus,
 };
-use windows::Devices::Midi::{MidiInPort, MidiOutPort};
+use windows::Devices::Midi::{IMidiOutPort, MidiInPort, MidiMessageReceivedEventArgs, MidiOutPort};
 use windows::Foundation::TypedEventHandler;
-use windows::Win32::Foundation::RPC_E_CHANGED_MODE;
-use windows::Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize, RoUninitialize};
-use windows::core::{Error as WinError, HSTRING};
+use windows::Storage::Streams::DataWriter;
+use windows::core::{Error as WinError, HSTRING, Ref};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
-use crate::platform::midi::{MidiEventSource, MidiPortDirection};
+use crate::platform::midi::core::{
+    MidiInputRecordValue, MidiOutputRecordValue, MidiPortDescriptorValue,
+};
+use crate::platform::midi::{
+    MidiDataFormat, MidiEventSource, MidiPortDirection, MidiProtocol, MidiRecordFraming,
+};
+use crate::platform::service::affinity::{ServiceAffinity, ServiceThreadBootstrap};
+use crate::platform::service::executor::DedicatedThreadExecutor;
+use crate::platform::service::{self};
 
 use super::core::{
-    WinRtEndpointInfo, WinRtEventDeliveryKind, WinRtEventSession, WinRtTopologyState,
+    BoundedQueue, WinRtEndpointInfo, WinRtEventDeliveryKind, WinRtEventSession, WinRtTopologyState,
+    binding_timestamp_now, winrt_relative_timestamp_to_mono_ns,
 };
 use super::descriptor::device_descriptor;
 use super::event::{queue_backend_disconnected_events, refresh_native_event_sessions};
 
-/// Global WinRT service shared by all sessions.
-static WINRT_SERVICE: OnceLock<Arc<WinRtService>> = OnceLock::new();
-
-thread_local! {
-    /// Per-thread apartment guard for WinRT callers outside the bootstrap thread.
-    static WINRT_THREAD_APARTMENT: RefCell<Option<WinRtApartment>> = const { RefCell::new(None) };
-}
-
 /// One process-global WinRT runtime service.
-pub(super) struct WinRtService {
-    /// Apartment initialization guard for WinRT access.
-    _apartment: WinRtApartment,
+pub(crate) struct WinRtService {
+    /// Dedicated WinRT service-thread executor.
+    executor: DedicatedThreadExecutor<WinRtServiceState>,
     /// Shared topology cache.
     pub(super) topology: Arc<Mutex<WinRtTopologyState>>,
     /// Registered native event subscriptions.
     pub(super) native_event_registry: Arc<Mutex<WinRtNativeEventRegistry>>,
-    /// Live input watcher and its event registrations.
-    _input_watcher: WinRtWatcherRegistration,
-    /// Live output watcher and its event registrations.
-    _output_watcher: WinRtWatcherRegistration,
 }
 
 /// One registry of native event subscriptions.
@@ -52,10 +47,38 @@ pub(super) struct WinRtNativeEventRegistry {
     pub(super) sessions: BTreeMap<u64, Weak<Mutex<WinRtEventSession>>>,
 }
 
-/// One apartment initialization guard.
-struct WinRtApartment {
-    /// Whether this guard owns one matching uninitialize call.
-    should_uninitialize: bool,
+/// One host-owned WinRT service state that lives on the executor thread.
+struct WinRtServiceState {
+    /// Shared topology cache.
+    _topology: Arc<Mutex<WinRtTopologyState>>,
+    /// Registered native event subscriptions.
+    _native_event_registry: Arc<Mutex<WinRtNativeEventRegistry>>,
+    /// Next input host-session id.
+    next_input_session_id: u64,
+    /// Live input host sessions.
+    input_sessions: BTreeMap<u64, WinRtInputHostSession>,
+    /// Next output host-session id.
+    next_output_session_id: u64,
+    /// Live output host sessions.
+    output_sessions: BTreeMap<u64, WinRtOutputHostSession>,
+    /// Live input watcher and its event registrations.
+    _input_watcher: WinRtWatcherRegistration,
+    /// Live output watcher and its event registrations.
+    _output_watcher: WinRtWatcherRegistration,
+}
+
+/// One host-owned input session.
+struct WinRtInputHostSession {
+    /// Opened WinRT input port.
+    port: MidiInPort,
+    /// Message-received registration token.
+    token: i64,
+}
+
+/// One host-owned output session.
+struct WinRtOutputHostSession {
+    /// Opened WinRT output port.
+    port: IMidiOutPort,
 }
 
 /// One watcher registration bundle.
@@ -74,14 +97,18 @@ struct WinRtWatcherRegistration {
     stopped_token: i64,
 }
 
-impl Drop for WinRtApartment {
-    /// Uninitialize the owned WinRT apartment.
+impl Drop for WinRtInputHostSession {
+    /// Tear down one host-owned WinRT input session.
     fn drop(&mut self) {
-        if self.should_uninitialize {
-            unsafe {
-                RoUninitialize();
-            }
-        }
+        let _ = self.port.RemoveMessageReceived(self.token);
+        let _ = self.port.Close();
+    }
+}
+
+impl Drop for WinRtOutputHostSession {
+    /// Tear down one host-owned WinRT output session.
+    fn drop(&mut self) {
+        let _ = self.port.Close();
     }
 }
 
@@ -96,11 +123,136 @@ impl Drop for WinRtWatcherRegistration {
             .RemoveEnumerationCompleted(self.enumeration_completed_token);
         let _ = self.watcher.RemoveStopped(self.stopped_token);
 
+        // stop one live watcher before the service thread exits
         if let Ok(status) = self.watcher.Status()
             && status == DeviceWatcherStatus::Started
         {
             let _ = self.watcher.Stop();
         }
+    }
+}
+
+impl WinRtService {
+    /// The host-affinity domain for the WinRT backend service.
+    pub(crate) const AFFINITY: ServiceAffinity =
+        ServiceAffinity::DedicatedThread(ServiceThreadBootstrap::WindowsMta);
+
+    /// Open one input host session on the dedicated service thread.
+    pub(super) fn open_input_session(
+        &self,
+        backend_id: String,
+        descriptor: MidiPortDescriptorValue,
+        queue: Arc<BoundedQueue<MidiInputRecordValue>>,
+        operation: &'static str,
+    ) -> RuntimeResult<u64> {
+        self.executor.call(operation, move |state| {
+            // anchor the relative timestamp domain around the actual host open
+            let before_open_ns = binding_timestamp_now();
+            let port = MidiInPort::FromIdAsync(&HSTRING::from(backend_id.as_str()))
+                .map_err(|error| winrt_error(operation, "MidiInPort::FromIdAsync", &error))?
+                .get()
+                .map_err(|error| winrt_error(operation, "IAsyncOperation::get", &error))?;
+            let after_open_ns = binding_timestamp_now();
+            let open_epoch_ns =
+                before_open_ns.saturating_add((after_open_ns.saturating_sub(before_open_ns)) / 2);
+
+            // input callback
+            let callback_queue = queue.clone();
+            let source_id = descriptor.id.clone();
+            let token = port
+                .MessageReceived(&TypedEventHandler::new(
+                    move |_port: Ref<'_, MidiInPort>,
+                          args: Ref<'_, MidiMessageReceivedEventArgs>| {
+                        if let Some(args) = args.as_ref()
+                            && let Ok(record) =
+                                decode_input_message(open_epoch_ns, source_id.clone(), args)
+                        {
+                            callback_queue.push_drop_oldest(record);
+                        }
+
+                        Ok(())
+                    },
+                ))
+                .map_err(|error| winrt_error(operation, "MidiInPort::MessageReceived", &error))?;
+
+            // publish one new host session id
+            let host_session_id = state.next_input_session_id;
+            state.next_input_session_id = state.next_input_session_id.saturating_add(1);
+            state
+                .input_sessions
+                .insert(host_session_id, WinRtInputHostSession { port, token });
+
+            Ok(host_session_id)
+        })
+    }
+
+    /// Close one input host session during resource drop.
+    pub(super) fn close_input_session_for_drop(&self, host_session_id: u64) {
+        let _ = self
+            .executor
+            .call("destack.midi.winrt.input.drop", move |state| {
+                state.input_sessions.remove(&host_session_id);
+                Ok(())
+            });
+    }
+
+    /// Open one output host session on the dedicated service thread.
+    pub(super) fn open_output_session(
+        &self,
+        backend_id: String,
+        operation: &'static str,
+    ) -> RuntimeResult<u64> {
+        self.executor.call(operation, move |state| {
+            let port = MidiOutPort::FromIdAsync(&HSTRING::from(backend_id.as_str()))
+                .map_err(|error| winrt_error(operation, "MidiOutPort::FromIdAsync", &error))?
+                .get()
+                .map_err(|error| winrt_error(operation, "IAsyncOperation::get", &error))?;
+
+            let host_session_id = state.next_output_session_id;
+            state.next_output_session_id = state.next_output_session_id.saturating_add(1);
+            state
+                .output_sessions
+                .insert(host_session_id, WinRtOutputHostSession { port });
+
+            Ok(host_session_id)
+        })
+    }
+
+    /// Close one output host session during resource drop.
+    pub(super) fn close_output_session_for_drop(&self, host_session_id: u64) {
+        let _ = self
+            .executor
+            .call("destack.midi.winrt.output.drop", move |state| {
+                state.output_sessions.remove(&host_session_id);
+                Ok(())
+            });
+    }
+
+    /// Write one outbound record batch on the dedicated service thread.
+    pub(super) fn write_output_records(
+        &self,
+        host_session_id: u64,
+        records: Vec<MidiOutputRecordValue>,
+        operation: &'static str,
+    ) -> RuntimeResult<u32> {
+        self.executor.call(operation, move |state| {
+            let Some(session) = state.output_sessions.get(&host_session_id) else {
+                return Err(core_platform::io_not_found(
+                    operation,
+                    format!("midi output host session {host_session_id} not found"),
+                ));
+            };
+
+            for record in &records {
+                let buffer = output_buffer(record, operation)?;
+                session
+                    .port
+                    .SendBuffer(&buffer)
+                    .map_err(|error| winrt_error(operation, "MidiOutPort::SendBuffer", &error))?;
+            }
+
+            Ok(records.len() as u32)
+        })
     }
 }
 
@@ -113,37 +265,46 @@ pub(super) fn winrt_error(
     core_platform::io_operation_error(operation, None, format!("{action}: {error}"))
 }
 
-/// Ensure the current thread can use WinRT APIs.
-fn initialize_winrt_apartment(operation: &'static str) -> RuntimeResult<WinRtApartment> {
-    match unsafe { RoInitialize(RO_INIT_MULTITHREADED) } {
-        Ok(()) => Ok(WinRtApartment {
-            should_uninitialize: true,
-        }),
-        Err(error) if error.code() == RPC_E_CHANGED_MODE => Ok(WinRtApartment {
-            should_uninitialize: false,
-        }),
-        Err(error) => Err(winrt_error(operation, "RoInitialize", &error)),
-    }
-}
+/// Decode one WinRT input message into one inbound record.
+fn decode_input_message(
+    open_epoch_ns: u64,
+    source_id: String,
+    args: &MidiMessageReceivedEventArgs,
+) -> windows::core::Result<MidiInputRecordValue> {
+    let message = args.Message()?;
+    let buffer = message.RawData()?;
+    let reader = windows::Storage::Streams::DataReader::FromBuffer(&buffer)?;
+    let mut data = vec![0u8; buffer.Length()? as usize];
+    reader.ReadBytes(&mut data)?;
 
-/// Ensure the current thread can interact with WinRT objects.
-pub(super) fn ensure_current_thread_winrt_apartment(operation: &'static str) -> RuntimeResult<()> {
-    WINRT_THREAD_APARTMENT.with(|slot| {
-        // keep one apartment guard per calling thread
-        if slot.borrow().is_some() {
-            return Ok(());
-        }
-
-        let apartment = initialize_winrt_apartment(operation)?;
-        *slot.borrow_mut() = Some(apartment);
-
-        Ok(())
+    Ok(MidiInputRecordValue {
+        received_at_ns: winrt_relative_timestamp_to_mono_ns(
+            open_epoch_ns,
+            message.Timestamp()?.Duration,
+        ),
+        source_id: Some(source_id),
+        data_format: MidiDataFormat::Midi1Bytes,
+        protocol: Some(MidiProtocol::Midi1),
+        framing: MidiRecordFraming::Complete,
+        data,
     })
 }
 
-/// Best-effort apartment initialization for drop paths.
-pub(super) fn ensure_current_thread_winrt_apartment_for_drop() {
-    let _ = ensure_current_thread_winrt_apartment("destack.midi.winrt.drop");
+/// Encode one outbound record into one WinRT byte buffer.
+fn output_buffer(
+    record: &MidiOutputRecordValue,
+    operation: &'static str,
+) -> RuntimeResult<windows::Storage::Streams::IBuffer> {
+    let writer =
+        DataWriter::new().map_err(|error| winrt_error(operation, "DataWriter::new", &error))?;
+
+    writer
+        .WriteBytes(&record.data)
+        .map_err(|error| winrt_error(operation, "DataWriter::WriteBytes", &error))?;
+
+    writer
+        .DetachBuffer()
+        .map_err(|error| winrt_error(operation, "DataWriter::DetachBuffer", &error))
 }
 
 /// Enumerate one direction of WinRT endpoints.
@@ -165,6 +326,7 @@ fn enumerate_direction(
 
     let mut descriptors = BTreeMap::new();
 
+    // descriptor rows
     for device in &collection {
         let descriptor = device_descriptor(direction, &device)
             .map_err(|error| winrt_error(operation, "device_descriptor", &error))?;
@@ -205,12 +367,15 @@ fn refresh_topology_cache(
     output_selector: &HSTRING,
     operation: &'static str,
 ) -> RuntimeResult<()> {
+    // input rows
     refresh_direction_cache(
         topology,
         MidiPortDirection::Input,
         input_selector,
         operation,
     )?;
+
+    // output rows
     refresh_direction_cache(
         topology,
         MidiPortDirection::Output,
@@ -266,6 +431,7 @@ fn create_watcher(
         )
     })?;
 
+    // mutation callbacks
     let added_token = watcher
         .Added(&watcher_refresh_handler::<DeviceInformation>(
             topology.clone(),
@@ -320,31 +486,21 @@ fn create_watcher(
     })
 }
 
-/// Return the shared WinRT service.
-pub(super) fn winrt_service(operation: &'static str) -> RuntimeResult<Arc<WinRtService>> {
-    // all WinRT callers must enter one initialized apartment
-    ensure_current_thread_winrt_apartment(operation)?;
-
-    // reuse the live process global service when it already exists
-    if let Some(service) = WINRT_SERVICE.get() {
-        return Ok(service.clone());
-    }
-
-    // bootstrap selectors and shared service state
-    let apartment = initialize_winrt_apartment(operation)?;
+/// Build one host-owned WinRT service state on the dedicated executor thread.
+fn build_winrt_service_state(
+    topology: Arc<Mutex<WinRtTopologyState>>,
+    native_event_registry: Arc<Mutex<WinRtNativeEventRegistry>>,
+    operation: &'static str,
+) -> RuntimeResult<WinRtServiceState> {
     let input_selector = MidiInPort::GetDeviceSelector()
         .map_err(|error| winrt_error(operation, "MidiInPort::GetDeviceSelector", &error))?;
     let output_selector = MidiOutPort::GetDeviceSelector()
         .map_err(|error| winrt_error(operation, "MidiOutPort::GetDeviceSelector", &error))?;
-    let topology = Arc::new(Mutex::new(WinRtTopologyState::default()));
-    let native_event_registry = Arc::new(Mutex::new(WinRtNativeEventRegistry {
-        next_registration_id: 1,
-        sessions: BTreeMap::new(),
-    }));
 
+    // initial topology
     refresh_topology_cache(&topology, &input_selector, &output_selector, operation)?;
 
-    // start live device watchers after the initial topology snapshot
+    // live watchers
     let input_watcher = create_watcher(
         MidiPortDirection::Input,
         &input_selector,
@@ -360,17 +516,46 @@ pub(super) fn winrt_service(operation: &'static str) -> RuntimeResult<Arc<WinRtS
         operation,
     )?;
 
-    // publish the initialized service once all host resources are live
-    let service = Arc::new(WinRtService {
-        _apartment: apartment,
-        topology,
-        native_event_registry,
+    Ok(WinRtServiceState {
+        _topology: topology,
+        _native_event_registry: native_event_registry,
+        next_input_session_id: 1,
+        input_sessions: BTreeMap::new(),
+        next_output_session_id: 1,
+        output_sessions: BTreeMap::new(),
         _input_watcher: input_watcher,
         _output_watcher: output_watcher,
-    });
-    let _ = WINRT_SERVICE.set(service.clone());
+    })
+}
 
-    Ok(WINRT_SERVICE.get().cloned().unwrap_or(service))
+/// Return the shared WinRT service.
+pub(crate) fn winrt_service(operation: &'static str) -> RuntimeResult<Arc<WinRtService>> {
+    service::global_service(|| {
+        let topology = Arc::new(Mutex::new(WinRtTopologyState::default()));
+        let native_event_registry = Arc::new(Mutex::new(WinRtNativeEventRegistry {
+            next_registration_id: 1,
+            sessions: BTreeMap::new(),
+        }));
+        let build_topology = topology.clone();
+        let build_registry = native_event_registry.clone();
+        let ServiceAffinity::DedicatedThread(thread_bootstrap) = WinRtService::AFFINITY else {
+            return Err(core_platform::io_operation_error(
+                operation,
+                None,
+                "winrt midi service requires one dedicated thread affinity domain",
+            ));
+        };
+        let executor =
+            DedicatedThreadExecutor::spawn("destack-midi-winrt", thread_bootstrap, move || {
+                build_winrt_service_state(build_topology, build_registry, operation)
+            })?;
+
+        Ok(WinRtService {
+            executor,
+            topology,
+            native_event_registry,
+        })
+    })
 }
 
 /// Register one native event subscription.

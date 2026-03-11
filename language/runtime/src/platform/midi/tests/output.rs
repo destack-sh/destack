@@ -1,14 +1,37 @@
 use super::{
-    assert_ok_or_expected_error, assert_platform_error_codes, decode_port_descriptor,
-    decode_port_descriptors, harness_output_open_options, harness_output_records,
-    harness_port_list_options, harness_string, with_harness_context,
+    assert_ok_or_expected_error, assert_platform_error_codes, decode_backend_descriptors_full,
+    decode_port_descriptor, decode_port_descriptors, harness_output_open_options,
+    harness_output_records, harness_port_list_options, harness_string,
+    harness_virtual_output_create_options_for_backend_transport, preferred_transport_pair,
+    with_harness_context,
 };
+use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::midi::{
-    MIDI_DATA_FORMAT_FLAG_UMP, MIDI_PROTOCOL_FLAG_MIDI2, MidiDataFormat, MidiOutputRecord,
-    MidiProtocol, MidiRecordFraming,
+    MIDI_BACKEND_CAP_VIRTUAL_OUTPUT, MIDI_DATA_FORMAT_FLAG_UMP, MIDI_PROTOCOL_FLAG_MIDI2,
+    MidiBackend, MidiDataFormat, MidiOutputRecord, MidiProtocol, MidiRecordFraming,
 };
 use crate::platform::resource;
+
+/// Build one minimal valid output record for one transport pair.
+fn output_record_for_transport(
+    context: &mut super::MidiHarnessContext<'_>,
+    data_format: MidiDataFormat,
+    protocol: MidiProtocol,
+) -> MidiOutputRecord {
+    let data = match data_format {
+        MidiDataFormat::Midi1Bytes => vec![0x90, 0x3C, 0x40],
+        MidiDataFormat::Ump => vec![0x40, 0x90, 0x3C, 0x40],
+    };
+
+    MidiOutputRecord {
+        send_at_ns: None,
+        data_format,
+        protocol: Some(protocol),
+        framing: MidiRecordFraming::Complete,
+        data: context.call_context.store_slice(data),
+    }
+}
 
 /// List MIDI output ports or report one expected unsupported host error.
 #[cfg(any(unix, windows))]
@@ -166,6 +189,70 @@ fn test_midi_listed_output_ports_flush_when_available() {
                 context.destack_midi_output_flush(handle)?;
                 context.destack_midi_output_port_close(handle)?;
             }
+        }
+
+        Ok(())
+    });
+}
+
+/// Write one valid record through one advertised virtual output when a backend supports it.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_midi_virtual_output_write_succeeds_when_backend_advertises_virtual_output() {
+    with_harness_context(|mut context| {
+        // backend rows
+        let result = assert_ok_or_expected_error(
+            context.destack_midi_backend_list(),
+            &[PlatformErrorCode::NotSupported],
+        )?;
+
+        let Some(result) = result else {
+            return Ok(());
+        };
+
+        // backend behavior
+        let descriptors = decode_backend_descriptors_full(&mut context, result)?;
+        for (
+            backend,
+            _name,
+            support,
+            _priority,
+            capability_flags,
+            supported_data_formats,
+            supported_protocols,
+        ) in descriptors
+        {
+            if support != BackendSupport::Available || backend == MidiBackend::Null {
+                continue;
+            }
+
+            if capability_flags.0 & MIDI_BACKEND_CAP_VIRTUAL_OUTPUT.0 == 0 {
+                continue;
+            }
+
+            let Some((data_format, protocol)) =
+                preferred_transport_pair(supported_data_formats, None, supported_protocols, None)
+            else {
+                continue;
+            };
+
+            let name = format!("Destack MIDI Generic Output {backend:?}");
+            let options = harness_virtual_output_create_options_for_backend_transport(
+                &mut context,
+                backend,
+                &name,
+                data_format,
+                protocol,
+            )?;
+            let handle = context.destack_midi_output_virtual_create(options)?;
+
+            // successful write and flush
+            let record = output_record_for_transport(&mut context, data_format, protocol);
+            let records = harness_output_records(&mut context, &[record])?;
+            let written = context.destack_midi_output_write(handle, records)?;
+            assert_eq!(written, 1);
+            context.destack_midi_output_flush(handle)?;
+            context.destack_midi_output_port_close(handle)?;
         }
 
         Ok(())

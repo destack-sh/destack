@@ -8,8 +8,8 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
     MidiEventMetadataValue, MidiEventValue, MidiPortDescriptorValue,
+    push_event_with_overflow_policy, remove_labeled_resource, take_event_overflow_error,
 };
-use crate::platform::midi::shared::remove_labeled_resource;
 use crate::platform::midi::{
     MIDI_PORT_LIST_INCLUDE_DISCONNECTED, MidiEventDeliveryMode, MidiEventSource,
     MidiEventSubscriptionFlags, MidiEventSubscriptionOptions, MidiPortDirection,
@@ -20,14 +20,13 @@ use crate::runtime::BindingCallContext;
 
 use super::backend::resolve_backend;
 use super::core::{
-    SharedQueue, SnapshotKey, WinRtEventDeliveryKind, WinRtEventSession, WinRtTopologyState,
+    BoundedQueue, SnapshotKey, WinRtEventDeliveryKind, WinRtEventSession, WinRtTopologyState,
     binding_timestamp_now, direction_mask_includes, endpoint_direction_name, event_poll_interval,
-    event_queue_capacity, event_snapshot_list_flags, insert_event_resource, missing_handle,
+    event_queue_capacity, event_snapshot_list_flags, insert_event_resource,
 };
 use super::resource::event_resource;
 use super::service::{
     WinRtNativeEventRegistry, register_native_event_session, unregister_native_event_session,
-    winrt_service,
 };
 
 /// Return one stable snapshot key for one direction and descriptor id.
@@ -98,7 +97,8 @@ fn refresh_event_subscription(
                 };
                 session.next_sequence = session.next_sequence.saturating_add(1);
 
-                session.queue.push_with_overflow_policy(
+                push_event_with_overflow_policy(
+                    &session.queue,
                     MidiEventValue::PortAdded {
                         metadata,
                         direction: *direction,
@@ -117,7 +117,8 @@ fn refresh_event_subscription(
                 };
                 session.next_sequence = session.next_sequence.saturating_add(1);
 
-                session.queue.push_with_overflow_policy(
+                push_event_with_overflow_policy(
+                    &session.queue,
                     MidiEventValue::PortChanged {
                         metadata,
                         direction: *direction,
@@ -144,7 +145,8 @@ fn refresh_event_subscription(
         };
         session.next_sequence = session.next_sequence.saturating_add(1);
 
-        session.queue.push_with_overflow_policy(
+        push_event_with_overflow_policy(
+            &session.queue,
             MidiEventValue::PortRemoved {
                 metadata,
                 direction: *direction,
@@ -182,7 +184,8 @@ fn queue_backend_disconnected_event(
     };
     session.next_sequence = session.next_sequence.saturating_add(1);
 
-    session.queue.push_with_overflow_policy(
+    push_event_with_overflow_policy(
+        &session.queue,
         MidiEventValue::BackendDisconnected { metadata, flags },
         session.overflow_policy,
     )
@@ -194,7 +197,7 @@ fn try_pop_session_event(
     operation: &'static str,
 ) -> RuntimeResult<Option<MidiEventValue>> {
     // surface deferred native overflow before returning more events
-    session.queue.take_overflow_error(operation)?;
+    take_event_overflow_error(&session.queue, operation)?;
 
     Ok(session.queue.try_pop())
 }
@@ -206,7 +209,7 @@ fn try_pop_session_event_batch(
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
     // surface deferred native overflow before returning more events
-    session.queue.take_overflow_error(operation)?;
+    take_event_overflow_error(&session.queue, operation)?;
 
     Ok(session.queue.try_pop_batch(max_events))
 }
@@ -269,7 +272,11 @@ pub(crate) fn midi_event_open(
     binding: &BindingCallContext,
     options: MidiEventSubscriptionOptions,
 ) -> RuntimeResult<resource::MidiEventHandle> {
-    let _runtime_state = binding.agent().platform_state.midi.runtime_state(binding);
+    binding
+        .agent()
+        .platform_state
+        .midi
+        .mark_runtime_active(binding);
 
     let backend = resolve_backend(
         options.backend,
@@ -283,7 +290,11 @@ pub(crate) fn midi_event_open(
         ));
     }
 
-    let service = winrt_service("destack.midi.event.open")?;
+    let service = binding
+        .agent()
+        .platform_state
+        .midi
+        .winrt_service("destack.midi.event.open")?;
     let delivery_kind = match options.delivery_mode {
         MidiEventDeliveryMode::PollOnly => WinRtEventDeliveryKind::Poll,
         MidiEventDeliveryMode::Auto | MidiEventDeliveryMode::NativeOnly => {
@@ -298,7 +309,7 @@ pub(crate) fn midi_event_open(
         overflow_policy: options.overflow_policy,
         poll_interval: event_poll_interval(options.poll_interval_ns),
         delivery_kind,
-        queue: Arc::new(SharedQueue::new(event_queue_capacity(
+        queue: Arc::new(BoundedQueue::new(event_queue_capacity(
             options.queue_capacity,
         ))),
         next_sequence: 1,
@@ -334,7 +345,7 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
 
-    use super::super::core::{SharedQueue, WinRtEventDeliveryKind, WinRtEventSession};
+    use super::super::core::{BoundedQueue, WinRtEventDeliveryKind, WinRtEventSession};
     use super::queue_backend_disconnected_event;
     use crate::platform::midi::core::MidiEventValue;
     use crate::platform::midi::{
@@ -346,7 +357,7 @@ mod tests {
     /// Queue one backend-disconnected event with the active backend metadata.
     #[test]
     fn test_queue_backend_disconnected_event_pushes_backend_event() {
-        let queue = Arc::new(SharedQueue::new(4));
+        let queue = Arc::new(BoundedQueue::new(4));
         let mut session = WinRtEventSession {
             backend: MidiBackend::WinRT,
             direction_mask: MidiPortDirectionFlags(MIDI_PORT_DIRECTION_FLAG_OUTPUT.0),
@@ -382,7 +393,11 @@ pub(crate) fn midi_event_read(
     handle: resource::MidiEventHandle,
     timeout_ns: u64,
 ) -> RuntimeResult<MidiEventValue> {
-    let service = winrt_service("destack.midi.event.read")?;
+    let service = binding
+        .agent()
+        .platform_state
+        .midi
+        .winrt_service("destack.midi.event.read")?;
     let session = event_resource(binding, handle, "destack.midi.event.read")?;
 
     // native feeds block directly on the shared queue
@@ -394,9 +409,7 @@ pub(crate) fn midi_event_read(
 
     if is_native {
         let session = session.lock();
-        session
-            .queue
-            .take_overflow_error("destack.midi.event.read")?;
+        take_event_overflow_error(&session.queue, "destack.midi.event.read")?;
 
         return match session.queue.pop_with_timeout(timeout) {
             Some(event) => Ok(event),
@@ -453,7 +466,11 @@ pub(crate) fn midi_event_read_batch(
     max_events: u32,
     timeout_ns: u64,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
-    let service = winrt_service("destack.midi.event.readBatch")?;
+    let service = binding
+        .agent()
+        .platform_state
+        .midi
+        .winrt_service("destack.midi.event.readBatch")?;
     let session = event_resource(binding, handle, "destack.midi.event.readBatch")?;
 
     // native feeds block directly on the shared queue
@@ -465,9 +482,7 @@ pub(crate) fn midi_event_read_batch(
 
     if is_native {
         let session = session.lock();
-        session
-            .queue
-            .take_overflow_error("destack.midi.event.readBatch")?;
+        take_event_overflow_error(&session.queue, "destack.midi.event.readBatch")?;
         let batch = session
             .queue
             .pop_batch_with_timeout(max_events.max(1) as usize, timeout);
@@ -534,7 +549,11 @@ pub(crate) fn midi_event_try_read(
     binding: &BindingCallContext,
     handle: resource::MidiEventHandle,
 ) -> RuntimeResult<MidiEventValue> {
-    let service = winrt_service("destack.midi.event.tryRead")?;
+    let service = binding
+        .agent()
+        .platform_state
+        .midi
+        .winrt_service("destack.midi.event.tryRead")?;
     let session = event_resource(binding, handle, "destack.midi.event.tryRead")?;
 
     // refresh synthetic subscriptions before peeking the queue
@@ -558,7 +577,11 @@ pub(crate) fn midi_event_try_read_batch(
     handle: resource::MidiEventHandle,
     max_events: u32,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
-    let service = winrt_service("destack.midi.event.tryReadBatch")?;
+    let service = binding
+        .agent()
+        .platform_state
+        .midi
+        .winrt_service("destack.midi.event.tryReadBatch")?;
     let session = event_resource(binding, handle, "destack.midi.event.tryReadBatch")?;
 
     // refresh synthetic subscriptions before peeking the queue

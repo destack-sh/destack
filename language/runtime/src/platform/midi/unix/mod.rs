@@ -4,4 +4,4 @@ mod coremidi;
 pub(crate) use coremidi::*;
 
 #[cfg(not(target_os = "macos"))]
-pub(crate) use super::unsupported::*;
+pub(crate) use super::super::unsupported::*;
