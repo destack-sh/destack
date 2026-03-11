@@ -16,7 +16,7 @@ default = ["proposed"]
 proposed = []
 
 [dependencies]
-bitflags = "2.10.0"
+bitflags = "2.11.0"
 fluent-uri = "0.4.1"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
