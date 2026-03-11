@@ -4,6 +4,8 @@ use std::sync::{Arc, OnceLock};
 use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostic::RuntimeError;
+
 #[cfg(target_os = "macos")]
 use super::unix::AppKitRuntimeState;
 #[cfg(target_os = "linux")]
@@ -58,15 +60,12 @@ impl PlatformDisplayState {
     }
 
     /// Capture one display-state image.
-    fn image(
-        &self,
-        mode: CaptureMode,
-    ) -> Result<PlatformDisplayImage, Box<crate::diagnostic::RuntimeError>> {
+    fn image(&self, mode: CaptureMode) -> Result<PlatformDisplayImage, Box<RuntimeError>> {
         if !self.has_runtime_state() {
             return Ok(PlatformDisplayImage);
         }
 
-        Err(crate::diagnostic::RuntimeError::CaptureBarrier {
+        Err(RuntimeError::CaptureBarrier {
             component: "platform.display".to_string(),
             mode: format!("{mode:?}"),
             detail: "runtime state is active".to_string(),
@@ -129,7 +128,7 @@ pub struct PlatformDisplayImage;
 
 impl Capture for PlatformDisplayState {
     type Image = PlatformDisplayImage;
-    type Error = Box<crate::diagnostic::RuntimeError>;
+    type Error = Box<RuntimeError>;
     type CaptureContext<'a> = ();
     type RestoreContext<'a> = ();
 

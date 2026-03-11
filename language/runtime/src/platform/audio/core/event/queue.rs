@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::audio::AudioEventOverflowPolicy;
 use crate::runtime::RuntimeEventLog;
 
 use crate::platform::audio::core::error::audio_busy;
@@ -107,14 +108,14 @@ fn note_live_publication(
     }
 
     match state.overflow_policy {
-        crate::platform::audio::AudioEventOverflowPolicy::DropNewest => {
+        AudioEventOverflowPolicy::DropNewest => {
             state.dropped_count = state.dropped_count.saturating_add(1);
         }
-        crate::platform::audio::AudioEventOverflowPolicy::Error => {
+        AudioEventOverflowPolicy::Error => {
             state.overflow_error_pending = true;
             state.dropped_count = state.dropped_count.saturating_add(1);
         }
-        crate::platform::audio::AudioEventOverflowPolicy::DropOldest => {
+        AudioEventOverflowPolicy::DropOldest => {
             state.dropped_count = state.dropped_count.saturating_add(1);
             drop_oldest_live_event_record(runtime_state, stream, &mut state);
         }

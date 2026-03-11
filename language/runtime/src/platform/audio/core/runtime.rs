@@ -3,8 +3,8 @@ use std::fmt;
 use std::sync::{Arc, Condvar, Mutex};
 
 use crate::platform::audio::{
-    AudioBackend, AudioEventKind, AudioEventSource, AudioEventSubscriptionFlags,
-    AudioEventSubscriptionOptions,
+    AudioBackend, AudioEventDeliveryMode, AudioEventKind, AudioEventSource,
+    AudioEventSubscriptionFlags, AudioEventSubscriptionOptions,
 };
 use crate::platform::resource::ResourceId;
 use crate::runtime::{AgentId, BindingCallContext, RuntimeEventLog, RuntimeStreamRegistry};
@@ -175,14 +175,13 @@ pub(crate) fn stream_accepts_record(stream: &AudioEventStream, record: &AudioEve
     }
 
     if record.source == AudioEventSource::Native
-        && stream.options.delivery_mode == crate::platform::audio::AudioEventDeliveryMode::PollOnly
+        && stream.options.delivery_mode == AudioEventDeliveryMode::PollOnly
     {
         return false;
     }
 
     if record.source == AudioEventSource::SyntheticPoll
-        && stream.options.delivery_mode
-            == crate::platform::audio::AudioEventDeliveryMode::NativeOnly
+        && stream.options.delivery_mode == AudioEventDeliveryMode::NativeOnly
     {
         return false;
     }

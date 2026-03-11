@@ -1,4 +1,4 @@
-use destack_vm as vm;
+use destack_vm;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{
@@ -22,12 +22,12 @@ use crate::platform::input::{
     InputTextInputAreaVm, InputTextInputType, InputTouchEventVm, InputTouchState,
     InputTouchStateVm, InputWindowTargetVm, host as host_input,
 };
-use crate::platform::{NativeArray, VmArray, VmSlice, resource};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::platform::{VmArray, VmSlice, resource};
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 /// Convert one native device-info payload into its VM shape.
 fn device_info_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputDeviceDescriptor,
 ) -> RuntimeResult<InputDeviceDescriptorVm> {
     // decode borrowed native strings for vm interning
@@ -39,11 +39,11 @@ fn device_info_to_vm(
 
     // build one vm device-info record
     Ok(InputDeviceDescriptorVm {
-        id: vm::StringHandle::new(context.intern_string(id)),
-        instance_id: vm::StringHandle::new(context.intern_string(instance_id)),
-        hardware_id: vm::StringHandle::new(context.intern_string(hardware_id)),
-        name: vm::StringHandle::new(context.intern_string(name)),
-        transport: vm::StringHandle::new(context.intern_string(transport)),
+        id: destack_vm::StringHandle::new(context.intern_string(id)),
+        instance_id: destack_vm::StringHandle::new(context.intern_string(instance_id)),
+        hardware_id: destack_vm::StringHandle::new(context.intern_string(hardware_id)),
+        name: destack_vm::StringHandle::new(context.intern_string(name)),
+        transport: destack_vm::StringHandle::new(context.intern_string(transport)),
         kind: value.kind,
         vendor_id: value.vendor_id,
         product_id: value.product_id,
@@ -65,7 +65,7 @@ fn device_info_to_vm(
 
 /// Convert one native input event payload into its VM shape.
 fn event_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputEvent,
 ) -> RuntimeResult<InputEventVm> {
     match value {
@@ -177,7 +177,7 @@ fn event_to_vm(
 
 /// Convert one native input monitor event payload into its VM shape.
 fn monitor_event_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputMonitorEvent,
 ) -> RuntimeResult<InputMonitorEventVm> {
     match value {
@@ -207,16 +207,16 @@ fn monitor_event_to_vm(
 
 /// Convert one native runtime string into one VM string handle.
 fn native_string_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: NativeStringRef,
-) -> RuntimeResult<vm::StringHandle> {
+) -> RuntimeResult<destack_vm::StringHandle> {
     let value = unsafe { value.as_str()? };
-    Ok(vm::StringHandle::new(context.intern_string(value)))
+    Ok(destack_vm::StringHandle::new(context.intern_string(value)))
 }
 
 /// Convert one native event metadata payload into its VM shape.
 fn event_metadata_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputEventMetadata,
 ) -> RuntimeResult<InputEventMetadataVm> {
     Ok(InputEventMetadataVm {
@@ -228,7 +228,7 @@ fn event_metadata_to_vm(
 
 /// Convert one native monitor event metadata payload into its VM shape.
 fn monitor_event_metadata_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputMonitorEventMetadata,
 ) -> RuntimeResult<InputMonitorEventMetadataVm> {
     Ok(InputMonitorEventMetadataVm {
@@ -242,7 +242,7 @@ fn monitor_event_metadata_to_vm(
 
 /// Convert one native capabilities payload into its VM shape.
 fn capabilities_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputDeviceCapabilities,
 ) -> RuntimeResult<InputDeviceCapabilitiesVm> {
     let kinds = unsafe { value.kinds.as_slice()? };
@@ -272,29 +272,9 @@ fn capabilities_to_vm(
     })
 }
 
-/// Convert one native device-info slice into one VM slice.
-fn list_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeSlice<InputDeviceDescriptor>,
-) -> RuntimeResult<VmSlice<InputDeviceDescriptorVm>> {
-    map_native_slice_to_vm(context, values, |context, value| {
-        device_info_to_vm(context, *value)
-    })
-}
-
-/// Convert one native event array into one VM array.
-fn event_array_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: NativeArray<InputEvent>,
-) -> RuntimeResult<VmArray<InputEventVm>> {
-    map_native_array_to_vm(context, values, |context, value| {
-        event_to_vm(context, *value)
-    })
-}
-
 /// Convert one native gamepad state snapshot into its VM shape.
 fn gamepad_state_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputGamepadState,
 ) -> RuntimeResult<InputGamepadStateVm> {
     // convert variable-length gamepad arrays
@@ -320,7 +300,7 @@ fn gamepad_state_to_vm(
 
 /// Convert one native keyboard state snapshot into its VM shape.
 fn keyboard_state_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputKeyboardState,
 ) -> RuntimeResult<InputKeyboardStateVm> {
     // decode borrowed native device id
@@ -334,7 +314,7 @@ fn keyboard_state_to_vm(
     Ok(InputKeyboardStateVm {
         timestamp_ns: value.timestamp_ns,
         sequence: value.sequence,
-        device_id: vm::StringHandle::new(context.intern_string(device_id)),
+        device_id: destack_vm::StringHandle::new(context.intern_string(device_id)),
         modifiers: value.modifiers,
         pressed_codes,
         pressed_scan_codes,
@@ -343,7 +323,7 @@ fn keyboard_state_to_vm(
 
 /// Convert one native raw-hid report into its VM shape.
 fn raw_hid_report_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputRawHidReport,
 ) -> RuntimeResult<InputRawHidReportVm> {
     // convert report payload bytes
@@ -360,7 +340,7 @@ fn raw_hid_report_to_vm(
 
 /// Convert one native composition event into its VM shape.
 fn composition_event_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputCompositionEvent,
 ) -> RuntimeResult<InputCompositionEventVm> {
     // build one VM composition event
@@ -378,7 +358,7 @@ fn composition_event_to_vm(
 
 /// Convert one native touch state snapshot into its VM shape.
 fn touch_state_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputTouchState,
 ) -> RuntimeResult<InputTouchStateVm> {
     // decode borrowed native device id
@@ -391,7 +371,7 @@ fn touch_state_to_vm(
     Ok(InputTouchStateVm {
         timestamp_ns: value.timestamp_ns,
         sequence: value.sequence,
-        device_id: vm::StringHandle::new(context.intern_string(device_id)),
+        device_id: destack_vm::StringHandle::new(context.intern_string(device_id)),
         contacts,
     })
 }
@@ -415,7 +395,7 @@ fn touch_state_to_vm(
 /// External, recordable.
 pub(crate) fn destack_input_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_input::destack_input_close(binding, handle) }
@@ -444,10 +424,13 @@ pub(crate) fn destack_input_close(
 /// External, recordable.
 pub(crate) fn destack_input_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<InputDeviceDescriptorVm>> {
     let values = call_out(|out| unsafe { host_input::destack_input_list(binding, out) })?;
-    list_to_vm(context, values)
+
+    map_native_slice_to_vm(context, values, |context, value| {
+        device_info_to_vm(context, *value)
+    })
 }
 
 /// Open one input device.
@@ -472,8 +455,8 @@ pub(crate) fn destack_input_list(
 /// External, recordable.
 pub(crate) fn destack_input_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    id: vm::StringHandle,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    id: destack_vm::StringHandle,
 ) -> RuntimeResult<resource::InputDeviceHandle> {
     let id = string_from_vm(binding, context, id)?;
     call_out(|out| unsafe { host_input::destack_input_open(binding, out, id) })
@@ -501,7 +484,7 @@ pub(crate) fn destack_input_open(
 /// External, recordable.
 pub(crate) fn destack_input_capabilities(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputDeviceCapabilitiesVm> {
     let value =
@@ -528,7 +511,7 @@ pub(crate) fn destack_input_capabilities(
 /// External, recordable.
 pub(crate) fn destack_input_monitor_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_input::destack_input_monitor_close(binding, handle) }
@@ -556,7 +539,7 @@ pub(crate) fn destack_input_monitor_close(
 /// External, recordable.
 pub(crate) fn destack_input_monitor_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::InputMonitorHandle> {
     call_out(|out| unsafe { host_input::destack_input_monitor_open(binding, out) })
 }
@@ -583,7 +566,7 @@ pub(crate) fn destack_input_monitor_open(
 /// External, recordable.
 pub(crate) fn destack_input_monitor_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<InputMonitorEventVm> {
     let value =
@@ -613,7 +596,7 @@ pub(crate) fn destack_input_monitor_read(
 /// External, recordable.
 pub(crate) fn destack_input_monitor_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputMonitorHandle,
 ) -> RuntimeResult<InputMonitorEventVm> {
     let value = call_out(|out| unsafe {
@@ -646,7 +629,7 @@ pub(crate) fn destack_input_monitor_try_read(
 /// External, recordable.
 pub(crate) fn destack_input_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputEventVm> {
     let value = call_out(|out| unsafe { host_input::destack_input_read(binding, out, handle) })?;
@@ -674,14 +657,17 @@ pub(crate) fn destack_input_read(
 /// External, recordable.
 pub(crate) fn destack_input_read_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     maxevents: u32,
 ) -> RuntimeResult<VmArray<InputEventVm>> {
     let values = call_out(|out| unsafe {
         host_input::destack_input_read_batch(binding, out, handle, maxevents)
     })?;
-    event_array_to_vm(context, values)
+
+    map_native_array_to_vm(context, values, |context, value| {
+        event_to_vm(context, *value)
+    })
 }
 
 /// Enable or disable exclusive device grab.
@@ -706,7 +692,7 @@ pub(crate) fn destack_input_read_batch(
 /// External, recordable.
 pub(crate) fn destack_input_set_exclusive_grab(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<()> {
@@ -734,7 +720,7 @@ pub(crate) fn destack_input_set_exclusive_grab(
 /// External, recordable.
 pub(crate) fn destack_input_set_read_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     mode: InputReadMode,
 ) -> RuntimeResult<()> {
@@ -765,7 +751,7 @@ pub(crate) fn destack_input_set_read_mode(
 /// External, recordable.
 pub(crate) fn destack_input_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputEventVm> {
     let value =
@@ -790,7 +776,7 @@ pub(crate) fn destack_input_try_read(
 /// External, recordable.
 pub(crate) fn destack_input_gamepad_set_light(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     red: u8,
     green: u8,
@@ -817,7 +803,7 @@ pub(crate) fn destack_input_gamepad_set_light(
 /// External, recordable.
 pub(crate) fn destack_input_gamepad_set_player_index(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     playerindex: u8,
 ) -> RuntimeResult<()> {
@@ -843,7 +829,7 @@ pub(crate) fn destack_input_gamepad_set_player_index(
 /// External, recordable.
 pub(crate) fn destack_input_gamepad_state(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputGamepadStateVm> {
     let value =
@@ -869,7 +855,7 @@ pub(crate) fn destack_input_gamepad_state(
 /// External, recordable.
 pub(crate) fn destack_input_haptics_effects(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<VmArray<InputHapticEffectType>> {
     let values =
@@ -896,7 +882,7 @@ pub(crate) fn destack_input_haptics_effects(
 /// External, recordable.
 pub(crate) fn destack_input_haptics_play(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
     params: InputHapticEffectParametersVm,
@@ -924,7 +910,7 @@ pub(crate) fn destack_input_haptics_play(
 /// External, recordable.
 pub(crate) fn destack_input_haptics_stop(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_input::destack_input_haptics_stop(binding, handle) }
@@ -950,7 +936,7 @@ pub(crate) fn destack_input_haptics_stop(
 /// External, recordable.
 pub(crate) fn destack_input_keyboard_state(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputKeyboardStateVm> {
     let value =
@@ -977,7 +963,7 @@ pub(crate) fn destack_input_keyboard_state(
 /// External, recordable.
 pub(crate) fn destack_input_pointer_capture(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
     enabled: bool,
@@ -1006,7 +992,7 @@ pub(crate) fn destack_input_pointer_capture(
 /// External, recordable.
 pub(crate) fn destack_input_pointer_relative_state(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputPointerStateVm> {
     call_out(|out| unsafe {
@@ -1033,7 +1019,7 @@ pub(crate) fn destack_input_pointer_relative_state(
 /// External, recordable.
 pub(crate) fn destack_input_pointer_set_grab_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
     mode: InputPointerGrabMode,
@@ -1060,7 +1046,7 @@ pub(crate) fn destack_input_pointer_set_grab_mode(
 /// External, recordable.
 pub(crate) fn destack_input_pointer_set_relative_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
@@ -1088,7 +1074,7 @@ pub(crate) fn destack_input_pointer_set_relative_mode(
 /// External, recordable.
 pub(crate) fn destack_input_pointer_state(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputPointerStateVm> {
     call_out(|out| unsafe { host_input::destack_input_pointer_state(binding, out, handle) })
@@ -1113,7 +1099,7 @@ pub(crate) fn destack_input_pointer_state(
 /// External, recordable.
 pub(crate) fn destack_input_pointer_warp(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
     x: f64,
@@ -1140,7 +1126,7 @@ pub(crate) fn destack_input_pointer_warp(
 /// External, recordable.
 pub(crate) fn destack_input_raw_hid_get_feature(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     reportid: u8,
     maxbytes: u32,
@@ -1170,7 +1156,7 @@ pub(crate) fn destack_input_raw_hid_get_feature(
 /// External, recordable.
 pub(crate) fn destack_input_raw_hid_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
     timeoutns: u64,
@@ -1199,7 +1185,7 @@ pub(crate) fn destack_input_raw_hid_read(
 /// External, recordable.
 pub(crate) fn destack_input_raw_hid_set_feature(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     reportid: u8,
     data: VmSlice<u8>,
@@ -1228,7 +1214,7 @@ pub(crate) fn destack_input_raw_hid_set_feature(
 /// External, recordable.
 pub(crate) fn destack_input_raw_hid_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     maxbytes: u32,
 ) -> RuntimeResult<InputRawHidReportVm> {
@@ -1257,7 +1243,7 @@ pub(crate) fn destack_input_raw_hid_try_read(
 /// External, recordable.
 pub(crate) fn destack_input_raw_hid_write(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     reportid: u8,
     data: VmSlice<u8>,
@@ -1287,7 +1273,7 @@ pub(crate) fn destack_input_raw_hid_write(
 /// External, recordable.
 pub(crate) fn destack_input_sensor_configure(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
     config: InputSensorConfigVm,
@@ -1316,7 +1302,7 @@ pub(crate) fn destack_input_sensor_configure(
 /// External, recordable.
 pub(crate) fn destack_input_sensor_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<VmArray<InputSensorDescriptorVm>> {
     let values =
@@ -1343,7 +1329,7 @@ pub(crate) fn destack_input_sensor_list(
 /// External, recordable.
 pub(crate) fn destack_input_sensor_read(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
 ) -> RuntimeResult<InputSensorSampleVm> {
@@ -1368,7 +1354,7 @@ pub(crate) fn destack_input_sensor_read(
 /// External, recordable.
 pub(crate) fn destack_input_sensor_try_read(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     kind: InputSensorKind,
 ) -> RuntimeResult<InputSensorSampleVm> {
@@ -1394,7 +1380,7 @@ pub(crate) fn destack_input_sensor_try_read(
 /// External, recordable.
 pub(crate) fn destack_input_text_get_area(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
 ) -> RuntimeResult<InputTextInputAreaVm> {
@@ -1419,7 +1405,7 @@ pub(crate) fn destack_input_text_get_area(
 /// External, recordable.
 pub(crate) fn destack_input_text_is_active(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<bool> {
     call_out(|out| unsafe { host_input::destack_input_text_is_active(binding, out, handle) })
@@ -1444,7 +1430,7 @@ pub(crate) fn destack_input_text_is_active(
 /// External, recordable.
 pub(crate) fn destack_input_text_read_composition(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputCompositionEventVm> {
     let value = call_out(|out| unsafe {
@@ -1472,7 +1458,7 @@ pub(crate) fn destack_input_text_read_composition(
 /// External, recordable.
 pub(crate) fn destack_input_text_set_area(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
     area: InputTextInputAreaVm,
@@ -1501,7 +1487,7 @@ pub(crate) fn destack_input_text_set_area(
 /// External, recordable.
 pub(crate) fn destack_input_text_start(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
     inputtype: InputTextInputType,
@@ -1528,7 +1514,7 @@ pub(crate) fn destack_input_text_start(
 /// External, recordable.
 pub(crate) fn destack_input_text_stop(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
     target: InputWindowTargetVm,
 ) -> RuntimeResult<()> {
@@ -1554,7 +1540,7 @@ pub(crate) fn destack_input_text_stop(
 /// External, recordable.
 pub(crate) fn destack_input_text_try_read_composition(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputCompositionEventVm> {
     let value = call_out(|out| unsafe {
@@ -1583,7 +1569,7 @@ pub(crate) fn destack_input_text_try_read_composition(
 /// External, recordable.
 pub(crate) fn destack_input_touch_state(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputTouchStateVm> {
     let value =

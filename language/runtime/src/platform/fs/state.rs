@@ -4,6 +4,8 @@ use std::sync::{Arc, OnceLock};
 use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostic::RuntimeError;
+
 #[cfg(windows)]
 use super::host::WindowsMmapRuntimeState;
 
@@ -35,15 +37,12 @@ impl PlatformFsState {
     }
 
     /// Capture one filesystem-state image.
-    fn image(
-        &self,
-        mode: CaptureMode,
-    ) -> Result<PlatformFsImage, Box<crate::diagnostic::RuntimeError>> {
+    fn image(&self, mode: CaptureMode) -> Result<PlatformFsImage, Box<RuntimeError>> {
         if !self.has_runtime_state() {
             return Ok(PlatformFsImage);
         }
 
-        Err(crate::diagnostic::RuntimeError::CaptureBarrier {
+        Err(RuntimeError::CaptureBarrier {
             component: "platform.fs".to_string(),
             mode: format!("{mode:?}"),
             detail: "runtime state is active".to_string(),
@@ -70,7 +69,7 @@ pub struct PlatformFsImage;
 
 impl Capture for PlatformFsState {
     type Image = PlatformFsImage;
-    type Error = Box<crate::diagnostic::RuntimeError>;
+    type Error = Box<RuntimeError>;
     type CaptureContext<'a> = ();
     type RestoreContext<'a> = ();
 

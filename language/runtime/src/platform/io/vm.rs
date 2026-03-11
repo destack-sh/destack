@@ -12,7 +12,7 @@ use crate::platform::io::{
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::BindingCallContext;
-use destack_vm as vm;
+use destack_vm;
 
 /// Convert one native timerfd schedule into one vm timerfd schedule.
 fn vm_timer_fd_spec(spec: TimerFdSpec) -> TimerFdSpecVm {
@@ -28,51 +28,6 @@ fn native_timer_fd_spec(spec: TimerFdSpecVm) -> TimerFdSpec {
         initial_ns: spec.initial_ns,
         interval_ns: spec.interval_ns,
     }
-}
-
-/// Encode one poll event slice into one VM array.
-fn encode_poll_events_vm_array(
-    context: &mut vm::ExternalCallContext<'_>,
-    events: &[PollEventVm],
-) -> RuntimeResult<VmArray<PollEventVm>> {
-    VmArray::from_values(context, events)
-}
-
-/// Encode one completion event slice into one VM array.
-fn encode_completion_events_vm_array(
-    context: &mut vm::ExternalCallContext<'_>,
-    events: &[CompletionEventVm],
-) -> RuntimeResult<VmArray<CompletionEventVm>> {
-    VmArray::from_values(context, events)
-}
-
-/// Decode one vm descriptor request into one native descriptor request.
-fn descriptor_request_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    request: DescriptorRequestVm,
-) -> RuntimeResult<DescriptorRequest> {
-    let input = request.input.read_bytes(context)?;
-    let input = binding.store_slice(input);
-
-    Ok(DescriptorRequest {
-        code: request.code,
-        input,
-        output_size: request.output_size,
-        flags: request.flags,
-    })
-}
-
-/// Encode one native descriptor result into one vm descriptor result.
-fn descriptor_result_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: DescriptorResult,
-) -> RuntimeResult<DescriptorResultVm> {
-    let output = values_to_vm(context, result.output)?;
-    Ok(DescriptorResultVm {
-        return_value: result.return_value,
-        output,
-    })
 }
 
 /// Cancel queued operations for one target.
@@ -94,7 +49,7 @@ fn descriptor_result_to_vm(
 /// External, recordable.
 pub(crate) fn destack_io_completion_cancel(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<u32> {
@@ -120,7 +75,7 @@ pub(crate) fn destack_io_completion_cancel(
 /// External, recordable.
 pub(crate) fn destack_io_completion_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
     core_io::completion_close(binding, handle)
@@ -145,7 +100,7 @@ pub(crate) fn destack_io_completion_close(
 /// External, recordable.
 pub(crate) fn destack_io_completion_enter(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     mincomplete: u32,
     timeoutns: u64,
@@ -173,7 +128,7 @@ pub(crate) fn destack_io_completion_enter(
 /// External, recordable.
 pub(crate) fn destack_io_completion_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     entries: u32,
 ) -> RuntimeResult<resource::CompletionHandle> {
     core_io::completion_open(binding, entries)
@@ -198,7 +153,7 @@ pub(crate) fn destack_io_completion_open(
 /// External, recordable.
 pub(crate) fn destack_io_completion_submit(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     operation: CompletionOperationVm,
 ) -> RuntimeResult<()> {
@@ -224,7 +179,7 @@ pub(crate) fn destack_io_completion_submit(
 /// External, recordable.
 pub(crate) fn destack_io_completion_submit_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     operationwords: VmSlice<u64>,
     operationcount: u32,
@@ -259,13 +214,14 @@ pub(crate) fn destack_io_completion_submit_batch(
 /// External, recordable.
 pub(crate) fn destack_io_completion_wait(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<VmArray<CompletionEventVm>> {
     let events = core_io::completion_wait(binding, handle, timeoutns, maxevents)?;
-    encode_completion_events_vm_array(context, &events)
+
+    VmArray::from_values(context, &events)
 }
 
 /// Execute one fcntl-style descriptor command.
@@ -287,7 +243,7 @@ pub(crate) fn destack_io_completion_wait(
 /// External, recordable.
 pub(crate) fn destack_io_control_fcntl(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::ResourceId,
     command: DescriptorControlCommand,
     argument: u64,
@@ -315,13 +271,25 @@ pub(crate) fn destack_io_control_fcntl(
 /// External, recordable.
 pub(crate) fn destack_io_control_ioctl(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::ResourceId,
     request: DescriptorRequestVm,
 ) -> RuntimeResult<DescriptorResultVm> {
-    let request = descriptor_request_from_vm(binding, context, request)?;
+    let input = request.input.read_bytes(context)?;
+    let input = binding.store_slice(input);
+    let request = DescriptorRequest {
+        code: request.code,
+        input,
+        output_size: request.output_size,
+        flags: request.flags,
+    };
     let result = host_io::host_control_ioctl(binding, handle, request)?;
-    descriptor_result_to_vm(context, result)
+    let output = values_to_vm(context, result.output)?;
+
+    Ok(DescriptorResultVm {
+        return_value: result.return_value,
+        output,
+    })
 }
 
 /// Close one raw device endpoint.
@@ -343,7 +311,7 @@ pub(crate) fn destack_io_control_ioctl(
 /// External, recordable.
 pub(crate) fn destack_io_device_close(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
@@ -369,7 +337,7 @@ pub(crate) fn destack_io_device_close(
 /// External, recordable.
 pub(crate) fn destack_io_device_control(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DeviceHandle,
     request: DescriptorRequestVm,
 ) -> RuntimeResult<DescriptorResultVm> {
@@ -396,7 +364,7 @@ pub(crate) fn destack_io_device_control(
 /// External, recordable.
 pub(crate) fn destack_io_device_open(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     path: OsPathVm,
     flags: u32,
     mode: u32,
@@ -424,7 +392,7 @@ pub(crate) fn destack_io_device_open(
 /// External, recordable.
 pub(crate) fn destack_io_device_read(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -451,7 +419,7 @@ pub(crate) fn destack_io_device_read(
 /// External, recordable.
 pub(crate) fn destack_io_device_write(
     _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DeviceHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
@@ -478,7 +446,7 @@ pub(crate) fn destack_io_device_write(
 /// External, recordable.
 pub(crate) fn destack_io_event_attach(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     token: EventToken,
     target: resource::ResourceId,
     key: u64,
@@ -505,7 +473,7 @@ pub(crate) fn destack_io_event_attach(
 /// External, recordable.
 pub(crate) fn destack_io_event_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     token: EventToken,
 ) -> RuntimeResult<()> {
     core_io::event_close(binding, token)
@@ -530,7 +498,7 @@ pub(crate) fn destack_io_event_close(
 /// External, recordable.
 pub(crate) fn destack_io_event_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     initial: u64,
 ) -> RuntimeResult<EventToken> {
     core_io::event_open(binding, initial)
@@ -556,7 +524,7 @@ pub(crate) fn destack_io_event_open(
 /// External, recordable.
 pub(crate) fn destack_io_event_signal(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeResult<()> {
@@ -582,7 +550,7 @@ pub(crate) fn destack_io_event_signal(
 /// External, recordable.
 pub(crate) fn destack_io_poll_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
     core_io::poll_close(binding, handle)
@@ -607,7 +575,7 @@ pub(crate) fn destack_io_poll_close(
 /// External, recordable.
 pub(crate) fn destack_io_poll_deregister(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
@@ -633,7 +601,7 @@ pub(crate) fn destack_io_poll_deregister(
 /// External, recordable.
 pub(crate) fn destack_io_poll_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     backend: PollBackend,
 ) -> RuntimeResult<resource::PollHandle> {
     core_io::poll_open(binding, backend)
@@ -658,7 +626,7 @@ pub(crate) fn destack_io_poll_open(
 /// External, recordable.
 pub(crate) fn destack_io_poll_register(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
@@ -686,7 +654,7 @@ pub(crate) fn destack_io_poll_register(
 /// External, recordable.
 pub(crate) fn destack_io_poll_update(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
@@ -714,13 +682,14 @@ pub(crate) fn destack_io_poll_update(
 /// External, recordable.
 pub(crate) fn destack_io_poll_wait(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<VmArray<PollEventVm>> {
     let events = core_io::poll_wait(binding, handle, timeoutns, maxevents)?;
-    encode_poll_events_vm_array(context, &events)
+
+    VmArray::from_values(context, &events)
 }
 
 /// Close one io_uring ring.
@@ -742,7 +711,7 @@ pub(crate) fn destack_io_poll_wait(
 /// External, recordable.
 pub(crate) fn destack_io_uring_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     core_io::uring_close(binding, handle)
@@ -767,7 +736,7 @@ pub(crate) fn destack_io_uring_close(
 /// External, recordable.
 pub(crate) fn destack_io_uring_features(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<UringFeaturesVm> {
     core_io::uring_features(binding, handle)
@@ -792,7 +761,7 @@ pub(crate) fn destack_io_uring_features(
 /// External, recordable.
 pub(crate) fn destack_io_uring_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     parameters: UringParametersVm,
 ) -> RuntimeResult<resource::UringHandle> {
     core_io::uring_open(binding, parameters)
@@ -817,7 +786,7 @@ pub(crate) fn destack_io_uring_open(
 /// External, recordable.
 pub(crate) fn destack_io_uring_register_buffers(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
     addresses: VmSlice<u64>,
     lengths: VmSlice<u32>,
@@ -846,7 +815,7 @@ pub(crate) fn destack_io_uring_register_buffers(
 /// External, recordable.
 pub(crate) fn destack_io_uring_register_files(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
     files: VmSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
@@ -873,7 +842,7 @@ pub(crate) fn destack_io_uring_register_files(
 /// External, recordable.
 pub(crate) fn destack_io_uring_unregister_buffers(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     core_io::uring_unregister_buffers(binding, handle)
@@ -898,7 +867,7 @@ pub(crate) fn destack_io_uring_unregister_buffers(
 /// External, recordable.
 pub(crate) fn destack_io_uring_unregister_files(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     core_io::uring_unregister_files(binding, handle)
@@ -923,7 +892,7 @@ pub(crate) fn destack_io_uring_unregister_files(
 /// External, recordable.
 pub(crate) fn destack_io_timer_fd_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_io::destack_io_timer_fd_close(binding, handle) }
@@ -948,7 +917,7 @@ pub(crate) fn destack_io_timer_fd_close(
 /// External, recordable.
 pub(crate) fn destack_io_timer_fd_get(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<TimerFdSpecVm> {
     let spec = call_out(|out| unsafe { host_io::destack_io_timer_fd_get(binding, out, handle) })?;
@@ -974,7 +943,7 @@ pub(crate) fn destack_io_timer_fd_get(
 /// External, recordable.
 pub(crate) fn destack_io_timer_fd_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     clock: TimerFdClock,
     flags: TimerFdFlags,
 ) -> RuntimeResult<resource::TimerFdHandle> {
@@ -1000,7 +969,7 @@ pub(crate) fn destack_io_timer_fd_open(
 /// External, recordable.
 pub(crate) fn destack_io_timer_fd_read(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<u64> {
     call_out(|out| unsafe { host_io::destack_io_timer_fd_read(binding, out, handle) })
@@ -1025,7 +994,7 @@ pub(crate) fn destack_io_timer_fd_read(
 /// External, recordable.
 pub(crate) fn destack_io_timer_fd_set(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::TimerFdHandle,
     spec: TimerFdSpecVm,
     flags: TimerFdSetFlags,

@@ -6,7 +6,7 @@ use objc2_app_kit::{NSBitmapFormat, NSBitmapImageRep, NSDeviceRGBColorSpace, NSI
 use objc2_foundation::NSSize;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core as core_platform;
+use crate::platform;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::display::{WindowIconPixelFormat, WindowIconSet};
 
@@ -47,7 +47,7 @@ fn decode_window_icons(icons: WindowIconSet) -> RuntimeResult<Vec<DecodedWindowI
     let images = unsafe { icons.images.as_slice()? };
     // reject empty icon sets
     if images.is_empty() {
-        return Err(core_platform::invalid_argument(
+        return Err(platform::core::invalid_argument(
             "icons",
             "icon set must contain at least one image",
         ));
@@ -58,24 +58,24 @@ fn decode_window_icons(icons: WindowIconSet) -> RuntimeResult<Vec<DecodedWindowI
     // decode every image payload into RGBA8 bytes
     for image in images {
         if image.width == 0 || image.height == 0 {
-            return Err(core_platform::invalid_argument(
+            return Err(platform::core::invalid_argument(
                 "icons",
                 "icon image width and height must be greater than zero",
             ));
         }
 
-        let width = core_platform::u32_to_usize(image.width);
-        let height = core_platform::u32_to_usize(image.height);
+        let width = platform::core::u32_to_usize(image.width);
+        let height = platform::core::u32_to_usize(image.height);
         let pixel_count = width.checked_mul(height).ok_or_else(|| {
-            core_platform::invalid_argument("icons", "icon dimensions are too large")
+            platform::core::invalid_argument("icons", "icon dimensions are too large")
         })?;
         let expected_length = pixel_count.checked_mul(4).ok_or_else(|| {
-            core_platform::invalid_argument("icons", "icon pixel payload is too large")
+            platform::core::invalid_argument("icons", "icon pixel payload is too large")
         })?;
         let pixels = unsafe { image.pixels.as_slice()? };
 
         if pixels.len() != expected_length {
-            return Err(core_platform::invalid_argument(
+            return Err(platform::core::invalid_argument(
                 "icons",
                 format!(
                     "icon pixel length {} does not match expected {expected_length}",
@@ -113,13 +113,13 @@ fn decode_window_icons(icons: WindowIconSet) -> RuntimeResult<Vec<DecodedWindowI
 fn bitmap_representation_from_icon(
     image: &DecodedWindowIconImage,
 ) -> RuntimeResult<Retained<NSBitmapImageRep>> {
-    let width = core_platform::u32_to_isize("icons", image.width)?;
-    let height = core_platform::u32_to_isize("icons", image.height)?;
+    let width = platform::core::u32_to_isize("icons", image.width)?;
+    let height = platform::core::u32_to_isize("icons", image.height)?;
     let bytes_per_row = image
         .width
         .checked_mul(4)
-        .ok_or_else(|| core_platform::invalid_argument("icons", "icon row stride is too large"))?;
-    let bytes_per_row = core_platform::u32_to_isize("icons", bytes_per_row)?;
+        .ok_or_else(|| platform::core::invalid_argument("icons", "icon row stride is too large"))?;
+    let bytes_per_row = platform::core::u32_to_isize("icons", bytes_per_row)?;
 
     let bitmap_rep = unsafe {
         NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bitmapFormat_bytesPerRow_bitsPerPixel(
@@ -137,12 +137,12 @@ fn bitmap_representation_from_icon(
             32,
         )
     }
-    .ok_or_else(|| core_platform::not_supported("destack.display.window.setIcons"))?;
+    .ok_or_else(|| platform::core::not_supported("destack.display.window.setIcons"))?;
 
     // require a writable bitmap buffer from AppKit
     let bitmap_data = bitmap_rep.bitmapData();
     if bitmap_data.is_null() {
-        return Err(core_platform::io_operation_error(
+        return Err(platform::core::io_operation_error(
             "destack.display.window.setIcons",
             Some(PlatformErrorCode::IoInvalidData),
             "AppKit returned one null icon bitmap buffer",
@@ -198,7 +198,7 @@ pub(crate) fn window_icon_image(
 
 #[cfg(test)]
 mod tests {
-    use crate::platform::display::{WindowIconImage, WindowIconSet};
+    use crate::platform::display::{WindowIconImage, WindowIconPixelFormat, WindowIconSet};
     use crate::runtime::NativeSlice;
 
     use super::{best_icon_index, decode_window_icons};
@@ -210,7 +210,7 @@ mod tests {
         let image = WindowIconImage {
             width: 1,
             height: 1,
-            pixel_format: crate::platform::display::WindowIconPixelFormat::Bgra8,
+            pixel_format: WindowIconPixelFormat::Bgra8,
             pixels: NativeSlice {
                 data: pixels.as_mut_ptr(),
                 len: pixels.len() as u32,

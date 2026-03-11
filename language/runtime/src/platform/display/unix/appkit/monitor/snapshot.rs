@@ -5,12 +5,11 @@ use objc2_core_graphics::{
     CGDisplayScreenSize, CGError, CGGetActiveDisplayList, CGMainDisplayID,
 };
 
-use super::core as monitor_core;
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core as core_platform;
+use crate::platform;
 use crate::platform::display::unix::appkit::core;
 use crate::platform::display::unix::appkit::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
-use crate::platform::display::{DisplayDescriptor, DisplaySupportStatus};
+use crate::platform::display::{DisplayDescriptor, DisplayMode, DisplaySupportStatus};
 use crate::runtime::BindingCallContext;
 
 /// Enumerate all active CoreGraphics display identifiers.
@@ -26,7 +25,7 @@ fn active_displays(operation: &'static str) -> RuntimeResult<Vec<CGDirectDisplay
         ));
     }
 
-    let expected_count = core_platform::u32_to_usize(expected_count);
+    let expected_count = platform::core::u32_to_usize(expected_count);
     let mut displays = vec![0u32; expected_count];
     let mut actual_count = 0u32;
     let status = unsafe {
@@ -45,7 +44,7 @@ fn active_displays(operation: &'static str) -> RuntimeResult<Vec<CGDirectDisplay
         ));
     }
 
-    let actual_count = core_platform::u32_to_usize(actual_count);
+    let actual_count = platform::core::u32_to_usize(actual_count);
     displays.truncate(actual_count);
     Ok(displays)
 }
@@ -54,7 +53,7 @@ fn active_displays(operation: &'static str) -> RuntimeResult<Vec<CGDirectDisplay
 fn display_modes_for_display(
     display: CGDirectDisplayID,
     operation: &'static str,
-) -> RuntimeResult<Vec<crate::platform::display::DisplayMode>> {
+) -> RuntimeResult<Vec<DisplayMode>> {
     let array = unsafe { CGDisplayCopyAllDisplayModes(display, None) }.ok_or_else(|| {
         core::io_error(
             operation,
@@ -67,7 +66,7 @@ fn display_modes_for_display(
 
     // collect unique runtime modes from the native mode catalog
     for mode in &*array {
-        let resolved = monitor_core::display_mode_from_native(&mode);
+        let resolved = super::core::display_mode_from_native(&mode);
 
         // skip duplicate runtime modes after normalization
         if !modes.contains(&resolved) {
@@ -92,7 +91,7 @@ fn monitor_snapshot(
             format!("CGDisplayCopyDisplayMode returned null for display {display}"),
         )
     })?;
-    let current_mode = monitor_core::display_mode_from_native(&current_mode_native);
+    let current_mode = super::core::display_mode_from_native(&current_mode_native);
     let mut modes = display_modes_for_display(display, operation)?;
     let desktop_mode = current_mode;
 
@@ -110,7 +109,7 @@ fn monitor_snapshot(
     let height_px = CGDisplayPixelsHigh(display) as u32;
     let descriptor = DisplayDescriptorSnapshot {
         backend: core::selected_backend(),
-        id: monitor_core::display_id(display),
+        id: super::core::display_id(display),
         name,
         primary: display == CGMainDisplayID(),
         x: bounds.origin.x.round() as i32,
@@ -124,7 +123,7 @@ fn monitor_snapshot(
         width_mm: size_mm.width.max(0.0).round() as u32,
         height_mm: size_mm.height.max(0.0).round() as u32,
         scale_factor_milli: 1000,
-        orientation: monitor_core::display_orientation(display),
+        orientation: super::core::display_orientation(display),
         builtin_panel: if CGDisplayIsBuiltin(display) {
             DisplaySupportStatus::Supported
         } else {

@@ -1,7 +1,7 @@
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core as core_platform;
+use crate::platform;
 use crate::platform::display::{
     WindowAspectRatio, WindowLogicalSize, WindowPhysicalSize, WindowPosition, WindowSizeConstraints,
 };
@@ -11,7 +11,7 @@ use crate::runtime::BindingCallContext;
 use super::core::frame_top_left_point_from_desktop_position;
 use super::reconcile;
 use crate::platform::display::unix::appkit::event::publish_state_deltas;
-use crate::platform::display::unix::appkit::{core as appkit_core, resource as display_resource};
+use crate::platform::display::unix::appkit::{core, resource};
 
 const UNBOUNDED_WINDOW_SIZE: f64 = 10_000_000.0;
 
@@ -27,7 +27,7 @@ pub(crate) fn validate_size_constraints(
     if let Some(minimum) = constraints.min
         && (minimum.width <= 0.0 || minimum.height <= 0.0)
     {
-        return Err(core_platform::invalid_argument(
+        return Err(platform::core::invalid_argument(
             "constraints",
             format!("{operation}: minimum logical size must be greater than zero"),
         ));
@@ -36,7 +36,7 @@ pub(crate) fn validate_size_constraints(
     if let Some(maximum) = constraints.max
         && (maximum.width <= 0.0 || maximum.height <= 0.0)
     {
-        return Err(core_platform::invalid_argument(
+        return Err(platform::core::invalid_argument(
             "constraints",
             format!("{operation}: maximum logical size must be greater than zero"),
         ));
@@ -51,8 +51,8 @@ pub(crate) unsafe fn window_set_position(
     window_handle: WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
-    let runtime_state = appkit_core::runtime_state(context);
-    let host_state = display_resource::resolve_window_host_state(
+    let runtime_state = core::runtime_state(context);
+    let host_state = resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setPosition",
@@ -61,7 +61,7 @@ pub(crate) unsafe fn window_set_position(
     host_state.position = position;
     drop(host_state);
 
-    appkit_core::with_window_host(
+    core::with_window_host(
         &runtime_state,
         window_handle,
         "destack.display.window.setPosition",
@@ -83,8 +83,8 @@ pub(crate) unsafe fn window_set_size_constraints(
 ) -> RuntimeResult<()> {
     validate_size_constraints(constraints, "destack.display.window.setSizeConstraints")?;
 
-    let runtime_state = appkit_core::runtime_state(context);
-    let host_state = display_resource::resolve_window_host_state(
+    let runtime_state = core::runtime_state(context);
+    let host_state = resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setSizeConstraints",
@@ -93,7 +93,7 @@ pub(crate) unsafe fn window_set_size_constraints(
     host_state.constraints = constraints;
     drop(host_state);
 
-    appkit_core::with_window_host(
+    core::with_window_host(
         &runtime_state,
         window_handle,
         "destack.display.window.setSizeConstraints",
@@ -134,14 +134,14 @@ pub(crate) unsafe fn window_set_size_logical(
     size: WindowLogicalSize,
 ) -> RuntimeResult<()> {
     if size.width <= 0.0 || size.height <= 0.0 {
-        return Err(core_platform::invalid_argument(
+        return Err(platform::core::invalid_argument(
             "size",
             "window logical width and height must be greater than zero",
         ));
     }
 
-    let runtime_state = appkit_core::runtime_state(context);
-    let host_state = display_resource::resolve_window_host_state(
+    let runtime_state = core::runtime_state(context);
+    let host_state = resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setSizeLogical",
@@ -149,13 +149,13 @@ pub(crate) unsafe fn window_set_size_logical(
     let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
     let scale_factor = (host_state.scale_factor_milli as f64 / 1000.0).max(1.0);
     host_state.size_logical = size;
-    host_state.size_physical = crate::platform::display::WindowPhysicalSize {
+    host_state.size_physical = WindowPhysicalSize {
         width: (size.width * scale_factor).round().max(1.0) as u32,
         height: (size.height * scale_factor).round().max(1.0) as u32,
     };
     drop(host_state);
 
-    appkit_core::with_window_host(
+    core::with_window_host(
         &runtime_state,
         window_handle,
         "destack.display.window.setSizeLogical",
@@ -190,14 +190,14 @@ pub(crate) unsafe fn window_set_size_physical(
     size: WindowPhysicalSize,
 ) -> RuntimeResult<()> {
     if size.width == 0 || size.height == 0 {
-        return Err(core_platform::invalid_argument(
+        return Err(platform::core::invalid_argument(
             "size",
             "window physical width and height must be greater than zero",
         ));
     }
 
-    let runtime_state = appkit_core::runtime_state(context);
-    let scale_factor = appkit_core::with_window_host(
+    let runtime_state = core::runtime_state(context);
+    let scale_factor = core::with_window_host(
         &runtime_state,
         window_handle,
         "destack.display.window.setSizePhysical",
@@ -221,14 +221,14 @@ pub(crate) unsafe fn window_set_aspect_ratio(
     if let Some(aspect_ratio) = aspect_ratio
         && (aspect_ratio.numerator == 0 || aspect_ratio.denominator == 0)
     {
-        return Err(core_platform::invalid_argument(
+        return Err(platform::core::invalid_argument(
             "aspectRatio",
             "aspect ratio numerator and denominator must be greater than zero",
         ));
     }
 
-    let runtime_state = appkit_core::runtime_state(context);
-    let host_state = display_resource::resolve_window_host_state(
+    let runtime_state = core::runtime_state(context);
+    let host_state = resource::resolve_window_host_state(
         context,
         window_handle,
         "destack.display.window.setAspectRatio",
@@ -239,7 +239,7 @@ pub(crate) unsafe fn window_set_aspect_ratio(
     let next = host_state.clone();
     drop(host_state);
 
-    appkit_core::with_window_host(
+    core::with_window_host(
         &runtime_state,
         window_handle,
         "destack.display.window.setAspectRatio",

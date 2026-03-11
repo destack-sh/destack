@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::platform::display::DisplayEventOverflowPolicy;
 use crate::runtime::RuntimeEventLog;
 
 use super::{DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream};
@@ -57,14 +58,14 @@ pub(crate) fn push_seeded_monitor_record(
 
     // apply overflow policy against the combined seeded and live unread set
     match state.overflow_policy {
-        crate::platform::display::DisplayEventOverflowPolicy::DropNewest => {
+        DisplayEventOverflowPolicy::DropNewest => {
             state.dropped_count = state.dropped_count.saturating_add(1);
         }
-        crate::platform::display::DisplayEventOverflowPolicy::Error => {
+        DisplayEventOverflowPolicy::Error => {
             state.overflow_error_pending = true;
             state.dropped_count = state.dropped_count.saturating_add(1);
         }
-        crate::platform::display::DisplayEventOverflowPolicy::DropOldest => {
+        DisplayEventOverflowPolicy::DropOldest => {
             state.dropped_count = state.dropped_count.saturating_add(1);
 
             // prefer dropping earlier seeded records before unread live records
@@ -131,14 +132,14 @@ fn note_monitor_publication(
 
     // apply overflow policy against the combined seeded and live unread set
     match state.overflow_policy {
-        crate::platform::display::DisplayEventOverflowPolicy::DropNewest => {
+        DisplayEventOverflowPolicy::DropNewest => {
             state.dropped_count = state.dropped_count.saturating_add(1);
         }
-        crate::platform::display::DisplayEventOverflowPolicy::Error => {
+        DisplayEventOverflowPolicy::Error => {
             state.overflow_error_pending = true;
             state.dropped_count = state.dropped_count.saturating_add(1);
         }
-        crate::platform::display::DisplayEventOverflowPolicy::DropOldest => {
+        DisplayEventOverflowPolicy::DropOldest => {
             state.dropped_count = state.dropped_count.saturating_add(1);
 
             // drop one seeded record before dropping one unread live record
@@ -177,14 +178,14 @@ fn note_window_publication(
 
     // apply overflow policy against the combined seeded and live unread set
     match state.overflow_policy {
-        crate::platform::display::DisplayEventOverflowPolicy::DropNewest => {
+        DisplayEventOverflowPolicy::DropNewest => {
             state.dropped_count = state.dropped_count.saturating_add(1);
         }
-        crate::platform::display::DisplayEventOverflowPolicy::Error => {
+        DisplayEventOverflowPolicy::Error => {
             state.overflow_error_pending = true;
             state.dropped_count = state.dropped_count.saturating_add(1);
         }
-        crate::platform::display::DisplayEventOverflowPolicy::DropOldest => {
+        DisplayEventOverflowPolicy::DropOldest => {
             state.dropped_count = state.dropped_count.saturating_add(1);
 
             // drop one seeded record before dropping one unread live record

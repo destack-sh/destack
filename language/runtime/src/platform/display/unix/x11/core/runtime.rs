@@ -5,7 +5,7 @@ use x11rb::connection::Connection;
 
 use super::connection::X11ConnectionState;
 use super::ingress;
-use crate::diagnostic::DiagnosticStore;
+use crate::diagnostic::{DiagnosticStore, RuntimeResult};
 use crate::host::core::observer::{RuntimeIngressObserver, RuntimeIngressObserverRegistry};
 use crate::platform::display::unix::x11::event::{
     self as x11_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
@@ -60,7 +60,7 @@ pub(crate) struct X11RuntimeIngressObserver {
 
 impl RuntimeIngressObserver for X11RuntimeIngressObserver {
     /// Service X11 ingress and publish runtime-owned event deltas.
-    fn process_runtime_ingress(&self) -> crate::diagnostic::RuntimeResult<()> {
+    fn process_runtime_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };
@@ -203,7 +203,7 @@ impl X11RuntimeState {
     pub(crate) fn process_runtime_ingress(
         self: &Arc<Self>,
         operation: &'static str,
-    ) -> crate::diagnostic::RuntimeResult<()> {
+    ) -> RuntimeResult<()> {
         // resolve host connection state
         let connection_state = super::connection_state(self, operation)?;
         let mut is_monitor_topology_dirty = false;

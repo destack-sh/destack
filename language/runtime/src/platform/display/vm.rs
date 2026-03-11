@@ -1,17 +1,16 @@
-use destack_vm as vm;
+use destack_vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform;
 use crate::platform::core::{
     call_out, intern_string_to_vm as string_to_vm, map_native_array_to_vm, map_native_slice_to_vm,
     optional_intern_string_to_vm as optional_string_to_vm, os_path_to_vm as path_to_vm,
     store_string_from_vm as string_from_vm,
 };
-use crate::platform::{NativeArray, VmArray, VmSlice, display as display_platform, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
-use display_platform::{
+use crate::platform::display::{
     DisplayBackendCapabilityFlags, DisplayBackendDescriptor, DisplayBackendDescriptorVm,
-    DisplayDescriptor, DisplayDescriptorVm, DisplayGammaRamp, DisplayGammaRampVm, DisplayMode,
-    DisplayModeVm, DisplayMonitorEvent, DisplayMonitorEventFilter, DisplayMonitorEventFilterVm,
+    DisplayDescriptor, DisplayDescriptorVm, DisplayGammaRamp, DisplayGammaRampVm, DisplayModeVm,
+    DisplayMonitorEvent, DisplayMonitorEventFilter, DisplayMonitorEventFilterVm,
     DisplayMonitorEventOpenOptions, DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm,
     DisplayMonitorListRequestVm, DisplayMonitorOpenOptionsVm, WindowDescriptor, WindowDescriptorVm,
     WindowDropFilePayload, WindowDropFilePayloadVm, WindowDropHoverLeavePayload,
@@ -21,16 +20,18 @@ use display_platform::{
     WindowModeOptions, WindowModeOptionsVm, WindowModePayload, WindowModePayloadVm, WindowOptions,
     WindowOptionsVm, native as host_display,
 };
+use crate::platform::{NativeArray, VmArray, VmSlice, resource};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Convert one native window-mode payload to VM.
 fn window_mode_options_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     mode: WindowModeOptions,
 ) -> RuntimeResult<WindowModeOptionsVm> {
     let mode = match mode {
         WindowModeOptions::WindowBorderlessModeOptions(mode) => {
             WindowModeOptionsVm::WindowBorderlessModeOptions(
-                display_platform::WindowBorderlessModeOptionsVm {
+                platform::display::WindowBorderlessModeOptionsVm {
                     kind: string_to_vm(context, mode.kind)?,
                     display: mode.display,
                 },
@@ -38,7 +39,7 @@ fn window_mode_options_to_vm(
         }
         WindowModeOptions::WindowExclusiveFullscreenModeOptions(mode) => {
             WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(
-                display_platform::WindowExclusiveFullscreenModeOptionsVm {
+                platform::display::WindowExclusiveFullscreenModeOptionsVm {
                     kind: string_to_vm(context, mode.kind)?,
                     display: mode.display,
                     display_mode: mode.display_mode,
@@ -47,7 +48,7 @@ fn window_mode_options_to_vm(
         }
         WindowModeOptions::WindowWindowedModeOptions(mode) => {
             WindowModeOptionsVm::WindowWindowedModeOptions(
-                display_platform::WindowWindowedModeOptionsVm {
+                platform::display::WindowWindowedModeOptionsVm {
                     kind: string_to_vm(context, mode.kind)?,
                 },
             )
@@ -60,13 +61,13 @@ fn window_mode_options_to_vm(
 /// Convert one VM window-mode payload to native.
 fn window_mode_options_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     mode: WindowModeOptionsVm,
 ) -> RuntimeResult<WindowModeOptions> {
     let mode = match mode {
         WindowModeOptionsVm::WindowBorderlessModeOptions(mode) => {
             WindowModeOptions::WindowBorderlessModeOptions(
-                display_platform::WindowBorderlessModeOptions {
+                platform::display::WindowBorderlessModeOptions {
                     kind: string_from_vm(binding, context, mode.kind)?,
                     display: mode.display,
                 },
@@ -74,7 +75,7 @@ fn window_mode_options_from_vm(
         }
         WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(mode) => {
             WindowModeOptions::WindowExclusiveFullscreenModeOptions(
-                display_platform::WindowExclusiveFullscreenModeOptions {
+                platform::display::WindowExclusiveFullscreenModeOptions {
                     kind: string_from_vm(binding, context, mode.kind)?,
                     display: mode.display,
                     display_mode: mode.display_mode,
@@ -83,7 +84,7 @@ fn window_mode_options_from_vm(
         }
         WindowModeOptionsVm::WindowWindowedModeOptions(mode) => {
             WindowModeOptions::WindowWindowedModeOptions(
-                display_platform::WindowWindowedModeOptions {
+                platform::display::WindowWindowedModeOptions {
                     kind: string_from_vm(binding, context, mode.kind)?,
                 },
             )
@@ -95,7 +96,7 @@ fn window_mode_options_from_vm(
 
 /// Convert one native display descriptor into its VM representation.
 fn display_descriptor_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: DisplayDescriptor,
 ) -> RuntimeResult<DisplayDescriptorVm> {
     let id = unsafe { value.id.as_str()? };
@@ -103,8 +104,8 @@ fn display_descriptor_to_vm(
 
     Ok(DisplayDescriptorVm {
         backend: value.backend,
-        id: vm::StringHandle::new(context.intern_string(id)),
-        name: vm::StringHandle::new(context.intern_string(name)),
+        id: destack_vm::StringHandle::new(context.intern_string(id)),
+        name: destack_vm::StringHandle::new(context.intern_string(name)),
         primary: value.primary,
         x: value.x,
         y: value.y,
@@ -126,14 +127,14 @@ fn display_descriptor_to_vm(
 
 /// Convert one native display backend descriptor into its VM representation.
 fn display_backend_descriptor_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: DisplayBackendDescriptor,
 ) -> RuntimeResult<DisplayBackendDescriptorVm> {
     let name = unsafe { value.name.as_str()? };
 
     Ok(DisplayBackendDescriptorVm {
         backend: value.backend,
-        name: vm::StringHandle::new(context.intern_string(name)),
+        name: destack_vm::StringHandle::new(context.intern_string(name)),
         support: value.support,
         priority: value.priority,
         capability_flags: value.capability_flags,
@@ -142,7 +143,7 @@ fn display_backend_descriptor_to_vm(
 
 /// Convert one native display event into its VM representation.
 fn display_event_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: DisplayMonitorEvent,
 ) -> RuntimeResult<DisplayMonitorEventVm> {
     match value {
@@ -151,10 +152,10 @@ fn display_event_to_vm(
             let metadata = display_event_metadata_to_vm(context, event.metadata)?;
             let descriptor = display_descriptor_to_vm(context, event.payload.descriptor)?;
             Ok(DisplayMonitorEventVm::DisplayAddedEvent(
-                display_platform::DisplayAddedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::DisplayAddedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata,
-                    payload: display_platform::DisplayAddedPayloadVm { descriptor },
+                    payload: platform::display::DisplayAddedPayloadVm { descriptor },
                 },
             ))
         }
@@ -168,10 +169,10 @@ fn display_event_to_vm(
                 .transpose()?;
             let current = display_descriptor_to_vm(context, event.payload.current)?;
             Ok(DisplayMonitorEventVm::DisplayDescriptorChangedEvent(
-                display_platform::DisplayDescriptorChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::DisplayDescriptorChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata,
-                    payload: display_platform::DisplayDescriptorChangedPayloadVm {
+                    payload: platform::display::DisplayDescriptorChangedPayloadVm {
                         previous,
                         current,
                         changed_mask: event.payload.changed_mask,
@@ -183,8 +184,8 @@ fn display_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             let metadata = display_event_metadata_to_vm(context, event.metadata)?;
             Ok(DisplayMonitorEventVm::DisplayModeChangedEvent(
-                display_platform::DisplayModeChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::DisplayModeChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata,
                     payload: event.payload,
                 },
@@ -194,10 +195,10 @@ fn display_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             let metadata = display_event_metadata_to_vm(context, event.metadata)?;
             Ok(DisplayMonitorEventVm::DisplayPrimaryChangedEvent(
-                display_platform::DisplayPrimaryChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::DisplayPrimaryChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata,
-                    payload: display_platform::DisplayPrimaryPayloadVm {
+                    payload: platform::display::DisplayPrimaryPayloadVm {
                         previous_id: optional_string_to_vm(context, event.payload.previous_id)?,
                         current_id: optional_string_to_vm(context, event.payload.current_id)?,
                     },
@@ -214,10 +215,10 @@ fn display_event_to_vm(
                 .map(|value| display_descriptor_to_vm(context, value))
                 .transpose()?;
             Ok(DisplayMonitorEventVm::DisplayRemovedEvent(
-                display_platform::DisplayRemovedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::DisplayRemovedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata,
-                    payload: display_platform::DisplayRemovedPayloadVm {
+                    payload: platform::display::DisplayRemovedPayloadVm {
                         id: payload_id,
                         descriptor,
                     },
@@ -229,17 +230,17 @@ fn display_event_to_vm(
 
 /// Convert one native display event metadata payload into its VM representation.
 fn display_event_metadata_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: display_platform::DisplayMonitorEventMetadata,
-) -> RuntimeResult<display_platform::DisplayMonitorEventMetadataVm> {
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    value: platform::display::DisplayMonitorEventMetadata,
+) -> RuntimeResult<platform::display::DisplayMonitorEventMetadataVm> {
     let display_id = if let Some(value) = value.display_id {
         let value = unsafe { value.as_str()? };
-        Some(vm::StringHandle::new(context.intern_string(value)))
+        Some(destack_vm::StringHandle::new(context.intern_string(value)))
     } else {
         None
     };
 
-    Ok(display_platform::DisplayMonitorEventMetadataVm {
+    Ok(platform::display::DisplayMonitorEventMetadataVm {
         backend: value.backend,
         display_id,
         timestamp_ns: value.timestamp_ns,
@@ -250,7 +251,7 @@ fn display_event_metadata_to_vm(
 
 /// Convert one native window descriptor into its VM representation.
 fn window_descriptor_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: WindowDescriptor,
 ) -> RuntimeResult<WindowDescriptorVm> {
     let id = unsafe { value.id.as_str()? };
@@ -258,8 +259,8 @@ fn window_descriptor_to_vm(
 
     Ok(WindowDescriptorVm {
         backend: value.backend,
-        id: vm::StringHandle::new(context.intern_string(id)),
-        title: vm::StringHandle::new(context.intern_string(title)),
+        id: destack_vm::StringHandle::new(context.intern_string(id)),
+        title: destack_vm::StringHandle::new(context.intern_string(title)),
         role: value.role,
         mode: window_mode_options_to_vm(context, value.mode)?,
         display: value.display,
@@ -280,7 +281,7 @@ fn window_descriptor_to_vm(
 
 /// Convert one native display-descriptor slice into one VM slice.
 fn descriptor_slice_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: NativeSlice<DisplayDescriptor>,
 ) -> RuntimeResult<VmSlice<DisplayDescriptorVm>> {
     map_native_slice_to_vm(context, value, |context, descriptor| {
@@ -288,38 +289,21 @@ fn descriptor_slice_to_vm(
     })
 }
 
-/// Convert one native backend descriptor slice into one VM slice.
-fn backend_descriptor_slice_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeSlice<DisplayBackendDescriptor>,
+/// List display backends that are available for the active target.
+pub(crate) fn destack_display_backend_list(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<DisplayBackendDescriptorVm>> {
-    map_native_slice_to_vm(context, value, |context, descriptor| {
+    let values =
+        call_out(|out| unsafe { host_display::destack_display_backend_list(binding, out) })?;
+    map_native_slice_to_vm(context, values, |context, descriptor| {
         display_backend_descriptor_to_vm(context, *descriptor)
     })
 }
 
-/// List display backends that are available for the active target.
-pub(crate) fn destack_display_backend_list(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<VmSlice<DisplayBackendDescriptorVm>> {
-    let values =
-        call_out(|out| unsafe { host_display::destack_display_backend_list(binding, out) })?;
-    backend_descriptor_slice_to_vm(context, values)
-}
-
-/// Convert one native display-mode slice into one VM slice.
-fn mode_slice_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeSlice<DisplayMode>,
-) -> RuntimeResult<VmSlice<DisplayModeVm>> {
-    let value = unsafe { value.as_slice()? };
-    VmSlice::from_values(context, value)
-}
-
 /// Convert one native monitor-event array into one VM array.
 fn display_event_array_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: NativeArray<DisplayMonitorEvent>,
 ) -> RuntimeResult<VmArray<DisplayMonitorEventVm>> {
     map_native_array_to_vm(context, value, |context, event| {
@@ -329,47 +313,18 @@ fn display_event_array_to_vm(
 
 /// Convert one native window-event array into one VM array.
 fn window_event_array_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: NativeArray<display_platform::WindowEvent>,
-) -> RuntimeResult<VmArray<display_platform::WindowEventVm>> {
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    value: NativeArray<platform::display::WindowEvent>,
+) -> RuntimeResult<VmArray<platform::display::WindowEventVm>> {
     map_native_array_to_vm(context, value, |context, event| {
         window_event_to_vm(context, *event)
     })
 }
 
-/// Convert one native display gamma-ramp payload to VM.
-fn display_gamma_ramp_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    ramp: DisplayGammaRamp,
-) -> RuntimeResult<DisplayGammaRampVm> {
-    let red = unsafe { ramp.red.as_slice()? };
-    let green = unsafe { ramp.green.as_slice()? };
-    let blue = unsafe { ramp.blue.as_slice()? };
-
-    Ok(DisplayGammaRampVm {
-        red: VmSlice::from_values(context, red)?,
-        green: VmSlice::from_values(context, green)?,
-        blue: VmSlice::from_values(context, blue)?,
-    })
-}
-
-/// Convert one VM display gamma-ramp payload to native.
-fn display_gamma_ramp_from_vm(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    ramp: DisplayGammaRampVm,
-) -> RuntimeResult<DisplayGammaRamp> {
-    let red = binding.store_slice(ramp.red.read_values(context)?);
-    let green = binding.store_slice(ramp.green.read_values(context)?);
-    let blue = binding.store_slice(ramp.blue.read_values(context)?);
-
-    Ok(DisplayGammaRamp { red, green, blue })
-}
-
 /// Convert one VM monitor-event filter payload to native.
 fn monitor_event_filter_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     filter: DisplayMonitorEventFilterVm,
 ) -> RuntimeResult<DisplayMonitorEventFilter> {
     let display_id = filter
@@ -386,7 +341,7 @@ fn monitor_event_filter_from_vm(
 /// Convert one VM monitor-event open-options payload to native.
 fn monitor_event_open_options_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     options: DisplayMonitorEventOpenOptionsVm,
 ) -> RuntimeResult<DisplayMonitorEventOpenOptions> {
     let filter = options
@@ -405,7 +360,7 @@ fn monitor_event_open_options_from_vm(
 /// Convert one VM icon-image payload to native.
 fn window_icon_image_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     image: WindowIconImageVm,
 ) -> RuntimeResult<WindowIconImage> {
     let pixels = image.pixels.read_bytes(context)?;
@@ -421,7 +376,7 @@ fn window_icon_image_from_vm(
 /// Convert one VM icon-set payload to native.
 fn window_icon_set_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     icon_set: WindowIconSetVm,
 ) -> RuntimeResult<WindowIconSet> {
     let images = icon_set.images.read_values(context)?;
@@ -438,7 +393,7 @@ fn window_icon_set_from_vm(
 
 /// Convert one native window-mode-changed payload to VM.
 fn window_mode_payload_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     payload: WindowModePayload,
 ) -> RuntimeResult<WindowModePayloadVm> {
     Ok(WindowModePayloadVm {
@@ -449,7 +404,7 @@ fn window_mode_payload_to_vm(
 
 /// Convert one native file-drop payload to VM.
 fn window_drop_file_payload_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     payload: WindowDropFilePayload,
 ) -> RuntimeResult<WindowDropFilePayloadVm> {
     let path = payload
@@ -464,7 +419,7 @@ fn window_drop_file_payload_to_vm(
 
 /// Convert one native file-hover payload to VM.
 fn window_drop_hover_payload_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     payload: WindowDropHoverPayload,
 ) -> RuntimeResult<WindowDropHoverPayloadVm> {
     let path = payload
@@ -479,7 +434,7 @@ fn window_drop_hover_payload_to_vm(
 
 /// Convert one native file-hover-leave payload to VM.
 fn window_drop_hover_leave_payload_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     payload: WindowDropHoverLeavePayload,
 ) -> RuntimeResult<WindowDropHoverLeavePayloadVm> {
     let previous_path = payload
@@ -494,7 +449,7 @@ fn window_drop_hover_leave_payload_to_vm(
 
 /// Convert one native text-drop payload to VM.
 fn window_drop_text_payload_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     payload: WindowDropTextPayload,
 ) -> RuntimeResult<WindowDropTextPayloadVm> {
     Ok(WindowDropTextPayloadVm {
@@ -505,15 +460,15 @@ fn window_drop_text_payload_to_vm(
 
 /// Convert one native window event into its VM representation.
 fn window_event_to_vm(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: WindowEvent,
 ) -> RuntimeResult<WindowEventVm> {
     match value {
         WindowEvent::WindowAspectRatioChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowAspectRatioChangedEvent(
-                display_platform::WindowAspectRatioChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowAspectRatioChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -522,8 +477,8 @@ fn window_event_to_vm(
         WindowEvent::WindowChromeChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowChromeChangedEvent(
-                display_platform::WindowChromeChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowChromeChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -532,8 +487,8 @@ fn window_event_to_vm(
         WindowEvent::WindowCloseRequestedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowCloseRequestedEvent(
-                display_platform::WindowCloseRequestedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowCloseRequestedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
             ))
@@ -541,8 +496,8 @@ fn window_event_to_vm(
         WindowEvent::WindowCreatedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowCreatedEvent(
-                display_platform::WindowCreatedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowCreatedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
             ))
@@ -550,8 +505,8 @@ fn window_event_to_vm(
         WindowEvent::WindowDestroyedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDestroyedEvent(
-                display_platform::WindowDestroyedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowDestroyedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
             ))
@@ -559,8 +514,8 @@ fn window_event_to_vm(
         WindowEvent::WindowDisplayChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDisplayChangedEvent(
-                display_platform::WindowDisplayChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowDisplayChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -569,8 +524,8 @@ fn window_event_to_vm(
         WindowEvent::WindowDropCancelledEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDropCancelledEvent(
-                display_platform::WindowDropCancelledEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowDropCancelledEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
             ))
@@ -578,8 +533,8 @@ fn window_event_to_vm(
         WindowEvent::WindowDropCompletedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDropCompletedEvent(
-                display_platform::WindowDropCompletedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowDropCompletedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
             ))
@@ -587,8 +542,8 @@ fn window_event_to_vm(
         WindowEvent::WindowDropStartedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDropStartedEvent(
-                display_platform::WindowDropStartedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowDropStartedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
             ))
@@ -596,8 +551,8 @@ fn window_event_to_vm(
         WindowEvent::WindowFileDroppedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFileDroppedEvent(
-                display_platform::WindowFileDroppedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowFileDroppedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: window_drop_file_payload_to_vm(context, event.payload)?,
                 },
@@ -606,8 +561,8 @@ fn window_event_to_vm(
         WindowEvent::WindowFileHoverLeftEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFileHoverLeftEvent(
-                display_platform::WindowFileHoverLeftEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowFileHoverLeftEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: window_drop_hover_leave_payload_to_vm(context, event.payload)?,
                 },
@@ -616,8 +571,8 @@ fn window_event_to_vm(
         WindowEvent::WindowFileHoveredEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFileHoveredEvent(
-                display_platform::WindowFileHoveredEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowFileHoveredEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: window_drop_hover_payload_to_vm(context, event.payload)?,
                 },
@@ -626,8 +581,8 @@ fn window_event_to_vm(
         WindowEvent::WindowFocusChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFocusChangedEvent(
-                display_platform::WindowFocusChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowFocusChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -636,8 +591,8 @@ fn window_event_to_vm(
         WindowEvent::WindowModalChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowModalChangedEvent(
-                display_platform::WindowModalChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowModalChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -646,8 +601,8 @@ fn window_event_to_vm(
         WindowEvent::WindowModeChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowModeChangedEvent(
-                display_platform::WindowModeChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowModeChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: window_mode_payload_to_vm(context, event.payload)?,
                 },
@@ -656,8 +611,8 @@ fn window_event_to_vm(
         WindowEvent::WindowMousePassthroughChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowMousePassthroughChangedEvent(
-                display_platform::WindowMousePassthroughChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowMousePassthroughChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -666,8 +621,8 @@ fn window_event_to_vm(
         WindowEvent::WindowOcclusionChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowOcclusionChangedEvent(
-                display_platform::WindowOcclusionChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowOcclusionChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -676,8 +631,8 @@ fn window_event_to_vm(
         WindowEvent::WindowOpacityChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowOpacityChangedEvent(
-                display_platform::WindowOpacityChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowOpacityChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -686,8 +641,8 @@ fn window_event_to_vm(
         WindowEvent::WindowParentChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowParentChangedEvent(
-                display_platform::WindowParentChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowParentChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -696,8 +651,8 @@ fn window_event_to_vm(
         WindowEvent::WindowPositionChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowPositionChangedEvent(
-                display_platform::WindowPositionChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowPositionChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -706,8 +661,8 @@ fn window_event_to_vm(
         WindowEvent::WindowRefreshRequestedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowRefreshRequestedEvent(
-                display_platform::WindowRefreshRequestedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowRefreshRequestedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                 },
             ))
@@ -715,8 +670,8 @@ fn window_event_to_vm(
         WindowEvent::WindowSafeAreaChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowSafeAreaChangedEvent(
-                display_platform::WindowSafeAreaChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowSafeAreaChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -725,8 +680,8 @@ fn window_event_to_vm(
         WindowEvent::WindowScaleFactorChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowScaleFactorChangedEvent(
-                display_platform::WindowScaleFactorChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowScaleFactorChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -735,8 +690,8 @@ fn window_event_to_vm(
         WindowEvent::WindowSizeChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowSizeChangedEvent(
-                display_platform::WindowSizeChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowSizeChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -745,8 +700,8 @@ fn window_event_to_vm(
         WindowEvent::WindowTaskbarVisibilityChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowTaskbarVisibilityChangedEvent(
-                display_platform::WindowTaskbarVisibilityChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowTaskbarVisibilityChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -755,8 +710,8 @@ fn window_event_to_vm(
         WindowEvent::WindowTextDroppedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowTextDroppedEvent(
-                display_platform::WindowTextDroppedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowTextDroppedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: window_drop_text_payload_to_vm(context, event.payload)?,
                 },
@@ -765,8 +720,8 @@ fn window_event_to_vm(
         WindowEvent::WindowThemeChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowThemeChangedEvent(
-                display_platform::WindowThemeChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowThemeChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -775,8 +730,8 @@ fn window_event_to_vm(
         WindowEvent::WindowTransientChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowTransientChangedEvent(
-                display_platform::WindowTransientChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowTransientChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -785,8 +740,8 @@ fn window_event_to_vm(
         WindowEvent::WindowVisibilityChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowVisibilityChangedEvent(
-                display_platform::WindowVisibilityChangedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                platform::display::WindowVisibilityChangedEventVm {
+                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -798,7 +753,7 @@ fn window_event_to_vm(
 /// Convert one VM window options payload into one native payload.
 fn window_options_from_vm(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     options: WindowOptionsVm,
 ) -> RuntimeResult<WindowOptions> {
     let title = {
@@ -838,7 +793,7 @@ fn window_options_from_vm(
 /// Close one display endpoint.
 pub(crate) fn destack_display_monitor_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_monitor_close(binding, handle) }
@@ -847,7 +802,7 @@ pub(crate) fn destack_display_monitor_close(
 /// Resolve one requested mode to the closest supported mode.
 pub(crate) fn destack_display_monitor_closest_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
     requested: DisplayModeVm,
 ) -> RuntimeResult<DisplayModeVm> {
@@ -859,7 +814,7 @@ pub(crate) fn destack_display_monitor_closest_mode(
 /// Read one point-in-time current mode for one display.
 pub(crate) fn destack_display_monitor_current_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<DisplayModeVm> {
     call_out(|out| unsafe {
@@ -870,7 +825,7 @@ pub(crate) fn destack_display_monitor_current_mode(
 /// Read descriptor metadata for one display.
 pub(crate) fn destack_display_monitor_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<DisplayDescriptorVm> {
     let descriptor = call_out(|out| unsafe {
@@ -883,7 +838,7 @@ pub(crate) fn destack_display_monitor_descriptor(
 /// Read one point-in-time desktop mode for one display.
 pub(crate) fn destack_display_monitor_desktop_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<DisplayModeVm> {
     call_out(|out| unsafe {
@@ -894,7 +849,7 @@ pub(crate) fn destack_display_monitor_desktop_mode(
 /// Close one monitor-event stream.
 pub(crate) fn destack_display_monitor_event_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_monitor_event_close(binding, handle) }
@@ -903,7 +858,7 @@ pub(crate) fn destack_display_monitor_event_close(
 /// Open one monitor-event stream.
 pub(crate) fn destack_display_monitor_event_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     options: DisplayMonitorEventOpenOptionsVm,
 ) -> RuntimeResult<resource::DisplayEventHandle> {
     let options = monitor_event_open_options_from_vm(binding, context, options)?;
@@ -915,7 +870,7 @@ pub(crate) fn destack_display_monitor_event_open(
 /// Wait for one monitor event.
 pub(crate) fn destack_display_monitor_event_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<DisplayMonitorEventVm> {
@@ -929,7 +884,7 @@ pub(crate) fn destack_display_monitor_event_read(
 /// Wait for one batch of monitor events.
 pub(crate) fn destack_display_monitor_event_read_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
     timeoutns: u64,
@@ -946,7 +901,7 @@ pub(crate) fn destack_display_monitor_event_read_batch(
 /// Poll one monitor event without blocking.
 pub(crate) fn destack_display_monitor_event_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<DisplayMonitorEventVm> {
     let event = call_out(|out| unsafe {
@@ -959,7 +914,7 @@ pub(crate) fn destack_display_monitor_event_try_read(
 /// Poll one batch of monitor events without blocking.
 pub(crate) fn destack_display_monitor_event_try_read_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<VmArray<DisplayMonitorEventVm>> {
@@ -973,7 +928,7 @@ pub(crate) fn destack_display_monitor_event_try_read_batch(
 /// List available displays.
 pub(crate) fn destack_display_monitor_list(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     request: DisplayMonitorListRequestVm,
 ) -> RuntimeResult<VmSlice<DisplayDescriptorVm>> {
     let descriptors = call_out(|out| unsafe {
@@ -985,20 +940,22 @@ pub(crate) fn destack_display_monitor_list(
 /// Read available display modes.
 pub(crate) fn destack_display_monitor_modes(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<VmSlice<DisplayModeVm>> {
     let modes = call_out(|out| unsafe {
         host_display::destack_display_monitor_modes(binding, out, handle)
     })?;
-    mode_slice_to_vm(context, modes)
+    let modes = unsafe { modes.as_slice()? };
+
+    VmSlice::from_values(context, modes)
 }
 
 /// Open one display endpoint.
 pub(crate) fn destack_display_monitor_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    id: vm::StringHandle,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    id: destack_vm::StringHandle,
     options: DisplayMonitorOpenOptionsVm,
 ) -> RuntimeResult<resource::DisplayHandle> {
     let id = string_from_vm(binding, context, id)?;
@@ -1008,7 +965,7 @@ pub(crate) fn destack_display_monitor_open(
 /// Read one primary display handle when available.
 pub(crate) fn destack_display_monitor_primary(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     request: DisplayMonitorListRequestVm,
 ) -> RuntimeResult<Option<resource::DisplayHandle>> {
     call_out(|out| unsafe { host_display::destack_display_monitor_primary(binding, out, request) })
@@ -1017,7 +974,7 @@ pub(crate) fn destack_display_monitor_primary(
 /// Apply one display mode.
 pub(crate) fn destack_display_monitor_set_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
     mode: DisplayModeVm,
 ) -> RuntimeResult<()> {
@@ -1027,7 +984,7 @@ pub(crate) fn destack_display_monitor_set_mode(
 /// Close one window.
 pub(crate) fn destack_display_window_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_close(binding, window) }
@@ -1036,7 +993,7 @@ pub(crate) fn destack_display_window_close(
 /// Read descriptor metadata for one window.
 pub(crate) fn destack_display_window_descriptor(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<WindowDescriptorVm> {
     let descriptor = call_out(|out| unsafe {
@@ -1049,7 +1006,7 @@ pub(crate) fn destack_display_window_descriptor(
 /// Read one capability mask for one opened window backend.
 pub(crate) fn destack_display_window_capabilities(
     runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<DisplayBackendCapabilityFlags> {
     call_out(|out| unsafe {
@@ -1060,7 +1017,7 @@ pub(crate) fn destack_display_window_capabilities(
 /// Close one window-event stream.
 pub(crate) fn destack_display_window_event_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_event_close(binding, handle) }
@@ -1069,7 +1026,7 @@ pub(crate) fn destack_display_window_event_close(
 /// Open one window-event stream.
 pub(crate) fn destack_display_window_event_open(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     options: WindowEventOpenOptionsVm,
 ) -> RuntimeResult<resource::WindowEventHandle> {
     call_out(|out| unsafe {
@@ -1080,7 +1037,7 @@ pub(crate) fn destack_display_window_event_open(
 /// Wait for one window event.
 pub(crate) fn destack_display_window_event_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::WindowEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<WindowEventVm> {
@@ -1094,7 +1051,7 @@ pub(crate) fn destack_display_window_event_read(
 /// Wait for one batch of window events.
 pub(crate) fn destack_display_window_event_read_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::WindowEventHandle,
     maxevents: u32,
     timeoutns: u64,
@@ -1111,7 +1068,7 @@ pub(crate) fn destack_display_window_event_read_batch(
 /// Poll one window event without blocking.
 pub(crate) fn destack_display_window_event_try_read(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::WindowEventHandle,
 ) -> RuntimeResult<WindowEventVm> {
     let event = call_out(|out| unsafe {
@@ -1124,7 +1081,7 @@ pub(crate) fn destack_display_window_event_try_read(
 /// Poll one batch of window events without blocking.
 pub(crate) fn destack_display_window_event_try_read_batch(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::WindowEventHandle,
     maxevents: u32,
 ) -> RuntimeResult<VmArray<WindowEventVm>> {
@@ -1138,7 +1095,7 @@ pub(crate) fn destack_display_window_event_try_read_batch(
 /// Open one window.
 pub(crate) fn destack_display_window_open(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     options: WindowOptionsVm,
 ) -> RuntimeResult<resource::WindowHandle> {
     let options = window_options_from_vm(binding, context, options)?;
@@ -1148,9 +1105,9 @@ pub(crate) fn destack_display_window_open(
 /// Request user attention for one window.
 pub(crate) fn destack_display_window_request_attention(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    level: display_platform::WindowAttentionLevel,
+    level: platform::display::WindowAttentionLevel,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_request_attention(binding, window, level) }
 }
@@ -1158,7 +1115,7 @@ pub(crate) fn destack_display_window_request_attention(
 /// Request one redraw for one window.
 pub(crate) fn destack_display_window_request_refresh(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_request_refresh(binding, window) }
@@ -1167,7 +1124,7 @@ pub(crate) fn destack_display_window_request_refresh(
 /// Set always-on-top state.
 pub(crate) fn destack_display_window_set_always_on_top(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     alwaysontop: bool,
 ) -> RuntimeResult<()> {
@@ -1177,9 +1134,9 @@ pub(crate) fn destack_display_window_set_always_on_top(
 /// Set cursor icon for one window.
 pub(crate) fn destack_display_window_set_cursor_icon(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    icon: display_platform::WindowCursorIcon,
+    icon: platform::display::WindowCursorIcon,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_cursor_icon(binding, window, icon) }
 }
@@ -1187,9 +1144,9 @@ pub(crate) fn destack_display_window_set_cursor_icon(
 /// Set cursor interaction mode for one window.
 pub(crate) fn destack_display_window_set_cursor_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    mode: display_platform::WindowCursorMode,
+    mode: platform::display::WindowCursorMode,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_cursor_mode(binding, window, mode) }
 }
@@ -1197,9 +1154,9 @@ pub(crate) fn destack_display_window_set_cursor_mode(
 /// Set cursor position for one window.
 pub(crate) fn destack_display_window_set_cursor_position(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    position: display_platform::WindowPositionVm,
+    position: platform::display::WindowPositionVm,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_cursor_position(binding, window, position) }
 }
@@ -1207,7 +1164,7 @@ pub(crate) fn destack_display_window_set_cursor_position(
 /// Set cursor visibility for one window.
 pub(crate) fn destack_display_window_set_cursor_visible(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
@@ -1217,7 +1174,7 @@ pub(crate) fn destack_display_window_set_cursor_visible(
 /// Set window decoration state.
 pub(crate) fn destack_display_window_set_decorated(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     decorated: bool,
 ) -> RuntimeResult<()> {
@@ -1227,9 +1184,9 @@ pub(crate) fn destack_display_window_set_decorated(
 /// Set one window mode.
 pub(crate) fn destack_display_window_set_mode(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    mode: display_platform::WindowModeOptionsVm,
+    mode: platform::display::WindowModeOptionsVm,
 ) -> RuntimeResult<()> {
     let mode = window_mode_options_from_vm(binding, context, mode)?;
     unsafe { host_display::destack_display_window_set_mode(binding, window, mode) }
@@ -1238,9 +1195,9 @@ pub(crate) fn destack_display_window_set_mode(
 /// Set one window position.
 pub(crate) fn destack_display_window_set_position(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    position: display_platform::WindowPositionVm,
+    position: platform::display::WindowPositionVm,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_position(binding, window, position) }
 }
@@ -1248,7 +1205,7 @@ pub(crate) fn destack_display_window_set_position(
 /// Set window resizable state.
 pub(crate) fn destack_display_window_set_resizable(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     resizable: bool,
 ) -> RuntimeResult<()> {
@@ -1258,9 +1215,9 @@ pub(crate) fn destack_display_window_set_resizable(
 /// Set one logical window size.
 pub(crate) fn destack_display_window_set_size_logical(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    size: display_platform::WindowLogicalSizeVm,
+    size: platform::display::WindowLogicalSizeVm,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_size_logical(binding, window, size) }
 }
@@ -1268,9 +1225,9 @@ pub(crate) fn destack_display_window_set_size_logical(
 /// Set one logical size-constraint payload.
 pub(crate) fn destack_display_window_set_size_constraints(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    constraints: Option<display_platform::WindowSizeConstraintsVm>,
+    constraints: Option<platform::display::WindowSizeConstraintsVm>,
 ) -> RuntimeResult<()> {
     unsafe {
         host_display::destack_display_window_set_size_constraints(binding, window, constraints)
@@ -1280,9 +1237,9 @@ pub(crate) fn destack_display_window_set_size_constraints(
 /// Set one physical window size.
 pub(crate) fn destack_display_window_set_size_physical(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    size: display_platform::WindowPhysicalSizeVm,
+    size: platform::display::WindowPhysicalSizeVm,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_size_physical(binding, window, size) }
 }
@@ -1290,9 +1247,9 @@ pub(crate) fn destack_display_window_set_size_physical(
 /// Set one window title string.
 pub(crate) fn destack_display_window_set_title(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    title: vm::StringHandle,
+    title: destack_vm::StringHandle,
 ) -> RuntimeResult<()> {
     let title = string_from_vm(binding, context, title)?;
     unsafe { host_display::destack_display_window_set_title(binding, window, title) }
@@ -1301,9 +1258,9 @@ pub(crate) fn destack_display_window_set_title(
 /// Set one window visibility state.
 pub(crate) fn destack_display_window_set_visibility(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    visibility: display_platform::WindowVisibility,
+    visibility: platform::display::WindowVisibility,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_visibility(binding, window, visibility) }
 }
@@ -1311,18 +1268,18 @@ pub(crate) fn destack_display_window_set_visibility(
 /// Read one window state snapshot.
 pub(crate) fn destack_display_window_state(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-) -> RuntimeResult<display_platform::WindowStateVm> {
+) -> RuntimeResult<platform::display::WindowStateVm> {
     call_out(|out| unsafe { host_display::destack_display_window_state(binding, out, window) })
 }
 
 /// Read display color state.
 pub(crate) fn destack_display_monitor_color_state(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
-) -> RuntimeResult<display_platform::DisplayColorState> {
+) -> RuntimeResult<platform::display::DisplayColorState> {
     call_out(|out| unsafe {
         host_display::destack_display_monitor_color_state(binding, out, handle)
     })
@@ -1331,41 +1288,53 @@ pub(crate) fn destack_display_monitor_color_state(
 /// Read display gamma ramp.
 pub(crate) fn destack_display_monitor_gamma_ramp(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<DisplayGammaRampVm> {
     let ramp = call_out(|out| unsafe {
         host_display::destack_display_monitor_gamma_ramp(binding, out, handle)
     })?;
-    display_gamma_ramp_to_vm(context, ramp)
+    let red = unsafe { ramp.red.as_slice()? };
+    let green = unsafe { ramp.green.as_slice()? };
+    let blue = unsafe { ramp.blue.as_slice()? };
+
+    Ok(DisplayGammaRampVm {
+        red: VmSlice::from_values(context, red)?,
+        green: VmSlice::from_values(context, green)?,
+        blue: VmSlice::from_values(context, blue)?,
+    })
 }
 
 /// Read display HDR mode.
 pub(crate) fn destack_display_monitor_hdr_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
-) -> RuntimeResult<display_platform::DisplayHdrMode> {
+) -> RuntimeResult<platform::display::DisplayHdrMode> {
     call_out(|out| unsafe { host_display::destack_display_monitor_hdr_mode(binding, out, handle) })
 }
 
 /// Set display gamma ramp.
 pub(crate) fn destack_display_monitor_set_gamma_ramp(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
     ramp: DisplayGammaRampVm,
 ) -> RuntimeResult<()> {
-    let ramp = display_gamma_ramp_from_vm(binding, context, ramp)?;
+    let red = binding.store_slice(ramp.red.read_values(context)?);
+    let green = binding.store_slice(ramp.green.read_values(context)?);
+    let blue = binding.store_slice(ramp.blue.read_values(context)?);
+    let ramp = DisplayGammaRamp { red, green, blue };
+
     unsafe { host_display::destack_display_monitor_set_gamma_ramp(binding, handle, ramp) }
 }
 
 /// Set display HDR mode.
 pub(crate) fn destack_display_monitor_set_hdr_mode(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::DisplayHandle,
-    mode: display_platform::DisplayHdrMode,
+    mode: platform::display::DisplayHdrMode,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_monitor_set_hdr_mode(binding, handle, mode) }
 }
@@ -1373,7 +1342,7 @@ pub(crate) fn destack_display_monitor_set_hdr_mode(
 /// Begin one native move-drag interaction.
 pub(crate) fn destack_display_window_begin_move_drag(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_begin_move_drag(binding, window) }
@@ -1382,9 +1351,9 @@ pub(crate) fn destack_display_window_begin_move_drag(
 /// Begin one native resize-drag interaction.
 pub(crate) fn destack_display_window_begin_resize_drag(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    edge: display_platform::WindowResizeEdge,
+    edge: platform::display::WindowResizeEdge,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_begin_resize_drag(binding, window, edge) }
 }
@@ -1392,7 +1361,7 @@ pub(crate) fn destack_display_window_begin_resize_drag(
 /// Focus one window.
 pub(crate) fn destack_display_window_focus(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_focus(binding, window) }
@@ -1401,7 +1370,7 @@ pub(crate) fn destack_display_window_focus(
 /// Maximize one window.
 pub(crate) fn destack_display_window_maximize(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_maximize(binding, window) }
@@ -1410,7 +1379,7 @@ pub(crate) fn destack_display_window_maximize(
 /// Minimize one window.
 pub(crate) fn destack_display_window_minimize(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_minimize(binding, window) }
@@ -1419,7 +1388,7 @@ pub(crate) fn destack_display_window_minimize(
 /// Read one window opacity.
 pub(crate) fn destack_display_window_opacity(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<f64> {
     call_out(|out| unsafe { host_display::destack_display_window_opacity(binding, out, window) })
@@ -1428,7 +1397,7 @@ pub(crate) fn destack_display_window_opacity(
 /// Raise one window.
 pub(crate) fn destack_display_window_raise(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_raise(binding, window) }
@@ -1437,7 +1406,7 @@ pub(crate) fn destack_display_window_raise(
 /// Restore one window.
 pub(crate) fn destack_display_window_restore(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_restore(binding, window) }
@@ -1446,9 +1415,9 @@ pub(crate) fn destack_display_window_restore(
 /// Set one window aspect-ratio lock.
 pub(crate) fn destack_display_window_set_aspect_ratio(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    aspectratio: Option<display_platform::WindowAspectRatio>,
+    aspectratio: Option<platform::display::WindowAspectRatio>,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_aspect_ratio(binding, window, aspectratio) }
 }
@@ -1456,9 +1425,9 @@ pub(crate) fn destack_display_window_set_aspect_ratio(
 /// Set one window chrome style.
 pub(crate) fn destack_display_window_set_chrome(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    chrome: display_platform::WindowChromeKind,
+    chrome: platform::display::WindowChromeKind,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_set_chrome(binding, window, chrome) }
 }
@@ -1466,7 +1435,7 @@ pub(crate) fn destack_display_window_set_chrome(
 /// Set one window icon set.
 pub(crate) fn destack_display_window_set_icons(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     icons: Option<WindowIconSetVm>,
 ) -> RuntimeResult<()> {
@@ -1479,7 +1448,7 @@ pub(crate) fn destack_display_window_set_icons(
 /// Set one window modal state.
 pub(crate) fn destack_display_window_set_modal(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     modal: bool,
 ) -> RuntimeResult<()> {
@@ -1489,7 +1458,7 @@ pub(crate) fn destack_display_window_set_modal(
 /// Set one window mouse-passthrough state.
 pub(crate) fn destack_display_window_set_mouse_passthrough(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     passthrough: bool,
 ) -> RuntimeResult<()> {
@@ -1501,7 +1470,7 @@ pub(crate) fn destack_display_window_set_mouse_passthrough(
 /// Set one window opacity.
 pub(crate) fn destack_display_window_set_opacity(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     opacity: f64,
 ) -> RuntimeResult<()> {
@@ -1511,7 +1480,7 @@ pub(crate) fn destack_display_window_set_opacity(
 /// Set one window parent relationship.
 pub(crate) fn destack_display_window_set_parent(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     parent: Option<resource::WindowHandle>,
 ) -> RuntimeResult<()> {
@@ -1521,7 +1490,7 @@ pub(crate) fn destack_display_window_set_parent(
 /// Set one window taskbar visibility state.
 pub(crate) fn destack_display_window_set_taskbar_visible(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
@@ -1531,7 +1500,7 @@ pub(crate) fn destack_display_window_set_taskbar_visible(
 /// Set one window transient-owner relationship.
 pub(crate) fn destack_display_window_set_transient_for(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
     transientfor: Option<resource::WindowHandle>,
 ) -> RuntimeResult<()> {
