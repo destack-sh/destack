@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{AddressSpace, MemoryLocationSet};
+use crate::{AddressSpace, MemoryRegionSet};
 
 /// Set of address spaces that an operation may access.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -43,8 +43,8 @@ pub struct MemoryEffect {
     pub reads: bool,
     /// Whether the operation may write memory.
     pub writes: bool,
-    /// The memory locations that may be accessed.
-    pub locations: MemoryLocationSet,
+    /// The memory regions that may be accessed.
+    pub locations: MemoryRegionSet,
     /// Optional address space restriction for the access set.
     pub address_spaces: Option<AddressSpaceSet>,
     /// True when the operation only touches memory reachable from arguments.
@@ -61,7 +61,7 @@ impl MemoryEffect {
         Self {
             reads: false,
             writes: false,
-            locations: MemoryLocationSet::NONE,
+            locations: MemoryRegionSet::NONE,
             address_spaces: None,
             argmemonly: false,
             inaccessible_mem_only: false,
@@ -70,7 +70,7 @@ impl MemoryEffect {
     }
 
     /// Create a read only effect over the provided locations.
-    pub const fn read_only(locations: MemoryLocationSet) -> Self {
+    pub const fn read_only(locations: MemoryRegionSet) -> Self {
         Self {
             reads: true,
             writes: false,
@@ -83,7 +83,7 @@ impl MemoryEffect {
     }
 
     /// Create a write only effect over the provided locations.
-    pub const fn write_only(locations: MemoryLocationSet) -> Self {
+    pub const fn write_only(locations: MemoryRegionSet) -> Self {
         Self {
             reads: false,
             writes: true,
@@ -96,7 +96,7 @@ impl MemoryEffect {
     }
 
     /// Create a read write effect over the provided locations.
-    pub const fn read_write(locations: MemoryLocationSet) -> Self {
+    pub const fn read_write(locations: MemoryRegionSet) -> Self {
         Self {
             reads: true,
             writes: true,
@@ -113,7 +113,7 @@ impl MemoryEffect {
         Self {
             reads: true,
             writes: true,
-            locations: MemoryLocationSet::ANY,
+            locations: MemoryRegionSet::ANY,
             address_spaces: None,
             argmemonly: false,
             inaccessible_mem_only: false,
@@ -175,19 +175,31 @@ impl Repeatability {
     }
 }
 
+/// Unwind behavior for a call or function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum UnwindBehavior {
+    /// The operation cannot unwind or throw.
+    CannotUnwind,
+    /// The operation may unwind or throw.
+    MayUnwind,
+}
+
+impl UnwindBehavior {
+    /// Return true when the operation may unwind.
+    pub fn may_unwind(self) -> bool {
+        matches!(self, Self::MayUnwind)
+    }
+}
+
 /// Behavioral effects for calls and functions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CallBehavior {
     /// Repeatability classification for this operation.
     pub repeatability: Repeatability,
+    /// Whether this operation may unwind or throw.
+    pub unwind_behavior: UnwindBehavior,
     /// True when this operation may suspend execution.
     pub may_suspend: bool,
-    /// True when this operation must not be reordered or duplicated.
-    pub no_reorder: bool,
-    /// True when deoptimization must not transition across this operation.
-    pub no_deopt_across: bool,
-    /// True when replay mode must reject this operation.
-    pub no_replay: bool,
     /// The call never returns to the caller.
     pub noreturn: bool,
     /// The call is guaranteed to return eventually.
@@ -196,14 +208,14 @@ pub struct CallBehavior {
     pub convergent: bool,
     /// The call may allocate memory.
     pub allocates: bool,
-    /// The memory locations that may be allocated.
-    pub alloc_locations: Option<MemoryLocationSet>,
+    /// The memory regions that may be allocated.
+    pub alloc_locations: Option<MemoryRegionSet>,
     /// The address spaces that allocations may use.
     pub alloc_address_spaces: Option<AddressSpaceSet>,
     /// The call may free memory.
     pub frees: bool,
-    /// The memory locations that may be freed.
-    pub free_locations: Option<MemoryLocationSet>,
+    /// The memory regions that may be freed.
+    pub free_locations: Option<MemoryRegionSet>,
     /// The address spaces that frees may touch.
     pub free_address_spaces: Option<AddressSpaceSet>,
 }
@@ -213,10 +225,8 @@ impl CallBehavior {
     pub const fn none() -> Self {
         Self {
             repeatability: Repeatability::Repeatable,
+            unwind_behavior: UnwindBehavior::CannotUnwind,
             may_suspend: false,
-            no_reorder: false,
-            no_deopt_across: false,
-            no_replay: false,
             noreturn: false,
             will_return: false,
             convergent: false,
@@ -233,10 +243,8 @@ impl CallBehavior {
     pub const fn unknown() -> Self {
         Self {
             repeatability: Repeatability::NonRepeatable,
+            unwind_behavior: UnwindBehavior::MayUnwind,
             may_suspend: false,
-            no_reorder: true,
-            no_deopt_across: true,
-            no_replay: true,
             noreturn: false,
             will_return: false,
             convergent: false,
@@ -253,10 +261,8 @@ impl CallBehavior {
     pub const fn pure() -> Self {
         Self {
             repeatability: Repeatability::Pure,
+            unwind_behavior: UnwindBehavior::CannotUnwind,
             may_suspend: false,
-            no_reorder: false,
-            no_deopt_across: false,
-            no_replay: false,
             noreturn: false,
             will_return: false,
             convergent: false,
@@ -278,10 +284,8 @@ impl CallBehavior {
     pub const fn non_repeatable() -> Self {
         Self {
             repeatability: Repeatability::NonRepeatable,
+            unwind_behavior: UnwindBehavior::CannotUnwind,
             may_suspend: false,
-            no_reorder: true,
-            no_deopt_across: true,
-            no_replay: true,
             noreturn: false,
             will_return: false,
             convergent: false,

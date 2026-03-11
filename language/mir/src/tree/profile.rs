@@ -69,6 +69,10 @@ pub struct BlockProfile {
 pub enum EdgeKind {
     /// Unconditional jump.
     Jump,
+    /// Normal continuation of an exceptional call terminator.
+    CallNormal,
+    /// Exceptional continuation of an exceptional call terminator.
+    CallUnwind,
     /// Branch to the then target.
     BranchThen,
     /// Branch to the else target.
@@ -212,7 +216,10 @@ impl Default for ProfileTable {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::{
+        Block, EdgeKey, EdgeKind, EdgeProfile, LocalNodeId, ProfileConfidence, ProfileCount,
+        ProfileSource, ProfileTable,
+    };
 
     /// An empty profile table reports no data.
     #[test]

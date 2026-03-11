@@ -6,8 +6,10 @@ use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArgumentSlice, Attribute, Block, DebugInfoTable, Field, Function, Global, Instruction, Local,
-    LocalNodeId, MemoryTable, Node, NodeType, Type, TypeAlias, TypeTable, Value,
+    ArgumentSlice, Attribute, Block, CallSite, DataLayout, DebugTable, DevirtualizationMetadata,
+    DispatchTable, Field, Function, Global, Instruction, InterfaceDispatchShape, Itab, ItabId,
+    Layout, LayoutId, Local, LocalNodeId, MemoryTable, Node, NodeType, Type, TypeAlias, TypeCache,
+    TypeLineage, TypeTable, Value, Vtable, VtableId,
 };
 
 /// MIR node tree for a single module.
@@ -53,8 +55,13 @@ pub struct NodeTree {
     pub type_table: TypeTable,
     /// Memory metadata table.
     pub memory_table: MemoryTable,
+    /// Dispatch metadata table.
+    pub dispatch_table: DispatchTable,
     /// Debug metadata table.
-    pub debug_info: DebugInfoTable,
+    pub debug_table: DebugTable,
+    /// Canonical module data layout metadata.
+    #[serde(default)]
+    pub data_layout: DataLayout,
 }
 
 impl Debug for NodeTree {
@@ -106,7 +113,9 @@ impl NodeTree {
             instruction_arguments: Vec::new(),
             type_table: TypeTable::new(),
             memory_table: MemoryTable::new(),
-            debug_info: DebugInfoTable::new(),
+            dispatch_table: DispatchTable::new(),
+            debug_table: DebugTable::new(),
+            data_layout: DataLayout::default(),
         }
     }
 
@@ -177,64 +186,237 @@ impl NodeTree {
 
     /// Return the boolean type id.
     pub fn boolean_type(&self) -> LocalNodeId<Type> {
-        // require a cached boolean type
-        match self.type_table.boolean_type() {
-            Some(type_id) => type_id,
-            None => panic!("missing boolean type id in MIR type cache"),
+        // use the cache when available
+        if let Some(type_id) = self.type_table.boolean_type() {
+            return type_id;
         }
+
+        // fall back to a structural lookup
+        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Boolean)) {
+            return type_id;
+        }
+
+        panic!("missing boolean type id in MIR type cache");
     }
 
     /// Return the void type id.
     pub fn void_type(&self) -> LocalNodeId<Type> {
-        // require a cached void type
-        match self.type_table.void_type() {
-            Some(type_id) => type_id,
-            None => panic!("missing void type id in MIR type cache"),
+        // use the cache when available
+        if let Some(type_id) = self.type_table.void_type() {
+            return type_id;
         }
+
+        // fall back to a structural lookup
+        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
+            return type_id;
+        }
+
+        panic!("missing void type id in MIR type cache");
     }
 
-    /// Return the type tag type id.
-    pub fn type_tag_type(&self) -> LocalNodeId<Type> {
-        // require a cached type tag type
-        match self.type_table.type_tag_type() {
-            Some(type_id) => type_id,
-            None => panic!("missing type tag type id in MIR type cache"),
+    /// Return the type descriptor type id.
+    pub fn type_descriptor_type(&self) -> LocalNodeId<Type> {
+        // use the cache when available
+        if let Some(type_id) = self.type_table.type_descriptor_type() {
+            return type_id;
         }
+
+        // fall back to a structural lookup
+        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::TypeDescriptor))
+        {
+            return type_id;
+        }
+
+        panic!("missing type descriptor type id in MIR type cache");
+    }
+
+    /// Return the type id type id.
+    pub fn type_id_type(&self) -> LocalNodeId<Type> {
+        // use the cache when available
+        if let Some(type_id) = self.type_table.type_id_type() {
+            return type_id;
+        }
+
+        // fall back to a structural lookup
+        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::TypeId)) {
+            return type_id;
+        }
+
+        panic!("missing type id type in MIR type cache");
     }
 
     /// Return the isize type id.
     pub fn isize_type(&self) -> LocalNodeId<Type> {
-        // require a cached isize type
-        match self.type_table.isize_type() {
-            Some(type_id) => type_id,
-            None => panic!("missing isize type id in MIR type cache"),
+        // use the cache when available
+        if let Some(type_id) = self.type_table.isize_type() {
+            return type_id;
         }
+
+        // fall back to a structural lookup
+        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Isize)) {
+            return type_id;
+        }
+
+        panic!("missing isize type id in MIR type cache");
+    }
+
+    /// Return lineage metadata for a type when present.
+    pub fn type_lineage(&self, ty: LocalNodeId<Type>) -> Option<&TypeLineage> {
+        self.type_table.lineage(ty)
+    }
+
+    /// Return the layout id for a type when present.
+    pub fn type_layout_id(&self, ty: LocalNodeId<Type>) -> Option<LayoutId> {
+        self.type_table.layout_id(ty)
+    }
+
+    /// Return the concrete layout for a type when present.
+    pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&Layout> {
+        let layout_id = self.type_layout_id(ty)?;
+        Some(self.type_table.layout_table.layout(layout_id))
+    }
+
+    /// Return the type descriptor global for a type when present.
+    pub fn type_descriptor_global(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Global>> {
+        self.type_table.descriptor_global(ty)
+    }
+
+    /// Return the vtable metadata for a type when present.
+    pub fn vtable_for_type(&self, ty: LocalNodeId<Type>) -> Option<(VtableId, &Vtable)> {
+        let vtable_id = self.type_table.vtable_id(ty)?;
+        Some((vtable_id, self.dispatch_table.vtable(vtable_id)))
+    }
+
+    /// Return the itab metadata for a concrete type and interface when present.
+    pub fn itab_for_type(
+        &self,
+        concrete: LocalNodeId<Type>,
+        interface: LocalNodeId<Type>,
+    ) -> Option<(ItabId, &Itab)> {
+        let itab_id = self.type_table.itab_id(concrete, interface)?;
+        Some((itab_id, self.dispatch_table.itab(itab_id)))
+    }
+
+    /// Return the display name for a type when present.
+    pub fn type_display_name(&self, ty: LocalNodeId<Type>) -> Option<destack_core::StringId> {
+        self.type_table.display_name(ty)
+    }
+
+    /// Return the field lookup map for a type when present.
+    pub fn type_field_map(
+        &self,
+        ty: LocalNodeId<Type>,
+    ) -> Option<&std::collections::HashMap<destack_core::StringId, LocalNodeId<Field>>> {
+        self.type_table.field_map(ty)
+    }
+
+    /// Return the canonical interface dispatch shape when present.
+    pub fn interface_dispatch_shape(
+        &self,
+        interface: LocalNodeId<Type>,
+    ) -> Option<&InterfaceDispatchShape> {
+        self.dispatch_table.interface_dispatch_shape(interface)
+    }
+
+    /// Return sparse devirtualization metadata for a callsite when present.
+    pub fn dispatch_metadata(&self, callsite: CallSite) -> Option<&DevirtualizationMetadata> {
+        self.dispatch_table.callsite_metadata(callsite)
     }
 
     /// Return the usize type id.
     pub fn usize_type(&self) -> LocalNodeId<Type> {
-        // require a cached usize type
-        match self.type_table.usize_type() {
-            Some(type_id) => type_id,
-            None => panic!("missing usize type id in MIR type cache"),
+        // use the cache when available
+        if let Some(type_id) = self.type_table.usize_type() {
+            return type_id;
         }
+
+        // fall back to a structural lookup
+        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Usize)) {
+            return type_id;
+        }
+
+        panic!("missing usize type id in MIR type cache");
     }
 
     /// Return an integer type id for width and signedness.
     pub fn int_type(&self, width: u16, signed: bool) -> LocalNodeId<Type> {
-        // require a cached integer type
-        match self.type_table.int_type(width, signed) {
-            Some(type_id) => type_id,
-            None => panic!("missing int type id for width {width} signed {signed}"),
+        // use the cache when available
+        if let Some(type_id) = self.type_table.int_type(width, signed) {
+            return type_id;
         }
+
+        // fall back to a structural lookup
+        if let Some(type_id) = self.find_type_by_predicate(|ty| {
+            matches!(
+                ty,
+                Type::Int {
+                    width: w,
+                    is_signed: s,
+                } if *w == width && *s == signed
+            )
+        }) {
+            return type_id;
+        }
+
+        panic!("missing int type id for width {width} signed {signed}");
     }
 
     /// Return a float type id for width.
     pub fn float_type(&self, width: u16) -> LocalNodeId<Type> {
-        // require a cached float type
-        match self.type_table.float_type(width) {
-            Some(type_id) => type_id,
-            None => panic!("missing float type id for width {width}"),
+        // use the cache when available
+        if let Some(type_id) = self.type_table.float_type(width) {
+            return type_id;
+        }
+
+        // fall back to a structural lookup
+        if let Some(type_id) =
+            self.find_type_by_predicate(|ty| matches!(ty, Type::Float { width: w } if *w == width))
+        {
+            return type_id;
+        }
+
+        panic!("missing float type id for width {width}");
+    }
+
+    /// Return module pointer size in bytes.
+    pub fn pointer_bytes(&self) -> u8 {
+        self.data_layout.native_pointer_bytes
+    }
+
+    /// Return module pointer size in bits.
+    pub fn pointer_bits(&self) -> u16 {
+        self.data_layout.pointer_bits()
+    }
+
+    /// Update module pointer size in bytes.
+    pub fn set_pointer_bytes(&mut self, pointer_bytes: u8) {
+        match pointer_bytes {
+            4 | 8 => {
+                self.data_layout.native_pointer_bytes = pointer_bytes;
+            }
+            _ => {
+                panic!("unsupported pointer size {pointer_bytes} bytes");
+            }
+        }
+    }
+
+    /// Rebuild the primitive type cache from canonical type nodes.
+    pub fn rebuild_type_cache(&mut self) {
+        // reset the cache state
+        self.type_table.type_cache = TypeCache::default();
+
+        // collect primitive entries before mutating the table
+        let mut cache_entries = Vec::new();
+        for (type_id, ty) in self.iter_nodes::<Type>() {
+            let Some(cache_entry) = TypeTable::cache_entry_for_type(ty) else {
+                continue;
+            };
+            cache_entries.push((type_id, cache_entry));
+        }
+
+        // repopulate the cache in node order
+        for (type_id, cache_entry) in cache_entries {
+            self.type_table.register_type_entry(type_id, cache_entry);
         }
     }
 
@@ -247,6 +429,15 @@ impl NodeTree {
     {
         let local_id = self.local_id_by_node_id[id.id as usize];
         <Self as NodeTreeImpl<T>>::get(self, local_id)
+    }
+
+    /// Find the first type id matching a predicate.
+    fn find_type_by_predicate(
+        &self,
+        predicate: impl Fn(&Type) -> bool,
+    ) -> Option<LocalNodeId<Type>> {
+        self.iter_nodes::<Type>()
+            .find_map(|(type_id, ty)| predicate(ty).then_some(type_id))
     }
 
     /// Get a mutable reference to a node by id.

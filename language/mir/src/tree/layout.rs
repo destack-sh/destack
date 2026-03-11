@@ -24,6 +24,14 @@ impl TypeLayout {
         }
     }
 
+    /// Create a layout for scalar ABI alignment.
+    fn scalar(size: u32) -> Self {
+        Self {
+            size,
+            alignment: size.min(8),
+        }
+    }
+
     /// Compute the aligned offset for placing a value with this layout.
     /// Returns the next offset >= current_offset that satisfies alignment.
     pub(crate) fn align_offset(self, current_offset: u32) -> u32 {
@@ -48,22 +56,28 @@ pub(crate) fn compute_type_layout(
     let mir_type = tree.get(type_id);
     match mir_type {
         Type::Void => TypeLayout::new(0, 1),
-        Type::Boolean => TypeLayout::natural(1),
+        Type::Boolean => TypeLayout::scalar(1),
 
         Type::Int { width, .. } => {
             let bytes = (*width as u32).div_ceil(8);
-            TypeLayout::natural(bytes)
+            TypeLayout::scalar(bytes)
         }
-        Type::Isize | Type::Usize => TypeLayout::natural(pointer_bytes as u32),
+        Type::Isize | Type::Usize => TypeLayout::scalar(pointer_bytes as u32),
 
         Type::Float { width } => {
             let bytes = (*width as u32).div_ceil(8);
-            TypeLayout::natural(bytes)
+            TypeLayout::scalar(bytes)
         }
 
-        Type::Type | Type::Reference { .. } | Type::FunctionPointer { .. } => {
-            TypeLayout::natural(pointer_bytes as u32)
-        }
+        Type::TypeDescriptor
+        | Type::TypeId
+        | Type::Reference { .. }
+        | Type::FunctionPointer { .. } => TypeLayout::natural(pointer_bytes as u32),
+
+        Type::FunctionValue {
+            signature,
+            environment,
+        } => compute_tuple_layout(tree, &[*signature, *environment], pointer_bytes),
 
         Type::Array {
             element,
@@ -105,12 +119,8 @@ pub(crate) fn compute_type_layout(
         } => {
             let element_layout = compute_type_layout(tree, *element, pointer_bytes);
             let element_count = compute_tensor_element_count(shape, layout);
-            if let Some(element_count) = element_count {
-                let size = element_layout.size * (element_count as u32);
-                TypeLayout::new(size, element_layout.alignment)
-            } else {
-                TypeLayout::natural(pointer_bytes as u32)
-            }
+            let size = element_layout.size * element_count;
+            TypeLayout::new(size, element_layout.alignment)
         }
 
         Type::TensorReference { .. } => TypeLayout::natural(pointer_bytes as u32),
@@ -118,24 +128,33 @@ pub(crate) fn compute_type_layout(
 }
 
 /// Compute the number of elements in a tensor.
-fn compute_tensor_element_count(shape: &[TensorDimension], layout: &TensorLayout) -> Option<u64> {
-    if shape.iter().any(|dim| dim.is_dynamic()) {
-        return None;
-    }
+fn compute_tensor_element_count(shape: &[TensorDimension], layout: &TensorLayout) -> u32 {
+    let shape: Vec<u64> = shape
+        .iter()
+        .map(|dim| match dim {
+            TensorDimension::Static(value) => *value,
+            TensorDimension::Dynamic => 0,
+        })
+        .collect();
+
     match layout {
-        TensorLayout::RowMajor | TensorLayout::ColumnMajor => {
-            Some(shape.iter().filter_map(static_dim).product())
-        }
+        TensorLayout::RowMajor | TensorLayout::ColumnMajor => shape
+            .iter()
+            .copied()
+            .product::<u64>()
+            .min(u64::from(u32::MAX))
+            as u32,
         TensorLayout::Strided { strides } => {
-            if strides.iter().any(|stride| stride.is_dynamic()) {
-                return None;
-            }
-            let mut max_index = 0u64;
-            for (dim, stride) in shape
+            let strides: Vec<u64> = strides
                 .iter()
-                .filter_map(static_dim)
-                .zip(strides.iter().filter_map(static_dim))
-            {
+                .map(|dim| match dim {
+                    TensorDimension::Static(value) => *value,
+                    TensorDimension::Dynamic => 0,
+                })
+                .collect();
+
+            let mut max_index = 0u64;
+            for (dim, stride) in shape.iter().copied().zip(strides.iter().copied()) {
                 if dim == 0 {
                     continue;
                 }
@@ -143,16 +162,8 @@ fn compute_tensor_element_count(shape: &[TensorDimension], layout: &TensorLayout
                 let offset = last_index.saturating_mul(stride);
                 max_index = max_index.max(offset);
             }
-            Some(max_index.saturating_add(1))
+            max_index.saturating_add(1).min(u64::from(u32::MAX)) as u32
         }
-    }
-}
-
-/// Extract the static dimension size from a tensor dimension.
-fn static_dim(dim: &TensorDimension) -> Option<u64> {
-    match dim {
-        TensorDimension::Static(value) => Some(*value),
-        TensorDimension::Dynamic => None,
     }
 }
 
@@ -182,7 +193,7 @@ fn compute_tuple_layout(
 }
 
 /// Compute the layout of a struct from its field definitions.
-/// This uses the stored field offsets (for structs built programmatically).
+/// This computes offsets from field order and field types.
 fn compute_struct_layout_from_fields(
     tree: &NodeTree,
     fields: &[LocalNodeId<Field>],
@@ -192,25 +203,25 @@ fn compute_struct_layout_from_fields(
         return TypeLayout::new(0, 1);
     }
 
-    let mut max_end = 0u32;
+    let mut offset = 0u32;
     let mut max_alignment = 1u32;
 
     for &field_id in fields {
         let field = tree.get(field_id);
         let field_layout = compute_type_layout(tree, field.ty, pointer_bytes);
-        let field_end = field.offset + field_layout.size;
-        max_end = max_end.max(field_end);
+        offset = field_layout.align_offset(offset);
+        offset += field_layout.size;
         max_alignment = max_alignment.max(field_layout.alignment);
     }
 
     // pad to alignment
-    let final_size = TypeLayout::new(0, max_alignment).align_offset(max_end);
+    let final_size = TypeLayout::new(0, max_alignment).align_offset(offset);
     TypeLayout::new(final_size, max_alignment)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::TypeLayout;
 
     #[test]
     fn test_type_layout_align_offset() {

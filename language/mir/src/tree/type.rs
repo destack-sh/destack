@@ -75,8 +75,6 @@ pub enum AddressSpace {
     Stack,
     /// Global or module-static memory.
     Global,
-    /// Heap-allocated memory.
-    Heap,
     /// Target shared or workgroup memory.
     Shared,
     /// Target local or thread-local memory.
@@ -99,7 +97,6 @@ impl AddressSpace {
             "generic" => Some(AddressSpace::Generic),
             "stack" => Some(AddressSpace::Stack),
             "global" => Some(AddressSpace::Global),
-            "heap" => Some(AddressSpace::Heap),
             "shared" => Some(AddressSpace::Shared),
             "local" => Some(AddressSpace::Local),
             "constant" => Some(AddressSpace::Constant),
@@ -113,7 +110,6 @@ impl AddressSpace {
             AddressSpace::Generic => Some("generic"),
             AddressSpace::Stack => Some("stack"),
             AddressSpace::Global => Some("global"),
-            AddressSpace::Heap => Some("heap"),
             AddressSpace::Shared => Some("shared"),
             AddressSpace::Local => Some("local"),
             AddressSpace::Constant => Some("constant"),
@@ -136,9 +132,9 @@ pub enum ReferenceKind {
 }
 
 impl ReferenceKind {
-    /// Whether this reference kind owns its pointee.
-    pub fn is_owning(&self) -> bool {
-        matches!(self, ReferenceKind::Managed | ReferenceKind::Owned)
+    /// Whether this reference kind is affine.
+    pub fn is_affine(self) -> bool {
+        matches!(self, ReferenceKind::Owned)
     }
 }
 
@@ -153,7 +149,7 @@ pub enum Copyability {
     #[default]
     Trivial,
     /// Each use consumes the value (linear/move-only).
-    /// Required for types that own "resources" (like owned/managed references).
+    /// Required for affine ownership and aggregates containing affine ownership.
     Linear,
 }
 
@@ -223,8 +219,10 @@ pub enum Type {
     Usize,
     /// Floating point with explicit width (32 or 64).
     Float { width: u16 },
-    /// Runtime type tag handle.
-    Type,
+    /// Runtime type descriptor handle.
+    TypeDescriptor,
+    /// Compact runtime type identity token.
+    TypeId,
 
     /// Reference with explicit kind and mutability.
     Reference {
@@ -315,6 +313,13 @@ pub enum Type {
         parameters: Vec<LocalNodeId<Type>>,
         /// The result type of the function.
         result: LocalNodeId<Type>,
+    },
+    /// Callable closure value with code and environment.
+    FunctionValue {
+        /// The bare function pointer signature.
+        signature: LocalNodeId<Type>,
+        /// The captured environment reference type.
+        environment: LocalNodeId<Type>,
     },
 }
 
@@ -410,7 +415,8 @@ impl Type {
                 | Type::Isize
                 | Type::Usize
                 | Type::Float { .. }
-                | Type::Type
+                | Type::TypeDescriptor
+                | Type::TypeId
                 | Type::Reference { .. }
                 | Type::Vector { .. }
                 | Type::TensorReference { .. }
@@ -484,7 +490,7 @@ impl Type {
     ///
     /// - Primitives (void, bool, int, float) are always Trivial
     /// - Non-owning references (borrowed, raw) are Trivial
-    /// - Owning references (owned, managed) are Linear
+    /// - Affine references (owned) are Linear
     /// - Aggregates have explicit copyability stored in their variants
     /// - Function pointers are Trivial
     pub fn copyability(&self) -> Copyability {
@@ -496,11 +502,12 @@ impl Type {
             | Type::Isize
             | Type::Usize
             | Type::Float { .. }
-            | Type::Type => Copyability::Trivial,
+            | Type::TypeDescriptor
+            | Type::TypeId => Copyability::Trivial,
 
             // references depend on ownership
             Type::Reference { kind, .. } => {
-                if kind.is_owning() {
+                if kind.is_affine() {
                     Copyability::Linear
                 } else {
                     Copyability::Trivial
@@ -517,15 +524,15 @@ impl Type {
 
             // tensor references behave like references
             Type::TensorReference { kind, .. } => {
-                if kind.is_owning() {
+                if kind.is_affine() {
                     Copyability::Linear
                 } else {
                     Copyability::Trivial
                 }
             }
 
-            // function pointers are trivially copyable
-            Type::FunctionPointer { .. } => Copyability::Trivial,
+            // function pointers and closure values are trivially copyable
+            Type::FunctionPointer { .. } | Type::FunctionValue { .. } => Copyability::Trivial,
         }
     }
 }
@@ -537,8 +544,6 @@ pub struct Field {
     pub name: Option<StringId>,
     /// Type of the field.
     pub ty: LocalNodeId<Type>,
-    /// Byte offset within the struct.
-    pub offset: u32,
 }
 
 impl Node for Field {

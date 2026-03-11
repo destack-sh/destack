@@ -44,6 +44,25 @@ impl VtableId {
     }
 }
 
+/// Identifier for a vtable method slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct VtableSlotId(
+    /// Raw index into the vtable entry list.
+    pub u32,
+);
+
+impl VtableSlotId {
+    /// Create a vtable slot id from a raw index.
+    pub const fn new(index: u32) -> Self {
+        Self(index)
+    }
+
+    /// Return the raw index for this id.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
 /// Identifier for an itab entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ItabId(
@@ -63,11 +82,30 @@ impl ItabId {
     }
 }
 
+/// Identifier for an interface dispatch slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct InterfaceSlotId(
+    /// Raw index into the interface dispatch entry list.
+    pub u32,
+);
+
+impl InterfaceSlotId {
+    /// Create an interface slot id from a raw index.
+    pub const fn new(index: u32) -> Self {
+        Self(index)
+    }
+
+    /// Return the raw index for this id.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
 /// Entry in a class vtable.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum VtableEntry {
-    /// Slot containing a type tag handle.
-    TypeTag,
+    /// Slot containing the runtime type descriptor.
+    TypeDescriptor,
     /// Slot containing a drop glue function.
     Destructor {
         /// The drop glue function when present.
@@ -83,10 +121,12 @@ pub enum VtableEntry {
 /// Entry in an interface itab.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ItabEntry {
-    /// Slot containing a type tag handle.
-    TypeTag,
+    /// Slot containing the runtime type descriptor.
+    TypeDescriptor,
     /// Slot containing an interface field offset.
     FieldOffset {
+        /// The canonical interface dispatch field id.
+        field: LocalNodeId<Field>,
         /// The interface field name.
         field_name: StringId,
         /// The field offset in bytes.
@@ -99,6 +139,34 @@ pub enum ItabEntry {
         /// The concrete method implementation.
         target_method: LocalNodeId<Function>,
     },
+}
+
+/// Slot descriptor for interface dispatch layout.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum InterfaceDispatchEntry {
+    /// Slot containing the runtime type descriptor.
+    TypeDescriptor,
+    /// Slot containing an interface field offset.
+    FieldOffset {
+        /// The canonical interface dispatch field id.
+        field: LocalNodeId<Field>,
+        /// The interface field name.
+        field_name: StringId,
+    },
+    /// Slot containing an interface method declaration.
+    Method {
+        /// The declared interface method.
+        declared_method: LocalNodeId<Function>,
+    },
+}
+
+/// Canonical interface dispatch shape.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InterfaceDispatchShape {
+    /// The interface type owning this shape.
+    pub interface: LocalNodeId<Type>,
+    /// Entries in declaration order.
+    pub entries: Vec<InterfaceDispatchEntry>,
 }
 
 /// Metadata for a class vtable.
@@ -135,31 +203,8 @@ pub struct Itab {
 /// Storage backing for an interface itab.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ItabStorage {
-    /// Global data symbol containing the itab entries.
-    Global(LocalNodeId<Global>),
     /// Immediate handle encoded as an itab id.
     Handle,
-}
-
-/// Type metadata available for optimization and codegen.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct TypeMetadata {
-    /// The display name of the type for diagnostics and debugging only.
-    pub name: Option<StringId>,
-    /// Layout identifier for the type when materialized.
-    pub layout_id: Option<LayoutId>,
-    /// Lineage metadata for the type.
-    pub lineage: Option<TypeLineage>,
-    /// Vtable for class virtual dispatch.
-    pub vtable: Option<VtableId>,
-    /// Interface to itab mapping for this concrete type.
-    pub itab_by_interface: HashMap<LocalNodeId<Type>, ItabId>,
-    /// Runtime type descriptor global.
-    pub type_descriptor: Option<LocalNodeId<Global>>,
-    /// Field map for property layout lookup.
-    pub field_map: HashMap<StringId, LocalNodeId<Field>>,
-    /// Union layout metadata for tagged unions.
-    pub union_layout: Option<UnionLayout>,
 }
 
 /// Primitive type cache for fast lookups.
@@ -169,8 +214,10 @@ pub struct TypeCache {
     pub void: Option<LocalNodeId<Type>>,
     /// Cached boolean type id.
     pub boolean: Option<LocalNodeId<Type>>,
-    /// Cached type tag type id.
-    pub type_tag: Option<LocalNodeId<Type>>,
+    /// Cached type descriptor type id.
+    pub type_descriptor: Option<LocalNodeId<Type>>,
+    /// Cached type id type id.
+    pub type_id: Option<LocalNodeId<Type>>,
     /// Cached isize type id.
     pub isize: Option<LocalNodeId<Type>>,
     /// Cached usize type id.
@@ -188,8 +235,10 @@ pub enum TypeCacheEntry {
     Void,
     /// Boolean primitive type.
     Boolean,
-    /// Runtime type tag type.
-    TypeTag,
+    /// Runtime type descriptor type.
+    TypeDescriptor,
+    /// Runtime type id type.
+    TypeId,
     /// Pointer sized signed integer type.
     Isize,
     /// Pointer sized unsigned integer type.
@@ -200,19 +249,30 @@ pub enum TypeCacheEntry {
     Float { width: u16 },
 }
 
-/// Table of type metadata entries.
+/// Table of canonical type facts.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TypeTable {
     /// Cached primitive type ids.
+    #[serde(skip, default)]
     pub type_cache: TypeCache,
     /// Layout metadata table for aggregate types.
     pub layout_table: LayoutTable,
-    /// Type metadata keyed by type id.
-    pub type_metadata_by_id: HashMap<LocalNodeId<Type>, TypeMetadata>,
-    /// Class vtables keyed by VtableId index.
-    pub vtables: Vec<Vtable>,
-    /// Interface itabs keyed by ItabId index.
-    pub itabs: Vec<Itab>,
+    /// Concrete layout ids keyed by type id.
+    pub layout_by_type: HashMap<LocalNodeId<Type>, LayoutId>,
+    /// Nominal lineage keyed by type id.
+    pub lineage_by_type: HashMap<LocalNodeId<Type>, TypeLineage>,
+    /// Union layout metadata keyed by type id.
+    pub union_layout_by_type: HashMap<LocalNodeId<Type>, UnionLayout>,
+    /// Class vtable ids keyed by type id.
+    pub vtable_by_type: HashMap<LocalNodeId<Type>, VtableId>,
+    /// Interface itab ids keyed by concrete type id, then interface type id.
+    pub itabs_by_type: HashMap<LocalNodeId<Type>, HashMap<LocalNodeId<Type>, ItabId>>,
+    /// Field lookup tables keyed by type id.
+    pub field_map_by_type: HashMap<LocalNodeId<Type>, HashMap<StringId, LocalNodeId<Field>>>,
+    /// Runtime type descriptor globals keyed by type id.
+    pub descriptor_by_type: HashMap<LocalNodeId<Type>, LocalNodeId<Global>>,
+    /// Display names keyed by type id.
+    pub display_name_by_type: HashMap<LocalNodeId<Type>, StringId>,
 }
 
 impl TypeTable {
@@ -226,7 +286,8 @@ impl TypeTable {
         match ty {
             Type::Void => Some(TypeCacheEntry::Void),
             Type::Boolean => Some(TypeCacheEntry::Boolean),
-            Type::Type => Some(TypeCacheEntry::TypeTag),
+            Type::TypeDescriptor => Some(TypeCacheEntry::TypeDescriptor),
+            Type::TypeId => Some(TypeCacheEntry::TypeId),
             Type::Isize => Some(TypeCacheEntry::Isize),
             Type::Usize => Some(TypeCacheEntry::Usize),
             Type::Int {
@@ -250,8 +311,11 @@ impl TypeTable {
             TypeCacheEntry::Boolean => {
                 self.type_cache.boolean.get_or_insert(type_id);
             }
-            TypeCacheEntry::TypeTag => {
-                self.type_cache.type_tag.get_or_insert(type_id);
+            TypeCacheEntry::TypeDescriptor => {
+                self.type_cache.type_descriptor.get_or_insert(type_id);
+            }
+            TypeCacheEntry::TypeId => {
+                self.type_cache.type_id.get_or_insert(type_id);
             }
             TypeCacheEntry::Isize => {
                 self.type_cache.isize.get_or_insert(type_id);
@@ -281,9 +345,14 @@ impl TypeTable {
         self.type_cache.void
     }
 
-    /// Return the cached type tag type id.
-    pub fn type_tag_type(&self) -> Option<LocalNodeId<Type>> {
-        self.type_cache.type_tag
+    /// Return the cached type descriptor type id.
+    pub fn type_descriptor_type(&self) -> Option<LocalNodeId<Type>> {
+        self.type_cache.type_descriptor
+    }
+
+    /// Return the cached type id type id.
+    pub fn type_id_type(&self) -> Option<LocalNodeId<Type>> {
+        self.type_cache.type_id
     }
 
     /// Return the cached isize type id.
@@ -306,102 +375,141 @@ impl TypeTable {
         self.type_cache.floats.get(&width).copied()
     }
 
-    /// Insert a vtable and return its id.
-    pub fn insert_vtable(&mut self, table: Vtable) -> VtableId {
-        let id = VtableId::new(self.vtables.len() as u32);
-        self.vtables.push(table);
-        id
-    }
-
-    /// Insert a vtable at a specific id.
-    pub fn insert_vtable_at(&mut self, id: VtableId, table: Vtable) {
-        let index = id.index();
-        if index > self.vtables.len() {
-            panic!("vtable index {index} out of order");
-        }
-        if index < self.vtables.len() {
-            panic!("vtable index {index} already populated");
-        }
-        self.vtables.push(table);
-    }
-
-    /// Return the vtable for an id.
-    pub fn vtable(&self, id: VtableId) -> &Vtable {
-        self.vtables
-            .get(id.index())
-            .unwrap_or_else(|| panic!("missing vtable entry {}", id.index()))
-    }
-
-    /// Iterate all populated vtables.
-    pub fn iter_vtables(&self) -> impl Iterator<Item = (VtableId, &Vtable)> {
-        self.vtables
-            .iter()
-            .enumerate()
-            .map(|(index, table)| (VtableId::new(index as u32), table))
-    }
-
-    /// Insert an itab and return its id.
-    pub fn insert_itab(&mut self, table: Itab) -> ItabId {
-        let id = ItabId::new(self.itabs.len() as u32);
-        self.itabs.push(table);
-        id
-    }
-
-    /// Insert an itab at a specific id.
-    pub fn insert_itab_at(&mut self, id: ItabId, table: Itab) {
-        let index = id.index();
-        if index > self.itabs.len() {
-            panic!("itab index {index} out of order");
-        }
-        if index < self.itabs.len() {
-            panic!("itab index {index} already populated");
-        }
-        self.itabs.push(table);
-    }
-
-    /// Return the itab for an id.
-    pub fn itab(&self, id: ItabId) -> &Itab {
-        self.itabs
-            .get(id.index())
-            .unwrap_or_else(|| panic!("missing itab entry {}", id.index()))
-    }
-
-    /// Iterate all populated itabs.
-    pub fn iter_itabs(&self) -> impl Iterator<Item = (ItabId, &Itab)> {
-        self.itabs
-            .iter()
-            .enumerate()
-            .map(|(index, table)| (ItabId::new(index as u32), table))
-    }
-
-    /// Return type metadata for a type id.
-    pub fn type_metadata(&self, ty: LocalNodeId<Type>) -> Option<&TypeMetadata> {
-        self.type_metadata_by_id.get(&ty)
-    }
-
     /// Return the layout entry for a type id when available.
     pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&Layout> {
-        let metadata = self.type_metadata_by_id.get(&ty)?;
-        let layout_id = metadata.layout_id?;
+        let layout_id = self.layout_by_type.get(&ty)?;
         self.layout_table.layouts.get(layout_id.0 as usize)
     }
 
-    /// Return mutable type metadata for a type id.
-    pub fn type_metadata_mut(&mut self, ty: LocalNodeId<Type>) -> Option<&mut TypeMetadata> {
-        self.type_metadata_by_id.get_mut(&ty)
+    /// Return the layout id for a type when present.
+    pub fn layout_id(&self, ty: LocalNodeId<Type>) -> Option<LayoutId> {
+        self.layout_by_type.get(&ty).copied()
     }
 
-    /// Insert type metadata for a type id.
-    pub fn insert_type_metadata(
+    /// Record the layout id for a type.
+    pub fn set_layout_id(
         &mut self,
         ty: LocalNodeId<Type>,
-        metadata: TypeMetadata,
-    ) -> Option<TypeMetadata> {
-        self.type_metadata_by_id.insert(ty, metadata)
+        layout_id: LayoutId,
+    ) -> Option<LayoutId> {
+        self.layout_by_type.insert(ty, layout_id)
     }
 
-    /// Remove type metadata for a type id.
-    pub fn remove_type_metadata(&mut self, ty: LocalNodeId<Type>) -> Option<TypeMetadata> {
-        self.type_metadata_by_id.remove(&ty)
+    /// Return lineage metadata for a type when present.
+    pub fn lineage(&self, ty: LocalNodeId<Type>) -> Option<&TypeLineage> {
+        self.lineage_by_type.get(&ty)
+    }
+
+    /// Record lineage metadata for a type.
+    pub fn set_lineage(
+        &mut self,
+        ty: LocalNodeId<Type>,
+        lineage: TypeLineage,
+    ) -> Option<TypeLineage> {
+        self.lineage_by_type.insert(ty, lineage)
+    }
+
+    /// Return union layout metadata for a type when present.
+    pub fn union_layout(&self, ty: LocalNodeId<Type>) -> Option<&UnionLayout> {
+        self.union_layout_by_type.get(&ty)
+    }
+
+    /// Record union layout metadata for a type.
+    pub fn set_union_layout(
+        &mut self,
+        ty: LocalNodeId<Type>,
+        union_layout: UnionLayout,
+    ) -> Option<UnionLayout> {
+        self.union_layout_by_type.insert(ty, union_layout)
+    }
+
+    /// Return the class vtable id for a type when present.
+    pub fn vtable_id(&self, ty: LocalNodeId<Type>) -> Option<VtableId> {
+        self.vtable_by_type.get(&ty).copied()
+    }
+
+    /// Record the class vtable id for a type.
+    pub fn set_vtable_id(
+        &mut self,
+        ty: LocalNodeId<Type>,
+        vtable_id: VtableId,
+    ) -> Option<VtableId> {
+        self.vtable_by_type.insert(ty, vtable_id)
+    }
+
+    /// Return interface itab mappings for a concrete type when present.
+    pub fn itabs(&self, ty: LocalNodeId<Type>) -> Option<&HashMap<LocalNodeId<Type>, ItabId>> {
+        self.itabs_by_type.get(&ty)
+    }
+
+    /// Return the itab id for a concrete type and interface when present.
+    pub fn itab_id(
+        &self,
+        concrete: LocalNodeId<Type>,
+        interface: LocalNodeId<Type>,
+    ) -> Option<ItabId> {
+        self.itabs_by_type
+            .get(&concrete)
+            .and_then(|itabs| itabs.get(&interface))
+            .copied()
+    }
+
+    /// Record the itab id for a concrete type and interface.
+    pub fn set_itab_id(
+        &mut self,
+        concrete: LocalNodeId<Type>,
+        interface: LocalNodeId<Type>,
+        itab_id: ItabId,
+    ) -> Option<ItabId> {
+        self.itabs_by_type
+            .entry(concrete)
+            .or_default()
+            .insert(interface, itab_id)
+    }
+
+    /// Return the field lookup map for a type when present.
+    pub fn field_map(
+        &self,
+        ty: LocalNodeId<Type>,
+    ) -> Option<&HashMap<StringId, LocalNodeId<Field>>> {
+        self.field_map_by_type.get(&ty)
+    }
+
+    /// Record a field lookup map for a type.
+    pub fn set_field_map(
+        &mut self,
+        ty: LocalNodeId<Type>,
+        field_map: HashMap<StringId, LocalNodeId<Field>>,
+    ) -> Option<HashMap<StringId, LocalNodeId<Field>>> {
+        self.field_map_by_type.insert(ty, field_map)
+    }
+
+    /// Return the runtime type descriptor global for a type when present.
+    pub fn descriptor_global(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Global>> {
+        self.descriptor_by_type.get(&ty).copied()
+    }
+
+    /// Record the runtime type descriptor global for a type.
+    pub fn set_descriptor_global(
+        &mut self,
+        ty: LocalNodeId<Type>,
+        descriptor: LocalNodeId<Global>,
+    ) -> Option<LocalNodeId<Global>> {
+        self.descriptor_by_type.insert(ty, descriptor)
+    }
+
+    /// Return the display name for a type when present.
+    pub fn display_name(&self, ty: LocalNodeId<Type>) -> Option<StringId> {
+        self.display_name_by_type.get(&ty).copied()
+    }
+
+    /// Record the display name for a type.
+    pub fn set_display_name(&mut self, ty: LocalNodeId<Type>, name: StringId) -> Option<StringId> {
+        self.display_name_by_type.insert(ty, name)
+    }
+
+    /// Return the existing display name for a type or insert the provided one.
+    pub fn ensure_display_name(&mut self, ty: LocalNodeId<Type>, name: StringId) -> StringId {
+        *self.display_name_by_type.entry(ty).or_insert(name)
     }
 }

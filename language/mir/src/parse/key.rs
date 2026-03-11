@@ -13,8 +13,6 @@ pub(super) struct FieldKey {
     name: Option<StringId>,
     /// Field type.
     ty: LocalNodeId<Type>,
-    /// Byte offset within the struct.
-    offset: u32,
     /// Attributes attached to the field.
     attributes: Vec<Attribute>,
 }
@@ -25,7 +23,6 @@ impl FieldKey {
         Self {
             name: field.name,
             ty: field.ty,
-            offset: field.offset,
             attributes: attributes.to_vec(),
         }
     }
@@ -47,8 +44,10 @@ pub(super) enum TypeKey {
     Usize,
     /// Floating point.
     Float { width: u16 },
-    /// Runtime type tag.
-    TypeTag,
+    /// Runtime type descriptor.
+    TypeDescriptor,
+    /// Runtime type id.
+    TypeId,
     /// Reference/pointer type.
     Reference {
         kind: ReferenceKind,
@@ -106,6 +105,11 @@ pub(super) enum TypeKey {
         parameters: Vec<LocalNodeId<Type>>,
         result: LocalNodeId<Type>,
     },
+    /// Callable closure value.
+    FunctionValue {
+        signature: LocalNodeId<Type>,
+        environment: LocalNodeId<Type>,
+    },
 }
 
 impl TypeKey {
@@ -121,7 +125,8 @@ impl TypeKey {
             Type::Isize => TypeKey::Isize,
             Type::Usize => TypeKey::Usize,
             Type::Float { width } => TypeKey::Float { width: *width },
-            Type::Type => TypeKey::TypeTag,
+            Type::TypeDescriptor => TypeKey::TypeDescriptor,
+            Type::TypeId => TypeKey::TypeId,
 
             Type::Reference {
                 kind,
@@ -207,6 +212,13 @@ impl TypeKey {
             Type::FunctionPointer { parameters, result } => TypeKey::FunctionPointer {
                 parameters: parameters.clone(),
                 result: *result,
+            },
+            Type::FunctionValue {
+                signature,
+                environment,
+            } => TypeKey::FunctionValue {
+                signature: *signature,
+                environment: *environment,
             },
         }
     }

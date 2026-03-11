@@ -16,7 +16,6 @@ impl<'a> Parser<'a> {
             token_ty,
             TokenType::Void
                 | TokenType::Bool
-                | TokenType::Type
                 | TokenType::TypeName
                 | TokenType::At
                 | TokenType::Value
@@ -60,10 +59,6 @@ impl<'a> Parser<'a> {
                 } else {
                     return Err(ParseError::invalid("type", token_start));
                 }
-            }
-            TokenType::Type => {
-                self.bump();
-                Type::Type
             }
             TokenType::At => {
                 self.bump();
@@ -239,10 +234,21 @@ impl<'a> Parser<'a> {
                 let result = self.parse_type()?;
                 Type::FunctionPointer { parameters, result }
             }
+            TokenType::FnValue => {
+                self.bump();
+                self.eat_token(TokenType::LessThan)?;
+                let signature = self.parse_type()?;
+                self.eat_token(TokenType::Comma)?;
+                let environment = self.parse_type()?;
+                self.eat_token(TokenType::GreaterThan)?;
+                Type::FunctionValue {
+                    signature,
+                    environment,
+                }
+            }
             TokenType::OpenBrace => {
                 self.bump();
                 let mut fields = Vec::new();
-                let mut offset = 0u32;
                 while !self.peek_token(TokenType::CloseBrace) {
                     // field attributes
                     let attributes = self.parse_attributes()?;
@@ -278,17 +284,8 @@ impl<'a> Parser<'a> {
                     }
                     let ty = self.parse_type()?;
 
-                    // compute field offset
-                    let field_layout = crate::tree::compute_type_layout(
-                        &self.tree,
-                        ty,
-                        self.options.pointer_bytes,
-                    );
-                    offset = field_layout.align_offset(offset);
-
-                    let field = Field { name, ty, offset };
+                    let field = Field { name, ty };
                     fields.push(self.intern_field(field, attributes));
-                    offset += field_layout.size;
                     if !self.eat_token_maybe(TokenType::Comma) {
                         break;
                     }
@@ -357,7 +354,6 @@ impl<'a> Parser<'a> {
                 {
                     "generic" => AddressSpace::Generic,
                     "stack" => AddressSpace::Stack,
-                    "heap" => AddressSpace::Heap,
                     "shared" => AddressSpace::Shared,
                     "local" => AddressSpace::Local,
                     "global" => AddressSpace::Global,

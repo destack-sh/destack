@@ -1,4 +1,4 @@
-use crate::{Constant, Intrinsic, LocalNodeId, MemoryLocationSet, Type};
+use crate::{Constant, Intrinsic, LocalNodeId, MemoryRegionSet, Type};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -197,8 +197,8 @@ impl<'a> Parser<'a> {
         let ty = self.tree.get(expected_type);
         match ty {
             Type::Int { width, is_signed } => Ok((*width, *is_signed)),
-            Type::Isize => Ok((u16::from(self.options.pointer_bytes) * 8, true)),
-            Type::Usize => Ok((u16::from(self.options.pointer_bytes) * 8, false)),
+            Type::Isize => Ok((self.tree.pointer_bits(), true)),
+            Type::Usize => Ok((self.tree.pointer_bits(), false)),
             _ => Err(ParseError::invalid("integer constant type", start)),
         }
     }
@@ -273,28 +273,29 @@ pub(super) fn parse_primitive_type(s: &str) -> Option<Type> {
         "usize" => Type::Usize,
         "f32" => Type::Float { width: 32 },
         "f64" => Type::Float { width: 64 },
-        "type" => Type::Type,
+        "type_descriptor" => Type::TypeDescriptor,
+        "type_id" => Type::TypeId,
         _ => return None,
     })
 }
 
-/// Parse a memory location keyword into a location set.
-pub(super) fn parse_memory_location(text: &str, start: usize) -> ParseResult<MemoryLocationSet> {
+/// Parse a memory region keyword into a region set.
+pub(super) fn parse_memory_location(text: &str, start: usize) -> ParseResult<MemoryRegionSet> {
     let location = match text {
-        "none" => MemoryLocationSet::NONE,
-        "any" => MemoryLocationSet::ANY,
-        "arguments" => MemoryLocationSet::ARGUMENTS,
-        "heap" => MemoryLocationSet::HEAP,
-        "stack" => MemoryLocationSet::STACK,
-        "global" => MemoryLocationSet::GLOBAL,
-        "shared" => MemoryLocationSet::SHARED,
-        "local" => MemoryLocationSet::LOCAL,
-        "constant" => MemoryLocationSet::CONSTANT,
-        "inaccessible" => MemoryLocationSet::INACCESSIBLE,
-        "io" => MemoryLocationSet::IO,
+        "none" => MemoryRegionSet::NONE,
+        "any" => MemoryRegionSet::ANY,
+        "managed_heap" => MemoryRegionSet::MANAGED_HEAP,
+        "immortal_heap" => MemoryRegionSet::IMMORTAL_HEAP,
+        "raw_heap" => MemoryRegionSet::RAW_HEAP,
+        "stack" => MemoryRegionSet::STACK,
+        "global" => MemoryRegionSet::GLOBAL,
+        "shared" => MemoryRegionSet::SHARED,
+        "local" => MemoryRegionSet::LOCAL,
+        "constant" => MemoryRegionSet::CONSTANT,
+        "io" => MemoryRegionSet::IO,
         _ => {
             return Err(ParseError::invalid(
-                &format!("memory location '{text}'"),
+                &format!("memory region '{text}'"),
                 start,
             ));
         }
