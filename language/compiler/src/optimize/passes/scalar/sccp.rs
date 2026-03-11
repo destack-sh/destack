@@ -475,7 +475,40 @@ impl<'a> SccpState<'a> {
             } => {
                 self.mark_edge_executable(block_id, *resume, resume_arguments);
             }
+            mir::Terminator::Call {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            }
+            | mir::Terminator::CallIndirect {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            }
+            | mir::Terminator::CallVirtual {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            }
+            | mir::Terminator::CallInterface {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            } => {
+                self.mark_edge_executable(block_id, *normal_target, normal_arguments);
+                self.mark_edge_executable(block_id, *unwind_target, unwind_arguments);
+            }
             mir::Terminator::Return { .. }
+            | mir::Terminator::Throw { .. }
+            | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }
             | mir::Terminator::TailCallVirtual { .. }

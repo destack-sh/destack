@@ -366,6 +366,34 @@ impl BasicAA {
                     ModRefInfo::MOD
                 }
             }
+            mir::Instruction::AtomicLoad { pointer, .. } => {
+                let load_loc = MemoryLocation::from_ptr(*pointer);
+                if self.alias(&load_loc, loc, tree) == AliasResult::NoAlias {
+                    ModRefInfo::NO_MOD_REF
+                } else {
+                    ModRefInfo::REF
+                }
+            }
+            mir::Instruction::AtomicStore { pointer, .. } => {
+                let store_loc = MemoryLocation::from_ptr(*pointer);
+                if self.alias(&store_loc, loc, tree) == AliasResult::NoAlias {
+                    ModRefInfo::NO_MOD_REF
+                } else {
+                    ModRefInfo::MOD
+                }
+            }
+            mir::Instruction::AtomicCompareExchange { pointer, .. }
+            | mir::Instruction::AtomicRmw { pointer, .. } => {
+                let access_loc = MemoryLocation::from_ptr(*pointer);
+                if self.alias(&access_loc, loc, tree) == AliasResult::NoAlias {
+                    ModRefInfo::NO_MOD_REF
+                } else {
+                    ModRefInfo::MOD_REF
+                }
+            }
+            mir::Instruction::AtomicFence { .. } | mir::Instruction::Barrier { .. } => {
+                ModRefInfo::NO_MOD_REF
+            }
 
             mir::Instruction::Call { .. }
             | mir::Instruction::CallVirtual { .. }
@@ -552,7 +580,7 @@ impl BasicAA {
         &self,
         access: &mir::MemoryAccessMetadata,
         tree: &mir::NodeTree,
-    ) -> mir::MemoryLocationSet {
+    ) -> mir::MemoryRegionSet {
         if let Some(address_space) = access.address_space {
             return self.location_set_for_address_space(address_space);
         }
@@ -561,11 +589,11 @@ impl BasicAA {
             mir::MemoryAccessTarget::Pointer(pointer) => {
                 let access_loc = MemoryLocation::from_ptr(pointer);
                 self.location_set_for_location(&access_loc, tree)
-                    .unwrap_or(mir::MemoryLocationSet::ANY)
+                    .unwrap_or(mir::MemoryRegionSet::ANY)
             }
-            mir::MemoryAccessTarget::Local(_) => mir::MemoryLocationSet::STACK,
-            mir::MemoryAccessTarget::Global(_) => mir::MemoryLocationSet::GLOBAL,
-            mir::MemoryAccessTarget::Unknown => mir::MemoryLocationSet::ANY,
+            mir::MemoryAccessTarget::Local(_) => mir::MemoryRegionSet::STACK,
+            mir::MemoryAccessTarget::Global(_) => mir::MemoryRegionSet::GLOBAL,
+            mir::MemoryAccessTarget::Unknown => mir::MemoryRegionSet::ANY,
         }
     }
 
@@ -594,17 +622,14 @@ impl BasicAA {
     fn location_set_for_address_space(
         &self,
         address_space: mir::AddressSpace,
-    ) -> mir::MemoryLocationSet {
+    ) -> mir::MemoryRegionSet {
         match address_space {
-            mir::AddressSpace::Stack => mir::MemoryLocationSet::STACK,
-            mir::AddressSpace::Global => mir::MemoryLocationSet::GLOBAL,
-            mir::AddressSpace::Heap => mir::MemoryLocationSet::HEAP,
-            mir::AddressSpace::Shared => mir::MemoryLocationSet::SHARED,
-            mir::AddressSpace::Local => mir::MemoryLocationSet::LOCAL,
-            mir::AddressSpace::Constant => mir::MemoryLocationSet::CONSTANT,
-            mir::AddressSpace::Generic | mir::AddressSpace::Target(_) => {
-                mir::MemoryLocationSet::ANY
-            }
+            mir::AddressSpace::Stack => mir::MemoryRegionSet::STACK,
+            mir::AddressSpace::Global => mir::MemoryRegionSet::GLOBAL,
+            mir::AddressSpace::Shared => mir::MemoryRegionSet::SHARED,
+            mir::AddressSpace::Local => mir::MemoryRegionSet::LOCAL,
+            mir::AddressSpace::Constant => mir::MemoryRegionSet::CONSTANT,
+            mir::AddressSpace::Generic | mir::AddressSpace::Target(_) => mir::MemoryRegionSet::ANY,
         }
     }
 
@@ -672,10 +697,8 @@ impl BasicAA {
         call_effects: Option<&mir::CallEffects>,
         effects: &mir::MemoryEffect,
     ) -> ModRefInfo {
-        // honor coarse location sets when args are not the only constraint
-        if !effects
-            .locations
-            .contains(mir::MemoryLocationSet::ARGUMENTS)
+        // honor coarse location sets when a real region restriction exists
+        if !effects.locations.is_empty()
             && let Some(location_set) = self.location_set_for_location(loc, tree)
             && !effects.locations.contains(location_set)
         {
@@ -837,7 +860,7 @@ impl BasicAA {
         // resolve the declared target when available
         let function = inst.call_declared_target()?;
         let callee = tree.get(function);
-        callee.memory_effects.clone()
+        Some(callee.memory_effects.clone())
     }
 
     /// Resolve a coarse memory location set for a pointer location.
@@ -845,7 +868,7 @@ impl BasicAA {
         &self,
         loc: &MemoryLocation,
         tree: &mir::NodeTree,
-    ) -> Option<mir::MemoryLocationSet> {
+    ) -> Option<mir::MemoryRegionSet> {
         // compute pointer base for region classification
         let mut decomposer = PointerDecomposer::new(
             &self.function.constants,
@@ -860,13 +883,10 @@ impl BasicAA {
 
         // map known bases to memory location sets
         match decomposed.base {
-            PointerBase::StackAlloc(_) | PointerBase::Local(_) => {
-                Some(mir::MemoryLocationSet::STACK)
-            }
-            PointerBase::ManagedAlloc(_) | PointerBase::RawAlloc(_) => {
-                Some(mir::MemoryLocationSet::HEAP)
-            }
-            PointerBase::Global(_) => Some(mir::MemoryLocationSet::GLOBAL),
+            PointerBase::StackAlloc(_) | PointerBase::Local(_) => Some(mir::MemoryRegionSet::STACK),
+            PointerBase::ManagedAlloc(_) => Some(mir::MemoryRegionSet::MANAGED_HEAP),
+            PointerBase::RawAlloc(_) => Some(mir::MemoryRegionSet::RAW_HEAP),
+            PointerBase::Global(_) => Some(mir::MemoryRegionSet::GLOBAL),
             _ => None,
         }
     }
@@ -893,7 +913,7 @@ impl BasicAA {
         match decomposed.base {
             PointerBase::StackAlloc(_) | PointerBase::Local(_) => Some(mir::AddressSpace::Stack),
             PointerBase::ManagedAlloc(_) | PointerBase::RawAlloc(_) => {
-                Some(mir::AddressSpace::Heap)
+                Some(mir::AddressSpace::Generic)
             }
             PointerBase::Global(_) => Some(mir::AddressSpace::Global),
             PointerBase::Parameter { index, .. } => {
@@ -921,34 +941,8 @@ impl BasicAA {
             // memory operations
             Intrinsic::Memcpy | Intrinsic::Memmove | Intrinsic::Memset => ModRefInfo::MOD_REF,
 
-            // atomics
-            Intrinsic::AtomicLoad => ModRefInfo::REF,
-            Intrinsic::AtomicStore => ModRefInfo::MOD,
-            Intrinsic::AtomicCas
-            | Intrinsic::AtomicCasWeak
-            | Intrinsic::AtomicExchange
-            | Intrinsic::AtomicFetchAdd
-            | Intrinsic::AtomicFetchSub
-            | Intrinsic::AtomicFetchAnd
-            | Intrinsic::AtomicFetchOr
-            | Intrinsic::AtomicFetchXor
-            | Intrinsic::AtomicFetchMin
-            | Intrinsic::AtomicFetchMax
-            | Intrinsic::AtomicFetchUmin
-            | Intrinsic::AtomicFetchUmax
-            | Intrinsic::AtomicFetchFadd
-            | Intrinsic::AtomicFetchFmin
-            | Intrinsic::AtomicFetchFmax => ModRefInfo::MOD_REF,
-
-            // fence is a barrier but doesn't access specific memory
-            Intrinsic::AtomicFence => ModRefInfo::NO_MOD_REF,
-
             // GC write barrier
             Intrinsic::GcWriteBarrier => ModRefInfo::MOD,
-
-            // volatile memory access
-            Intrinsic::VolatileLoad => ModRefInfo::REF,
-            Intrinsic::VolatileStore => ModRefInfo::MOD,
 
             // pure intrinsics
             _ => ModRefInfo::NO_MOD_REF,

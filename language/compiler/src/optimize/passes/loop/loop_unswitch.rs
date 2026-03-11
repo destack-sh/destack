@@ -696,14 +696,18 @@ fn remap_check_constraint(
             value: remap(value),
             expected,
         },
-        mir::CheckConstraint::Vtable { receiver, expected } => mir::CheckConstraint::Vtable {
-            receiver: remap(receiver),
-            expected,
-        },
-        mir::CheckConstraint::Itab { receiver, expected } => mir::CheckConstraint::Itab {
-            receiver: remap(receiver),
-            expected,
-        },
+        mir::CheckConstraint::ReceiverType { receiver, expected } => {
+            mir::CheckConstraint::ReceiverType {
+                receiver: remap(receiver),
+                expected,
+            }
+        }
+        mir::CheckConstraint::Implements { receiver, expected } => {
+            mir::CheckConstraint::Implements {
+                receiver: remap(receiver),
+                expected,
+            }
+        }
     }
 }
 

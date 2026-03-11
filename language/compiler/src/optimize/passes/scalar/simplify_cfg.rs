@@ -4207,8 +4207,62 @@ block0:
                 } => {
                     check_edge(*resume, resume_arguments, &mut mismatches);
                 }
+                mir::Terminator::Call {
+                    function: _,
+                    arguments: _,
+                    normal_target,
+                    normal_arguments,
+                    unwind_target,
+                    unwind_arguments,
+                } => {
+                    check_edge(*normal_target, normal_arguments, &mut mismatches);
+                    check_edge(*unwind_target, unwind_arguments, &mut mismatches);
+                }
+                mir::Terminator::CallIndirect {
+                    callee: _,
+                    env: _,
+                    arguments: _,
+                    signature: _,
+                    normal_target,
+                    normal_arguments,
+                    unwind_target,
+                    unwind_arguments,
+                } => {
+                    check_edge(*normal_target, normal_arguments, &mut mismatches);
+                    check_edge(*unwind_target, unwind_arguments, &mut mismatches);
+                }
+                mir::Terminator::CallVirtual {
+                    receiver: _,
+                    arguments: _,
+                    declaring_type: _,
+                    slot_id: _,
+                    signature: _,
+                    normal_target,
+                    normal_arguments,
+                    unwind_target,
+                    unwind_arguments,
+                } => {
+                    check_edge(*normal_target, normal_arguments, &mut mismatches);
+                    check_edge(*unwind_target, unwind_arguments, &mut mismatches);
+                }
+                mir::Terminator::CallInterface {
+                    receiver: _,
+                    arguments: _,
+                    declaring_type: _,
+                    slot_id: _,
+                    signature: _,
+                    normal_target,
+                    normal_arguments,
+                    unwind_target,
+                    unwind_arguments,
+                } => {
+                    check_edge(*normal_target, normal_arguments, &mut mismatches);
+                    check_edge(*unwind_target, unwind_arguments, &mut mismatches);
+                }
+                mir::Terminator::Throw { value: _ } => {}
                 mir::Terminator::Return { .. }
                 | mir::Terminator::Unreachable
+                | mir::Terminator::Trap { .. }
                 | mir::Terminator::TailCall { .. }
                 | mir::Terminator::TailCallVirtual { .. }
                 | mir::Terminator::TailCallInterface { .. }
@@ -4369,7 +4423,58 @@ block0:
                         ));
                     }
                 }
+                mir::Terminator::Call {
+                    function: _,
+                    arguments: _,
+                    normal_target: _,
+                    normal_arguments: _,
+                    unwind_target: _,
+                    unwind_arguments: _,
+                }
+                | mir::Terminator::CallIndirect {
+                    callee: _,
+                    env: _,
+                    arguments: _,
+                    signature: _,
+                    normal_target: _,
+                    normal_arguments: _,
+                    unwind_target: _,
+                    unwind_arguments: _,
+                }
+                | mir::Terminator::CallVirtual {
+                    receiver: _,
+                    arguments: _,
+                    declaring_type: _,
+                    slot_id: _,
+                    signature: _,
+                    normal_target: _,
+                    normal_arguments: _,
+                    unwind_target: _,
+                    unwind_arguments: _,
+                }
+                | mir::Terminator::CallInterface {
+                    receiver: _,
+                    arguments: _,
+                    declaring_type: _,
+                    slot_id: _,
+                    signature: _,
+                    normal_target: _,
+                    normal_arguments: _,
+                    unwind_target: _,
+                    unwind_arguments: _,
+                }
+                | mir::Terminator::Throw { value: _ } => {
+                    for value in block.terminator.uses() {
+                        if !defined_values.contains(&value) {
+                            undefined.push(format!(
+                                "block {:?} terminator uses {:?} without definition: {:?}",
+                                block_id, value, block.terminator
+                            ));
+                        }
+                    }
+                }
                 mir::Terminator::Unreachable
+                | mir::Terminator::Trap { .. }
                 | mir::Terminator::TailCall { .. }
                 | mir::Terminator::TailCallVirtual { .. }
                 | mir::Terminator::TailCallInterface { .. }

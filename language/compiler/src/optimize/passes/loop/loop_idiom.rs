@@ -931,10 +931,6 @@ fn emit_memset(
         destination: None,
         intrinsic: mir::Intrinsic::Memset,
         arguments: args,
-        ordering: None,
-        scope: None,
-        memory_scope: None,
-        semantics: None,
     });
     block.instructions.push(mem_inst);
 }
@@ -982,10 +978,6 @@ fn emit_memcpy_or_memmove(
         destination: None,
         intrinsic,
         arguments: args,
-        ordering: None,
-        scope: None,
-        memory_scope: None,
-        semantics: None,
     });
     block.instructions.push(mem_inst);
 }

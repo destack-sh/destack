@@ -475,12 +475,12 @@ fn clone_function(
 
             // preserve debug locations for the cloned instruction
             if let Some(location) = tree
-                .debug_info
+                .debug_table
                 .instruction_locations
                 .get(&instruction_id)
                 .cloned()
             {
-                tree.debug_info
+                tree.debug_table
                     .instruction_locations
                     .insert(new_id, location);
             }

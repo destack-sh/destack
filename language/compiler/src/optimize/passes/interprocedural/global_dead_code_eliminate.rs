@@ -116,7 +116,7 @@ fn collect_used_globals(tree: &mir::NodeTree) -> HashSet<mir::LocalNodeId<mir::G
     }
 
     // record globals referenced by debug locations
-    for location in tree.debug_info.variable_locations.values() {
+    for location in tree.debug_table.variable_locations.values() {
         if let mir::DebugValueLocation::Global(global_id) = location {
             used.insert(*global_id);
         }
@@ -212,14 +212,14 @@ block0:
         let span = Span::empty(file_id);
         let scope_id =
             test.tree
-                .debug_info
+                .debug_table
                 .create_scope(mir::DebugScopeKind::Lexical, None, span, None);
         let var_id =
             test.tree
-                .debug_info
+                .debug_table
                 .create_variable(global_name, global_type, scope_id, false, false);
         test.tree
-            .debug_info
+            .debug_table
             .variable_locations
             .insert(var_id, mir::DebugValueLocation::Global(global_id));
 

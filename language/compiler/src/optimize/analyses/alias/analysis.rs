@@ -431,8 +431,7 @@ block0:
             access: mir::ArgumentAccess::None,
             ..Default::default()
         };
-        let effects =
-            mir::MemoryEffect::read_only(mir::MemoryLocationSet::ARGUMENTS).with_argmemonly();
+        let effects = mir::MemoryEffect::read_only(mir::MemoryRegionSet::NONE).with_argmemonly();
         let effects = mir::CallEffects::default()
             .with_memory_effects(effects)
             .with_argument_metadata(vec![arg0, arg1]);

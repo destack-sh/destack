@@ -702,16 +702,18 @@ fn update_terminator_arguments(
                     value: resolve_value(*value, substitutions),
                     expected: *expected,
                 },
-                mir::CheckConstraint::Vtable { receiver, expected } => {
-                    mir::CheckConstraint::Vtable {
+                mir::CheckConstraint::ReceiverType { receiver, expected } => {
+                    mir::CheckConstraint::ReceiverType {
                         receiver: resolve_value(*receiver, substitutions),
                         expected: *expected,
                     }
                 }
-                mir::CheckConstraint::Itab { receiver, expected } => mir::CheckConstraint::Itab {
-                    receiver: resolve_value(*receiver, substitutions),
-                    expected: *expected,
-                },
+                mir::CheckConstraint::Implements { receiver, expected } => {
+                    mir::CheckConstraint::Implements {
+                        receiver: resolve_value(*receiver, substitutions),
+                        expected: *expected,
+                    }
+                }
             };
             Terminator::Check {
                 condition: resolve_value(*condition, substitutions),
@@ -778,8 +780,151 @@ fn update_terminator_arguments(
                 resume_arguments: new_resume_args,
             }
         }
+        Terminator::Call {
+            function,
+            arguments,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => Terminator::Call {
+            function: *function,
+            arguments: arguments
+                .iter()
+                .map(|v| resolve_value(*v, substitutions))
+                .collect(),
+            normal_target: *normal_target,
+            normal_arguments: extend_arguments(
+                *normal_target,
+                normal_arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            ),
+            unwind_target: *unwind_target,
+            unwind_arguments: extend_arguments(
+                *unwind_target,
+                unwind_arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            ),
+        },
+        Terminator::CallIndirect {
+            callee,
+            env,
+            arguments,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => Terminator::CallIndirect {
+            callee: resolve_value(*callee, substitutions),
+            env: env.map(|env| resolve_value(env, substitutions)),
+            arguments: arguments
+                .iter()
+                .map(|v| resolve_value(*v, substitutions))
+                .collect(),
+            signature: *signature,
+            normal_target: *normal_target,
+            normal_arguments: extend_arguments(
+                *normal_target,
+                normal_arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            ),
+            unwind_target: *unwind_target,
+            unwind_arguments: extend_arguments(
+                *unwind_target,
+                unwind_arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            ),
+        },
+        Terminator::CallVirtual {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => Terminator::CallVirtual {
+            receiver: resolve_value(*receiver, substitutions),
+            arguments: arguments
+                .iter()
+                .map(|v| resolve_value(*v, substitutions))
+                .collect(),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            signature: *signature,
+            normal_target: *normal_target,
+            normal_arguments: extend_arguments(
+                *normal_target,
+                normal_arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            ),
+            unwind_target: *unwind_target,
+            unwind_arguments: extend_arguments(
+                *unwind_target,
+                unwind_arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            ),
+        },
+        Terminator::CallInterface {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => Terminator::CallInterface {
+            receiver: resolve_value(*receiver, substitutions),
+            arguments: arguments
+                .iter()
+                .map(|v| resolve_value(*v, substitutions))
+                .collect(),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            signature: *signature,
+            normal_target: *normal_target,
+            normal_arguments: extend_arguments(
+                *normal_target,
+                normal_arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            ),
+            unwind_target: *unwind_target,
+            unwind_arguments: extend_arguments(
+                *unwind_target,
+                unwind_arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            ),
+        },
         Terminator::Return { value } => Terminator::Return {
             value: value.map(|v| resolve_value(v, substitutions)),
+        },
+        Terminator::Throw { value } => Terminator::Throw {
+            value: resolve_value(*value, substitutions),
+        },
+        Terminator::Trap { kind, payload } => Terminator::Trap {
+            kind: *kind,
+            payload: payload.map(|value| resolve_value(value, substitutions)),
         },
         Terminator::Unreachable => Terminator::Unreachable,
         Terminator::TailCall {
@@ -797,7 +942,6 @@ fn update_terminator_arguments(
             arguments,
             declaring_type,
             slot_id,
-            declared_target,
             signature,
         } => Terminator::TailCallVirtual {
             receiver: resolve_value(*receiver, substitutions),
@@ -807,7 +951,6 @@ fn update_terminator_arguments(
                 .collect(),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            declared_target: *declared_target,
             signature: *signature,
         },
         Terminator::TailCallInterface {
@@ -815,7 +958,6 @@ fn update_terminator_arguments(
             arguments,
             declaring_type,
             slot_id,
-            declared_target,
             signature,
         } => Terminator::TailCallInterface {
             receiver: resolve_value(*receiver, substitutions),
@@ -825,7 +967,6 @@ fn update_terminator_arguments(
                 .collect(),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            declared_target: *declared_target,
             signature: *signature,
         },
         Terminator::TailCallIndirect {

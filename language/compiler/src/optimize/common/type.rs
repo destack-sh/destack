@@ -29,7 +29,9 @@ pub enum TypeKey {
     /// Floating-point type with width.
     Float { width: u16 },
     /// Type descriptor handle.
-    TypeTag,
+    TypeDescriptor,
+    /// Compact runtime type id.
+    TypeId,
     /// Reference or pointer type.
     Reference {
         kind: mir::ReferenceKind,
@@ -87,6 +89,11 @@ pub enum TypeKey {
         parameters: Vec<TypeKey>,
         result: Box<TypeKey>,
     },
+    /// Callable closure value type.
+    FunctionValue {
+        signature: Box<TypeKey>,
+        environment: Box<TypeKey>,
+    },
     /// Recursive reference to a previously visited type id.
     Recursive { id: mir::LocalNodeId<mir::Type> },
 }
@@ -123,7 +130,8 @@ impl TypeKey {
             mir::Type::Isize => TypeKey::Isize,
             mir::Type::Usize => TypeKey::Usize,
             mir::Type::Float { width } => TypeKey::Float { width: *width },
-            mir::Type::Type => TypeKey::TypeTag,
+            mir::Type::TypeDescriptor => TypeKey::TypeDescriptor,
+            mir::Type::TypeId => TypeKey::TypeId,
 
             mir::Type::Reference {
                 kind,
@@ -236,6 +244,13 @@ impl TypeKey {
                     result: Box::new(Self::from_type_inner(*result, tree, visiting)),
                 }
             }
+            mir::Type::FunctionValue {
+                signature,
+                environment,
+            } => TypeKey::FunctionValue {
+                signature: Box::new(Self::from_type_inner(*signature, tree, visiting)),
+                environment: Box::new(Self::from_type_inner(*environment, tree, visiting)),
+            },
         };
 
         visiting.pop();
@@ -252,7 +267,8 @@ impl TypeKey {
                 | TypeKey::Isize
                 | TypeKey::Usize
                 | TypeKey::Float { .. }
-                | TypeKey::TypeTag
+                | TypeKey::TypeDescriptor
+                | TypeKey::TypeId
         )
     }
 
@@ -371,7 +387,8 @@ fn types_are_equal_inner(
         (mir::Type::Isize, mir::Type::Isize) => true,
         (mir::Type::Usize, mir::Type::Usize) => true,
         (mir::Type::Float { width: w1 }, mir::Type::Float { width: w2 }) => w1 == w2,
-        (mir::Type::Type, mir::Type::Type) => true,
+        (mir::Type::TypeDescriptor, mir::Type::TypeDescriptor)
+        | (mir::Type::TypeId, mir::Type::TypeId) => true,
 
         // references: compare all fields recursively
         (
@@ -482,6 +499,21 @@ fn types_are_equal_inner(
                 && types_are_equal_inner(*r1, *r2, tree, visiting)
         }
 
+        // function values: compare signature and environment types
+        (
+            mir::Type::FunctionValue {
+                signature: s1,
+                environment: e1,
+            },
+            mir::Type::FunctionValue {
+                signature: s2,
+                environment: e2,
+            },
+        ) => {
+            types_are_equal_inner(*s1, *s2, tree, visiting)
+                && types_are_equal_inner(*e1, *e2, tree, visiting)
+        }
+
         // different type variants are never equal
         _ => false,
     };
@@ -505,7 +537,7 @@ mod tests {
         let usize_id = tree.insert_type(mir::Type::Usize);
         let uint64_id = tree.insert_type(mir::Type::UINT64);
         let float64_id = tree.insert_type(mir::Type::FLOAT64);
-        let type_tag_id = tree.insert_type(mir::Type::Type);
+        let type_tag_id = tree.insert_type(mir::Type::TypeDescriptor);
 
         assert_eq!(TypeKey::from_type(void_id, &tree), TypeKey::Void);
         assert_eq!(TypeKey::from_type(boolean_id, &tree), TypeKey::Boolean);
@@ -529,7 +561,10 @@ mod tests {
             TypeKey::from_type(float64_id, &tree),
             TypeKey::Float { width: 64 }
         );
-        assert_eq!(TypeKey::from_type(type_tag_id, &tree), TypeKey::TypeTag);
+        assert_eq!(
+            TypeKey::from_type(type_tag_id, &tree),
+            TypeKey::TypeDescriptor
+        );
     }
 
     /// Scalar types are identified as scalar.
@@ -542,7 +577,7 @@ mod tests {
         let isize_id = tree.insert_type(mir::Type::Isize);
         let usize_id = tree.insert_type(mir::Type::Usize);
         let float64_id = tree.insert_type(mir::Type::FLOAT64);
-        let type_tag_id = tree.insert_type(mir::Type::Type);
+        let type_tag_id = tree.insert_type(mir::Type::TypeDescriptor);
 
         assert!(TypeKey::from_type(void_id, &tree).is_scalar());
         assert!(TypeKey::from_type(boolean_id, &tree).is_scalar());

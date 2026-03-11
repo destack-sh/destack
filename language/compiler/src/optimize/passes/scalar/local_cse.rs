@@ -651,14 +651,16 @@ block2(v5: i32):
 block0:
     v0: ref<raw addrspace(stack) i32> = stack.alloc i32
     v1: i32 = load v0
-    v2: ref<raw addrspace(stack) i32> = intrinsic.volatile.load(v0)
+    v2: i32 = load v0
     v3: i32 = load v0
     return v3
 }"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
-        let volatile_id = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::VolatileLoad);
+        let function = test.tree.get(function_id);
+        let block = test.tree.get(function.blocks[0]);
+        let volatile_id = block.instructions[1];
 
         test.insert_pointer_access_with_options(
             volatile_id,

@@ -1269,12 +1269,7 @@ block0(v0: i32, v1: i32):
                 _ => None,
             })
             .unwrap_or_else(|| panic!("missing struct type"));
-        let metadata = test
-            .tree
-            .type_table
-            .type_metadata_mut(struct_type_id)
-            .unwrap_or_else(|| panic!("missing type metadata"));
-        metadata.layout_id = None;
+        let _ = test.tree.type_table.layout_by_type.remove(&struct_type_id);
 
         let options = PipelineOptions {
             require_optimized_metadata: true,

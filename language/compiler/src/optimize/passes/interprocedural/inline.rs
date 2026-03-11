@@ -718,7 +718,7 @@ fn inline_callsite(
     // clean up metadata for the removed call instruction
     tree.memory_table
         .remove_memory_accesses(site.call_instruction_id);
-    tree.debug_info
+    tree.debug_table
         .instruction_locations
         .remove(&site.call_instruction_id);
 
@@ -942,12 +942,12 @@ fn remap_inline_blocks(
 
             // clone debug locations onto the new instruction
             if let Some(location) = tree
-                .debug_info
+                .debug_table
                 .instruction_locations
                 .get(&instruction_id)
                 .cloned()
             {
-                tree.debug_info
+                tree.debug_table
                     .instruction_locations
                     .insert(new_id, location);
             }
@@ -1349,7 +1349,14 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
         | mir::Instruction::TensorStore { .. }
         | mir::Instruction::TensorFill { .. }
         | mir::Instruction::TensorCopy { .. } => INLINE_COST_MEMORY,
-        mir::Instruction::Load { .. } | mir::Instruction::Store { .. } => INLINE_COST_MEMORY,
+        mir::Instruction::Load { .. }
+        | mir::Instruction::Store { .. }
+        | mir::Instruction::AtomicLoad { .. }
+        | mir::Instruction::AtomicStore { .. }
+        | mir::Instruction::AtomicCompareExchange { .. }
+        | mir::Instruction::AtomicRmw { .. }
+        | mir::Instruction::AtomicFence { .. }
+        | mir::Instruction::Barrier { .. } => INLINE_COST_MEMORY,
         mir::Instruction::FieldGet { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::FieldSet { .. }
@@ -1391,11 +1398,17 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
 fn terminator_cost(terminator: &mir::Terminator) -> u64 {
     match terminator {
         mir::Terminator::Return { .. } => INLINE_COST_SIMPLE,
+        mir::Terminator::Throw { .. } => INLINE_COST_SIMPLE + 1,
+        mir::Terminator::Trap { .. } => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Jump { .. } => INLINE_COST_SIMPLE,
         mir::Terminator::Branch { .. }
         | mir::Terminator::Check { .. }
         | mir::Terminator::Switch { .. }
         | mir::Terminator::Yield { .. } => INLINE_COST_SIMPLE + 1,
+        mir::Terminator::Call { .. } => INLINE_COST_CALL + 1,
+        mir::Terminator::CallIndirect { .. }
+        | mir::Terminator::CallVirtual { .. }
+        | mir::Terminator::CallInterface { .. } => INLINE_COST_CALL_INDIRECT + 1,
         mir::Terminator::Unreachable => 0,
         mir::Terminator::TailCall { .. } => INLINE_COST_CALL,
         mir::Terminator::TailCallVirtual { .. } | mir::Terminator::TailCallInterface { .. } => {

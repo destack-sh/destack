@@ -344,9 +344,10 @@ impl OwnershipAnalysis {
             | Type::Isize
             | Type::Usize
             | Type::Float { .. }
-            | Type::Type => true,
-            // function pointers are copy
-            Type::FunctionPointer { .. } => true,
+            | Type::TypeDescriptor
+            | Type::TypeId => true,
+            // function pointers and closure values are copy
+            Type::FunctionPointer { .. } | Type::FunctionValue { .. } => true,
             // raw and borrowed references are copy
             Type::Reference {
                 kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
@@ -442,6 +443,23 @@ impl OwnershipAnalysis {
             Instruction::Store { value, .. } => {
                 if !self.value_is_copy(*value, tree) {
                     state.mark_moved_with_source(*value, at);
+                }
+            }
+            Instruction::AtomicStore { value, .. } | Instruction::AtomicRmw { value, .. } => {
+                if !self.value_is_copy(*value, tree) {
+                    state.mark_moved_with_source(*value, at);
+                }
+            }
+            Instruction::AtomicCompareExchange {
+                expected,
+                new_value,
+                ..
+            } => {
+                if !self.value_is_copy(*expected, tree) {
+                    state.mark_moved_with_source(*expected, at.clone());
+                }
+                if !self.value_is_copy(*new_value, tree) {
+                    state.mark_moved_with_source(*new_value, at);
                 }
             }
             Instruction::LocalSet { value, local } => {
@@ -770,6 +788,9 @@ impl OwnershipAnalysis {
             }
 
             Instruction::Assume { .. } => {}
+            Instruction::AtomicLoad { .. }
+            | Instruction::AtomicFence { .. }
+            | Instruction::Barrier { .. } => {}
         }
     }
 
@@ -814,10 +835,87 @@ impl OwnershipAnalysis {
                     }
                 }
             }
+            mir::Terminator::Call {
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                for &arg in arguments
+                    .iter()
+                    .chain(normal_arguments.iter())
+                    .chain(unwind_arguments.iter())
+                {
+                    if !self.value_is_copy(arg, tree) {
+                        state.mark_moved_with_source(arg, at.clone());
+                    }
+                }
+            }
+            mir::Terminator::CallIndirect {
+                callee,
+                env,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                if !self.value_is_copy(*callee, tree) {
+                    state.mark_moved_with_source(*callee, at.clone());
+                }
+                if let Some(env) = env
+                    && !self.value_is_copy(*env, tree)
+                {
+                    state.mark_moved_with_source(*env, at.clone());
+                }
+                for &arg in arguments
+                    .iter()
+                    .chain(normal_arguments.iter())
+                    .chain(unwind_arguments.iter())
+                {
+                    if !self.value_is_copy(arg, tree) {
+                        state.mark_moved_with_source(arg, at.clone());
+                    }
+                }
+            }
+            mir::Terminator::CallVirtual {
+                receiver,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            }
+            | mir::Terminator::CallInterface {
+                receiver,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                if !self.value_is_copy(*receiver, tree) {
+                    state.mark_moved_with_source(*receiver, at.clone());
+                }
+                for &arg in arguments
+                    .iter()
+                    .chain(normal_arguments.iter())
+                    .chain(unwind_arguments.iter())
+                {
+                    if !self.value_is_copy(arg, tree) {
+                        state.mark_moved_with_source(arg, at.clone());
+                    }
+                }
+            }
             mir::Terminator::Branch { .. }
             | mir::Terminator::Check { .. }
             | mir::Terminator::Switch { .. }
+            | mir::Terminator::Throw { .. }
             | mir::Terminator::Unreachable => {}
+            mir::Terminator::Trap { payload, .. } => {
+                if let Some(payload) = payload
+                    && !self.value_is_copy(*payload, tree)
+                {
+                    state.mark_moved_with_source(*payload, at.clone());
+                }
+            }
             mir::Terminator::TailCall { arguments, .. } => {
                 for &arg in arguments {
                     if !self.value_is_copy(arg, tree) {
@@ -1093,8 +1191,9 @@ fn value_is_copy(value: Value, tree: &mir::NodeTree, value_types: &ValueTypeMap)
         | Type::Isize
         | Type::Usize
         | Type::Float { .. }
-        | Type::Type => true,
-        Type::FunctionPointer { .. } => true,
+        | Type::TypeDescriptor
+        | Type::TypeId => true,
+        Type::FunctionPointer { .. } | Type::FunctionValue { .. } => true,
         Type::Reference {
             kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
             ..
@@ -1161,6 +1260,17 @@ fn process_instruction(
         Instruction::Store { value, .. } => {
             state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
         }
+        Instruction::AtomicStore { value, .. } | Instruction::AtomicRmw { value, .. } => {
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
+        }
+        Instruction::AtomicCompareExchange {
+            expected,
+            new_value,
+            ..
+        } => {
+            state.mark_moved_if_not_copy_with_source(*expected, at.clone(), tree, value_types);
+            state.mark_moved_if_not_copy_with_source(*new_value, at, tree, value_types);
+        }
 
         // local.set moves the value (if non-copy)
         Instruction::LocalSet { value, .. } => {
@@ -1172,6 +1282,11 @@ fn process_instruction(
                 state.mark_local_owned(*local);
             }
         }
+
+        // atomic reads and barriers do not consume ownership
+        Instruction::AtomicLoad { .. }
+        | Instruction::AtomicFence { .. }
+        | Instruction::Barrier { .. } => {}
 
         // function.env reads the closure environment pointer
         Instruction::FunctionEnv { destination } => {
@@ -1514,6 +1629,71 @@ fn process_terminator(
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
+        mir::Terminator::Call {
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            for &arg in arguments
+                .iter()
+                .chain(normal_arguments.iter())
+                .chain(unwind_arguments.iter())
+            {
+                state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
+            }
+        }
+        mir::Terminator::CallIndirect {
+            callee,
+            env,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            state.mark_moved_if_not_copy_with_source(*callee, at.clone(), tree, value_types);
+            if let Some(env) = env {
+                state.mark_moved_if_not_copy_with_source(*env, at.clone(), tree, value_types);
+            }
+            for &arg in arguments
+                .iter()
+                .chain(normal_arguments.iter())
+                .chain(unwind_arguments.iter())
+            {
+                state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
+            }
+        }
+        mir::Terminator::CallVirtual {
+            receiver,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        }
+        | mir::Terminator::CallInterface {
+            receiver,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            state.mark_moved_if_not_copy_with_source(*receiver, at.clone(), tree, value_types);
+            for &arg in arguments
+                .iter()
+                .chain(normal_arguments.iter())
+                .chain(unwind_arguments.iter())
+            {
+                state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
+            }
+        }
+        mir::Terminator::Throw { value } => {
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
+        }
+        mir::Terminator::Trap { payload, .. } => {
+            if let Some(payload) = payload {
+                state.mark_moved_if_not_copy_with_source(*payload, at, tree, value_types);
+            }
+        }
         mir::Terminator::Branch { .. }
         | mir::Terminator::Check { .. }
         | mir::Terminator::Switch { .. }
@@ -1621,7 +1801,44 @@ fn predecessor_arguments(
                 arguments.push(resume_arguments.as_slice());
             }
         }
+        mir::Terminator::Call {
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+            ..
+        }
+        | mir::Terminator::CallIndirect {
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+            ..
+        }
+        | mir::Terminator::CallVirtual {
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+            ..
+        }
+        | mir::Terminator::CallInterface {
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+            ..
+        } => {
+            if *normal_target == target {
+                arguments.push(normal_arguments.as_slice());
+            }
+            if *unwind_target == target {
+                arguments.push(unwind_arguments.as_slice());
+            }
+        }
         mir::Terminator::Return { .. }
+        | mir::Terminator::Throw { .. }
+        | mir::Terminator::Trap { .. }
         | mir::Terminator::TailCall { .. }
         | mir::Terminator::TailCallVirtual { .. }
         | mir::Terminator::TailCallInterface { .. }

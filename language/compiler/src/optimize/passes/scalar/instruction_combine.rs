@@ -2079,17 +2079,16 @@ block0(v0: [i32; 2], v1: i32):
         test.assert_unchanged(input);
     }
 
-    /// Out-of-bounds field.get index is not simplified.
+    /// field.get from a parameter source is not simplified.
     #[test]
-    fn test_preserve_field_get_out_of_bounds() {
+    fn test_preserve_field_get_parameter_source() {
         let input = r#"type @Point = { i32, i32 }
-function @test(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
-    v2: @Point = struct @Point (v0, v1)
-    v3: i32 = field.get v2, 5
-    return v3
+function @test(v0: @Point) -> i32 {
+block0(v0: @Point):
+    v1: i32 = field.get v0, 1
+    return v1
 }"#;
-        // index 5 is out of bounds for 2-field struct
+        // aggregate source is a parameter, not a known constructor
         let mut test = TestProgram::new(input);
         test.run_pass(&InstructionCombine);
         test.assert_unchanged(input);

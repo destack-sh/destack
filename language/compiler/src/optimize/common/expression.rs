@@ -567,6 +567,12 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::TensorScatter { .. }
         | mir::Instruction::TensorCompare { .. }
         | mir::Instruction::TensorConvert { .. }
+        | mir::Instruction::AtomicLoad { .. }
+        | mir::Instruction::AtomicStore { .. }
+        | mir::Instruction::AtomicCompareExchange { .. }
+        | mir::Instruction::AtomicRmw { .. }
+        | mir::Instruction::AtomicFence { .. }
+        | mir::Instruction::Barrier { .. }
         | mir::Instruction::FieldSet { .. }
         | mir::Instruction::ElementSet { .. }
         | mir::Instruction::GlobalAddr { .. }

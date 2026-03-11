@@ -427,7 +427,38 @@ pub fn terminator_edges(
             mir::EdgeKey::new(source, mir::EdgeKind::YieldResume, *resume),
             *resume,
         )],
+        mir::Terminator::Call {
+            normal_target,
+            unwind_target,
+            ..
+        }
+        | mir::Terminator::CallIndirect {
+            normal_target,
+            unwind_target,
+            ..
+        }
+        | mir::Terminator::CallVirtual {
+            normal_target,
+            unwind_target,
+            ..
+        }
+        | mir::Terminator::CallInterface {
+            normal_target,
+            unwind_target,
+            ..
+        } => vec![
+            (
+                mir::EdgeKey::new(source, mir::EdgeKind::CallNormal, *normal_target),
+                *normal_target,
+            ),
+            (
+                mir::EdgeKey::new(source, mir::EdgeKind::CallUnwind, *unwind_target),
+                *unwind_target,
+            ),
+        ],
         mir::Terminator::Return { .. }
+        | mir::Terminator::Throw { .. }
+        | mir::Terminator::Trap { .. }
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
         | mir::Terminator::TailCallVirtual { .. }
