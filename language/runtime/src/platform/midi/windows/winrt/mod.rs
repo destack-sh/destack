@@ -11,3 +11,4 @@ pub(crate) use backend::*;
 pub(crate) use event::*;
 pub(crate) use input::*;
 pub(crate) use output::*;
+pub(crate) use service::*;

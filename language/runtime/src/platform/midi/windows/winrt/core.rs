@@ -3,28 +3,23 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use parking_lot::Mutex;
-use windows::Devices::Midi::{MidiInPort, MidiOutPort};
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::core::{self as core_platform};
-use crate::platform::midi::core::{MidiEventValue, MidiInputRecordValue, MidiPortDescriptorValue};
-pub(super) use crate::platform::midi::shared::{
-    MIDI_EVENT_RESOURCE_LABEL, MIDI_INPUT_RESOURCE_LABEL, MIDI_OUTPUT_RESOURCE_LABEL, SharedQueue,
+pub(super) use crate::platform::midi::core::{
+    BoundedQueue, MIDI_EVENT_RESOURCE_LABEL, MIDI_INPUT_RESOURCE_LABEL, MIDI_OUTPUT_RESOURCE_LABEL,
     binding_timestamp_now, direction_mask_includes, endpoint_direction_name, event_poll_interval,
-    event_queue_capacity, event_snapshot_list_flags, input_queue_capacity, missing_handle,
+    event_queue_capacity, event_snapshot_list_flags, input_queue_capacity,
 };
+use crate::platform::midi::core::{MidiEventValue, MidiInputRecordValue, MidiPortDescriptorValue};
 use crate::platform::midi::{
     MIDI_DATA_FORMAT_FLAG_MIDI1_BYTES, MIDI_PROTOCOL_FLAG_MIDI1, MidiBackend, MidiDataFormat,
     MidiDataFormatFlags, MidiEventOverflowPolicy, MidiEventSubscriptionFlags, MidiPortDirection,
-    MidiPortDirectionFlags, MidiPortListFlags, MidiProtocol, MidiProtocolFlags,
+    MidiPortDirectionFlags, MidiProtocol, MidiProtocolFlags,
 };
 use crate::platform::resource;
-use crate::platform::resource::{ResourceEntry, ResourceId, ResourceKind};
+use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::runtime::BindingCallContext;
 
-use super::service::{
-    WinRtNativeEventRegistry, WinRtService, ensure_current_thread_winrt_apartment_for_drop,
-};
+use super::service::{WinRtNativeEventRegistry, WinRtService};
 
 /// One cached WinRT endpoint row.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,12 +45,10 @@ pub(super) struct WinRtInputSession {
     pub(super) _service: Arc<WinRtService>,
     /// Current descriptor snapshot.
     pub(super) descriptor: MidiPortDescriptorValue,
-    /// Opened WinRT input port.
-    pub(super) port: MidiInPort,
-    /// Message-received registration token.
-    pub(super) token: i64,
+    /// Service-owned host session id.
+    pub(super) host_session_id: u64,
     /// Shared input queue.
-    pub(super) queue: Arc<SharedQueue<MidiInputRecordValue>>,
+    pub(super) queue: Arc<BoundedQueue<MidiInputRecordValue>>,
 }
 
 /// One opened WinRT output session.
@@ -64,8 +57,8 @@ pub(super) struct WinRtOutputSession {
     pub(super) _service: Arc<WinRtService>,
     /// Current descriptor snapshot.
     pub(super) descriptor: MidiPortDescriptorValue,
-    /// Opened WinRT output port.
-    pub(super) port: MidiOutPort,
+    /// Service-owned host session id.
+    pub(super) host_session_id: u64,
 }
 
 /// One stable key for one direction-scoped snapshot row.
@@ -101,7 +94,7 @@ pub(super) struct WinRtEventSession {
     /// Selected delivery kind.
     pub(super) delivery_kind: WinRtEventDeliveryKind,
     /// Pending event queue.
-    pub(super) queue: Arc<SharedQueue<MidiEventValue>>,
+    pub(super) queue: Arc<BoundedQueue<MidiEventValue>>,
     /// Next sequence number.
     pub(super) next_sequence: u64,
     /// Previous endpoint snapshot.
@@ -130,11 +123,8 @@ pub(super) struct WinRtEventResource {
 impl Drop for WinRtInputSession {
     /// Release WinRT resources for one input session.
     fn drop(&mut self) {
-        // drop paths may run on any runtime thread
-        ensure_current_thread_winrt_apartment_for_drop();
-
-        let _ = self.port.RemoveMessageReceived(self.token);
-        let _ = self.port.Close();
+        self._service
+            .close_input_session_for_drop(self.host_session_id);
         self.queue.close();
     }
 }
@@ -142,10 +132,8 @@ impl Drop for WinRtInputSession {
 impl Drop for WinRtOutputSession {
     /// Release WinRT resources for one output session.
     fn drop(&mut self) {
-        // drop paths may run on any runtime thread
-        ensure_current_thread_winrt_apartment_for_drop();
-
-        let _ = self.port.Close();
+        self._service
+            .close_output_session_for_drop(self.host_session_id);
     }
 }
 

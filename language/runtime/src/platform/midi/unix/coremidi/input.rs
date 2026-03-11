@@ -5,9 +5,8 @@ use std::sync::atomic::AtomicBool;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiInputRecordValue, MidiPortDescriptorValue, validate_record_shape,
+    MidiInputRecordValue, MidiPortDescriptorValue, remove_labeled_resource, validate_record_shape,
 };
-use crate::platform::midi::shared::remove_labeled_resource;
 use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiInputPortOpenOptions, MidiPortDirection,
     MidiPortListOptions, MidiVirtualInputCreateOptions,
@@ -27,7 +26,7 @@ use super::callback::{
     modern_receive_block,
 };
 use super::core::{
-    CoreMidiInputSession, CoreMidiInputSessionKind, SharedQueue, core_midi_status_error,
+    BoundedQueue, CoreMidiInputSession, CoreMidiInputSessionKind, core_midi_status_error,
     input_queue_capacity, insert_input_resource, native_optional_string, native_string,
     selected_protocol_id,
 };
@@ -37,11 +36,9 @@ use super::descriptor::{
 };
 use super::event::refresh_native_event_sessions;
 use super::resource::input_resource;
-use super::service::core_midi_service;
-
 /// List CoreMIDI input ports.
 pub(crate) fn midi_input_port_list(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     options: MidiPortListOptions,
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
     let _ = resolve_backend(
@@ -49,9 +46,14 @@ pub(crate) fn midi_input_port_list(
         options.backend_policy,
         "destack.midi.input.port.list",
     )?;
-    core_midi_service("destack.midi.input.port.list")?;
+    let service = binding
+        .agent()
+        .platform_state
+        .midi
+        .core_midi_service("destack.midi.input.port.list")?;
 
     Ok(filtered_descriptors(
+        &service,
         MidiPortDirection::Input,
         options.flags,
     ))
@@ -63,14 +65,22 @@ pub(crate) fn midi_input_port_open(
     id: &str,
     options: MidiInputPortOpenOptions,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
-    let _runtime_state = binding.agent().platform_state.midi.runtime_state(binding);
+    binding
+        .agent()
+        .platform_state
+        .midi
+        .mark_runtime_active(binding);
 
     let _ = resolve_backend(
         options.backend,
         options.backend_policy,
         "destack.midi.input.port.open",
     )?;
-    let service = core_midi_service("destack.midi.input.port.open")?;
+    let service = binding
+        .agent()
+        .platform_state
+        .midi
+        .core_midi_service("destack.midi.input.port.open")?;
 
     validate_record_shape(
         "destack.midi.input.port.open",
@@ -78,8 +88,12 @@ pub(crate) fn midi_input_port_open(
         options.protocol,
     )?;
 
-    let (endpoint, descriptor) =
-        resolve_endpoint(MidiPortDirection::Input, id, "destack.midi.input.port.open")?;
+    let (endpoint, descriptor) = resolve_endpoint(
+        &service,
+        MidiPortDirection::Input,
+        id,
+        "destack.midi.input.port.open",
+    )?;
     let data_format = options
         .data_format
         .or(descriptor.default_data_format)
@@ -93,7 +107,7 @@ pub(crate) fn midi_input_port_open(
         protocol,
     )?;
 
-    let queue = Arc::new(SharedQueue::new(input_queue_capacity(
+    let queue = Arc::new(BoundedQueue::new(input_queue_capacity(
         options.queue_capacity,
     )));
 
@@ -110,7 +124,7 @@ pub(crate) fn midi_input_port_open(
 
         let status = unsafe {
             MIDIInputPortCreateWithProtocol(
-                service.operation_client,
+                service.operation_client(),
                 name,
                 selected_protocol_id(protocol, data_format),
                 &mut port,
@@ -161,7 +175,7 @@ pub(crate) fn midi_input_port_open(
 
         let status = unsafe {
             MIDIInputPortCreate(
-                service.operation_client,
+                service.operation_client(),
                 name,
                 Some(legacy_input_read_proc),
                 callback_context.as_ptr(),
@@ -321,7 +335,11 @@ pub(crate) fn midi_input_virtual_create(
     binding: &BindingCallContext,
     options: MidiVirtualInputCreateOptions,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
-    let _runtime_state = binding.agent().platform_state.midi.runtime_state(binding);
+    binding
+        .agent()
+        .platform_state
+        .midi
+        .mark_runtime_active(binding);
 
     let name = native_string(options.name)?;
     let manufacturer = native_optional_string(options.manufacturer)?;
@@ -333,7 +351,11 @@ pub(crate) fn midi_input_virtual_create(
         options.backend_policy,
         "destack.midi.input.virtual.create",
     )?;
-    let service = core_midi_service("destack.midi.input.virtual.create")?;
+    let service = binding
+        .agent()
+        .platform_state
+        .midi
+        .core_midi_service("destack.midi.input.virtual.create")?;
 
     validate_record_shape(
         "destack.midi.input.virtual.create",
@@ -341,7 +363,7 @@ pub(crate) fn midi_input_virtual_create(
         Some(options.protocol),
     )?;
 
-    let queue = Arc::new(SharedQueue::new(input_queue_capacity(
+    let queue = Arc::new(BoundedQueue::new(input_queue_capacity(
         options.queue_capacity,
     )));
     let Some(name) = create_cf_string(&name) else {
@@ -358,7 +380,7 @@ pub(crate) fn midi_input_virtual_create(
 
         let status = unsafe {
             MIDIDestinationCreateWithProtocol(
-                service.operation_client,
+                service.operation_client(),
                 name,
                 selected_protocol_id(Some(options.protocol), options.data_format),
                 &mut endpoint,
@@ -392,7 +414,7 @@ pub(crate) fn midi_input_virtual_create(
 
         let status = unsafe {
             MIDIDestinationCreate(
-                service.operation_client,
+                service.operation_client(),
                 name,
                 Some(legacy_input_read_proc),
                 callback_context.as_ptr(),
@@ -443,9 +465,9 @@ pub(crate) fn midi_input_virtual_create(
     }
     release_cf(name.cast());
 
-    register_endpoint_override(endpoint, options.data_format, options.protocol);
+    register_endpoint_override(&service, endpoint, options.data_format, options.protocol);
 
-    let descriptor = endpoint_descriptor(MidiPortDirection::Input, endpoint);
+    let descriptor = endpoint_descriptor(&service, MidiPortDirection::Input, endpoint);
     let session = Arc::new(CoreMidiInputSession {
         _service: service,
         descriptor,

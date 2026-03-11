@@ -10,7 +10,7 @@ pub use bindings_generated::*;
 mod core;
 mod host;
 pub mod native;
-mod shared;
+mod selector;
 pub(crate) mod simulation;
 mod state;
 #[cfg(test)]

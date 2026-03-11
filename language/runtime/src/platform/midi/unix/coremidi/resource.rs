@@ -12,7 +12,7 @@ use super::core::{
     CoreMidiOutputResource, CoreMidiOutputSession, MIDI_EVENT_RESOURCE_LABEL,
     MIDI_INPUT_RESOURCE_LABEL, MIDI_OUTPUT_RESOURCE_LABEL,
 };
-use crate::platform::midi::shared::read_labeled_resource_payload;
+use crate::platform::midi::core::read_labeled_resource_payload;
 
 /// Read one CoreMIDI input resource payload.
 pub(super) fn input_resource(

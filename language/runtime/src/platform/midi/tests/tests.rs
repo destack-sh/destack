@@ -906,3 +906,39 @@ pub(crate) fn decode_event(
         }
     }
 }
+
+/// Decode one MIDI event list into plain Rust summaries.
+pub(crate) fn decode_events(
+    context: &mut MidiHarnessContext<'_>,
+    value: HarnessValue<NativeSlice<MidiEvent>, VmSlice<MidiEventVm>>,
+) -> RuntimeResult<Vec<DecodedMidiEvent>> {
+    match value {
+        HarnessValue::Native(values) => {
+            let values = unsafe { values.as_slice()? };
+            let mut decoded = Vec::with_capacity(values.len());
+
+            for value in values {
+                decoded.push(decode_event(context, HarnessValue::Native(*value))?);
+            }
+
+            Ok(decoded)
+        }
+        HarnessValue::Vm(values) => {
+            let Some(vm_context) = vm_context_mut(context) else {
+                return Err(RuntimeError::from(PlatformError::invalid_argument(
+                    "missing vm context",
+                ))
+                .boxed());
+            };
+
+            let values = values.read_values(vm_context)?;
+            let mut decoded = Vec::with_capacity(values.len());
+
+            for value in values {
+                decoded.push(decode_event(context, HarnessValue::Vm(value))?);
+            }
+
+            Ok(decoded)
+        }
+    }
+}

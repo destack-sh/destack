@@ -1,22 +1,32 @@
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
+#[cfg(target_os = "macos")]
+use crate::diagnostic::RuntimeResult;
+#[cfg(windows)]
+use crate::diagnostic::RuntimeResult;
+use crate::platform::service::CachedServiceHandle;
 use crate::runtime::{AgentId, BindingCallContext};
 
-/// Runtime-owned MIDI module state for one agent.
-pub(crate) struct MidiRuntimeState {
-    /// Owning agent identifier.
-    pub(crate) _agent_id: AgentId,
-}
+#[cfg(target_os = "macos")]
+use super::host::{CoreMidiService, core_midi_service};
+#[cfg(windows)]
+use super::host::{WinRtService, winrt_service};
 
-/// Runtime-owned MIDI module state.
+/// Agent-owned MIDI module state.
 #[derive(Default)]
 pub(crate) struct PlatformMidiState {
-    /// Runtime-owned shared MIDI state.
-    runtime_state: OnceLock<Arc<MidiRuntimeState>>,
+    /// Shared CoreMIDI service handle for this agent.
+    #[cfg(target_os = "macos")]
+    core_midi_service: CachedServiceHandle<CoreMidiService>,
+    /// Shared WinRT service handle for this agent.
+    #[cfg(windows)]
+    winrt_service: CachedServiceHandle<WinRtService>,
+    /// Owning agent identifier once MIDI runtime state becomes active.
+    runtime_agent_id: std::sync::OnceLock<AgentId>,
 }
 
 impl std::fmt::Debug for PlatformMidiState {
@@ -28,9 +38,45 @@ impl std::fmt::Debug for PlatformMidiState {
 }
 
 impl PlatformMidiState {
-    /// Return whether any runtime-owned MIDI state is active.
+    /// Ensure the shared CoreMIDI service is initialized for this agent.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn ensure_core_midi_service(&self, operation: &'static str) -> RuntimeResult<()> {
+        let _service = self.core_midi_service(operation)?;
+
+        Ok(())
+    }
+
+    /// Return one shared CoreMIDI service handle for this agent.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn core_midi_service(
+        &self,
+        operation: &'static str,
+    ) -> RuntimeResult<Arc<CoreMidiService>> {
+        self.core_midi_service
+            .get_or_try_init(|| core_midi_service(operation))
+    }
+
+    /// Ensure the shared WinRT service is initialized for this agent.
+    #[cfg(windows)]
+    pub(crate) fn ensure_winrt_service(&self, operation: &'static str) -> RuntimeResult<()> {
+        let _service = self.winrt_service(operation)?;
+
+        Ok(())
+    }
+
+    /// Return one shared WinRT service handle for this agent.
+    #[cfg(windows)]
+    pub(crate) fn winrt_service(
+        &self,
+        operation: &'static str,
+    ) -> RuntimeResult<Arc<WinRtService>> {
+        self.winrt_service
+            .get_or_try_init(|| winrt_service(operation))
+    }
+
+    /// Return whether any agent-owned MIDI runtime state is active.
     fn has_runtime_state(&self) -> bool {
-        self.runtime_state.get().is_some()
+        self.runtime_agent_id.get().is_some()
     }
 
     /// Capture one MIDI-state image.
@@ -47,13 +93,9 @@ impl PlatformMidiState {
         .boxed())
     }
 
-    /// Return runtime-owned shared MIDI state.
-    pub(crate) fn runtime_state(&self, ctx: &BindingCallContext) -> Arc<MidiRuntimeState> {
-        Arc::clone(self.runtime_state.get_or_init(|| {
-            Arc::new(MidiRuntimeState {
-                _agent_id: ctx.agent().id,
-            })
-        }))
+    /// Mark agent-owned MIDI runtime state as active.
+    pub(crate) fn mark_runtime_active(&self, ctx: &BindingCallContext) {
+        let _ = self.runtime_agent_id.get_or_init(|| ctx.agent().id);
     }
 }
 

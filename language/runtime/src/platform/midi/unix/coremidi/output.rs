@@ -3,9 +3,8 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiOutputRecordValue, MidiPortDescriptorValue, validate_record_shape,
+    MidiOutputRecordValue, MidiPortDescriptorValue, remove_labeled_resource, validate_record_shape,
 };
-use crate::platform::midi::shared::remove_labeled_resource;
 use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiOutputPortOpenOptions, MidiPortDirection,
     MidiPortListOptions, MidiVirtualOutputCreateOptions,
@@ -32,8 +31,6 @@ use super::descriptor::{
 };
 use super::event::refresh_native_event_sessions;
 use super::resource::output_resource;
-use super::service::core_midi_service;
-
 /// Build one legacy packet list buffer from one byte-stream record.
 fn legacy_packet_buffer(record: &MidiOutputRecordValue) -> RuntimeResult<Vec<u8>> {
     let buffer_size = 1024usize.max(std::mem::size_of::<MIDIPacketList>() + record.data.len() + 16);
@@ -107,7 +104,7 @@ fn modern_event_buffer(record: &MidiOutputRecordValue) -> RuntimeResult<Vec<u8>>
 
 /// List CoreMIDI output ports.
 pub(crate) fn midi_output_port_list(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     options: MidiPortListOptions,
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
     let _ = resolve_backend(
@@ -115,9 +112,14 @@ pub(crate) fn midi_output_port_list(
         options.backend_policy,
         "destack.midi.output.port.list",
     )?;
-    core_midi_service("destack.midi.output.port.list")?;
+    let service = binding
+        .agent()
+        .platform_state
+        .midi
+        .core_midi_service("destack.midi.output.port.list")?;
 
     Ok(filtered_descriptors(
+        &service,
         MidiPortDirection::Output,
         options.flags,
     ))
@@ -129,14 +131,22 @@ pub(crate) fn midi_output_port_open(
     id: &str,
     options: MidiOutputPortOpenOptions,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
-    let _runtime_state = binding.agent().platform_state.midi.runtime_state(binding);
+    binding
+        .agent()
+        .platform_state
+        .midi
+        .mark_runtime_active(binding);
 
     let _ = resolve_backend(
         options.backend,
         options.backend_policy,
         "destack.midi.output.port.open",
     )?;
-    let service = core_midi_service("destack.midi.output.port.open")?;
+    let service = binding
+        .agent()
+        .platform_state
+        .midi
+        .core_midi_service("destack.midi.output.port.open")?;
 
     validate_record_shape(
         "destack.midi.output.port.open",
@@ -145,6 +155,7 @@ pub(crate) fn midi_output_port_open(
     )?;
 
     let (endpoint, descriptor) = resolve_endpoint(
+        &service,
         MidiPortDirection::Output,
         id,
         "destack.midi.output.port.open",
@@ -171,7 +182,7 @@ pub(crate) fn midi_output_port_open(
     };
     let mut port = 0u32;
 
-    let status = unsafe { MIDIOutputPortCreate(service.operation_client, name, &mut port) };
+    let status = unsafe { MIDIOutputPortCreate(service.operation_client(), name, &mut port) };
     release_cf(name.cast());
     if status != 0 || port == 0 {
         return Err(core_midi_status_error(
@@ -356,7 +367,11 @@ pub(crate) fn midi_output_virtual_create(
     binding: &BindingCallContext,
     options: MidiVirtualOutputCreateOptions,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
-    let _runtime_state = binding.agent().platform_state.midi.runtime_state(binding);
+    binding
+        .agent()
+        .platform_state
+        .midi
+        .mark_runtime_active(binding);
 
     let name = native_string(options.name)?;
     let manufacturer = native_optional_string(options.manufacturer)?;
@@ -368,7 +383,11 @@ pub(crate) fn midi_output_virtual_create(
         options.backend_policy,
         "destack.midi.output.virtual.create",
     )?;
-    let service = core_midi_service("destack.midi.output.virtual.create")?;
+    let service = binding
+        .agent()
+        .platform_state
+        .midi
+        .core_midi_service("destack.midi.output.virtual.create")?;
 
     validate_record_shape(
         "destack.midi.output.virtual.create",
@@ -389,14 +408,14 @@ pub(crate) fn midi_output_virtual_create(
     let status = if options.data_format == MidiDataFormat::Ump {
         unsafe {
             MIDISourceCreateWithProtocol(
-                service.operation_client,
+                service.operation_client(),
                 name,
                 selected_protocol_id(Some(options.protocol), options.data_format),
                 &mut endpoint,
             )
         }
     } else {
-        unsafe { MIDISourceCreate(service.operation_client, name, &mut endpoint) }
+        unsafe { MIDISourceCreate(service.operation_client(), name, &mut endpoint) }
     };
     release_cf(name.cast());
     if status != 0 || endpoint == 0 {
@@ -432,9 +451,9 @@ pub(crate) fn midi_output_virtual_create(
         }
     }
 
-    register_endpoint_override(endpoint, options.data_format, options.protocol);
+    register_endpoint_override(&service, endpoint, options.data_format, options.protocol);
 
-    let descriptor = endpoint_descriptor(MidiPortDirection::Output, endpoint);
+    let descriptor = endpoint_descriptor(&service, MidiPortDirection::Output, endpoint);
     let session = Arc::new(CoreMidiOutputSession {
         _service: service,
         descriptor,
