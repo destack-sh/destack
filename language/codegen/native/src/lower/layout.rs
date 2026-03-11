@@ -67,7 +67,10 @@ pub(crate) fn compute_type_layout(
     let mir_type = tree.get(type_id);
     if matches!(
         mir_type,
-        mir::Type::Struct { .. } | mir::Type::Tuple { .. } | mir::Type::Array { .. }
+        mir::Type::Struct { .. }
+            | mir::Type::Tuple { .. }
+            | mir::Type::Array { .. }
+            | mir::Type::FunctionValue { .. }
     ) {
         return Err(CodegenCraneliftError::unsupported_type(
             "missing layout metadata",
@@ -98,9 +101,10 @@ pub(crate) fn compute_type_layout(
         }
 
         // pointers and references
-        mir::Type::Type | mir::Type::Reference { .. } | mir::Type::FunctionPointer { .. } => {
-            Ok(TypeLayout::natural(pointer_bytes as u32))
-        }
+        mir::Type::TypeDescriptor
+        | mir::Type::TypeId
+        | mir::Type::Reference { .. }
+        | mir::Type::FunctionPointer { .. } => Ok(TypeLayout::natural(pointer_bytes as u32)),
 
         // arrays: size = element_size * length, alignment = element alignment
         mir::Type::Array {
@@ -124,6 +128,17 @@ pub(crate) fn compute_type_layout(
             fields: _,
             copyability: _,
         } => {
+            let Some(layout) = tree.type_table.type_layout(type_id) else {
+                return Err(CodegenCraneliftError::unsupported_type(
+                    "missing layout metadata",
+                    type_id.into(),
+                ));
+            };
+            Ok(TypeLayout::new(layout.size, layout.alignment))
+        }
+
+        // function values: read canonical layout metadata
+        mir::Type::FunctionValue { .. } => {
             let Some(layout) = tree.type_table.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
                     "missing layout metadata",
