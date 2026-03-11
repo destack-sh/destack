@@ -7,7 +7,6 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 
 use super::super::affinity::ServiceThreadBootstrap;
-#[cfg(windows)]
 use super::super::windows::initialize_windows_winrt_mta;
 
 /// One bootstrap or dispatch command for one dedicated-thread executor.
@@ -20,6 +19,8 @@ enum DedicatedThreadCommand<S> {
 
 /// One thread-bootstrap guard.
 pub(crate) enum ServiceThreadGuard {
+    /// No bootstrap teardown is required.
+    None,
     /// Uninitialize one owned Windows multithreaded apartment.
     WindowsMta,
 }
@@ -131,9 +132,7 @@ impl<S> DedicatedThreadExecutor<S> {
         self.sender
             .send(DedicatedThreadCommand::Run(Box::new(move |state| {
                 let result = callback(state);
-                if result_tx.send(result).is_err() {
-                    return;
-                }
+                let _ = result_tx.send(result);
             })))
             .map_err(|error| {
                 core_platform::io_operation_error(
@@ -157,7 +156,7 @@ impl<S> DedicatedThreadExecutor<S> {
 impl<S> Drop for DedicatedThreadExecutor<S> {
     /// Shut down one dedicated service thread.
     fn drop(&mut self) {
-        drop(self.sender.send(DedicatedThreadCommand::Shutdown));
+        let _ = self.sender.send(DedicatedThreadCommand::Shutdown);
     }
 }
 
@@ -173,7 +172,7 @@ fn service_thread_main<S>(
     S: 'static,
 {
     // record the thread identity before bootstrap
-    let _thread_id_set_result = thread_id.set(thread::current().id());
+    let _ = thread_id.set(thread::current().id());
 
     // initialize the service thread before building state
     let thread_guard = match initialize_service_thread(name, bootstrap) {
@@ -213,12 +212,24 @@ fn service_thread_main<S>(
 }
 
 /// Initialize one dedicated service thread.
-#[allow(dead_code)]
 fn initialize_service_thread(
     name: &str,
     bootstrap: ServiceThreadBootstrap,
 ) -> RuntimeResult<ServiceThreadGuard> {
-    match bootstrap {
-        ServiceThreadBootstrap::WindowsMta => initialize_windows_winrt_mta(name),
+    // windows bootstrap
+    #[cfg(windows)]
+    if matches!(bootstrap, ServiceThreadBootstrap::WindowsMta) {
+        return initialize_windows_winrt_mta(name);
     }
+
+    // unsupported bootstrap
+    #[cfg(not(windows))]
+    if matches!(bootstrap, ServiceThreadBootstrap::WindowsMta) {
+        return Err(core_platform::io_operation_error(
+            "platform.service.bootstrap",
+            None,
+            format!("windows MTA bootstrap is unavailable on this target for {name}"),
+        ));
+    }
+    Ok(ServiceThreadGuard::None)
 }

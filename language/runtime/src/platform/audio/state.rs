@@ -4,15 +4,18 @@ use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
+use crate::platform::service::CachedServiceHandle;
 use crate::runtime::BindingCallContext;
 
-use super::core::monitor::AudioMonitorServiceRegistry;
+use super::core::monitor::{AudioMonitorService, audio_monitor_service};
 use super::core::runtime::AudioRuntimeState;
 
-/// Runtime-owned audio module state.
+/// Agent-owned audio module state.
 #[derive(Default)]
 pub(crate) struct PlatformAudioState {
-    /// Runtime-owned shared audio event state.
+    /// Shared audio monitor service handle for this agent.
+    monitor_service: CachedServiceHandle<AudioMonitorService>,
+    /// Agent-owned shared audio event state.
     runtime_state: OnceLock<Arc<AudioRuntimeState>>,
 }
 
@@ -25,7 +28,12 @@ impl std::fmt::Debug for PlatformAudioState {
 }
 
 impl PlatformAudioState {
-    /// Return whether any runtime-owned audio state is active.
+    /// Return one shared audio monitor service handle for this agent.
+    pub(crate) fn monitor_service(&self) -> Arc<AudioMonitorService> {
+        self.monitor_service.get_or_init(audio_monitor_service)
+    }
+
+    /// Return whether any agent-owned audio state is active.
     fn has_runtime_state(&self) -> bool {
         self.runtime_state.get().is_some()
     }
@@ -44,15 +52,16 @@ impl PlatformAudioState {
         .boxed())
     }
 
-    /// Return runtime-owned shared audio event state.
+    /// Return agent-owned shared audio event state.
     pub(crate) fn runtime_state(&self, ctx: &BindingCallContext) -> Arc<AudioRuntimeState> {
         Arc::clone(self.runtime_state.get_or_init(|| {
             let runtime_state = Arc::new(AudioRuntimeState::new(ctx.agent().id));
+            let monitor_service = self.monitor_service();
             let runtime_state_for_shutdown = Arc::clone(&runtime_state);
 
-            // unregister shared audio services on runtime teardown
+            // unregister shared audio monitor services on runtime teardown
             ctx.agent().finalizers.register(move || {
-                AudioMonitorServiceRegistry::unregister_runtime(&runtime_state_for_shutdown);
+                monitor_service.unregister_runtime(&runtime_state_for_shutdown);
             });
 
             runtime_state

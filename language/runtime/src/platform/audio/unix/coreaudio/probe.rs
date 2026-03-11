@@ -3,10 +3,12 @@ use std::collections::HashMap;
 #[cfg(target_os = "macos")]
 use std::ptr;
 #[cfg(target_os = "macos")]
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 
 #[cfg(target_os = "macos")]
 use crate::platform::audio::core::codec::frame_bytes;
+#[cfg(target_os = "macos")]
+use crate::platform::service::global_service;
 
 #[cfg(target_os = "macos")]
 use super::abi::{
@@ -41,21 +43,40 @@ fn dispose_probe_queue(queue: super::abi::AudioQueueRef) {
     }
 }
 
-/// Return the shared CoreAudio loopback capability cache.
+/// One process-global CoreAudio loopback probe service.
 #[cfg(target_os = "macos")]
-fn loopback_support_cache() -> &'static Mutex<HashMap<String, bool>> {
-    static LOOPBACK_SUPPORT_CACHE: OnceLock<Mutex<HashMap<String, bool>>> = OnceLock::new();
+struct CoreAudioLoopbackProbeService {
+    /// Cached loopback support keyed by stable device uid.
+    support_cache: Mutex<HashMap<String, bool>>,
+}
 
-    LOOPBACK_SUPPORT_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+#[cfg(target_os = "macos")]
+impl CoreAudioLoopbackProbeService {
+    /// Build one empty CoreAudio loopback probe service.
+    fn new() -> Self {
+        Self {
+            support_cache: Mutex::new(HashMap::new()),
+        }
+    }
+}
+
+/// Return the shared CoreAudio loopback probe service.
+#[cfg(target_os = "macos")]
+fn coreaudio_loopback_probe_service() -> Arc<CoreAudioLoopbackProbeService> {
+    global_service(|| Ok(CoreAudioLoopbackProbeService::new()))
+        .expect("CoreAudio loopback probe service initialization should not fail")
 }
 
 /// Clear cached CoreAudio loopback capability probe results.
 #[cfg(target_os = "macos")]
 pub(super) fn clear_loopback_support_cache() {
-    let mut cache = loopback_support_cache()
+    let service = coreaudio_loopback_probe_service();
+    let mut support_cache = service
+        .support_cache
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    cache.clear();
+
+    support_cache.clear();
 }
 
 /// Return one stable cache key for a CoreAudio device when available.
@@ -173,20 +194,26 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
 
     // reuse one cached probe result for this stable device uid
     {
-        let cache = loopback_support_cache()
+        let service = coreaudio_loopback_probe_service();
+        let support_cache = service
+            .support_cache
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        if let Some(value) = cache.get(&cache_key) {
+
+        if let Some(value) = support_cache.get(&cache_key) {
             return *value;
         }
     }
 
     // otherwise probe once and publish the result for later enumerations
     let support = probe_loopback_support_uncached(device_id);
-    let mut cache = loopback_support_cache()
+    let service = coreaudio_loopback_probe_service();
+    let mut support_cache = service
+        .support_cache
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    cache.insert(cache_key, support);
+
+    support_cache.insert(cache_key, support);
 
     support
 }

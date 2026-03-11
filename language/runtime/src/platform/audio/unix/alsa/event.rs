@@ -160,7 +160,9 @@ fn run_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<RuntimeRes
         }
 
         let _ = std::panic::catch_unwind(|| {
-            audio_core::publish_device_snapshot_native(audio_types::AudioBackend::Alsa);
+            audio_core::publish_device_snapshot_native_if_service_live(
+                audio_types::AudioBackend::Alsa,
+            );
         });
     }
 

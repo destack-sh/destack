@@ -7,6 +7,7 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 
 /// One process-global registry of typed platform services.
+#[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
 struct ServiceRegistry {
     /// Live services keyed by concrete type.
     services: Mutex<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
@@ -16,11 +17,13 @@ struct ServiceRegistry {
 static SERVICE_REGISTRY: OnceLock<ServiceRegistry> = OnceLock::new();
 
 /// One agent-local cached handle for one typed platform service.
+#[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
 pub(crate) struct CachedServiceHandle<S> {
     /// Cached typed service handle.
     service: OnceLock<Arc<S>>,
 }
 
+#[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
 impl<S> Default for CachedServiceHandle<S> {
     /// Create one empty cached service handle.
     fn default() -> Self {
@@ -30,6 +33,7 @@ impl<S> Default for CachedServiceHandle<S> {
     }
 }
 
+#[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
 impl<S> CachedServiceHandle<S> {
     /// Return one cached typed service handle from one infallible builder.
     pub(crate) fn get_or_init(&self, builder: impl FnOnce() -> Arc<S>) -> Arc<S> {
@@ -38,7 +42,7 @@ impl<S> CachedServiceHandle<S> {
         }
 
         let service = builder();
-        drop(self.service.set(service.clone()));
+        let _ = self.service.set(service.clone());
 
         self.service.get().cloned().unwrap_or(service)
     }
@@ -53,12 +57,13 @@ impl<S> CachedServiceHandle<S> {
         }
 
         let service = builder()?;
-        drop(self.service.set(service.clone()));
+        let _ = self.service.set(service.clone());
 
         Ok(self.service.get().cloned().unwrap_or(service))
     }
 }
 
+#[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
 impl ServiceRegistry {
     /// Return the process-global service registry.
     fn shared() -> &'static ServiceRegistry {
@@ -68,7 +73,6 @@ impl ServiceRegistry {
     }
 
     /// Return one live typed service when it has already been initialized.
-    #[cfg(target_os = "macos")]
     fn get<S>(&self) -> Option<Arc<S>>
     where
         S: Any + Send + Sync + 'static,
@@ -120,6 +124,7 @@ impl ServiceRegistry {
 }
 
 /// Return one shared process-global typed service.
+#[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
 pub(crate) fn global_service<S>(builder: impl FnOnce() -> RuntimeResult<S>) -> RuntimeResult<Arc<S>>
 where
     S: Any + Send + Sync + 'static,
@@ -128,7 +133,10 @@ where
 }
 
 /// Return one shared process-global typed service when it is already live.
-#[cfg(target_os = "macos")]
+///
+/// This is for callback ingress paths that may race service teardown.
+/// Normal binding and registration flows should use `global_service(...)`.
+#[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
 pub(crate) fn global_service_if_initialized<S>() -> Option<Arc<S>>
 where
     S: Any + Send + Sync + 'static,

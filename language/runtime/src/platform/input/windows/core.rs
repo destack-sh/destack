@@ -32,7 +32,7 @@ use crate::platform::input::{
     InputTextEvent, InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchEvent,
     InputTouchEventPayload, InputWindowTarget,
 };
-use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
+use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind, WindowHandle};
 use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
@@ -903,7 +903,9 @@ pub(super) fn set_xinput_player_index_override(
 
 /// Return whether one target selects one explicit window resource.
 fn has_explicit_window_target(target: InputWindowTarget) -> bool {
-    target.window.0.0 != WINDOW_TARGET_DEFAULT_RESOURCE_ID
+    target
+        .window
+        .is_some_and(|window| window.0.0 != WINDOW_TARGET_DEFAULT_RESOURCE_ID)
 }
 
 /// Build io-not-found for one missing explicit window target handle.
@@ -911,13 +913,15 @@ fn window_target_not_found(
     operation: &'static str,
     target: InputWindowTarget,
 ) -> Box<RuntimeError> {
+    let window = target.window.unwrap_or(WindowHandle(ResourceId(0)));
+
     RuntimeError::from(PlatformError::io_with(
         Some(PlatformErrorCode::IoNotFound),
         None,
         None,
         Some(operation.to_string()),
         None,
-        format!("window handle {} not found", target.window.0.0),
+        format!("window handle {} not found", window.0.0),
     ))
     .boxed()
 }
@@ -934,7 +938,10 @@ pub(super) fn resolve_window_target_handle(
     }
 
     // resolve explicit window resources from the shared resource table
-    let window_resource_id = target.window.0;
+    let window_resource_id = target
+        .window
+        .expect("explicit window targets should carry one handle")
+        .0;
     let hwnd = binding
         .agent()
         .resources

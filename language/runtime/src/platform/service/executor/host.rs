@@ -1,11 +1,11 @@
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
+use std::sync::atomic::AtomicBool;
 use std::thread::ThreadId;
 
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "macos")]
 use crate::host::apple::message::is_process_main_context;
+#[cfg(target_os = "macos")]
 use crate::platform::core::{self as core_platform};
 
 use super::super::affinity::ServiceHostLoop;
@@ -13,8 +13,7 @@ use super::super::affinity::ServiceHostLoop;
 use super::super::unix::call_process_main_thread;
 #[cfg(windows)]
 use super::super::windows::{
-    call_process_windows_message_loop, register_windows_loop_queue, try_bind_windows_message_loop,
-    windows_loop_queue,
+    call_process_windows_message_loop, try_bind_windows_message_loop, windows_loop_queue,
 };
 #[cfg(windows)]
 use std::sync::Arc;
@@ -56,18 +55,19 @@ impl HostLoopExecutor {
     pub(crate) fn call_loop<R>(
         &self,
         operation: &'static str,
-        callback: impl FnOnce() -> RuntimeResult<R> + Send + 'static,
+        _callback: impl FnOnce() -> RuntimeResult<R> + Send + 'static,
     ) -> RuntimeResult<R>
     where
         R: Send + 'static,
     {
+        // dispatch through the configured host loop
         match self.host_loop {
             #[cfg(target_os = "macos")]
-            ServiceHostLoop::MainThread => call_process_main_thread(operation, self, callback),
+            ServiceHostLoop::MainThread => call_process_main_thread(operation, self, _callback),
 
             #[cfg(windows)]
             ServiceHostLoop::WindowsMessageLoop => {
-                call_process_windows_message_loop(operation, self, callback)
+                call_process_windows_message_loop(operation, self, _callback)
             }
         }
     }
@@ -77,35 +77,23 @@ impl HostLoopExecutor {
     pub(crate) fn is_current_bound_thread(&self) -> bool {
         self.thread_id
             .get()
-            .is_some_and(|thread_id| *thread_id == thread::current().id())
+            .is_some_and(|thread_id| *thread_id == std::thread::current().id())
     }
 
     /// Bind or validate the current host loop for this service.
+    #[cfg(target_os = "macos")]
     pub(crate) fn ensure_host_loop(&self, operation: &'static str) -> RuntimeResult<()> {
         // validate platform-specific host-loop requirements first
         self.validate_host_loop(operation)?;
 
-        #[cfg(windows)]
-        {
-            if self.host_loop == ServiceHostLoop::WindowsMessageLoop
-                && self.try_bind_windows_message_loop()
-            {
-                return Ok(());
-            }
-        }
-
-        let current_thread_id = thread::current().id();
+        let current_thread_id = std::thread::current().id();
 
         // bind the first observed host-loop thread
-        if !self.is_bound.load(Ordering::Acquire) && self.thread_id.set(current_thread_id).is_ok() {
-            self.is_bound.store(true, Ordering::Release);
-
-            #[cfg(windows)]
-            {
-                if self.host_loop == ServiceHostLoop::WindowsMessageLoop {
-                    register_windows_loop_queue(self);
-                }
-            }
+        if !self.is_bound.load(std::sync::atomic::Ordering::Acquire)
+            && self.thread_id.set(current_thread_id).is_ok()
+        {
+            self.is_bound
+                .store(true, std::sync::atomic::Ordering::Release);
 
             return Ok(());
         }
@@ -134,9 +122,9 @@ impl HostLoopExecutor {
     }
 
     /// Validate one platform-specific host-loop requirement.
+    #[cfg(target_os = "macos")]
     fn validate_host_loop(&self, operation: &'static str) -> RuntimeResult<()> {
         match self.host_loop {
-            #[cfg(target_os = "macos")]
             ServiceHostLoop::MainThread => {
                 if is_process_main_context() {
                     Ok(())
@@ -151,9 +139,6 @@ impl HostLoopExecutor {
                     ))
                 }
             }
-
-            #[cfg(windows)]
-            ServiceHostLoop::WindowsMessageLoop => Ok(()),
         }
     }
 }

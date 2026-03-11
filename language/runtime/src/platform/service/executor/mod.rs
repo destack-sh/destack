@@ -1,13 +1,6 @@
-mod caller;
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+pub(crate) mod caller;
 #[cfg(windows)]
-mod dedicated;
+pub(crate) mod dedicated;
 #[cfg(any(target_os = "macos", windows))]
-mod host;
-
-pub(crate) use caller::CallerThreadExecutor;
-#[cfg(windows)]
-pub(crate) use dedicated::DedicatedThreadExecutor;
-#[cfg(windows)]
-pub(crate) use dedicated::ServiceThreadGuard;
-#[cfg(any(target_os = "macos", windows))]
-pub(crate) use host::HostLoopExecutor;
+pub(crate) mod host;

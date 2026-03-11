@@ -7,7 +7,7 @@ use objc2_core_graphics::{
 
 use crate::platform::display::unix::appkit::event as appkit_event;
 use crate::platform::service::affinity::{ServiceAffinity, ServiceHostLoop};
-use crate::platform::service::executor::HostLoopExecutor;
+use crate::platform::service::executor::host::HostLoopExecutor;
 use crate::platform::service::global_service;
 use crate::platform::service::registry::global_service_if_initialized;
 use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
@@ -108,6 +108,8 @@ pub(crate) fn appkit_display_service() -> Arc<AppKitDisplayService> {
 }
 
 /// Return one live AppKit display service when it has already been initialized.
+///
+/// This is for late CoreGraphics callbacks that may race service teardown.
 fn active_appkit_display_service() -> Option<Arc<AppKitDisplayService>> {
     global_service_if_initialized::<AppKitDisplayService>()
 }
@@ -141,6 +143,7 @@ unsafe extern "C-unwind" fn handle_display_reconfiguration(
         return;
     }
 
+    // ignore callbacks that race display service teardown
     let Some(service) = active_appkit_display_service() else {
         return;
     };

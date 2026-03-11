@@ -214,7 +214,9 @@ fn publish_notification_snapshot(this: *mut c_void) {
     let callback = unsafe { callback_from_raw(this) };
     core_platform::callback_boundary(|| {
         let _ = unsafe { callback.as_ref() };
-        audio_core::publish_device_snapshot_native(audio_types::AudioBackend::Wasapi);
+        audio_core::publish_device_snapshot_native_if_service_live(
+            audio_types::AudioBackend::Wasapi,
+        );
     });
 }
 

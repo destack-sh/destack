@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::display::DisplayBackendDescriptor;

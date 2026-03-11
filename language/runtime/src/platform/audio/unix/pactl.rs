@@ -177,7 +177,7 @@ fn run_pactl_monitor_thread(
         // forward device-related subscription notifications into runtime snapshots
         if should_publish_snapshot(&line) {
             let _ = std::panic::catch_unwind(|| {
-                audio_core::publish_device_snapshot_native(backend);
+                audio_core::publish_device_snapshot_native_if_service_live(backend);
             });
         }
     }

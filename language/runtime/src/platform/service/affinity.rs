@@ -1,4 +1,8 @@
 /// One execution domain for one host-affine platform service.
+#[cfg_attr(
+    any(target_os = "ios", target_os = "android", windows),
+    allow(dead_code)
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ServiceAffinity {
     /// Run directly on the caller thread.

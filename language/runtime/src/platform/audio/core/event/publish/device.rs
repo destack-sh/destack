@@ -9,7 +9,7 @@ use crate::platform::audio::core::event::queue::event_streams_snapshot;
 use crate::platform::audio::core::event::snapshot::{MonitorSnapshot, monitor_snapshot};
 use crate::platform::audio::core::model::{AudioEventStream, audio_device_monitor_baseline};
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-use crate::platform::audio::core::monitor::AudioMonitorServiceRegistry;
+use crate::platform::audio::core::monitor::active_audio_monitor_service;
 use crate::platform::audio::core::runtime::{
     AudioRuntimeState, event_subscription_enabled, runtime_state, tracks_device_events,
 };
@@ -245,10 +245,15 @@ pub(crate) fn refresh_device_events_for_stream(
     Ok(())
 }
 
-/// Publish one backend-native device snapshot diff to active subscriptions.
+/// Publish one backend-native device snapshot diff to the live monitor service.
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-pub(crate) fn publish_device_snapshot_native(backend: AudioBackend) {
-    AudioMonitorServiceRegistry::publish_native_snapshot(backend);
+pub(crate) fn publish_device_snapshot_native_if_service_live(backend: AudioBackend) {
+    // ignore callbacks that race monitor service startup or teardown
+    let Some(service) = active_audio_monitor_service() else {
+        return;
+    };
+
+    service.publish_native_snapshot(backend);
 }
 
 /// Force one immediate refresh pass for device subscriptions on one backend.
