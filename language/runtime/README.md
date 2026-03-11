@@ -2,7 +2,7 @@
 
 The runtime is how Destack actually does anything interesting beyond pure computation.
 The Destack runtime wraps VM and/or native execution with scheduling, bindings, host integration, trace, telemetry, and all the other "runtime stuff".
-Essentially, the runtime is where we integrate Node/Bun/Deno-level semantics with V8/JSC-runtime features .. and a bunch more stuff; it's really more like a universal game engine than a regular JS/TS runtime.
+Essentially, the runtime is where we integrate Node/Bun/Deno-level semantics with V8/JSC-runtime features, though we go much deeper and wider - it's really more like a universal software engine than it is another Node-derived runtime.
 
 ## Runtime
 
@@ -18,6 +18,9 @@ The runtime is organized around core `runtime`, `platform` bindings, and `host` 
  - `runtime/`: all the core runtime scaffolding and orchestration (poller, scheduler/loop, etc.)
  - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/lib/platform) lib
  - `host/`: host adapters, host event bridges, host ffi entrypoints, and host state integration
+ 
+Compared to other related runtimes like Chromium, Node, or even Unity or Godot, the Destack runtime has a peculiar shape with its explicit model of both "engine", "execution", and "world" semantics.
+The point of explicitly modeling execution like this is to enable end-to-end simulation and replay as a sort of software laboratory. 
  
 ## World
 
@@ -50,8 +53,10 @@ The basic bridge is the `HostBackend` that is implemented by each host to provid
 ## Platform
 
 The `platform` bindings implement the "platform" builtin library bindings defined in `language/builtin/lib/platform`, the corresponding bindings and ABI stuff is automatically generated in `language/runtime/src/generate` (see all the `*.generated.rs` files).
+We have successively expanded the runtime generator to automatically wire as much of the native / VM data integration as possible, though unfortunately in some places we still need to manually normalize and serialise / deserialise because no reliable automatic mapping exists (or we couldn't find one). 
 
 The low-level `platform` bindings are not meant to be used by general userland - though they are accessible to advanced users - but instead through the higher-level `destack:*` library, which is essentially a `node:*` shaped higher level API with all the same functionality.
+And because Destack tries to follow web standards closely, all the low level binding modules are also organized around the same concepts, even though they go much deeper (and wider).
 
 | Module | Description |
 |-----------|--------|
@@ -95,4 +100,11 @@ just language/quick
 
 # exhaustive gate
 just language/full
+
+# toolchain and target coverage
+just language/doctor-toolchain
+just language/lint-toolchain
+just language/check-runtime-macos # and/or linux/windows-msvc on matching hosts
+just language/check-runtime-ios
+just language/check-runtime-android
 ```
