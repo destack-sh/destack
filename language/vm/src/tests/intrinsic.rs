@@ -1,7 +1,7 @@
 //! Tests for intrinsic execution.
 
 use crate::tests::{create_aggregate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok};
-use destack_heap::Value;
+use destack_heap::{STRING_TYPE_ALIAS, Value};
 
 // bit manipulation
 
@@ -203,15 +203,7 @@ block0:
     store v0, v1
     v2: i32 = iconst 10i32
     v3: i32 = iconst 99i32
-    v4: (i32, bool) = intrinsic.atomic.cas(
-        v0,
-        v2,
-        v3,
-        ordering=relaxed,
-        scope=device,
-        memory_scope=device,
-        semantics=any
-    )
+    v4: (i32, bool) = atomic.cas v0, v2, v3, ordering=relaxed, scope=device, memory_scope=device, semantics=any
     v5: bool = field.get v4, 1
     return v5
 }"#;
@@ -228,15 +220,7 @@ block0:
     store v0, v1
     v2: i32 = iconst 10i32
     v3: i32 = iconst 42i32
-    v4: (i32, bool) = intrinsic.atomic.cas(
-        v0,
-        v2,
-        v3,
-        ordering=relaxed,
-        scope=device,
-        memory_scope=device,
-        semantics=any
-    )
+    v4: (i32, bool) = atomic.cas v0, v2, v3, ordering=relaxed, scope=device, memory_scope=device, semantics=any
     v5: i32 = field.get v4, 0
     return v5
 }"#;
@@ -253,15 +237,7 @@ block0:
     store v0, v1
     v2: i32 = iconst 11i32
     v3: i32 = iconst 99i32
-    v4: (i32, bool) = intrinsic.atomic.cas(
-        v0,
-        v2,
-        v3,
-        ordering=relaxed,
-        scope=device,
-        memory_scope=device,
-        semantics=any
-    )
+    v4: (i32, bool) = atomic.cas v0, v2, v3, ordering=relaxed, scope=device, memory_scope=device, semantics=any
     v5: bool = field.get v4, 1
     return v5
 }"#;
@@ -278,15 +254,7 @@ block0:
     store v0, v1
     v2: i32 = iconst 5i32
     v3: i32 = iconst 6i32
-    v4: (i32, bool) = intrinsic.atomic.cas.weak(
-        v0,
-        v2,
-        v3,
-        ordering=relaxed,
-        scope=device,
-        memory_scope=device,
-        semantics=any
-    )
+    v4: (i32, bool) = atomic.cas.weak v0, v2, v3, ordering=relaxed, scope=device, memory_scope=device, semantics=any
     v5: bool = field.get v4, 1
     return v5
 }"#;
@@ -302,14 +270,7 @@ block0:
     v1: u32 = iconst 40u32
     store v0, v1
     v2: u32 = iconst 10u32
-    v3: u32 = intrinsic.atomic.fetch.umin(
-        v0,
-        v2,
-        ordering=relaxed,
-        scope=device,
-        memory_scope=device,
-        semantics=any
-    )
+    v3: u32 = atomic.rmw.umin v0, v2, ordering=relaxed, scope=device, memory_scope=device, semantics=any
     v4: u32 = load v0
     v5: u32 = iadd v3, v4
     return v5
@@ -326,14 +287,7 @@ block0:
     v1: u32 = iconst 12u32
     store v0, v1
     v2: u32 = iconst 20u32
-    v3: u32 = intrinsic.atomic.fetch.umax(
-        v0,
-        v2,
-        ordering=relaxed,
-        scope=device,
-        memory_scope=device,
-        semantics=any
-    )
+    v3: u32 = atomic.rmw.umax v0, v2, ordering=relaxed, scope=device, memory_scope=device, semantics=any
     v4: u32 = load v0
     v5: u32 = iadd v3, v4
     return v5
@@ -350,14 +304,7 @@ block0:
     v1: f64 = iconst 1.5f64
     store v0, v1
     v2: f64 = iconst 2.25f64
-    v3: f64 = intrinsic.atomic.fetch.fadd(
-        v0,
-        v2,
-        ordering=relaxed,
-        scope=device,
-        memory_scope=device,
-        semantics=any
-    )
+    v3: f64 = atomic.rmw.fadd v0, v2, ordering=relaxed, scope=device, memory_scope=device, semantics=any
     v4: f64 = load v0
     v5: f64 = fadd v3, v4
     return v5
@@ -374,14 +321,7 @@ block0:
     v1: f64 = iconst 3.5f64
     store v0, v1
     v2: f64 = iconst 1.25f64
-    v3: f64 = intrinsic.atomic.fetch.fmin(
-        v0,
-        v2,
-        ordering=relaxed,
-        scope=device,
-        memory_scope=device,
-        semantics=any
-    )
+    v3: f64 = atomic.rmw.fmin v0, v2, ordering=relaxed, scope=device, memory_scope=device, semantics=any
     v4: f64 = load v0
     v5: f64 = fadd v3, v4
     return v5
@@ -398,14 +338,7 @@ block0:
     v1: f64 = iconst 3.5f64
     store v0, v1
     v2: f64 = iconst 7.25f64
-    v3: f64 = intrinsic.atomic.fetch.fmax(
-        v0,
-        v2,
-        ordering=relaxed,
-        scope=device,
-        memory_scope=device,
-        semantics=any
-    )
+    v3: f64 = atomic.rmw.fmax v0, v2, ordering=relaxed, scope=device, memory_scope=device, semantics=any
     v4: f64 = load v0
     v5: f64 = fadd v3, v4
     return v5
@@ -604,23 +537,25 @@ block0(v0: f64):
 // branch hints (passthrough)
 
 #[test]
-fn test_intrinsic_likely() {
+fn test_intrinsic_expect_true() {
     let mir = r#"
 function @test(v0: bool) -> bool {
 block0(v0: bool):
-    v1: bool = intrinsic.likely(v0)
-    return v1
+    v1: bool = iconst true
+    v2: bool = intrinsic.expect(v0, v1)
+    return v2
 }"#;
     run_mir_expect(mir, "test", &[Value::bool(true)], Value::bool(true));
 }
 
 #[test]
-fn test_intrinsic_unlikely() {
+fn test_intrinsic_expect_false() {
     let mir = r#"
 function @test(v0: bool) -> bool {
 block0(v0: bool):
-    v1: bool = intrinsic.unlikely(v0)
-    return v1
+    v1: bool = iconst false
+    v2: bool = intrinsic.expect(v0, v1)
+    return v2
 }"#;
     run_mir_expect(mir, "test", &[Value::bool(false)], Value::bool(false));
 }
@@ -685,27 +620,44 @@ block0(v0: i32):
 }
 
 #[test]
-fn test_intrinsic_unreachable() {
+fn test_terminator_unreachable() {
     let mir = r#"
 function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    intrinsic.unreachable()
-    return v0
+    unreachable
 }"#;
     let result = run_mir(mir, "test", &[Value::int32(42)]);
     assert!(result.is_err(), "expected unreachable error");
 }
 
 #[test]
-fn test_intrinsic_abort() {
+fn test_terminator_trap_abort() {
     let mir = r#"
 function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    intrinsic.abort()
-    return v0
+    trap abort
 }"#;
     let result = run_mir(mir, "test", &[Value::int32(42)]);
     assert!(result.is_err(), "expected abort error");
+}
+
+#[test]
+fn test_terminator_trap_panic() {
+    let mir = [
+        STRING_TYPE_ALIAS,
+        r#"
+global @message: ref<managed readonly @String> = "boom" ; readonly
+
+function @test() -> void {
+block0:
+    v0: ref<managed readonly @String> = global.const @message
+    trap panic v0
+}
+"#,
+    ]
+    .concat();
+    let result = run_mir(&mir, "test", &[]);
+    assert!(result.is_err(), "expected panic error");
 }
 
 // transmute

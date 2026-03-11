@@ -33,6 +33,7 @@ pub struct FrameInfo {
 }
 
 /// Errors that can occur during interpreter execution.
+/// FUGU #Cleanup: reorganize VM errors / diagnostics (and also establish proper tracing?)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Error {
@@ -114,7 +115,7 @@ pub enum Error {
         global: mir::LocalNodeId<mir::Global>,
     } = 22,
 
-    /// Abort intrinsic called.
+    /// Abort trap triggered.
     Abort = 23,
 
     /// Invalid arguments to intrinsic.
@@ -144,7 +145,7 @@ pub enum Error {
     /// Unsupported zero initialization for a MIR type.
     UnsupportedZeroValue { ty: String } = 33,
 
-    /// Panic intrinsic called.
+    /// Panic trap triggered.
     Panic { message: String } = 34,
 
     /// Float to integer conversion failed.

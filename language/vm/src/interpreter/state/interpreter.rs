@@ -418,9 +418,11 @@ impl<'a> InterpreterContext<'a> {
                 }
             }
             mir::Type::Boolean => Ok(Value::bool(false)),
-            mir::Type::Type => Err(self.make_error(Error::UnsupportedZeroValue {
-                ty: format!("{ty_node:?}"),
-            })),
+            mir::Type::TypeDescriptor | mir::Type::TypeId => {
+                Err(self.make_error(Error::UnsupportedZeroValue {
+                    ty: format!("{ty_node:?}"),
+                }))
+            }
             mir::Type::Reference {
                 kind,
                 address_space,
