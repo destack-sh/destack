@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -3143,7 +3144,7 @@ fn encode_destack_runtime_trace_tell_result(
 }
 
 /// Binding descriptor for destack.runtime.core.agentClose.
-pub const RUNTIME_CORE_AGENT_CLOSE: BindingDescriptor =
+pub(crate) const RUNTIME_CORE_AGENT_CLOSE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.core.agentClose",
         "export function agentClose(agent: AgentHandle): Result<void, PlatformError>",
@@ -3170,7 +3171,7 @@ pub const RUNTIME_CORE_AGENT_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.core.agentCreate.
-pub const RUNTIME_CORE_AGENT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_CORE_AGENT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.core.agentCreate",
     "export function agentCreate(runtimeHandle: RuntimeHandle, options: AgentCreateOptions): Result<AgentHandle, PlatformError>",
     &["runtime.agent.create"],
@@ -3182,7 +3183,7 @@ pub const RUNTIME_CORE_AGENT_CREATE: BindingDescriptor = BindingDescriptor::dete
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.agentDescribe.
-pub const RUNTIME_CORE_AGENT_DESCRIBE: BindingDescriptor =
+pub(crate) const RUNTIME_CORE_AGENT_DESCRIBE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.core.agentDescribe",
         "export function agentDescribe(agent: AgentHandle): Result<AgentDescriptor, PlatformError>",
@@ -3209,7 +3210,7 @@ pub const RUNTIME_CORE_AGENT_DESCRIBE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.core.runtimeClose.
-pub const RUNTIME_CORE_RUNTIME_CLOSE: BindingDescriptor =
+pub(crate) const RUNTIME_CORE_RUNTIME_CLOSE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.core.runtimeClose",
         "export function runtimeClose(runtimeHandle: RuntimeHandle): Result<void, PlatformError>",
@@ -3236,7 +3237,7 @@ pub const RUNTIME_CORE_RUNTIME_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.core.runtimeCreate.
-pub const RUNTIME_CORE_RUNTIME_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_CORE_RUNTIME_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.core.runtimeCreate",
     "export function runtimeCreate(world: WorldHandle, options: RuntimeCreateOptions): Result<RuntimeHandle, PlatformError>",
     &["runtime.runtime.create"],
@@ -3248,7 +3249,7 @@ pub const RUNTIME_CORE_RUNTIME_CREATE: BindingDescriptor = BindingDescriptor::de
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.runtimeDescribe.
-pub const RUNTIME_CORE_RUNTIME_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_CORE_RUNTIME_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.core.runtimeDescribe",
     "export function runtimeDescribe(runtimeHandle: RuntimeHandle): Result<RuntimeDescriptor, PlatformError>",
     &["runtime.runtime.read"],
@@ -3260,7 +3261,7 @@ pub const RUNTIME_CORE_RUNTIME_DESCRIBE: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.worldClose.
-pub const RUNTIME_CORE_WORLD_CLOSE: BindingDescriptor =
+pub(crate) const RUNTIME_CORE_WORLD_CLOSE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.core.worldClose",
         "export function worldClose(world: WorldHandle): Result<void, PlatformError>",
@@ -3287,7 +3288,7 @@ pub const RUNTIME_CORE_WORLD_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.core.worldCreate.
-pub const RUNTIME_CORE_WORLD_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_CORE_WORLD_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.core.worldCreate",
     "export function worldCreate(options: WorldCreateOptions): Result<WorldHandle, PlatformError>",
     &["runtime.world.create"],
@@ -3299,7 +3300,7 @@ pub const RUNTIME_CORE_WORLD_CREATE: BindingDescriptor = BindingDescriptor::dete
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.worldDescribe.
-pub const RUNTIME_CORE_WORLD_DESCRIBE: BindingDescriptor =
+pub(crate) const RUNTIME_CORE_WORLD_DESCRIBE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.core.worldDescribe",
         "export function worldDescribe(world: WorldHandle): Result<WorldDescriptor, PlatformError>",
@@ -3326,7 +3327,7 @@ pub const RUNTIME_CORE_WORLD_DESCRIBE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.core.worldTick.
-pub const RUNTIME_CORE_WORLD_TICK: BindingDescriptor =
+pub(crate) const RUNTIME_CORE_WORLD_TICK: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.core.worldTick",
         "export function worldTick(world: WorldHandle): Result<RuntimeTickOutcome, PlatformError>",
@@ -3353,7 +3354,7 @@ pub const RUNTIME_CORE_WORLD_TICK: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.inspect.agentList.
-pub const RUNTIME_INSPECT_AGENT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_AGENT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.agentList",
     "export function agentList(view: WorldViewHandle, filter: AgentFilter, after: AgentId, limit: uint32): Result<AgentDescriptor[], PlatformError>",
     &["runtime.inspect.read"],
@@ -3365,7 +3366,7 @@ pub const RUNTIME_INSPECT_AGENT_LIST: BindingDescriptor = BindingDescriptor::det
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.agentView.
-pub const RUNTIME_INSPECT_AGENT_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_AGENT_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.agentView",
     "export function agentView(view: WorldViewHandle, agentId: AgentId): Result<AgentDescriptor, PlatformError>",
     &["runtime.inspect.read"],
@@ -3377,7 +3378,7 @@ pub const RUNTIME_INSPECT_AGENT_VIEW: BindingDescriptor = BindingDescriptor::det
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.edgeList.
-pub const RUNTIME_INSPECT_EDGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_EDGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.edgeList",
     "export function edgeList(view: WorldViewHandle, filter: TopologyEdgeFilter, after: TopologyEdgeId, limit: uint32): Result<TopologyEdge[], PlatformError>",
     &["runtime.inspect.read"],
@@ -3389,7 +3390,7 @@ pub const RUNTIME_INSPECT_EDGE_LIST: BindingDescriptor = BindingDescriptor::dete
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.edgeView.
-pub const RUNTIME_INSPECT_EDGE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_EDGE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.edgeView",
     "export function edgeView(view: WorldViewHandle, edgeId: TopologyEdgeId): Result<TopologyEdge, PlatformError>",
     &["runtime.inspect.read"],
@@ -3401,7 +3402,7 @@ pub const RUNTIME_INSPECT_EDGE_VIEW: BindingDescriptor = BindingDescriptor::dete
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.engineView.
-pub const RUNTIME_INSPECT_ENGINE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_ENGINE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.engineView",
     "export function engineView(view: WorldViewHandle, agentId: AgentId): Result<EngineDescriptor, PlatformError>",
     &["runtime.inspect.read"],
@@ -3413,7 +3414,7 @@ pub const RUNTIME_INSPECT_ENGINE_VIEW: BindingDescriptor = BindingDescriptor::de
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.entityList.
-pub const RUNTIME_INSPECT_ENTITY_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_ENTITY_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.entityList",
     "export function entityList(view: WorldViewHandle, filter: TopologyEntityFilter, after: TopologyEntityId, limit: uint32): Result<TopologyEntity[], PlatformError>",
     &["runtime.inspect.read"],
@@ -3425,7 +3426,7 @@ pub const RUNTIME_INSPECT_ENTITY_LIST: BindingDescriptor = BindingDescriptor::de
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.entityView.
-pub const RUNTIME_INSPECT_ENTITY_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_ENTITY_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.entityView",
     "export function entityView(view: WorldViewHandle, entityId: TopologyEntityId): Result<TopologyEntity, PlatformError>",
     &["runtime.inspect.read"],
@@ -3437,7 +3438,7 @@ pub const RUNTIME_INSPECT_ENTITY_VIEW: BindingDescriptor = BindingDescriptor::de
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.eventLoopView.
-pub const RUNTIME_INSPECT_EVENT_LOOP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_EVENT_LOOP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.eventLoopView",
     "export function eventLoopView(view: WorldViewHandle, agentId: AgentId): Result<EventLoopDescriptor, PlatformError>",
     &["runtime.inspect.read"],
@@ -3449,7 +3450,7 @@ pub const RUNTIME_INSPECT_EVENT_LOOP_VIEW: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.heapView.
-pub const RUNTIME_INSPECT_HEAP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_HEAP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.heapView",
     "export function heapView(view: WorldViewHandle, agentId: AgentId): Result<HeapDescriptor, PlatformError>",
     &["runtime.inspect.read"],
@@ -3461,7 +3462,7 @@ pub const RUNTIME_INSPECT_HEAP_VIEW: BindingDescriptor = BindingDescriptor::dete
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.imageView.
-pub const RUNTIME_INSPECT_IMAGE_VIEW: BindingDescriptor =
+pub(crate) const RUNTIME_INSPECT_IMAGE_VIEW: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.inspect.imageView",
         "export function imageView(view: WorldViewHandle): Result<ImageDescriptor, PlatformError>",
@@ -3488,7 +3489,7 @@ pub const RUNTIME_INSPECT_IMAGE_VIEW: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.inspect.resourceList.
-pub const RUNTIME_INSPECT_RESOURCE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_RESOURCE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.resourceList",
     "export function resourceList(view: WorldViewHandle, filter: ResourceFilter, after: WorldResourceId, limit: uint32): Result<ResourceDescriptor[], PlatformError>",
     &["runtime.inspect.read"],
@@ -3500,7 +3501,7 @@ pub const RUNTIME_INSPECT_RESOURCE_LIST: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.resourceView.
-pub const RUNTIME_INSPECT_RESOURCE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_RESOURCE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.resourceView",
     "export function resourceView(view: WorldViewHandle, resourceId: WorldResourceId): Result<ResourceDescriptor, PlatformError>",
     &["runtime.inspect.read"],
@@ -3512,7 +3513,7 @@ pub const RUNTIME_INSPECT_RESOURCE_VIEW: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.revisionView.
-pub const RUNTIME_INSPECT_REVISION_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_REVISION_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.revisionView",
     "export function revisionView(view: WorldViewHandle): Result<RevisionDescriptor, PlatformError>",
     &["runtime.inspect.read"],
@@ -3524,7 +3525,7 @@ pub const RUNTIME_INSPECT_REVISION_VIEW: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.runtimeList.
-pub const RUNTIME_INSPECT_RUNTIME_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_RUNTIME_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.runtimeList",
     "export function runtimeList(view: WorldViewHandle, filter: RuntimeFilter, after: RuntimeId, limit: uint32): Result<RuntimeDescriptor[], PlatformError>",
     &["runtime.inspect.read"],
@@ -3536,7 +3537,7 @@ pub const RUNTIME_INSPECT_RUNTIME_LIST: BindingDescriptor = BindingDescriptor::d
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.runtimeView.
-pub const RUNTIME_INSPECT_RUNTIME_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_RUNTIME_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.runtimeView",
     "export function runtimeView(view: WorldViewHandle, runtimeId: RuntimeId): Result<RuntimeDescriptor, PlatformError>",
     &["runtime.inspect.read"],
@@ -3548,7 +3549,7 @@ pub const RUNTIME_INSPECT_RUNTIME_VIEW: BindingDescriptor = BindingDescriptor::d
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.traceView.
-pub const RUNTIME_INSPECT_TRACE_VIEW: BindingDescriptor =
+pub(crate) const RUNTIME_INSPECT_TRACE_VIEW: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.inspect.traceView",
         "export function traceView(view: WorldViewHandle): Result<TraceDescriptor, PlatformError>",
@@ -3575,7 +3576,7 @@ pub const RUNTIME_INSPECT_TRACE_VIEW: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.inspect.worldView.
-pub const RUNTIME_INSPECT_WORLD_VIEW: BindingDescriptor =
+pub(crate) const RUNTIME_INSPECT_WORLD_VIEW: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.inspect.worldView",
         "export function worldView(view: WorldViewHandle): Result<WorldDescriptor, PlatformError>",
@@ -3602,7 +3603,7 @@ pub const RUNTIME_INSPECT_WORLD_VIEW: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.inspect.worldViewClose.
-pub const RUNTIME_INSPECT_WORLD_VIEW_CLOSE: BindingDescriptor =
+pub(crate) const RUNTIME_INSPECT_WORLD_VIEW_CLOSE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.inspect.worldViewClose",
         "export function worldViewClose(view: WorldViewHandle): Result<void, PlatformError>",
@@ -3629,7 +3630,7 @@ pub const RUNTIME_INSPECT_WORLD_VIEW_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.inspect.worldViewOpen.
-pub const RUNTIME_INSPECT_WORLD_VIEW_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_WORLD_VIEW_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.worldViewOpen",
     "export function worldViewOpen(world: WorldHandle, options: WorldViewOptions): Result<WorldViewHandle, PlatformError>",
     &["runtime.inspect.read"],
@@ -3641,7 +3642,7 @@ pub const RUNTIME_INSPECT_WORLD_VIEW_OPEN: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.branchDescribe.
-pub const RUNTIME_LINEAGE_BRANCH_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_BRANCH_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.branchDescribe",
     "export function branchDescribe(world: WorldHandle, branchId: BranchId): Result<BranchDescriptor, PlatformError>",
     &["runtime.lineage.read"],
@@ -3653,7 +3654,7 @@ pub const RUNTIME_LINEAGE_BRANCH_DESCRIBE: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.branchList.
-pub const RUNTIME_LINEAGE_BRANCH_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_BRANCH_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.branchList",
     "export function branchList(world: WorldHandle, filter: BranchFilter, after: BranchId, limit: uint32): Result<BranchDescriptor[], PlatformError>",
     &["runtime.lineage.read"],
@@ -3665,7 +3666,7 @@ pub const RUNTIME_LINEAGE_BRANCH_LIST: BindingDescriptor = BindingDescriptor::de
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.checkpointCreate.
-pub const RUNTIME_LINEAGE_CHECKPOINT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.checkpointCreate",
     "export function checkpointCreate(world: WorldHandle, name: string, labels: RuntimeLabel[]): Result<CheckpointId, PlatformError>",
     &["runtime.lineage.control"],
@@ -3677,7 +3678,7 @@ pub const RUNTIME_LINEAGE_CHECKPOINT_CREATE: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.checkpointDescribe.
-pub const RUNTIME_LINEAGE_CHECKPOINT_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.checkpointDescribe",
     "export function checkpointDescribe(world: WorldHandle, checkpointId: CheckpointId): Result<CheckpointDescriptor, PlatformError>",
     &["runtime.lineage.read"],
@@ -3689,7 +3690,7 @@ pub const RUNTIME_LINEAGE_CHECKPOINT_DESCRIBE: BindingDescriptor = BindingDescri
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.checkpointList.
-pub const RUNTIME_LINEAGE_CHECKPOINT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.checkpointList",
     "export function checkpointList(world: WorldHandle, filter: CheckpointFilter, after: CheckpointId, limit: uint32): Result<CheckpointDescriptor[], PlatformError>",
     &["runtime.lineage.read"],
@@ -3701,7 +3702,7 @@ pub const RUNTIME_LINEAGE_CHECKPOINT_LIST: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.imageCapture.
-pub const RUNTIME_LINEAGE_IMAGE_CAPTURE: BindingDescriptor =
+pub(crate) const RUNTIME_LINEAGE_IMAGE_CAPTURE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.lineage.imageCapture",
         "export function imageCapture(world: WorldHandle): Result<ImageId, PlatformError>",
@@ -3728,7 +3729,7 @@ pub const RUNTIME_LINEAGE_IMAGE_CAPTURE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.lineage.imageDescribe.
-pub const RUNTIME_LINEAGE_IMAGE_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_IMAGE_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.imageDescribe",
     "export function imageDescribe(world: WorldHandle, imageId: ImageId): Result<ImageDescriptor, PlatformError>",
     &["runtime.snapshot.read"],
@@ -3740,7 +3741,7 @@ pub const RUNTIME_LINEAGE_IMAGE_DESCRIBE: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.imageList.
-pub const RUNTIME_LINEAGE_IMAGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_IMAGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.imageList",
     "export function imageList(world: WorldHandle, filter: ImageFilter, after: ImageId, limit: uint32): Result<ImageDescriptor[], PlatformError>",
     &["runtime.snapshot.read"],
@@ -3752,7 +3753,7 @@ pub const RUNTIME_LINEAGE_IMAGE_LIST: BindingDescriptor = BindingDescriptor::det
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.revisionDescribe.
-pub const RUNTIME_LINEAGE_REVISION_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_REVISION_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.revisionDescribe",
     "export function revisionDescribe(world: WorldHandle, revisionId: RevisionId): Result<RevisionDescriptor, PlatformError>",
     &["runtime.lineage.read"],
@@ -3764,7 +3765,7 @@ pub const RUNTIME_LINEAGE_REVISION_DESCRIBE: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.revisionList.
-pub const RUNTIME_LINEAGE_REVISION_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_REVISION_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.revisionList",
     "export function revisionList(world: WorldHandle, filter: RevisionFilter, after: RevisionId, limit: uint32): Result<RevisionDescriptor[], PlatformError>",
     &["runtime.lineage.read"],
@@ -3776,7 +3777,7 @@ pub const RUNTIME_LINEAGE_REVISION_LIST: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldBranch.
-pub const RUNTIME_LINEAGE_WORLD_BRANCH: BindingDescriptor =
+pub(crate) const RUNTIME_LINEAGE_WORLD_BRANCH: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.lineage.worldBranch",
         "export function worldBranch(world: WorldHandle): Result<BranchId, PlatformError>",
@@ -3803,7 +3804,7 @@ pub const RUNTIME_LINEAGE_WORLD_BRANCH: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.lineage.worldFork.
-pub const RUNTIME_LINEAGE_WORLD_FORK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_WORLD_FORK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.worldFork",
     "export function worldFork(world: WorldHandle, revisionId: RevisionId, name: string, labels: RuntimeLabel[]): Result<WorldHandle, PlatformError>",
     &["runtime.world.create"],
@@ -3815,7 +3816,7 @@ pub const RUNTIME_LINEAGE_WORLD_FORK: BindingDescriptor = BindingDescriptor::det
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldRevision.
-pub const RUNTIME_LINEAGE_WORLD_REVISION: BindingDescriptor =
+pub(crate) const RUNTIME_LINEAGE_WORLD_REVISION: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.lineage.worldRevision",
         "export function worldRevision(world: WorldHandle): Result<RevisionId, PlatformError>",
@@ -3842,7 +3843,7 @@ pub const RUNTIME_LINEAGE_WORLD_REVISION: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.lineage.worldRewindCheckpoint.
-pub const RUNTIME_LINEAGE_WORLD_REWIND_CHECKPOINT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_WORLD_REWIND_CHECKPOINT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.worldRewindCheckpoint",
     "export function worldRewindCheckpoint(world: WorldHandle, checkpointId: CheckpointId): Result<void, PlatformError>",
     &["runtime.lineage.control"],
@@ -3854,7 +3855,7 @@ pub const RUNTIME_LINEAGE_WORLD_REWIND_CHECKPOINT: BindingDescriptor = BindingDe
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldRewindRevision.
-pub const RUNTIME_LINEAGE_WORLD_REWIND_REVISION: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_WORLD_REWIND_REVISION: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.worldRewindRevision",
     "export function worldRewindRevision(world: WorldHandle, revisionId: RevisionId): Result<void, PlatformError>",
     &["runtime.lineage.control"],
@@ -3866,7 +3867,7 @@ pub const RUNTIME_LINEAGE_WORLD_REWIND_REVISION: BindingDescriptor = BindingDesc
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.observation.close.
-pub const RUNTIME_OBSERVATION_CLOSE: BindingDescriptor =
+pub(crate) const RUNTIME_OBSERVATION_CLOSE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.observation.close",
         "export function observationClose(handle: ObservationHandle): Result<void, PlatformError>",
@@ -3893,7 +3894,7 @@ pub const RUNTIME_OBSERVATION_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.observation.next.
-pub const RUNTIME_OBSERVATION_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_OBSERVATION_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.observation.next",
     "export function observationNext(handle: ObservationHandle, limit: uint32): Result<ObservationRecord[], PlatformError>",
     &["runtime.observation.read"],
@@ -3905,7 +3906,7 @@ pub const RUNTIME_OBSERVATION_NEXT: BindingDescriptor = BindingDescriptor::deter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.observation.open.
-pub const RUNTIME_OBSERVATION_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_OBSERVATION_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.observation.open",
     "export function observationOpen(world: WorldHandle, options: ObservationOptions): Result<ObservationHandle, PlatformError>",
     &["runtime.observation.read"],
@@ -3917,7 +3918,7 @@ pub const RUNTIME_OBSERVATION_OPEN: BindingDescriptor = BindingDescriptor::deter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.create.
-pub const RUNTIME_SNAPSHOT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.create",
     "export function snapshotCreate(world: WorldHandle, imageId: ImageId, format: SnapshotFormat): Result<SnapshotId, PlatformError>",
     &["runtime.snapshot.create"],
@@ -3929,7 +3930,7 @@ pub const RUNTIME_SNAPSHOT_CREATE: BindingDescriptor = BindingDescriptor::determ
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.describe.
-pub const RUNTIME_SNAPSHOT_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.describe",
     "export function snapshotDescribe(world: WorldHandle, snapshotId: SnapshotId): Result<SnapshotDescriptor, PlatformError>",
     &["runtime.snapshot.read"],
@@ -3941,7 +3942,7 @@ pub const RUNTIME_SNAPSHOT_DESCRIBE: BindingDescriptor = BindingDescriptor::dete
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.import.
-pub const RUNTIME_SNAPSHOT_IMPORT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_IMPORT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.import",
     "export function snapshotImport(world: WorldHandle, payload: uint8[]): Result<SnapshotId, PlatformError>",
     &["runtime.snapshot.create"],
@@ -3953,7 +3954,7 @@ pub const RUNTIME_SNAPSHOT_IMPORT: BindingDescriptor = BindingDescriptor::determ
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.list.
-pub const RUNTIME_SNAPSHOT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.list",
     "export function snapshotList(world: WorldHandle, after: SnapshotId, limit: uint32): Result<SnapshotDescriptor[], PlatformError>",
     &["runtime.snapshot.read"],
@@ -3965,7 +3966,7 @@ pub const RUNTIME_SNAPSHOT_LIST: BindingDescriptor = BindingDescriptor::determin
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.read.
-pub const RUNTIME_SNAPSHOT_READ: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_READ: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.read",
     "export function snapshotRead(world: WorldHandle, snapshotId: SnapshotId): Result<uint8[], PlatformError>",
     &["runtime.snapshot.read"],
@@ -3977,7 +3978,7 @@ pub const RUNTIME_SNAPSHOT_READ: BindingDescriptor = BindingDescriptor::determin
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.restoreImage.
-pub const RUNTIME_SNAPSHOT_RESTORE_IMAGE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_RESTORE_IMAGE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.restoreImage",
     "export function restoreImage(world: WorldHandle, imageId: ImageId): Result<void, PlatformError>",
     &["runtime.snapshot.restore"],
@@ -3989,7 +3990,7 @@ pub const RUNTIME_SNAPSHOT_RESTORE_IMAGE: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.restoreSnapshot.
-pub const RUNTIME_SNAPSHOT_RESTORE_SNAPSHOT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_RESTORE_SNAPSHOT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.restoreSnapshot",
     "export function restoreSnapshot(world: WorldHandle, snapshotId: SnapshotId): Result<void, PlatformError>",
     &["runtime.snapshot.restore"],
@@ -4001,7 +4002,7 @@ pub const RUNTIME_SNAPSHOT_RESTORE_SNAPSHOT: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.close.
-pub const RUNTIME_TRACE_CLOSE: BindingDescriptor =
+pub(crate) const RUNTIME_TRACE_CLOSE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.trace.close",
         "export function traceClose(cursor: TraceCursorHandle): Result<void, PlatformError>",
@@ -4028,7 +4029,7 @@ pub const RUNTIME_TRACE_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.trace.describe.
-pub const RUNTIME_TRACE_DESCRIBE: BindingDescriptor =
+pub(crate) const RUNTIME_TRACE_DESCRIBE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.runtime.trace.describe",
         "export function traceDescribe(world: WorldHandle): Result<TraceDescriptor, PlatformError>",
@@ -4055,7 +4056,7 @@ pub const RUNTIME_TRACE_DESCRIBE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.runtime.trace.mark.
-pub const RUNTIME_TRACE_MARK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_MARK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.trace.mark",
     "export function traceMark(world: WorldHandle, label: string): Result<TraceSequence, PlatformError>",
     &["runtime.trace.control"],
@@ -4067,7 +4068,7 @@ pub const RUNTIME_TRACE_MARK: BindingDescriptor = BindingDescriptor::determinist
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.next.
-pub const RUNTIME_TRACE_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.trace.next",
     "export function traceNext(cursor: TraceCursorHandle, limit: uint32): Result<TraceRecord[], PlatformError>",
     &["runtime.trace.read"],
@@ -4079,7 +4080,7 @@ pub const RUNTIME_TRACE_NEXT: BindingDescriptor = BindingDescriptor::determinist
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.open.
-pub const RUNTIME_TRACE_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.trace.open",
     "export function traceOpen(world: WorldHandle, options: TraceCursorOptions): Result<TraceCursorHandle, PlatformError>",
     &["runtime.trace.read"],
@@ -4091,7 +4092,7 @@ pub const RUNTIME_TRACE_OPEN: BindingDescriptor = BindingDescriptor::determinist
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.seekCheckpoint.
-pub const RUNTIME_TRACE_SEEK_CHECKPOINT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_SEEK_CHECKPOINT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.trace.seekCheckpoint",
     "export function traceSeekCheckpoint(cursor: TraceCursorHandle, checkpointId: CheckpointId): Result<void, PlatformError>",
     &["runtime.trace.read"],
@@ -4103,7 +4104,7 @@ pub const RUNTIME_TRACE_SEEK_CHECKPOINT: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.seekRevision.
-pub const RUNTIME_TRACE_SEEK_REVISION: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_SEEK_REVISION: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.trace.seekRevision",
     "export function traceSeekRevision(cursor: TraceCursorHandle, revisionId: RevisionId): Result<void, PlatformError>",
     &["runtime.trace.read"],
@@ -4115,7 +4116,7 @@ pub const RUNTIME_TRACE_SEEK_REVISION: BindingDescriptor = BindingDescriptor::de
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.seekSequence.
-pub const RUNTIME_TRACE_SEEK_SEQUENCE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_SEEK_SEQUENCE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.trace.seekSequence",
     "export function traceSeekSequence(cursor: TraceCursorHandle, sequence: TraceSequence): Result<void, PlatformError>",
     &["runtime.trace.read"],
@@ -4127,7 +4128,7 @@ pub const RUNTIME_TRACE_SEEK_SEQUENCE: BindingDescriptor = BindingDescriptor::de
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.tell.
-pub const RUNTIME_TRACE_TELL: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_TELL: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.trace.tell",
     "export function traceTell(cursor: TraceCursorHandle): Result<TraceSequence, PlatformError>",
     &["runtime.trace.read"],
@@ -4138,75 +4139,8 @@ pub const RUNTIME_TRACE_TELL: BindingDescriptor = BindingDescriptor::determinist
     .with_namespace("runtime")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
-/// Binding descriptors for runtime.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    RUNTIME_CORE_AGENT_CLOSE,
-    RUNTIME_CORE_AGENT_CREATE,
-    RUNTIME_CORE_AGENT_DESCRIBE,
-    RUNTIME_CORE_RUNTIME_CLOSE,
-    RUNTIME_CORE_RUNTIME_CREATE,
-    RUNTIME_CORE_RUNTIME_DESCRIBE,
-    RUNTIME_CORE_WORLD_CLOSE,
-    RUNTIME_CORE_WORLD_CREATE,
-    RUNTIME_CORE_WORLD_DESCRIBE,
-    RUNTIME_CORE_WORLD_TICK,
-    RUNTIME_INSPECT_AGENT_LIST,
-    RUNTIME_INSPECT_AGENT_VIEW,
-    RUNTIME_INSPECT_EDGE_LIST,
-    RUNTIME_INSPECT_EDGE_VIEW,
-    RUNTIME_INSPECT_ENGINE_VIEW,
-    RUNTIME_INSPECT_ENTITY_LIST,
-    RUNTIME_INSPECT_ENTITY_VIEW,
-    RUNTIME_INSPECT_EVENT_LOOP_VIEW,
-    RUNTIME_INSPECT_HEAP_VIEW,
-    RUNTIME_INSPECT_IMAGE_VIEW,
-    RUNTIME_INSPECT_RESOURCE_LIST,
-    RUNTIME_INSPECT_RESOURCE_VIEW,
-    RUNTIME_INSPECT_REVISION_VIEW,
-    RUNTIME_INSPECT_RUNTIME_LIST,
-    RUNTIME_INSPECT_RUNTIME_VIEW,
-    RUNTIME_INSPECT_TRACE_VIEW,
-    RUNTIME_INSPECT_WORLD_VIEW,
-    RUNTIME_INSPECT_WORLD_VIEW_CLOSE,
-    RUNTIME_INSPECT_WORLD_VIEW_OPEN,
-    RUNTIME_LINEAGE_BRANCH_DESCRIBE,
-    RUNTIME_LINEAGE_BRANCH_LIST,
-    RUNTIME_LINEAGE_CHECKPOINT_CREATE,
-    RUNTIME_LINEAGE_CHECKPOINT_DESCRIBE,
-    RUNTIME_LINEAGE_CHECKPOINT_LIST,
-    RUNTIME_LINEAGE_IMAGE_CAPTURE,
-    RUNTIME_LINEAGE_IMAGE_DESCRIBE,
-    RUNTIME_LINEAGE_IMAGE_LIST,
-    RUNTIME_LINEAGE_REVISION_DESCRIBE,
-    RUNTIME_LINEAGE_REVISION_LIST,
-    RUNTIME_LINEAGE_WORLD_BRANCH,
-    RUNTIME_LINEAGE_WORLD_FORK,
-    RUNTIME_LINEAGE_WORLD_REVISION,
-    RUNTIME_LINEAGE_WORLD_REWIND_CHECKPOINT,
-    RUNTIME_LINEAGE_WORLD_REWIND_REVISION,
-    RUNTIME_OBSERVATION_CLOSE,
-    RUNTIME_OBSERVATION_NEXT,
-    RUNTIME_OBSERVATION_OPEN,
-    RUNTIME_SNAPSHOT_CREATE,
-    RUNTIME_SNAPSHOT_DESCRIBE,
-    RUNTIME_SNAPSHOT_IMPORT,
-    RUNTIME_SNAPSHOT_LIST,
-    RUNTIME_SNAPSHOT_READ,
-    RUNTIME_SNAPSHOT_RESTORE_IMAGE,
-    RUNTIME_SNAPSHOT_RESTORE_SNAPSHOT,
-    RUNTIME_TRACE_CLOSE,
-    RUNTIME_TRACE_DESCRIBE,
-    RUNTIME_TRACE_MARK,
-    RUNTIME_TRACE_NEXT,
-    RUNTIME_TRACE_OPEN,
-    RUNTIME_TRACE_SEEK_CHECKPOINT,
-    RUNTIME_TRACE_SEEK_REVISION,
-    RUNTIME_TRACE_SEEK_SEQUENCE,
-    RUNTIME_TRACE_TELL,
-];
-
 /// Native binding set for runtime.
-pub const RUNTIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const RUNTIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "runtime",
     bindings: &[
         NativeBinding::new(
@@ -4529,7 +4463,9 @@ pub const RUNTIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 
 /// Native export wrappers for runtime bindings.
 #[unsafe(export_name = "destack.runtime.core.agentClose")]
-pub unsafe extern "C" fn destack_runtime_core_agent_close(agent: AgentHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_runtime_core_agent_close(
+    agent: AgentHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &agent;
 
@@ -4541,7 +4477,7 @@ pub unsafe extern "C" fn destack_runtime_core_agent_close(agent: AgentHandle) ->
 }
 
 #[unsafe(export_name = "destack.runtime.core.agentCreate")]
-pub unsafe extern "C" fn destack_runtime_core_agent_create(
+pub(crate) unsafe extern "C" fn destack_runtime_core_agent_create(
     out: *mut AgentHandle,
     runtimehandle: RuntimeHandle,
     options: Option<AgentCreateOptions>,
@@ -4567,7 +4503,7 @@ pub unsafe extern "C" fn destack_runtime_core_agent_create(
 }
 
 #[unsafe(export_name = "destack.runtime.core.agentDescribe")]
-pub unsafe extern "C" fn destack_runtime_core_agent_describe(
+pub(crate) unsafe extern "C" fn destack_runtime_core_agent_describe(
     out: *mut AgentDescriptor,
     agent: AgentHandle,
 ) -> RuntimeStatus {
@@ -4585,7 +4521,7 @@ pub unsafe extern "C" fn destack_runtime_core_agent_describe(
 }
 
 #[unsafe(export_name = "destack.runtime.core.runtimeClose")]
-pub unsafe extern "C" fn destack_runtime_core_runtime_close(
+pub(crate) unsafe extern "C" fn destack_runtime_core_runtime_close(
     runtimehandle: RuntimeHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -4601,7 +4537,7 @@ pub unsafe extern "C" fn destack_runtime_core_runtime_close(
 }
 
 #[unsafe(export_name = "destack.runtime.core.runtimeCreate")]
-pub unsafe extern "C" fn destack_runtime_core_runtime_create(
+pub(crate) unsafe extern "C" fn destack_runtime_core_runtime_create(
     out: *mut RuntimeHandle,
     argument_world: WorldHandle,
     options: Option<RuntimeCreateOptions>,
@@ -4627,7 +4563,7 @@ pub unsafe extern "C" fn destack_runtime_core_runtime_create(
 }
 
 #[unsafe(export_name = "destack.runtime.core.runtimeDescribe")]
-pub unsafe extern "C" fn destack_runtime_core_runtime_describe(
+pub(crate) unsafe extern "C" fn destack_runtime_core_runtime_describe(
     out: *mut RuntimeDescriptor,
     runtimehandle: RuntimeHandle,
 ) -> RuntimeStatus {
@@ -4651,7 +4587,7 @@ pub unsafe extern "C" fn destack_runtime_core_runtime_describe(
 }
 
 #[unsafe(export_name = "destack.runtime.core.worldClose")]
-pub unsafe extern "C" fn destack_runtime_core_world_close(
+pub(crate) unsafe extern "C" fn destack_runtime_core_world_close(
     argument_world: WorldHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -4665,7 +4601,7 @@ pub unsafe extern "C" fn destack_runtime_core_world_close(
 }
 
 #[unsafe(export_name = "destack.runtime.core.worldCreate")]
-pub unsafe extern "C" fn destack_runtime_core_world_create(
+pub(crate) unsafe extern "C" fn destack_runtime_core_world_create(
     out: *mut WorldHandle,
     options: Option<WorldCreateOptions>,
 ) -> RuntimeStatus {
@@ -4683,7 +4619,7 @@ pub unsafe extern "C" fn destack_runtime_core_world_create(
 }
 
 #[unsafe(export_name = "destack.runtime.core.worldDescribe")]
-pub unsafe extern "C" fn destack_runtime_core_world_describe(
+pub(crate) unsafe extern "C" fn destack_runtime_core_world_describe(
     out: *mut WorldDescriptor,
     argument_world: WorldHandle,
 ) -> RuntimeStatus {
@@ -4707,7 +4643,7 @@ pub unsafe extern "C" fn destack_runtime_core_world_describe(
 }
 
 #[unsafe(export_name = "destack.runtime.core.worldTick")]
-pub unsafe extern "C" fn destack_runtime_core_world_tick(
+pub(crate) unsafe extern "C" fn destack_runtime_core_world_tick(
     out: *mut RuntimeTickOutcome,
     argument_world: WorldHandle,
 ) -> RuntimeStatus {
@@ -4727,7 +4663,7 @@ pub unsafe extern "C" fn destack_runtime_core_world_tick(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.agentList")]
-pub unsafe extern "C" fn destack_runtime_inspect_agent_list(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_agent_list(
     out: *mut NativeArray<AgentDescriptor>,
     view: WorldViewHandle,
     filter: Option<AgentFilter>,
@@ -4752,7 +4688,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_agent_list(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.agentView")]
-pub unsafe extern "C" fn destack_runtime_inspect_agent_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_agent_view(
     out: *mut AgentDescriptor,
     view: WorldViewHandle,
     agentid: AgentId,
@@ -4773,7 +4709,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_agent_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.edgeList")]
-pub unsafe extern "C" fn destack_runtime_inspect_edge_list(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_edge_list(
     out: *mut NativeArray<TopologyEdge>,
     view: WorldViewHandle,
     filter: Option<TopologyEdgeFilter>,
@@ -4798,7 +4734,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_edge_list(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.edgeView")]
-pub unsafe extern "C" fn destack_runtime_inspect_edge_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_edge_view(
     out: *mut TopologyEdge,
     view: WorldViewHandle,
     edgeid: TopologyEdgeId,
@@ -4819,7 +4755,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_edge_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.engineView")]
-pub unsafe extern "C" fn destack_runtime_inspect_engine_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_engine_view(
     out: *mut EngineDescriptor,
     view: WorldViewHandle,
     agentid: AgentId,
@@ -4840,7 +4776,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_engine_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.entityList")]
-pub unsafe extern "C" fn destack_runtime_inspect_entity_list(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_entity_list(
     out: *mut NativeArray<TopologyEntity>,
     view: WorldViewHandle,
     filter: Option<TopologyEntityFilter>,
@@ -4865,7 +4801,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_entity_list(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.entityView")]
-pub unsafe extern "C" fn destack_runtime_inspect_entity_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_entity_view(
     out: *mut TopologyEntity,
     view: WorldViewHandle,
     entityid: TopologyEntityId,
@@ -4886,7 +4822,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_entity_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.eventLoopView")]
-pub unsafe extern "C" fn destack_runtime_inspect_event_loop_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_event_loop_view(
     out: *mut EventLoopDescriptor,
     view: WorldViewHandle,
     agentid: AgentId,
@@ -4909,7 +4845,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_event_loop_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.heapView")]
-pub unsafe extern "C" fn destack_runtime_inspect_heap_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_heap_view(
     out: *mut HeapDescriptor,
     view: WorldViewHandle,
     agentid: AgentId,
@@ -4930,7 +4866,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_heap_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.imageView")]
-pub unsafe extern "C" fn destack_runtime_inspect_image_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_image_view(
     out: *mut ImageDescriptor,
     view: WorldViewHandle,
 ) -> RuntimeStatus {
@@ -4948,7 +4884,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_image_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.resourceList")]
-pub unsafe extern "C" fn destack_runtime_inspect_resource_list(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_resource_list(
     out: *mut NativeArray<ResourceDescriptor>,
     view: WorldViewHandle,
     filter: Option<ResourceFilter>,
@@ -4973,7 +4909,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_resource_list(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.resourceView")]
-pub unsafe extern "C" fn destack_runtime_inspect_resource_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_resource_view(
     out: *mut ResourceDescriptor,
     view: WorldViewHandle,
     resourceid: WorldResourceId,
@@ -4996,7 +4932,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_resource_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.revisionView")]
-pub unsafe extern "C" fn destack_runtime_inspect_revision_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_revision_view(
     out: *mut RevisionDescriptor,
     view: WorldViewHandle,
 ) -> RuntimeStatus {
@@ -5014,7 +4950,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_revision_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.runtimeList")]
-pub unsafe extern "C" fn destack_runtime_inspect_runtime_list(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_runtime_list(
     out: *mut NativeArray<RuntimeDescriptor>,
     view: WorldViewHandle,
     filter: Option<RuntimeFilter>,
@@ -5039,7 +4975,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_runtime_list(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.runtimeView")]
-pub unsafe extern "C" fn destack_runtime_inspect_runtime_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_runtime_view(
     out: *mut RuntimeDescriptor,
     view: WorldViewHandle,
     runtimeid: RuntimeId,
@@ -5060,7 +4996,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_runtime_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.traceView")]
-pub unsafe extern "C" fn destack_runtime_inspect_trace_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_trace_view(
     out: *mut TraceDescriptor,
     view: WorldViewHandle,
 ) -> RuntimeStatus {
@@ -5078,7 +5014,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_trace_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.worldView")]
-pub unsafe extern "C" fn destack_runtime_inspect_world_view(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_world_view(
     out: *mut WorldDescriptor,
     view: WorldViewHandle,
 ) -> RuntimeStatus {
@@ -5096,7 +5032,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_world_view(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.worldViewClose")]
-pub unsafe extern "C" fn destack_runtime_inspect_world_view_close(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_world_view_close(
     view: WorldViewHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -5111,7 +5047,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_world_view_close(
 }
 
 #[unsafe(export_name = "destack.runtime.inspect.worldViewOpen")]
-pub unsafe extern "C" fn destack_runtime_inspect_world_view_open(
+pub(crate) unsafe extern "C" fn destack_runtime_inspect_world_view_open(
     out: *mut WorldViewHandle,
     argument_world: WorldHandle,
     options: Option<WorldViewOptions>,
@@ -5137,7 +5073,7 @@ pub unsafe extern "C" fn destack_runtime_inspect_world_view_open(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.branchDescribe")]
-pub unsafe extern "C" fn destack_runtime_lineage_branch_describe(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_branch_describe(
     out: *mut BranchDescriptor,
     argument_world: WorldHandle,
     branchid: BranchId,
@@ -5163,7 +5099,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_branch_describe(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.branchList")]
-pub unsafe extern "C" fn destack_runtime_lineage_branch_list(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_branch_list(
     out: *mut NativeArray<BranchDescriptor>,
     argument_world: WorldHandle,
     filter: Option<BranchFilter>,
@@ -5193,7 +5129,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_branch_list(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.checkpointCreate")]
-pub unsafe extern "C" fn destack_runtime_lineage_checkpoint_create(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_checkpoint_create(
     out: *mut CheckpointId,
     argument_world: WorldHandle,
     name: Option<NativeStringRef>,
@@ -5222,7 +5158,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_checkpoint_create(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.checkpointDescribe")]
-pub unsafe extern "C" fn destack_runtime_lineage_checkpoint_describe(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_checkpoint_describe(
     out: *mut CheckpointDescriptor,
     argument_world: WorldHandle,
     checkpointid: CheckpointId,
@@ -5249,7 +5185,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_checkpoint_describe(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.checkpointList")]
-pub unsafe extern "C" fn destack_runtime_lineage_checkpoint_list(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_checkpoint_list(
     out: *mut NativeArray<CheckpointDescriptor>,
     argument_world: WorldHandle,
     filter: Option<CheckpointFilter>,
@@ -5279,7 +5215,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_checkpoint_list(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.imageCapture")]
-pub unsafe extern "C" fn destack_runtime_lineage_image_capture(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_image_capture(
     out: *mut ImageId,
     argument_world: WorldHandle,
 ) -> RuntimeStatus {
@@ -5299,7 +5235,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_image_capture(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.imageDescribe")]
-pub unsafe extern "C" fn destack_runtime_lineage_image_describe(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_image_describe(
     out: *mut ImageDescriptor,
     argument_world: WorldHandle,
     imageid: ImageId,
@@ -5325,7 +5261,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_image_describe(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.imageList")]
-pub unsafe extern "C" fn destack_runtime_lineage_image_list(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_image_list(
     out: *mut NativeArray<ImageDescriptor>,
     argument_world: WorldHandle,
     filter: Option<ImageFilter>,
@@ -5355,7 +5291,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_image_list(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.revisionDescribe")]
-pub unsafe extern "C" fn destack_runtime_lineage_revision_describe(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_revision_describe(
     out: *mut RevisionDescriptor,
     argument_world: WorldHandle,
     revisionid: RevisionId,
@@ -5382,7 +5318,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_revision_describe(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.revisionList")]
-pub unsafe extern "C" fn destack_runtime_lineage_revision_list(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_revision_list(
     out: *mut NativeArray<RevisionDescriptor>,
     argument_world: WorldHandle,
     filter: Option<RevisionFilter>,
@@ -5412,7 +5348,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_revision_list(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.worldBranch")]
-pub unsafe extern "C" fn destack_runtime_lineage_world_branch(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_world_branch(
     out: *mut BranchId,
     argument_world: WorldHandle,
 ) -> RuntimeStatus {
@@ -5432,7 +5368,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_world_branch(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.worldFork")]
-pub unsafe extern "C" fn destack_runtime_lineage_world_fork(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_world_fork(
     out: *mut WorldHandle,
     argument_world: WorldHandle,
     revisionid: RevisionId,
@@ -5462,7 +5398,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_world_fork(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.worldRevision")]
-pub unsafe extern "C" fn destack_runtime_lineage_world_revision(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_world_revision(
     out: *mut RevisionId,
     argument_world: WorldHandle,
 ) -> RuntimeStatus {
@@ -5486,7 +5422,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_world_revision(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.worldRewindCheckpoint")]
-pub unsafe extern "C" fn destack_runtime_lineage_world_rewind_checkpoint(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_world_rewind_checkpoint(
     argument_world: WorldHandle,
     checkpointid: CheckpointId,
 ) -> RuntimeStatus {
@@ -5508,7 +5444,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_world_rewind_checkpoint(
 }
 
 #[unsafe(export_name = "destack.runtime.lineage.worldRewindRevision")]
-pub unsafe extern "C" fn destack_runtime_lineage_world_rewind_revision(
+pub(crate) unsafe extern "C" fn destack_runtime_lineage_world_rewind_revision(
     argument_world: WorldHandle,
     revisionid: RevisionId,
 ) -> RuntimeStatus {
@@ -5530,7 +5466,7 @@ pub unsafe extern "C" fn destack_runtime_lineage_world_rewind_revision(
 }
 
 #[unsafe(export_name = "destack.runtime.observation.close")]
-pub unsafe extern "C" fn destack_runtime_observation_close(
+pub(crate) unsafe extern "C" fn destack_runtime_observation_close(
     handle: ObservationHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -5544,7 +5480,7 @@ pub unsafe extern "C" fn destack_runtime_observation_close(
 }
 
 #[unsafe(export_name = "destack.runtime.observation.next")]
-pub unsafe extern "C" fn destack_runtime_observation_next(
+pub(crate) unsafe extern "C" fn destack_runtime_observation_next(
     out: *mut NativeArray<ObservationRecord>,
     handle: ObservationHandle,
     limit: Option<u32>,
@@ -5567,7 +5503,7 @@ pub unsafe extern "C" fn destack_runtime_observation_next(
 }
 
 #[unsafe(export_name = "destack.runtime.observation.open")]
-pub unsafe extern "C" fn destack_runtime_observation_open(
+pub(crate) unsafe extern "C" fn destack_runtime_observation_open(
     out: *mut ObservationHandle,
     argument_world: WorldHandle,
     options: Option<ObservationOptions>,
@@ -5593,7 +5529,7 @@ pub unsafe extern "C" fn destack_runtime_observation_open(
 }
 
 #[unsafe(export_name = "destack.runtime.snapshot.create")]
-pub unsafe extern "C" fn destack_runtime_snapshot_create(
+pub(crate) unsafe extern "C" fn destack_runtime_snapshot_create(
     out: *mut SnapshotId,
     argument_world: WorldHandle,
     imageid: ImageId,
@@ -5621,7 +5557,7 @@ pub unsafe extern "C" fn destack_runtime_snapshot_create(
 }
 
 #[unsafe(export_name = "destack.runtime.snapshot.describe")]
-pub unsafe extern "C" fn destack_runtime_snapshot_describe(
+pub(crate) unsafe extern "C" fn destack_runtime_snapshot_describe(
     out: *mut SnapshotDescriptor,
     argument_world: WorldHandle,
     snapshotid: SnapshotId,
@@ -5647,7 +5583,7 @@ pub unsafe extern "C" fn destack_runtime_snapshot_describe(
 }
 
 #[unsafe(export_name = "destack.runtime.snapshot.import")]
-pub unsafe extern "C" fn destack_runtime_snapshot_import(
+pub(crate) unsafe extern "C" fn destack_runtime_snapshot_import(
     out: *mut SnapshotId,
     argument_world: WorldHandle,
     argument_payload: NativeArray<u8>,
@@ -5673,7 +5609,7 @@ pub unsafe extern "C" fn destack_runtime_snapshot_import(
 }
 
 #[unsafe(export_name = "destack.runtime.snapshot.list")]
-pub unsafe extern "C" fn destack_runtime_snapshot_list(
+pub(crate) unsafe extern "C" fn destack_runtime_snapshot_list(
     out: *mut NativeArray<SnapshotDescriptor>,
     argument_world: WorldHandle,
     after: Option<SnapshotId>,
@@ -5701,7 +5637,7 @@ pub unsafe extern "C" fn destack_runtime_snapshot_list(
 }
 
 #[unsafe(export_name = "destack.runtime.snapshot.read")]
-pub unsafe extern "C" fn destack_runtime_snapshot_read(
+pub(crate) unsafe extern "C" fn destack_runtime_snapshot_read(
     out: *mut NativeArray<u8>,
     argument_world: WorldHandle,
     snapshotid: SnapshotId,
@@ -5727,7 +5663,7 @@ pub unsafe extern "C" fn destack_runtime_snapshot_read(
 }
 
 #[unsafe(export_name = "destack.runtime.snapshot.restoreImage")]
-pub unsafe extern "C" fn destack_runtime_snapshot_restore_image(
+pub(crate) unsafe extern "C" fn destack_runtime_snapshot_restore_image(
     argument_world: WorldHandle,
     imageid: ImageId,
 ) -> RuntimeStatus {
@@ -5748,7 +5684,7 @@ pub unsafe extern "C" fn destack_runtime_snapshot_restore_image(
 }
 
 #[unsafe(export_name = "destack.runtime.snapshot.restoreSnapshot")]
-pub unsafe extern "C" fn destack_runtime_snapshot_restore_snapshot(
+pub(crate) unsafe extern "C" fn destack_runtime_snapshot_restore_snapshot(
     argument_world: WorldHandle,
     snapshotid: SnapshotId,
 ) -> RuntimeStatus {
@@ -5770,7 +5706,9 @@ pub unsafe extern "C" fn destack_runtime_snapshot_restore_snapshot(
 }
 
 #[unsafe(export_name = "destack.runtime.trace.close")]
-pub unsafe extern "C" fn destack_runtime_trace_close(cursor: TraceCursorHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_runtime_trace_close(
+    cursor: TraceCursorHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &cursor;
 
@@ -5782,7 +5720,7 @@ pub unsafe extern "C" fn destack_runtime_trace_close(cursor: TraceCursorHandle) 
 }
 
 #[unsafe(export_name = "destack.runtime.trace.describe")]
-pub unsafe extern "C" fn destack_runtime_trace_describe(
+pub(crate) unsafe extern "C" fn destack_runtime_trace_describe(
     out: *mut TraceDescriptor,
     argument_world: WorldHandle,
 ) -> RuntimeStatus {
@@ -5806,7 +5744,7 @@ pub unsafe extern "C" fn destack_runtime_trace_describe(
 }
 
 #[unsafe(export_name = "destack.runtime.trace.mark")]
-pub unsafe extern "C" fn destack_runtime_trace_mark(
+pub(crate) unsafe extern "C" fn destack_runtime_trace_mark(
     out: *mut TraceSequence,
     argument_world: WorldHandle,
     label: NativeStringRef,
@@ -5832,7 +5770,7 @@ pub unsafe extern "C" fn destack_runtime_trace_mark(
 }
 
 #[unsafe(export_name = "destack.runtime.trace.next")]
-pub unsafe extern "C" fn destack_runtime_trace_next(
+pub(crate) unsafe extern "C" fn destack_runtime_trace_next(
     out: *mut NativeArray<TraceRecord>,
     cursor: TraceCursorHandle,
     limit: Option<u32>,
@@ -5853,7 +5791,7 @@ pub unsafe extern "C" fn destack_runtime_trace_next(
 }
 
 #[unsafe(export_name = "destack.runtime.trace.open")]
-pub unsafe extern "C" fn destack_runtime_trace_open(
+pub(crate) unsafe extern "C" fn destack_runtime_trace_open(
     out: *mut TraceCursorHandle,
     argument_world: WorldHandle,
     options: Option<TraceCursorOptions>,
@@ -5879,7 +5817,7 @@ pub unsafe extern "C" fn destack_runtime_trace_open(
 }
 
 #[unsafe(export_name = "destack.runtime.trace.seekCheckpoint")]
-pub unsafe extern "C" fn destack_runtime_trace_seek_checkpoint(
+pub(crate) unsafe extern "C" fn destack_runtime_trace_seek_checkpoint(
     cursor: TraceCursorHandle,
     checkpointid: CheckpointId,
 ) -> RuntimeStatus {
@@ -5900,7 +5838,7 @@ pub unsafe extern "C" fn destack_runtime_trace_seek_checkpoint(
 }
 
 #[unsafe(export_name = "destack.runtime.trace.seekRevision")]
-pub unsafe extern "C" fn destack_runtime_trace_seek_revision(
+pub(crate) unsafe extern "C" fn destack_runtime_trace_seek_revision(
     cursor: TraceCursorHandle,
     revisionid: RevisionId,
 ) -> RuntimeStatus {
@@ -5919,7 +5857,7 @@ pub unsafe extern "C" fn destack_runtime_trace_seek_revision(
 }
 
 #[unsafe(export_name = "destack.runtime.trace.seekSequence")]
-pub unsafe extern "C" fn destack_runtime_trace_seek_sequence(
+pub(crate) unsafe extern "C" fn destack_runtime_trace_seek_sequence(
     cursor: TraceCursorHandle,
     sequence: TraceSequence,
 ) -> RuntimeStatus {
@@ -5938,7 +5876,7 @@ pub unsafe extern "C" fn destack_runtime_trace_seek_sequence(
 }
 
 #[unsafe(export_name = "destack.runtime.trace.tell")]
-pub unsafe extern "C" fn destack_runtime_trace_tell(
+pub(crate) unsafe extern "C" fn destack_runtime_trace_tell(
     out: *mut TraceSequence,
     cursor: TraceCursorHandle,
 ) -> RuntimeStatus {
@@ -5956,7 +5894,7 @@ pub unsafe extern "C" fn destack_runtime_trace_tell(
 }
 
 /// Register VM bindings for runtime.
-pub fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -7610,8 +7548,8 @@ pub fn register_runtime_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 }
 
 /// Install VM bindings for runtime.
-pub fn install_runtime_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_runtime_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_runtime_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub RUNTIME_VM_BINDINGS, "runtime", install_runtime_vm_bindings);
+vm_binding_set!(pub(crate) RUNTIME_VM_BINDINGS, "runtime", install_runtime_vm_bindings);

@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -1950,7 +1951,7 @@ struct MidiOutputWriteReplayRecord {
 }
 
 /// Binding descriptor for destack.midi.backend.list.
-pub const MIDI_BACKEND_LIST: BindingDescriptor =
+pub(crate) const MIDI_BACKEND_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.midi.backend.list",
         "export function backendList(): Result<Slice<MidiBackendDescriptor>, PlatformError>",
@@ -1978,7 +1979,7 @@ pub const MIDI_BACKEND_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.midi.event.close.
-pub const MIDI_EVENT_CLOSE: BindingDescriptor =
+pub(crate) const MIDI_EVENT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.midi.event.close",
         "export function eventClose(handle: MidiEventHandle): Result<void, PlatformError>",
@@ -2006,7 +2007,7 @@ pub const MIDI_EVENT_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.midi.event.open.
-pub const MIDI_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.event.open",
     "export function eventOpen(options: MidiEventSubscriptionOptions): Result<MidiEventHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2020,7 +2021,7 @@ pub const MIDI_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.event.read.
-pub const MIDI_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.event.read",
     "export function eventRead(handle: MidiEventHandle, timeoutNs: uint64): Result<MidiEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2034,7 +2035,7 @@ pub const MIDI_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.event.readBatch.
-pub const MIDI_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.event.readBatch",
     "export function eventReadBatch(handle: MidiEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<Slice<MidiEvent>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2048,7 +2049,7 @@ pub const MIDI_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.event.tryRead.
-pub const MIDI_EVENT_TRY_READ: BindingDescriptor =
+pub(crate) const MIDI_EVENT_TRY_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.midi.event.tryRead",
         "export function eventTryRead(handle: MidiEventHandle): Result<MidiEvent, PlatformError>",
@@ -2076,7 +2077,7 @@ pub const MIDI_EVENT_TRY_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.midi.event.tryReadBatch.
-pub const MIDI_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.event.tryReadBatch",
     "export function eventTryReadBatch(handle: MidiEventHandle, maxEvents: uint32): Result<Slice<MidiEvent>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2090,7 +2091,7 @@ pub const MIDI_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.input.port.close.
-pub const MIDI_INPUT_PORT_CLOSE: BindingDescriptor =
+pub(crate) const MIDI_INPUT_PORT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.midi.input.port.close",
         "export function inputPortClose(handle: MidiInputPortHandle): Result<void, PlatformError>",
@@ -2118,7 +2119,7 @@ pub const MIDI_INPUT_PORT_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.midi.input.port.descriptor.
-pub const MIDI_INPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_INPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.input.port.descriptor",
     "export function inputPortDescriptor(handle: MidiInputPortHandle): Result<MidiPortDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2132,7 +2133,7 @@ pub const MIDI_INPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.input.port.list.
-pub const MIDI_INPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_INPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.input.port.list",
     "export function inputPortList(options: MidiPortListOptions): Result<Slice<MidiPortDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2146,7 +2147,7 @@ pub const MIDI_INPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.input.port.open.
-pub const MIDI_INPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_INPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.input.port.open",
     "export function inputPortOpen(id: string, options: MidiInputPortOpenOptions): Result<MidiInputPortHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2160,7 +2161,7 @@ pub const MIDI_INPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.input.read.
-pub const MIDI_INPUT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_INPUT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.input.read",
     "export function inputRead(handle: MidiInputPortHandle, timeoutNs: uint64): Result<MidiInputRecord, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2174,7 +2175,7 @@ pub const MIDI_INPUT_READ: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.input.readBatch.
-pub const MIDI_INPUT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_INPUT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.input.readBatch",
     "export function inputReadBatch(handle: MidiInputPortHandle, maxRecords: uint32, timeoutNs: uint64): Result<MidiInputRecord[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2188,7 +2189,7 @@ pub const MIDI_INPUT_READ_BATCH: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.input.tryRead.
-pub const MIDI_INPUT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_INPUT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.input.tryRead",
     "export function inputTryRead(handle: MidiInputPortHandle): Result<MidiInputRecord, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2202,7 +2203,7 @@ pub const MIDI_INPUT_TRY_READ: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.input.tryReadBatch.
-pub const MIDI_INPUT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_INPUT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.input.tryReadBatch",
     "export function inputTryReadBatch(handle: MidiInputPortHandle, maxRecords: uint32): Result<MidiInputRecord[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2216,7 +2217,7 @@ pub const MIDI_INPUT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.input.virtual.create.
-pub const MIDI_INPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_INPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.input.virtual.create",
     "export function inputVirtualCreate(options: MidiVirtualInputCreateOptions): Result<MidiInputPortHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2230,7 +2231,7 @@ pub const MIDI_INPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.output.flush.
-pub const MIDI_OUTPUT_FLUSH: BindingDescriptor =
+pub(crate) const MIDI_OUTPUT_FLUSH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.midi.output.flush",
         "export function outputFlush(handle: MidiOutputPortHandle): Result<void, PlatformError>",
@@ -2258,7 +2259,7 @@ pub const MIDI_OUTPUT_FLUSH: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.midi.output.port.close.
-pub const MIDI_OUTPUT_PORT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_OUTPUT_PORT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.output.port.close",
     "export function outputPortClose(handle: MidiOutputPortHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2272,7 +2273,7 @@ pub const MIDI_OUTPUT_PORT_CLOSE: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.output.port.descriptor.
-pub const MIDI_OUTPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_OUTPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.output.port.descriptor",
     "export function outputPortDescriptor(handle: MidiOutputPortHandle): Result<MidiPortDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2286,7 +2287,7 @@ pub const MIDI_OUTPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.output.port.list.
-pub const MIDI_OUTPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_OUTPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.output.port.list",
     "export function outputPortList(options: MidiPortListOptions): Result<Slice<MidiPortDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2300,7 +2301,7 @@ pub const MIDI_OUTPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.output.port.open.
-pub const MIDI_OUTPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_OUTPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.output.port.open",
     "export function outputPortOpen(id: string, options: MidiOutputPortOpenOptions): Result<MidiOutputPortHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2314,7 +2315,7 @@ pub const MIDI_OUTPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.output.virtual.create.
-pub const MIDI_OUTPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_OUTPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.output.virtual.create",
     "export function outputVirtualCreate(options: MidiVirtualOutputCreateOptions): Result<MidiOutputPortHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2328,7 +2329,7 @@ pub const MIDI_OUTPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.midi.output.write.
-pub const MIDI_OUTPUT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MIDI_OUTPUT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.output.write",
     "export function outputWrite(handle: MidiOutputPortHandle, records: MidiOutputRecord[]): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -2341,35 +2342,8 @@ pub const MIDI_OUTPUT_WRITE: BindingDescriptor = BindingDescriptor::external_wit
     .with_namespace("midi")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptors for midi.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    MIDI_BACKEND_LIST,
-    MIDI_EVENT_CLOSE,
-    MIDI_EVENT_OPEN,
-    MIDI_EVENT_READ,
-    MIDI_EVENT_READ_BATCH,
-    MIDI_EVENT_TRY_READ,
-    MIDI_EVENT_TRY_READ_BATCH,
-    MIDI_INPUT_PORT_CLOSE,
-    MIDI_INPUT_PORT_DESCRIPTOR,
-    MIDI_INPUT_PORT_LIST,
-    MIDI_INPUT_PORT_OPEN,
-    MIDI_INPUT_READ,
-    MIDI_INPUT_READ_BATCH,
-    MIDI_INPUT_TRY_READ,
-    MIDI_INPUT_TRY_READ_BATCH,
-    MIDI_INPUT_VIRTUAL_CREATE,
-    MIDI_OUTPUT_FLUSH,
-    MIDI_OUTPUT_PORT_CLOSE,
-    MIDI_OUTPUT_PORT_DESCRIPTOR,
-    MIDI_OUTPUT_PORT_LIST,
-    MIDI_OUTPUT_PORT_OPEN,
-    MIDI_OUTPUT_VIRTUAL_CREATE,
-    MIDI_OUTPUT_WRITE,
-];
-
 /// Native binding set for midi.
-pub const MIDI_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const MIDI_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "midi",
     bindings: &[
         NativeBinding::new(
@@ -6775,7 +6749,7 @@ fn destack_midi_output_write_replay(
 
 /// Native export wrappers for midi bindings.
 #[unsafe(export_name = "destack.midi.backend.list")]
-pub unsafe extern "C" fn destack_midi_backend_list(
+pub(crate) unsafe extern "C" fn destack_midi_backend_list(
     out: *mut NativeSlice<MidiBackendDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -6791,7 +6765,7 @@ pub unsafe extern "C" fn destack_midi_backend_list(
 }
 
 #[unsafe(export_name = "destack.midi.event.close")]
-pub unsafe extern "C" fn destack_midi_event_close(
+pub(crate) unsafe extern "C" fn destack_midi_event_close(
     handle: resource::MidiEventHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -6804,7 +6778,7 @@ pub unsafe extern "C" fn destack_midi_event_close(
 }
 
 #[unsafe(export_name = "destack.midi.event.open")]
-pub unsafe extern "C" fn destack_midi_event_open(
+pub(crate) unsafe extern "C" fn destack_midi_event_open(
     out: *mut resource::MidiEventHandle,
     options: MidiEventSubscriptionOptions,
 ) -> RuntimeStatus {
@@ -6821,7 +6795,7 @@ pub unsafe extern "C" fn destack_midi_event_open(
 }
 
 #[unsafe(export_name = "destack.midi.event.read")]
-pub unsafe extern "C" fn destack_midi_event_read(
+pub(crate) unsafe extern "C" fn destack_midi_event_read(
     out: *mut MidiEvent,
     handle: resource::MidiEventHandle,
     timeoutns: u64,
@@ -6839,7 +6813,7 @@ pub unsafe extern "C" fn destack_midi_event_read(
 }
 
 #[unsafe(export_name = "destack.midi.event.readBatch")]
-pub unsafe extern "C" fn destack_midi_event_read_batch(
+pub(crate) unsafe extern "C" fn destack_midi_event_read_batch(
     out: *mut NativeSlice<MidiEvent>,
     handle: resource::MidiEventHandle,
     maxevents: u32,
@@ -6858,7 +6832,7 @@ pub unsafe extern "C" fn destack_midi_event_read_batch(
 }
 
 #[unsafe(export_name = "destack.midi.event.tryRead")]
-pub unsafe extern "C" fn destack_midi_event_try_read(
+pub(crate) unsafe extern "C" fn destack_midi_event_try_read(
     out: *mut MidiEvent,
     handle: resource::MidiEventHandle,
 ) -> RuntimeStatus {
@@ -6875,7 +6849,7 @@ pub unsafe extern "C" fn destack_midi_event_try_read(
 }
 
 #[unsafe(export_name = "destack.midi.event.tryReadBatch")]
-pub unsafe extern "C" fn destack_midi_event_try_read_batch(
+pub(crate) unsafe extern "C" fn destack_midi_event_try_read_batch(
     out: *mut NativeSlice<MidiEvent>,
     handle: resource::MidiEventHandle,
     maxevents: u32,
@@ -6893,7 +6867,7 @@ pub unsafe extern "C" fn destack_midi_event_try_read_batch(
 }
 
 #[unsafe(export_name = "destack.midi.input.port.close")]
-pub unsafe extern "C" fn destack_midi_input_port_close(
+pub(crate) unsafe extern "C" fn destack_midi_input_port_close(
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -6906,7 +6880,7 @@ pub unsafe extern "C" fn destack_midi_input_port_close(
 }
 
 #[unsafe(export_name = "destack.midi.input.port.descriptor")]
-pub unsafe extern "C" fn destack_midi_input_port_descriptor(
+pub(crate) unsafe extern "C" fn destack_midi_input_port_descriptor(
     out: *mut MidiPortDescriptor,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeStatus {
@@ -6923,7 +6897,7 @@ pub unsafe extern "C" fn destack_midi_input_port_descriptor(
 }
 
 #[unsafe(export_name = "destack.midi.input.port.list")]
-pub unsafe extern "C" fn destack_midi_input_port_list(
+pub(crate) unsafe extern "C" fn destack_midi_input_port_list(
     out: *mut NativeSlice<MidiPortDescriptor>,
     options: MidiPortListOptions,
 ) -> RuntimeStatus {
@@ -6940,7 +6914,7 @@ pub unsafe extern "C" fn destack_midi_input_port_list(
 }
 
 #[unsafe(export_name = "destack.midi.input.port.open")]
-pub unsafe extern "C" fn destack_midi_input_port_open(
+pub(crate) unsafe extern "C" fn destack_midi_input_port_open(
     out: *mut resource::MidiInputPortHandle,
     id: NativeStringRef,
     options: MidiInputPortOpenOptions,
@@ -6958,7 +6932,7 @@ pub unsafe extern "C" fn destack_midi_input_port_open(
 }
 
 #[unsafe(export_name = "destack.midi.input.read")]
-pub unsafe extern "C" fn destack_midi_input_read(
+pub(crate) unsafe extern "C" fn destack_midi_input_read(
     out: *mut MidiInputRecord,
     handle: resource::MidiInputPortHandle,
     timeoutns: u64,
@@ -6976,7 +6950,7 @@ pub unsafe extern "C" fn destack_midi_input_read(
 }
 
 #[unsafe(export_name = "destack.midi.input.readBatch")]
-pub unsafe extern "C" fn destack_midi_input_read_batch(
+pub(crate) unsafe extern "C" fn destack_midi_input_read_batch(
     out: *mut NativeArray<MidiInputRecord>,
     handle: resource::MidiInputPortHandle,
     maxrecords: u32,
@@ -6995,7 +6969,7 @@ pub unsafe extern "C" fn destack_midi_input_read_batch(
 }
 
 #[unsafe(export_name = "destack.midi.input.tryRead")]
-pub unsafe extern "C" fn destack_midi_input_try_read(
+pub(crate) unsafe extern "C" fn destack_midi_input_try_read(
     out: *mut MidiInputRecord,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeStatus {
@@ -7012,7 +6986,7 @@ pub unsafe extern "C" fn destack_midi_input_try_read(
 }
 
 #[unsafe(export_name = "destack.midi.input.tryReadBatch")]
-pub unsafe extern "C" fn destack_midi_input_try_read_batch(
+pub(crate) unsafe extern "C" fn destack_midi_input_try_read_batch(
     out: *mut NativeArray<MidiInputRecord>,
     handle: resource::MidiInputPortHandle,
     maxrecords: u32,
@@ -7030,7 +7004,7 @@ pub unsafe extern "C" fn destack_midi_input_try_read_batch(
 }
 
 #[unsafe(export_name = "destack.midi.input.virtual.create")]
-pub unsafe extern "C" fn destack_midi_input_virtual_create(
+pub(crate) unsafe extern "C" fn destack_midi_input_virtual_create(
     out: *mut resource::MidiInputPortHandle,
     options: MidiVirtualInputCreateOptions,
 ) -> RuntimeStatus {
@@ -7047,7 +7021,7 @@ pub unsafe extern "C" fn destack_midi_input_virtual_create(
 }
 
 #[unsafe(export_name = "destack.midi.output.flush")]
-pub unsafe extern "C" fn destack_midi_output_flush(
+pub(crate) unsafe extern "C" fn destack_midi_output_flush(
     handle: resource::MidiOutputPortHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -7060,7 +7034,7 @@ pub unsafe extern "C" fn destack_midi_output_flush(
 }
 
 #[unsafe(export_name = "destack.midi.output.port.close")]
-pub unsafe extern "C" fn destack_midi_output_port_close(
+pub(crate) unsafe extern "C" fn destack_midi_output_port_close(
     handle: resource::MidiOutputPortHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -7073,7 +7047,7 @@ pub unsafe extern "C" fn destack_midi_output_port_close(
 }
 
 #[unsafe(export_name = "destack.midi.output.port.descriptor")]
-pub unsafe extern "C" fn destack_midi_output_port_descriptor(
+pub(crate) unsafe extern "C" fn destack_midi_output_port_descriptor(
     out: *mut MidiPortDescriptor,
     handle: resource::MidiOutputPortHandle,
 ) -> RuntimeStatus {
@@ -7090,7 +7064,7 @@ pub unsafe extern "C" fn destack_midi_output_port_descriptor(
 }
 
 #[unsafe(export_name = "destack.midi.output.port.list")]
-pub unsafe extern "C" fn destack_midi_output_port_list(
+pub(crate) unsafe extern "C" fn destack_midi_output_port_list(
     out: *mut NativeSlice<MidiPortDescriptor>,
     options: MidiPortListOptions,
 ) -> RuntimeStatus {
@@ -7107,7 +7081,7 @@ pub unsafe extern "C" fn destack_midi_output_port_list(
 }
 
 #[unsafe(export_name = "destack.midi.output.port.open")]
-pub unsafe extern "C" fn destack_midi_output_port_open(
+pub(crate) unsafe extern "C" fn destack_midi_output_port_open(
     out: *mut resource::MidiOutputPortHandle,
     id: NativeStringRef,
     options: MidiOutputPortOpenOptions,
@@ -7125,7 +7099,7 @@ pub unsafe extern "C" fn destack_midi_output_port_open(
 }
 
 #[unsafe(export_name = "destack.midi.output.virtual.create")]
-pub unsafe extern "C" fn destack_midi_output_virtual_create(
+pub(crate) unsafe extern "C" fn destack_midi_output_virtual_create(
     out: *mut resource::MidiOutputPortHandle,
     options: MidiVirtualOutputCreateOptions,
 ) -> RuntimeStatus {
@@ -7142,7 +7116,7 @@ pub unsafe extern "C" fn destack_midi_output_virtual_create(
 }
 
 #[unsafe(export_name = "destack.midi.output.write")]
-pub unsafe extern "C" fn destack_midi_output_write(
+pub(crate) unsafe extern "C" fn destack_midi_output_write(
     out: *mut u32,
     handle: resource::MidiOutputPortHandle,
     records: NativeArray<MidiOutputRecord>,
@@ -12777,7 +12751,7 @@ fn destack_midi_output_write_vm_replay(
 }
 
 /// Register VM bindings for midi.
-pub fn register_midi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_midi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -13207,8 +13181,8 @@ pub fn register_midi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
 }
 
 /// Install VM bindings for midi.
-pub fn install_midi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_midi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_midi_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub MIDI_VM_BINDINGS, "midi", install_midi_vm_bindings);
+vm_binding_set!(pub(crate) MIDI_VM_BINDINGS, "midi", install_midi_vm_bindings);

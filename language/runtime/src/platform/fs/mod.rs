@@ -13,5 +13,5 @@ pub mod vm;
 
 pub use crate::platform::resource::{DirectoryHandle, FileHandle};
 pub use abi_generated::*;
-pub use bindings_generated::*;
+pub(crate) use bindings_generated::*;
 pub(crate) use state::*;

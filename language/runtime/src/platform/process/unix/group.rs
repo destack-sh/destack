@@ -1,43 +1,38 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+#[cfg(any(target_os = "linux", target_os = "android"))]
+use crate::platform::PlatformErrorCode;
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::platform::diagnostic::process_error_code_from_errno;
-use crate::platform::process::{bindings_generated as bindings, core as core_process};
-use crate::platform::{NativeArray, PlatformError, PlatformErrorCode};
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
+#[cfg(any(target_os = "linux", target_os = "android"))]
+use crate::platform::process::core as core_process;
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 use crate::runtime::BindingCallContext;
-use bindings::*;
 
-use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
-    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
-    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
-    ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags, ProcessWaitStatus, Signal, SignalEvent,
-    SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
-};
-use crate::platform::{fs, resource};
+use crate::platform::process::{ProcessId, ProcessLimit, ProcessLimitResource};
 
 /// Resource selector for cgroup cpu controller limits.
 #[cfg(target_os = "linux")]
 const CGROUP_RESOURCE_CPU: u32 = libc::RLIMIT_CPU;
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "android")]
 const CGROUP_RESOURCE_CPU: u32 = libc::RLIMIT_CPU as u32;
 
 /// Resource selector for cgroup memory controller limits.
 #[cfg(target_os = "linux")]
 const CGROUP_RESOURCE_MEMORY: u32 = libc::RLIMIT_AS;
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "android")]
 const CGROUP_RESOURCE_MEMORY: u32 = libc::RLIMIT_AS as u32;
 
 /// Resource selector for cgroup process count limits.
 #[cfg(target_os = "linux")]
 const CGROUP_RESOURCE_PROCESSES: u32 = libc::RLIMIT_NPROC;
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "android")]
 const CGROUP_RESOURCE_PROCESSES: u32 = libc::RLIMIT_NPROC as u32;
 
 /// Parsed control file shape for one cgroup resource.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 #[derive(Debug, Clone, Copy)]
 enum CgroupLimitKind {
     /// One scalar file where `max` means unlimited.
@@ -70,6 +65,7 @@ fn validate_cgroup_path(path: &str) -> RuntimeResult<()> {
 }
 
 /// Resolve one cgroup resource id into a controller file shape.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn cgroup_limit_kind(resource: u32) -> RuntimeResult<CgroupLimitKind> {
     if resource == CGROUP_RESOURCE_CPU {
         return Ok(CgroupLimitKind::Cpu);
@@ -93,6 +89,7 @@ fn cgroup_limit_kind(resource: u32) -> RuntimeResult<CgroupLimitKind> {
 }
 
 /// Parse one scalar cgroup limit token.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn parse_scalar_limit(value: &str, label: &str) -> RuntimeResult<u64> {
     let value = value.trim();
     if value == "max" {
@@ -113,6 +110,7 @@ fn parse_scalar_limit(value: &str, label: &str) -> RuntimeResult<u64> {
 }
 
 /// Encode one scalar cgroup limit token.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn format_scalar_limit(value: u64) -> String {
     if value == u64::MAX {
         return "max".to_string();
@@ -122,6 +120,7 @@ fn format_scalar_limit(value: u64) -> String {
 }
 
 /// Parse one cgroup limit payload from controller text.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn parse_cgroup_limit(kind: CgroupLimitKind, raw: &str) -> RuntimeResult<ProcessLimit> {
     match kind {
         CgroupLimitKind::Scalar { file_name } => {
@@ -200,6 +199,7 @@ fn parse_cgroup_limit(kind: CgroupLimitKind, raw: &str) -> RuntimeResult<Process
 }
 
 /// Encode one cgroup limit payload into controller text.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn format_cgroup_limit(kind: CgroupLimitKind, limit: ProcessLimit) -> RuntimeResult<String> {
     match kind {
         CgroupLimitKind::Scalar { file_name } => {
@@ -229,11 +229,13 @@ fn format_cgroup_limit(kind: CgroupLimitKind, limit: ProcessLimit) -> RuntimeRes
 }
 
 /// Build one control file path under a cgroup directory.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn cgroup_control_path(path: &str, file_name: &str) -> String {
     format!("{path}/{file_name}")
 }
 
 /// Build a process-domain error for one cgroup control file operation.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn cgroup_control_error(errno: i32, syscall: &str, control_path: &str) -> Box<RuntimeError> {
     let code = process_error_code_from_errno(errno).unwrap_or(PlatformErrorCode::Process);
     RuntimeError::from(PlatformError::process_with(
@@ -248,6 +250,7 @@ fn cgroup_control_error(errno: i32, syscall: &str, control_path: &str) -> Box<Ru
 }
 
 /// Read one cgroup controller file as UTF-8 text.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn read_cgroup_control_file(path: &str, file_name: &str) -> RuntimeResult<String> {
     let control_path = cgroup_control_path(path, file_name);
     let control_path_cstring = core_process::cstring_from_str(
@@ -314,6 +317,7 @@ fn read_cgroup_control_file(path: &str, file_name: &str) -> RuntimeResult<String
 }
 
 /// Write one cgroup controller file as UTF-8 text.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn write_cgroup_control_file(path: &str, file_name: &str, value: &str) -> RuntimeResult<()> {
     let control_path = cgroup_control_path(path, file_name);
     let control_path_cstring = core_process::cstring_from_str(
@@ -569,7 +573,7 @@ pub(crate) unsafe fn destack_process_job_set_limit(
     .boxed())
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "linux", target_os = "android")))]
 mod tests {
     use super::{
         CGROUP_RESOURCE_CPU, CGROUP_RESOURCE_MEMORY, CgroupLimitKind, cgroup_limit_kind,

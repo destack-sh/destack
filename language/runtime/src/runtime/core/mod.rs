@@ -7,7 +7,8 @@ mod event;
 mod execute;
 mod finalizers;
 mod poller;
-mod queue;
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+pub(crate) mod queue;
 mod runtime;
 mod service;
 
@@ -18,6 +19,5 @@ pub use context::*;
 pub use drop::*;
 pub use event::*;
 pub use finalizers::*;
-pub(crate) use queue::*;
 pub use runtime::*;
 pub use service::*;

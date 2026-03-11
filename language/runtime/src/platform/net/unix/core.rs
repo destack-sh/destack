@@ -1,21 +1,15 @@
-#![allow(unused_imports)]
-
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::Ipv4Addr;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::OsPath;
 use crate::platform::net::{
-    AcceptFlags, Linger, ResolveFlags, SocketAddress, SocketControlBufferAbi, SocketCredentials,
-    SocketFamily, SocketMessageFlags, SocketRecvMessage, SocketSendMessage, SocketShutdown,
-    core as core_net,
+    SocketAddress, SocketCredentials, SocketFamily, SocketShutdown, core as core_net,
 };
 use crate::platform::resource::{
-    ListenerHandle, ResourceEntry, ResourceFinalizer, ResourceKind, SocketHandle, TransferredHandle,
+    ListenerHandle, ResourceFinalizer, ResourceKind, SocketHandle, TransferredHandle,
 };
-use crate::platform::{NativeArray, PlatformError, ResourceId, core as core_platform};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::platform::{PlatformError, ResourceId, core as core_platform};
+use crate::runtime::BindingCallContext;
 
-use std::ffi::{CStr, CString};
 use std::os::unix::io::RawFd;
 
 #[cfg(any(target_os = "linux", target_os = "android"))]

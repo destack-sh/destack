@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -912,7 +913,7 @@ struct TtyTermiosSetProcessGroupReplayRecord {
 }
 
 /// Binding descriptor for destack.tty.handle.close.
-pub const TTY_HANDLE_CLOSE: BindingDescriptor =
+pub(crate) const TTY_HANDLE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.handle.close",
         "export function close(handle: TtyHandle): Result<void, PlatformError>",
@@ -940,7 +941,7 @@ pub const TTY_HANDLE_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tty.handle.isTerminalFile.
-pub const TTY_HANDLE_IS_TERMINAL_FILE: BindingDescriptor =
+pub(crate) const TTY_HANDLE_IS_TERMINAL_FILE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.handle.isTerminalFile",
         "export function isTerminalFile(handle: FileHandle): Result<boolean, PlatformError>",
@@ -968,7 +969,7 @@ pub const TTY_HANDLE_IS_TERMINAL_FILE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tty.handle.stdioStderr.
-pub const TTY_HANDLE_STDIO_STDERR: BindingDescriptor =
+pub(crate) const TTY_HANDLE_STDIO_STDERR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.handle.stdioStderr",
         "export function stdioStderr(): Result<TtyHandle, PlatformError>",
@@ -996,7 +997,7 @@ pub const TTY_HANDLE_STDIO_STDERR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tty.handle.stdioStdin.
-pub const TTY_HANDLE_STDIO_STDIN: BindingDescriptor =
+pub(crate) const TTY_HANDLE_STDIO_STDIN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.handle.stdioStdin",
         "export function stdioStdin(): Result<TtyHandle, PlatformError>",
@@ -1024,7 +1025,7 @@ pub const TTY_HANDLE_STDIO_STDIN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tty.handle.stdioStdout.
-pub const TTY_HANDLE_STDIO_STDOUT: BindingDescriptor =
+pub(crate) const TTY_HANDLE_STDIO_STDOUT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.handle.stdioStdout",
         "export function stdioStdout(): Result<TtyHandle, PlatformError>",
@@ -1052,7 +1053,7 @@ pub const TTY_HANDLE_STDIO_STDOUT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tty.io.read.
-pub const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.io.read",
     "export function read(handle: TtyHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1062,24 +1063,11 @@ pub const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requ
     BindingBlocking::Sometimes,
     BindingAffinity::Any,
 )
-.with_namespace("tty")
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
+    .with_namespace("tty")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tty.io.write.
-pub const TTY_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.io.write",
     "export function write(handle: TtyHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1089,24 +1077,11 @@ pub const TTY_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_req
     BindingBlocking::Sometimes,
     BindingAffinity::Any,
 )
-.with_namespace("tty")
-.with_host_platforms(&[
-    "android",
-    "dragonfly",
-    "freebsd",
-    "haiku",
-    "illumos",
-    "ios",
-    "linux",
-    "macos",
-    "netbsd",
-    "openbsd",
-    "solaris",
-    "windows",
-]);
+    .with_namespace("tty")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tty.mode.getMode.
-pub const TTY_MODE_GET_MODE: BindingDescriptor =
+pub(crate) const TTY_MODE_GET_MODE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.mode.getMode",
         "export function getMode(handle: TtyHandle): Result<TtyMode, PlatformError>",
@@ -1134,7 +1109,7 @@ pub const TTY_MODE_GET_MODE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tty.mode.setMode.
-pub const TTY_MODE_SET_MODE: BindingDescriptor =
+pub(crate) const TTY_MODE_SET_MODE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.mode.setMode",
         "export function setMode(handle: TtyHandle, mode: TtyMode): Result<void, PlatformError>",
@@ -1162,7 +1137,7 @@ pub const TTY_MODE_SET_MODE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tty.mode.setRawMode.
-pub const TTY_MODE_SET_RAW_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_MODE_SET_RAW_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.mode.setRawMode",
     "export function setRawMode(handle: TtyHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1176,7 +1151,7 @@ pub const TTY_MODE_SET_RAW_MODE: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tty.pty.close.
-pub const TTY_PTY_CLOSE: BindingDescriptor =
+pub(crate) const TTY_PTY_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.pty.close",
         "export function ptyClose(handle: PtyHandle): Result<void, PlatformError>",
@@ -1204,7 +1179,7 @@ pub const TTY_PTY_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tty.pty.open.
-pub const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.pty.open",
     "export function ptyOpen(rows: uint32, columns: uint32, flags: uint32): Result<PtyPair, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1218,7 +1193,7 @@ pub const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tty.size.getSize.
-pub const TTY_SIZE_GET_SIZE: BindingDescriptor =
+pub(crate) const TTY_SIZE_GET_SIZE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.size.getSize",
         "export function getSize(handle: TtyHandle): Result<TtySize, PlatformError>",
@@ -1246,7 +1221,7 @@ pub const TTY_SIZE_GET_SIZE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tty.size.setSize.
-pub const TTY_SIZE_SET_SIZE: BindingDescriptor =
+pub(crate) const TTY_SIZE_SET_SIZE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.size.setSize",
         "export function setSize(handle: TtyHandle, size: TtySize): Result<void, PlatformError>",
@@ -1274,7 +1249,7 @@ pub const TTY_SIZE_SET_SIZE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tty.termios.drain.
-pub const TTY_TERMIOS_DRAIN: BindingDescriptor =
+pub(crate) const TTY_TERMIOS_DRAIN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tty.termios.drain",
         "export function termiosDrain(handle: TtyHandle): Result<void, PlatformError>",
@@ -1301,7 +1276,7 @@ pub const TTY_TERMIOS_DRAIN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tty.termios.flow.
-pub const TTY_TERMIOS_FLOW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_FLOW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.termios.flow",
     "export function termiosFlow(handle: TtyHandle, action: TtyTermiosFlowAction): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1315,7 +1290,7 @@ pub const TTY_TERMIOS_FLOW: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.flush.
-pub const TTY_TERMIOS_FLUSH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_FLUSH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.termios.flush",
     "export function termiosFlush(handle: TtyHandle, queue: TtyTermiosQueue): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1329,7 +1304,7 @@ pub const TTY_TERMIOS_FLUSH: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.getAttributes.
-pub const TTY_TERMIOS_GET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_GET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.termios.getAttributes",
     "export function termiosGetAttributes(handle: TtyHandle): Result<TtyTermiosAttributes, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1343,7 +1318,7 @@ pub const TTY_TERMIOS_GET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.getProcessGroup.
-pub const TTY_TERMIOS_GET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_GET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.termios.getProcessGroup",
     "export function termiosGetProcessGroup(handle: TtyHandle): Result<ProcessId, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1357,7 +1332,7 @@ pub const TTY_TERMIOS_GET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.sendBreak.
-pub const TTY_TERMIOS_SEND_BREAK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_SEND_BREAK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.termios.sendBreak",
     "export function termiosSendBreak(handle: TtyHandle, duration: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1371,7 +1346,7 @@ pub const TTY_TERMIOS_SEND_BREAK: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.setAttributes.
-pub const TTY_TERMIOS_SET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_SET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.termios.setAttributes",
     "export function termiosSetAttributes(handle: TtyHandle, attributes: TtyTermiosAttributes, action: TtyTermiosSetAction): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1385,7 +1360,7 @@ pub const TTY_TERMIOS_SET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.tty.termios.setProcessGroup.
-pub const TTY_TERMIOS_SET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_SET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tty.termios.setProcessGroup",
     "export function termiosSetProcessGroup(handle: TtyHandle, processGroupId: ProcessId): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1398,34 +1373,8 @@ pub const TTY_TERMIOS_SET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::
     .with_namespace("tty")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
-/// Binding descriptors for tty.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    TTY_HANDLE_CLOSE,
-    TTY_HANDLE_IS_TERMINAL_FILE,
-    TTY_HANDLE_STDIO_STDERR,
-    TTY_HANDLE_STDIO_STDIN,
-    TTY_HANDLE_STDIO_STDOUT,
-    TTY_IO_READ,
-    TTY_IO_WRITE,
-    TTY_MODE_GET_MODE,
-    TTY_MODE_SET_MODE,
-    TTY_MODE_SET_RAW_MODE,
-    TTY_PTY_CLOSE,
-    TTY_PTY_OPEN,
-    TTY_SIZE_GET_SIZE,
-    TTY_SIZE_SET_SIZE,
-    TTY_TERMIOS_DRAIN,
-    TTY_TERMIOS_FLOW,
-    TTY_TERMIOS_FLUSH,
-    TTY_TERMIOS_GET_ATTRIBUTES,
-    TTY_TERMIOS_GET_PROCESS_GROUP,
-    TTY_TERMIOS_SEND_BREAK,
-    TTY_TERMIOS_SET_ATTRIBUTES,
-    TTY_TERMIOS_SET_PROCESS_GROUP,
-];
-
 /// Native binding set for tty.
-pub const TTY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const TTY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "tty",
     bindings: &[
         NativeBinding::new(
@@ -2771,7 +2720,9 @@ fn destack_tty_termios_set_process_group_replay(
 
 /// Native export wrappers for tty bindings.
 #[unsafe(export_name = "destack.tty.handle.close")]
-pub unsafe extern "C" fn destack_tty_handle_close(handle: resource::TtyHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_tty_handle_close(
+    handle: resource::TtyHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -2782,7 +2733,7 @@ pub unsafe extern "C" fn destack_tty_handle_close(handle: resource::TtyHandle) -
 }
 
 #[unsafe(export_name = "destack.tty.handle.isTerminalFile")]
-pub unsafe extern "C" fn destack_tty_handle_is_terminal_file(
+pub(crate) unsafe extern "C" fn destack_tty_handle_is_terminal_file(
     out: *mut bool,
     handle: resource::FileHandle,
 ) -> RuntimeStatus {
@@ -2799,7 +2750,7 @@ pub unsafe extern "C" fn destack_tty_handle_is_terminal_file(
 }
 
 #[unsafe(export_name = "destack.tty.handle.stdioStderr")]
-pub unsafe extern "C" fn destack_tty_handle_stdio_stderr(
+pub(crate) unsafe extern "C" fn destack_tty_handle_stdio_stderr(
     out: *mut resource::TtyHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2815,7 +2766,7 @@ pub unsafe extern "C" fn destack_tty_handle_stdio_stderr(
 }
 
 #[unsafe(export_name = "destack.tty.handle.stdioStdin")]
-pub unsafe extern "C" fn destack_tty_handle_stdio_stdin(
+pub(crate) unsafe extern "C" fn destack_tty_handle_stdio_stdin(
     out: *mut resource::TtyHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2831,7 +2782,7 @@ pub unsafe extern "C" fn destack_tty_handle_stdio_stdin(
 }
 
 #[unsafe(export_name = "destack.tty.handle.stdioStdout")]
-pub unsafe extern "C" fn destack_tty_handle_stdio_stdout(
+pub(crate) unsafe extern "C" fn destack_tty_handle_stdio_stdout(
     out: *mut resource::TtyHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2847,7 +2798,7 @@ pub unsafe extern "C" fn destack_tty_handle_stdio_stdout(
 }
 
 #[unsafe(export_name = "destack.tty.io.read")]
-pub unsafe extern "C" fn destack_tty_io_read(
+pub(crate) unsafe extern "C" fn destack_tty_io_read(
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
@@ -2864,7 +2815,7 @@ pub unsafe extern "C" fn destack_tty_io_read(
 }
 
 #[unsafe(export_name = "destack.tty.io.write")]
-pub unsafe extern "C" fn destack_tty_io_write(
+pub(crate) unsafe extern "C" fn destack_tty_io_write(
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
@@ -2881,7 +2832,7 @@ pub unsafe extern "C" fn destack_tty_io_write(
 }
 
 #[unsafe(export_name = "destack.tty.mode.getMode")]
-pub unsafe extern "C" fn destack_tty_mode_get_mode(
+pub(crate) unsafe extern "C" fn destack_tty_mode_get_mode(
     out: *mut TtyMode,
     handle: resource::TtyHandle,
 ) -> RuntimeStatus {
@@ -2898,7 +2849,7 @@ pub unsafe extern "C" fn destack_tty_mode_get_mode(
 }
 
 #[unsafe(export_name = "destack.tty.mode.setMode")]
-pub unsafe extern "C" fn destack_tty_mode_set_mode(
+pub(crate) unsafe extern "C" fn destack_tty_mode_set_mode(
     handle: resource::TtyHandle,
     mode: TtyMode,
 ) -> RuntimeStatus {
@@ -2912,7 +2863,7 @@ pub unsafe extern "C" fn destack_tty_mode_set_mode(
 }
 
 #[unsafe(export_name = "destack.tty.mode.setRawMode")]
-pub unsafe extern "C" fn destack_tty_mode_set_raw_mode(
+pub(crate) unsafe extern "C" fn destack_tty_mode_set_raw_mode(
     handle: resource::TtyHandle,
     enabled: bool,
 ) -> RuntimeStatus {
@@ -2926,7 +2877,9 @@ pub unsafe extern "C" fn destack_tty_mode_set_raw_mode(
 }
 
 #[unsafe(export_name = "destack.tty.pty.close")]
-pub unsafe extern "C" fn destack_tty_pty_close(handle: resource::PtyHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_tty_pty_close(
+    handle: resource::PtyHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -2937,7 +2890,7 @@ pub unsafe extern "C" fn destack_tty_pty_close(handle: resource::PtyHandle) -> R
 }
 
 #[unsafe(export_name = "destack.tty.pty.open")]
-pub unsafe extern "C" fn destack_tty_pty_open(
+pub(crate) unsafe extern "C" fn destack_tty_pty_open(
     out: *mut PtyPair,
     rows: u32,
     columns: u32,
@@ -2955,7 +2908,7 @@ pub unsafe extern "C" fn destack_tty_pty_open(
 }
 
 #[unsafe(export_name = "destack.tty.size.getSize")]
-pub unsafe extern "C" fn destack_tty_size_get_size(
+pub(crate) unsafe extern "C" fn destack_tty_size_get_size(
     out: *mut TtySize,
     handle: resource::TtyHandle,
 ) -> RuntimeStatus {
@@ -2972,7 +2925,7 @@ pub unsafe extern "C" fn destack_tty_size_get_size(
 }
 
 #[unsafe(export_name = "destack.tty.size.setSize")]
-pub unsafe extern "C" fn destack_tty_size_set_size(
+pub(crate) unsafe extern "C" fn destack_tty_size_set_size(
     handle: resource::TtyHandle,
     size: TtySize,
 ) -> RuntimeStatus {
@@ -2986,7 +2939,9 @@ pub unsafe extern "C" fn destack_tty_size_set_size(
 }
 
 #[unsafe(export_name = "destack.tty.termios.drain")]
-pub unsafe extern "C" fn destack_tty_termios_drain(handle: resource::TtyHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_tty_termios_drain(
+    handle: resource::TtyHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -2997,7 +2952,7 @@ pub unsafe extern "C" fn destack_tty_termios_drain(handle: resource::TtyHandle) 
 }
 
 #[unsafe(export_name = "destack.tty.termios.flow")]
-pub unsafe extern "C" fn destack_tty_termios_flow(
+pub(crate) unsafe extern "C" fn destack_tty_termios_flow(
     handle: resource::TtyHandle,
     action: TtyTermiosFlowAction,
 ) -> RuntimeStatus {
@@ -3011,7 +2966,7 @@ pub unsafe extern "C" fn destack_tty_termios_flow(
 }
 
 #[unsafe(export_name = "destack.tty.termios.flush")]
-pub unsafe extern "C" fn destack_tty_termios_flush(
+pub(crate) unsafe extern "C" fn destack_tty_termios_flush(
     handle: resource::TtyHandle,
     queue: TtyTermiosQueue,
 ) -> RuntimeStatus {
@@ -3025,7 +2980,7 @@ pub unsafe extern "C" fn destack_tty_termios_flush(
 }
 
 #[unsafe(export_name = "destack.tty.termios.getAttributes")]
-pub unsafe extern "C" fn destack_tty_termios_get_attributes(
+pub(crate) unsafe extern "C" fn destack_tty_termios_get_attributes(
     out: *mut TtyTermiosAttributes,
     handle: resource::TtyHandle,
 ) -> RuntimeStatus {
@@ -3042,7 +2997,7 @@ pub unsafe extern "C" fn destack_tty_termios_get_attributes(
 }
 
 #[unsafe(export_name = "destack.tty.termios.getProcessGroup")]
-pub unsafe extern "C" fn destack_tty_termios_get_process_group(
+pub(crate) unsafe extern "C" fn destack_tty_termios_get_process_group(
     out: *mut process::ProcessId,
     handle: resource::TtyHandle,
 ) -> RuntimeStatus {
@@ -3059,7 +3014,7 @@ pub unsafe extern "C" fn destack_tty_termios_get_process_group(
 }
 
 #[unsafe(export_name = "destack.tty.termios.sendBreak")]
-pub unsafe extern "C" fn destack_tty_termios_send_break(
+pub(crate) unsafe extern "C" fn destack_tty_termios_send_break(
     handle: resource::TtyHandle,
     duration: u32,
 ) -> RuntimeStatus {
@@ -3073,7 +3028,7 @@ pub unsafe extern "C" fn destack_tty_termios_send_break(
 }
 
 #[unsafe(export_name = "destack.tty.termios.setAttributes")]
-pub unsafe extern "C" fn destack_tty_termios_set_attributes(
+pub(crate) unsafe extern "C" fn destack_tty_termios_set_attributes(
     handle: resource::TtyHandle,
     attributes: TtyTermiosAttributes,
     action: TtyTermiosSetAction,
@@ -3088,7 +3043,7 @@ pub unsafe extern "C" fn destack_tty_termios_set_attributes(
 }
 
 #[unsafe(export_name = "destack.tty.termios.setProcessGroup")]
-pub unsafe extern "C" fn destack_tty_termios_set_process_group(
+pub(crate) unsafe extern "C" fn destack_tty_termios_set_process_group(
     handle: resource::TtyHandle,
     processgroupid: process::ProcessId,
 ) -> RuntimeStatus {
@@ -4365,7 +4320,7 @@ fn destack_tty_termios_set_process_group_vm_replay(
 }
 
 /// Register VM bindings for tty.
-pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(registry, isolate, TTY_HANDLE_CLOSE, move |context, args| {
             with_binding_call_context(|binding| {
@@ -4765,8 +4720,8 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 }
 
 /// Install VM bindings for tty.
-pub fn install_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_tty_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub TTY_VM_BINDINGS, "tty", install_tty_vm_bindings);
+vm_binding_set!(pub(crate) TTY_VM_BINDINGS, "tty", install_tty_vm_bindings);

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 #![allow(clippy::missing_safety_doc)]
 
 use std::cell::UnsafeCell;
@@ -57,6 +56,7 @@ fn last_errno() -> i32 {
 }
 
 /// Convert one relative timeout into one libc timespec.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn relative_timespec(timeout: Duration) -> RuntimeResult<libc::timespec> {
     let seconds = i64::try_from(timeout.as_secs()).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(

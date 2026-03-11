@@ -17,6 +17,8 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             .push_str("#![allow(improper_ctypes_definitions)]\n\n");
         self.output.push_str("#![allow(clippy::clone_on_copy)]\n\n");
         self.output
+            .push_str("#![allow(clippy::enum_variant_names)]\n\n");
+        self.output
             .push_str("#![allow(clippy::type_complexity)]\n\n");
         if usage.needs_vm {
             self.output.push_str("use destack_vm as vm;\n");

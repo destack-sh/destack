@@ -1,17 +1,16 @@
-use std::sync::Arc;
-
 use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 use crate::diagnostic::RuntimeResult;
-#[cfg(target_os = "linux")]
-use crate::diagnostic::RuntimeResult;
-#[cfg(windows)]
-use crate::diagnostic::RuntimeResult;
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 use crate::platform::service::CachedServiceHandle;
-use crate::runtime::{AgentId, BindingCallContext};
+use crate::runtime::AgentId;
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+use crate::runtime::BindingCallContext;
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+use std::sync::Arc;
 
 #[cfg(target_os = "linux")]
 use super::host::{AlsaService, alsa_service};
@@ -108,6 +107,7 @@ impl PlatformMidiState {
     }
 
     /// Mark agent-owned MIDI runtime state as active.
+    #[cfg(any(target_os = "linux", target_os = "macos", windows))]
     pub(crate) fn mark_runtime_active(&self, ctx: &BindingCallContext) {
         let _ = self.runtime_agent_id.get_or_init(|| ctx.agent().id);
     }

@@ -9,4 +9,7 @@ mod alsa;
 pub(crate) use alsa::*;
 
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-pub(crate) use super::super::unsupported::*;
+#[path = "../unsupported.rs"]
+mod unsupported;
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+pub(crate) use unsupported::*;

@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -780,7 +781,7 @@ struct TimeTimerUpdateIntervalReplayRecord {
 }
 
 /// Binding descriptor for destack.time.clock.metadata.
-pub const TIME_CLOCK_METADATA: BindingDescriptor =
+pub(crate) const TIME_CLOCK_METADATA: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.metadata",
         "export function clockMetadata(clock: ClockId): Result<ClockMetadata, PlatformError>",
@@ -808,7 +809,7 @@ pub const TIME_CLOCK_METADATA: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.clock.monoNs.
-pub const TIME_CLOCK_MONO_NS: BindingDescriptor =
+pub(crate) const TIME_CLOCK_MONO_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.monoNs",
         "export function monoNs(): Result<uint64, PlatformError>",
@@ -836,7 +837,7 @@ pub const TIME_CLOCK_MONO_NS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.clock.nowNs.
-pub const TIME_CLOCK_NOW_NS: BindingDescriptor =
+pub(crate) const TIME_CLOCK_NOW_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.nowNs",
         "export function nowNs(clock: ClockId): Result<uint64, PlatformError>",
@@ -864,7 +865,7 @@ pub const TIME_CLOCK_NOW_NS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.clock.processCpuNs.
-pub const TIME_CLOCK_PROCESS_CPU_NS: BindingDescriptor =
+pub(crate) const TIME_CLOCK_PROCESS_CPU_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.processCpuNs",
         "export function processCpuNs(): Result<uint64, PlatformError>",
@@ -892,7 +893,7 @@ pub const TIME_CLOCK_PROCESS_CPU_NS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.clock.threadCpuNs.
-pub const TIME_CLOCK_THREAD_CPU_NS: BindingDescriptor =
+pub(crate) const TIME_CLOCK_THREAD_CPU_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.threadCpuNs",
         "export function threadCpuNs(): Result<uint64, PlatformError>",
@@ -920,7 +921,7 @@ pub const TIME_CLOCK_THREAD_CPU_NS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.clock.wallNs.
-pub const TIME_CLOCK_WALL_NS: BindingDescriptor =
+pub(crate) const TIME_CLOCK_WALL_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.clock.wallNs",
         "export function wallNs(): Result<uint64, PlatformError>",
@@ -948,7 +949,7 @@ pub const TIME_CLOCK_WALL_NS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.sleep.ns.
-pub const TIME_SLEEP_NS: BindingDescriptor =
+pub(crate) const TIME_SLEEP_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.sleep.ns",
         "export function sleepNs(duration: uint64): Result<void, PlatformError>",
@@ -976,7 +977,7 @@ pub const TIME_SLEEP_NS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.sleep.onNs.
-pub const TIME_SLEEP_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TIME_SLEEP_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.sleep.onNs",
     "export function sleepOnNs(duration: uint64, clock: SleepClock): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -990,7 +991,7 @@ pub const TIME_SLEEP_ON_NS: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.time.sleep.untilNs.
-pub const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
+pub(crate) const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.sleep.untilNs",
         "export function sleepUntilNs(deadline: uint64): Result<void, PlatformError>",
@@ -1018,7 +1019,7 @@ pub const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.sleep.untilOnNs.
-pub const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.sleep.untilOnNs",
     "export function sleepUntilOnNs(deadline: uint64, clock: SleepClock): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1032,7 +1033,7 @@ pub const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.time.timer.at.
-pub const TIME_TIMER_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TIME_TIMER_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.timer.at",
     "export function timerAt(deadlineNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1046,7 +1047,7 @@ pub const TIME_TIMER_AT: BindingDescriptor = BindingDescriptor::external_with_re
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.cancel.
-pub const TIME_TIMER_CANCEL: BindingDescriptor =
+pub(crate) const TIME_TIMER_CANCEL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.timer.cancel",
         "export function timerCancel(handle: TimerHandle): Result<void, PlatformError>",
@@ -1075,7 +1076,7 @@ pub const TIME_TIMER_CANCEL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.timer.interval.
-pub const TIME_TIMER_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TIME_TIMER_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.timer.interval",
     "export function timerInterval(periodNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1089,7 +1090,7 @@ pub const TIME_TIMER_INTERVAL: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.isActive.
-pub const TIME_TIMER_IS_ACTIVE: BindingDescriptor =
+pub(crate) const TIME_TIMER_IS_ACTIVE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.timer.isActive",
         "export function timerIsActive(handle: TimerHandle): Result<boolean, PlatformError>",
@@ -1118,7 +1119,7 @@ pub const TIME_TIMER_IS_ACTIVE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.timer.once.
-pub const TIME_TIMER_ONCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TIME_TIMER_ONCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.timer.once",
     "export function timerOnce(delayNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1132,7 +1133,7 @@ pub const TIME_TIMER_ONCE: BindingDescriptor = BindingDescriptor::external_with_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.pause.
-pub const TIME_TIMER_PAUSE: BindingDescriptor =
+pub(crate) const TIME_TIMER_PAUSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.timer.pause",
         "export function timerPause(handle: TimerHandle): Result<void, PlatformError>",
@@ -1161,7 +1162,7 @@ pub const TIME_TIMER_PAUSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.timer.remainingNs.
-pub const TIME_TIMER_REMAINING_NS: BindingDescriptor =
+pub(crate) const TIME_TIMER_REMAINING_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.timer.remainingNs",
         "export function timerRemainingNs(handle: TimerHandle): Result<uint64, PlatformError>",
@@ -1190,7 +1191,7 @@ pub const TIME_TIMER_REMAINING_NS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.timer.reset.
-pub const TIME_TIMER_RESET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TIME_TIMER_RESET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.timer.reset",
     "export function timerReset(handle: TimerHandle, delayNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1204,7 +1205,7 @@ pub const TIME_TIMER_RESET: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.resume.
-pub const TIME_TIMER_RESUME: BindingDescriptor =
+pub(crate) const TIME_TIMER_RESUME: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.time.timer.resume",
         "export function timerResume(handle: TimerHandle): Result<void, PlatformError>",
@@ -1233,7 +1234,7 @@ pub const TIME_TIMER_RESUME: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.time.timer.updateInterval.
-pub const TIME_TIMER_UPDATE_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TIME_TIMER_UPDATE_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.time.timer.updateInterval",
     "export function timerUpdateInterval(handle: TimerHandle, periodNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1246,32 +1247,8 @@ pub const TIME_TIMER_UPDATE_INTERVAL: BindingDescriptor = BindingDescriptor::ext
     .with_namespace("time")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
-/// Binding descriptors for time.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    TIME_CLOCK_METADATA,
-    TIME_CLOCK_MONO_NS,
-    TIME_CLOCK_NOW_NS,
-    TIME_CLOCK_PROCESS_CPU_NS,
-    TIME_CLOCK_THREAD_CPU_NS,
-    TIME_CLOCK_WALL_NS,
-    TIME_SLEEP_NS,
-    TIME_SLEEP_ON_NS,
-    TIME_SLEEP_UNTIL_NS,
-    TIME_SLEEP_UNTIL_ON_NS,
-    TIME_TIMER_AT,
-    TIME_TIMER_CANCEL,
-    TIME_TIMER_INTERVAL,
-    TIME_TIMER_IS_ACTIVE,
-    TIME_TIMER_ONCE,
-    TIME_TIMER_PAUSE,
-    TIME_TIMER_REMAINING_NS,
-    TIME_TIMER_RESET,
-    TIME_TIMER_RESUME,
-    TIME_TIMER_UPDATE_INTERVAL,
-];
-
 /// Native binding set for time.
-pub const TIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const TIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "time",
     bindings: &[
         NativeBinding::new(
@@ -2174,7 +2151,7 @@ fn destack_time_timer_update_interval_replay(
 
 /// Native export wrappers for time bindings.
 #[unsafe(export_name = "destack.time.clock.metadata")]
-pub unsafe extern "C" fn destack_time_clock_metadata(
+pub(crate) unsafe extern "C" fn destack_time_clock_metadata(
     out: *mut ClockMetadata,
     clock: ClockId,
 ) -> RuntimeStatus {
@@ -2190,7 +2167,7 @@ pub unsafe extern "C" fn destack_time_clock_metadata(
 }
 
 #[unsafe(export_name = "destack.time.clock.monoNs")]
-pub unsafe extern "C" fn destack_time_clock_mono_ns(out: *mut u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_time_clock_mono_ns(out: *mut u64) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -2217,7 +2194,10 @@ pub unsafe extern "C" fn destack_time_clock_mono_ns(out: *mut u64) -> RuntimeSta
 }
 
 #[unsafe(export_name = "destack.time.clock.nowNs")]
-pub unsafe extern "C" fn destack_time_clock_now_ns(out: *mut u64, clock: ClockId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_time_clock_now_ns(
+    out: *mut u64,
+    clock: ClockId,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -2230,7 +2210,7 @@ pub unsafe extern "C" fn destack_time_clock_now_ns(out: *mut u64, clock: ClockId
 }
 
 #[unsafe(export_name = "destack.time.clock.processCpuNs")]
-pub unsafe extern "C" fn destack_time_clock_process_cpu_ns(out: *mut u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_time_clock_process_cpu_ns(out: *mut u64) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -2243,7 +2223,7 @@ pub unsafe extern "C" fn destack_time_clock_process_cpu_ns(out: *mut u64) -> Run
 }
 
 #[unsafe(export_name = "destack.time.clock.threadCpuNs")]
-pub unsafe extern "C" fn destack_time_clock_thread_cpu_ns(out: *mut u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_time_clock_thread_cpu_ns(out: *mut u64) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -2256,7 +2236,7 @@ pub unsafe extern "C" fn destack_time_clock_thread_cpu_ns(out: *mut u64) -> Runt
 }
 
 #[unsafe(export_name = "destack.time.clock.wallNs")]
-pub unsafe extern "C" fn destack_time_clock_wall_ns(out: *mut u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_time_clock_wall_ns(out: *mut u64) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -2283,7 +2263,7 @@ pub unsafe extern "C" fn destack_time_clock_wall_ns(out: *mut u64) -> RuntimeSta
 }
 
 #[unsafe(export_name = "destack.time.sleep.ns")]
-pub unsafe extern "C" fn destack_time_sleep_ns(duration: u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_time_sleep_ns(duration: u64) -> RuntimeStatus {
     native_call(|context| {
         let _ = &duration;
 
@@ -2293,7 +2273,7 @@ pub unsafe extern "C" fn destack_time_sleep_ns(duration: u64) -> RuntimeStatus {
 }
 
 #[unsafe(export_name = "destack.time.sleep.onNs")]
-pub unsafe extern "C" fn destack_time_sleep_on_ns(
+pub(crate) unsafe extern "C" fn destack_time_sleep_on_ns(
     duration: u64,
     clock: SleepClock,
 ) -> RuntimeStatus {
@@ -2306,7 +2286,7 @@ pub unsafe extern "C" fn destack_time_sleep_on_ns(
 }
 
 #[unsafe(export_name = "destack.time.sleep.untilNs")]
-pub unsafe extern "C" fn destack_time_sleep_until_ns(deadline: u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_time_sleep_until_ns(deadline: u64) -> RuntimeStatus {
     native_call(|context| {
         let _ = &deadline;
 
@@ -2316,7 +2296,7 @@ pub unsafe extern "C" fn destack_time_sleep_until_ns(deadline: u64) -> RuntimeSt
 }
 
 #[unsafe(export_name = "destack.time.sleep.untilOnNs")]
-pub unsafe extern "C" fn destack_time_sleep_until_on_ns(
+pub(crate) unsafe extern "C" fn destack_time_sleep_until_on_ns(
     deadline: u64,
     clock: SleepClock,
 ) -> RuntimeStatus {
@@ -2329,7 +2309,7 @@ pub unsafe extern "C" fn destack_time_sleep_until_on_ns(
 }
 
 #[unsafe(export_name = "destack.time.timer.at")]
-pub unsafe extern "C" fn destack_time_timer_at(
+pub(crate) unsafe extern "C" fn destack_time_timer_at(
     out: *mut resource::TimerHandle,
     deadlinens: u64,
     options: TimerOptions,
@@ -2346,7 +2326,9 @@ pub unsafe extern "C" fn destack_time_timer_at(
 }
 
 #[unsafe(export_name = "destack.time.timer.cancel")]
-pub unsafe extern "C" fn destack_time_timer_cancel(handle: resource::TimerHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_time_timer_cancel(
+    handle: resource::TimerHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -2356,7 +2338,7 @@ pub unsafe extern "C" fn destack_time_timer_cancel(handle: resource::TimerHandle
 }
 
 #[unsafe(export_name = "destack.time.timer.interval")]
-pub unsafe extern "C" fn destack_time_timer_interval(
+pub(crate) unsafe extern "C" fn destack_time_timer_interval(
     out: *mut resource::TimerHandle,
     periodns: u64,
     options: TimerOptions,
@@ -2373,7 +2355,7 @@ pub unsafe extern "C" fn destack_time_timer_interval(
 }
 
 #[unsafe(export_name = "destack.time.timer.isActive")]
-pub unsafe extern "C" fn destack_time_timer_is_active(
+pub(crate) unsafe extern "C" fn destack_time_timer_is_active(
     out: *mut bool,
     handle: resource::TimerHandle,
 ) -> RuntimeStatus {
@@ -2389,7 +2371,7 @@ pub unsafe extern "C" fn destack_time_timer_is_active(
 }
 
 #[unsafe(export_name = "destack.time.timer.once")]
-pub unsafe extern "C" fn destack_time_timer_once(
+pub(crate) unsafe extern "C" fn destack_time_timer_once(
     out: *mut resource::TimerHandle,
     delayns: u64,
     options: TimerOptions,
@@ -2406,7 +2388,9 @@ pub unsafe extern "C" fn destack_time_timer_once(
 }
 
 #[unsafe(export_name = "destack.time.timer.pause")]
-pub unsafe extern "C" fn destack_time_timer_pause(handle: resource::TimerHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_time_timer_pause(
+    handle: resource::TimerHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -2416,7 +2400,7 @@ pub unsafe extern "C" fn destack_time_timer_pause(handle: resource::TimerHandle)
 }
 
 #[unsafe(export_name = "destack.time.timer.remainingNs")]
-pub unsafe extern "C" fn destack_time_timer_remaining_ns(
+pub(crate) unsafe extern "C" fn destack_time_timer_remaining_ns(
     out: *mut u64,
     handle: resource::TimerHandle,
 ) -> RuntimeStatus {
@@ -2432,7 +2416,7 @@ pub unsafe extern "C" fn destack_time_timer_remaining_ns(
 }
 
 #[unsafe(export_name = "destack.time.timer.reset")]
-pub unsafe extern "C" fn destack_time_timer_reset(
+pub(crate) unsafe extern "C" fn destack_time_timer_reset(
     handle: resource::TimerHandle,
     delayns: u64,
 ) -> RuntimeStatus {
@@ -2445,7 +2429,9 @@ pub unsafe extern "C" fn destack_time_timer_reset(
 }
 
 #[unsafe(export_name = "destack.time.timer.resume")]
-pub unsafe extern "C" fn destack_time_timer_resume(handle: resource::TimerHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_time_timer_resume(
+    handle: resource::TimerHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -2455,7 +2441,7 @@ pub unsafe extern "C" fn destack_time_timer_resume(handle: resource::TimerHandle
 }
 
 #[unsafe(export_name = "destack.time.timer.updateInterval")]
-pub unsafe extern "C" fn destack_time_timer_update_interval(
+pub(crate) unsafe extern "C" fn destack_time_timer_update_interval(
     handle: resource::TimerHandle,
     periodns: u64,
 ) -> RuntimeStatus {
@@ -3328,7 +3314,7 @@ fn destack_time_timer_update_interval_vm_replay(
 }
 
 /// Register VM bindings for time.
-pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -3674,8 +3660,8 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
 }
 
 /// Install VM bindings for time.
-pub fn install_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_time_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub TIME_VM_BINDINGS, "time", install_time_vm_bindings);
+vm_binding_set!(pub(crate) TIME_VM_BINDINGS, "time", install_time_vm_bindings);

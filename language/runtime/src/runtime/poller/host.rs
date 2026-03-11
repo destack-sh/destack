@@ -54,6 +54,7 @@ pub(crate) enum HostPollerProfile {
     /// Runtime scheduler poller policy.
     RuntimeScheduler,
     /// io.poll binding poller policy.
+    #[cfg_attr(not(test), allow(dead_code))]
     IoBinding,
 }
 
@@ -79,6 +80,7 @@ pub(crate) fn create_host_poller_for_runtime(
 }
 
 /// Create one poller for io.poll binding use.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn create_host_poller_for_io(
     backend: HostPollerBackend,
 ) -> RuntimeResult<Box<dyn HostPoller>> {

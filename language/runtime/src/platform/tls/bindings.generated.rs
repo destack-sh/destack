@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -778,7 +779,7 @@ struct TlsSessionShutdownReplayRecord {
 }
 
 /// Binding descriptor for destack.tls.context.close.
-pub const TLS_CONTEXT_CLOSE: BindingDescriptor =
+pub(crate) const TLS_CONTEXT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tls.context.close",
         "export function contextClose(handle: TlsContextHandle): Result<void, PlatformError>",
@@ -806,7 +807,7 @@ pub const TLS_CONTEXT_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tls.context.open.
-pub const TLS_CONTEXT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_CONTEXT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.context.open",
     "export function contextOpen(options: TlsContextOptions): Result<TlsContextHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -820,7 +821,7 @@ pub const TLS_CONTEXT_OPEN: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setCipherSuites.
-pub const TLS_CONTEXT_SET_CIPHER_SUITES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_CONTEXT_SET_CIPHER_SUITES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.context.setCipherSuites",
     "export function contextSetCipherSuites(handle: TlsContextHandle, suites: Slice<string>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -834,7 +835,7 @@ pub const TLS_CONTEXT_SET_CIPHER_SUITES: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setGroups.
-pub const TLS_CONTEXT_SET_GROUPS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_CONTEXT_SET_GROUPS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.context.setGroups",
     "export function contextSetGroups(handle: TlsContextHandle, groups: Slice<string>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -848,7 +849,7 @@ pub const TLS_CONTEXT_SET_GROUPS: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setHostnameVerificationMode.
-pub const TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.context.setHostnameVerificationMode",
     "export function contextSetHostnameVerificationMode(handle: TlsContextHandle, mode: TlsHostnameVerificationMode): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -862,7 +863,7 @@ pub const TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE: BindingDescriptor = Bindin
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setIdentityPem.
-pub const TLS_CONTEXT_SET_IDENTITY_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_CONTEXT_SET_IDENTITY_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.context.setIdentityPem",
     "export function contextSetIdentityPem(handle: TlsContextHandle, certificateChainPem: Slice<uint8>, privateKeyPem: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -876,7 +877,7 @@ pub const TLS_CONTEXT_SET_IDENTITY_PEM: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setSessionResumption.
-pub const TLS_CONTEXT_SET_SESSION_RESUMPTION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_CONTEXT_SET_SESSION_RESUMPTION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.context.setSessionResumption",
     "export function contextSetSessionResumption(handle: TlsContextHandle, mode: TlsSessionResumptionMode): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -890,7 +891,7 @@ pub const TLS_CONTEXT_SET_SESSION_RESUMPTION: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setSignatureAlgorithms.
-pub const TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.context.setSignatureAlgorithms",
     "export function contextSetSignatureAlgorithms(handle: TlsContextHandle, algorithms: Slice<string>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -904,7 +905,7 @@ pub const TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescr
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setTrustAnchorsPem.
-pub const TLS_CONTEXT_SET_TRUST_ANCHORS_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_CONTEXT_SET_TRUST_ANCHORS_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.context.setTrustAnchorsPem",
     "export function contextSetTrustAnchorsPem(handle: TlsContextHandle, trustAnchorsPem: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -918,7 +919,7 @@ pub const TLS_CONTEXT_SET_TRUST_ANCHORS_PEM: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.session.close.
-pub const TLS_SESSION_CLOSE: BindingDescriptor =
+pub(crate) const TLS_SESSION_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tls.session.close",
         "export function sessionClose(handle: TlsSessionHandle): Result<void, PlatformError>",
@@ -946,7 +947,7 @@ pub const TLS_SESSION_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tls.session.exportKeyingMaterial.
-pub const TLS_SESSION_EXPORT_KEYING_MATERIAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_SESSION_EXPORT_KEYING_MATERIAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.session.exportKeyingMaterial",
     "export function sessionExportKeyingMaterial(handle: TlsSessionHandle, label: string, context: Slice<uint8>, outputLength: uint32): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -960,7 +961,7 @@ pub const TLS_SESSION_EXPORT_KEYING_MATERIAL: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.session.handshake.
-pub const TLS_SESSION_HANDSHAKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_SESSION_HANDSHAKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.session.handshake",
     "export function sessionHandshake(handle: TlsSessionHandle): Result<TlsHandshakeStatus, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -974,7 +975,7 @@ pub const TLS_SESSION_HANDSHAKE: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.session.negotiatedAlpn.
-pub const TLS_SESSION_NEGOTIATED_ALPN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_SESSION_NEGOTIATED_ALPN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.session.negotiatedAlpn",
     "export function sessionNegotiatedAlpn(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -988,7 +989,7 @@ pub const TLS_SESSION_NEGOTIATED_ALPN: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.session.open.
-pub const TLS_SESSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_SESSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.session.open",
     "export function sessionOpen(context: TlsContextHandle, socket: SocketHandle, serverName: string): Result<TlsSessionHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1002,7 +1003,7 @@ pub const TLS_SESSION_OPEN: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.session.peerCertificatesPem.
-pub const TLS_SESSION_PEER_CERTIFICATES_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_SESSION_PEER_CERTIFICATES_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.session.peerCertificatesPem",
     "export function sessionPeerCertificatesPem(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1016,7 +1017,7 @@ pub const TLS_SESSION_PEER_CERTIFICATES_PEM: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.session.read.
-pub const TLS_SESSION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_SESSION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.session.read",
     "export function sessionRead(handle: TlsSessionHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1030,7 +1031,7 @@ pub const TLS_SESSION_READ: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.session.resumptionState.
-pub const TLS_SESSION_RESUMPTION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_SESSION_RESUMPTION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.session.resumptionState",
     "export function sessionResumptionState(handle: TlsSessionHandle): Result<TlsSessionResumptionState, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -1044,7 +1045,7 @@ pub const TLS_SESSION_RESUMPTION_STATE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tls.session.shutdown.
-pub const TLS_SESSION_SHUTDOWN: BindingDescriptor =
+pub(crate) const TLS_SESSION_SHUTDOWN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.tls.session.shutdown",
         "export function sessionShutdown(handle: TlsSessionHandle): Result<void, PlatformError>",
@@ -1072,7 +1073,7 @@ pub const TLS_SESSION_SHUTDOWN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.tls.session.write.
-pub const TLS_SESSION_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TLS_SESSION_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.session.write",
     "export function sessionWrite(handle: TlsSessionHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1085,31 +1086,8 @@ pub const TLS_SESSION_WRITE: BindingDescriptor = BindingDescriptor::external_wit
     .with_namespace("tls")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptors for tls.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    TLS_CONTEXT_CLOSE,
-    TLS_CONTEXT_OPEN,
-    TLS_CONTEXT_SET_CIPHER_SUITES,
-    TLS_CONTEXT_SET_GROUPS,
-    TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE,
-    TLS_CONTEXT_SET_IDENTITY_PEM,
-    TLS_CONTEXT_SET_SESSION_RESUMPTION,
-    TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS,
-    TLS_CONTEXT_SET_TRUST_ANCHORS_PEM,
-    TLS_SESSION_CLOSE,
-    TLS_SESSION_EXPORT_KEYING_MATERIAL,
-    TLS_SESSION_HANDSHAKE,
-    TLS_SESSION_NEGOTIATED_ALPN,
-    TLS_SESSION_OPEN,
-    TLS_SESSION_PEER_CERTIFICATES_PEM,
-    TLS_SESSION_READ,
-    TLS_SESSION_RESUMPTION_STATE,
-    TLS_SESSION_SHUTDOWN,
-    TLS_SESSION_WRITE,
-];
-
 /// Native binding set for tls.
-pub const TLS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const TLS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "tls",
     bindings: &[
         NativeBinding::new(
@@ -1650,7 +1628,7 @@ fn destack_tls_session_shutdown_replay(
 
 /// Native export wrappers for tls bindings.
 #[unsafe(export_name = "destack.tls.context.close")]
-pub unsafe extern "C" fn destack_tls_context_close(
+pub(crate) unsafe extern "C" fn destack_tls_context_close(
     handle: resource::TlsContextHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1663,7 +1641,7 @@ pub unsafe extern "C" fn destack_tls_context_close(
 }
 
 #[unsafe(export_name = "destack.tls.context.open")]
-pub unsafe extern "C" fn destack_tls_context_open(
+pub(crate) unsafe extern "C" fn destack_tls_context_open(
     out: *mut resource::TlsContextHandle,
     options: TlsContextOptions,
 ) -> RuntimeStatus {
@@ -1680,7 +1658,7 @@ pub unsafe extern "C" fn destack_tls_context_open(
 }
 
 #[unsafe(export_name = "destack.tls.context.setCipherSuites")]
-pub unsafe extern "C" fn destack_tls_context_set_cipher_suites(
+pub(crate) unsafe extern "C" fn destack_tls_context_set_cipher_suites(
     handle: resource::TlsContextHandle,
     suites: NativeStringSlice,
 ) -> RuntimeStatus {
@@ -1705,7 +1683,7 @@ pub unsafe extern "C" fn destack_tls_context_set_cipher_suites(
 }
 
 #[unsafe(export_name = "destack.tls.context.setGroups")]
-pub unsafe extern "C" fn destack_tls_context_set_groups(
+pub(crate) unsafe extern "C" fn destack_tls_context_set_groups(
     handle: resource::TlsContextHandle,
     groups: NativeStringSlice,
 ) -> RuntimeStatus {
@@ -1730,7 +1708,7 @@ pub unsafe extern "C" fn destack_tls_context_set_groups(
 }
 
 #[unsafe(export_name = "destack.tls.context.setHostnameVerificationMode")]
-pub unsafe extern "C" fn destack_tls_context_set_hostname_verification_mode(
+pub(crate) unsafe extern "C" fn destack_tls_context_set_hostname_verification_mode(
     handle: resource::TlsContextHandle,
     mode: TlsHostnameVerificationMode,
 ) -> RuntimeStatus {
@@ -1757,7 +1735,7 @@ pub unsafe extern "C" fn destack_tls_context_set_hostname_verification_mode(
 }
 
 #[unsafe(export_name = "destack.tls.context.setIdentityPem")]
-pub unsafe extern "C" fn destack_tls_context_set_identity_pem(
+pub(crate) unsafe extern "C" fn destack_tls_context_set_identity_pem(
     handle: resource::TlsContextHandle,
     certificatechainpem: NativeSlice<u8>,
     privatekeypem: NativeSlice<u8>,
@@ -1791,7 +1769,7 @@ pub unsafe extern "C" fn destack_tls_context_set_identity_pem(
 }
 
 #[unsafe(export_name = "destack.tls.context.setSessionResumption")]
-pub unsafe extern "C" fn destack_tls_context_set_session_resumption(
+pub(crate) unsafe extern "C" fn destack_tls_context_set_session_resumption(
     handle: resource::TlsContextHandle,
     mode: TlsSessionResumptionMode,
 ) -> RuntimeStatus {
@@ -1818,7 +1796,7 @@ pub unsafe extern "C" fn destack_tls_context_set_session_resumption(
 }
 
 #[unsafe(export_name = "destack.tls.context.setSignatureAlgorithms")]
-pub unsafe extern "C" fn destack_tls_context_set_signature_algorithms(
+pub(crate) unsafe extern "C" fn destack_tls_context_set_signature_algorithms(
     handle: resource::TlsContextHandle,
     algorithms: NativeStringSlice,
 ) -> RuntimeStatus {
@@ -1845,7 +1823,7 @@ pub unsafe extern "C" fn destack_tls_context_set_signature_algorithms(
 }
 
 #[unsafe(export_name = "destack.tls.context.setTrustAnchorsPem")]
-pub unsafe extern "C" fn destack_tls_context_set_trust_anchors_pem(
+pub(crate) unsafe extern "C" fn destack_tls_context_set_trust_anchors_pem(
     handle: resource::TlsContextHandle,
     trustanchorspem: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -1876,7 +1854,7 @@ pub unsafe extern "C" fn destack_tls_context_set_trust_anchors_pem(
 }
 
 #[unsafe(export_name = "destack.tls.session.close")]
-pub unsafe extern "C" fn destack_tls_session_close(
+pub(crate) unsafe extern "C" fn destack_tls_session_close(
     handle: resource::TlsSessionHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1889,7 +1867,7 @@ pub unsafe extern "C" fn destack_tls_session_close(
 }
 
 #[unsafe(export_name = "destack.tls.session.exportKeyingMaterial")]
-pub unsafe extern "C" fn destack_tls_session_export_keying_material(
+pub(crate) unsafe extern "C" fn destack_tls_session_export_keying_material(
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
     label: NativeStringRef,
@@ -1932,7 +1910,7 @@ pub unsafe extern "C" fn destack_tls_session_export_keying_material(
 }
 
 #[unsafe(export_name = "destack.tls.session.handshake")]
-pub unsafe extern "C" fn destack_tls_session_handshake(
+pub(crate) unsafe extern "C" fn destack_tls_session_handshake(
     out: *mut TlsHandshakeStatus,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeStatus {
@@ -1949,7 +1927,7 @@ pub unsafe extern "C" fn destack_tls_session_handshake(
 }
 
 #[unsafe(export_name = "destack.tls.session.negotiatedAlpn")]
-pub unsafe extern "C" fn destack_tls_session_negotiated_alpn(
+pub(crate) unsafe extern "C" fn destack_tls_session_negotiated_alpn(
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeStatus {
@@ -1966,7 +1944,7 @@ pub unsafe extern "C" fn destack_tls_session_negotiated_alpn(
 }
 
 #[unsafe(export_name = "destack.tls.session.open")]
-pub unsafe extern "C" fn destack_tls_session_open(
+pub(crate) unsafe extern "C" fn destack_tls_session_open(
     out: *mut resource::TlsSessionHandle,
     argument_context: resource::TlsContextHandle,
     socket: resource::SocketHandle,
@@ -1985,7 +1963,7 @@ pub unsafe extern "C" fn destack_tls_session_open(
 }
 
 #[unsafe(export_name = "destack.tls.session.peerCertificatesPem")]
-pub unsafe extern "C" fn destack_tls_session_peer_certificates_pem(
+pub(crate) unsafe extern "C" fn destack_tls_session_peer_certificates_pem(
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeStatus {
@@ -2013,7 +1991,7 @@ pub unsafe extern "C" fn destack_tls_session_peer_certificates_pem(
 }
 
 #[unsafe(export_name = "destack.tls.session.read")]
-pub unsafe extern "C" fn destack_tls_session_read(
+pub(crate) unsafe extern "C" fn destack_tls_session_read(
     out: *mut u64,
     handle: resource::TlsSessionHandle,
     buffer: NativeSlice<u8>,
@@ -2042,7 +2020,7 @@ pub unsafe extern "C" fn destack_tls_session_read(
 }
 
 #[unsafe(export_name = "destack.tls.session.resumptionState")]
-pub unsafe extern "C" fn destack_tls_session_resumption_state(
+pub(crate) unsafe extern "C" fn destack_tls_session_resumption_state(
     out: *mut TlsSessionResumptionState,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeStatus {
@@ -2059,7 +2037,7 @@ pub unsafe extern "C" fn destack_tls_session_resumption_state(
 }
 
 #[unsafe(export_name = "destack.tls.session.shutdown")]
-pub unsafe extern "C" fn destack_tls_session_shutdown(
+pub(crate) unsafe extern "C" fn destack_tls_session_shutdown(
     handle: resource::TlsSessionHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2072,7 +2050,7 @@ pub unsafe extern "C" fn destack_tls_session_shutdown(
 }
 
 #[unsafe(export_name = "destack.tls.session.write")]
-pub unsafe extern "C" fn destack_tls_session_write(
+pub(crate) unsafe extern "C" fn destack_tls_session_write(
     out: *mut u64,
     handle: resource::TlsSessionHandle,
     buffer: NativeSlice<u8>,
@@ -2546,7 +2524,7 @@ fn destack_tls_session_shutdown_vm_replay(
 }
 
 /// Register VM bindings for tls.
-pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -3066,8 +3044,8 @@ pub fn register_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 }
 
 /// Install VM bindings for tls.
-pub fn install_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_tls_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_tls_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub TLS_VM_BINDINGS, "tls", install_tls_vm_bindings);
+vm_binding_set!(pub(crate) TLS_VM_BINDINGS, "tls", install_tls_vm_bindings);

@@ -198,11 +198,6 @@ pub(crate) struct VmStubUsage {
 }
 
 impl NativeUsage {
-    /// Collect native ABI usage for one binding set.
-    pub(crate) fn collect(bindings: &ModuleBindings) -> Self {
-        collect_native_usage(bindings)
-    }
-
     /// Collect native signature usage for one binding set.
     pub(crate) fn collect_signature_usage(bindings: &ModuleBindings) -> Self {
         collect_native_signature_usage(bindings)
@@ -221,19 +216,6 @@ impl VmStubUsage {
     pub(crate) fn collect(bindings: &ModuleBindings) -> Self {
         collect_vm_stub_usage(bindings)
     }
-}
-
-/// Collect native usage flags for one binding catalog.
-pub(crate) fn collect_native_usage(bindings: &ModuleBindings) -> NativeUsage {
-    let mut usage = NativeUsage::default();
-    for entry in bindings.values() {
-        collect_native_usage_for_binding(&entry.return_binding, &mut usage);
-        for param in &entry.parameters {
-            collect_native_usage_for_binding(&param.binding_type, &mut usage);
-        }
-    }
-
-    usage
 }
 
 /// Collect native signature usage flags for one binding catalog.
@@ -384,35 +366,6 @@ fn collect_vm_decode_usage_for_binding(
     }
 }
 
-/// Record native ABI usage for a binding type.
-fn collect_native_usage_for_binding(binding_type: &BindingType, usage: &mut NativeUsage) {
-    match binding_type {
-        BindingType::String => usage.uses_platform_string_ref = true,
-        BindingType::StringSlice => usage.uses_platform_string_slice = true,
-        BindingType::Slice(inner) => {
-            usage.uses_platform_slice = true;
-            collect_native_usage_for_binding(inner, usage);
-        }
-        BindingType::Array(inner) => {
-            usage.uses_platform_array = true;
-            collect_native_usage_for_binding(inner, usage);
-        }
-        BindingType::Optional(inner) => {
-            collect_native_usage_for_binding(inner, usage);
-        }
-        BindingType::Newtype { inner, .. } => {
-            collect_native_usage_for_binding(inner, usage);
-        }
-        BindingType::Struct { fields, .. } => {
-            for field in fields {
-                collect_native_usage_for_binding(&field.binding_type, usage);
-            }
-        }
-        BindingType::Enum { .. } => {}
-        _ => {}
-    }
-}
-
 /// Collect named binding types referenced by bindings.
 pub(crate) fn collect_native_named_types(
     domain: &str,
@@ -454,6 +407,23 @@ pub(crate) fn collect_type_domains(domain: &str, bindings: &ModuleBindings) -> B
         collect_binding_type_domains(domain, &entry.return_binding, &mut domains);
         for param in &entry.parameters {
             collect_binding_type_domains(domain, &param.binding_type, &mut domains);
+        }
+    }
+
+    domains
+}
+
+/// Collect platform module names required by stub signatures only.
+pub(crate) fn collect_stub_type_domains(
+    domain: &str,
+    bindings: &ModuleBindings,
+) -> BTreeSet<String> {
+    let mut domains = BTreeSet::new();
+
+    for entry in bindings.values() {
+        collect_stub_binding_type_domains(domain, &entry.return_binding, &mut domains);
+        for param in &entry.parameters {
+            collect_stub_binding_type_domains(domain, &param.binding_type, &mut domains);
         }
     }
 
@@ -513,6 +483,40 @@ pub(crate) fn collect_binding_type_domains(
             }
             for variant in variants {
                 collect_binding_type_domains(domain, &variant.binding_type, domains);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Collect foreign domains referenced directly in stub signatures.
+fn collect_stub_binding_type_domains(
+    domain: &str,
+    binding_type: &BindingType,
+    domains: &mut BTreeSet<String>,
+) {
+    match binding_type {
+        BindingType::Slice(inner) | BindingType::Array(inner) | BindingType::Optional(inner) => {
+            collect_stub_binding_type_domains(domain, inner, domains);
+        }
+        BindingType::Newtype {
+            domain: type_domain,
+            ..
+        }
+        | BindingType::Struct {
+            domain: type_domain,
+            ..
+        }
+        | BindingType::Enum {
+            domain: type_domain,
+            ..
+        }
+        | BindingType::TaggedUnion {
+            domain: type_domain,
+            ..
+        } => {
+            if type_domain != domain {
+                domains.insert(type_domain.clone());
             }
         }
         _ => {}

@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -3986,7 +3987,7 @@ struct DeviceUsbWatchTryReadReplayRecord {
 }
 
 /// Binding descriptor for destack.device.bluetooth.adapterList.
-pub const DEVICE_BLUETOOTH_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.adapterList",
     "export function bluetoothAdapterList(): Result<Slice<BluetoothAdapterDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4000,7 +4001,7 @@ pub const DEVICE_BLUETOOTH_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.characteristicList.
-pub const DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.characteristicList",
     "export function bluetoothGattCharacteristicList(handle: BluetoothDeviceHandle, serviceUuid: string): Result<Slice<BluetoothGattCharacteristicDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4014,7 +4015,7 @@ pub const DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST: BindingDescriptor = Binding
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.descriptorList.
-pub const DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.descriptorList",
     "export function bluetoothGattDescriptorList(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string): Result<Slice<BluetoothGattDescriptorDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4028,7 +4029,7 @@ pub const DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST: BindingDescriptor = BindingDesc
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.mtu.
-pub const DEVICE_BLUETOOTH_GATT_MTU: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_MTU: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.mtu",
     "export function bluetoothGattMtu(handle: BluetoothDeviceHandle): Result<uint16, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4042,7 +4043,7 @@ pub const DEVICE_BLUETOOTH_GATT_MTU: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.read.
-pub const DEVICE_BLUETOOTH_GATT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.read",
     "export function bluetoothGattRead(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4056,7 +4057,7 @@ pub const DEVICE_BLUETOOTH_GATT_READ: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.readDescriptor.
-pub const DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.readDescriptor",
     "export function bluetoothGattReadDescriptor(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string, descriptorUuid: string, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4070,7 +4071,7 @@ pub const DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR: BindingDescriptor = BindingDesc
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.readEvent.
-pub const DEVICE_BLUETOOTH_GATT_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.readEvent",
     "export function bluetoothGattReadEvent(handle: BluetoothSubscriptionHandle, timeoutNs: uint64): Result<BluetoothGattValueEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4084,7 +4085,7 @@ pub const DEVICE_BLUETOOTH_GATT_READ_EVENT: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.requestMtu.
-pub const DEVICE_BLUETOOTH_GATT_REQUEST_MTU: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_REQUEST_MTU: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.requestMtu",
     "export function bluetoothGattRequestMtu(handle: BluetoothDeviceHandle, mtu: uint16, timeoutNs: uint64): Result<uint16, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4098,7 +4099,7 @@ pub const DEVICE_BLUETOOTH_GATT_REQUEST_MTU: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.serviceList.
-pub const DEVICE_BLUETOOTH_GATT_SERVICE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_SERVICE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.serviceList",
     "export function bluetoothGattServiceList(handle: BluetoothDeviceHandle): Result<Slice<BluetoothGattServiceDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4112,7 +4113,7 @@ pub const DEVICE_BLUETOOTH_GATT_SERVICE_LIST: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.subscribe.
-pub const DEVICE_BLUETOOTH_GATT_SUBSCRIBE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_SUBSCRIBE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.subscribe",
     "export function bluetoothGattSubscribe(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string): Result<BluetoothSubscriptionHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4126,7 +4127,7 @@ pub const DEVICE_BLUETOOTH_GATT_SUBSCRIBE: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.tryReadEvent.
-pub const DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.tryReadEvent",
     "export function bluetoothGattTryReadEvent(handle: BluetoothSubscriptionHandle): Result<BluetoothGattValueEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4140,7 +4141,7 @@ pub const DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT: BindingDescriptor = BindingDescr
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.unsubscribe.
-pub const DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.unsubscribe",
     "export function bluetoothGattUnsubscribe(handle: BluetoothSubscriptionHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4154,7 +4155,7 @@ pub const DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.write.
-pub const DEVICE_BLUETOOTH_GATT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.write",
     "export function bluetoothGattWrite(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string, value: Slice<uint8>, withResponse: boolean, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4168,7 +4169,7 @@ pub const DEVICE_BLUETOOTH_GATT_WRITE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.writeDescriptor.
-pub const DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.writeDescriptor",
     "export function bluetoothGattWriteDescriptor(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string, descriptorUuid: string, value: Slice<uint8>, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4182,7 +4183,7 @@ pub const DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR: BindingDescriptor = BindingDes
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.close.
-pub const DEVICE_BLUETOOTH_SCAN_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SCAN_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.scan.close",
     "export function bluetoothScanClose(handle: BluetoothScanHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4196,7 +4197,7 @@ pub const DEVICE_BLUETOOTH_SCAN_CLOSE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.open.
-pub const DEVICE_BLUETOOTH_SCAN_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SCAN_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.scan.open",
     "export function bluetoothScanOpen(adapterId: string, filter: BluetoothScanFilter): Result<BluetoothScanHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4210,7 +4211,7 @@ pub const DEVICE_BLUETOOTH_SCAN_OPEN: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.read.
-pub const DEVICE_BLUETOOTH_SCAN_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SCAN_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.scan.read",
     "export function bluetoothScanRead(handle: BluetoothScanHandle, timeoutNs: uint64): Result<BluetoothDeviceDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4224,7 +4225,7 @@ pub const DEVICE_BLUETOOTH_SCAN_READ: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.tryRead.
-pub const DEVICE_BLUETOOTH_SCAN_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SCAN_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.scan.tryRead",
     "export function bluetoothScanTryRead(handle: BluetoothScanHandle): Result<BluetoothDeviceDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4238,7 +4239,7 @@ pub const DEVICE_BLUETOOTH_SCAN_TRY_READ: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.close.
-pub const DEVICE_BLUETOOTH_SESSION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.session.close",
     "export function bluetoothClose(handle: BluetoothDeviceHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4252,7 +4253,7 @@ pub const DEVICE_BLUETOOTH_SESSION_CLOSE: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.open.
-pub const DEVICE_BLUETOOTH_SESSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.session.open",
     "export function bluetoothOpen(adapterId: string, deviceId: string): Result<BluetoothDeviceHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4266,7 +4267,7 @@ pub const DEVICE_BLUETOOTH_SESSION_OPEN: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.pair.
-pub const DEVICE_BLUETOOTH_SESSION_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.session.pair",
     "export function bluetoothPair(handle: BluetoothDeviceHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4280,7 +4281,7 @@ pub const DEVICE_BLUETOOTH_SESSION_PAIR: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.rssi.
-pub const DEVICE_BLUETOOTH_SESSION_RSSI: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_RSSI: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.session.rssi",
     "export function bluetoothReadRssi(handle: BluetoothDeviceHandle, timeoutNs: uint64): Result<int32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4294,7 +4295,7 @@ pub const DEVICE_BLUETOOTH_SESSION_RSSI: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.unpair.
-pub const DEVICE_BLUETOOTH_SESSION_UNPAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_UNPAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.session.unpair",
     "export function bluetoothUnpair(adapterId: string, deviceId: string): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4308,7 +4309,7 @@ pub const DEVICE_BLUETOOTH_SESSION_UNPAIR: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.close.
-pub const DEVICE_CAMERA_DEVICE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_DEVICE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.device.close",
     "export function cameraDeviceClose(handle: CameraDeviceHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4322,7 +4323,7 @@ pub const DEVICE_CAMERA_DEVICE_CLOSE: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.list.
-pub const DEVICE_CAMERA_DEVICE_LIST: BindingDescriptor =
+pub(crate) const DEVICE_CAMERA_DEVICE_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.camera.device.list",
         "export function cameraDeviceList(): Result<Slice<CameraDeviceDescriptor>, PlatformError>",
@@ -4350,7 +4351,7 @@ pub const DEVICE_CAMERA_DEVICE_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.camera.device.open.
-pub const DEVICE_CAMERA_DEVICE_OPEN: BindingDescriptor =
+pub(crate) const DEVICE_CAMERA_DEVICE_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.camera.device.open",
         "export function cameraDeviceOpen(id: string): Result<CameraDeviceHandle, PlatformError>",
@@ -4378,7 +4379,7 @@ pub const DEVICE_CAMERA_DEVICE_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.camera.device.streamCapabilityList.
-pub const DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.device.streamCapabilityList",
     "export function cameraDeviceStreamCapabilityList(handle: CameraDeviceHandle): Result<Slice<CameraStreamCapability>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4392,7 +4393,7 @@ pub const DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST: BindingDescriptor = Bindi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.streamConfigList.
-pub const DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.device.streamConfigList",
     "export function cameraDeviceStreamConfigList(handle: CameraDeviceHandle): Result<Slice<CameraStreamConfig>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4406,7 +4407,7 @@ pub const DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST: BindingDescriptor = BindingDe
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.close.
-pub const DEVICE_CAMERA_STREAM_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.close",
     "export function cameraStreamClose(handle: CameraStreamHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4420,7 +4421,7 @@ pub const DEVICE_CAMERA_STREAM_CLOSE: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.controlRange.
-pub const DEVICE_CAMERA_STREAM_CONTROL_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_CONTROL_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.controlRange",
     "export function cameraStreamControlRange(handle: CameraStreamHandle, control: CameraControl): Result<CameraControlRange, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4434,7 +4435,7 @@ pub const DEVICE_CAMERA_STREAM_CONTROL_RANGE: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.exposureMode.
-pub const DEVICE_CAMERA_STREAM_EXPOSURE_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_EXPOSURE_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.exposureMode",
     "export function cameraStreamExposureMode(handle: CameraStreamHandle): Result<CameraExposureMode, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4448,7 +4449,7 @@ pub const DEVICE_CAMERA_STREAM_EXPOSURE_MODE: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.getControl.
-pub const DEVICE_CAMERA_STREAM_GET_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_GET_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.getControl",
     "export function cameraStreamGetControl(handle: CameraStreamHandle, control: CameraControl): Result<float64, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4462,7 +4463,7 @@ pub const DEVICE_CAMERA_STREAM_GET_CONTROL: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.open.
-pub const DEVICE_CAMERA_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.open",
     "export function cameraStreamOpen(device: CameraDeviceHandle, config: CameraStreamConfig): Result<CameraStreamHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4476,7 +4477,7 @@ pub const DEVICE_CAMERA_STREAM_OPEN: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.read.
-pub const DEVICE_CAMERA_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.read",
     "export function cameraStreamRead(handle: CameraStreamHandle, timeoutNs: uint64): Result<CameraFrame, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4490,7 +4491,7 @@ pub const DEVICE_CAMERA_STREAM_READ: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.setControl.
-pub const DEVICE_CAMERA_STREAM_SET_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_SET_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.setControl",
     "export function cameraStreamSetControl(handle: CameraStreamHandle, control: CameraControl, value: float64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4504,7 +4505,7 @@ pub const DEVICE_CAMERA_STREAM_SET_CONTROL: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.setExposureMode.
-pub const DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.setExposureMode",
     "export function cameraStreamSetExposureMode(handle: CameraStreamHandle, mode: CameraExposureMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4518,7 +4519,7 @@ pub const DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE: BindingDescriptor = BindingDes
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.setStabilizationMode.
-pub const DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.setStabilizationMode",
     "export function cameraStreamSetStabilizationMode(handle: CameraStreamHandle, mode: CameraStabilizationMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4532,7 +4533,7 @@ pub const DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE: BindingDescriptor = Bindi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.setTorchMode.
-pub const DEVICE_CAMERA_STREAM_SET_TORCH_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_SET_TORCH_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.setTorchMode",
     "export function cameraStreamSetTorchMode(handle: CameraStreamHandle, mode: CameraTorchMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4546,7 +4547,7 @@ pub const DEVICE_CAMERA_STREAM_SET_TORCH_MODE: BindingDescriptor = BindingDescri
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.stabilizationMode.
-pub const DEVICE_CAMERA_STREAM_STABILIZATION_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_STABILIZATION_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.stabilizationMode",
     "export function cameraStreamStabilizationMode(handle: CameraStreamHandle): Result<CameraStabilizationMode, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4560,7 +4561,7 @@ pub const DEVICE_CAMERA_STREAM_STABILIZATION_MODE: BindingDescriptor = BindingDe
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.start.
-pub const DEVICE_CAMERA_STREAM_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.start",
     "export function cameraStreamStart(handle: CameraStreamHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4574,7 +4575,7 @@ pub const DEVICE_CAMERA_STREAM_START: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.stop.
-pub const DEVICE_CAMERA_STREAM_STOP: BindingDescriptor =
+pub(crate) const DEVICE_CAMERA_STREAM_STOP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.camera.stream.stop",
         "export function cameraStreamStop(handle: CameraStreamHandle): Result<void, PlatformError>",
@@ -4602,7 +4603,7 @@ pub const DEVICE_CAMERA_STREAM_STOP: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.camera.stream.torchMode.
-pub const DEVICE_CAMERA_STREAM_TORCH_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_TORCH_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.torchMode",
     "export function cameraStreamTorchMode(handle: CameraStreamHandle): Result<CameraTorchMode, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4616,7 +4617,7 @@ pub const DEVICE_CAMERA_STREAM_TORCH_MODE: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.tryRead.
-pub const DEVICE_CAMERA_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.tryRead",
     "export function cameraStreamTryRead(handle: CameraStreamHandle): Result<CameraFrame, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4630,7 +4631,7 @@ pub const DEVICE_CAMERA_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.close.
-pub const DEVICE_SERIAL_CLOSE: BindingDescriptor =
+pub(crate) const DEVICE_SERIAL_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.serial.close",
         "export function serialClose(handle: SerialPortHandle): Result<void, PlatformError>",
@@ -4658,7 +4659,7 @@ pub const DEVICE_SERIAL_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.serial.configure.
-pub const DEVICE_SERIAL_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.serial.configure",
     "export function serialConfigure(handle: SerialPortHandle, config: SerialPortConfig): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4672,7 +4673,7 @@ pub const DEVICE_SERIAL_CONFIGURE: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.discardInput.
-pub const DEVICE_SERIAL_DISCARD_INPUT: BindingDescriptor =
+pub(crate) const DEVICE_SERIAL_DISCARD_INPUT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.serial.discardInput",
         "export function serialDiscardInput(handle: SerialPortHandle): Result<void, PlatformError>",
@@ -4700,7 +4701,7 @@ pub const DEVICE_SERIAL_DISCARD_INPUT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.serial.discardOutput.
-pub const DEVICE_SERIAL_DISCARD_OUTPUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_DISCARD_OUTPUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.serial.discardOutput",
     "export function serialDiscardOutput(handle: SerialPortHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4714,7 +4715,7 @@ pub const DEVICE_SERIAL_DISCARD_OUTPUT: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.flush.
-pub const DEVICE_SERIAL_FLUSH: BindingDescriptor =
+pub(crate) const DEVICE_SERIAL_FLUSH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.serial.flush",
         "export function serialFlush(handle: SerialPortHandle): Result<void, PlatformError>",
@@ -4742,7 +4743,7 @@ pub const DEVICE_SERIAL_FLUSH: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.serial.list.
-pub const DEVICE_SERIAL_LIST: BindingDescriptor =
+pub(crate) const DEVICE_SERIAL_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.serial.list",
         "export function serialList(): Result<Slice<SerialPortDescriptor>, PlatformError>",
@@ -4770,7 +4771,7 @@ pub const DEVICE_SERIAL_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.serial.open.
-pub const DEVICE_SERIAL_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.serial.open",
     "export function serialOpen(id: string, config: SerialPortConfig): Result<SerialPortHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4784,7 +4785,7 @@ pub const DEVICE_SERIAL_OPEN: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.read.
-pub const DEVICE_SERIAL_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.serial.read",
     "export function serialRead(handle: SerialPortHandle, maxBytes: uint32, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4798,7 +4799,7 @@ pub const DEVICE_SERIAL_READ: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.readEvent.
-pub const DEVICE_SERIAL_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.serial.readEvent",
     "export function serialReadEvent(handle: SerialPortHandle, timeoutNs: uint64): Result<SerialEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4812,7 +4813,7 @@ pub const DEVICE_SERIAL_READ_EVENT: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.setBreak.
-pub const DEVICE_SERIAL_SET_BREAK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_SET_BREAK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.serial.setBreak",
     "export function serialSetBreak(handle: SerialPortHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4826,7 +4827,7 @@ pub const DEVICE_SERIAL_SET_BREAK: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.setControlLines.
-pub const DEVICE_SERIAL_SET_CONTROL_LINES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_SET_CONTROL_LINES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.serial.setControlLines",
     "export function serialSetControlLines(handle: SerialPortHandle, dtr: boolean, rts: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4840,7 +4841,7 @@ pub const DEVICE_SERIAL_SET_CONTROL_LINES: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.signalBits.
-pub const DEVICE_SERIAL_SIGNAL_BITS: BindingDescriptor =
+pub(crate) const DEVICE_SERIAL_SIGNAL_BITS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.serial.signalBits",
         "export function serialSignalBits(handle: SerialPortHandle): Result<uint32, PlatformError>",
@@ -4868,7 +4869,7 @@ pub const DEVICE_SERIAL_SIGNAL_BITS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.serial.tryEvent.
-pub const DEVICE_SERIAL_TRY_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_TRY_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.serial.tryEvent",
     "export function serialTryEvent(handle: SerialPortHandle): Result<SerialEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4882,7 +4883,7 @@ pub const DEVICE_SERIAL_TRY_EVENT: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.tryRead.
-pub const DEVICE_SERIAL_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.serial.tryRead",
     "export function serialTryRead(handle: SerialPortHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4896,7 +4897,7 @@ pub const DEVICE_SERIAL_TRY_READ: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.serial.write.
-pub const DEVICE_SERIAL_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.serial.write",
     "export function serialWrite(handle: SerialPortHandle, data: Slice<uint8>, timeoutNs: uint64): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4910,7 +4911,7 @@ pub const DEVICE_SERIAL_WRITE: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.bulkRead.
-pub const DEVICE_USB_BULK_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_BULK_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.bulkRead",
     "export function usbBulkRead(handle: UsbDeviceHandle, endpointAddress: uint8, maxBytes: uint32, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4924,7 +4925,7 @@ pub const DEVICE_USB_BULK_READ: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.bulkWrite.
-pub const DEVICE_USB_BULK_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_BULK_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.bulkWrite",
     "export function usbBulkWrite(handle: UsbDeviceHandle, endpointAddress: uint8, bytes: Slice<uint8>, timeoutNs: uint64): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4938,7 +4939,7 @@ pub const DEVICE_USB_BULK_WRITE: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.claimInterface.
-pub const DEVICE_USB_CLAIM_INTERFACE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CLAIM_INTERFACE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.claimInterface",
     "export function usbClaimInterface(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4952,7 +4953,7 @@ pub const DEVICE_USB_CLAIM_INTERFACE: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.clearHalt.
-pub const DEVICE_USB_CLEAR_HALT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CLEAR_HALT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.clearHalt",
     "export function usbClearHalt(handle: UsbDeviceHandle, endpointAddress: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4966,7 +4967,7 @@ pub const DEVICE_USB_CLEAR_HALT: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.close.
-pub const DEVICE_USB_CLOSE: BindingDescriptor =
+pub(crate) const DEVICE_USB_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.usb.close",
         "export function usbClose(handle: UsbDeviceHandle): Result<void, PlatformError>",
@@ -4994,7 +4995,7 @@ pub const DEVICE_USB_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.usb.configurationGet.
-pub const DEVICE_USB_CONFIGURATION_GET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CONFIGURATION_GET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.configurationGet",
     "export function usbConfigurationGet(handle: UsbDeviceHandle): Result<uint8, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5008,7 +5009,7 @@ pub const DEVICE_USB_CONFIGURATION_GET: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.configurationList.
-pub const DEVICE_USB_CONFIGURATION_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CONFIGURATION_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.configurationList",
     "export function usbConfigurationList(handle: UsbDeviceHandle): Result<Slice<UsbConfigurationDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5022,7 +5023,7 @@ pub const DEVICE_USB_CONFIGURATION_LIST: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.configurationSet.
-pub const DEVICE_USB_CONFIGURATION_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CONFIGURATION_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.configurationSet",
     "export function usbConfigurationSet(handle: UsbDeviceHandle, configurationValue: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5036,7 +5037,7 @@ pub const DEVICE_USB_CONFIGURATION_SET: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.controlRead.
-pub const DEVICE_USB_CONTROL_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CONTROL_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.controlRead",
     "export function usbControlRead(handle: UsbDeviceHandle, setup: UsbControlSetup, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5050,7 +5051,7 @@ pub const DEVICE_USB_CONTROL_READ: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.controlWrite.
-pub const DEVICE_USB_CONTROL_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CONTROL_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.controlWrite",
     "export function usbControlWrite(handle: UsbDeviceHandle, setup: UsbControlSetup, bytes: Slice<uint8>, timeoutNs: uint64): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5064,7 +5065,7 @@ pub const DEVICE_USB_CONTROL_WRITE: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.descriptor.
-pub const DEVICE_USB_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.descriptor",
     "export function usbDescriptor(handle: UsbDeviceHandle): Result<UsbDeviceDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5078,7 +5079,7 @@ pub const DEVICE_USB_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.interruptRead.
-pub const DEVICE_USB_INTERRUPT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_INTERRUPT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.interruptRead",
     "export function usbInterruptRead(handle: UsbDeviceHandle, endpointAddress: uint8, maxBytes: uint32, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5092,7 +5093,7 @@ pub const DEVICE_USB_INTERRUPT_READ: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.interruptWrite.
-pub const DEVICE_USB_INTERRUPT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_INTERRUPT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.interruptWrite",
     "export function usbInterruptWrite(handle: UsbDeviceHandle, endpointAddress: uint8, bytes: Slice<uint8>, timeoutNs: uint64): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5106,7 +5107,7 @@ pub const DEVICE_USB_INTERRUPT_WRITE: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.isochronousRead.
-pub const DEVICE_USB_ISOCHRONOUS_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_ISOCHRONOUS_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.isochronousRead",
     "export function usbIsochronousRead(handle: UsbDeviceHandle, endpointAddress: uint8, packetSizes: Slice<uint32>, timeoutNs: uint64): Result<UsbIsochronousTransferResult, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5120,7 +5121,7 @@ pub const DEVICE_USB_ISOCHRONOUS_READ: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.isochronousWrite.
-pub const DEVICE_USB_ISOCHRONOUS_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_ISOCHRONOUS_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.isochronousWrite",
     "export function usbIsochronousWrite(handle: UsbDeviceHandle, endpointAddress: uint8, bytes: Slice<uint8>, packetSizes: Slice<uint32>, timeoutNs: uint64): Result<UsbIsochronousTransferResult, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5134,7 +5135,7 @@ pub const DEVICE_USB_ISOCHRONOUS_WRITE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.kernelDriverActive.
-pub const DEVICE_USB_KERNEL_DRIVER_ACTIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_KERNEL_DRIVER_ACTIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.kernelDriverActive",
     "export function usbKernelDriverActive(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<boolean, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5148,7 +5149,7 @@ pub const DEVICE_USB_KERNEL_DRIVER_ACTIVE: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.kernelDriverAttach.
-pub const DEVICE_USB_KERNEL_DRIVER_ATTACH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_KERNEL_DRIVER_ATTACH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.kernelDriverAttach",
     "export function usbKernelDriverAttach(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5162,7 +5163,7 @@ pub const DEVICE_USB_KERNEL_DRIVER_ATTACH: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.kernelDriverDetach.
-pub const DEVICE_USB_KERNEL_DRIVER_DETACH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_KERNEL_DRIVER_DETACH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.kernelDriverDetach",
     "export function usbKernelDriverDetach(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5176,7 +5177,7 @@ pub const DEVICE_USB_KERNEL_DRIVER_DETACH: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.list.
-pub const DEVICE_USB_LIST: BindingDescriptor =
+pub(crate) const DEVICE_USB_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.usb.list",
         "export function usbList(): Result<Slice<UsbDeviceDescriptor>, PlatformError>",
@@ -5204,7 +5205,7 @@ pub const DEVICE_USB_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.usb.open.
-pub const DEVICE_USB_OPEN: BindingDescriptor =
+pub(crate) const DEVICE_USB_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.usb.open",
         "export function usbOpen(id: string): Result<UsbDeviceHandle, PlatformError>",
@@ -5232,7 +5233,7 @@ pub const DEVICE_USB_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.usb.releaseInterface.
-pub const DEVICE_USB_RELEASE_INTERFACE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_RELEASE_INTERFACE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.releaseInterface",
     "export function usbReleaseInterface(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5246,7 +5247,7 @@ pub const DEVICE_USB_RELEASE_INTERFACE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.reset.
-pub const DEVICE_USB_RESET: BindingDescriptor =
+pub(crate) const DEVICE_USB_RESET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.usb.reset",
         "export function usbReset(handle: UsbDeviceHandle): Result<void, PlatformError>",
@@ -5274,7 +5275,7 @@ pub const DEVICE_USB_RESET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.usb.setInterfaceAlternateSetting.
-pub const DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.setInterfaceAlternateSetting",
     "export function usbSetInterfaceAlternateSetting(handle: UsbDeviceHandle, interfaceNumber: uint8, alternateSetting: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5288,7 +5289,7 @@ pub const DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING: BindingDescriptor = Bindin
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.stringDescriptor.
-pub const DEVICE_USB_STRING_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_STRING_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.stringDescriptor",
     "export function usbStringDescriptor(handle: UsbDeviceHandle, languageId: uint16): Result<UsbStringDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5302,7 +5303,7 @@ pub const DEVICE_USB_STRING_DESCRIPTOR: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.stringLanguageList.
-pub const DEVICE_USB_STRING_LANGUAGE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_STRING_LANGUAGE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.stringLanguageList",
     "export function usbStringLanguageList(handle: UsbDeviceHandle): Result<Slice<uint16>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5316,7 +5317,7 @@ pub const DEVICE_USB_STRING_LANGUAGE_LIST: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.transferCancel.
-pub const DEVICE_USB_TRANSFER_CANCEL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_TRANSFER_CANCEL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.transferCancel",
     "export function usbTransferCancel(handle: UsbDeviceHandle, endpointAddress: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5330,7 +5331,7 @@ pub const DEVICE_USB_TRANSFER_CANCEL: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.transferCancelAll.
-pub const DEVICE_USB_TRANSFER_CANCEL_ALL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_TRANSFER_CANCEL_ALL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.transferCancelAll",
     "export function usbTransferCancelAll(handle: UsbDeviceHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -5344,7 +5345,7 @@ pub const DEVICE_USB_TRANSFER_CANCEL_ALL: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchClose.
-pub const DEVICE_USB_WATCH_CLOSE: BindingDescriptor =
+pub(crate) const DEVICE_USB_WATCH_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.usb.watchClose",
         "export function usbWatchClose(handle: UsbWatchHandle): Result<void, PlatformError>",
@@ -5372,7 +5373,7 @@ pub const DEVICE_USB_WATCH_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.usb.watchOpen.
-pub const DEVICE_USB_WATCH_OPEN: BindingDescriptor =
+pub(crate) const DEVICE_USB_WATCH_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.device.usb.watchOpen",
         "export function usbWatchOpen(): Result<UsbWatchHandle, PlatformError>",
@@ -5400,7 +5401,7 @@ pub const DEVICE_USB_WATCH_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.device.usb.watchRead.
-pub const DEVICE_USB_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.watchRead",
     "export function usbWatchRead(handle: UsbWatchHandle, timeoutNs: uint64): Result<UsbHotplugEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5414,7 +5415,7 @@ pub const DEVICE_USB_WATCH_READ: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchTryRead.
-pub const DEVICE_USB_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.usb.watchTryRead",
     "export function usbWatchTryRead(handle: UsbWatchHandle): Result<UsbHotplugEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -5427,101 +5428,8 @@ pub const DEVICE_USB_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::exte
     .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptors for device.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    DEVICE_BLUETOOTH_ADAPTER_LIST,
-    DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST,
-    DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST,
-    DEVICE_BLUETOOTH_GATT_MTU,
-    DEVICE_BLUETOOTH_GATT_READ,
-    DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR,
-    DEVICE_BLUETOOTH_GATT_READ_EVENT,
-    DEVICE_BLUETOOTH_GATT_REQUEST_MTU,
-    DEVICE_BLUETOOTH_GATT_SERVICE_LIST,
-    DEVICE_BLUETOOTH_GATT_SUBSCRIBE,
-    DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT,
-    DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE,
-    DEVICE_BLUETOOTH_GATT_WRITE,
-    DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR,
-    DEVICE_BLUETOOTH_SCAN_CLOSE,
-    DEVICE_BLUETOOTH_SCAN_OPEN,
-    DEVICE_BLUETOOTH_SCAN_READ,
-    DEVICE_BLUETOOTH_SCAN_TRY_READ,
-    DEVICE_BLUETOOTH_SESSION_CLOSE,
-    DEVICE_BLUETOOTH_SESSION_OPEN,
-    DEVICE_BLUETOOTH_SESSION_PAIR,
-    DEVICE_BLUETOOTH_SESSION_RSSI,
-    DEVICE_BLUETOOTH_SESSION_UNPAIR,
-    DEVICE_CAMERA_DEVICE_CLOSE,
-    DEVICE_CAMERA_DEVICE_LIST,
-    DEVICE_CAMERA_DEVICE_OPEN,
-    DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST,
-    DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST,
-    DEVICE_CAMERA_STREAM_CLOSE,
-    DEVICE_CAMERA_STREAM_CONTROL_RANGE,
-    DEVICE_CAMERA_STREAM_EXPOSURE_MODE,
-    DEVICE_CAMERA_STREAM_GET_CONTROL,
-    DEVICE_CAMERA_STREAM_OPEN,
-    DEVICE_CAMERA_STREAM_READ,
-    DEVICE_CAMERA_STREAM_SET_CONTROL,
-    DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE,
-    DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE,
-    DEVICE_CAMERA_STREAM_SET_TORCH_MODE,
-    DEVICE_CAMERA_STREAM_STABILIZATION_MODE,
-    DEVICE_CAMERA_STREAM_START,
-    DEVICE_CAMERA_STREAM_STOP,
-    DEVICE_CAMERA_STREAM_TORCH_MODE,
-    DEVICE_CAMERA_STREAM_TRY_READ,
-    DEVICE_SERIAL_CLOSE,
-    DEVICE_SERIAL_CONFIGURE,
-    DEVICE_SERIAL_DISCARD_INPUT,
-    DEVICE_SERIAL_DISCARD_OUTPUT,
-    DEVICE_SERIAL_FLUSH,
-    DEVICE_SERIAL_LIST,
-    DEVICE_SERIAL_OPEN,
-    DEVICE_SERIAL_READ,
-    DEVICE_SERIAL_READ_EVENT,
-    DEVICE_SERIAL_SET_BREAK,
-    DEVICE_SERIAL_SET_CONTROL_LINES,
-    DEVICE_SERIAL_SIGNAL_BITS,
-    DEVICE_SERIAL_TRY_EVENT,
-    DEVICE_SERIAL_TRY_READ,
-    DEVICE_SERIAL_WRITE,
-    DEVICE_USB_BULK_READ,
-    DEVICE_USB_BULK_WRITE,
-    DEVICE_USB_CLAIM_INTERFACE,
-    DEVICE_USB_CLEAR_HALT,
-    DEVICE_USB_CLOSE,
-    DEVICE_USB_CONFIGURATION_GET,
-    DEVICE_USB_CONFIGURATION_LIST,
-    DEVICE_USB_CONFIGURATION_SET,
-    DEVICE_USB_CONTROL_READ,
-    DEVICE_USB_CONTROL_WRITE,
-    DEVICE_USB_DESCRIPTOR,
-    DEVICE_USB_INTERRUPT_READ,
-    DEVICE_USB_INTERRUPT_WRITE,
-    DEVICE_USB_ISOCHRONOUS_READ,
-    DEVICE_USB_ISOCHRONOUS_WRITE,
-    DEVICE_USB_KERNEL_DRIVER_ACTIVE,
-    DEVICE_USB_KERNEL_DRIVER_ATTACH,
-    DEVICE_USB_KERNEL_DRIVER_DETACH,
-    DEVICE_USB_LIST,
-    DEVICE_USB_OPEN,
-    DEVICE_USB_RELEASE_INTERFACE,
-    DEVICE_USB_RESET,
-    DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING,
-    DEVICE_USB_STRING_DESCRIPTOR,
-    DEVICE_USB_STRING_LANGUAGE_LIST,
-    DEVICE_USB_TRANSFER_CANCEL,
-    DEVICE_USB_TRANSFER_CANCEL_ALL,
-    DEVICE_USB_WATCH_CLOSE,
-    DEVICE_USB_WATCH_OPEN,
-    DEVICE_USB_WATCH_READ,
-    DEVICE_USB_WATCH_TRY_READ,
-];
-
 /// Native binding set for device.
-pub const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "device",
     bindings: &[
         NativeBinding::new(
@@ -12987,7 +12895,7 @@ fn destack_device_usb_watch_try_read_replay(
 
 /// Native export wrappers for device bindings.
 #[unsafe(export_name = "destack.device.bluetooth.adapterList")]
-pub unsafe extern "C" fn destack_device_bluetooth_adapter_list(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_adapter_list(
     out: *mut NativeSlice<BluetoothAdapterDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13003,7 +12911,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_adapter_list(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.characteristicList")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_characteristic_list(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_characteristic_list(
     out: *mut NativeSlice<BluetoothGattCharacteristicDescriptor>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -13027,7 +12935,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_characteristic_list(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.descriptorList")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_descriptor_list(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_descriptor_list(
     out: *mut NativeSlice<BluetoothGattDescriptorDescriptor>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -13053,7 +12961,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_descriptor_list(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.mtu")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_mtu(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_mtu(
     out: *mut u16,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeStatus {
@@ -13070,7 +12978,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_mtu(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.read")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_read(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_read(
     out: *mut NativeSlice<u8>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -13098,7 +13006,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_read(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.readDescriptor")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_read_descriptor(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_read_descriptor(
     out: *mut NativeSlice<u8>,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -13135,7 +13043,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_read_descriptor(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.readEvent")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_read_event(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_read_event(
     out: *mut BluetoothGattValueEvent,
     handle: resource::BluetoothSubscriptionHandle,
     timeoutns: u64,
@@ -13153,7 +13061,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_read_event(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.requestMtu")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_request_mtu(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_request_mtu(
     out: *mut u16,
     handle: resource::BluetoothDeviceHandle,
     mtu: u16,
@@ -13174,7 +13082,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_request_mtu(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.serviceList")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_service_list(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_service_list(
     out: *mut NativeSlice<BluetoothGattServiceDescriptor>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeStatus {
@@ -13191,7 +13099,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_service_list(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.subscribe")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_subscribe(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_subscribe(
     out: *mut resource::BluetoothSubscriptionHandle,
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
@@ -13217,7 +13125,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_subscribe(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.tryReadEvent")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_try_read_event(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_try_read_event(
     out: *mut BluetoothGattValueEvent,
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeStatus {
@@ -13234,7 +13142,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_try_read_event(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.unsubscribe")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_unsubscribe(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_unsubscribe(
     handle: resource::BluetoothSubscriptionHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13247,7 +13155,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_unsubscribe(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.write")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_write(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_write(
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
     characteristicuuid: NativeStringRef,
@@ -13281,7 +13189,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_write(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.gatt.writeDescriptor")]
-pub unsafe extern "C" fn destack_device_bluetooth_gatt_write_descriptor(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_write_descriptor(
     handle: resource::BluetoothDeviceHandle,
     serviceuuid: NativeStringRef,
     characteristicuuid: NativeStringRef,
@@ -13315,7 +13223,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_write_descriptor(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.scan.close")]
-pub unsafe extern "C" fn destack_device_bluetooth_scan_close(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_scan_close(
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13328,7 +13236,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_scan_close(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.scan.open")]
-pub unsafe extern "C" fn destack_device_bluetooth_scan_open(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_scan_open(
     out: *mut resource::BluetoothScanHandle,
     adapterid: NativeStringRef,
     filter: BluetoothScanFilter,
@@ -13346,7 +13254,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_scan_open(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.scan.read")]
-pub unsafe extern "C" fn destack_device_bluetooth_scan_read(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_scan_read(
     out: *mut BluetoothDeviceDescriptor,
     handle: resource::BluetoothScanHandle,
     timeoutns: u64,
@@ -13364,7 +13272,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_scan_read(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.scan.tryRead")]
-pub unsafe extern "C" fn destack_device_bluetooth_scan_try_read(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_scan_try_read(
     out: *mut BluetoothDeviceDescriptor,
     handle: resource::BluetoothScanHandle,
 ) -> RuntimeStatus {
@@ -13381,7 +13289,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_scan_try_read(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.session.close")]
-pub unsafe extern "C" fn destack_device_bluetooth_session_close(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_session_close(
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13394,7 +13302,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_session_close(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.session.open")]
-pub unsafe extern "C" fn destack_device_bluetooth_session_open(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_session_open(
     out: *mut resource::BluetoothDeviceHandle,
     adapterid: NativeStringRef,
     deviceid: NativeStringRef,
@@ -13412,7 +13320,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_session_open(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.session.pair")]
-pub unsafe extern "C" fn destack_device_bluetooth_session_pair(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_session_pair(
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
 ) -> RuntimeStatus {
@@ -13437,7 +13345,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_session_pair(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.session.rssi")]
-pub unsafe extern "C" fn destack_device_bluetooth_session_rssi(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_session_rssi(
     out: *mut i32,
     handle: resource::BluetoothDeviceHandle,
     timeoutns: u64,
@@ -13455,7 +13363,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_session_rssi(
 }
 
 #[unsafe(export_name = "destack.device.bluetooth.session.unpair")]
-pub unsafe extern "C" fn destack_device_bluetooth_session_unpair(
+pub(crate) unsafe extern "C" fn destack_device_bluetooth_session_unpair(
     adapterid: NativeStringRef,
     deviceid: NativeStringRef,
 ) -> RuntimeStatus {
@@ -13480,7 +13388,7 @@ pub unsafe extern "C" fn destack_device_bluetooth_session_unpair(
 }
 
 #[unsafe(export_name = "destack.device.camera.device.close")]
-pub unsafe extern "C" fn destack_device_camera_device_close(
+pub(crate) unsafe extern "C" fn destack_device_camera_device_close(
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13493,7 +13401,7 @@ pub unsafe extern "C" fn destack_device_camera_device_close(
 }
 
 #[unsafe(export_name = "destack.device.camera.device.list")]
-pub unsafe extern "C" fn destack_device_camera_device_list(
+pub(crate) unsafe extern "C" fn destack_device_camera_device_list(
     out: *mut NativeSlice<CameraDeviceDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13509,7 +13417,7 @@ pub unsafe extern "C" fn destack_device_camera_device_list(
 }
 
 #[unsafe(export_name = "destack.device.camera.device.open")]
-pub unsafe extern "C" fn destack_device_camera_device_open(
+pub(crate) unsafe extern "C" fn destack_device_camera_device_open(
     out: *mut resource::CameraDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeStatus {
@@ -13526,7 +13434,7 @@ pub unsafe extern "C" fn destack_device_camera_device_open(
 }
 
 #[unsafe(export_name = "destack.device.camera.device.streamCapabilityList")]
-pub unsafe extern "C" fn destack_device_camera_device_stream_capability_list(
+pub(crate) unsafe extern "C" fn destack_device_camera_device_stream_capability_list(
     out: *mut NativeSlice<CameraStreamCapability>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeStatus {
@@ -13543,7 +13451,7 @@ pub unsafe extern "C" fn destack_device_camera_device_stream_capability_list(
 }
 
 #[unsafe(export_name = "destack.device.camera.device.streamConfigList")]
-pub unsafe extern "C" fn destack_device_camera_device_stream_config_list(
+pub(crate) unsafe extern "C" fn destack_device_camera_device_stream_config_list(
     out: *mut NativeSlice<CameraStreamConfig>,
     handle: resource::CameraDeviceHandle,
 ) -> RuntimeStatus {
@@ -13560,7 +13468,7 @@ pub unsafe extern "C" fn destack_device_camera_device_stream_config_list(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.close")]
-pub unsafe extern "C" fn destack_device_camera_stream_close(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_close(
     handle: resource::CameraStreamHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13573,7 +13481,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_close(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.controlRange")]
-pub unsafe extern "C" fn destack_device_camera_stream_control_range(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_control_range(
     out: *mut CameraControlRange,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
@@ -13591,7 +13499,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_control_range(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.exposureMode")]
-pub unsafe extern "C" fn destack_device_camera_stream_exposure_mode(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_exposure_mode(
     out: *mut CameraExposureMode,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeStatus {
@@ -13608,7 +13516,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_exposure_mode(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.getControl")]
-pub unsafe extern "C" fn destack_device_camera_stream_get_control(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_get_control(
     out: *mut f64,
     handle: resource::CameraStreamHandle,
     control: CameraControl,
@@ -13626,7 +13534,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_get_control(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.open")]
-pub unsafe extern "C" fn destack_device_camera_stream_open(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_open(
     out: *mut resource::CameraStreamHandle,
     device: resource::CameraDeviceHandle,
     config: CameraStreamConfig,
@@ -13644,7 +13552,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_open(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.read")]
-pub unsafe extern "C" fn destack_device_camera_stream_read(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_read(
     out: *mut CameraFrame,
     handle: resource::CameraStreamHandle,
     timeoutns: u64,
@@ -13662,7 +13570,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_read(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.setControl")]
-pub unsafe extern "C" fn destack_device_camera_stream_set_control(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_control(
     handle: resource::CameraStreamHandle,
     control: CameraControl,
     argument_value: f64,
@@ -13683,7 +13591,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_set_control(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.setExposureMode")]
-pub unsafe extern "C" fn destack_device_camera_stream_set_exposure_mode(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_exposure_mode(
     handle: resource::CameraStreamHandle,
     mode: CameraExposureMode,
 ) -> RuntimeStatus {
@@ -13697,7 +13605,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_set_exposure_mode(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.setStabilizationMode")]
-pub unsafe extern "C" fn destack_device_camera_stream_set_stabilization_mode(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_stabilization_mode(
     handle: resource::CameraStreamHandle,
     mode: CameraStabilizationMode,
 ) -> RuntimeStatus {
@@ -13711,7 +13619,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_set_stabilization_mode(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.setTorchMode")]
-pub unsafe extern "C" fn destack_device_camera_stream_set_torch_mode(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_torch_mode(
     handle: resource::CameraStreamHandle,
     mode: CameraTorchMode,
 ) -> RuntimeStatus {
@@ -13725,7 +13633,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_set_torch_mode(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.stabilizationMode")]
-pub unsafe extern "C" fn destack_device_camera_stream_stabilization_mode(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_stabilization_mode(
     out: *mut CameraStabilizationMode,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeStatus {
@@ -13742,7 +13650,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_stabilization_mode(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.start")]
-pub unsafe extern "C" fn destack_device_camera_stream_start(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_start(
     handle: resource::CameraStreamHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13755,7 +13663,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_start(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.stop")]
-pub unsafe extern "C" fn destack_device_camera_stream_stop(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_stop(
     handle: resource::CameraStreamHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13768,7 +13676,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_stop(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.torchMode")]
-pub unsafe extern "C" fn destack_device_camera_stream_torch_mode(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_torch_mode(
     out: *mut CameraTorchMode,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeStatus {
@@ -13785,7 +13693,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_torch_mode(
 }
 
 #[unsafe(export_name = "destack.device.camera.stream.tryRead")]
-pub unsafe extern "C" fn destack_device_camera_stream_try_read(
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_try_read(
     out: *mut CameraFrame,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeStatus {
@@ -13802,7 +13710,7 @@ pub unsafe extern "C" fn destack_device_camera_stream_try_read(
 }
 
 #[unsafe(export_name = "destack.device.serial.close")]
-pub unsafe extern "C" fn destack_device_serial_close(
+pub(crate) unsafe extern "C" fn destack_device_serial_close(
     handle: resource::SerialPortHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13815,7 +13723,7 @@ pub unsafe extern "C" fn destack_device_serial_close(
 }
 
 #[unsafe(export_name = "destack.device.serial.configure")]
-pub unsafe extern "C" fn destack_device_serial_configure(
+pub(crate) unsafe extern "C" fn destack_device_serial_configure(
     handle: resource::SerialPortHandle,
     config: SerialPortConfig,
 ) -> RuntimeStatus {
@@ -13829,7 +13737,7 @@ pub unsafe extern "C" fn destack_device_serial_configure(
 }
 
 #[unsafe(export_name = "destack.device.serial.discardInput")]
-pub unsafe extern "C" fn destack_device_serial_discard_input(
+pub(crate) unsafe extern "C" fn destack_device_serial_discard_input(
     handle: resource::SerialPortHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13842,7 +13750,7 @@ pub unsafe extern "C" fn destack_device_serial_discard_input(
 }
 
 #[unsafe(export_name = "destack.device.serial.discardOutput")]
-pub unsafe extern "C" fn destack_device_serial_discard_output(
+pub(crate) unsafe extern "C" fn destack_device_serial_discard_output(
     handle: resource::SerialPortHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13855,7 +13763,7 @@ pub unsafe extern "C" fn destack_device_serial_discard_output(
 }
 
 #[unsafe(export_name = "destack.device.serial.flush")]
-pub unsafe extern "C" fn destack_device_serial_flush(
+pub(crate) unsafe extern "C" fn destack_device_serial_flush(
     handle: resource::SerialPortHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13868,7 +13776,7 @@ pub unsafe extern "C" fn destack_device_serial_flush(
 }
 
 #[unsafe(export_name = "destack.device.serial.list")]
-pub unsafe extern "C" fn destack_device_serial_list(
+pub(crate) unsafe extern "C" fn destack_device_serial_list(
     out: *mut NativeSlice<SerialPortDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -13884,7 +13792,7 @@ pub unsafe extern "C" fn destack_device_serial_list(
 }
 
 #[unsafe(export_name = "destack.device.serial.open")]
-pub unsafe extern "C" fn destack_device_serial_open(
+pub(crate) unsafe extern "C" fn destack_device_serial_open(
     out: *mut resource::SerialPortHandle,
     id: NativeStringRef,
     config: SerialPortConfig,
@@ -13902,7 +13810,7 @@ pub unsafe extern "C" fn destack_device_serial_open(
 }
 
 #[unsafe(export_name = "destack.device.serial.read")]
-pub unsafe extern "C" fn destack_device_serial_read(
+pub(crate) unsafe extern "C" fn destack_device_serial_read(
     out: *mut NativeSlice<u8>,
     handle: resource::SerialPortHandle,
     maxbytes: u32,
@@ -13921,7 +13829,7 @@ pub unsafe extern "C" fn destack_device_serial_read(
 }
 
 #[unsafe(export_name = "destack.device.serial.readEvent")]
-pub unsafe extern "C" fn destack_device_serial_read_event(
+pub(crate) unsafe extern "C" fn destack_device_serial_read_event(
     out: *mut SerialEvent,
     handle: resource::SerialPortHandle,
     timeoutns: u64,
@@ -13939,7 +13847,7 @@ pub unsafe extern "C" fn destack_device_serial_read_event(
 }
 
 #[unsafe(export_name = "destack.device.serial.setBreak")]
-pub unsafe extern "C" fn destack_device_serial_set_break(
+pub(crate) unsafe extern "C" fn destack_device_serial_set_break(
     handle: resource::SerialPortHandle,
     enabled: bool,
 ) -> RuntimeStatus {
@@ -13953,7 +13861,7 @@ pub unsafe extern "C" fn destack_device_serial_set_break(
 }
 
 #[unsafe(export_name = "destack.device.serial.setControlLines")]
-pub unsafe extern "C" fn destack_device_serial_set_control_lines(
+pub(crate) unsafe extern "C" fn destack_device_serial_set_control_lines(
     handle: resource::SerialPortHandle,
     dtr: bool,
     rts: bool,
@@ -13968,7 +13876,7 @@ pub unsafe extern "C" fn destack_device_serial_set_control_lines(
 }
 
 #[unsafe(export_name = "destack.device.serial.signalBits")]
-pub unsafe extern "C" fn destack_device_serial_signal_bits(
+pub(crate) unsafe extern "C" fn destack_device_serial_signal_bits(
     out: *mut u32,
     handle: resource::SerialPortHandle,
 ) -> RuntimeStatus {
@@ -13985,7 +13893,7 @@ pub unsafe extern "C" fn destack_device_serial_signal_bits(
 }
 
 #[unsafe(export_name = "destack.device.serial.tryEvent")]
-pub unsafe extern "C" fn destack_device_serial_try_event(
+pub(crate) unsafe extern "C" fn destack_device_serial_try_event(
     out: *mut SerialEvent,
     handle: resource::SerialPortHandle,
 ) -> RuntimeStatus {
@@ -14002,7 +13910,7 @@ pub unsafe extern "C" fn destack_device_serial_try_event(
 }
 
 #[unsafe(export_name = "destack.device.serial.tryRead")]
-pub unsafe extern "C" fn destack_device_serial_try_read(
+pub(crate) unsafe extern "C" fn destack_device_serial_try_read(
     out: *mut NativeSlice<u8>,
     handle: resource::SerialPortHandle,
     maxbytes: u32,
@@ -14020,7 +13928,7 @@ pub unsafe extern "C" fn destack_device_serial_try_read(
 }
 
 #[unsafe(export_name = "destack.device.serial.write")]
-pub unsafe extern "C" fn destack_device_serial_write(
+pub(crate) unsafe extern "C" fn destack_device_serial_write(
     out: *mut u32,
     handle: resource::SerialPortHandle,
     data: NativeSlice<u8>,
@@ -14039,7 +13947,7 @@ pub unsafe extern "C" fn destack_device_serial_write(
 }
 
 #[unsafe(export_name = "destack.device.usb.bulkRead")]
-pub unsafe extern "C" fn destack_device_usb_bulk_read(
+pub(crate) unsafe extern "C" fn destack_device_usb_bulk_read(
     out: *mut NativeSlice<u8>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -14067,7 +13975,7 @@ pub unsafe extern "C" fn destack_device_usb_bulk_read(
 }
 
 #[unsafe(export_name = "destack.device.usb.bulkWrite")]
-pub unsafe extern "C" fn destack_device_usb_bulk_write(
+pub(crate) unsafe extern "C" fn destack_device_usb_bulk_write(
     out: *mut u32,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -14095,7 +14003,7 @@ pub unsafe extern "C" fn destack_device_usb_bulk_write(
 }
 
 #[unsafe(export_name = "destack.device.usb.claimInterface")]
-pub unsafe extern "C" fn destack_device_usb_claim_interface(
+pub(crate) unsafe extern "C" fn destack_device_usb_claim_interface(
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeStatus {
@@ -14109,7 +14017,7 @@ pub unsafe extern "C" fn destack_device_usb_claim_interface(
 }
 
 #[unsafe(export_name = "destack.device.usb.clearHalt")]
-pub unsafe extern "C" fn destack_device_usb_clear_halt(
+pub(crate) unsafe extern "C" fn destack_device_usb_clear_halt(
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
 ) -> RuntimeStatus {
@@ -14123,7 +14031,7 @@ pub unsafe extern "C" fn destack_device_usb_clear_halt(
 }
 
 #[unsafe(export_name = "destack.device.usb.close")]
-pub unsafe extern "C" fn destack_device_usb_close(
+pub(crate) unsafe extern "C" fn destack_device_usb_close(
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14136,7 +14044,7 @@ pub unsafe extern "C" fn destack_device_usb_close(
 }
 
 #[unsafe(export_name = "destack.device.usb.configurationGet")]
-pub unsafe extern "C" fn destack_device_usb_configuration_get(
+pub(crate) unsafe extern "C" fn destack_device_usb_configuration_get(
     out: *mut u8,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeStatus {
@@ -14153,7 +14061,7 @@ pub unsafe extern "C" fn destack_device_usb_configuration_get(
 }
 
 #[unsafe(export_name = "destack.device.usb.configurationList")]
-pub unsafe extern "C" fn destack_device_usb_configuration_list(
+pub(crate) unsafe extern "C" fn destack_device_usb_configuration_list(
     out: *mut NativeSlice<UsbConfigurationDescriptor>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeStatus {
@@ -14170,7 +14078,7 @@ pub unsafe extern "C" fn destack_device_usb_configuration_list(
 }
 
 #[unsafe(export_name = "destack.device.usb.configurationSet")]
-pub unsafe extern "C" fn destack_device_usb_configuration_set(
+pub(crate) unsafe extern "C" fn destack_device_usb_configuration_set(
     handle: resource::UsbDeviceHandle,
     configurationvalue: u8,
 ) -> RuntimeStatus {
@@ -14184,7 +14092,7 @@ pub unsafe extern "C" fn destack_device_usb_configuration_set(
 }
 
 #[unsafe(export_name = "destack.device.usb.controlRead")]
-pub unsafe extern "C" fn destack_device_usb_control_read(
+pub(crate) unsafe extern "C" fn destack_device_usb_control_read(
     out: *mut NativeSlice<u8>,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetup,
@@ -14203,7 +14111,7 @@ pub unsafe extern "C" fn destack_device_usb_control_read(
 }
 
 #[unsafe(export_name = "destack.device.usb.controlWrite")]
-pub unsafe extern "C" fn destack_device_usb_control_write(
+pub(crate) unsafe extern "C" fn destack_device_usb_control_write(
     out: *mut u32,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetup,
@@ -14231,7 +14139,7 @@ pub unsafe extern "C" fn destack_device_usb_control_write(
 }
 
 #[unsafe(export_name = "destack.device.usb.descriptor")]
-pub unsafe extern "C" fn destack_device_usb_descriptor(
+pub(crate) unsafe extern "C" fn destack_device_usb_descriptor(
     out: *mut UsbDeviceDescriptor,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeStatus {
@@ -14248,7 +14156,7 @@ pub unsafe extern "C" fn destack_device_usb_descriptor(
 }
 
 #[unsafe(export_name = "destack.device.usb.interruptRead")]
-pub unsafe extern "C" fn destack_device_usb_interrupt_read(
+pub(crate) unsafe extern "C" fn destack_device_usb_interrupt_read(
     out: *mut NativeSlice<u8>,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -14276,7 +14184,7 @@ pub unsafe extern "C" fn destack_device_usb_interrupt_read(
 }
 
 #[unsafe(export_name = "destack.device.usb.interruptWrite")]
-pub unsafe extern "C" fn destack_device_usb_interrupt_write(
+pub(crate) unsafe extern "C" fn destack_device_usb_interrupt_write(
     out: *mut u32,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -14304,7 +14212,7 @@ pub unsafe extern "C" fn destack_device_usb_interrupt_write(
 }
 
 #[unsafe(export_name = "destack.device.usb.isochronousRead")]
-pub unsafe extern "C" fn destack_device_usb_isochronous_read(
+pub(crate) unsafe extern "C" fn destack_device_usb_isochronous_read(
     out: *mut UsbIsochronousTransferResult,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -14332,7 +14240,7 @@ pub unsafe extern "C" fn destack_device_usb_isochronous_read(
 }
 
 #[unsafe(export_name = "destack.device.usb.isochronousWrite")]
-pub unsafe extern "C" fn destack_device_usb_isochronous_write(
+pub(crate) unsafe extern "C" fn destack_device_usb_isochronous_write(
     out: *mut UsbIsochronousTransferResult,
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
@@ -14369,7 +14277,7 @@ pub unsafe extern "C" fn destack_device_usb_isochronous_write(
 }
 
 #[unsafe(export_name = "destack.device.usb.kernelDriverActive")]
-pub unsafe extern "C" fn destack_device_usb_kernel_driver_active(
+pub(crate) unsafe extern "C" fn destack_device_usb_kernel_driver_active(
     out: *mut bool,
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
@@ -14387,7 +14295,7 @@ pub unsafe extern "C" fn destack_device_usb_kernel_driver_active(
 }
 
 #[unsafe(export_name = "destack.device.usb.kernelDriverAttach")]
-pub unsafe extern "C" fn destack_device_usb_kernel_driver_attach(
+pub(crate) unsafe extern "C" fn destack_device_usb_kernel_driver_attach(
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeStatus {
@@ -14418,7 +14326,7 @@ pub unsafe extern "C" fn destack_device_usb_kernel_driver_attach(
 }
 
 #[unsafe(export_name = "destack.device.usb.kernelDriverDetach")]
-pub unsafe extern "C" fn destack_device_usb_kernel_driver_detach(
+pub(crate) unsafe extern "C" fn destack_device_usb_kernel_driver_detach(
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeStatus {
@@ -14449,7 +14357,7 @@ pub unsafe extern "C" fn destack_device_usb_kernel_driver_detach(
 }
 
 #[unsafe(export_name = "destack.device.usb.list")]
-pub unsafe extern "C" fn destack_device_usb_list(
+pub(crate) unsafe extern "C" fn destack_device_usb_list(
     out: *mut NativeSlice<UsbDeviceDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14465,7 +14373,7 @@ pub unsafe extern "C" fn destack_device_usb_list(
 }
 
 #[unsafe(export_name = "destack.device.usb.open")]
-pub unsafe extern "C" fn destack_device_usb_open(
+pub(crate) unsafe extern "C" fn destack_device_usb_open(
     out: *mut resource::UsbDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeStatus {
@@ -14482,7 +14390,7 @@ pub unsafe extern "C" fn destack_device_usb_open(
 }
 
 #[unsafe(export_name = "destack.device.usb.releaseInterface")]
-pub unsafe extern "C" fn destack_device_usb_release_interface(
+pub(crate) unsafe extern "C" fn destack_device_usb_release_interface(
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
 ) -> RuntimeStatus {
@@ -14496,7 +14404,7 @@ pub unsafe extern "C" fn destack_device_usb_release_interface(
 }
 
 #[unsafe(export_name = "destack.device.usb.reset")]
-pub unsafe extern "C" fn destack_device_usb_reset(
+pub(crate) unsafe extern "C" fn destack_device_usb_reset(
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14518,7 +14426,7 @@ pub unsafe extern "C" fn destack_device_usb_reset(
 }
 
 #[unsafe(export_name = "destack.device.usb.setInterfaceAlternateSetting")]
-pub unsafe extern "C" fn destack_device_usb_set_interface_alternate_setting(
+pub(crate) unsafe extern "C" fn destack_device_usb_set_interface_alternate_setting(
     handle: resource::UsbDeviceHandle,
     interfacenumber: u8,
     alternatesetting: u8,
@@ -14539,7 +14447,7 @@ pub unsafe extern "C" fn destack_device_usb_set_interface_alternate_setting(
 }
 
 #[unsafe(export_name = "destack.device.usb.stringDescriptor")]
-pub unsafe extern "C" fn destack_device_usb_string_descriptor(
+pub(crate) unsafe extern "C" fn destack_device_usb_string_descriptor(
     out: *mut UsbStringDescriptor,
     handle: resource::UsbDeviceHandle,
     languageid: u16,
@@ -14557,7 +14465,7 @@ pub unsafe extern "C" fn destack_device_usb_string_descriptor(
 }
 
 #[unsafe(export_name = "destack.device.usb.stringLanguageList")]
-pub unsafe extern "C" fn destack_device_usb_string_language_list(
+pub(crate) unsafe extern "C" fn destack_device_usb_string_language_list(
     out: *mut NativeSlice<u16>,
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeStatus {
@@ -14574,7 +14482,7 @@ pub unsafe extern "C" fn destack_device_usb_string_language_list(
 }
 
 #[unsafe(export_name = "destack.device.usb.transferCancel")]
-pub unsafe extern "C" fn destack_device_usb_transfer_cancel(
+pub(crate) unsafe extern "C" fn destack_device_usb_transfer_cancel(
     handle: resource::UsbDeviceHandle,
     endpointaddress: u8,
 ) -> RuntimeStatus {
@@ -14605,7 +14513,7 @@ pub unsafe extern "C" fn destack_device_usb_transfer_cancel(
 }
 
 #[unsafe(export_name = "destack.device.usb.transferCancelAll")]
-pub unsafe extern "C" fn destack_device_usb_transfer_cancel_all(
+pub(crate) unsafe extern "C" fn destack_device_usb_transfer_cancel_all(
     handle: resource::UsbDeviceHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14629,7 +14537,7 @@ pub unsafe extern "C" fn destack_device_usb_transfer_cancel_all(
 }
 
 #[unsafe(export_name = "destack.device.usb.watchClose")]
-pub unsafe extern "C" fn destack_device_usb_watch_close(
+pub(crate) unsafe extern "C" fn destack_device_usb_watch_close(
     handle: resource::UsbWatchHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14642,7 +14550,7 @@ pub unsafe extern "C" fn destack_device_usb_watch_close(
 }
 
 #[unsafe(export_name = "destack.device.usb.watchOpen")]
-pub unsafe extern "C" fn destack_device_usb_watch_open(
+pub(crate) unsafe extern "C" fn destack_device_usb_watch_open(
     out: *mut resource::UsbWatchHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -14658,7 +14566,7 @@ pub unsafe extern "C" fn destack_device_usb_watch_open(
 }
 
 #[unsafe(export_name = "destack.device.usb.watchRead")]
-pub unsafe extern "C" fn destack_device_usb_watch_read(
+pub(crate) unsafe extern "C" fn destack_device_usb_watch_read(
     out: *mut UsbHotplugEvent,
     handle: resource::UsbWatchHandle,
     timeoutns: u64,
@@ -14676,7 +14584,7 @@ pub unsafe extern "C" fn destack_device_usb_watch_read(
 }
 
 #[unsafe(export_name = "destack.device.usb.watchTryRead")]
-pub unsafe extern "C" fn destack_device_usb_watch_try_read(
+pub(crate) unsafe extern "C" fn destack_device_usb_watch_try_read(
     out: *mut UsbHotplugEvent,
     handle: resource::UsbWatchHandle,
 ) -> RuntimeStatus {
@@ -22737,7 +22645,7 @@ fn destack_device_usb_watch_try_read_vm_replay(
 }
 
 /// Register VM bindings for device.
-pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -24820,8 +24728,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 }
 
 /// Install VM bindings for device.
-pub fn install_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_device_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub DEVICE_VM_BINDINGS, "device", install_device_vm_bindings);
+vm_binding_set!(pub(crate) DEVICE_VM_BINDINGS, "device", install_device_vm_bindings);

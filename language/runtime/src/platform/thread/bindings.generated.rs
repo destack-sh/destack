@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -820,7 +821,7 @@ fn encode_destack_thread_sync_semaphore_wait_result(
 }
 
 /// Binding descriptor for destack.thread.local.create.
-pub const THREAD_LOCAL_CREATE: BindingDescriptor =
+pub(crate) const THREAD_LOCAL_CREATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.local.create",
         "export function localCreate(): Result<ThreadLocalKey, PlatformError>",
@@ -848,7 +849,7 @@ pub const THREAD_LOCAL_CREATE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.local.delete.
-pub const THREAD_LOCAL_DELETE: BindingDescriptor =
+pub(crate) const THREAD_LOCAL_DELETE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.local.delete",
         "export function localDelete(key: ThreadLocalKey): Result<void, PlatformError>",
@@ -876,7 +877,7 @@ pub const THREAD_LOCAL_DELETE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.local.get.
-pub const THREAD_LOCAL_GET: BindingDescriptor =
+pub(crate) const THREAD_LOCAL_GET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.local.get",
         "export function localGet(key: ThreadLocalKey): Result<uint64, PlatformError>",
@@ -904,7 +905,7 @@ pub const THREAD_LOCAL_GET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.local.set.
-pub const THREAD_LOCAL_SET: BindingDescriptor =
+pub(crate) const THREAD_LOCAL_SET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.local.set",
         "export function localSet(key: ThreadLocalKey, value: uint64): Result<void, PlatformError>",
@@ -932,7 +933,7 @@ pub const THREAD_LOCAL_SET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.priority.getAffinity.
-pub const THREAD_PRIORITY_GET_AFFINITY: BindingDescriptor =
+pub(crate) const THREAD_PRIORITY_GET_AFFINITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.priority.getAffinity",
         "export function getAffinity(handle: ThreadHandle): Result<uint64, PlatformError>",
@@ -960,7 +961,7 @@ pub const THREAD_PRIORITY_GET_AFFINITY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.priority.getPriority.
-pub const THREAD_PRIORITY_GET_PRIORITY: BindingDescriptor =
+pub(crate) const THREAD_PRIORITY_GET_PRIORITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.priority.getPriority",
         "export function getPriority(handle: ThreadHandle): Result<int32, PlatformError>",
@@ -988,7 +989,7 @@ pub const THREAD_PRIORITY_GET_PRIORITY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.priority.setAffinity.
-pub const THREAD_PRIORITY_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_PRIORITY_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.priority.setAffinity",
     "export function setAffinity(handle: ThreadHandle, mask: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1002,7 +1003,7 @@ pub const THREAD_PRIORITY_SET_AFFINITY: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.priority.setPriority.
-pub const THREAD_PRIORITY_SET_PRIORITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_PRIORITY_SET_PRIORITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.priority.setPriority",
     "export function setPriority(handle: ThreadHandle, priority: int32): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1016,7 +1017,7 @@ pub const THREAD_PRIORITY_SET_PRIORITY: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.spawn.detach.
-pub const THREAD_SPAWN_DETACH: BindingDescriptor =
+pub(crate) const THREAD_SPAWN_DETACH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.spawn.detach",
         "export function detach(handle: ThreadHandle): Result<void, PlatformError>",
@@ -1044,7 +1045,7 @@ pub const THREAD_SPAWN_DETACH: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.spawn.join.
-pub const THREAD_SPAWN_JOIN: BindingDescriptor =
+pub(crate) const THREAD_SPAWN_JOIN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.spawn.join",
         "export function join(handle: ThreadHandle): Result<uint32, PlatformError>",
@@ -1072,7 +1073,7 @@ pub const THREAD_SPAWN_JOIN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.spawn.start.
-pub const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.spawn.start",
     "export function spawn(entry: string, argument: uint64, options: ThreadOptions): Result<ThreadHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1086,7 +1087,7 @@ pub const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.addressWait.
-pub const THREAD_SYNC_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SYNC_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.addressWait",
     "export function addressWait(address: uint64, expected: uint32, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1100,7 +1101,7 @@ pub const THREAD_SYNC_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.addressWakeAll.
-pub const THREAD_SYNC_ADDRESS_WAKE_ALL: BindingDescriptor =
+pub(crate) const THREAD_SYNC_ADDRESS_WAKE_ALL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.addressWakeAll",
         "export function addressWakeAll(address: uint64): Result<void, PlatformError>",
@@ -1128,7 +1129,7 @@ pub const THREAD_SYNC_ADDRESS_WAKE_ALL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sync.addressWakeOne.
-pub const THREAD_SYNC_ADDRESS_WAKE_ONE: BindingDescriptor =
+pub(crate) const THREAD_SYNC_ADDRESS_WAKE_ONE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.addressWakeOne",
         "export function addressWakeOne(address: uint64): Result<void, PlatformError>",
@@ -1156,7 +1157,7 @@ pub const THREAD_SYNC_ADDRESS_WAKE_ONE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sync.barrierCreate.
-pub const THREAD_SYNC_BARRIER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SYNC_BARRIER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.barrierCreate",
     "export function barrierCreate(participants: uint32, flags: uint32): Result<BarrierHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1170,7 +1171,7 @@ pub const THREAD_SYNC_BARRIER_CREATE: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.barrierWait.
-pub const THREAD_SYNC_BARRIER_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SYNC_BARRIER_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.barrierWait",
     "export function barrierWait(handle: BarrierHandle, timeoutNs: uint64): Result<boolean, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1184,7 +1185,7 @@ pub const THREAD_SYNC_BARRIER_WAIT: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.condVarCreate.
-pub const THREAD_SYNC_COND_VAR_CREATE: BindingDescriptor =
+pub(crate) const THREAD_SYNC_COND_VAR_CREATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.condVarCreate",
         "export function condVarCreate(flags: uint32): Result<CondVarHandle, PlatformError>",
@@ -1212,7 +1213,7 @@ pub const THREAD_SYNC_COND_VAR_CREATE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sync.condVarNotifyAll.
-pub const THREAD_SYNC_COND_VAR_NOTIFY_ALL: BindingDescriptor =
+pub(crate) const THREAD_SYNC_COND_VAR_NOTIFY_ALL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.condVarNotifyAll",
         "export function condVarNotifyAll(condVar: CondVarHandle): Result<void, PlatformError>",
@@ -1240,7 +1241,7 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ALL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sync.condVarNotifyOne.
-pub const THREAD_SYNC_COND_VAR_NOTIFY_ONE: BindingDescriptor =
+pub(crate) const THREAD_SYNC_COND_VAR_NOTIFY_ONE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.condVarNotifyOne",
         "export function condVarNotifyOne(condVar: CondVarHandle): Result<void, PlatformError>",
@@ -1268,7 +1269,7 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ONE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sync.condVarWait.
-pub const THREAD_SYNC_COND_VAR_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SYNC_COND_VAR_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.condVarWait",
     "export function condVarWait(condVar: CondVarHandle, mutex: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1282,7 +1283,7 @@ pub const THREAD_SYNC_COND_VAR_WAIT: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.mutexCreate.
-pub const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
+pub(crate) const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.mutexCreate",
         "export function mutexCreate(flags: uint32): Result<MutexHandle, PlatformError>",
@@ -1310,7 +1311,7 @@ pub const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sync.mutexLock.
-pub const THREAD_SYNC_MUTEX_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SYNC_MUTEX_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.mutexLock",
     "export function mutexLock(handle: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1324,7 +1325,7 @@ pub const THREAD_SYNC_MUTEX_LOCK: BindingDescriptor = BindingDescriptor::externa
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.mutexUnlock.
-pub const THREAD_SYNC_MUTEX_UNLOCK: BindingDescriptor =
+pub(crate) const THREAD_SYNC_MUTEX_UNLOCK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.mutexUnlock",
         "export function mutexUnlock(handle: MutexHandle): Result<void, PlatformError>",
@@ -1352,7 +1353,7 @@ pub const THREAD_SYNC_MUTEX_UNLOCK: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sync.rwlockCreate.
-pub const THREAD_SYNC_RWLOCK_CREATE: BindingDescriptor =
+pub(crate) const THREAD_SYNC_RWLOCK_CREATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.rwlockCreate",
         "export function rwlockCreate(flags: uint32): Result<RwLockHandle, PlatformError>",
@@ -1380,7 +1381,7 @@ pub const THREAD_SYNC_RWLOCK_CREATE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sync.rwlockReadLock.
-pub const THREAD_SYNC_RWLOCK_READ_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SYNC_RWLOCK_READ_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.rwlockReadLock",
     "export function rwlockReadLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1394,7 +1395,7 @@ pub const THREAD_SYNC_RWLOCK_READ_LOCK: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.rwlockUnlock.
-pub const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
+pub(crate) const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sync.rwlockUnlock",
         "export function rwlockUnlock(handle: RwLockHandle): Result<void, PlatformError>",
@@ -1422,7 +1423,7 @@ pub const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sync.rwlockWriteLock.
-pub const THREAD_SYNC_RWLOCK_WRITE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SYNC_RWLOCK_WRITE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.rwlockWriteLock",
     "export function rwlockWriteLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1436,7 +1437,7 @@ pub const THREAD_SYNC_RWLOCK_WRITE_LOCK: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphoreCreate.
-pub const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.semaphoreCreate",
     "export function semaphoreCreate(initial: uint32, maximum: uint32, flags: uint32): Result<ThreadSemaphoreHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1450,7 +1451,7 @@ pub const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphorePost.
-pub const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.semaphorePost",
     "export function semaphorePost(handle: ThreadSemaphoreHandle, count: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1464,7 +1465,7 @@ pub const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphoreWait.
-pub const THREAD_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sync.semaphoreWait",
     "export function semaphoreWait(handle: ThreadSemaphoreHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -1477,42 +1478,8 @@ pub const THREAD_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::ext
     .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptors for thread.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    THREAD_LOCAL_CREATE,
-    THREAD_LOCAL_DELETE,
-    THREAD_LOCAL_GET,
-    THREAD_LOCAL_SET,
-    THREAD_PRIORITY_GET_AFFINITY,
-    THREAD_PRIORITY_GET_PRIORITY,
-    THREAD_PRIORITY_SET_AFFINITY,
-    THREAD_PRIORITY_SET_PRIORITY,
-    THREAD_SPAWN_DETACH,
-    THREAD_SPAWN_JOIN,
-    THREAD_SPAWN_START,
-    THREAD_SYNC_ADDRESS_WAIT,
-    THREAD_SYNC_ADDRESS_WAKE_ALL,
-    THREAD_SYNC_ADDRESS_WAKE_ONE,
-    THREAD_SYNC_BARRIER_CREATE,
-    THREAD_SYNC_BARRIER_WAIT,
-    THREAD_SYNC_COND_VAR_CREATE,
-    THREAD_SYNC_COND_VAR_NOTIFY_ALL,
-    THREAD_SYNC_COND_VAR_NOTIFY_ONE,
-    THREAD_SYNC_COND_VAR_WAIT,
-    THREAD_SYNC_MUTEX_CREATE,
-    THREAD_SYNC_MUTEX_LOCK,
-    THREAD_SYNC_MUTEX_UNLOCK,
-    THREAD_SYNC_RWLOCK_CREATE,
-    THREAD_SYNC_RWLOCK_READ_LOCK,
-    THREAD_SYNC_RWLOCK_UNLOCK,
-    THREAD_SYNC_RWLOCK_WRITE_LOCK,
-    THREAD_SYNC_SEMAPHORE_CREATE,
-    THREAD_SYNC_SEMAPHORE_POST,
-    THREAD_SYNC_SEMAPHORE_WAIT,
-];
-
 /// Native binding set for thread.
-pub const THREAD_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const THREAD_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "thread",
     bindings: &[
         NativeBinding::new(
@@ -1670,7 +1637,7 @@ pub const THREAD_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 
 /// Native export wrappers for thread bindings.
 #[unsafe(export_name = "destack.thread.local.create")]
-pub unsafe extern "C" fn destack_thread_local_create(
+pub(crate) unsafe extern "C" fn destack_thread_local_create(
     out: *mut resource::ThreadLocalKey,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1695,7 +1662,7 @@ pub unsafe extern "C" fn destack_thread_local_create(
 }
 
 #[unsafe(export_name = "destack.thread.local.delete")]
-pub unsafe extern "C" fn destack_thread_local_delete(
+pub(crate) unsafe extern "C" fn destack_thread_local_delete(
     key: resource::ThreadLocalKey,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1717,7 +1684,7 @@ pub unsafe extern "C" fn destack_thread_local_delete(
 }
 
 #[unsafe(export_name = "destack.thread.local.get")]
-pub unsafe extern "C" fn destack_thread_local_get(
+pub(crate) unsafe extern "C" fn destack_thread_local_get(
     out: *mut u64,
     key: resource::ThreadLocalKey,
 ) -> RuntimeStatus {
@@ -1743,7 +1710,7 @@ pub unsafe extern "C" fn destack_thread_local_get(
 }
 
 #[unsafe(export_name = "destack.thread.local.set")]
-pub unsafe extern "C" fn destack_thread_local_set(
+pub(crate) unsafe extern "C" fn destack_thread_local_set(
     key: resource::ThreadLocalKey,
     argument_value: u64,
 ) -> RuntimeStatus {
@@ -1770,7 +1737,7 @@ pub unsafe extern "C" fn destack_thread_local_set(
 }
 
 #[unsafe(export_name = "destack.thread.priority.getAffinity")]
-pub unsafe extern "C" fn destack_thread_priority_get_affinity(
+pub(crate) unsafe extern "C" fn destack_thread_priority_get_affinity(
     out: *mut u64,
     handle: resource::ThreadHandle,
 ) -> RuntimeStatus {
@@ -1796,7 +1763,7 @@ pub unsafe extern "C" fn destack_thread_priority_get_affinity(
 }
 
 #[unsafe(export_name = "destack.thread.priority.getPriority")]
-pub unsafe extern "C" fn destack_thread_priority_get_priority(
+pub(crate) unsafe extern "C" fn destack_thread_priority_get_priority(
     out: *mut i32,
     handle: resource::ThreadHandle,
 ) -> RuntimeStatus {
@@ -1822,7 +1789,7 @@ pub unsafe extern "C" fn destack_thread_priority_get_priority(
 }
 
 #[unsafe(export_name = "destack.thread.priority.setAffinity")]
-pub unsafe extern "C" fn destack_thread_priority_set_affinity(
+pub(crate) unsafe extern "C" fn destack_thread_priority_set_affinity(
     handle: resource::ThreadHandle,
     mask: u64,
 ) -> RuntimeStatus {
@@ -1845,7 +1812,7 @@ pub unsafe extern "C" fn destack_thread_priority_set_affinity(
 }
 
 #[unsafe(export_name = "destack.thread.priority.setPriority")]
-pub unsafe extern "C" fn destack_thread_priority_set_priority(
+pub(crate) unsafe extern "C" fn destack_thread_priority_set_priority(
     handle: resource::ThreadHandle,
     priority: i32,
 ) -> RuntimeStatus {
@@ -1870,7 +1837,7 @@ pub unsafe extern "C" fn destack_thread_priority_set_priority(
 }
 
 #[unsafe(export_name = "destack.thread.spawn.detach")]
-pub unsafe extern "C" fn destack_thread_spawn_detach(
+pub(crate) unsafe extern "C" fn destack_thread_spawn_detach(
     handle: resource::ThreadHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1892,7 +1859,7 @@ pub unsafe extern "C" fn destack_thread_spawn_detach(
 }
 
 #[unsafe(export_name = "destack.thread.spawn.join")]
-pub unsafe extern "C" fn destack_thread_spawn_join(
+pub(crate) unsafe extern "C" fn destack_thread_spawn_join(
     out: *mut u32,
     handle: resource::ThreadHandle,
 ) -> RuntimeStatus {
@@ -1918,7 +1885,7 @@ pub unsafe extern "C" fn destack_thread_spawn_join(
 }
 
 #[unsafe(export_name = "destack.thread.spawn.start")]
-pub unsafe extern "C" fn destack_thread_spawn_start(
+pub(crate) unsafe extern "C" fn destack_thread_spawn_start(
     out: *mut resource::ThreadHandle,
     entry: NativeStringRef,
     argument: u64,
@@ -1948,7 +1915,7 @@ pub unsafe extern "C" fn destack_thread_spawn_start(
 }
 
 #[unsafe(export_name = "destack.thread.sync.addressWait")]
-pub unsafe extern "C" fn destack_thread_sync_address_wait(
+pub(crate) unsafe extern "C" fn destack_thread_sync_address_wait(
     address: u64,
     expected: u32,
     timeoutns: u64,
@@ -1976,7 +1943,9 @@ pub unsafe extern "C" fn destack_thread_sync_address_wait(
 }
 
 #[unsafe(export_name = "destack.thread.sync.addressWakeAll")]
-pub unsafe extern "C" fn destack_thread_sync_address_wake_all(address: u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_thread_sync_address_wake_all(
+    address: u64,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &address;
 
@@ -1996,7 +1965,9 @@ pub unsafe extern "C" fn destack_thread_sync_address_wake_all(address: u64) -> R
 }
 
 #[unsafe(export_name = "destack.thread.sync.addressWakeOne")]
-pub unsafe extern "C" fn destack_thread_sync_address_wake_one(address: u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_thread_sync_address_wake_one(
+    address: u64,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &address;
 
@@ -2016,7 +1987,7 @@ pub unsafe extern "C" fn destack_thread_sync_address_wake_one(address: u64) -> R
 }
 
 #[unsafe(export_name = "destack.thread.sync.barrierCreate")]
-pub unsafe extern "C" fn destack_thread_sync_barrier_create(
+pub(crate) unsafe extern "C" fn destack_thread_sync_barrier_create(
     out: *mut resource::BarrierHandle,
     participants: u32,
     flags: u32,
@@ -2053,7 +2024,7 @@ pub unsafe extern "C" fn destack_thread_sync_barrier_create(
 }
 
 #[unsafe(export_name = "destack.thread.sync.barrierWait")]
-pub unsafe extern "C" fn destack_thread_sync_barrier_wait(
+pub(crate) unsafe extern "C" fn destack_thread_sync_barrier_wait(
     out: *mut bool,
     handle: resource::BarrierHandle,
     timeoutns: u64,
@@ -2082,7 +2053,7 @@ pub unsafe extern "C" fn destack_thread_sync_barrier_wait(
 }
 
 #[unsafe(export_name = "destack.thread.sync.condVarCreate")]
-pub unsafe extern "C" fn destack_thread_sync_cond_var_create(
+pub(crate) unsafe extern "C" fn destack_thread_sync_cond_var_create(
     out: *mut resource::CondVarHandle,
     flags: u32,
 ) -> RuntimeStatus {
@@ -2108,7 +2079,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_create(
 }
 
 #[unsafe(export_name = "destack.thread.sync.condVarNotifyAll")]
-pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_all(
+pub(crate) unsafe extern "C" fn destack_thread_sync_cond_var_notify_all(
     condvar: resource::CondVarHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2130,7 +2101,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_all(
 }
 
 #[unsafe(export_name = "destack.thread.sync.condVarNotifyOne")]
-pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_one(
+pub(crate) unsafe extern "C" fn destack_thread_sync_cond_var_notify_one(
     condvar: resource::CondVarHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2152,7 +2123,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_one(
 }
 
 #[unsafe(export_name = "destack.thread.sync.condVarWait")]
-pub unsafe extern "C" fn destack_thread_sync_cond_var_wait(
+pub(crate) unsafe extern "C" fn destack_thread_sync_cond_var_wait(
     condvar: resource::CondVarHandle,
     mutex: resource::MutexHandle,
     timeoutns: u64,
@@ -2180,7 +2151,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_wait(
 }
 
 #[unsafe(export_name = "destack.thread.sync.mutexCreate")]
-pub unsafe extern "C" fn destack_thread_sync_mutex_create(
+pub(crate) unsafe extern "C" fn destack_thread_sync_mutex_create(
     out: *mut resource::MutexHandle,
     flags: u32,
 ) -> RuntimeStatus {
@@ -2206,7 +2177,7 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_create(
 }
 
 #[unsafe(export_name = "destack.thread.sync.mutexLock")]
-pub unsafe extern "C" fn destack_thread_sync_mutex_lock(
+pub(crate) unsafe extern "C" fn destack_thread_sync_mutex_lock(
     handle: resource::MutexHandle,
     timeoutns: u64,
 ) -> RuntimeStatus {
@@ -2231,7 +2202,7 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_lock(
 }
 
 #[unsafe(export_name = "destack.thread.sync.mutexUnlock")]
-pub unsafe extern "C" fn destack_thread_sync_mutex_unlock(
+pub(crate) unsafe extern "C" fn destack_thread_sync_mutex_unlock(
     handle: resource::MutexHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2253,7 +2224,7 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_unlock(
 }
 
 #[unsafe(export_name = "destack.thread.sync.rwlockCreate")]
-pub unsafe extern "C" fn destack_thread_sync_rwlock_create(
+pub(crate) unsafe extern "C" fn destack_thread_sync_rwlock_create(
     out: *mut resource::RwLockHandle,
     flags: u32,
 ) -> RuntimeStatus {
@@ -2279,7 +2250,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_create(
 }
 
 #[unsafe(export_name = "destack.thread.sync.rwlockReadLock")]
-pub unsafe extern "C" fn destack_thread_sync_rwlock_read_lock(
+pub(crate) unsafe extern "C" fn destack_thread_sync_rwlock_read_lock(
     handle: resource::RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeStatus {
@@ -2304,7 +2275,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_read_lock(
 }
 
 #[unsafe(export_name = "destack.thread.sync.rwlockUnlock")]
-pub unsafe extern "C" fn destack_thread_sync_rwlock_unlock(
+pub(crate) unsafe extern "C" fn destack_thread_sync_rwlock_unlock(
     handle: resource::RwLockHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2326,7 +2297,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_unlock(
 }
 
 #[unsafe(export_name = "destack.thread.sync.rwlockWriteLock")]
-pub unsafe extern "C" fn destack_thread_sync_rwlock_write_lock(
+pub(crate) unsafe extern "C" fn destack_thread_sync_rwlock_write_lock(
     handle: resource::RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeStatus {
@@ -2351,7 +2322,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_write_lock(
 }
 
 #[unsafe(export_name = "destack.thread.sync.semaphoreCreate")]
-pub unsafe extern "C" fn destack_thread_sync_semaphore_create(
+pub(crate) unsafe extern "C" fn destack_thread_sync_semaphore_create(
     out: *mut resource::ThreadSemaphoreHandle,
     initial: u32,
     maximum: u32,
@@ -2383,7 +2354,7 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_create(
 }
 
 #[unsafe(export_name = "destack.thread.sync.semaphorePost")]
-pub unsafe extern "C" fn destack_thread_sync_semaphore_post(
+pub(crate) unsafe extern "C" fn destack_thread_sync_semaphore_post(
     handle: resource::ThreadSemaphoreHandle,
     count: u32,
 ) -> RuntimeStatus {
@@ -2408,7 +2379,7 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_post(
 }
 
 #[unsafe(export_name = "destack.thread.sync.semaphoreWait")]
-pub unsafe extern "C" fn destack_thread_sync_semaphore_wait(
+pub(crate) unsafe extern "C" fn destack_thread_sync_semaphore_wait(
     handle: resource::ThreadSemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeStatus {
@@ -2433,7 +2404,7 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_wait(
 }
 
 /// Register VM bindings for thread.
-pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -3383,8 +3354,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 }
 
 /// Install VM bindings for thread.
-pub fn install_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_thread_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub THREAD_VM_BINDINGS, "thread", install_thread_vm_bindings);
+vm_binding_set!(pub(crate) THREAD_VM_BINDINGS, "thread", install_thread_vm_bindings);

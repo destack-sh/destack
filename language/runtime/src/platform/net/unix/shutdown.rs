@@ -1,18 +1,10 @@
-#![allow(unused_imports)]
-
 use super::core::*;
-use super::os;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::OsPath;
-use crate::platform::net::{core as core_net, *};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
+use crate::platform::net::*;
 use crate::platform::resource::*;
-use crate::platform::{core as core_platform, *};
 use crate::runtime::BindingCallContext;
-
-use std::ffi::{CStr, CString};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::os::unix::io::RawFd;
 
 /// Shut down a socket for reads, writes, or both.
 ///

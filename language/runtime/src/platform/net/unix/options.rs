@@ -1,18 +1,13 @@
-#![allow(unused_imports)]
-
 use super::core::*;
 use super::os;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::OsPath;
-use crate::platform::net::{core as core_net, *};
+use crate::platform::net::*;
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
-use std::ffi::{CStr, CString};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::os::unix::io::RawFd;
+use std::net::{Ipv4Addr, Ipv6Addr};
 
 /// Host IPv6 multicast interface selector type.
 #[cfg(target_os = "android")]

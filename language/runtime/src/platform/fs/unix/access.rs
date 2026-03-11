@@ -1,19 +1,10 @@
-#![allow(unused_imports)]
-
 use super::core::*;
-use super::os;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
-use crate::platform::{core as core_platform, net as platform_net, *};
+use crate::platform::{core as core_platform, *};
 use crate::runtime::BindingCallContext;
-
-use std::ffi::{CStr, CString};
-use std::os::unix::ffi::OsStrExt;
-use std::os::unix::io::RawFd;
-use std::path::PathBuf;
 
 /// Check file access permissions.
 ///

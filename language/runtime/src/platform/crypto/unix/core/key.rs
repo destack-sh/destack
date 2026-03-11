@@ -21,6 +21,32 @@ use crate::platform::crypto::{
 
 use super::invalid_data;
 
+/// Return the effective signature digest for one unix host-signature request.
+fn resolved_signature_digest(
+    parameters: CryptoSignatureParameters,
+    operation: &'static str,
+) -> RuntimeResult<CryptoDigestAlgorithm> {
+    let digest = parameters.digest.unwrap_or(CryptoDigestAlgorithm::Unknown);
+    if digest == CryptoDigestAlgorithm::Unknown {
+        return Err(core_platform::not_supported(operation));
+    }
+
+    Ok(digest)
+}
+
+/// Return the effective OAEP digest for one unix host-encryption request.
+fn resolved_oaep_digest(
+    parameters: CryptoAsymmetricEncryptionParameters,
+    operation: &'static str,
+) -> RuntimeResult<CryptoDigestAlgorithm> {
+    let digest = parameters.digest.unwrap_or(CryptoDigestAlgorithm::Unknown);
+    if digest == CryptoDigestAlgorithm::Unknown {
+        return Err(core_platform::not_supported(operation));
+    }
+
+    Ok(digest)
+}
+
 /// Return one digest lane for one signature request.
 pub(crate) fn signature_digest(
     digest: CryptoDigestAlgorithm,
@@ -384,7 +410,8 @@ pub(crate) fn sign_with_software_host_key(
             return Err(core_platform::not_supported(operation));
         }
 
-        let digest = signature_digest(parameters.digest, operation)?;
+        let digest = resolved_signature_digest(parameters, operation)?;
+        let digest = signature_digest(digest, operation)?;
         let mut signer = Signer::new(digest, &private_key)
             .map_err(|error| invalid_data(operation, format!("{error}")))?;
         match parameters.algorithm {
@@ -400,10 +427,11 @@ pub(crate) fn sign_with_software_host_key(
                 signer
                     .set_rsa_mgf1_md(digest)
                     .map_err(|error| invalid_data(operation, format!("{error}")))?;
-                let salt_length = if parameters.salt_length_bytes == 0 {
+                let salt_length_bytes = parameters.salt_length_bytes.unwrap_or(0);
+                let salt_length = if salt_length_bytes == 0 {
                     RsaPssSaltlen::DIGEST_LENGTH
                 } else {
-                    RsaPssSaltlen::custom(parameters.salt_length_bytes as i32)
+                    RsaPssSaltlen::custom(salt_length_bytes as i32)
                 };
                 signer
                     .set_rsa_pss_saltlen(salt_length)
@@ -428,7 +456,8 @@ pub(crate) fn sign_with_software_host_key(
             return Err(core_platform::not_supported(operation));
         }
 
-        let digest = signature_digest(parameters.digest, operation)?;
+        let digest = resolved_signature_digest(parameters, operation)?;
+        let digest = signature_digest(digest, operation)?;
         let mut signer = Signer::new(digest, &private_key)
             .map_err(|error| invalid_data(operation, format!("{error}")))?;
         signer
@@ -473,7 +502,8 @@ pub(crate) fn decrypt_with_software_host_key(
                 .map_err(|error| invalid_data(operation, format!("{error}")))?;
         }
         CryptoAsymmetricEncryptionAlgorithm::RsaOaep => {
-            let digest = signature_digest(parameters.digest, operation)?;
+            let digest = resolved_oaep_digest(parameters, operation)?;
+            let digest = signature_digest(digest, operation)?;
             decrypter
                 .set_rsa_padding(Padding::PKCS1_OAEP)
                 .map_err(|error| invalid_data(operation, format!("{error}")))?;

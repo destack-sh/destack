@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -464,7 +465,7 @@ struct DebugTraceStopReplayRecord {
 }
 
 /// Binding descriptor for destack.debug.core.breakNow.
-pub const DEBUG_CORE_BREAK_NOW: BindingDescriptor =
+pub(crate) const DEBUG_CORE_BREAK_NOW: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.debug.core.breakNow",
         "export function breakNow(): Result<void, PlatformError>",
@@ -493,7 +494,7 @@ pub const DEBUG_CORE_BREAK_NOW: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.debug.core.mark.
-pub const DEBUG_CORE_MARK: BindingDescriptor =
+pub(crate) const DEBUG_CORE_MARK: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.debug.core.mark",
         "export function mark(label: string): Result<void, PlatformError>",
@@ -522,7 +523,7 @@ pub const DEBUG_CORE_MARK: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.debug.inspector.endpoint.
-pub const DEBUG_INSPECTOR_ENDPOINT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEBUG_INSPECTOR_ENDPOINT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.debug.inspector.endpoint",
     "export function inspectorEndpoint(handle: InspectorHandle): Result<InspectorEndpoint, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -536,7 +537,7 @@ pub const DEBUG_INSPECTOR_ENDPOINT: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.inspector.start.
-pub const DEBUG_INSPECTOR_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEBUG_INSPECTOR_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.debug.inspector.start",
     "export function inspectorStart(host: string, port: uint16): Result<InspectorHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -550,7 +551,7 @@ pub const DEBUG_INSPECTOR_START: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.inspector.stop.
-pub const DEBUG_INSPECTOR_STOP: BindingDescriptor =
+pub(crate) const DEBUG_INSPECTOR_STOP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.debug.inspector.stop",
         "export function inspectorStop(handle: InspectorHandle): Result<void, PlatformError>",
@@ -579,7 +580,7 @@ pub const DEBUG_INSPECTOR_STOP: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.debug.profile.snapshot.
-pub const DEBUG_PROFILE_SNAPSHOT: BindingDescriptor =
+pub(crate) const DEBUG_PROFILE_SNAPSHOT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.debug.profile.snapshot",
         "export function profileSnapshot(handle: ProfileHandle): Result<uint8[], PlatformError>",
@@ -608,7 +609,7 @@ pub const DEBUG_PROFILE_SNAPSHOT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.debug.profile.start.
-pub const DEBUG_PROFILE_START: BindingDescriptor =
+pub(crate) const DEBUG_PROFILE_START: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.debug.profile.start",
         "export function profileStart(kind: ProfileKind): Result<ProfileHandle, PlatformError>",
@@ -637,7 +638,7 @@ pub const DEBUG_PROFILE_START: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.debug.profile.stop.
-pub const DEBUG_PROFILE_STOP: BindingDescriptor =
+pub(crate) const DEBUG_PROFILE_STOP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.debug.profile.stop",
         "export function profileStop(handle: ProfileHandle): Result<void, PlatformError>",
@@ -666,7 +667,7 @@ pub const DEBUG_PROFILE_STOP: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.debug.trace.emit.
-pub const DEBUG_TRACE_EMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEBUG_TRACE_EMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.debug.trace.emit",
     "export function traceEmit(category: string, name: string, payloadJson: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -680,7 +681,7 @@ pub const DEBUG_TRACE_EMIT: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.trace.start.
-pub const DEBUG_TRACE_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEBUG_TRACE_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.debug.trace.start",
     "export function traceStart(level: TraceLevel, destination: string): Result<TraceHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -694,7 +695,7 @@ pub const DEBUG_TRACE_START: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.trace.stop.
-pub const DEBUG_TRACE_STOP: BindingDescriptor =
+pub(crate) const DEBUG_TRACE_STOP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.debug.trace.stop",
         "export function traceStop(handle: TraceHandle): Result<void, PlatformError>",
@@ -722,23 +723,8 @@ pub const DEBUG_TRACE_STOP: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptors for debug.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    DEBUG_CORE_BREAK_NOW,
-    DEBUG_CORE_MARK,
-    DEBUG_INSPECTOR_ENDPOINT,
-    DEBUG_INSPECTOR_START,
-    DEBUG_INSPECTOR_STOP,
-    DEBUG_PROFILE_SNAPSHOT,
-    DEBUG_PROFILE_START,
-    DEBUG_PROFILE_STOP,
-    DEBUG_TRACE_EMIT,
-    DEBUG_TRACE_START,
-    DEBUG_TRACE_STOP,
-];
-
 /// Native binding set for debug.
-pub const DEBUG_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const DEBUG_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "debug",
     bindings: &[
         NativeBinding::new(
@@ -1295,7 +1281,7 @@ fn destack_debug_trace_stop_replay(
 
 /// Native export wrappers for debug bindings.
 #[unsafe(export_name = "destack.debug.core.breakNow")]
-pub unsafe extern "C" fn destack_debug_core_break_now() -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_debug_core_break_now() -> RuntimeStatus {
     native_call(|context| {
         let _binding_hook_guard = context.on_before_binding(DEBUG_CORE_BREAK_NOW)?;
         destack_debug_core_break_now_replay(context)
@@ -1303,7 +1289,7 @@ pub unsafe extern "C" fn destack_debug_core_break_now() -> RuntimeStatus {
 }
 
 #[unsafe(export_name = "destack.debug.core.mark")]
-pub unsafe extern "C" fn destack_debug_core_mark(label: NativeStringRef) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_debug_core_mark(label: NativeStringRef) -> RuntimeStatus {
     native_call(|context| {
         let _ = &label;
 
@@ -1313,7 +1299,7 @@ pub unsafe extern "C" fn destack_debug_core_mark(label: NativeStringRef) -> Runt
 }
 
 #[unsafe(export_name = "destack.debug.inspector.endpoint")]
-pub unsafe extern "C" fn destack_debug_inspector_endpoint(
+pub(crate) unsafe extern "C" fn destack_debug_inspector_endpoint(
     out: *mut InspectorEndpoint,
     handle: resource::InspectorHandle,
 ) -> RuntimeStatus {
@@ -1329,7 +1315,7 @@ pub unsafe extern "C" fn destack_debug_inspector_endpoint(
 }
 
 #[unsafe(export_name = "destack.debug.inspector.start")]
-pub unsafe extern "C" fn destack_debug_inspector_start(
+pub(crate) unsafe extern "C" fn destack_debug_inspector_start(
     out: *mut resource::InspectorHandle,
     host: NativeStringRef,
     port: u16,
@@ -1346,7 +1332,7 @@ pub unsafe extern "C" fn destack_debug_inspector_start(
 }
 
 #[unsafe(export_name = "destack.debug.inspector.stop")]
-pub unsafe extern "C" fn destack_debug_inspector_stop(
+pub(crate) unsafe extern "C" fn destack_debug_inspector_stop(
     handle: resource::InspectorHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1358,7 +1344,7 @@ pub unsafe extern "C" fn destack_debug_inspector_stop(
 }
 
 #[unsafe(export_name = "destack.debug.profile.snapshot")]
-pub unsafe extern "C" fn destack_debug_profile_snapshot(
+pub(crate) unsafe extern "C" fn destack_debug_profile_snapshot(
     out: *mut NativeArray<u8>,
     handle: resource::ProfileHandle,
 ) -> RuntimeStatus {
@@ -1374,7 +1360,7 @@ pub unsafe extern "C" fn destack_debug_profile_snapshot(
 }
 
 #[unsafe(export_name = "destack.debug.profile.start")]
-pub unsafe extern "C" fn destack_debug_profile_start(
+pub(crate) unsafe extern "C" fn destack_debug_profile_start(
     out: *mut resource::ProfileHandle,
     kind: ProfileKind,
 ) -> RuntimeStatus {
@@ -1390,7 +1376,7 @@ pub unsafe extern "C" fn destack_debug_profile_start(
 }
 
 #[unsafe(export_name = "destack.debug.profile.stop")]
-pub unsafe extern "C" fn destack_debug_profile_stop(
+pub(crate) unsafe extern "C" fn destack_debug_profile_stop(
     handle: resource::ProfileHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1402,7 +1388,7 @@ pub unsafe extern "C" fn destack_debug_profile_stop(
 }
 
 #[unsafe(export_name = "destack.debug.trace.emit")]
-pub unsafe extern "C" fn destack_debug_trace_emit(
+pub(crate) unsafe extern "C" fn destack_debug_trace_emit(
     category: NativeStringRef,
     name: NativeStringRef,
     payloadjson: NativeStringRef,
@@ -1416,7 +1402,7 @@ pub unsafe extern "C" fn destack_debug_trace_emit(
 }
 
 #[unsafe(export_name = "destack.debug.trace.start")]
-pub unsafe extern "C" fn destack_debug_trace_start(
+pub(crate) unsafe extern "C" fn destack_debug_trace_start(
     out: *mut resource::TraceHandle,
     level: TraceLevel,
     destination: NativeStringRef,
@@ -1433,7 +1419,9 @@ pub unsafe extern "C" fn destack_debug_trace_start(
 }
 
 #[unsafe(export_name = "destack.debug.trace.stop")]
-pub unsafe extern "C" fn destack_debug_trace_stop(handle: resource::TraceHandle) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_debug_trace_stop(
+    handle: resource::TraceHandle,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &handle;
 
@@ -1977,7 +1965,7 @@ fn destack_debug_trace_stop_vm_replay(
 }
 
 /// Register VM bindings for debug.
-pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -2164,8 +2152,8 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
 }
 
 /// Install VM bindings for debug.
-pub fn install_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_debug_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub DEBUG_VM_BINDINGS, "debug", install_debug_vm_bindings);
+vm_binding_set!(pub(crate) DEBUG_VM_BINDINGS, "debug", install_debug_vm_bindings);

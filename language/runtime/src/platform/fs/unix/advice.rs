@@ -1,19 +1,12 @@
-#![allow(unused_imports)]
-
 use super::core::*;
-use super::os;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::NativeAbi;
-use crate::platform::fs::{core as core_fs, *};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
+use crate::platform::fs::*;
 use crate::platform::resource::*;
-use crate::platform::{core as core_platform, net as platform_net, *};
 use crate::runtime::BindingCallContext;
-
-use std::ffi::{CStr, CString};
-use std::os::unix::ffi::OsStrExt;
-use std::os::unix::io::RawFd;
-use std::path::PathBuf;
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use crate::{diagnostic::RuntimeError, platform::PlatformError};
 
 /// Advise the kernel about access patterns.
 ///

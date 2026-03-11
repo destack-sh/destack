@@ -412,6 +412,32 @@ fn signature_digest_metadata(
     Ok(metadata)
 }
 
+/// Return the effective signature digest for one host-signature request.
+fn resolved_signature_digest(
+    parameters: CryptoSignatureParameters,
+    operation: &'static str,
+) -> RuntimeResult<CryptoDigestAlgorithm> {
+    let digest = parameters.digest.unwrap_or(CryptoDigestAlgorithm::Unknown);
+    if digest == CryptoDigestAlgorithm::Unknown {
+        return Err(core_platform::not_supported(operation));
+    }
+
+    Ok(digest)
+}
+
+/// Return the effective OAEP digest for one host encryption request.
+fn resolved_oaep_digest(
+    parameters: CryptoAsymmetricEncryptionParameters,
+    operation: &'static str,
+) -> RuntimeResult<CryptoDigestAlgorithm> {
+    let digest = parameters.digest.unwrap_or(CryptoDigestAlgorithm::Unknown);
+    if digest == CryptoDigestAlgorithm::Unknown {
+        return Err(core_platform::not_supported(operation));
+    }
+
+    Ok(digest)
+}
+
 /// Decode one big-endian exponent value into one u32.
 fn decode_exponent(exponent_bytes: &[u8], operation: &'static str) -> RuntimeResult<u32> {
     // reject exponents that exceed one u32 payload
@@ -1913,8 +1939,8 @@ pub(crate) fn host_key_sign(
     }
 
     // resolve digest metadata and hash the payload before signing
-    let (message_digest, digest_algorithm) =
-        signature_digest_metadata(parameters.digest, operation)?;
+    let digest = resolved_signature_digest(parameters, operation)?;
+    let (message_digest, digest_algorithm) = signature_digest_metadata(digest, operation)?;
     let hashed_payload = hash(message_digest, payload)
         .map_err(|error| invalid_data(operation, format!("{error}")))?;
 
@@ -1927,13 +1953,12 @@ pub(crate) fn host_key_sign(
             let mut pkcs1_padding = BCRYPT_PKCS1_PADDING_INFO {
                 pszAlgId: digest_algorithm,
             };
+            let salt_length_bytes = parameters
+                .salt_length_bytes
+                .unwrap_or(message_digest.size() as u32);
             let mut pss_padding = BCRYPT_PSS_PADDING_INFO {
                 pszAlgId: digest_algorithm,
-                cbSalt: if parameters.salt_length_bytes == 0 {
-                    message_digest.size() as u32
-                } else {
-                    parameters.salt_length_bytes
-                },
+                cbSalt: salt_length_bytes,
             };
             let (padding_info, flags): (*const c_void, NCRYPT_FLAGS) = match parameters.algorithm {
                 CryptoSignatureAlgorithm::RsaPkcs1v15 => (
@@ -2085,7 +2110,8 @@ pub(crate) fn host_key_decrypt(
     let (padding_info, flags): (*const c_void, NCRYPT_FLAGS) = match parameters.algorithm {
         CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15 => (ptr::null(), NCRYPT_PAD_PKCS1_FLAG),
         CryptoAsymmetricEncryptionAlgorithm::RsaOaep => {
-            let (_, digest_algorithm) = signature_digest_metadata(parameters.digest, operation)?;
+            let digest = resolved_oaep_digest(parameters, operation)?;
+            let (_, digest_algorithm) = signature_digest_metadata(digest, operation)?;
             oaep_padding.pszAlgId = digest_algorithm;
             oaep_padding.cbLabel = oaep_label.len() as u32;
             oaep_padding.pbLabel = if oaep_label.is_empty() {
@@ -2337,7 +2363,7 @@ pub(crate) fn host_key_cipher_encrypt(
     if parameters.algorithm != CryptoCipherAlgorithm::AesCbc {
         return Err(core_platform::not_supported(operation));
     }
-    if parameters.tag_length_bytes != 0 {
+    if parameters.tag_length_bytes.unwrap_or(0) != 0 {
         return Err(core_platform::invalid_argument(
             "parameters.tagLengthBytes",
             "host aes-cbc does not produce authentication tags",
@@ -2392,7 +2418,7 @@ pub(crate) fn host_key_cipher_decrypt(
     if parameters.algorithm != CryptoCipherAlgorithm::AesCbc {
         return Err(core_platform::not_supported(operation));
     }
-    if parameters.tag_length_bytes != 0 {
+    if parameters.tag_length_bytes.unwrap_or(0) != 0 {
         return Err(core_platform::invalid_argument(
             "parameters.tagLengthBytes",
             "host aes-cbc does not consume authentication tag-length selectors",
@@ -2460,8 +2486,9 @@ pub(crate) fn host_key_mac_compute(
     close_handle(provider);
 
     let mut tag = result?;
-    if parameters.tag_length_bytes != 0 {
-        let length = parameters.tag_length_bytes as usize;
+    let tag_length_bytes = parameters.tag_length_bytes.unwrap_or(0);
+    if tag_length_bytes != 0 {
+        let length = tag_length_bytes as usize;
         if length > tag.len() {
             return Err(core_platform::invalid_argument(
                 "parameters.tagLengthBytes",

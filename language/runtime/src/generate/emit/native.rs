@@ -17,7 +17,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         // render the binding set descriptor
         output.push_str(&format!("/// Native binding set for {domain}.\n"));
         output.push_str(&format!(
-            "pub const {native_set_name}: NativeBindingSet = NativeBindingSet {{\n"
+            "pub(crate) const {native_set_name}: NativeBindingSet = NativeBindingSet {{\n"
         ));
         output.push_str(&format!("    name: \"{domain}\",\n"));
         output.push_str("    bindings: &[\n");
@@ -72,7 +72,9 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 "#[unsafe(export_name = \"{}\")]\n",
                 binding.extern_name
             ));
-            output.push_str(&format!("pub unsafe extern \"C\" fn {export_fn_name}(\n"));
+            output.push_str(&format!(
+                "pub(crate) unsafe extern \"C\" fn {export_fn_name}(\n"
+            ));
             for param in &params {
                 output.push_str(&format!("    {param},\n"));
             }

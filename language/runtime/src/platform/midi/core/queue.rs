@@ -11,7 +11,7 @@ const DEFAULT_EVENT_QUEUE_CAPACITY: usize = 256;
 /// Default synthetic event poll interval.
 const DEFAULT_EVENT_POLL_INTERVAL: Duration = Duration::from_millis(100);
 
-pub(crate) use crate::runtime::BoundedQueue;
+pub(crate) use crate::runtime::core::queue::BoundedQueue;
 
 /// Push one event item with one explicit overflow policy.
 pub(crate) fn push_event_with_overflow_policy<T>(

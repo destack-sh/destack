@@ -4,7 +4,6 @@ use crate::platform::midi::{MidiDataFormat, MidiProtocol, MidiRecordFraming};
 use super::MidiOutputRecordValue;
 
 /// Validate one format and protocol pairing.
-#[cfg_attr(not(any(target_os = "macos", windows)), allow(dead_code))]
 pub(crate) fn validate_record_shape(
     operation: &'static str,
     data_format: MidiDataFormat,

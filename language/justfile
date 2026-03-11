@@ -124,9 +124,9 @@ check-runtime-linux-wayland:
 
 # check runtime on macos host
 check-runtime-macos:
-    LC_ALL=C LANG=C LC_CTYPE=C cargo check -p destack_runtime
-    LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
-    LC_ALL=C LANG=C LC_CTYPE=C just _run-rust-test -p destack_runtime -- --nocapture
+    LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime
+    LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo clippy -p destack_runtime --all-targets -- -D warnings
+    LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 just _run-rust-test -p destack_runtime -- --nocapture
 
 # check runtime on windows host
 check-runtime-windows-msvc:

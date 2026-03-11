@@ -254,7 +254,8 @@ pub(crate) fn host_key_sign(
         }
 
         // map digest into sec-key signing algorithm
-        let sec_algorithm = ecdsa_signature_algorithm(parameters.digest, operation)?;
+        let digest = parameters.digest.unwrap_or(CryptoDigestAlgorithm::Unknown);
+        let sec_algorithm = ecdsa_signature_algorithm(digest, operation)?;
 
         // lookup host private key by label
         let private_key = copy_private_key_by_label(&key.key_label, operation)?;

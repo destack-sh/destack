@@ -1,22 +1,13 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::process::{bindings_generated as bindings, core as core_process};
-use crate::platform::{NativeArray, PlatformError};
-use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::platform::PlatformError;
+use crate::platform::process::core as core_process;
 
 use crate::runtime::BindingCallContext;
-use bindings::*;
 
-use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
-    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
-    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
-    ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags, ProcessWaitStatus, Signal, SignalEvent,
-    SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
-};
-use crate::platform::{fs, resource};
+#[cfg(any(target_os = "linux", target_os = "android"))]
+use crate::platform::process::ProcessSchedulerPolicy;
+use crate::platform::process::{ProcessCpuSet, ProcessId, ProcessSchedulerConfig};
 
 /// Read process CPU affinity.
 ///

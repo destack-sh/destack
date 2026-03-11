@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -608,7 +609,7 @@ fn encode_destack_error_error_take_platform_error_result(
 }
 
 /// Binding descriptor for destack.error.error.takePlatformError.
-pub const ERROR_ERROR_TAKE_PLATFORM_ERROR: BindingDescriptor =
+pub(crate) const ERROR_ERROR_TAKE_PLATFORM_ERROR: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.error.error.takePlatformError",
         "export function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>",
@@ -634,11 +635,8 @@ pub const ERROR_ERROR_TAKE_PLATFORM_ERROR: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptors for error.
-pub const BINDINGS: &[BindingDescriptor] = &[ERROR_ERROR_TAKE_PLATFORM_ERROR];
-
 /// Native binding set for error.
-pub const ERROR_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const ERROR_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "error",
     bindings: &[NativeBinding::new(
         ERROR_ERROR_TAKE_PLATFORM_ERROR,
@@ -649,7 +647,7 @@ pub const ERROR_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 
 /// Native export wrappers for error bindings.
 #[unsafe(export_name = "destack.error.error.takePlatformError")]
-pub unsafe extern "C" fn destack_error_error_take_platform_error(
+pub(crate) unsafe extern "C" fn destack_error_error_take_platform_error(
     out: *mut platform_error::PlatformError,
     errorid: u64,
 ) -> RuntimeStatus {
@@ -669,7 +667,7 @@ pub unsafe extern "C" fn destack_error_error_take_platform_error(
 }
 
 /// Register VM bindings for error.
-pub fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -698,8 +696,8 @@ pub fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
 }
 
 /// Install VM bindings for error.
-pub fn install_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_error_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub ERROR_VM_BINDINGS, "error", install_error_vm_bindings);
+vm_binding_set!(pub(crate) ERROR_VM_BINDINGS, "error", install_error_vm_bindings);

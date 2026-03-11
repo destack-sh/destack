@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -6030,7 +6031,7 @@ struct DisplayWindowStateReplayRecord {
 }
 
 /// Binding descriptor for destack.display.backend.list.
-pub const DISPLAY_BACKEND_LIST: BindingDescriptor =
+pub(crate) const DISPLAY_BACKEND_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.backend.list",
         "export function backendList(): Result<Slice<DisplayBackendDescriptor>, PlatformError>",
@@ -6058,7 +6059,7 @@ pub const DISPLAY_BACKEND_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.monitor.close.
-pub const DISPLAY_MONITOR_CLOSE: BindingDescriptor =
+pub(crate) const DISPLAY_MONITOR_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.monitor.close",
         "export function monitorClose(handle: DisplayHandle): Result<void, PlatformError>",
@@ -6086,7 +6087,7 @@ pub const DISPLAY_MONITOR_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.monitor.closestMode.
-pub const DISPLAY_MONITOR_CLOSEST_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_CLOSEST_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.closestMode",
     "export function monitorClosestMode(handle: DisplayHandle, requested: DisplayMode): Result<DisplayMode, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6100,7 +6101,7 @@ pub const DISPLAY_MONITOR_CLOSEST_MODE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.colorState.
-pub const DISPLAY_MONITOR_COLOR_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_COLOR_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.colorState",
     "export function monitorColorState(handle: DisplayHandle): Result<DisplayColorState, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6114,7 +6115,7 @@ pub const DISPLAY_MONITOR_COLOR_STATE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.currentMode.
-pub const DISPLAY_MONITOR_CURRENT_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_CURRENT_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.currentMode",
     "export function monitorCurrentMode(handle: DisplayHandle): Result<DisplayMode, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6128,7 +6129,7 @@ pub const DISPLAY_MONITOR_CURRENT_MODE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.descriptor.
-pub const DISPLAY_MONITOR_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.descriptor",
     "export function monitorDescriptor(handle: DisplayHandle): Result<DisplayDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6142,7 +6143,7 @@ pub const DISPLAY_MONITOR_DESCRIPTOR: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.desktopMode.
-pub const DISPLAY_MONITOR_DESKTOP_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_DESKTOP_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.desktopMode",
     "export function monitorDesktopMode(handle: DisplayHandle): Result<DisplayMode, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6156,7 +6157,7 @@ pub const DISPLAY_MONITOR_DESKTOP_MODE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventClose.
-pub const DISPLAY_MONITOR_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.eventClose",
     "export function monitorEventClose(handle: DisplayEventHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6170,7 +6171,7 @@ pub const DISPLAY_MONITOR_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventOpen.
-pub const DISPLAY_MONITOR_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.eventOpen",
     "export function monitorEventOpen(options: DisplayMonitorEventOpenOptions): Result<DisplayEventHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6184,7 +6185,7 @@ pub const DISPLAY_MONITOR_EVENT_OPEN: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventRead.
-pub const DISPLAY_MONITOR_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.eventRead",
     "export function monitorEventRead(handle: DisplayEventHandle, timeoutNs: uint64): Result<DisplayMonitorEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6198,7 +6199,7 @@ pub const DISPLAY_MONITOR_EVENT_READ: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventReadBatch.
-pub const DISPLAY_MONITOR_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.eventReadBatch",
     "export function monitorEventReadBatch(handle: DisplayEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<DisplayMonitorEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6212,7 +6213,7 @@ pub const DISPLAY_MONITOR_EVENT_READ_BATCH: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventTryRead.
-pub const DISPLAY_MONITOR_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.eventTryRead",
     "export function monitorEventTryRead(handle: DisplayEventHandle): Result<DisplayMonitorEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6226,7 +6227,7 @@ pub const DISPLAY_MONITOR_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventTryReadBatch.
-pub const DISPLAY_MONITOR_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.eventTryReadBatch",
     "export function monitorEventTryReadBatch(handle: DisplayEventHandle, maxEvents: uint32): Result<DisplayMonitorEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6240,7 +6241,7 @@ pub const DISPLAY_MONITOR_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescr
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.gammaRamp.
-pub const DISPLAY_MONITOR_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.gammaRamp",
     "export function monitorGammaRamp(handle: DisplayHandle): Result<DisplayGammaRamp, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6254,7 +6255,7 @@ pub const DISPLAY_MONITOR_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.hdrMode.
-pub const DISPLAY_MONITOR_HDR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_HDR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.hdrMode",
     "export function monitorHdrMode(handle: DisplayHandle): Result<DisplayHdrMode, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6268,7 +6269,7 @@ pub const DISPLAY_MONITOR_HDR_MODE: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.list.
-pub const DISPLAY_MONITOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.list",
     "export function monitorList(request: DisplayMonitorListRequest): Result<Slice<DisplayDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6282,7 +6283,7 @@ pub const DISPLAY_MONITOR_LIST: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.modes.
-pub const DISPLAY_MONITOR_MODES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_MODES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.modes",
     "export function monitorModes(handle: DisplayHandle): Result<Slice<DisplayMode>, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6296,7 +6297,7 @@ pub const DISPLAY_MONITOR_MODES: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.open.
-pub const DISPLAY_MONITOR_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.open",
     "export function monitorOpen(id: string, options: DisplayMonitorOpenOptions): Result<DisplayHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6310,7 +6311,7 @@ pub const DISPLAY_MONITOR_OPEN: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.primary.
-pub const DISPLAY_MONITOR_PRIMARY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_PRIMARY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.primary",
     "export function monitorPrimary(request: DisplayMonitorListRequest): Result<DisplayHandle | void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6324,7 +6325,7 @@ pub const DISPLAY_MONITOR_PRIMARY: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setGammaRamp.
-pub const DISPLAY_MONITOR_SET_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_SET_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.setGammaRamp",
     "export function monitorSetGammaRamp(handle: DisplayHandle, ramp: DisplayGammaRamp): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6338,7 +6339,7 @@ pub const DISPLAY_MONITOR_SET_GAMMA_RAMP: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setHdrMode.
-pub const DISPLAY_MONITOR_SET_HDR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_SET_HDR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.setHdrMode",
     "export function monitorSetHdrMode(handle: DisplayHandle, mode: DisplayHdrMode): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6352,7 +6353,7 @@ pub const DISPLAY_MONITOR_SET_HDR_MODE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setMode.
-pub const DISPLAY_MONITOR_SET_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_MONITOR_SET_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.setMode",
     "export function monitorSetMode(handle: DisplayHandle, mode: DisplayMode): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -6366,7 +6367,7 @@ pub const DISPLAY_MONITOR_SET_MODE: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.beginMoveDrag.
-pub const DISPLAY_WINDOW_BEGIN_MOVE_DRAG: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_BEGIN_MOVE_DRAG: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.beginMoveDrag",
         "export function windowBeginMoveDrag(window: WindowHandle): Result<void, PlatformError>",
@@ -6394,7 +6395,7 @@ pub const DISPLAY_WINDOW_BEGIN_MOVE_DRAG: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.window.beginResizeDrag.
-pub const DISPLAY_WINDOW_BEGIN_RESIZE_DRAG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_BEGIN_RESIZE_DRAG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.beginResizeDrag",
     "export function windowBeginResizeDrag(window: WindowHandle, edge: WindowResizeEdge): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6408,7 +6409,7 @@ pub const DISPLAY_WINDOW_BEGIN_RESIZE_DRAG: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.capabilities.
-pub const DISPLAY_WINDOW_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.capabilities",
     "export function windowCapabilities(window: WindowHandle): Result<DisplayBackendCapabilityFlags, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6422,7 +6423,7 @@ pub const DISPLAY_WINDOW_CAPABILITIES: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.close.
-pub const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.close",
         "export function windowClose(window: WindowHandle): Result<void, PlatformError>",
@@ -6450,7 +6451,7 @@ pub const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.window.descriptor.
-pub const DISPLAY_WINDOW_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.descriptor",
     "export function windowDescriptor(window: WindowHandle): Result<WindowDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6464,7 +6465,7 @@ pub const DISPLAY_WINDOW_DESCRIPTOR: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventClose.
-pub const DISPLAY_WINDOW_EVENT_CLOSE: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_EVENT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.eventClose",
         "export function windowEventClose(handle: WindowEventHandle): Result<void, PlatformError>",
@@ -6492,7 +6493,7 @@ pub const DISPLAY_WINDOW_EVENT_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.window.eventOpen.
-pub const DISPLAY_WINDOW_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.eventOpen",
     "export function windowEventOpen(options: WindowEventOpenOptions): Result<WindowEventHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6506,7 +6507,7 @@ pub const DISPLAY_WINDOW_EVENT_OPEN: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventRead.
-pub const DISPLAY_WINDOW_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.eventRead",
     "export function windowEventRead(handle: WindowEventHandle, timeoutNs: uint64): Result<WindowEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6520,7 +6521,7 @@ pub const DISPLAY_WINDOW_EVENT_READ: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventReadBatch.
-pub const DISPLAY_WINDOW_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.eventReadBatch",
     "export function windowEventReadBatch(handle: WindowEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<WindowEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6534,7 +6535,7 @@ pub const DISPLAY_WINDOW_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventTryRead.
-pub const DISPLAY_WINDOW_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.eventTryRead",
     "export function windowEventTryRead(handle: WindowEventHandle): Result<WindowEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6548,7 +6549,7 @@ pub const DISPLAY_WINDOW_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventTryReadBatch.
-pub const DISPLAY_WINDOW_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.eventTryReadBatch",
     "export function windowEventTryReadBatch(handle: WindowEventHandle, maxEvents: uint32): Result<WindowEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6562,7 +6563,7 @@ pub const DISPLAY_WINDOW_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescri
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.focus.
-pub const DISPLAY_WINDOW_FOCUS: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_FOCUS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.focus",
         "export function windowFocus(window: WindowHandle): Result<void, PlatformError>",
@@ -6590,7 +6591,7 @@ pub const DISPLAY_WINDOW_FOCUS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.window.maximize.
-pub const DISPLAY_WINDOW_MAXIMIZE: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_MAXIMIZE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.maximize",
         "export function windowMaximize(window: WindowHandle): Result<void, PlatformError>",
@@ -6618,7 +6619,7 @@ pub const DISPLAY_WINDOW_MAXIMIZE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.window.minimize.
-pub const DISPLAY_WINDOW_MINIMIZE: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_MINIMIZE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.minimize",
         "export function windowMinimize(window: WindowHandle): Result<void, PlatformError>",
@@ -6646,7 +6647,7 @@ pub const DISPLAY_WINDOW_MINIMIZE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.window.opacity.
-pub const DISPLAY_WINDOW_OPACITY: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_OPACITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.opacity",
         "export function windowOpacity(window: WindowHandle): Result<float64, PlatformError>",
@@ -6674,7 +6675,7 @@ pub const DISPLAY_WINDOW_OPACITY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.window.open.
-pub const DISPLAY_WINDOW_OPEN: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.open",
         "export function windowOpen(options: WindowOptions): Result<WindowHandle, PlatformError>",
@@ -6702,7 +6703,7 @@ pub const DISPLAY_WINDOW_OPEN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.window.raise.
-pub const DISPLAY_WINDOW_RAISE: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_RAISE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.raise",
         "export function windowRaise(window: WindowHandle): Result<void, PlatformError>",
@@ -6730,7 +6731,7 @@ pub const DISPLAY_WINDOW_RAISE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.window.requestAttention.
-pub const DISPLAY_WINDOW_REQUEST_ATTENTION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_REQUEST_ATTENTION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.requestAttention",
     "export function windowRequestAttention(window: WindowHandle, level: WindowAttentionLevel): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6744,7 +6745,7 @@ pub const DISPLAY_WINDOW_REQUEST_ATTENTION: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.requestRefresh.
-pub const DISPLAY_WINDOW_REQUEST_REFRESH: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_REQUEST_REFRESH: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.requestRefresh",
         "export function windowRequestRefresh(window: WindowHandle): Result<void, PlatformError>",
@@ -6772,7 +6773,7 @@ pub const DISPLAY_WINDOW_REQUEST_REFRESH: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.window.restore.
-pub const DISPLAY_WINDOW_RESTORE: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_RESTORE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.restore",
         "export function windowRestore(window: WindowHandle): Result<void, PlatformError>",
@@ -6800,7 +6801,7 @@ pub const DISPLAY_WINDOW_RESTORE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.display.window.setAlwaysOnTop.
-pub const DISPLAY_WINDOW_SET_ALWAYS_ON_TOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_ALWAYS_ON_TOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setAlwaysOnTop",
     "export function windowSetAlwaysOnTop(window: WindowHandle, alwaysOnTop: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6814,7 +6815,7 @@ pub const DISPLAY_WINDOW_SET_ALWAYS_ON_TOP: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setAspectRatio.
-pub const DISPLAY_WINDOW_SET_ASPECT_RATIO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_ASPECT_RATIO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setAspectRatio",
     "export function windowSetAspectRatio(window: WindowHandle, aspectRatio: WindowAspectRatio | void): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6828,7 +6829,7 @@ pub const DISPLAY_WINDOW_SET_ASPECT_RATIO: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setChrome.
-pub const DISPLAY_WINDOW_SET_CHROME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_CHROME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setChrome",
     "export function windowSetChrome(window: WindowHandle, chrome: WindowChromeKind): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6842,7 +6843,7 @@ pub const DISPLAY_WINDOW_SET_CHROME: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorIcon.
-pub const DISPLAY_WINDOW_SET_CURSOR_ICON: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_CURSOR_ICON: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setCursorIcon",
     "export function windowSetCursorIcon(window: WindowHandle, icon: WindowCursorIcon): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6856,7 +6857,7 @@ pub const DISPLAY_WINDOW_SET_CURSOR_ICON: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorMode.
-pub const DISPLAY_WINDOW_SET_CURSOR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_CURSOR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setCursorMode",
     "export function windowSetCursorMode(window: WindowHandle, mode: WindowCursorMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6870,7 +6871,7 @@ pub const DISPLAY_WINDOW_SET_CURSOR_MODE: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorPosition.
-pub const DISPLAY_WINDOW_SET_CURSOR_POSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_CURSOR_POSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setCursorPosition",
     "export function windowSetCursorPosition(window: WindowHandle, position: WindowPosition): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6884,7 +6885,7 @@ pub const DISPLAY_WINDOW_SET_CURSOR_POSITION: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorVisible.
-pub const DISPLAY_WINDOW_SET_CURSOR_VISIBLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_CURSOR_VISIBLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setCursorVisible",
     "export function windowSetCursorVisible(window: WindowHandle, visible: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6898,7 +6899,7 @@ pub const DISPLAY_WINDOW_SET_CURSOR_VISIBLE: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setDecorated.
-pub const DISPLAY_WINDOW_SET_DECORATED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_DECORATED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setDecorated",
     "export function windowSetDecorated(window: WindowHandle, decorated: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6912,7 +6913,7 @@ pub const DISPLAY_WINDOW_SET_DECORATED: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setIcons.
-pub const DISPLAY_WINDOW_SET_ICONS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_ICONS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setIcons",
     "export function windowSetIcons(window: WindowHandle, icons: WindowIconSet | void): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6926,7 +6927,7 @@ pub const DISPLAY_WINDOW_SET_ICONS: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setModal.
-pub const DISPLAY_WINDOW_SET_MODAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_MODAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setModal",
     "export function windowSetModal(window: WindowHandle, modal: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6940,7 +6941,7 @@ pub const DISPLAY_WINDOW_SET_MODAL: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setMode.
-pub const DISPLAY_WINDOW_SET_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setMode",
     "export function windowSetMode(window: WindowHandle, mode: WindowModeOptions): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6954,7 +6955,7 @@ pub const DISPLAY_WINDOW_SET_MODE: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setMousePassthrough.
-pub const DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setMousePassthrough",
     "export function windowSetMousePassthrough(window: WindowHandle, passthrough: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6968,7 +6969,7 @@ pub const DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH: BindingDescriptor = BindingDescr
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setOpacity.
-pub const DISPLAY_WINDOW_SET_OPACITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_OPACITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setOpacity",
     "export function windowSetOpacity(window: WindowHandle, opacity: float64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6982,7 +6983,7 @@ pub const DISPLAY_WINDOW_SET_OPACITY: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setParent.
-pub const DISPLAY_WINDOW_SET_PARENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_PARENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setParent",
     "export function windowSetParent(window: WindowHandle, parent: WindowHandle | void): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -6996,7 +6997,7 @@ pub const DISPLAY_WINDOW_SET_PARENT: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setPosition.
-pub const DISPLAY_WINDOW_SET_POSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_POSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setPosition",
     "export function windowSetPosition(window: WindowHandle, position: WindowPosition): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7010,7 +7011,7 @@ pub const DISPLAY_WINDOW_SET_POSITION: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setResizable.
-pub const DISPLAY_WINDOW_SET_RESIZABLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_RESIZABLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setResizable",
     "export function windowSetResizable(window: WindowHandle, resizable: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7024,7 +7025,7 @@ pub const DISPLAY_WINDOW_SET_RESIZABLE: BindingDescriptor = BindingDescriptor::e
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizeConstraints.
-pub const DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setSizeConstraints",
     "export function windowSetSizeConstraints(window: WindowHandle, constraints: WindowSizeConstraints | void): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7038,7 +7039,7 @@ pub const DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS: BindingDescriptor = BindingDescri
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizeLogical.
-pub const DISPLAY_WINDOW_SET_SIZE_LOGICAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_SIZE_LOGICAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setSizeLogical",
     "export function windowSetSizeLogical(window: WindowHandle, size: WindowLogicalSize): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7052,7 +7053,7 @@ pub const DISPLAY_WINDOW_SET_SIZE_LOGICAL: BindingDescriptor = BindingDescriptor
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizePhysical.
-pub const DISPLAY_WINDOW_SET_SIZE_PHYSICAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_SIZE_PHYSICAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setSizePhysical",
     "export function windowSetSizePhysical(window: WindowHandle, size: WindowPhysicalSize): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7066,7 +7067,7 @@ pub const DISPLAY_WINDOW_SET_SIZE_PHYSICAL: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTaskbarVisible.
-pub const DISPLAY_WINDOW_SET_TASKBAR_VISIBLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_TASKBAR_VISIBLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setTaskbarVisible",
     "export function windowSetTaskbarVisible(window: WindowHandle, visible: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7080,7 +7081,7 @@ pub const DISPLAY_WINDOW_SET_TASKBAR_VISIBLE: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTitle.
-pub const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setTitle",
     "export function windowSetTitle(window: WindowHandle, title: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7094,7 +7095,7 @@ pub const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTransientFor.
-pub const DISPLAY_WINDOW_SET_TRANSIENT_FOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_TRANSIENT_FOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setTransientFor",
     "export function windowSetTransientFor(window: WindowHandle, transientFor: WindowHandle | void): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7108,7 +7109,7 @@ pub const DISPLAY_WINDOW_SET_TRANSIENT_FOR: BindingDescriptor = BindingDescripto
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setVisibility.
-pub const DISPLAY_WINDOW_SET_VISIBILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DISPLAY_WINDOW_SET_VISIBILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.setVisibility",
     "export function windowSetVisibility(window: WindowHandle, visibility: WindowVisibility): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -7122,7 +7123,7 @@ pub const DISPLAY_WINDOW_SET_VISIBILITY: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.state.
-pub const DISPLAY_WINDOW_STATE: BindingDescriptor =
+pub(crate) const DISPLAY_WINDOW_STATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.display.window.state",
         "export function windowState(window: WindowHandle): Result<WindowState, PlatformError>",
@@ -7149,78 +7150,8 @@ pub const DISPLAY_WINDOW_STATE: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptors for display.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    DISPLAY_BACKEND_LIST,
-    DISPLAY_MONITOR_CLOSE,
-    DISPLAY_MONITOR_CLOSEST_MODE,
-    DISPLAY_MONITOR_COLOR_STATE,
-    DISPLAY_MONITOR_CURRENT_MODE,
-    DISPLAY_MONITOR_DESCRIPTOR,
-    DISPLAY_MONITOR_DESKTOP_MODE,
-    DISPLAY_MONITOR_EVENT_CLOSE,
-    DISPLAY_MONITOR_EVENT_OPEN,
-    DISPLAY_MONITOR_EVENT_READ,
-    DISPLAY_MONITOR_EVENT_READ_BATCH,
-    DISPLAY_MONITOR_EVENT_TRY_READ,
-    DISPLAY_MONITOR_EVENT_TRY_READ_BATCH,
-    DISPLAY_MONITOR_GAMMA_RAMP,
-    DISPLAY_MONITOR_HDR_MODE,
-    DISPLAY_MONITOR_LIST,
-    DISPLAY_MONITOR_MODES,
-    DISPLAY_MONITOR_OPEN,
-    DISPLAY_MONITOR_PRIMARY,
-    DISPLAY_MONITOR_SET_GAMMA_RAMP,
-    DISPLAY_MONITOR_SET_HDR_MODE,
-    DISPLAY_MONITOR_SET_MODE,
-    DISPLAY_WINDOW_BEGIN_MOVE_DRAG,
-    DISPLAY_WINDOW_BEGIN_RESIZE_DRAG,
-    DISPLAY_WINDOW_CAPABILITIES,
-    DISPLAY_WINDOW_CLOSE,
-    DISPLAY_WINDOW_DESCRIPTOR,
-    DISPLAY_WINDOW_EVENT_CLOSE,
-    DISPLAY_WINDOW_EVENT_OPEN,
-    DISPLAY_WINDOW_EVENT_READ,
-    DISPLAY_WINDOW_EVENT_READ_BATCH,
-    DISPLAY_WINDOW_EVENT_TRY_READ,
-    DISPLAY_WINDOW_EVENT_TRY_READ_BATCH,
-    DISPLAY_WINDOW_FOCUS,
-    DISPLAY_WINDOW_MAXIMIZE,
-    DISPLAY_WINDOW_MINIMIZE,
-    DISPLAY_WINDOW_OPACITY,
-    DISPLAY_WINDOW_OPEN,
-    DISPLAY_WINDOW_RAISE,
-    DISPLAY_WINDOW_REQUEST_ATTENTION,
-    DISPLAY_WINDOW_REQUEST_REFRESH,
-    DISPLAY_WINDOW_RESTORE,
-    DISPLAY_WINDOW_SET_ALWAYS_ON_TOP,
-    DISPLAY_WINDOW_SET_ASPECT_RATIO,
-    DISPLAY_WINDOW_SET_CHROME,
-    DISPLAY_WINDOW_SET_CURSOR_ICON,
-    DISPLAY_WINDOW_SET_CURSOR_MODE,
-    DISPLAY_WINDOW_SET_CURSOR_POSITION,
-    DISPLAY_WINDOW_SET_CURSOR_VISIBLE,
-    DISPLAY_WINDOW_SET_DECORATED,
-    DISPLAY_WINDOW_SET_ICONS,
-    DISPLAY_WINDOW_SET_MODAL,
-    DISPLAY_WINDOW_SET_MODE,
-    DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH,
-    DISPLAY_WINDOW_SET_OPACITY,
-    DISPLAY_WINDOW_SET_PARENT,
-    DISPLAY_WINDOW_SET_POSITION,
-    DISPLAY_WINDOW_SET_RESIZABLE,
-    DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS,
-    DISPLAY_WINDOW_SET_SIZE_LOGICAL,
-    DISPLAY_WINDOW_SET_SIZE_PHYSICAL,
-    DISPLAY_WINDOW_SET_TASKBAR_VISIBLE,
-    DISPLAY_WINDOW_SET_TITLE,
-    DISPLAY_WINDOW_SET_TRANSIENT_FOR,
-    DISPLAY_WINDOW_SET_VISIBILITY,
-    DISPLAY_WINDOW_STATE,
-];
-
 /// Native binding set for display.
-pub const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "display",
     bindings: &[
         NativeBinding::new(
@@ -23324,7 +23255,7 @@ fn destack_display_window_state_replay(
 
 /// Native export wrappers for display bindings.
 #[unsafe(export_name = "destack.display.backend.list")]
-pub unsafe extern "C" fn destack_display_backend_list(
+pub(crate) unsafe extern "C" fn destack_display_backend_list(
     out: *mut NativeSlice<DisplayBackendDescriptor>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -23340,7 +23271,7 @@ pub unsafe extern "C" fn destack_display_backend_list(
 }
 
 #[unsafe(export_name = "destack.display.monitor.close")]
-pub unsafe extern "C" fn destack_display_monitor_close(
+pub(crate) unsafe extern "C" fn destack_display_monitor_close(
     handle: resource::DisplayHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -23353,7 +23284,7 @@ pub unsafe extern "C" fn destack_display_monitor_close(
 }
 
 #[unsafe(export_name = "destack.display.monitor.closestMode")]
-pub unsafe extern "C" fn destack_display_monitor_closest_mode(
+pub(crate) unsafe extern "C" fn destack_display_monitor_closest_mode(
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
     requested: DisplayMode,
@@ -23371,7 +23302,7 @@ pub unsafe extern "C" fn destack_display_monitor_closest_mode(
 }
 
 #[unsafe(export_name = "destack.display.monitor.colorState")]
-pub unsafe extern "C" fn destack_display_monitor_color_state(
+pub(crate) unsafe extern "C" fn destack_display_monitor_color_state(
     out: *mut DisplayColorState,
     handle: resource::DisplayHandle,
 ) -> RuntimeStatus {
@@ -23388,7 +23319,7 @@ pub unsafe extern "C" fn destack_display_monitor_color_state(
 }
 
 #[unsafe(export_name = "destack.display.monitor.currentMode")]
-pub unsafe extern "C" fn destack_display_monitor_current_mode(
+pub(crate) unsafe extern "C" fn destack_display_monitor_current_mode(
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeStatus {
@@ -23405,7 +23336,7 @@ pub unsafe extern "C" fn destack_display_monitor_current_mode(
 }
 
 #[unsafe(export_name = "destack.display.monitor.descriptor")]
-pub unsafe extern "C" fn destack_display_monitor_descriptor(
+pub(crate) unsafe extern "C" fn destack_display_monitor_descriptor(
     out: *mut DisplayDescriptor,
     handle: resource::DisplayHandle,
 ) -> RuntimeStatus {
@@ -23422,7 +23353,7 @@ pub unsafe extern "C" fn destack_display_monitor_descriptor(
 }
 
 #[unsafe(export_name = "destack.display.monitor.desktopMode")]
-pub unsafe extern "C" fn destack_display_monitor_desktop_mode(
+pub(crate) unsafe extern "C" fn destack_display_monitor_desktop_mode(
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeStatus {
@@ -23439,7 +23370,7 @@ pub unsafe extern "C" fn destack_display_monitor_desktop_mode(
 }
 
 #[unsafe(export_name = "destack.display.monitor.eventClose")]
-pub unsafe extern "C" fn destack_display_monitor_event_close(
+pub(crate) unsafe extern "C" fn destack_display_monitor_event_close(
     handle: resource::DisplayEventHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -23452,7 +23383,7 @@ pub unsafe extern "C" fn destack_display_monitor_event_close(
 }
 
 #[unsafe(export_name = "destack.display.monitor.eventOpen")]
-pub unsafe extern "C" fn destack_display_monitor_event_open(
+pub(crate) unsafe extern "C" fn destack_display_monitor_event_open(
     out: *mut resource::DisplayEventHandle,
     options: DisplayMonitorEventOpenOptions,
 ) -> RuntimeStatus {
@@ -23469,7 +23400,7 @@ pub unsafe extern "C" fn destack_display_monitor_event_open(
 }
 
 #[unsafe(export_name = "destack.display.monitor.eventRead")]
-pub unsafe extern "C" fn destack_display_monitor_event_read(
+pub(crate) unsafe extern "C" fn destack_display_monitor_event_read(
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
     timeoutns: u64,
@@ -23487,7 +23418,7 @@ pub unsafe extern "C" fn destack_display_monitor_event_read(
 }
 
 #[unsafe(export_name = "destack.display.monitor.eventReadBatch")]
-pub unsafe extern "C" fn destack_display_monitor_event_read_batch(
+pub(crate) unsafe extern "C" fn destack_display_monitor_event_read_batch(
     out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
@@ -23508,7 +23439,7 @@ pub unsafe extern "C" fn destack_display_monitor_event_read_batch(
 }
 
 #[unsafe(export_name = "destack.display.monitor.eventTryRead")]
-pub unsafe extern "C" fn destack_display_monitor_event_try_read(
+pub(crate) unsafe extern "C" fn destack_display_monitor_event_try_read(
     out: *mut DisplayMonitorEvent,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeStatus {
@@ -23525,7 +23456,7 @@ pub unsafe extern "C" fn destack_display_monitor_event_try_read(
 }
 
 #[unsafe(export_name = "destack.display.monitor.eventTryReadBatch")]
-pub unsafe extern "C" fn destack_display_monitor_event_try_read_batch(
+pub(crate) unsafe extern "C" fn destack_display_monitor_event_try_read_batch(
     out: *mut NativeArray<DisplayMonitorEvent>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
@@ -23543,7 +23474,7 @@ pub unsafe extern "C" fn destack_display_monitor_event_try_read_batch(
 }
 
 #[unsafe(export_name = "destack.display.monitor.gammaRamp")]
-pub unsafe extern "C" fn destack_display_monitor_gamma_ramp(
+pub(crate) unsafe extern "C" fn destack_display_monitor_gamma_ramp(
     out: *mut DisplayGammaRamp,
     handle: resource::DisplayHandle,
 ) -> RuntimeStatus {
@@ -23560,7 +23491,7 @@ pub unsafe extern "C" fn destack_display_monitor_gamma_ramp(
 }
 
 #[unsafe(export_name = "destack.display.monitor.hdrMode")]
-pub unsafe extern "C" fn destack_display_monitor_hdr_mode(
+pub(crate) unsafe extern "C" fn destack_display_monitor_hdr_mode(
     out: *mut DisplayHdrMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeStatus {
@@ -23577,7 +23508,7 @@ pub unsafe extern "C" fn destack_display_monitor_hdr_mode(
 }
 
 #[unsafe(export_name = "destack.display.monitor.list")]
-pub unsafe extern "C" fn destack_display_monitor_list(
+pub(crate) unsafe extern "C" fn destack_display_monitor_list(
     out: *mut NativeSlice<DisplayDescriptor>,
     request: DisplayMonitorListRequest,
 ) -> RuntimeStatus {
@@ -23594,7 +23525,7 @@ pub unsafe extern "C" fn destack_display_monitor_list(
 }
 
 #[unsafe(export_name = "destack.display.monitor.modes")]
-pub unsafe extern "C" fn destack_display_monitor_modes(
+pub(crate) unsafe extern "C" fn destack_display_monitor_modes(
     out: *mut NativeSlice<DisplayMode>,
     handle: resource::DisplayHandle,
 ) -> RuntimeStatus {
@@ -23611,7 +23542,7 @@ pub unsafe extern "C" fn destack_display_monitor_modes(
 }
 
 #[unsafe(export_name = "destack.display.monitor.open")]
-pub unsafe extern "C" fn destack_display_monitor_open(
+pub(crate) unsafe extern "C" fn destack_display_monitor_open(
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
     options: DisplayMonitorOpenOptions,
@@ -23629,7 +23560,7 @@ pub unsafe extern "C" fn destack_display_monitor_open(
 }
 
 #[unsafe(export_name = "destack.display.monitor.primary")]
-pub unsafe extern "C" fn destack_display_monitor_primary(
+pub(crate) unsafe extern "C" fn destack_display_monitor_primary(
     out: *mut Option<resource::DisplayHandle>,
     request: DisplayMonitorListRequest,
 ) -> RuntimeStatus {
@@ -23646,7 +23577,7 @@ pub unsafe extern "C" fn destack_display_monitor_primary(
 }
 
 #[unsafe(export_name = "destack.display.monitor.setGammaRamp")]
-pub unsafe extern "C" fn destack_display_monitor_set_gamma_ramp(
+pub(crate) unsafe extern "C" fn destack_display_monitor_set_gamma_ramp(
     handle: resource::DisplayHandle,
     ramp: DisplayGammaRamp,
 ) -> RuntimeStatus {
@@ -23671,7 +23602,7 @@ pub unsafe extern "C" fn destack_display_monitor_set_gamma_ramp(
 }
 
 #[unsafe(export_name = "destack.display.monitor.setHdrMode")]
-pub unsafe extern "C" fn destack_display_monitor_set_hdr_mode(
+pub(crate) unsafe extern "C" fn destack_display_monitor_set_hdr_mode(
     handle: resource::DisplayHandle,
     mode: DisplayHdrMode,
 ) -> RuntimeStatus {
@@ -23696,7 +23627,7 @@ pub unsafe extern "C" fn destack_display_monitor_set_hdr_mode(
 }
 
 #[unsafe(export_name = "destack.display.monitor.setMode")]
-pub unsafe extern "C" fn destack_display_monitor_set_mode(
+pub(crate) unsafe extern "C" fn destack_display_monitor_set_mode(
     handle: resource::DisplayHandle,
     mode: DisplayMode,
 ) -> RuntimeStatus {
@@ -23721,7 +23652,7 @@ pub unsafe extern "C" fn destack_display_monitor_set_mode(
 }
 
 #[unsafe(export_name = "destack.display.window.beginMoveDrag")]
-pub unsafe extern "C" fn destack_display_window_begin_move_drag(
+pub(crate) unsafe extern "C" fn destack_display_window_begin_move_drag(
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -23734,7 +23665,7 @@ pub unsafe extern "C" fn destack_display_window_begin_move_drag(
 }
 
 #[unsafe(export_name = "destack.display.window.beginResizeDrag")]
-pub unsafe extern "C" fn destack_display_window_begin_resize_drag(
+pub(crate) unsafe extern "C" fn destack_display_window_begin_resize_drag(
     window: resource::WindowHandle,
     edge: WindowResizeEdge,
 ) -> RuntimeStatus {
@@ -23748,7 +23679,7 @@ pub unsafe extern "C" fn destack_display_window_begin_resize_drag(
 }
 
 #[unsafe(export_name = "destack.display.window.capabilities")]
-pub unsafe extern "C" fn destack_display_window_capabilities(
+pub(crate) unsafe extern "C" fn destack_display_window_capabilities(
     out: *mut DisplayBackendCapabilityFlags,
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
@@ -23765,7 +23696,7 @@ pub unsafe extern "C" fn destack_display_window_capabilities(
 }
 
 #[unsafe(export_name = "destack.display.window.close")]
-pub unsafe extern "C" fn destack_display_window_close(
+pub(crate) unsafe extern "C" fn destack_display_window_close(
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -23778,7 +23709,7 @@ pub unsafe extern "C" fn destack_display_window_close(
 }
 
 #[unsafe(export_name = "destack.display.window.descriptor")]
-pub unsafe extern "C" fn destack_display_window_descriptor(
+pub(crate) unsafe extern "C" fn destack_display_window_descriptor(
     out: *mut WindowDescriptor,
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
@@ -23795,7 +23726,7 @@ pub unsafe extern "C" fn destack_display_window_descriptor(
 }
 
 #[unsafe(export_name = "destack.display.window.eventClose")]
-pub unsafe extern "C" fn destack_display_window_event_close(
+pub(crate) unsafe extern "C" fn destack_display_window_event_close(
     handle: resource::WindowEventHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -23808,7 +23739,7 @@ pub unsafe extern "C" fn destack_display_window_event_close(
 }
 
 #[unsafe(export_name = "destack.display.window.eventOpen")]
-pub unsafe extern "C" fn destack_display_window_event_open(
+pub(crate) unsafe extern "C" fn destack_display_window_event_open(
     out: *mut resource::WindowEventHandle,
     options: WindowEventOpenOptions,
 ) -> RuntimeStatus {
@@ -23825,7 +23756,7 @@ pub unsafe extern "C" fn destack_display_window_event_open(
 }
 
 #[unsafe(export_name = "destack.display.window.eventRead")]
-pub unsafe extern "C" fn destack_display_window_event_read(
+pub(crate) unsafe extern "C" fn destack_display_window_event_read(
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
     timeoutns: u64,
@@ -23843,7 +23774,7 @@ pub unsafe extern "C" fn destack_display_window_event_read(
 }
 
 #[unsafe(export_name = "destack.display.window.eventReadBatch")]
-pub unsafe extern "C" fn destack_display_window_event_read_batch(
+pub(crate) unsafe extern "C" fn destack_display_window_event_read_batch(
     out: *mut NativeArray<WindowEvent>,
     handle: resource::WindowEventHandle,
     maxevents: u32,
@@ -23864,7 +23795,7 @@ pub unsafe extern "C" fn destack_display_window_event_read_batch(
 }
 
 #[unsafe(export_name = "destack.display.window.eventTryRead")]
-pub unsafe extern "C" fn destack_display_window_event_try_read(
+pub(crate) unsafe extern "C" fn destack_display_window_event_try_read(
     out: *mut WindowEvent,
     handle: resource::WindowEventHandle,
 ) -> RuntimeStatus {
@@ -23881,7 +23812,7 @@ pub unsafe extern "C" fn destack_display_window_event_try_read(
 }
 
 #[unsafe(export_name = "destack.display.window.eventTryReadBatch")]
-pub unsafe extern "C" fn destack_display_window_event_try_read_batch(
+pub(crate) unsafe extern "C" fn destack_display_window_event_try_read_batch(
     out: *mut NativeArray<WindowEvent>,
     handle: resource::WindowEventHandle,
     maxevents: u32,
@@ -23899,7 +23830,7 @@ pub unsafe extern "C" fn destack_display_window_event_try_read_batch(
 }
 
 #[unsafe(export_name = "destack.display.window.focus")]
-pub unsafe extern "C" fn destack_display_window_focus(
+pub(crate) unsafe extern "C" fn destack_display_window_focus(
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -23912,7 +23843,7 @@ pub unsafe extern "C" fn destack_display_window_focus(
 }
 
 #[unsafe(export_name = "destack.display.window.maximize")]
-pub unsafe extern "C" fn destack_display_window_maximize(
+pub(crate) unsafe extern "C" fn destack_display_window_maximize(
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -23925,7 +23856,7 @@ pub unsafe extern "C" fn destack_display_window_maximize(
 }
 
 #[unsafe(export_name = "destack.display.window.minimize")]
-pub unsafe extern "C" fn destack_display_window_minimize(
+pub(crate) unsafe extern "C" fn destack_display_window_minimize(
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -23938,7 +23869,7 @@ pub unsafe extern "C" fn destack_display_window_minimize(
 }
 
 #[unsafe(export_name = "destack.display.window.opacity")]
-pub unsafe extern "C" fn destack_display_window_opacity(
+pub(crate) unsafe extern "C" fn destack_display_window_opacity(
     out: *mut f64,
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
@@ -23955,7 +23886,7 @@ pub unsafe extern "C" fn destack_display_window_opacity(
 }
 
 #[unsafe(export_name = "destack.display.window.open")]
-pub unsafe extern "C" fn destack_display_window_open(
+pub(crate) unsafe extern "C" fn destack_display_window_open(
     out: *mut resource::WindowHandle,
     options: WindowOptions,
 ) -> RuntimeStatus {
@@ -23972,7 +23903,7 @@ pub unsafe extern "C" fn destack_display_window_open(
 }
 
 #[unsafe(export_name = "destack.display.window.raise")]
-pub unsafe extern "C" fn destack_display_window_raise(
+pub(crate) unsafe extern "C" fn destack_display_window_raise(
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -23985,7 +23916,7 @@ pub unsafe extern "C" fn destack_display_window_raise(
 }
 
 #[unsafe(export_name = "destack.display.window.requestAttention")]
-pub unsafe extern "C" fn destack_display_window_request_attention(
+pub(crate) unsafe extern "C" fn destack_display_window_request_attention(
     window: resource::WindowHandle,
     level: WindowAttentionLevel,
 ) -> RuntimeStatus {
@@ -23999,7 +23930,7 @@ pub unsafe extern "C" fn destack_display_window_request_attention(
 }
 
 #[unsafe(export_name = "destack.display.window.requestRefresh")]
-pub unsafe extern "C" fn destack_display_window_request_refresh(
+pub(crate) unsafe extern "C" fn destack_display_window_request_refresh(
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -24012,7 +23943,7 @@ pub unsafe extern "C" fn destack_display_window_request_refresh(
 }
 
 #[unsafe(export_name = "destack.display.window.restore")]
-pub unsafe extern "C" fn destack_display_window_restore(
+pub(crate) unsafe extern "C" fn destack_display_window_restore(
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -24025,7 +23956,7 @@ pub unsafe extern "C" fn destack_display_window_restore(
 }
 
 #[unsafe(export_name = "destack.display.window.setAlwaysOnTop")]
-pub unsafe extern "C" fn destack_display_window_set_always_on_top(
+pub(crate) unsafe extern "C" fn destack_display_window_set_always_on_top(
     window: resource::WindowHandle,
     alwaysontop: bool,
 ) -> RuntimeStatus {
@@ -24039,7 +23970,7 @@ pub unsafe extern "C" fn destack_display_window_set_always_on_top(
 }
 
 #[unsafe(export_name = "destack.display.window.setAspectRatio")]
-pub unsafe extern "C" fn destack_display_window_set_aspect_ratio(
+pub(crate) unsafe extern "C" fn destack_display_window_set_aspect_ratio(
     window: resource::WindowHandle,
     aspectratio: Option<WindowAspectRatio>,
 ) -> RuntimeStatus {
@@ -24053,7 +23984,7 @@ pub unsafe extern "C" fn destack_display_window_set_aspect_ratio(
 }
 
 #[unsafe(export_name = "destack.display.window.setChrome")]
-pub unsafe extern "C" fn destack_display_window_set_chrome(
+pub(crate) unsafe extern "C" fn destack_display_window_set_chrome(
     window: resource::WindowHandle,
     chrome: WindowChromeKind,
 ) -> RuntimeStatus {
@@ -24067,7 +23998,7 @@ pub unsafe extern "C" fn destack_display_window_set_chrome(
 }
 
 #[unsafe(export_name = "destack.display.window.setCursorIcon")]
-pub unsafe extern "C" fn destack_display_window_set_cursor_icon(
+pub(crate) unsafe extern "C" fn destack_display_window_set_cursor_icon(
     window: resource::WindowHandle,
     icon: WindowCursorIcon,
 ) -> RuntimeStatus {
@@ -24081,7 +24012,7 @@ pub unsafe extern "C" fn destack_display_window_set_cursor_icon(
 }
 
 #[unsafe(export_name = "destack.display.window.setCursorMode")]
-pub unsafe extern "C" fn destack_display_window_set_cursor_mode(
+pub(crate) unsafe extern "C" fn destack_display_window_set_cursor_mode(
     window: resource::WindowHandle,
     mode: WindowCursorMode,
 ) -> RuntimeStatus {
@@ -24095,7 +24026,7 @@ pub unsafe extern "C" fn destack_display_window_set_cursor_mode(
 }
 
 #[unsafe(export_name = "destack.display.window.setCursorPosition")]
-pub unsafe extern "C" fn destack_display_window_set_cursor_position(
+pub(crate) unsafe extern "C" fn destack_display_window_set_cursor_position(
     window: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeStatus {
@@ -24109,7 +24040,7 @@ pub unsafe extern "C" fn destack_display_window_set_cursor_position(
 }
 
 #[unsafe(export_name = "destack.display.window.setCursorVisible")]
-pub unsafe extern "C" fn destack_display_window_set_cursor_visible(
+pub(crate) unsafe extern "C" fn destack_display_window_set_cursor_visible(
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeStatus {
@@ -24123,7 +24054,7 @@ pub unsafe extern "C" fn destack_display_window_set_cursor_visible(
 }
 
 #[unsafe(export_name = "destack.display.window.setDecorated")]
-pub unsafe extern "C" fn destack_display_window_set_decorated(
+pub(crate) unsafe extern "C" fn destack_display_window_set_decorated(
     window: resource::WindowHandle,
     decorated: bool,
 ) -> RuntimeStatus {
@@ -24137,7 +24068,7 @@ pub unsafe extern "C" fn destack_display_window_set_decorated(
 }
 
 #[unsafe(export_name = "destack.display.window.setIcons")]
-pub unsafe extern "C" fn destack_display_window_set_icons(
+pub(crate) unsafe extern "C" fn destack_display_window_set_icons(
     window: resource::WindowHandle,
     icons: Option<WindowIconSet>,
 ) -> RuntimeStatus {
@@ -24151,7 +24082,7 @@ pub unsafe extern "C" fn destack_display_window_set_icons(
 }
 
 #[unsafe(export_name = "destack.display.window.setModal")]
-pub unsafe extern "C" fn destack_display_window_set_modal(
+pub(crate) unsafe extern "C" fn destack_display_window_set_modal(
     window: resource::WindowHandle,
     modal: bool,
 ) -> RuntimeStatus {
@@ -24165,7 +24096,7 @@ pub unsafe extern "C" fn destack_display_window_set_modal(
 }
 
 #[unsafe(export_name = "destack.display.window.setMode")]
-pub unsafe extern "C" fn destack_display_window_set_mode(
+pub(crate) unsafe extern "C" fn destack_display_window_set_mode(
     window: resource::WindowHandle,
     mode: WindowModeOptions,
 ) -> RuntimeStatus {
@@ -24179,7 +24110,7 @@ pub unsafe extern "C" fn destack_display_window_set_mode(
 }
 
 #[unsafe(export_name = "destack.display.window.setMousePassthrough")]
-pub unsafe extern "C" fn destack_display_window_set_mouse_passthrough(
+pub(crate) unsafe extern "C" fn destack_display_window_set_mouse_passthrough(
     window: resource::WindowHandle,
     passthrough: bool,
 ) -> RuntimeStatus {
@@ -24193,7 +24124,7 @@ pub unsafe extern "C" fn destack_display_window_set_mouse_passthrough(
 }
 
 #[unsafe(export_name = "destack.display.window.setOpacity")]
-pub unsafe extern "C" fn destack_display_window_set_opacity(
+pub(crate) unsafe extern "C" fn destack_display_window_set_opacity(
     window: resource::WindowHandle,
     opacity: f64,
 ) -> RuntimeStatus {
@@ -24207,7 +24138,7 @@ pub unsafe extern "C" fn destack_display_window_set_opacity(
 }
 
 #[unsafe(export_name = "destack.display.window.setParent")]
-pub unsafe extern "C" fn destack_display_window_set_parent(
+pub(crate) unsafe extern "C" fn destack_display_window_set_parent(
     window: resource::WindowHandle,
     parent: Option<resource::WindowHandle>,
 ) -> RuntimeStatus {
@@ -24221,7 +24152,7 @@ pub unsafe extern "C" fn destack_display_window_set_parent(
 }
 
 #[unsafe(export_name = "destack.display.window.setPosition")]
-pub unsafe extern "C" fn destack_display_window_set_position(
+pub(crate) unsafe extern "C" fn destack_display_window_set_position(
     window: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeStatus {
@@ -24235,7 +24166,7 @@ pub unsafe extern "C" fn destack_display_window_set_position(
 }
 
 #[unsafe(export_name = "destack.display.window.setResizable")]
-pub unsafe extern "C" fn destack_display_window_set_resizable(
+pub(crate) unsafe extern "C" fn destack_display_window_set_resizable(
     window: resource::WindowHandle,
     resizable: bool,
 ) -> RuntimeStatus {
@@ -24249,7 +24180,7 @@ pub unsafe extern "C" fn destack_display_window_set_resizable(
 }
 
 #[unsafe(export_name = "destack.display.window.setSizeConstraints")]
-pub unsafe extern "C" fn destack_display_window_set_size_constraints(
+pub(crate) unsafe extern "C" fn destack_display_window_set_size_constraints(
     window: resource::WindowHandle,
     constraints: Option<WindowSizeConstraints>,
 ) -> RuntimeStatus {
@@ -24263,7 +24194,7 @@ pub unsafe extern "C" fn destack_display_window_set_size_constraints(
 }
 
 #[unsafe(export_name = "destack.display.window.setSizeLogical")]
-pub unsafe extern "C" fn destack_display_window_set_size_logical(
+pub(crate) unsafe extern "C" fn destack_display_window_set_size_logical(
     window: resource::WindowHandle,
     size: WindowLogicalSize,
 ) -> RuntimeStatus {
@@ -24277,7 +24208,7 @@ pub unsafe extern "C" fn destack_display_window_set_size_logical(
 }
 
 #[unsafe(export_name = "destack.display.window.setSizePhysical")]
-pub unsafe extern "C" fn destack_display_window_set_size_physical(
+pub(crate) unsafe extern "C" fn destack_display_window_set_size_physical(
     window: resource::WindowHandle,
     size: WindowPhysicalSize,
 ) -> RuntimeStatus {
@@ -24291,7 +24222,7 @@ pub unsafe extern "C" fn destack_display_window_set_size_physical(
 }
 
 #[unsafe(export_name = "destack.display.window.setTaskbarVisible")]
-pub unsafe extern "C" fn destack_display_window_set_taskbar_visible(
+pub(crate) unsafe extern "C" fn destack_display_window_set_taskbar_visible(
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeStatus {
@@ -24305,7 +24236,7 @@ pub unsafe extern "C" fn destack_display_window_set_taskbar_visible(
 }
 
 #[unsafe(export_name = "destack.display.window.setTitle")]
-pub unsafe extern "C" fn destack_display_window_set_title(
+pub(crate) unsafe extern "C" fn destack_display_window_set_title(
     window: resource::WindowHandle,
     title: NativeStringRef,
 ) -> RuntimeStatus {
@@ -24319,7 +24250,7 @@ pub unsafe extern "C" fn destack_display_window_set_title(
 }
 
 #[unsafe(export_name = "destack.display.window.setTransientFor")]
-pub unsafe extern "C" fn destack_display_window_set_transient_for(
+pub(crate) unsafe extern "C" fn destack_display_window_set_transient_for(
     window: resource::WindowHandle,
     transientfor: Option<resource::WindowHandle>,
 ) -> RuntimeStatus {
@@ -24333,7 +24264,7 @@ pub unsafe extern "C" fn destack_display_window_set_transient_for(
 }
 
 #[unsafe(export_name = "destack.display.window.setVisibility")]
-pub unsafe extern "C" fn destack_display_window_set_visibility(
+pub(crate) unsafe extern "C" fn destack_display_window_set_visibility(
     window: resource::WindowHandle,
     visibility: WindowVisibility,
 ) -> RuntimeStatus {
@@ -24347,7 +24278,7 @@ pub unsafe extern "C" fn destack_display_window_set_visibility(
 }
 
 #[unsafe(export_name = "destack.display.window.state")]
-pub unsafe extern "C" fn destack_display_window_state(
+pub(crate) unsafe extern "C" fn destack_display_window_state(
     out: *mut WindowState,
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
@@ -41645,7 +41576,7 @@ fn destack_display_window_state_vm_replay(
 }
 
 /// Register VM bindings for display.
-pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -43069,8 +43000,8 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 }
 
 /// Install VM bindings for display.
-pub fn install_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_display_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub DISPLAY_VM_BINDINGS, "display", install_display_vm_bindings);
+vm_binding_set!(pub(crate) DISPLAY_VM_BINDINGS, "display", install_display_vm_bindings);

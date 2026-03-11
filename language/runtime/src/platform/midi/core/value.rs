@@ -302,8 +302,8 @@ impl MidiEventMetadataValue {
 }
 
 /// Event data before ABI encoding.
+#[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(not(any(target_os = "macos", windows)), allow(dead_code))]
 pub(crate) enum MidiEventValue {
     /// Port added event.
     PortAdded {

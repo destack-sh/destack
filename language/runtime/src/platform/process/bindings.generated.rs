@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -2913,7 +2914,7 @@ struct ProcessWaitTryWaitReplayRecord {
 }
 
 /// Binding descriptor for destack.process.args.list.
-pub const PROCESS_ARGS_LIST: BindingDescriptor =
+pub(crate) const PROCESS_ARGS_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.args.list",
         "export function args(): Result<Slice<string>, PlatformError>",
@@ -2941,7 +2942,7 @@ pub const PROCESS_ARGS_LIST: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.cwd.chdir.
-pub const PROCESS_CWD_CHDIR: BindingDescriptor =
+pub(crate) const PROCESS_CWD_CHDIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.cwd.chdir",
         "export function chdir(path: OsPath): Result<void, PlatformError>",
@@ -2969,7 +2970,7 @@ pub const PROCESS_CWD_CHDIR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.cwd.get.
-pub const PROCESS_CWD_GET: BindingDescriptor =
+pub(crate) const PROCESS_CWD_GET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.cwd.get",
         "export function cwd(): Result<OsPath, PlatformError>",
@@ -2997,7 +2998,7 @@ pub const PROCESS_CWD_GET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.env.delete.
-pub const PROCESS_ENV_DELETE: BindingDescriptor =
+pub(crate) const PROCESS_ENV_DELETE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.env.delete",
         "export function envDelete(name: string): Result<void, PlatformError>",
@@ -3025,7 +3026,7 @@ pub const PROCESS_ENV_DELETE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.env.deleteBytes.
-pub const PROCESS_ENV_DELETE_BYTES: BindingDescriptor =
+pub(crate) const PROCESS_ENV_DELETE_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.env.deleteBytes",
         "export function envDeleteBytes(name: Slice<uint8>): Result<void, PlatformError>",
@@ -3053,7 +3054,7 @@ pub const PROCESS_ENV_DELETE_BYTES: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.env.get.
-pub const PROCESS_ENV_GET: BindingDescriptor =
+pub(crate) const PROCESS_ENV_GET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.env.get",
         "export function envGet(name: string): Result<string, PlatformError>",
@@ -3081,7 +3082,7 @@ pub const PROCESS_ENV_GET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.env.getBytes.
-pub const PROCESS_ENV_GET_BYTES: BindingDescriptor =
+pub(crate) const PROCESS_ENV_GET_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.env.getBytes",
         "export function envGetBytes(name: Slice<uint8>): Result<uint8[], PlatformError>",
@@ -3109,7 +3110,7 @@ pub const PROCESS_ENV_GET_BYTES: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.env.set.
-pub const PROCESS_ENV_SET: BindingDescriptor =
+pub(crate) const PROCESS_ENV_SET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.env.set",
         "export function envSet(name: string, value: string): Result<void, PlatformError>",
@@ -3137,7 +3138,7 @@ pub const PROCESS_ENV_SET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.env.setBytes.
-pub const PROCESS_ENV_SET_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_ENV_SET_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.env.setBytes",
     "export function envSetBytes(name: Slice<uint8>, value: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3151,7 +3152,7 @@ pub const PROCESS_ENV_SET_BYTES: BindingDescriptor = BindingDescriptor::external
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.exec.fexec.
-pub const PROCESS_EXEC_FEXEC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_EXEC_FEXEC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.exec.fexec",
     "export function fexec(executable: FileHandle, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3165,7 +3166,7 @@ pub const PROCESS_EXEC_FEXEC: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.exec.path.
-pub const PROCESS_EXEC_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_EXEC_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.exec.path",
     "export function exec(command: OsPath, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3179,7 +3180,7 @@ pub const PROCESS_EXEC_PATH: BindingDescriptor = BindingDescriptor::external_wit
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.exec.pathat.
-pub const PROCESS_EXEC_PATHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_EXEC_PATHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.exec.pathat",
     "export function execat(directory: DirectoryHandle, path: OsPath, arguments: Slice<string>, environment: Slice<string>, flags: ExecAtFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3193,7 +3194,7 @@ pub const PROCESS_EXEC_PATHAT: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.exit.terminate.
-pub const PROCESS_EXIT_TERMINATE: BindingDescriptor =
+pub(crate) const PROCESS_EXIT_TERMINATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.exit.terminate",
         "export function exit(code: uint32): Result<void, PlatformError>",
@@ -3221,7 +3222,7 @@ pub const PROCESS_EXIT_TERMINATE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.fd.processFdClose.
-pub const PROCESS_FD_PROCESS_FD_CLOSE: BindingDescriptor =
+pub(crate) const PROCESS_FD_PROCESS_FD_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.fd.processFdClose",
         "export function processFdClose(handle: ProcessFdHandle): Result<void, PlatformError>",
@@ -3249,7 +3250,7 @@ pub const PROCESS_FD_PROCESS_FD_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.fd.processFdOpen.
-pub const PROCESS_FD_PROCESS_FD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_FD_PROCESS_FD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.fd.processFdOpen",
     "export function processFdOpen(pid: ProcessId, flags: ProcessFdFlags): Result<ProcessFdHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3263,7 +3264,7 @@ pub const PROCESS_FD_PROCESS_FD_OPEN: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdSendSignal.
-pub const PROCESS_FD_PROCESS_FD_SEND_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_FD_PROCESS_FD_SEND_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.fd.processFdSendSignal",
     "export function processFdSendSignal(handle: ProcessFdHandle, signal: Signal, flags: ProcessFdSignalFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3277,7 +3278,7 @@ pub const PROCESS_FD_PROCESS_FD_SEND_SIGNAL: BindingDescriptor = BindingDescript
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdTryWait.
-pub const PROCESS_FD_PROCESS_FD_TRY_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_FD_PROCESS_FD_TRY_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.fd.processFdTryWait",
     "export function processFdTryWait(handle: ProcessFdHandle): Result<ProcessWaitStatus, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3291,7 +3292,7 @@ pub const PROCESS_FD_PROCESS_FD_TRY_WAIT: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdWait.
-pub const PROCESS_FD_PROCESS_FD_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_FD_PROCESS_FD_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.fd.processFdWait",
     "export function processFdWait(handle: ProcessFdHandle, timeoutNs: uint64): Result<ProcessWaitStatus, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3305,7 +3306,7 @@ pub const PROCESS_FD_PROCESS_FD_WAIT: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdClose.
-pub const PROCESS_FD_SIGNAL_FD_CLOSE: BindingDescriptor =
+pub(crate) const PROCESS_FD_SIGNAL_FD_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.fd.signalFdClose",
         "export function signalFdClose(handle: SignalFdHandle): Result<void, PlatformError>",
@@ -3333,7 +3334,7 @@ pub const PROCESS_FD_SIGNAL_FD_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.fd.signalFdOpen.
-pub const PROCESS_FD_SIGNAL_FD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_FD_SIGNAL_FD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.fd.signalFdOpen",
     "export function signalFdOpen(signals: Slice<Signal>, flags: SignalFdFlags): Result<SignalFdHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3347,7 +3348,7 @@ pub const PROCESS_FD_SIGNAL_FD_OPEN: BindingDescriptor = BindingDescriptor::exte
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdRead.
-pub const PROCESS_FD_SIGNAL_FD_READ: BindingDescriptor =
+pub(crate) const PROCESS_FD_SIGNAL_FD_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.fd.signalFdRead",
         "export function signalFdRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>",
@@ -3375,7 +3376,7 @@ pub const PROCESS_FD_SIGNAL_FD_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.fd.signalFdSetMask.
-pub const PROCESS_FD_SIGNAL_FD_SET_MASK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_FD_SIGNAL_FD_SET_MASK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.fd.signalFdSetMask",
     "export function signalFdSetMask(handle: SignalFdHandle, signals: Slice<Signal>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3389,7 +3390,7 @@ pub const PROCESS_FD_SIGNAL_FD_SET_MASK: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdTryRead.
-pub const PROCESS_FD_SIGNAL_FD_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_FD_SIGNAL_FD_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.fd.signalFdTryRead",
     "export function signalFdTryRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -3403,7 +3404,7 @@ pub const PROCESS_FD_SIGNAL_FD_TRY_READ: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.stdioStderr.
-pub const PROCESS_FD_STDIO_STDERR: BindingDescriptor =
+pub(crate) const PROCESS_FD_STDIO_STDERR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.fd.stdioStderr",
         "export function stdioStderr(): Result<FileHandle, PlatformError>",
@@ -3431,7 +3432,7 @@ pub const PROCESS_FD_STDIO_STDERR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.fd.stdioStdin.
-pub const PROCESS_FD_STDIO_STDIN: BindingDescriptor =
+pub(crate) const PROCESS_FD_STDIO_STDIN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.fd.stdioStdin",
         "export function stdioStdin(): Result<FileHandle, PlatformError>",
@@ -3459,7 +3460,7 @@ pub const PROCESS_FD_STDIO_STDIN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.fd.stdioStdout.
-pub const PROCESS_FD_STDIO_STDOUT: BindingDescriptor =
+pub(crate) const PROCESS_FD_STDIO_STDOUT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.fd.stdioStdout",
         "export function stdioStdout(): Result<FileHandle, PlatformError>",
@@ -3487,7 +3488,7 @@ pub const PROCESS_FD_STDIO_STDOUT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.group.cgroupGetLimit.
-pub const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.group.cgroupGetLimit",
     "export function cgroupGetLimit(path: string, resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -3501,7 +3502,7 @@ pub const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.cgroupJoin.
-pub const PROCESS_GROUP_CGROUP_JOIN: BindingDescriptor =
+pub(crate) const PROCESS_GROUP_CGROUP_JOIN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.group.cgroupJoin",
         "export function cgroupJoin(path: string): Result<void, PlatformError>",
@@ -3516,7 +3517,7 @@ pub const PROCESS_GROUP_CGROUP_JOIN: BindingDescriptor =
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.cgroupSetLimit.
-pub const PROCESS_GROUP_CGROUP_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_GROUP_CGROUP_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.group.cgroupSetLimit",
     "export function cgroupSetLimit(path: string, resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -3530,7 +3531,7 @@ pub const PROCESS_GROUP_CGROUP_SET_LIMIT: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.jobAssign.
-pub const PROCESS_GROUP_JOB_ASSIGN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_GROUP_JOB_ASSIGN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.group.jobAssign",
     "export function jobAssign(name: string, pids: Slice<ProcessId>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -3544,7 +3545,7 @@ pub const PROCESS_GROUP_JOB_ASSIGN: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["windows"]);
 
 /// Binding descriptor for destack.process.group.jobSetLimit.
-pub const PROCESS_GROUP_JOB_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_GROUP_JOB_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.group.jobSetLimit",
     "export function jobSetLimit(name: string, resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -3558,7 +3559,7 @@ pub const PROCESS_GROUP_JOB_SET_LIMIT: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["windows"]);
 
 /// Binding descriptor for destack.process.ids.egid.
-pub const PROCESS_IDS_EGID: BindingDescriptor =
+pub(crate) const PROCESS_IDS_EGID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.egid",
         "export function egid(): Result<GroupId, PlatformError>",
@@ -3586,7 +3587,7 @@ pub const PROCESS_IDS_EGID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.euid.
-pub const PROCESS_IDS_EUID: BindingDescriptor =
+pub(crate) const PROCESS_IDS_EUID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.euid",
         "export function euid(): Result<UserId, PlatformError>",
@@ -3614,7 +3615,7 @@ pub const PROCESS_IDS_EUID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.gid.
-pub const PROCESS_IDS_GID: BindingDescriptor =
+pub(crate) const PROCESS_IDS_GID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.gid",
         "export function gid(): Result<GroupId, PlatformError>",
@@ -3642,7 +3643,7 @@ pub const PROCESS_IDS_GID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.groupIds.
-pub const PROCESS_IDS_GROUP_IDS: BindingDescriptor =
+pub(crate) const PROCESS_IDS_GROUP_IDS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.groupIds",
         "export function groupIds(): Result<ProcessGroupIds, PlatformError>",
@@ -3670,7 +3671,7 @@ pub const PROCESS_IDS_GROUP_IDS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.groups.
-pub const PROCESS_IDS_GROUPS: BindingDescriptor =
+pub(crate) const PROCESS_IDS_GROUPS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.groups",
         "export function groups(): Result<Slice<GroupId>, PlatformError>",
@@ -3698,7 +3699,7 @@ pub const PROCESS_IDS_GROUPS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.pid.
-pub const PROCESS_IDS_PID: BindingDescriptor =
+pub(crate) const PROCESS_IDS_PID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.pid",
         "export function pid(): Result<ProcessId, PlatformError>",
@@ -3726,7 +3727,7 @@ pub const PROCESS_IDS_PID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.ppid.
-pub const PROCESS_IDS_PPID: BindingDescriptor =
+pub(crate) const PROCESS_IDS_PPID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.ppid",
         "export function ppid(): Result<ProcessId, PlatformError>",
@@ -3754,7 +3755,7 @@ pub const PROCESS_IDS_PPID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.setEgid.
-pub const PROCESS_IDS_SET_EGID: BindingDescriptor =
+pub(crate) const PROCESS_IDS_SET_EGID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.setEgid",
         "export function setEgid(groupId: GroupId): Result<void, PlatformError>",
@@ -3782,7 +3783,7 @@ pub const PROCESS_IDS_SET_EGID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.setEuid.
-pub const PROCESS_IDS_SET_EUID: BindingDescriptor =
+pub(crate) const PROCESS_IDS_SET_EUID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.setEuid",
         "export function setEuid(userId: UserId): Result<void, PlatformError>",
@@ -3810,7 +3811,7 @@ pub const PROCESS_IDS_SET_EUID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.setGid.
-pub const PROCESS_IDS_SET_GID: BindingDescriptor =
+pub(crate) const PROCESS_IDS_SET_GID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.setGid",
         "export function setGid(groupId: GroupId): Result<void, PlatformError>",
@@ -3838,7 +3839,7 @@ pub const PROCESS_IDS_SET_GID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.setGroupIds.
-pub const PROCESS_IDS_SET_GROUP_IDS: BindingDescriptor =
+pub(crate) const PROCESS_IDS_SET_GROUP_IDS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.setGroupIds",
         "export function setGroupIds(ids: ProcessGroupIds): Result<void, PlatformError>",
@@ -3866,7 +3867,7 @@ pub const PROCESS_IDS_SET_GROUP_IDS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.setGroups.
-pub const PROCESS_IDS_SET_GROUPS: BindingDescriptor =
+pub(crate) const PROCESS_IDS_SET_GROUPS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.setGroups",
         "export function setGroups(groups: Slice<GroupId>): Result<void, PlatformError>",
@@ -3894,7 +3895,7 @@ pub const PROCESS_IDS_SET_GROUPS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.setUid.
-pub const PROCESS_IDS_SET_UID: BindingDescriptor =
+pub(crate) const PROCESS_IDS_SET_UID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.setUid",
         "export function setUid(userId: UserId): Result<void, PlatformError>",
@@ -3922,7 +3923,7 @@ pub const PROCESS_IDS_SET_UID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.setUserIds.
-pub const PROCESS_IDS_SET_USER_IDS: BindingDescriptor =
+pub(crate) const PROCESS_IDS_SET_USER_IDS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.setUserIds",
         "export function setUserIds(ids: ProcessUserIds): Result<void, PlatformError>",
@@ -3950,7 +3951,7 @@ pub const PROCESS_IDS_SET_USER_IDS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.uid.
-pub const PROCESS_IDS_UID: BindingDescriptor =
+pub(crate) const PROCESS_IDS_UID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.uid",
         "export function uid(): Result<UserId, PlatformError>",
@@ -3978,7 +3979,7 @@ pub const PROCESS_IDS_UID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.ids.userIds.
-pub const PROCESS_IDS_USER_IDS: BindingDescriptor =
+pub(crate) const PROCESS_IDS_USER_IDS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.ids.userIds",
         "export function userIds(): Result<ProcessUserIds, PlatformError>",
@@ -4006,7 +4007,7 @@ pub const PROCESS_IDS_USER_IDS: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.isolation.chroot.
-pub const PROCESS_ISOLATION_CHROOT: BindingDescriptor =
+pub(crate) const PROCESS_ISOLATION_CHROOT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.isolation.chroot",
         "export function chroot(path: OsPath): Result<void, PlatformError>",
@@ -4033,7 +4034,7 @@ pub const PROCESS_ISOLATION_CHROOT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.isolation.installSyscallFilter.
-pub const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.isolation.installSyscallFilter",
     "export function installSyscallFilter(program: uint8[], flags: SyscallFilterFlags): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4047,7 +4048,7 @@ pub const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor = BindingD
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.setHostName.
-pub const PROCESS_ISOLATION_SET_HOST_NAME: BindingDescriptor =
+pub(crate) const PROCESS_ISOLATION_SET_HOST_NAME: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.isolation.setHostName",
         "export function setHostName(name: string): Result<void, PlatformError>",
@@ -4075,7 +4076,7 @@ pub const PROCESS_ISOLATION_SET_HOST_NAME: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.isolation.setNetworkNamespace.
-pub const PROCESS_ISOLATION_SET_NETWORK_NAMESPACE: BindingDescriptor =
+pub(crate) const PROCESS_ISOLATION_SET_NETWORK_NAMESPACE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.isolation.setNetworkNamespace",
         "export function setNetworkNamespace(path: OsPath): Result<void, PlatformError>",
@@ -4090,7 +4091,7 @@ pub const PROCESS_ISOLATION_SET_NETWORK_NAMESPACE: BindingDescriptor =
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.setns.
-pub const PROCESS_ISOLATION_SETNS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_ISOLATION_SETNS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.isolation.setns",
     "export function setns(pid: ProcessId, namespace: ProcessNamespaceKind): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -4104,7 +4105,7 @@ pub const PROCESS_ISOLATION_SETNS: BindingDescriptor = BindingDescriptor::extern
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.unshare.
-pub const PROCESS_ISOLATION_UNSHARE: BindingDescriptor =
+pub(crate) const PROCESS_ISOLATION_UNSHARE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.isolation.unshare",
         "export function unshare(flags: ProcessUnshareFlags): Result<void, PlatformError>",
@@ -4119,7 +4120,7 @@ pub const PROCESS_ISOLATION_UNSHARE: BindingDescriptor =
     .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.limits.getLimit.
-pub const PROCESS_LIMITS_GET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_LIMITS_GET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.limits.getLimit",
     "export function getLimit(resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4133,7 +4134,7 @@ pub const PROCESS_LIMITS_GET_LIMIT: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.limits.setLimit.
-pub const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.limits.setLimit",
     "export function setLimit(resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4147,7 +4148,7 @@ pub const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor = BindingDescriptor::exter
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.getAffinity.
-pub const PROCESS_SCHED_GET_AFFINITY: BindingDescriptor =
+pub(crate) const PROCESS_SCHED_GET_AFFINITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.sched.getAffinity",
         "export function getAffinity(pid: ProcessId): Result<ProcessCpuSet, PlatformError>",
@@ -4175,7 +4176,7 @@ pub const PROCESS_SCHED_GET_AFFINITY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.sched.getPriority.
-pub const PROCESS_SCHED_GET_PRIORITY: BindingDescriptor =
+pub(crate) const PROCESS_SCHED_GET_PRIORITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.sched.getPriority",
         "export function getPriority(pid: ProcessId): Result<int32, PlatformError>",
@@ -4203,7 +4204,7 @@ pub const PROCESS_SCHED_GET_PRIORITY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.sched.getScheduler.
-pub const PROCESS_SCHED_GET_SCHEDULER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_SCHED_GET_SCHEDULER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.sched.getScheduler",
     "export function getScheduler(pid: ProcessId): Result<ProcessSchedulerConfig, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4217,7 +4218,7 @@ pub const PROCESS_SCHED_GET_SCHEDULER: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.setAffinity.
-pub const PROCESS_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.sched.setAffinity",
     "export function setAffinity(pid: ProcessId, cpus: ProcessCpuSet): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4231,7 +4232,7 @@ pub const PROCESS_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.setPriority.
-pub const PROCESS_SCHED_SET_PRIORITY: BindingDescriptor =
+pub(crate) const PROCESS_SCHED_SET_PRIORITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.sched.setPriority",
         "export function setPriority(pid: ProcessId, priority: int32): Result<void, PlatformError>",
@@ -4259,7 +4260,7 @@ pub const PROCESS_SCHED_SET_PRIORITY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.sched.setScheduler.
-pub const PROCESS_SCHED_SET_SCHEDULER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_SCHED_SET_SCHEDULER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.sched.setScheduler",
     "export function setScheduler(pid: ProcessId, config: ProcessSchedulerConfig): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4273,7 +4274,7 @@ pub const PROCESS_SCHED_SET_SCHEDULER: BindingDescriptor = BindingDescriptor::ex
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.yieldNow.
-pub const PROCESS_SCHED_YIELD_NOW: BindingDescriptor =
+pub(crate) const PROCESS_SCHED_YIELD_NOW: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.sched.yieldNow",
         "export function yieldNow(): Result<void, PlatformError>",
@@ -4301,7 +4302,7 @@ pub const PROCESS_SCHED_YIELD_NOW: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.session.getpgid.
-pub const PROCESS_SESSION_GETPGID: BindingDescriptor =
+pub(crate) const PROCESS_SESSION_GETPGID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.session.getpgid",
         "export function getpgid(pid: ProcessId): Result<ProcessId, PlatformError>",
@@ -4329,7 +4330,7 @@ pub const PROCESS_SESSION_GETPGID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.session.setpgid.
-pub const PROCESS_SESSION_SETPGID: BindingDescriptor =
+pub(crate) const PROCESS_SESSION_SETPGID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.session.setpgid",
         "export function setpgid(pid: ProcessId, pgid: ProcessId): Result<void, PlatformError>",
@@ -4357,7 +4358,7 @@ pub const PROCESS_SESSION_SETPGID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.session.setsid.
-pub const PROCESS_SESSION_SETSID: BindingDescriptor =
+pub(crate) const PROCESS_SESSION_SETSID: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.session.setsid",
         "export function setsid(): Result<ProcessId, PlatformError>",
@@ -4385,7 +4386,7 @@ pub const PROCESS_SESSION_SETSID: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.signals.kill.
-pub const PROCESS_SIGNALS_KILL: BindingDescriptor =
+pub(crate) const PROCESS_SIGNALS_KILL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.signals.kill",
         "export function kill(pid: ProcessId, signal: Signal): Result<void, PlatformError>",
@@ -4413,7 +4414,7 @@ pub const PROCESS_SIGNALS_KILL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.signals.signalMaskRead.
-pub const PROCESS_SIGNALS_SIGNAL_MASK_READ: BindingDescriptor =
+pub(crate) const PROCESS_SIGNALS_SIGNAL_MASK_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.signals.signalMaskRead",
         "export function signalMaskRead(): Result<Signal[], PlatformError>",
@@ -4441,7 +4442,7 @@ pub const PROCESS_SIGNALS_SIGNAL_MASK_READ: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.signals.signalMaskUpdate.
-pub const PROCESS_SIGNALS_SIGNAL_MASK_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_SIGNALS_SIGNAL_MASK_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.signals.signalMaskUpdate",
     "export function signalMaskUpdate(how: SignalMaskHow, signals: Slice<Signal>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4455,7 +4456,7 @@ pub const PROCESS_SIGNALS_SIGNAL_MASK_UPDATE: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalReceive.
-pub const PROCESS_SIGNALS_SIGNAL_RECEIVE: BindingDescriptor =
+pub(crate) const PROCESS_SIGNALS_SIGNAL_RECEIVE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.signals.signalReceive",
         "export function signalReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>",
@@ -4483,7 +4484,7 @@ pub const PROCESS_SIGNALS_SIGNAL_RECEIVE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.signals.signalSubscribe.
-pub const PROCESS_SIGNALS_SIGNAL_SUBSCRIBE: BindingDescriptor =
+pub(crate) const PROCESS_SIGNALS_SIGNAL_SUBSCRIBE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.signals.signalSubscribe",
         "export function signalSubscribe(signal: Signal): Result<SignalHandle, PlatformError>",
@@ -4511,7 +4512,7 @@ pub const PROCESS_SIGNALS_SIGNAL_SUBSCRIBE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.signals.signalTryReceive.
-pub const PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.signals.signalTryReceive",
     "export function signalTryReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4525,7 +4526,7 @@ pub const PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE: BindingDescriptor = BindingDescrip
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalTryWait.
-pub const PROCESS_SIGNALS_SIGNAL_TRY_WAIT: BindingDescriptor =
+pub(crate) const PROCESS_SIGNALS_SIGNAL_TRY_WAIT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.signals.signalTryWait",
         "export function signalTryWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>",
@@ -4553,7 +4554,7 @@ pub const PROCESS_SIGNALS_SIGNAL_TRY_WAIT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.signals.signalUnsubscribe.
-pub const PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE: BindingDescriptor =
+pub(crate) const PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.signals.signalUnsubscribe",
         "export function signalUnsubscribe(handle: SignalHandle): Result<void, PlatformError>",
@@ -4581,7 +4582,7 @@ pub const PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.signals.signalWait.
-pub const PROCESS_SIGNALS_SIGNAL_WAIT: BindingDescriptor =
+pub(crate) const PROCESS_SIGNALS_SIGNAL_WAIT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.signals.signalWait",
         "export function signalWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>",
@@ -4609,7 +4610,7 @@ pub const PROCESS_SIGNALS_SIGNAL_WAIT: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.spawn.start.
-pub const PROCESS_SPAWN_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_SPAWN_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.spawn.start",
     "export function spawn(command: OsPath, arguments: Slice<string>, environment: Slice<string>, options: ProcessSpawnOptions): Result<ProcessHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4623,7 +4624,7 @@ pub const PROCESS_SPAWN_START: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.spawn.withActions.
-pub const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.spawn.withActions",
     "export function spawnWithActions(command: OsPath, arguments: Slice<string>, environment: Slice<string>, options: ProcessSpawnOptions, stdio: Slice<ProcessStdio>, actions: Slice<ProcessFdAction>): Result<ProcessHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4637,7 +4638,7 @@ pub const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor = BindingDescriptor::ext
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.umask.set.
-pub const PROCESS_UMASK_SET: BindingDescriptor =
+pub(crate) const PROCESS_UMASK_SET: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.umask.set",
         "export function umask(mask: uint32): Result<uint32, PlatformError>",
@@ -4665,7 +4666,7 @@ pub const PROCESS_UMASK_SET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.process.wait.handle.
-pub const PROCESS_WAIT_HANDLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_WAIT_HANDLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.wait.handle",
     "export function wait(handle: ProcessHandle, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4679,7 +4680,7 @@ pub const PROCESS_WAIT_HANDLE: BindingDescriptor = BindingDescriptor::external_w
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.wait.pid.
-pub const PROCESS_WAIT_PID: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const PROCESS_WAIT_PID: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.wait.pid",
     "export function waitPid(pid: ProcessId, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -4693,7 +4694,7 @@ pub const PROCESS_WAIT_PID: BindingDescriptor = BindingDescriptor::external_with
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.wait.tryWait.
-pub const PROCESS_WAIT_TRY_WAIT: BindingDescriptor =
+pub(crate) const PROCESS_WAIT_TRY_WAIT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.wait.tryWait",
         "export function tryWait(handle: ProcessHandle): Result<ProcessWaitStatus, PlatformError>",
@@ -4720,92 +4721,8 @@ pub const PROCESS_WAIT_TRY_WAIT: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptors for process.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    PROCESS_ARGS_LIST,
-    PROCESS_CWD_CHDIR,
-    PROCESS_CWD_GET,
-    PROCESS_ENV_DELETE,
-    PROCESS_ENV_DELETE_BYTES,
-    PROCESS_ENV_GET,
-    PROCESS_ENV_GET_BYTES,
-    PROCESS_ENV_SET,
-    PROCESS_ENV_SET_BYTES,
-    PROCESS_EXEC_FEXEC,
-    PROCESS_EXEC_PATH,
-    PROCESS_EXEC_PATHAT,
-    PROCESS_EXIT_TERMINATE,
-    PROCESS_FD_PROCESS_FD_CLOSE,
-    PROCESS_FD_PROCESS_FD_OPEN,
-    PROCESS_FD_PROCESS_FD_SEND_SIGNAL,
-    PROCESS_FD_PROCESS_FD_TRY_WAIT,
-    PROCESS_FD_PROCESS_FD_WAIT,
-    PROCESS_FD_SIGNAL_FD_CLOSE,
-    PROCESS_FD_SIGNAL_FD_OPEN,
-    PROCESS_FD_SIGNAL_FD_READ,
-    PROCESS_FD_SIGNAL_FD_SET_MASK,
-    PROCESS_FD_SIGNAL_FD_TRY_READ,
-    PROCESS_FD_STDIO_STDERR,
-    PROCESS_FD_STDIO_STDIN,
-    PROCESS_FD_STDIO_STDOUT,
-    PROCESS_GROUP_CGROUP_GET_LIMIT,
-    PROCESS_GROUP_CGROUP_JOIN,
-    PROCESS_GROUP_CGROUP_SET_LIMIT,
-    PROCESS_GROUP_JOB_ASSIGN,
-    PROCESS_GROUP_JOB_SET_LIMIT,
-    PROCESS_IDS_EGID,
-    PROCESS_IDS_EUID,
-    PROCESS_IDS_GID,
-    PROCESS_IDS_GROUP_IDS,
-    PROCESS_IDS_GROUPS,
-    PROCESS_IDS_PID,
-    PROCESS_IDS_PPID,
-    PROCESS_IDS_SET_EGID,
-    PROCESS_IDS_SET_EUID,
-    PROCESS_IDS_SET_GID,
-    PROCESS_IDS_SET_GROUP_IDS,
-    PROCESS_IDS_SET_GROUPS,
-    PROCESS_IDS_SET_UID,
-    PROCESS_IDS_SET_USER_IDS,
-    PROCESS_IDS_UID,
-    PROCESS_IDS_USER_IDS,
-    PROCESS_ISOLATION_CHROOT,
-    PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER,
-    PROCESS_ISOLATION_SET_HOST_NAME,
-    PROCESS_ISOLATION_SET_NETWORK_NAMESPACE,
-    PROCESS_ISOLATION_SETNS,
-    PROCESS_ISOLATION_UNSHARE,
-    PROCESS_LIMITS_GET_LIMIT,
-    PROCESS_LIMITS_SET_LIMIT,
-    PROCESS_SCHED_GET_AFFINITY,
-    PROCESS_SCHED_GET_PRIORITY,
-    PROCESS_SCHED_GET_SCHEDULER,
-    PROCESS_SCHED_SET_AFFINITY,
-    PROCESS_SCHED_SET_PRIORITY,
-    PROCESS_SCHED_SET_SCHEDULER,
-    PROCESS_SCHED_YIELD_NOW,
-    PROCESS_SESSION_GETPGID,
-    PROCESS_SESSION_SETPGID,
-    PROCESS_SESSION_SETSID,
-    PROCESS_SIGNALS_KILL,
-    PROCESS_SIGNALS_SIGNAL_MASK_READ,
-    PROCESS_SIGNALS_SIGNAL_MASK_UPDATE,
-    PROCESS_SIGNALS_SIGNAL_RECEIVE,
-    PROCESS_SIGNALS_SIGNAL_SUBSCRIBE,
-    PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE,
-    PROCESS_SIGNALS_SIGNAL_TRY_WAIT,
-    PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE,
-    PROCESS_SIGNALS_SIGNAL_WAIT,
-    PROCESS_SPAWN_START,
-    PROCESS_SPAWN_WITH_ACTIONS,
-    PROCESS_UMASK_SET,
-    PROCESS_WAIT_HANDLE,
-    PROCESS_WAIT_PID,
-    PROCESS_WAIT_TRY_WAIT,
-];
-
 /// Native binding set for process.
-pub const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "process",
     bindings: &[
         NativeBinding::new(
@@ -9798,7 +9715,9 @@ fn destack_process_wait_try_wait_replay(
 
 /// Native export wrappers for process bindings.
 #[unsafe(export_name = "destack.process.args.list")]
-pub unsafe extern "C" fn destack_process_args_list(out: *mut NativeStringSlice) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_args_list(
+    out: *mut NativeStringSlice,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -9812,7 +9731,7 @@ pub unsafe extern "C" fn destack_process_args_list(out: *mut NativeStringSlice) 
 }
 
 #[unsafe(export_name = "destack.process.cwd.chdir")]
-pub unsafe extern "C" fn destack_process_cwd_chdir(path: fs::OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_cwd_chdir(path: fs::OsPath) -> RuntimeStatus {
     native_call(|context| {
         let _ = &path;
 
@@ -9823,7 +9742,7 @@ pub unsafe extern "C" fn destack_process_cwd_chdir(path: fs::OsPath) -> RuntimeS
 }
 
 #[unsafe(export_name = "destack.process.cwd.get")]
-pub unsafe extern "C" fn destack_process_cwd_get(out: *mut fs::OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_cwd_get(out: *mut fs::OsPath) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -9837,7 +9756,7 @@ pub unsafe extern "C" fn destack_process_cwd_get(out: *mut fs::OsPath) -> Runtim
 }
 
 #[unsafe(export_name = "destack.process.env.delete")]
-pub unsafe extern "C" fn destack_process_env_delete(name: NativeStringRef) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_env_delete(name: NativeStringRef) -> RuntimeStatus {
     native_call(|context| {
         let _ = &name;
 
@@ -9848,7 +9767,9 @@ pub unsafe extern "C" fn destack_process_env_delete(name: NativeStringRef) -> Ru
 }
 
 #[unsafe(export_name = "destack.process.env.deleteBytes")]
-pub unsafe extern "C" fn destack_process_env_delete_bytes(name: NativeSlice<u8>) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_env_delete_bytes(
+    name: NativeSlice<u8>,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &name;
 
@@ -9859,7 +9780,7 @@ pub unsafe extern "C" fn destack_process_env_delete_bytes(name: NativeSlice<u8>)
 }
 
 #[unsafe(export_name = "destack.process.env.get")]
-pub unsafe extern "C" fn destack_process_env_get(
+pub(crate) unsafe extern "C" fn destack_process_env_get(
     out: *mut NativeStringRef,
     name: NativeStringRef,
 ) -> RuntimeStatus {
@@ -9876,7 +9797,7 @@ pub unsafe extern "C" fn destack_process_env_get(
 }
 
 #[unsafe(export_name = "destack.process.env.getBytes")]
-pub unsafe extern "C" fn destack_process_env_get_bytes(
+pub(crate) unsafe extern "C" fn destack_process_env_get_bytes(
     out: *mut NativeArray<u8>,
     name: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -9893,7 +9814,7 @@ pub unsafe extern "C" fn destack_process_env_get_bytes(
 }
 
 #[unsafe(export_name = "destack.process.env.set")]
-pub unsafe extern "C" fn destack_process_env_set(
+pub(crate) unsafe extern "C" fn destack_process_env_set(
     name: NativeStringRef,
     argument_value: NativeStringRef,
 ) -> RuntimeStatus {
@@ -9907,7 +9828,7 @@ pub unsafe extern "C" fn destack_process_env_set(
 }
 
 #[unsafe(export_name = "destack.process.env.setBytes")]
-pub unsafe extern "C" fn destack_process_env_set_bytes(
+pub(crate) unsafe extern "C" fn destack_process_env_set_bytes(
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -9921,7 +9842,7 @@ pub unsafe extern "C" fn destack_process_env_set_bytes(
 }
 
 #[unsafe(export_name = "destack.process.exec.fexec")]
-pub unsafe extern "C" fn destack_process_exec_fexec(
+pub(crate) unsafe extern "C" fn destack_process_exec_fexec(
     executable: resource::FileHandle,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
@@ -9936,7 +9857,7 @@ pub unsafe extern "C" fn destack_process_exec_fexec(
 }
 
 #[unsafe(export_name = "destack.process.exec.path")]
-pub unsafe extern "C" fn destack_process_exec_path(
+pub(crate) unsafe extern "C" fn destack_process_exec_path(
     command: fs::OsPath,
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
@@ -9951,7 +9872,7 @@ pub unsafe extern "C" fn destack_process_exec_path(
 }
 
 #[unsafe(export_name = "destack.process.exec.pathat")]
-pub unsafe extern "C" fn destack_process_exec_pathat(
+pub(crate) unsafe extern "C" fn destack_process_exec_pathat(
     directory: resource::DirectoryHandle,
     path: fs::OsPath,
     arguments: NativeStringSlice,
@@ -9976,7 +9897,7 @@ pub unsafe extern "C" fn destack_process_exec_pathat(
 }
 
 #[unsafe(export_name = "destack.process.exit.terminate")]
-pub unsafe extern "C" fn destack_process_exit_terminate(code: u32) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_exit_terminate(code: u32) -> RuntimeStatus {
     native_call(|context| {
         let _ = &code;
 
@@ -9987,7 +9908,7 @@ pub unsafe extern "C" fn destack_process_exit_terminate(code: u32) -> RuntimeSta
 }
 
 #[unsafe(export_name = "destack.process.fd.processFdClose")]
-pub unsafe extern "C" fn destack_process_fd_process_fd_close(
+pub(crate) unsafe extern "C" fn destack_process_fd_process_fd_close(
     handle: resource::ProcessFdHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10000,7 +9921,7 @@ pub unsafe extern "C" fn destack_process_fd_process_fd_close(
 }
 
 #[unsafe(export_name = "destack.process.fd.processFdOpen")]
-pub unsafe extern "C" fn destack_process_fd_process_fd_open(
+pub(crate) unsafe extern "C" fn destack_process_fd_process_fd_open(
     out: *mut resource::ProcessFdHandle,
     pid: ProcessId,
     flags: ProcessFdFlags,
@@ -10018,7 +9939,7 @@ pub unsafe extern "C" fn destack_process_fd_process_fd_open(
 }
 
 #[unsafe(export_name = "destack.process.fd.processFdSendSignal")]
-pub unsafe extern "C" fn destack_process_fd_process_fd_send_signal(
+pub(crate) unsafe extern "C" fn destack_process_fd_process_fd_send_signal(
     handle: resource::ProcessFdHandle,
     signal: Signal,
     flags: ProcessFdSignalFlags,
@@ -10033,7 +9954,7 @@ pub unsafe extern "C" fn destack_process_fd_process_fd_send_signal(
 }
 
 #[unsafe(export_name = "destack.process.fd.processFdTryWait")]
-pub unsafe extern "C" fn destack_process_fd_process_fd_try_wait(
+pub(crate) unsafe extern "C" fn destack_process_fd_process_fd_try_wait(
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeStatus {
@@ -10050,7 +9971,7 @@ pub unsafe extern "C" fn destack_process_fd_process_fd_try_wait(
 }
 
 #[unsafe(export_name = "destack.process.fd.processFdWait")]
-pub unsafe extern "C" fn destack_process_fd_process_fd_wait(
+pub(crate) unsafe extern "C" fn destack_process_fd_process_fd_wait(
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
@@ -10068,7 +9989,7 @@ pub unsafe extern "C" fn destack_process_fd_process_fd_wait(
 }
 
 #[unsafe(export_name = "destack.process.fd.signalFdClose")]
-pub unsafe extern "C" fn destack_process_fd_signal_fd_close(
+pub(crate) unsafe extern "C" fn destack_process_fd_signal_fd_close(
     handle: resource::SignalFdHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10081,7 +10002,7 @@ pub unsafe extern "C" fn destack_process_fd_signal_fd_close(
 }
 
 #[unsafe(export_name = "destack.process.fd.signalFdOpen")]
-pub unsafe extern "C" fn destack_process_fd_signal_fd_open(
+pub(crate) unsafe extern "C" fn destack_process_fd_signal_fd_open(
     out: *mut resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
     flags: SignalFdFlags,
@@ -10099,7 +10020,7 @@ pub unsafe extern "C" fn destack_process_fd_signal_fd_open(
 }
 
 #[unsafe(export_name = "destack.process.fd.signalFdRead")]
-pub unsafe extern "C" fn destack_process_fd_signal_fd_read(
+pub(crate) unsafe extern "C" fn destack_process_fd_signal_fd_read(
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeStatus {
@@ -10116,7 +10037,7 @@ pub unsafe extern "C" fn destack_process_fd_signal_fd_read(
 }
 
 #[unsafe(export_name = "destack.process.fd.signalFdSetMask")]
-pub unsafe extern "C" fn destack_process_fd_signal_fd_set_mask(
+pub(crate) unsafe extern "C" fn destack_process_fd_signal_fd_set_mask(
     handle: resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
 ) -> RuntimeStatus {
@@ -10130,7 +10051,7 @@ pub unsafe extern "C" fn destack_process_fd_signal_fd_set_mask(
 }
 
 #[unsafe(export_name = "destack.process.fd.signalFdTryRead")]
-pub unsafe extern "C" fn destack_process_fd_signal_fd_try_read(
+pub(crate) unsafe extern "C" fn destack_process_fd_signal_fd_try_read(
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeStatus {
@@ -10147,7 +10068,7 @@ pub unsafe extern "C" fn destack_process_fd_signal_fd_try_read(
 }
 
 #[unsafe(export_name = "destack.process.fd.stdioStderr")]
-pub unsafe extern "C" fn destack_process_fd_stdio_stderr(
+pub(crate) unsafe extern "C" fn destack_process_fd_stdio_stderr(
     out: *mut resource::FileHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10163,7 +10084,7 @@ pub unsafe extern "C" fn destack_process_fd_stdio_stderr(
 }
 
 #[unsafe(export_name = "destack.process.fd.stdioStdin")]
-pub unsafe extern "C" fn destack_process_fd_stdio_stdin(
+pub(crate) unsafe extern "C" fn destack_process_fd_stdio_stdin(
     out: *mut resource::FileHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10179,7 +10100,7 @@ pub unsafe extern "C" fn destack_process_fd_stdio_stdin(
 }
 
 #[unsafe(export_name = "destack.process.fd.stdioStdout")]
-pub unsafe extern "C" fn destack_process_fd_stdio_stdout(
+pub(crate) unsafe extern "C" fn destack_process_fd_stdio_stdout(
     out: *mut resource::FileHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10195,7 +10116,7 @@ pub unsafe extern "C" fn destack_process_fd_stdio_stdout(
 }
 
 #[unsafe(export_name = "destack.process.group.cgroupGetLimit")]
-pub unsafe extern "C" fn destack_process_group_cgroup_get_limit(
+pub(crate) unsafe extern "C" fn destack_process_group_cgroup_get_limit(
     out: *mut ProcessLimit,
     path: NativeStringRef,
     resource: ProcessLimitResource,
@@ -10224,7 +10145,9 @@ pub unsafe extern "C" fn destack_process_group_cgroup_get_limit(
 }
 
 #[unsafe(export_name = "destack.process.group.cgroupJoin")]
-pub unsafe extern "C" fn destack_process_group_cgroup_join(path: NativeStringRef) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_group_cgroup_join(
+    path: NativeStringRef,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &path;
 
@@ -10244,7 +10167,7 @@ pub unsafe extern "C" fn destack_process_group_cgroup_join(path: NativeStringRef
 }
 
 #[unsafe(export_name = "destack.process.group.cgroupSetLimit")]
-pub unsafe extern "C" fn destack_process_group_cgroup_set_limit(
+pub(crate) unsafe extern "C" fn destack_process_group_cgroup_set_limit(
     path: NativeStringRef,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
@@ -10272,7 +10195,7 @@ pub unsafe extern "C" fn destack_process_group_cgroup_set_limit(
 }
 
 #[unsafe(export_name = "destack.process.group.jobAssign")]
-pub unsafe extern "C" fn destack_process_group_job_assign(
+pub(crate) unsafe extern "C" fn destack_process_group_job_assign(
     name: NativeStringRef,
     pids: NativeSlice<ProcessId>,
 ) -> RuntimeStatus {
@@ -10295,7 +10218,7 @@ pub unsafe extern "C" fn destack_process_group_job_assign(
 }
 
 #[unsafe(export_name = "destack.process.group.jobSetLimit")]
-pub unsafe extern "C" fn destack_process_group_job_set_limit(
+pub(crate) unsafe extern "C" fn destack_process_group_job_set_limit(
     name: NativeStringRef,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
@@ -10321,7 +10244,7 @@ pub unsafe extern "C" fn destack_process_group_job_set_limit(
 }
 
 #[unsafe(export_name = "destack.process.ids.egid")]
-pub unsafe extern "C" fn destack_process_ids_egid(out: *mut GroupId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_egid(out: *mut GroupId) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -10335,7 +10258,7 @@ pub unsafe extern "C" fn destack_process_ids_egid(out: *mut GroupId) -> RuntimeS
 }
 
 #[unsafe(export_name = "destack.process.ids.euid")]
-pub unsafe extern "C" fn destack_process_ids_euid(out: *mut UserId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_euid(out: *mut UserId) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -10349,7 +10272,7 @@ pub unsafe extern "C" fn destack_process_ids_euid(out: *mut UserId) -> RuntimeSt
 }
 
 #[unsafe(export_name = "destack.process.ids.gid")]
-pub unsafe extern "C" fn destack_process_ids_gid(out: *mut GroupId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_gid(out: *mut GroupId) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -10363,7 +10286,9 @@ pub unsafe extern "C" fn destack_process_ids_gid(out: *mut GroupId) -> RuntimeSt
 }
 
 #[unsafe(export_name = "destack.process.ids.groupIds")]
-pub unsafe extern "C" fn destack_process_ids_group_ids(out: *mut ProcessGroupIds) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_group_ids(
+    out: *mut ProcessGroupIds,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -10377,7 +10302,7 @@ pub unsafe extern "C" fn destack_process_ids_group_ids(out: *mut ProcessGroupIds
 }
 
 #[unsafe(export_name = "destack.process.ids.groups")]
-pub unsafe extern "C" fn destack_process_ids_groups(
+pub(crate) unsafe extern "C" fn destack_process_ids_groups(
     out: *mut NativeSlice<GroupId>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10393,7 +10318,7 @@ pub unsafe extern "C" fn destack_process_ids_groups(
 }
 
 #[unsafe(export_name = "destack.process.ids.pid")]
-pub unsafe extern "C" fn destack_process_ids_pid(out: *mut ProcessId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_pid(out: *mut ProcessId) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -10407,7 +10332,7 @@ pub unsafe extern "C" fn destack_process_ids_pid(out: *mut ProcessId) -> Runtime
 }
 
 #[unsafe(export_name = "destack.process.ids.ppid")]
-pub unsafe extern "C" fn destack_process_ids_ppid(out: *mut ProcessId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_ppid(out: *mut ProcessId) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -10421,7 +10346,7 @@ pub unsafe extern "C" fn destack_process_ids_ppid(out: *mut ProcessId) -> Runtim
 }
 
 #[unsafe(export_name = "destack.process.ids.setEgid")]
-pub unsafe extern "C" fn destack_process_ids_set_egid(groupid: GroupId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_set_egid(groupid: GroupId) -> RuntimeStatus {
     native_call(|context| {
         let _ = &groupid;
 
@@ -10432,7 +10357,7 @@ pub unsafe extern "C" fn destack_process_ids_set_egid(groupid: GroupId) -> Runti
 }
 
 #[unsafe(export_name = "destack.process.ids.setEuid")]
-pub unsafe extern "C" fn destack_process_ids_set_euid(userid: UserId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_set_euid(userid: UserId) -> RuntimeStatus {
     native_call(|context| {
         let _ = &userid;
 
@@ -10443,7 +10368,7 @@ pub unsafe extern "C" fn destack_process_ids_set_euid(userid: UserId) -> Runtime
 }
 
 #[unsafe(export_name = "destack.process.ids.setGid")]
-pub unsafe extern "C" fn destack_process_ids_set_gid(groupid: GroupId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_set_gid(groupid: GroupId) -> RuntimeStatus {
     native_call(|context| {
         let _ = &groupid;
 
@@ -10454,7 +10379,9 @@ pub unsafe extern "C" fn destack_process_ids_set_gid(groupid: GroupId) -> Runtim
 }
 
 #[unsafe(export_name = "destack.process.ids.setGroupIds")]
-pub unsafe extern "C" fn destack_process_ids_set_group_ids(ids: ProcessGroupIds) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_set_group_ids(
+    ids: ProcessGroupIds,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &ids;
 
@@ -10465,7 +10392,7 @@ pub unsafe extern "C" fn destack_process_ids_set_group_ids(ids: ProcessGroupIds)
 }
 
 #[unsafe(export_name = "destack.process.ids.setGroups")]
-pub unsafe extern "C" fn destack_process_ids_set_groups(
+pub(crate) unsafe extern "C" fn destack_process_ids_set_groups(
     groups: NativeSlice<GroupId>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10478,7 +10405,7 @@ pub unsafe extern "C" fn destack_process_ids_set_groups(
 }
 
 #[unsafe(export_name = "destack.process.ids.setUid")]
-pub unsafe extern "C" fn destack_process_ids_set_uid(userid: UserId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_set_uid(userid: UserId) -> RuntimeStatus {
     native_call(|context| {
         let _ = &userid;
 
@@ -10489,7 +10416,9 @@ pub unsafe extern "C" fn destack_process_ids_set_uid(userid: UserId) -> RuntimeS
 }
 
 #[unsafe(export_name = "destack.process.ids.setUserIds")]
-pub unsafe extern "C" fn destack_process_ids_set_user_ids(ids: ProcessUserIds) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_set_user_ids(
+    ids: ProcessUserIds,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &ids;
 
@@ -10500,7 +10429,7 @@ pub unsafe extern "C" fn destack_process_ids_set_user_ids(ids: ProcessUserIds) -
 }
 
 #[unsafe(export_name = "destack.process.ids.uid")]
-pub unsafe extern "C" fn destack_process_ids_uid(out: *mut UserId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_uid(out: *mut UserId) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -10514,7 +10443,9 @@ pub unsafe extern "C" fn destack_process_ids_uid(out: *mut UserId) -> RuntimeSta
 }
 
 #[unsafe(export_name = "destack.process.ids.userIds")]
-pub unsafe extern "C" fn destack_process_ids_user_ids(out: *mut ProcessUserIds) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_ids_user_ids(
+    out: *mut ProcessUserIds,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -10528,7 +10459,9 @@ pub unsafe extern "C" fn destack_process_ids_user_ids(out: *mut ProcessUserIds) 
 }
 
 #[unsafe(export_name = "destack.process.isolation.chroot")]
-pub unsafe extern "C" fn destack_process_isolation_chroot(path: fs::OsPath) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_isolation_chroot(
+    path: fs::OsPath,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &path;
 
@@ -10548,7 +10481,7 @@ pub unsafe extern "C" fn destack_process_isolation_chroot(path: fs::OsPath) -> R
 }
 
 #[unsafe(export_name = "destack.process.isolation.installSyscallFilter")]
-pub unsafe extern "C" fn destack_process_isolation_install_syscall_filter(
+pub(crate) unsafe extern "C" fn destack_process_isolation_install_syscall_filter(
     program: NativeArray<u8>,
     flags: SyscallFilterFlags,
 ) -> RuntimeStatus {
@@ -10573,7 +10506,7 @@ pub unsafe extern "C" fn destack_process_isolation_install_syscall_filter(
 }
 
 #[unsafe(export_name = "destack.process.isolation.setHostName")]
-pub unsafe extern "C" fn destack_process_isolation_set_host_name(
+pub(crate) unsafe extern "C" fn destack_process_isolation_set_host_name(
     name: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10595,7 +10528,7 @@ pub unsafe extern "C" fn destack_process_isolation_set_host_name(
 }
 
 #[unsafe(export_name = "destack.process.isolation.setNetworkNamespace")]
-pub unsafe extern "C" fn destack_process_isolation_set_network_namespace(
+pub(crate) unsafe extern "C" fn destack_process_isolation_set_network_namespace(
     path: fs::OsPath,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10617,7 +10550,7 @@ pub unsafe extern "C" fn destack_process_isolation_set_network_namespace(
 }
 
 #[unsafe(export_name = "destack.process.isolation.setns")]
-pub unsafe extern "C" fn destack_process_isolation_setns(
+pub(crate) unsafe extern "C" fn destack_process_isolation_setns(
     pid: ProcessId,
     namespace: ProcessNamespaceKind,
 ) -> RuntimeStatus {
@@ -10640,7 +10573,7 @@ pub unsafe extern "C" fn destack_process_isolation_setns(
 }
 
 #[unsafe(export_name = "destack.process.isolation.unshare")]
-pub unsafe extern "C" fn destack_process_isolation_unshare(
+pub(crate) unsafe extern "C" fn destack_process_isolation_unshare(
     flags: ProcessUnshareFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10662,7 +10595,7 @@ pub unsafe extern "C" fn destack_process_isolation_unshare(
 }
 
 #[unsafe(export_name = "destack.process.limits.getLimit")]
-pub unsafe extern "C" fn destack_process_limits_get_limit(
+pub(crate) unsafe extern "C" fn destack_process_limits_get_limit(
     out: *mut ProcessLimit,
     resource: ProcessLimitResource,
 ) -> RuntimeStatus {
@@ -10679,7 +10612,7 @@ pub unsafe extern "C" fn destack_process_limits_get_limit(
 }
 
 #[unsafe(export_name = "destack.process.limits.setLimit")]
-pub unsafe extern "C" fn destack_process_limits_set_limit(
+pub(crate) unsafe extern "C" fn destack_process_limits_set_limit(
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeStatus {
@@ -10693,7 +10626,7 @@ pub unsafe extern "C" fn destack_process_limits_set_limit(
 }
 
 #[unsafe(export_name = "destack.process.sched.getAffinity")]
-pub unsafe extern "C" fn destack_process_sched_get_affinity(
+pub(crate) unsafe extern "C" fn destack_process_sched_get_affinity(
     out: *mut ProcessCpuSet,
     pid: ProcessId,
 ) -> RuntimeStatus {
@@ -10710,7 +10643,7 @@ pub unsafe extern "C" fn destack_process_sched_get_affinity(
 }
 
 #[unsafe(export_name = "destack.process.sched.getPriority")]
-pub unsafe extern "C" fn destack_process_sched_get_priority(
+pub(crate) unsafe extern "C" fn destack_process_sched_get_priority(
     out: *mut i32,
     pid: ProcessId,
 ) -> RuntimeStatus {
@@ -10727,7 +10660,7 @@ pub unsafe extern "C" fn destack_process_sched_get_priority(
 }
 
 #[unsafe(export_name = "destack.process.sched.getScheduler")]
-pub unsafe extern "C" fn destack_process_sched_get_scheduler(
+pub(crate) unsafe extern "C" fn destack_process_sched_get_scheduler(
     out: *mut ProcessSchedulerConfig,
     pid: ProcessId,
 ) -> RuntimeStatus {
@@ -10744,7 +10677,7 @@ pub unsafe extern "C" fn destack_process_sched_get_scheduler(
 }
 
 #[unsafe(export_name = "destack.process.sched.setAffinity")]
-pub unsafe extern "C" fn destack_process_sched_set_affinity(
+pub(crate) unsafe extern "C" fn destack_process_sched_set_affinity(
     pid: ProcessId,
     cpus: ProcessCpuSet,
 ) -> RuntimeStatus {
@@ -10758,7 +10691,7 @@ pub unsafe extern "C" fn destack_process_sched_set_affinity(
 }
 
 #[unsafe(export_name = "destack.process.sched.setPriority")]
-pub unsafe extern "C" fn destack_process_sched_set_priority(
+pub(crate) unsafe extern "C" fn destack_process_sched_set_priority(
     pid: ProcessId,
     priority: i32,
 ) -> RuntimeStatus {
@@ -10772,7 +10705,7 @@ pub unsafe extern "C" fn destack_process_sched_set_priority(
 }
 
 #[unsafe(export_name = "destack.process.sched.setScheduler")]
-pub unsafe extern "C" fn destack_process_sched_set_scheduler(
+pub(crate) unsafe extern "C" fn destack_process_sched_set_scheduler(
     pid: ProcessId,
     config: ProcessSchedulerConfig,
 ) -> RuntimeStatus {
@@ -10786,7 +10719,7 @@ pub unsafe extern "C" fn destack_process_sched_set_scheduler(
 }
 
 #[unsafe(export_name = "destack.process.sched.yieldNow")]
-pub unsafe extern "C" fn destack_process_sched_yield_now() -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_sched_yield_now() -> RuntimeStatus {
     native_call(|context| {
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(PROCESS_SCHED_YIELD_NOW)?;
@@ -10795,7 +10728,7 @@ pub unsafe extern "C" fn destack_process_sched_yield_now() -> RuntimeStatus {
 }
 
 #[unsafe(export_name = "destack.process.session.getpgid")]
-pub unsafe extern "C" fn destack_process_session_getpgid(
+pub(crate) unsafe extern "C" fn destack_process_session_getpgid(
     out: *mut ProcessId,
     pid: ProcessId,
 ) -> RuntimeStatus {
@@ -10812,7 +10745,7 @@ pub unsafe extern "C" fn destack_process_session_getpgid(
 }
 
 #[unsafe(export_name = "destack.process.session.setpgid")]
-pub unsafe extern "C" fn destack_process_session_setpgid(
+pub(crate) unsafe extern "C" fn destack_process_session_setpgid(
     pid: ProcessId,
     pgid: ProcessId,
 ) -> RuntimeStatus {
@@ -10826,7 +10759,9 @@ pub unsafe extern "C" fn destack_process_session_setpgid(
 }
 
 #[unsafe(export_name = "destack.process.session.setsid")]
-pub unsafe extern "C" fn destack_process_session_setsid(out: *mut ProcessId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_session_setsid(
+    out: *mut ProcessId,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -10840,7 +10775,7 @@ pub unsafe extern "C" fn destack_process_session_setsid(out: *mut ProcessId) -> 
 }
 
 #[unsafe(export_name = "destack.process.signals.kill")]
-pub unsafe extern "C" fn destack_process_signals_kill(
+pub(crate) unsafe extern "C" fn destack_process_signals_kill(
     pid: ProcessId,
     signal: Signal,
 ) -> RuntimeStatus {
@@ -10854,7 +10789,7 @@ pub unsafe extern "C" fn destack_process_signals_kill(
 }
 
 #[unsafe(export_name = "destack.process.signals.signalMaskRead")]
-pub unsafe extern "C" fn destack_process_signals_signal_mask_read(
+pub(crate) unsafe extern "C" fn destack_process_signals_signal_mask_read(
     out: *mut NativeArray<Signal>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10870,7 +10805,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_mask_read(
 }
 
 #[unsafe(export_name = "destack.process.signals.signalMaskUpdate")]
-pub unsafe extern "C" fn destack_process_signals_signal_mask_update(
+pub(crate) unsafe extern "C" fn destack_process_signals_signal_mask_update(
     how: SignalMaskHow,
     signals: NativeSlice<Signal>,
 ) -> RuntimeStatus {
@@ -10884,7 +10819,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_mask_update(
 }
 
 #[unsafe(export_name = "destack.process.signals.signalReceive")]
-pub unsafe extern "C" fn destack_process_signals_signal_receive(
+pub(crate) unsafe extern "C" fn destack_process_signals_signal_receive(
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeStatus {
@@ -10901,7 +10836,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_receive(
 }
 
 #[unsafe(export_name = "destack.process.signals.signalSubscribe")]
-pub unsafe extern "C" fn destack_process_signals_signal_subscribe(
+pub(crate) unsafe extern "C" fn destack_process_signals_signal_subscribe(
     out: *mut resource::SignalHandle,
     signal: Signal,
 ) -> RuntimeStatus {
@@ -10918,7 +10853,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_subscribe(
 }
 
 #[unsafe(export_name = "destack.process.signals.signalTryReceive")]
-pub unsafe extern "C" fn destack_process_signals_signal_try_receive(
+pub(crate) unsafe extern "C" fn destack_process_signals_signal_try_receive(
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeStatus {
@@ -10935,7 +10870,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_try_receive(
 }
 
 #[unsafe(export_name = "destack.process.signals.signalTryWait")]
-pub unsafe extern "C" fn destack_process_signals_signal_try_wait(
+pub(crate) unsafe extern "C" fn destack_process_signals_signal_try_wait(
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeStatus {
@@ -10952,7 +10887,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_try_wait(
 }
 
 #[unsafe(export_name = "destack.process.signals.signalUnsubscribe")]
-pub unsafe extern "C" fn destack_process_signals_signal_unsubscribe(
+pub(crate) unsafe extern "C" fn destack_process_signals_signal_unsubscribe(
     handle: resource::SignalHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10965,7 +10900,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_unsubscribe(
 }
 
 #[unsafe(export_name = "destack.process.signals.signalWait")]
-pub unsafe extern "C" fn destack_process_signals_signal_wait(
+pub(crate) unsafe extern "C" fn destack_process_signals_signal_wait(
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeStatus {
@@ -10982,7 +10917,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_wait(
 }
 
 #[unsafe(export_name = "destack.process.spawn.start")]
-pub unsafe extern "C" fn destack_process_spawn_start(
+pub(crate) unsafe extern "C" fn destack_process_spawn_start(
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -11010,7 +10945,7 @@ pub unsafe extern "C" fn destack_process_spawn_start(
 }
 
 #[unsafe(export_name = "destack.process.spawn.withActions")]
-pub unsafe extern "C" fn destack_process_spawn_with_actions(
+pub(crate) unsafe extern "C" fn destack_process_spawn_with_actions(
     out: *mut resource::ProcessHandle,
     command: fs::OsPath,
     arguments: NativeStringSlice,
@@ -11050,7 +10985,10 @@ pub unsafe extern "C" fn destack_process_spawn_with_actions(
 }
 
 #[unsafe(export_name = "destack.process.umask.set")]
-pub unsafe extern "C" fn destack_process_umask_set(out: *mut u32, mask: u32) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_process_umask_set(
+    out: *mut u32,
+    mask: u32,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -11064,7 +11002,7 @@ pub unsafe extern "C" fn destack_process_umask_set(out: *mut u32, mask: u32) -> 
 }
 
 #[unsafe(export_name = "destack.process.wait.handle")]
-pub unsafe extern "C" fn destack_process_wait_handle(
+pub(crate) unsafe extern "C" fn destack_process_wait_handle(
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,
@@ -11082,7 +11020,7 @@ pub unsafe extern "C" fn destack_process_wait_handle(
 }
 
 #[unsafe(export_name = "destack.process.wait.pid")]
-pub unsafe extern "C" fn destack_process_wait_pid(
+pub(crate) unsafe extern "C" fn destack_process_wait_pid(
     out: *mut ProcessWaitStatus,
     pid: ProcessId,
     flags: ProcessWaitFlags,
@@ -11100,7 +11038,7 @@ pub unsafe extern "C" fn destack_process_wait_pid(
 }
 
 #[unsafe(export_name = "destack.process.wait.tryWait")]
-pub unsafe extern "C" fn destack_process_wait_try_wait(
+pub(crate) unsafe extern "C" fn destack_process_wait_try_wait(
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
 ) -> RuntimeStatus {
@@ -16136,7 +16074,7 @@ fn destack_process_wait_try_wait_vm_replay(
 }
 
 /// Register VM bindings for process.
-pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -17824,8 +17762,8 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 }
 
 /// Install VM bindings for process.
-pub fn install_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_process_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub PROCESS_VM_BINDINGS, "process", install_process_vm_bindings);
+vm_binding_set!(pub(crate) PROCESS_VM_BINDINGS, "process", install_process_vm_bindings);

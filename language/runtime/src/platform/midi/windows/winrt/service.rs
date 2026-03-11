@@ -19,7 +19,7 @@ use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiPortDirection, MidiProtocol, MidiRecordFraming,
 };
 use crate::platform::service::affinity::{ServiceAffinity, ServiceThreadBootstrap};
-use crate::platform::service::executor::DedicatedThreadExecutor;
+use crate::platform::service::executor::dedicated::DedicatedThreadExecutor;
 use crate::platform::service::{self};
 
 use super::core::{

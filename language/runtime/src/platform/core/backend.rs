@@ -13,7 +13,7 @@ const UNSUPPORTED_TARGET_SUPPORT_RANK: u8 = 3;
 
 impl BackendSupport {
     /// Return whether the backend integration is available.
-    pub fn is_available(self) -> bool {
+    pub(crate) fn is_available(self) -> bool {
         matches!(self, Self::Available)
     }
 }

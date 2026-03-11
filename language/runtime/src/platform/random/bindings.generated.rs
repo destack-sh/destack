@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -483,7 +484,7 @@ struct RandomStreamSplitReplayRecord {
 }
 
 /// Binding descriptor for destack.random.secure.bytes.
-pub const RANDOM_SECURE_BYTES: BindingDescriptor =
+pub(crate) const RANDOM_SECURE_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.random.secure.bytes",
         "export function secureBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
@@ -511,7 +512,7 @@ pub const RANDOM_SECURE_BYTES: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.random.secure.bytesTry.
-pub const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
+pub(crate) const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.random.secure.bytesTry",
         "export function secureBytesTry(buffer: Slice<uint8>): Result<void, PlatformError>",
@@ -539,7 +540,7 @@ pub const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.random.secure.metadata.
-pub const RANDOM_SECURE_METADATA: BindingDescriptor =
+pub(crate) const RANDOM_SECURE_METADATA: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.random.secure.metadata",
         "export function secureMetadata(): Result<SecureRandomMetadata, PlatformError>",
@@ -567,7 +568,7 @@ pub const RANDOM_SECURE_METADATA: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.random.stream.create.
-pub const RANDOM_STREAM_CREATE: BindingDescriptor =
+pub(crate) const RANDOM_STREAM_CREATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.random.stream.create",
         "export function stream(): Result<RandomStream, PlatformError>",
@@ -595,7 +596,7 @@ pub const RANDOM_STREAM_CREATE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.random.stream.export.
-pub const RANDOM_STREAM_EXPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const RANDOM_STREAM_EXPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.random.stream.export",
     "export function streamExport(stream: RandomStream): Result<RandomStreamState, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -609,7 +610,7 @@ pub const RANDOM_STREAM_EXPORT: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.random.stream.fillBytes.
-pub const RANDOM_STREAM_FILL_BYTES: BindingDescriptor =
+pub(crate) const RANDOM_STREAM_FILL_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.random.stream.fillBytes",
         "export function fillBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
@@ -637,7 +638,7 @@ pub const RANDOM_STREAM_FILL_BYTES: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.random.stream.fillBytesFrom.
-pub const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.random.stream.fillBytesFrom",
     "export function fillBytesFrom(stream: RandomStream, buffer: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -651,7 +652,7 @@ pub const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor = BindingDescriptor::
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.random.stream.import.
-pub const RANDOM_STREAM_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const RANDOM_STREAM_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.random.stream.import",
     "export function streamImport(stream: RandomStream, state: RandomStreamState): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -665,7 +666,7 @@ pub const RANDOM_STREAM_IMPORT: BindingDescriptor = BindingDescriptor::external_
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.random.stream.in.
-pub const RANDOM_STREAM_IN: BindingDescriptor =
+pub(crate) const RANDOM_STREAM_IN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.random.stream.in",
         "export function streamIn(domain: RandomStreamDomain): Result<RandomStream, PlatformError>",
@@ -693,7 +694,7 @@ pub const RANDOM_STREAM_IN: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.random.stream.jump.
-pub const RANDOM_STREAM_JUMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const RANDOM_STREAM_JUMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.random.stream.jump",
     "export function streamJump(stream: RandomStream, jump: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
@@ -707,7 +708,7 @@ pub const RANDOM_STREAM_JUMP: BindingDescriptor = BindingDescriptor::external_wi
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.random.stream.nextU64.
-pub const RANDOM_STREAM_NEXT_U64: BindingDescriptor =
+pub(crate) const RANDOM_STREAM_NEXT_U64: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.random.stream.nextU64",
         "export function nextU64(): Result<uint64, PlatformError>",
@@ -735,7 +736,7 @@ pub const RANDOM_STREAM_NEXT_U64: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.random.stream.nextU64From.
-pub const RANDOM_STREAM_NEXT_U64_FROM: BindingDescriptor =
+pub(crate) const RANDOM_STREAM_NEXT_U64_FROM: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.random.stream.nextU64From",
         "export function nextU64From(stream: RandomStream): Result<uint64, PlatformError>",
@@ -763,7 +764,7 @@ pub const RANDOM_STREAM_NEXT_U64_FROM: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.random.stream.split.
-pub const RANDOM_STREAM_SPLIT: BindingDescriptor =
+pub(crate) const RANDOM_STREAM_SPLIT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.random.stream.split",
         "export function streamSplit(parent: RandomStream): Result<RandomStream, PlatformError>",
@@ -790,25 +791,8 @@ pub const RANDOM_STREAM_SPLIT: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptors for random.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    RANDOM_SECURE_BYTES,
-    RANDOM_SECURE_BYTES_TRY,
-    RANDOM_SECURE_METADATA,
-    RANDOM_STREAM_CREATE,
-    RANDOM_STREAM_EXPORT,
-    RANDOM_STREAM_FILL_BYTES,
-    RANDOM_STREAM_FILL_BYTES_FROM,
-    RANDOM_STREAM_IMPORT,
-    RANDOM_STREAM_IN,
-    RANDOM_STREAM_JUMP,
-    RANDOM_STREAM_NEXT_U64,
-    RANDOM_STREAM_NEXT_U64_FROM,
-    RANDOM_STREAM_SPLIT,
-];
-
 /// Native binding set for random.
-pub const RANDOM_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const RANDOM_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "random",
     bindings: &[
         NativeBinding::new(
@@ -1151,7 +1135,9 @@ fn destack_random_stream_split_replay(
 
 /// Native export wrappers for random bindings.
 #[unsafe(export_name = "destack.random.secure.bytes")]
-pub unsafe extern "C" fn destack_random_secure_bytes(buffer: NativeSlice<u8>) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_random_secure_bytes(
+    buffer: NativeSlice<u8>,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &buffer;
 
@@ -1185,7 +1171,9 @@ pub unsafe extern "C" fn destack_random_secure_bytes(buffer: NativeSlice<u8>) ->
 }
 
 #[unsafe(export_name = "destack.random.secure.bytesTry")]
-pub unsafe extern "C" fn destack_random_secure_bytes_try(buffer: NativeSlice<u8>) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_random_secure_bytes_try(
+    buffer: NativeSlice<u8>,
+) -> RuntimeStatus {
     native_call(|context| {
         let _ = &buffer;
 
@@ -1219,7 +1207,7 @@ pub unsafe extern "C" fn destack_random_secure_bytes_try(buffer: NativeSlice<u8>
 }
 
 #[unsafe(export_name = "destack.random.secure.metadata")]
-pub unsafe extern "C" fn destack_random_secure_metadata(
+pub(crate) unsafe extern "C" fn destack_random_secure_metadata(
     out: *mut SecureRandomMetadata,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1234,7 +1222,9 @@ pub unsafe extern "C" fn destack_random_secure_metadata(
 }
 
 #[unsafe(export_name = "destack.random.stream.create")]
-pub unsafe extern "C" fn destack_random_stream_create(out: *mut RandomStream) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_random_stream_create(
+    out: *mut RandomStream,
+) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -1260,7 +1250,7 @@ pub unsafe extern "C" fn destack_random_stream_create(out: *mut RandomStream) ->
 }
 
 #[unsafe(export_name = "destack.random.stream.export")]
-pub unsafe extern "C" fn destack_random_stream_export(
+pub(crate) unsafe extern "C" fn destack_random_stream_export(
     out: *mut RandomStreamState,
     stream: RandomStream,
 ) -> RuntimeStatus {
@@ -1276,7 +1266,7 @@ pub unsafe extern "C" fn destack_random_stream_export(
 }
 
 #[unsafe(export_name = "destack.random.stream.fillBytes")]
-pub unsafe extern "C" fn destack_random_stream_fill_bytes(
+pub(crate) unsafe extern "C" fn destack_random_stream_fill_bytes(
     buffer: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1312,7 +1302,7 @@ pub unsafe extern "C" fn destack_random_stream_fill_bytes(
 }
 
 #[unsafe(export_name = "destack.random.stream.fillBytesFrom")]
-pub unsafe extern "C" fn destack_random_stream_fill_bytes_from(
+pub(crate) unsafe extern "C" fn destack_random_stream_fill_bytes_from(
     stream: RandomStream,
     buffer: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -1352,7 +1342,7 @@ pub unsafe extern "C" fn destack_random_stream_fill_bytes_from(
 }
 
 #[unsafe(export_name = "destack.random.stream.import")]
-pub unsafe extern "C" fn destack_random_stream_import(
+pub(crate) unsafe extern "C" fn destack_random_stream_import(
     stream: RandomStream,
     state: RandomStreamState,
 ) -> RuntimeStatus {
@@ -1365,7 +1355,7 @@ pub unsafe extern "C" fn destack_random_stream_import(
 }
 
 #[unsafe(export_name = "destack.random.stream.in")]
-pub unsafe extern "C" fn destack_random_stream_in(
+pub(crate) unsafe extern "C" fn destack_random_stream_in(
     out: *mut RandomStream,
     domain: RandomStreamDomain,
 ) -> RuntimeStatus {
@@ -1396,7 +1386,7 @@ pub unsafe extern "C" fn destack_random_stream_in(
 }
 
 #[unsafe(export_name = "destack.random.stream.jump")]
-pub unsafe extern "C" fn destack_random_stream_jump(
+pub(crate) unsafe extern "C" fn destack_random_stream_jump(
     stream: RandomStream,
     jump: u64,
 ) -> RuntimeStatus {
@@ -1409,7 +1399,7 @@ pub unsafe extern "C" fn destack_random_stream_jump(
 }
 
 #[unsafe(export_name = "destack.random.stream.nextU64")]
-pub unsafe extern "C" fn destack_random_stream_next_u64(out: *mut u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_random_stream_next_u64(out: *mut u64) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -1436,7 +1426,7 @@ pub unsafe extern "C" fn destack_random_stream_next_u64(out: *mut u64) -> Runtim
 }
 
 #[unsafe(export_name = "destack.random.stream.nextU64From")]
-pub unsafe extern "C" fn destack_random_stream_next_u64_from(
+pub(crate) unsafe extern "C" fn destack_random_stream_next_u64_from(
     out: *mut u64,
     stream: RandomStream,
 ) -> RuntimeStatus {
@@ -1469,7 +1459,7 @@ pub unsafe extern "C" fn destack_random_stream_next_u64_from(
 }
 
 #[unsafe(export_name = "destack.random.stream.split")]
-pub unsafe extern "C" fn destack_random_stream_split(
+pub(crate) unsafe extern "C" fn destack_random_stream_split(
     out: *mut RandomStream,
     parent: RandomStream,
 ) -> RuntimeStatus {
@@ -1769,7 +1759,7 @@ fn destack_random_stream_split_vm_replay(
 }
 
 /// Register VM bindings for random.
-pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -2115,8 +2105,8 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 }
 
 /// Install VM bindings for random.
-pub fn install_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_random_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub RANDOM_VM_BINDINGS, "random", install_random_vm_bindings);
+vm_binding_set!(pub(crate) RANDOM_VM_BINDINGS, "random", install_random_vm_bindings);

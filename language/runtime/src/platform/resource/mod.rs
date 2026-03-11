@@ -12,7 +12,7 @@ mod table;
 pub mod vm;
 
 pub use affinity::*;
-pub use bindings_generated::*;
+pub(crate) use bindings_generated::*;
 pub use handle::*;
 pub use kind::*;
 pub(crate) use resolve::ensure_resource_affinity;

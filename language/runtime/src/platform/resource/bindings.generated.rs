@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::enum_variant_names)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -182,7 +183,7 @@ struct ResourceIdCloseReplayRecord {
 }
 
 /// Binding descriptor for destack.resource.id.close.
-pub const RESOURCE_ID_CLOSE: BindingDescriptor =
+pub(crate) const RESOURCE_ID_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.resource.id.close",
         "export function close(id: ResourceId): Result<void, PlatformError>",
@@ -211,7 +212,7 @@ pub const RESOURCE_ID_CLOSE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.resource.id.kind.
-pub const RESOURCE_ID_KIND: BindingDescriptor =
+pub(crate) const RESOURCE_ID_KIND: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.resource.id.kind",
         "export function kind(id: ResourceId): Result<ResourceKind, PlatformError>",
@@ -238,7 +239,7 @@ pub const RESOURCE_ID_KIND: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.resource.id.remove.
-pub const RESOURCE_ID_REMOVE: BindingDescriptor =
+pub(crate) const RESOURCE_ID_REMOVE: BindingDescriptor =
     BindingDescriptor::deterministic_with_requires_and_behavior(
         "destack.resource.id.remove",
         "export function remove(id: ResourceId): Result<void, PlatformError>",
@@ -265,7 +266,7 @@ pub const RESOURCE_ID_REMOVE: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.resource.id.transfer.
-pub const RESOURCE_ID_TRANSFER: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RESOURCE_ID_TRANSFER: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.resource.id.transfer",
     "export function transfer(id: ResourceId, ownership: ResourceOwnership): Result<void, PlatformError>",
     &["resource.transfer"],
@@ -276,16 +277,8 @@ pub const RESOURCE_ID_TRANSFER: BindingDescriptor = BindingDescriptor::determini
     .with_namespace("resource")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
-/// Binding descriptors for resource.
-pub const BINDINGS: &[BindingDescriptor] = &[
-    RESOURCE_ID_CLOSE,
-    RESOURCE_ID_KIND,
-    RESOURCE_ID_REMOVE,
-    RESOURCE_ID_TRANSFER,
-];
-
 /// Native binding set for resource.
-pub const RESOURCE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
+pub(crate) const RESOURCE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "resource",
     bindings: &[
         NativeBinding::new(
@@ -354,7 +347,7 @@ fn destack_resource_id_close_replay(
 
 /// Native export wrappers for resource bindings.
 #[unsafe(export_name = "destack.resource.id.close")]
-pub unsafe extern "C" fn destack_resource_id_close(id: ResourceId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_resource_id_close(id: ResourceId) -> RuntimeStatus {
     native_call(|context| {
         let _ = &id;
 
@@ -364,7 +357,7 @@ pub unsafe extern "C" fn destack_resource_id_close(id: ResourceId) -> RuntimeSta
 }
 
 #[unsafe(export_name = "destack.resource.id.kind")]
-pub unsafe extern "C" fn destack_resource_id_kind(
+pub(crate) unsafe extern "C" fn destack_resource_id_kind(
     out: *mut ResourceKind,
     id: ResourceId,
 ) -> RuntimeStatus {
@@ -382,7 +375,7 @@ pub unsafe extern "C" fn destack_resource_id_kind(
 }
 
 #[unsafe(export_name = "destack.resource.id.remove")]
-pub unsafe extern "C" fn destack_resource_id_remove(id: ResourceId) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_resource_id_remove(id: ResourceId) -> RuntimeStatus {
     native_call(|context| {
         let _ = &id;
 
@@ -394,7 +387,7 @@ pub unsafe extern "C" fn destack_resource_id_remove(id: ResourceId) -> RuntimeSt
 }
 
 #[unsafe(export_name = "destack.resource.id.transfer")]
-pub unsafe extern "C" fn destack_resource_id_transfer(
+pub(crate) unsafe extern "C" fn destack_resource_id_transfer(
     id: ResourceId,
     ownership: ResourceOwnership,
 ) -> RuntimeStatus {
@@ -454,7 +447,7 @@ fn destack_resource_id_close_vm_replay(
 }
 
 /// Register VM bindings for resource.
-pub fn register_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn register_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
         binding!(
             registry,
@@ -537,8 +530,8 @@ pub fn register_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &m
 }
 
 /// Install VM bindings for resource.
-pub fn install_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+pub(crate) fn install_resource_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_resource_vm_bindings(registry, isolate);
 }
 
-vm_binding_set!(pub RESOURCE_VM_BINDINGS, "resource", install_resource_vm_bindings);
+vm_binding_set!(pub(crate) RESOURCE_VM_BINDINGS, "resource", install_resource_vm_bindings);
