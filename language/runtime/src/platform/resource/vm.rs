@@ -1,12 +1,10 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::{
     ResourceId, ResourceKind, ResourceKindVm, ResourceOwnership, ensure_resource_affinity,
 };
 use crate::platform::{PlatformError, PlatformErrorCode};
 use crate::runtime::BindingCallContext;
-use destack_vm as vm;
+use destack_vm;
 
 /// Return a stable label for one resource kind.
 fn resource_kind_label(kind: ResourceKind) -> &'static str {
@@ -45,7 +43,7 @@ fn resource_not_found(op: &'static str, id: ResourceId) -> Box<RuntimeError> {
 /// External, recordable.
 pub(crate) fn destack_resource_close(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
     // enforce any stored resource-affinity requirement before closing
@@ -83,7 +81,7 @@ pub(crate) fn destack_resource_close(
 /// Deterministic.
 pub(crate) fn destack_resource_kind(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<ResourceKindVm> {
     // enforce any stored resource-affinity requirement before resolving metadata
@@ -98,7 +96,7 @@ pub(crate) fn destack_resource_kind(
 
     // encode the kind label as the vm-facing payload
     let label = resource_kind_label(kind);
-    Ok(vm::StringHandle::new(context.intern_string(label)))
+    Ok(destack_vm::StringHandle::new(context.intern_string(label)))
 }
 
 /// Remove a resource from the table.
@@ -120,7 +118,7 @@ pub(crate) fn destack_resource_kind(
 /// Deterministic.
 pub(crate) fn destack_resource_remove(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     id: ResourceId,
 ) -> RuntimeResult<()> {
     // enforce any stored resource-affinity requirement before removal
@@ -158,7 +156,7 @@ pub(crate) fn destack_resource_remove(
 /// Deterministic.
 pub(crate) fn destack_resource_transfer(
     binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
     id: ResourceId,
     ownership: ResourceOwnership,
 ) -> RuntimeResult<()> {

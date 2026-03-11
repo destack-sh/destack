@@ -2,7 +2,7 @@ use crate::diagnostic::{DiagnosticId, RuntimeResult};
 use crate::platform::error::PlatformErrorVm;
 use crate::platform::error::core::{VmStringStore, platform_error_vm, take_platform_error};
 use crate::runtime::BindingCallContext;
-use destack_vm as vm;
+use destack_vm;
 
 /// Take a runtime platform error by id.
 ///
@@ -21,9 +21,9 @@ use destack_vm as vm;
 ///
 /// # Replay
 /// Deterministic.
-pub(super) fn destack_error_take_platform_error(
+pub(crate) fn destack_error_take_platform_error(
     binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     error_id: u64,
 ) -> RuntimeResult<PlatformErrorVm> {
     let error = take_platform_error(

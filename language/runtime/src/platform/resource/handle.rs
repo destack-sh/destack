@@ -1,6 +1,7 @@
 use crate::diagnostic::RuntimeResult;
-use crate::platform::VmValueCodec;
-use destack_vm as vm;
+use crate::platform::{NativeAbiCodec, VmAbiCodec, VmValueCodec};
+use crate::runtime::BindingCallContext;
+use destack_vm;
 use serde::{Deserialize, Serialize};
 
 use super::ResourceKind;
@@ -15,12 +16,42 @@ pub struct ResourceId(
 );
 
 impl VmValueCodec for ResourceId {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+    fn decode(value: destack_vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
     }
 
-    fn encode(self) -> vm::Value {
+    fn encode(self) -> destack_vm::Value {
         <u64 as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl NativeAbiCodec for ResourceId {
+    type Value = Self;
+
+    unsafe fn into_value(self) -> RuntimeResult<Self::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: Self::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ResourceId {
+    type Value = Self;
+
+    fn into_value(
+        self,
+        _context: &destack_vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<Self::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut destack_vm::ExternalCallContext<'_>,
+        value: Self::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -35,7 +66,7 @@ pub enum ResourceOwnership {
 }
 
 /// VM transport alias for resource kind labels.
-pub type ResourceKindVm = vm::StringHandle;
+pub type ResourceKindVm = destack_vm::StringHandle;
 
 /// Typed resource-handle contract bound to one canonical resource kind.
 pub trait ResourceHandle: Copy {
@@ -85,12 +116,42 @@ macro_rules! define_resource_handle_types {
             }
 
             impl VmValueCodec for $handle {
-                fn decode(value: vm::Value) -> RuntimeResult<Self> {
+                fn decode(value: destack_vm::Value) -> RuntimeResult<Self> {
                     Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
                 }
 
-                fn encode(self) -> vm::Value {
+                fn encode(self) -> destack_vm::Value {
                     <ResourceId as VmValueCodec>::encode(self.0)
+                }
+            }
+
+            impl NativeAbiCodec for $handle {
+                type Value = Self;
+
+                unsafe fn into_value(self) -> RuntimeResult<Self::Value> {
+                    Ok(self)
+                }
+
+                fn from_value(_binding: &BindingCallContext, value: Self::Value) -> Self {
+                    value
+                }
+            }
+
+            impl VmAbiCodec for $handle {
+                type Value = Self;
+
+                fn into_value(
+                    self,
+                    _context: &destack_vm::ExternalCallContext<'_>,
+                ) -> RuntimeResult<Self::Value> {
+                    Ok(self)
+                }
+
+                fn from_value(
+                    _context: &mut destack_vm::ExternalCallContext<'_>,
+                    value: Self::Value,
+                ) -> RuntimeResult<Self> {
+                    Ok(value)
                 }
             }
         )+
