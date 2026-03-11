@@ -387,36 +387,44 @@ fn update_debug_for_removed_parameters(
 
     // collect debug variables that reference removed values
     let mut to_update = Vec::new();
-    for (index, variable) in tree.debug_table.variables.iter().enumerate() {
-        // skip non parameter variables
-        if !variable.is_parameter {
+    for (index, binding) in tree.debug_table.bindings.iter().enumerate() {
+        // skip non parameter bindings
+        if binding.kind != mir::DebugBindingKind::Parameter {
             continue;
         }
 
-        // skip variables outside the function scope
-        if !scope_in_function(variable.scope, function_scope, &tree.debug_table) {
+        // skip bindings outside the function scope
+        if !scope_in_function(binding.scope, function_scope, &tree.debug_table) {
             continue;
         }
 
-        // read the current debug value location
-        let var_id = mir::DebugVariableId::new(index as u32);
-        let Some(mir::DebugValueLocation::Value(value)) =
-            tree.debug_table.variable_locations.get(&var_id)
-        else {
+        // read the current binding location ranges
+        let binding_id = mir::DebugBindingId::new(index as u32);
+        let Some(ranges) = tree.debug_table.binding_location_ranges.get(&binding_id) else {
             continue;
         };
 
         // collect removed parameter locations
-        if removed_values.contains(value) {
-            to_update.push(var_id);
+        let is_removed = ranges.iter().any(|range| {
+            matches!(&range.location, mir::DebugValueLocation::Value(value) if removed_values.contains(value))
+        });
+
+        if is_removed {
+            to_update.push(binding_id);
         }
     }
 
     // rewrite removed parameter locations to undefined
-    for var_id in to_update {
-        tree.debug_table
-            .variable_locations
-            .insert(var_id, mir::DebugValueLocation::Undefined);
+    for binding_id in to_update {
+        if let Some(ranges) = tree
+            .debug_table
+            .binding_location_ranges
+            .get_mut(&binding_id)
+        {
+            for range in ranges {
+                range.location = mir::DebugValueLocation::State(mir::DebugValueState::Undefined);
+            }
+        }
     }
 }
 
@@ -802,24 +810,39 @@ block0(v0: i32):
             .debug_table
             .function_scopes
             .insert(callee_id, scope_id);
-        let var_id =
-            test.tree
-                .debug_table
-                .create_variable(callee_name, param_type, scope_id, true, false);
-        test.tree
-            .debug_table
-            .variable_locations
-            .insert(var_id, mir::DebugValueLocation::Value(param_value));
+        let binding_id = test.tree.debug_table.create_binding(
+            callee_name,
+            param_type,
+            scope_id,
+            mir::DebugBindingKind::Parameter,
+        );
+        test.tree.debug_table.binding_location_ranges.insert(
+            binding_id,
+            vec![mir::DebugBindingLocationRange {
+                binding: binding_id,
+                location: mir::DebugValueLocation::Value(param_value),
+                start: None,
+                end: None,
+            }],
+        );
 
         test.run_module_pass(&DeadArgEliminate);
         test.assert_output(expected);
         let location = test
             .tree
             .debug_table
-            .variable_locations
-            .get(&var_id)
-            .expect("missing debug variable location");
+            .binding_location_ranges
+            .get(&binding_id)
+            .expect("missing debug binding location");
 
-        assert_eq!(location, &mir::DebugValueLocation::Undefined);
+        assert_eq!(
+            location,
+            &vec![mir::DebugBindingLocationRange {
+                binding: binding_id,
+                location: mir::DebugValueLocation::State(mir::DebugValueState::Undefined),
+                start: None,
+                end: None,
+            }]
+        );
     }
 }

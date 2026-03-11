@@ -333,18 +333,23 @@ fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut 
     // clear debug variable locations tied to the stripped function
     if let Some(function_scope) = function_scope {
         // rewrite debug locations for variables in the function scope
-        for (index, variable) in tree.debug_table.variables.iter().enumerate() {
-            // skip variables outside the function scope
-            if !scope_in_function(variable.scope, function_scope, &tree.debug_table) {
+        for (index, binding) in tree.debug_table.bindings.iter().enumerate() {
+            // skip bindings outside the function scope
+            if !scope_in_function(binding.scope, function_scope, &tree.debug_table) {
                 continue;
             }
 
-            // update variable locations to undefined
-            let var_id = mir::DebugVariableId::new(index as u32);
-            if tree.debug_table.variable_locations.contains_key(&var_id) {
-                tree.debug_table
-                    .variable_locations
-                    .insert(var_id, mir::DebugValueLocation::Undefined);
+            // update binding locations to undefined
+            let binding_id = mir::DebugBindingId::new(index as u32);
+            if let Some(ranges) = tree
+                .debug_table
+                .binding_location_ranges
+                .get_mut(&binding_id)
+            {
+                for range in ranges {
+                    range.location =
+                        mir::DebugValueLocation::State(mir::DebugValueState::Undefined);
+                }
             }
         }
     }
@@ -593,23 +598,29 @@ extern function @dead(i32) -> i32"#;
             .debug_table
             .function_scopes
             .insert(dead_id, function_scope);
-        let variable_id = test.tree.debug_table.create_variable(
+        let binding_id = test.tree.debug_table.create_binding(
             test.tree.get(dead_id).name,
             test.tree.get(dead_id).parameters[0].ty,
             function_scope,
-            true,
-            false,
+            mir::DebugBindingKind::Parameter,
         );
-        test.tree.debug_table.variable_locations.insert(
-            variable_id,
-            mir::DebugValueLocation::Value(test.tree.get(dead_id).parameters[0].value),
+        test.tree.debug_table.binding_location_ranges.insert(
+            binding_id,
+            vec![mir::DebugBindingLocationRange {
+                binding: binding_id,
+                location: mir::DebugValueLocation::Value(
+                    test.tree.get(dead_id).parameters[0].value,
+                ),
+                start: Some(dead_instruction),
+                end: None,
+            }],
         );
         test.tree.debug_table.instruction_locations.insert(
             dead_instruction,
             mir::DebugLocation {
                 span,
                 scope: function_scope,
-                inlined_at: None,
+                inline_site: None,
             },
         );
 
@@ -618,8 +629,16 @@ extern function @dead(i32) -> i32"#;
 
         assert!(!test.tree.debug_table.function_scopes.contains_key(&dead_id));
         assert_eq!(
-            test.tree.debug_table.variable_locations.get(&variable_id),
-            Some(&mir::DebugValueLocation::Undefined)
+            test.tree
+                .debug_table
+                .binding_location_ranges
+                .get(&binding_id),
+            Some(&vec![mir::DebugBindingLocationRange {
+                binding: binding_id,
+                location: mir::DebugValueLocation::State(mir::DebugValueState::Undefined),
+                start: Some(dead_instruction),
+                end: None,
+            }])
         );
         assert!(
             !test

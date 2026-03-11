@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ArgumentSlice, Attribute, Block, CallSite, DataLayout, DebugTable, DevirtualizationMetadata,
     DispatchTable, Field, Function, Global, Instruction, InterfaceDispatchShape, Itab, ItabId,
-    Layout, LayoutId, Local, LocalNodeId, MemoryTable, Node, NodeType, Type, TypeAlias, TypeCache,
-    TypeLineage, TypeTable, Value, Vtable, VtableId,
+    Layout, LayoutId, Local, LocalNodeId, MemoryTable, Node, NodeType, ProvenanceId,
+    ProvenanceKind, ProvenanceTable, Type, TypeAlias, TypeCache, TypeLineage, TypeTable, Value,
+    Vtable, VtableId,
 };
 
 /// MIR node tree for a single module.
@@ -38,10 +39,10 @@ pub struct NodeTree {
     pub(crate) fields: Arena<Field>,
     pub(crate) globals: Arena<Global>,
 
-    // source tracking (MIR node id → DIR node id)
-    /// Maps MIR node id → source DIR node id (for diagnostics).
-    /// None for synthesized nodes that don't correspond to source.
-    pub(crate) source_id_by_node_id: Vec<Option<u32>>,
+    // source tracking
+    /// Maps MIR node id → provenance record.
+    /// None for nodes without recorded semantic origin.
+    pub(crate) provenance_by_node_id: Vec<Option<ProvenanceId>>,
     /// Source spans by MIR node id.
     pub(crate) span_by_node_id: Vec<Option<Span>>,
 
@@ -59,6 +60,8 @@ pub struct NodeTree {
     pub dispatch_table: DispatchTable,
     /// Debug metadata table.
     pub debug_table: DebugTable,
+    /// Provenance metadata table.
+    pub provenance_table: ProvenanceTable,
     /// Canonical module data layout metadata.
     #[serde(default)]
     pub data_layout: DataLayout,
@@ -108,13 +111,14 @@ impl NodeTree {
             fields: Arena::new(),
             globals: Arena::new(),
 
-            source_id_by_node_id: Vec::with_capacity(capacity),
+            provenance_by_node_id: Vec::with_capacity(capacity),
             span_by_node_id: Vec::with_capacity(capacity),
             instruction_arguments: Vec::new(),
             type_table: TypeTable::new(),
             memory_table: MemoryTable::new(),
             dispatch_table: DispatchTable::new(),
             debug_table: DebugTable::new(),
+            provenance_table: ProvenanceTable::new(),
             data_layout: DataLayout::default(),
         }
     }
@@ -132,7 +136,7 @@ impl NodeTree {
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.node_type_by_node_id.push(T::TYPE);
-        self.source_id_by_node_id.push(None);
+        self.provenance_by_node_id.push(None);
         self.span_by_node_id.push(None);
 
         LocalNodeId::new(global_id)
@@ -150,7 +154,9 @@ impl NodeTree {
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.node_type_by_node_id.push(T::TYPE);
-        self.source_id_by_node_id.push(Some(source_dir_id));
+        let provenance_id = self.provenance_table.create_direct(source_dir_id);
+
+        self.provenance_by_node_id.push(Some(provenance_id));
         self.span_by_node_id.push(None);
 
         LocalNodeId::new(global_id)
@@ -461,13 +467,40 @@ impl NodeTree {
     /// Returns None for synthesized nodes that don't correspond to source.
     #[inline]
     pub fn get_source(&self, id: u32) -> Option<u32> {
-        self.source_id_by_node_id[id as usize]
+        let provenance_id = self.provenance_by_node_id[id as usize]?;
+
+        self.provenance_table.record(provenance_id).primary_origin()
     }
 
-    /// Set the source DIR node id for a MIR node.
+    /// Get the provenance record id for a MIR node, if available.
+    #[inline]
+    pub fn get_provenance(&self, id: u32) -> Option<ProvenanceId> {
+        self.provenance_by_node_id[id as usize]
+    }
+
+    /// Set the provenance record id for a MIR node.
+    #[inline]
+    pub fn set_provenance(&mut self, id: u32, provenance_id: ProvenanceId) {
+        self.provenance_by_node_id[id as usize] = Some(provenance_id);
+    }
+
+    /// Set the direct DIR origin for a MIR node.
     #[inline]
     pub fn set_source(&mut self, id: u32, source_dir_id: u32) {
-        self.source_id_by_node_id[id as usize] = Some(source_dir_id);
+        let provenance_id = self.provenance_table.create_direct(source_dir_id);
+
+        self.set_provenance(id, provenance_id);
+    }
+
+    /// Create a provenance record for one MIR node.
+    #[inline]
+    pub fn create_provenance(
+        &mut self,
+        kind: ProvenanceKind,
+        origins: Vec<u32>,
+        parents: Vec<ProvenanceId>,
+    ) -> ProvenanceId {
+        self.provenance_table.create(kind, None, origins, parents)
     }
 
     /// Get the attributes for a node.
@@ -576,7 +609,7 @@ impl NodeTree {
     ///
     /// - The original node is preserved at a new ID (for diagnostics/mapping)
     /// - The node at `id` is replaced with `replacement`
-    /// - The source ID is preserved on both the original location and the preserved copy
+    /// - The provenance record is preserved on both the original location and the preserved copy
     ///
     /// Returns the ID of the preserved original node.
     pub fn replace<T>(&mut self, id: LocalNodeId<T>, replacement: T) -> LocalNodeId<T>
@@ -584,16 +617,17 @@ impl NodeTree {
         T: Node + Clone,
         Self: NodeTreeImpl<T>,
     {
-        // get original node and its source
+        // get original node and its provenance
         let original = self.get(id).clone();
-        let source = self.source_id_by_node_id[id.id as usize];
+        let provenance = self.provenance_by_node_id[id.id as usize];
 
         // preserve original at new ID
-        let preserved_id = if let Some(source_dir_id) = source {
-            self.insert_from(original, source_dir_id)
-        } else {
-            self.insert(original)
-        };
+        let preserved_id = self.insert(original);
+
+        // preserve provenance on the preserved copy
+        if let Some(provenance_id) = provenance {
+            self.set_provenance(preserved_id.id, provenance_id);
+        }
 
         // replace in-place
         *self.get_mut(id) = replacement;

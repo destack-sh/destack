@@ -116,9 +116,9 @@ fn collect_used_globals(tree: &mir::NodeTree) -> HashSet<mir::LocalNodeId<mir::G
     }
 
     // record globals referenced by debug locations
-    for location in tree.debug_table.variable_locations.values() {
-        if let mir::DebugValueLocation::Global(global_id) = location {
-            used.insert(*global_id);
+    for ranges in tree.debug_table.binding_location_ranges.values() {
+        for range in ranges {
+            collect_debug_location_globals(&range.location, &mut used);
         }
     }
 
@@ -214,18 +214,44 @@ block0:
             test.tree
                 .debug_table
                 .create_scope(mir::DebugScopeKind::Lexical, None, span, None);
-        let var_id =
-            test.tree
-                .debug_table
-                .create_variable(global_name, global_type, scope_id, false, false);
-        test.tree
-            .debug_table
-            .variable_locations
-            .insert(var_id, mir::DebugValueLocation::Global(global_id));
+        let binding_id = test.tree.debug_table.create_binding(
+            global_name,
+            global_type,
+            scope_id,
+            mir::DebugBindingKind::Local,
+        );
+        test.tree.debug_table.binding_location_ranges.insert(
+            binding_id,
+            vec![mir::DebugBindingLocationRange {
+                binding: binding_id,
+                location: mir::DebugValueLocation::Global(global_id),
+                start: None,
+                end: None,
+            }],
+        );
 
         test.run_module_pass(&GlobalDeadCodeEliminate);
         test.assert_output(input);
         let global = test.tree.get(global_id);
         assert!(global.linkage.is_defined());
+    }
+}
+
+/// Collect globals referenced by one debug value location.
+fn collect_debug_location_globals(
+    location: &mir::DebugValueLocation,
+    used: &mut HashSet<mir::LocalNodeId<mir::Global>>,
+) {
+    // direct global locations
+    if let mir::DebugValueLocation::Global(global_id) = location {
+        used.insert(*global_id);
+        return;
+    }
+
+    // composite fragments
+    if let mir::DebugValueLocation::Composite(fragments) = location {
+        for fragment in fragments {
+            collect_debug_location_globals(&fragment.location, used);
+        }
     }
 }
