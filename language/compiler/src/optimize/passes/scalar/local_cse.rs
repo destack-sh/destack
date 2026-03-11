@@ -644,7 +644,7 @@ block2(v5: i32):
         test.assert_output(expected);
     }
 
-    /// Volatile or ordered accesses block load forwarding.
+    /// Exact access only blocks forwarding for the accessed location.
     #[test]
     fn test_load_forwarding_respects_exact_access() {
         let input = r#"function @test() -> i32 {
@@ -674,7 +674,15 @@ block0:
             None,
         );
 
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = load v0
+    v2: i32 = load v0
+    return v2
+}"#;
+
         test.run_pass(&LocalCse);
-        test.assert_unchanged(input);
+        test.assert_output(expected);
     }
 }

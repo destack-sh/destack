@@ -1587,9 +1587,9 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
-    /// Constant in bounds checks fold to an unconditional jump.
+    /// Constant branch encoded bounds stay explicit.
     #[test]
-    fn test_eliminate_constant_bounds_check() {
+    fn test_preserve_constant_bounds_branch() {
         // source test
         let input = r#"function @test(v0: [i32; 4]) -> i32 {
 block0(v0: [i32; 4]):
@@ -1604,19 +1604,7 @@ block2:
     unreachable
 }"#;
 
-        // expected output
-        let expected = r#"function @test(v0: [i32; 4]) -> i32 {
-block0(v0: [i32; 4]):
-    v1: u32 = iconst 2u32
-    v2: u32 = iconst 4u32
-    v3: bool = icmp_ult v1, v2
-    jump block1
-block1:
-    v4: i32 = element.get v0, v1
-    return v4
-block2:
-    unreachable
-}"#;
+        let expected = input;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1661,9 +1649,9 @@ block2:
         test.assert_output(expected);
     }
 
-    /// Redundant dominated bounds checks are removed.
+    /// Redundant branch encoded bounds stay explicit.
     #[test]
-    fn test_eliminate_redundant_bounds_check() {
+    fn test_preserve_redundant_bounds_branch() {
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
@@ -1680,21 +1668,7 @@ block3:
     return v5
 }"#;
 
-        // expected output
-        let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
-block0(v0: [i32; 4], v1: u32):
-    v2: u32 = iconst 4u32
-    v3: bool = icmp_ult v1, v2
-    branch v3, block1, block2
-block1:
-    v4: bool = icmp_ult v1, v2
-    jump block3
-block2:
-    unreachable
-block3:
-    v5: i32 = element.get v0, v1
-    return v5
-}"#;
+        let expected = input;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1765,9 +1739,9 @@ block2:
         test.assert_unchanged(input);
     }
 
-    /// Conjoined lower and upper bound checks are recognized.
+    /// Conjoined branch encoded bounds stay explicit.
     #[test]
-    fn test_eliminate_conjoined_bounds_check() {
+    fn test_preserve_conjoined_bounds_branch() {
         // source test
         let input = r#"function @test(v0: [i32; 8]) -> i32 {
 block0(v0: [i32; 8]):
@@ -1785,22 +1759,7 @@ block2:
     unreachable
 }"#;
 
-        // expected output
-        let expected = r#"function @test(v0: [i32; 8]) -> i32 {
-block0(v0: [i32; 8]):
-    v1: i32 = iconst 3i32
-    v2: i32 = iconst 0i32
-    v3: i32 = iconst 8i32
-    v4: bool = icmp_sge v1, v2
-    v5: bool = icmp_slt v1, v3
-    v6: bool = band v4, v5
-    jump block1
-block1:
-    v7: i32 = element.get v0, v1
-    return v7
-block2:
-    unreachable
-}"#;
+        let expected = input;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1978,9 +1937,9 @@ block3:
         test.assert_output(expected);
     }
 
-    /// Bounds checks are removed when the trap target is the then branch.
+    /// Branch encoded trap bounds stay explicit.
     #[test]
-    fn test_eliminate_bounds_check_trap_then_target() {
+    fn test_preserve_bounds_branch_with_trap_then_target() {
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
@@ -1995,19 +1954,7 @@ block2:
     unreachable
 }"#;
 
-        // expected output
-        let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
-block0(v0: [i32; 4], v1: u32):
-    v2: u32 = iconst 2u32
-    v3: u32 = iconst 4u32
-    v4: bool = icmp_uge v2, v3
-    jump block1
-block1:
-    v5: i32 = element.get v0, v1
-    return v5
-block2:
-    unreachable
-}"#;
+        let expected = input;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);

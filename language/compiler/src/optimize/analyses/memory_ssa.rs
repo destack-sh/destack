@@ -3099,9 +3099,6 @@ block0:
 
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses(function);
-        let memory_ssa = analyses.get::<MemorySSA>();
-        let memory_ssa = memory_ssa.as_ref();
 
         // locate volatile instructions
         let block = test.tree.get(function.blocks[0]);
@@ -3131,6 +3128,11 @@ block0:
             true,
             None,
         );
+
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let memory_ssa = memory_ssa.as_ref();
 
         // collect volatile effects
         let load_access = memory_ssa

@@ -440,6 +440,11 @@ fn merge_memory_effect(
         return inferred.clone();
     };
 
+    // treat the default unknown effect as missing annotation
+    if *existing == mir::MemoryEffect::unknown() {
+        return inferred.clone();
+    }
+
     // union the memory effect flags and sets
     let mut merged = existing.clone();
     merged.reads |= inferred.reads;
@@ -466,6 +471,11 @@ fn merge_call_behavior(
     let Some(existing) = existing else {
         return inferred.clone();
     };
+
+    // treat the default unknown behavior as missing annotation
+    if *existing == mir::CallBehavior::unknown() {
+        return inferred.clone();
+    }
 
     // union behavioral flags and region sets
     let mut merged = existing.clone();
