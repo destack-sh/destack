@@ -6,7 +6,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::replay::TraceSequence;
 use crate::runtime::time::WorldInstant;
 
-use super::{BranchId, ImageId, TraceImageId, World};
+use super::lineage::RevisionBacking;
+use super::{BranchId, ImageId, World};
 
 /// Revision identifier for one world lineage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -37,8 +38,6 @@ pub struct Revision {
     pub sequence: TraceSequence,
     /// The captured world image for this revision.
     pub image_id: ImageId,
-    /// The captured trace image for this revision.
-    pub trace_image_id: TraceImageId,
     /// The wall-clock instant captured by this revision.
     pub wall: WorldInstant,
     /// The monotonic instant captured by this revision.
@@ -87,7 +86,7 @@ impl World {
     pub(crate) fn revision_backing(
         &self,
         revision_id: RevisionId,
-    ) -> RuntimeResult<super::lineage::RevisionBacking> {
+    ) -> RuntimeResult<RevisionBacking> {
         let lineage = self.lineage.read();
 
         lineage.resolve_revision_backing(revision_id)

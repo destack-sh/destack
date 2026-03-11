@@ -195,8 +195,6 @@ pub enum RuntimeError {
     RevisionTraceImageMissing {
         /// Revision identifier with the dangling trace-image reference.
         revision_id: u128,
-        /// Missing trace-image identifier.
-        trace_image_id: u128,
     } = 120,
     /// Exclusive access cannot begin while shared activity is still active.
     ExclusiveAccessActive {
@@ -357,11 +355,8 @@ impl RuntimeError {
             } => {
                 format!("revision {revision_id} is missing image {image_id}")
             }
-            RuntimeError::RevisionTraceImageMissing {
-                revision_id,
-                trace_image_id,
-            } => {
-                format!("revision {revision_id} is missing trace image {trace_image_id}")
+            RuntimeError::RevisionTraceImageMissing { revision_id } => {
+                format!("revision {revision_id} is missing trace image")
             }
             RuntimeError::ExclusiveAccessActive { active_operations } => {
                 format!(

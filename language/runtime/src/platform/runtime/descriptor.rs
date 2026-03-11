@@ -456,9 +456,11 @@ impl RuntimeDescriptorCodec {
             .boxed()
         })?;
 
+        let image = entry.snapshot.image()?;
+
         Ok(SnapshotDescriptor {
             id: snapshot_id,
-            image_id: RuntimeHandleCodec::encode_image_id(entry.snapshot.image.id)?,
+            image_id: RuntimeHandleCodec::encode_image_id(image.id)?,
             format: entry.format,
             size_bytes: Some(size_bytes),
         })
