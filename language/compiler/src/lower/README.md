@@ -584,15 +584,15 @@ For whole-program compilation, the optimizer already knows what's overridden.
 
 Both lower to nominal instance layouts with computed property offsets. The key difference is **reference identity**: classes have it (two instances with same data are still different objects), structs don't (two structs with same data are equal). Both can have **type identity** (RTTI) when needed for `instanceof`, `T.is`, or `typeOf`.
 
-#### RTTI and Type Tags
+#### RTTI and Type Descriptors
 
-RTTI (runtime type identity) is unified via `TypeTag` handles that point to `TypeDescriptor` values.
+RTTI (runtime type identity) is unified via `TypeDescriptor` handles, with `TypeId` available as a compact lowered identity token when needed.
 Polymorphic classes store a vtable pointer in the object layout for virtual dispatch.
 If any class in a lineage requires virtual dispatch, every class in that lineage includes a vtable pointer at offset 0 so upcasts need no pointer adjustment.
-Vtable slot 0 stores the `TypeTag` for fast `instanceof`, `T.is`, and `typeOf`.
+Vtable slot 0 stores the `TypeDescriptor` for fast `instanceof`, `T.is`, and `typeOf`.
 Structs remain headerless and never store a vtable pointer.
-Thin-pointer checks on structs recover `TypeTag` from GC metadata when needed.
-Interface and `unknown` values carry `TypeTag` in fat pointers.
+Thin-pointer checks on structs recover `TypeDescriptor` from GC metadata when needed.
+Interface and `unknown` values carry `TypeDescriptor` in fat pointers.
 Class references are thin pointers, so the vtable pointer must live in the object layout when present.
 
 GC metadata lookup only applies to managed references.
@@ -654,7 +654,7 @@ class Node {
 Native layout:
 ```ds
 struct NodeLayout {
-    vtablePtr: &Vtable,      // offset 0, vtable[0] = Node_TypeTag
+    vtablePtr: &Vtable,      // offset 0, vtable[0] = Node_TypeDescriptor
     name: ref<string>,       // offset 8
 }
 ```
@@ -672,14 +672,14 @@ Dynamic property addition must use explicit map/dictionary types.
 
 Managed objects have no per object GC header.
 GC metadata is stored out of line in allocator side tables, similar to Go.
-TypeTag values are pointers to TypeDescriptor values, not integer ids.
+TypeDescriptor values are canonical runtime metadata handles, while `TypeId` is the compact lowered identity token when one is needed for tables or side data.
 Null references use 0x0 for the pointer value.
 Undefined is represented through tagged unions, not pointer tagging.
 
 Per span metadata includes:
 - Mark bits for GC tracing
 - Size class and allocation layout info
-- A TypeTag per object for scanning and type queries
+- A TypeDescriptor per object for scanning and type queries
 
 Polymorphic classes store a vtable pointer in the object for virtual dispatch and fast `instanceof`/`T.is`.
 Structs remain headerless and rely on metadata or fat pointers for RTTI.
@@ -833,7 +833,7 @@ When contextual typing assigns the union type to a concrete expression, Lower us
 
    ```ds
    type Dynamic = unknown
-   // layout: { typeTag: TypeTag, payload: word }
+   // layout: { typeDescriptor: TypeDescriptor, payload: word }
 
    type LargeUnion = LargeA | LargeB
    // layout: { tag: u8, data: pointer to variant }
@@ -842,7 +842,7 @@ When contextual typing assigns the union type to a concrete expression, Lower us
 The inline size threshold is fixed per target for ABI stability.
 **Owned unions** (`^(A | B)`) prefer inline representation when the variant is known at runtime
 without additional RTTI. If RTTI is required for drop, the union is boxed with an explicit tag.
-The `typeTag` in boxed unions points at the RTTI descriptor.
+The `typeDescriptor` in boxed unions points at the RTTI descriptor.
 
 ### Dynamic Types (unknown)
 
@@ -860,12 +860,12 @@ if (value is User) {
 
 ```ds
 struct unknown {
-    typeTag: TypeTag
+    typeDescriptor: TypeDescriptor
     payload: word
 }
 ```
 
-The `payload` is a pointer-sized word interpreted by `typeTag`.
+The `payload` is a pointer-sized word interpreted by `typeDescriptor`.
 `word` is a pointer-sized integer type (u64 on 64-bit, u32 on 32-bit).
 Managed references store the object pointer in `payload`.
 Small primitives store their bitwise representation directly in `payload`.
@@ -935,8 +935,8 @@ struct TypeDescriptor {
 
 At runtime, when user code accesses `User.properties` or `typeOf(value)`, the `TypeDescriptor` data is accessed directly.
 (Comptime and runtime share the same MIR representation, so no synthesis or conversion step is needed.)
-Runtime `Type<T>` values are represented as `TypeTag` handles that point to `TypeDescriptor` records.
-When a vtable exists, slot 0 stores the `TypeTag` handle.
+Runtime `Type<T>` values are represented as `TypeDescriptor` handles.
+When a vtable exists, slot 0 stores the `TypeDescriptor` handle.
 Interface and `unknown` values carry it in fat pointers, and thin pointers recover it via GC metadata when needed.
 
 **Lowering Type<T> operations:**
@@ -944,14 +944,14 @@ Interface and `unknown` values carry it in fat pointers, and thin pointers recov
 | Source | Comptime | Runtime (if needed) |
 |--------|----------|---------------------|
 | `User` (in type position) | Type check | N/A |
-| `User` (in value position) | Constant TypeTag | Load from RTTI table |
+| `User` (in value position) | Constant TypeDescriptor | Load from RTTI table |
 | `User.name` | Constant "User" | `rtti[user_id].name` |
 | `User.properties` | Constant array | Load property descriptors |
-| `value instanceof User` | Eliminated if type known | Compare `value.typeTag == @User_TypeTag` |
-| `User.is(value)` | Eliminated if type known | Compare `value.typeTag == @User_TypeTag` |
-| `typeOf(value)` | Constant if type known | Load `value.typeTag` |
+| `value instanceof User` | Eliminated if type known | Compare `value.typeDescriptor == @User_TypeDescriptor` |
+| `User.is(value)` | Eliminated if type known | Compare `value.typeDescriptor == @User_TypeDescriptor` |
+| `typeOf(value)` | Constant if type known | Load `value.typeDescriptor` |
 
-When a value is a thin pointer without an embedded type tag, we get the `TypeTag` handle from GC metadata for comparison.
+When a value is a thin pointer without an embedded type descriptor, we get the `TypeDescriptor` handle from GC metadata for comparison.
 
 **RTTI generation rules:**
 RTTI (TypeDescriptor records) are only emitted for types that need runtime type checks.
@@ -988,7 +988,7 @@ The vtable is an array of slots with a fixed prefix and method targets.
 **Vtable structure (conceptual):**
 ```ds
 struct Vtable {
-    typeTag: TypeTag;    // for instanceof, T.is, and typeOf
+    typeDescriptor: TypeDescriptor;    // for instanceof, T.is, and typeOf
     drop: () => void;             // drop glue
     methods: ((...args: unknown[]) => unknown)[]; // virtual method pointers
 }
@@ -997,18 +997,18 @@ struct Vtable {
 **Example vtable layout:**
 <pre>
 Node vtable:
-  slot 0: typeTag = @Node_TypeTag
+  slot 0: typeDescriptor = @Node_TypeDescriptor
   slot 1: drop = Node_drop
   slot 2: update = Node.update
 
 Sprite vtable (inherits Node):
-  slot 0: typeTag = @Sprite_TypeTag
+  slot 0: typeDescriptor = @Sprite_TypeDescriptor
   slot 1: drop = Sprite_drop
   slot 2: update = Sprite.update      // overrides Node::update
 </pre>
 
 **Slot assignment (inheritance-preserving):**
-- Slot 0: always `typeTag` (for `instanceof`, `T.is`, `typeOf`)
+- Slot 0: always `typeDescriptor` (for `instanceof`, `T.is`, `typeOf`)
 - Slot 1: always `drop` (drop glue)
 - Slots 2+: virtual methods in declaration order
 - Child classes inherit all parent slots at the same indices
@@ -1097,14 +1097,14 @@ Each (Type, Interface) pair generates its own itab metadata entry:
 itab_id Circle_Drawable = 12
 itab_id Rectangle_Drawable = 13
 
-itab[12] = { typeTag: @Circle_TypeTag, color: 0, draw: @Circle.draw }
-itab[13] = { typeTag: @Rectangle_TypeTag, color: 0, draw: @Rectangle.draw }
+itab[12] = { typeDescriptor: @Circle_TypeDescriptor, color: 0, draw: @Circle.draw }
+itab[13] = { typeDescriptor: @Rectangle_TypeDescriptor, color: 0, draw: @Rectangle.draw }
 ```
 
 **Interface call lowering:**
 
 Each (Type, Interface) pair gets its own itab with slots assigned in interface declaration order.
-Slot 0 is always `typeTag`, then fields and methods follow in the interface member order.
+Slot 0 is always `typeDescriptor`, then fields and methods follow in the interface member order.
 Interface inheritance flattens base interfaces in extends list order before local members.
 Members inherited with the same name and signature reuse the first slot.
 Fields reuse slots only when their declared types match.
@@ -1112,8 +1112,8 @@ Conflicting member signatures are errors during analysis.
 Field entries store byte offsets, and method entries store function pointers.
 The compiler generates the itab metadata at compile time, and interface references carry an itab handle.
 Interface to interface casts rebuild the fat pointer.
-The object pointer is preserved and the source itab provides the concrete type tag.
-The target itab is resolved from `(typeTag, target interface)` and stored in the new interface reference.
+The object pointer is preserved and the source itab provides the concrete type descriptor.
+The target itab is resolved from `(typeDescriptor, target interface)` and stored in the new interface reference.
 
 ```ds
 function render(d: Drawable) { d.draw(); }
@@ -1183,7 +1183,7 @@ For each (Type, Interface) pair where the type implements the interface:
 **Itab layout:**
 ```ds
 struct InterfaceItab<I> {
-    typeTag: TypeTag;  // for T.is on interface refs
+    typeDescriptor: TypeDescriptor;  // for T.is on interface refs
     slots: [InterfaceSlot]; // field offsets and method pointers in declaration order
 }
 ```
@@ -1297,6 +1297,10 @@ Users can annotate functions with `@noManaged` or `@stackOnly` decorators to enf
 `ManagedAlloc` creates GC-tracked objects.
 The runtime provides garbage collection; Lower just emits the allocation instructions.
 Allocator selection for native targets is configured per-target (`allocator`).
+Lower owns the target-specific realization of MIR managed semantics.
+This includes the managed reference representation, runtime object layout hooks, stack maps, barrier insertion, and collector integration policy.
+The current native or VM managed heap is one backend for that contract, not the definition of `managed` itself.
+WasmGC is another valid lowering target for the same MIR `managed` semantics.
 
 ```mir
 type @Point = struct { f32, f32 }
@@ -1308,14 +1312,15 @@ block0:
 }
 ```
 
-**Write barriers:** Lower automatically inserts `Intrinsic::GcWriteBarrier` for all `ManagedReference` field writes.
+**Write barriers:** Lower automatically inserts `Intrinsic::GcWriteBarrier` for managed heap edge updates when the target collector requires it.
 The runtime uses this for concurrent marking.
 See [INTRINSICS.md](INTRINSICS.md#garbage-collection) for details.
 
 **Roots:** Each function has a stack map describing which slots contain managed references.
 The GC uses these to find roots during collection.
 Managed allocations do not include per object headers.
-The allocator side tables store mark bits, size class, and the TypeTag handle used for scanning.
+The allocator side tables store mark bits, size class, and the `TypeDescriptor` handle used for scanning and runtime type queries.
+The exact scan shape is derived from MIR type and layout facts through `TypeDescriptor` rather than from ad hoc collector-local type knowledge.
 
 GC implementation details are target-specific and live in the runtime/codegen layers.
 The general approach (when GC is enabled) is Go-like: insertion write barriers with a concurrent mark phase.
@@ -1330,6 +1335,7 @@ For targets without GC (freestanding, `@noManaged` code):
 
 Lower queries the target profile to determine which GC features to emit.
 The runtime provides the actual GC implementation; Lower just emits the hooks.
+For WasmGC-style targets, Lower may map `managed.alloc`, managed references, and runtime type metadata directly onto the target GC object model instead of the native Destack collector backend.
 
 #### Managed Reference Representation
 
@@ -1603,19 +1609,19 @@ Configurable via target profile or runtime initialization.
 ## Control Flow
 
 Control flow constructs (errors, async, generators) lower to MIR blocks and terminators.
-JavaScript's `throw`/`catch` and `async`/`await` are powerful but have runtime costs: exception tables, stack unwinding, state machine overhead.
-**Result first error handling**: recoverable errors use `Result<T, E>` (zero cost early returns), while `throw` becomes an abort in native code.
-Explicit errors in the type system, panics for bugs only (like Rust).
+JavaScript's `throw`/`catch` and `async`/`await` are powerful but have runtime costs: exception tables, stack unwinding, and state machine overhead.
+**Result first error handling**: recoverable errors use `Result<T, E>` with zero-cost early returns in the common case, while `throw` remains available for compatibility and bug paths.
+Explicit errors stay in the type system, and panics remain for bugs only.
 Async functions lower to state machines, preserving JS `Promise` semantics without the JS runtime overhead.
 
 ### Errors and Exceptions
 
-Destack uses **Result-first error handling**: recoverable errors use `Result<T, E>`, while `throw` is reserved for unrecoverable panics (bugs).
+Destack uses **Result-first error handling**: recoverable errors use `Result<T, E>`, while `throw` remains the compatibility and panic surface for exceptional control flow.
 
 | Mechanism | Use For | Example |
 |-----------|---------|---------|
 | `Result<T, E>` | Recoverable errors | Parse failures, file not found, network timeout |
-| `throw` | Unrecoverable panics | Assertion failures, invariant violations, bugs |
+| `throw` | Panics, compatibility exceptions, and interop boundaries | Assertion failures, invariant violations, exception-based foreign APIs |
 
 **Panics indicate bugs**, not expected error conditions.
 Use `Result` for anything the caller might want to handle.
@@ -1632,11 +1638,11 @@ function readConfig(): Result<Config, Error> {
 
 Lowers to early return on error.
 
-**Panic (throw):**
-`throw` indicates an unrecoverable error (bug, invariant violation).
-Unlike traditional exceptions, panics are not meant to be caught.
-On native targets, `throw` aborts without unwinding.
-Panic policy is configured per target (`panic`), and unwind requires runtime support.
+**Panic and throw:**
+`throw` is represented explicitly in MIR as exceptional control flow.
+Destack remains `Result` first, and panic paths are still expected to be rare.
+The architectural target for native code is real exceptional control flow with explicit normal and unwind successors in MIR, even when a particular backend or runtime path still rejects or simplifies parts of that model during bring-up.
+`trap abort` and `trap panic` remain the fatal control-flow forms for unrecoverable runtime termination.
 
 ### Coroutines: Async & Generators
 

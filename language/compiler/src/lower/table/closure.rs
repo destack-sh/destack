@@ -87,16 +87,10 @@ impl ModuleLowerer<'_> {
             .map(|name| format!("{name}{CLOSURE_ENV_METADATA_SUFFIX}"))
             .unwrap_or_else(|| format!("closure_env#{}", symbol.local_id.id));
         let metadata_name = self.builder.intern(&metadata_name);
-        let metadata = self
-            .builder
+        self.builder
             .tree_mut()
             .type_table
-            .type_metadata_by_id
-            .entry(env_type)
-            .or_default();
-        if metadata.name.is_none() {
-            metadata.name = Some(metadata_name);
-        }
+            .ensure_display_name(env_type, metadata_name);
 
         // record layout metadata for the env type
         self.insert_layout_entry(env_type, mir::LayoutType::ClosureEnv, &layout);

@@ -269,8 +269,7 @@ impl TypeLowerer {
             discriminant: discriminant_metadata,
         };
         let type_table = &mut builder.tree_mut().type_table;
-        let metadata = type_table.type_metadata_by_id.entry(mir_type).or_default();
-        metadata.union_layout = Some(union_metadata);
+        type_table.set_union_layout(mir_type, union_metadata);
 
         // return the union type
         Ok(mir_type)

@@ -28,7 +28,7 @@ function applyIdentity(input: int32): int32 {
         module_id,
         "native",
         r#"
-type @fn#param.int32#return.int32 = { @function_ptr: fn(i32) -> i32, @env: ref?<managed void> }
+type @fn#param.int32#return.int32 = fnvalue<fn(i32) -> i32, ref?<managed void>>
 
 function @makeIdentity() -> @fn#param.int32#return.int32 {
 block0:
@@ -92,7 +92,7 @@ function applyAdder(input: int32): int32 {
         module_id,
         "native",
         r#"
-type @fn#param.int32#return.int32 = { @function_ptr: fn(i32) -> i32, @env: ref?<managed void> }
+type @fn#param.int32#return.int32 = fnvalue<fn(i32) -> i32, ref?<managed void>>
 type @closure_env#9 = { base: i32 }
 
 function @makeAdder() -> @fn#param.int32#return.int32 {
@@ -168,7 +168,7 @@ function runCounter(): int32 {
         module_id,
         "native",
         r#"
-type @fn#return.int32 = { @function_ptr: fn() -> i32, @env: ref?<managed void> }
+type @fn#return.int32 = fnvalue<fn() -> i32, ref?<managed void>>
 type @closure_env#8 = { count: ref<managed i32> }
 
 function @makeCounter() -> @fn#return.int32 {

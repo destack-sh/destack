@@ -342,7 +342,7 @@ impl TypeLowerer {
                 let align = bytes.min(8);
                 (bytes, align)
             }
-            mir::Type::Type | mir::Type::Reference { .. } => {
+            mir::Type::TypeDescriptor | mir::Type::TypeId | mir::Type::Reference { .. } => {
                 let bytes = pointer_bytes as u32;
                 (bytes, bytes)
             }
@@ -381,19 +381,42 @@ impl TypeLowerer {
                 fields,
                 copyability: _,
             } => {
-                // for already laid out structs, compute from field info
+                // compute struct layout from field order
                 let mut max_align: u32 = 1;
-                let mut max_end: u32 = 0;
+                let mut current_offset: u32 = 0;
 
                 for field_id in fields {
                     let field = tree.get(*field_id);
                     let field_ty = tree.get(field.ty);
                     let (field_size, field_align) = self.size_and_align_of_type(field_ty, tree);
                     max_align = max_align.max(field_align);
-                    max_end = max_end.max(field.offset + field_size);
+                    current_offset = self.align_up(current_offset, field_align) + field_size;
                 }
 
-                let total_size = self.align_up(max_end, max_align);
+                let total_size = self.align_up(current_offset, max_align);
+                (total_size, max_align)
+            }
+            mir::Type::FunctionValue {
+                signature,
+                environment,
+            } => {
+                let mut max_align: u32 = 1;
+                let mut current_offset: u32 = 0;
+
+                let signature_ty = tree.get(*signature);
+                let (signature_size, signature_align) =
+                    self.size_and_align_of_type(signature_ty, tree);
+                max_align = max_align.max(signature_align);
+                current_offset = self.align_up(current_offset, signature_align) + signature_size;
+
+                let environment_ty = tree.get(*environment);
+                let (environment_size, environment_align) =
+                    self.size_and_align_of_type(environment_ty, tree);
+                max_align = max_align.max(environment_align);
+                current_offset =
+                    self.align_up(current_offset, environment_align) + environment_size;
+
+                let total_size = self.align_up(current_offset, max_align);
                 (total_size, max_align)
             }
             mir::Type::Newtype { inner, .. } => {

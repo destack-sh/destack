@@ -41,8 +41,7 @@ block0(v0: i32, v1: i32):
     check v5, overflow.signed.iadd v0, v1, block2, block1
 block1:
     v6: ref<managed readonly @String> = global.const @${integer_overflow}
-    intrinsic.panic(v6)
-    unreachable
+    trap panic v6
 block2:
     return v3
 }
@@ -84,8 +83,7 @@ block0(v0: i32, v1: i32):
     v5: bool = bnot v4
     check v5, overflow.signed.iadd v0, v1, block2, block1
 block1:
-    intrinsic.abort()
-    unreachable
+    trap abort
 block2:
     return v3
 }
@@ -128,8 +126,7 @@ block0(v0: u32, v1: u32):
     check v5, overflow.unsigned.iadd v0, v1, block2, block1
 block1:
     v6: ref<managed readonly @String> = global.const @${integer_overflow}
-    intrinsic.panic(v6)
-    unreachable
+    trap panic v6
 block2:
     return v3
 }
@@ -207,8 +204,7 @@ block0(v0: i32, v1: i32):
     check v3, div_zero v1, block2, block1
 block1:
     v4: ref<managed readonly @String> = global.const @${division_by_zero}
-    intrinsic.panic(v4)
-    unreachable
+    trap panic v4
 block2:
     v5: i32 = iconst -2147483648i32
     v6: i32 = iconst -1i32
@@ -219,8 +215,7 @@ block2:
     check v10, overflow.signed.sdiv v0, v1, block4, block3
 block3:
     v11: ref<managed readonly @String> = global.const @${division_overflow}
-    intrinsic.panic(v11)
-    unreachable
+    trap panic v11
 block4:
     v12: i32 = sdiv v0, v1
     return v12
@@ -317,8 +312,7 @@ block0(v0: u32, v1: u32):
     check v3, div_zero v1, block2, block1
 block1:
     v4: ref<managed readonly @String> = global.const @${division_by_zero}
-    intrinsic.panic(v4)
-    unreachable
+    trap panic v4
 block2:
     v5: u32 = udiv v0, v1
     return v5
@@ -367,8 +361,7 @@ block0(v0: i32, v1: i32):
     check v6, shift.signed v1, 32, block2, block1
 block1:
     v7: ref<managed readonly @String> = global.const @${shift_out_of_range}
-    intrinsic.panic(v7)
-    unreachable
+    trap panic v7
 block2:
     v8: i32 = ishl v0, v1
     return v8
@@ -412,8 +405,7 @@ block0(v0: i32, v1: i32):
     v6: bool = band v4, v5
     check v6, shift.signed v1, 32, block2, block1
 block1:
-    intrinsic.abort()
-    unreachable
+    trap abort
 block2:
     v7: i32 = ishl v0, v1
     return v7
@@ -455,8 +447,7 @@ block0(v0: u32, v1: u32):
     check v3, shift.unsigned v1, 32, block2, block1
 block1:
     v4: ref<managed readonly @String> = global.const @${shift_out_of_range}
-    intrinsic.panic(v4)
-    unreachable
+    trap panic v4
 block2:
     v5: u32 = ishl v0, v1
     return v5
@@ -503,8 +494,7 @@ block0(v0: [i32; 4], v1: i32):
     check v6, bounds.signed v1, v2, v0, block2, block1
 block1:
     v7: ref<managed readonly @String> = global.const @${bounds_check_failed}
-    intrinsic.panic(v7)
-    unreachable
+    trap panic v7
 block2:
     v8: i32 = element.get v0, v1
     return v8
@@ -590,8 +580,7 @@ block0(v0: [i32; 4], v1: u32):
     check v3, bounds.unsigned v1, v2, v0, block2, block1
 block1:
     v4: ref<managed readonly @String> = global.const @${bounds_check_failed}
-    intrinsic.panic(v4)
-    unreachable
+    trap panic v4
 block2:
     v5: i32 = element.get v0, v1
     return v5
@@ -646,7 +635,7 @@ function work(): void {}
     });
 }
 
-/// Apply no managed allocation mode when configured in profiles.
+/// Do not force no managed allocation mode from profile flags.
 #[test]
 fn test_lower_sets_profile_no_managed_allocation_mode() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
@@ -664,6 +653,6 @@ function work(): void {}
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
         let function = test.function_by_name(tree, strings, "work");
-        assert_eq!(function.allocation, mir::AllocationMode::NoManaged);
+        assert_eq!(function.allocation, mir::AllocationMode::Any);
     });
 }

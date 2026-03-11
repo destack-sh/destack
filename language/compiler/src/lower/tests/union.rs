@@ -79,11 +79,7 @@ block0(v0: @takeShape#parameter:value#union):
         assert_eq!(*length, 1);
         assert!(matches!(tree.get(*element), mir::Type::Usize));
 
-        let metadata = test.type_metadata(tree, union_type);
-        let union_layout = metadata
-            .union_layout
-            .as_ref()
-            .expect("missing union layout metadata");
+        let union_layout = test.union_layout(tree, union_type);
         assert!(matches!(
             union_layout.payload_kind,
             mir::UnionPayloadKind::Inline
@@ -159,11 +155,7 @@ block0(v0: @takeFrame#parameter:value#union):
         };
         assert!(matches!(tree.get(*pointee), mir::Type::Void));
 
-        let metadata = test.type_metadata(tree, union_type);
-        let union_layout = metadata
-            .union_layout
-            .as_ref()
-            .expect("missing union layout metadata");
+        let union_layout = test.union_layout(tree, union_type);
         assert!(matches!(
             union_layout.payload_kind,
             mir::UnionPayloadKind::Boxed
@@ -296,16 +288,8 @@ block0(v0: ref?<managed readonly @Circle>):
         let return_union = "test/test:acceptNullable#return#union";
         let parameter_union_type = test.type_by_metadata_name(tree, strings, parameter_union);
         let return_union_type = test.type_by_metadata_name(tree, strings, return_union);
-        assert!(
-            test.type_metadata(tree, parameter_union_type)
-                .union_layout
-                .is_none()
-        );
-        assert!(
-            test.type_metadata(tree, return_union_type)
-                .union_layout
-                .is_none()
-        );
+        assert!(tree.type_table.union_layout(parameter_union_type).is_none());
+        assert!(tree.type_table.union_layout(return_union_type).is_none());
     });
 }
 
@@ -352,8 +336,7 @@ block0(v0: @Struct0):
         let union_type = test.type_by_metadata_name(tree, strings, union_metadata_name);
 
         // assert union metadata exists for the tagged union
-        let metadata = test.type_metadata(tree, union_type);
-        assert!(metadata.union_layout.is_some());
+        assert!(tree.type_table.union_layout(union_type).is_some());
     });
 }
 

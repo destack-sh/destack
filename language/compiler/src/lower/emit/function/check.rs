@@ -234,24 +234,14 @@ impl FunctionContext<'_> {
 
         // emit the configured failure behavior
         match self.env.checks.failure {
-            CheckFailurePolicy::Trap => {}
-            CheckFailurePolicy::Abort => {
-                self.state
-                    .builder
-                    .intrinsic_void(mir::Intrinsic::Abort, Vec::new());
+            CheckFailurePolicy::Trap | CheckFailurePolicy::Abort => {
+                self.state.builder.trap_abort();
             }
             CheckFailurePolicy::Panic => {
                 let (message_value, _) = self.string_literal_value(message)?;
-                self.state
-                    .builder
-                    .intrinsic_void(mir::Intrinsic::Panic, vec![message_value]);
+                self.state.builder.trap_panic(message_value);
             }
         }
-
-        // mark the block as unreachable
-        let block = self.state.builder.current_block();
-        let block_data = self.state.builder.tree_mut().get_mut(block);
-        block_data.terminator = mir::Terminator::Unreachable;
 
         // restore the previous insertion point
         self.state.builder.switch_to_block(current_block);

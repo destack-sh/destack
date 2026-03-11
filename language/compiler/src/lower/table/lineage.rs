@@ -14,14 +14,7 @@ impl ModuleLowerer<'_> {
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::TypeLineage> {
         // skip if metadata already exists
-        if let Some(metadata) = self
-            .builder
-            .tree()
-            .type_table
-            .type_metadata_by_id
-            .get(&mir_type)
-            && let Some(lineage) = metadata.lineage.clone()
-        {
+        if let Some(lineage) = self.builder.tree().type_table.lineage(mir_type).cloned() {
             return Ok(lineage);
         }
 
@@ -83,8 +76,6 @@ impl ModuleLowerer<'_> {
                     self.dir_tree.get(*declaration_id).descriptor().abstraction
                         == dir::DeclarationAbstraction::Abstract
                 });
-        let type_table = &mut self.builder.tree_mut().type_table;
-        let metadata = type_table.type_metadata_by_id.entry(mir_type).or_default();
         let type_lineage = mir::TypeLineage {
             parent,
             interfaces,
@@ -93,7 +84,10 @@ impl ModuleLowerer<'_> {
             is_abstract,
             is_interface,
         };
-        metadata.lineage = Some(type_lineage.clone());
+        self.builder
+            .tree_mut()
+            .type_table
+            .set_lineage(mir_type, type_lineage.clone());
 
         Ok(type_lineage)
     }

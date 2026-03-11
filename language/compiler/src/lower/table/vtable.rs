@@ -145,7 +145,7 @@ impl ModuleLowerer<'_> {
 
         // build vtable entries with fixed prefix
         let mut entries = Vec::with_capacity(virtual_slots.len() + 2);
-        entries.push(mir::VtableEntry::TypeTag);
+        entries.push(mir::VtableEntry::TypeDescriptor);
         entries.push(mir::VtableEntry::Destructor { function: None });
         for method in virtual_slots {
             let function = self.method_function_id(method.member_id, method.symbol)?;
@@ -170,15 +170,14 @@ impl ModuleLowerer<'_> {
             };
             self.builder
                 .tree_mut()
-                .type_table
+                .dispatch_table
                 .insert_vtable_at(table_id, table);
             table_id
         };
 
         // attach the vtable to type metadata
         let type_table = &mut self.builder.tree_mut().type_table;
-        let metadata = type_table.type_metadata_by_id.entry(mir_type).or_default();
-        metadata.vtable = Some(table_id);
+        type_table.set_vtable_id(mir_type, table_id);
 
         // register the lowered vtable table
         self.insert_vtable_table(symbol, table_id)?;

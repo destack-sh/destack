@@ -52,7 +52,10 @@ block0(v0: @Circle):
         let itab = test.expect_single_interface_table(tree);
 
         // assert the itab slot layout
-        assert!(matches!(itab.entries[0], destack_mir::ItabEntry::TypeTag));
+        assert!(matches!(
+            itab.entries[0],
+            destack_mir::ItabEntry::TypeDescriptor
+        ));
 
         // assert the field offset slot
         let offset = test.expect_interface_field_offset(itab, strings, "color");
@@ -317,9 +320,16 @@ block0(v0: @Widget):
             "test/test:Paint#object",
         );
 
-        assert!(matches!(shape_table.entries[0], mir::ItabEntry::TypeTag));
+        assert!(matches!(
+            shape_table.entries[0],
+            mir::ItabEntry::TypeDescriptor
+        ));
         match &shape_table.entries[1] {
-            mir::ItabEntry::FieldOffset { field_name, offset } => {
+            mir::ItabEntry::FieldOffset {
+                field: _,
+                field_name,
+                offset,
+            } => {
                 assert_eq!(strings.get(*field_name), "width");
                 assert_eq!(*offset, 0);
             }
@@ -335,9 +345,16 @@ block0(v0: @Widget):
             _ => panic!("expected interface method slot for area"),
         }
 
-        assert!(matches!(paint_table.entries[0], mir::ItabEntry::TypeTag));
+        assert!(matches!(
+            paint_table.entries[0],
+            mir::ItabEntry::TypeDescriptor
+        ));
         match &paint_table.entries[1] {
-            mir::ItabEntry::FieldOffset { field_name, offset } => {
+            mir::ItabEntry::FieldOffset {
+                field: _,
+                field_name,
+                offset,
+            } => {
                 assert_eq!(strings.get(*field_name), "color");
                 assert_eq!(*offset, 4);
             }
@@ -399,7 +416,7 @@ extern function @Drawable.draw(@Drawable#object) -> i32
 function @useDrawable(v0: @Drawable) -> i32 {
 block0(v0: @Drawable):
     v1: ref<managed readonly void> = field.get v0, 0
-    v2: i32 = call.interface v0, @Drawable#object, 2, @Drawable.draw(v1) -> fn(@Drawable#object) -> i32
+    v2: i32 = call.interface v0, @Drawable#object, 2(v1) -> fn(@Drawable#object) -> i32
     return v2
 }
 
@@ -417,7 +434,7 @@ block0(v0: @Circle):
         let interface_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable#object");
 
         // assert the dispatch payload
-        assert_eq!(info.slot_id, 2);
+        assert_eq!(info.slot_id, mir::InterfaceSlotId::new(2));
         assert_eq!(info.declaring_type, interface_type);
     });
 }

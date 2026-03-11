@@ -11,7 +11,7 @@ pub(crate) struct InterfaceCall {
     /// The declaring interface type.
     pub(crate) declaring_type: mir::LocalNodeId<mir::Type>,
     /// The interface slot id.
-    pub(crate) slot_id: u32,
+    pub(crate) slot_id: mir::InterfaceSlotId,
 }
 
 /// Virtual call information extracted from MIR.
@@ -20,7 +20,7 @@ pub(crate) struct VirtualCall {
     /// The declaring type for dispatch.
     pub(crate) declaring_type: mir::LocalNodeId<mir::Type>,
     /// The vtable slot id.
-    pub(crate) slot_id: u32,
+    pub(crate) slot_id: mir::VtableSlotId,
 }
 
 impl TestProgram {
@@ -40,7 +40,7 @@ impl TestProgram {
         tree: &'a mir::NodeTree,
     ) -> Vec<&'a mir::Vtable> {
         // collect class vtables
-        tree.type_table.vtables.iter().collect()
+        tree.dispatch_table.vtables.iter().collect()
     }
 
     /// Collect interface dispatch tables from a MIR tree.
@@ -49,7 +49,7 @@ impl TestProgram {
         tree: &'a mir::NodeTree,
     ) -> Vec<&'a mir::Itab> {
         // collect interface itabs
-        tree.type_table.itabs.iter().collect()
+        tree.dispatch_table.itabs.iter().collect()
     }
 
     /// Resolve an interface dispatch table for a concrete and interface object pair.
@@ -63,7 +63,7 @@ impl TestProgram {
         let concrete_type = self.type_by_metadata_name(tree, strings, concrete_name);
         let interface_type = self.type_by_metadata_name(tree, strings, interface_name);
 
-        tree.type_table
+        tree.dispatch_table
             .itabs
             .iter()
             .find(|table| table.concrete == concrete_type && table.interface == interface_type)
@@ -87,8 +87,8 @@ impl TestProgram {
 
     /// Assert that a vtable has the fixed prefix slots.
     pub(crate) fn assert_vtable_prefix(&self, table: &mir::Vtable) {
-        // require the type tag slot
-        assert!(matches!(table.entries[0], mir::VtableEntry::TypeTag));
+        // require the type descriptor slot
+        assert!(matches!(table.entries[0], mir::VtableEntry::TypeDescriptor));
 
         // require the destructor slot
         assert!(matches!(
@@ -136,6 +136,7 @@ impl TestProgram {
         // scan field offset slots for the field name
         for slot in &table.entries {
             let mir::ItabEntry::FieldOffset {
+                field: _,
                 field_name: slot_name,
                 offset,
             } = slot
@@ -209,13 +210,9 @@ impl TestProgram {
         strings: &ImmutableStringPool,
         name: &str,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
-        // scan metadata entries for a matching name
-        for (ty, metadata) in &tree.type_table.type_metadata_by_id {
-            let Some(name_id) = metadata.name else {
-                continue;
-            };
-
-            if strings.get(name_id) != name {
+        // scan type display names for a matching name
+        for (ty, name_id) in &tree.type_table.display_name_by_type {
+            if strings.get(*name_id) != name {
                 continue;
             }
 
@@ -236,28 +233,14 @@ impl TestProgram {
             .unwrap_or_else(|| panic!("missing type metadata name '{name}'"))
     }
 
-    /// Resolve type metadata for a mir type id or panic.
-    pub(crate) fn type_metadata<'a>(
-        &self,
-        tree: &'a mir::NodeTree,
-        type_id: mir::LocalNodeId<mir::Type>,
-    ) -> &'a mir::TypeMetadata {
-        tree.type_table
-            .type_metadata_by_id
-            .get(&type_id)
-            .unwrap_or_else(|| panic!("missing type metadata for '{type_id:?}'"))
-    }
-
     /// Resolve lineage metadata for a type id or panic.
     pub(crate) fn type_lineage<'a>(
         &self,
         tree: &'a mir::NodeTree,
         type_id: mir::LocalNodeId<mir::Type>,
     ) -> &'a mir::TypeLineage {
-        let metadata = self.type_metadata(tree, type_id);
-        metadata
-            .lineage
-            .as_ref()
+        tree.type_table
+            .lineage(type_id)
             .unwrap_or_else(|| panic!("missing lineage metadata for '{type_id:?}'"))
     }
 
@@ -279,10 +262,20 @@ impl TestProgram {
         tree: &mir::NodeTree,
         type_id: mir::LocalNodeId<mir::Type>,
     ) -> mir::VtableId {
-        let metadata = self.type_metadata(tree, type_id);
-        metadata
-            .vtable
+        tree.type_table
+            .vtable_id(type_id)
             .unwrap_or_else(|| panic!("missing vtable id for '{type_id:?}'"))
+    }
+
+    /// Resolve union layout metadata for a type id or panic.
+    pub(crate) fn union_layout<'a>(
+        &self,
+        tree: &'a mir::NodeTree,
+        type_id: mir::LocalNodeId<mir::Type>,
+    ) -> &'a mir::UnionLayout {
+        tree.type_table
+            .union_layout(type_id)
+            .unwrap_or_else(|| panic!("missing union layout metadata for '{type_id:?}'"))
     }
 
     /// Resolve a function parameter type id from DIR by function name.
@@ -397,8 +390,7 @@ impl TestProgram {
         })?;
 
         // resolve the layout metadata for offsets
-        let metadata = tree.type_table.type_metadata_by_id.get(&struct_type)?;
-        let layout_id = metadata.layout_id?;
+        let layout_id = tree.type_table.layout_id(struct_type)?;
         let layout = tree.type_table.layout_table.layout(layout_id);
         layout
             .fields
@@ -427,9 +419,8 @@ impl TestProgram {
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
     ) -> Option<mir::LocalNodeId<mir::Field>> {
-        let metadata = tree.type_table.type_metadata_by_id.get(&struct_type)?;
-        metadata
-            .field_map
+        tree.type_table
+            .field_map(struct_type)?
             .iter()
             .find_map(|(name, field_id)| (strings.get(*name) == field_name).then_some(*field_id))
     }
