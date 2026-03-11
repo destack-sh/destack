@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_directory="$(cd "$(dirname "$0")" && pwd)"
+
+# shellcheck source=./toolchain/lib/runtime-common.sh
+source "${script_directory}/lib/runtime-common.sh"
+
 if [ "${OS:-}" != "Windows_NT" ]; then
 	echo "windows msvc runtime checks must run on a windows host"
 	exit 1
@@ -39,12 +44,8 @@ fi
 command -v perl >/dev/null
 command -v nasm >/dev/null
 
-# check and lint runtime on windows host
-LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" check -p destack_runtime
-LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" clippy -p destack_runtime --all-targets -- -D warnings
-
-# run the full runtime crate test suite on one real windows host
-LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" test -p destack_runtime -- --nocapture
+# check and test the full runtime crate on one real windows host
+runtime_run_full_runtime_crate_lane "${cargo_bin}"
 
 # run runtime smoke executable on host
 LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" run -p destack_runtime --bin runtime-smoke --quiet

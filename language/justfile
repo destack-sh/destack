@@ -108,9 +108,7 @@ check-runtime-ios:
 
 # check runtime on linux host
 check-runtime-linux:
-    LC_ALL=C LANG=C LC_CTYPE=C cargo check -p destack_runtime
-    LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
-    LC_ALL=C LANG=C LC_CTYPE=C just _run-rust-test -p destack_runtime -- --nocapture
+    bash ../toolchain/check-runtime-linux.sh
 
 # check runtime for linux aarch64 target using one configured cross toolchain
 check-runtime-linux-aarch64:

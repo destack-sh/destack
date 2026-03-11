@@ -47,6 +47,90 @@ runtime_set_standard_environment() {
 	export CARGO_INCREMENTAL=0
 }
 
+runtime_host_container_engine() {
+	if command -v docker >/dev/null 2>&1; then
+		printf '%s\n' docker
+		return 0
+	fi
+
+	if command -v podman >/dev/null 2>&1; then
+		printf '%s\n' podman
+		return 0
+	fi
+
+	printf '%s\n' ""
+}
+
+runtime_host_container_ready() {
+	container_engine="$1"
+
+	case "${container_engine}" in
+	docker)
+		docker info >/dev/null 2>&1
+		;;
+	podman)
+		podman info >/dev/null 2>&1
+		;;
+	*)
+		return 1
+		;;
+	esac
+}
+
+runtime_rust_toolchain_channel() {
+	repo_root="$1"
+
+	sed -n 's/^channel = "\(.*\)"/\1/p' "${repo_root}/rust-toolchain.toml" | head -n 1
+}
+
+runtime_run_full_runtime_crate_lane() {
+	cargo_bin="${1:-cargo}"
+
+	LC_ALL=C \
+		LANG=C \
+		LC_CTYPE=C \
+		CARGO_INCREMENTAL=0 \
+		"${cargo_bin}" check -p destack_runtime
+
+	LC_ALL=C \
+		LANG=C \
+		LC_CTYPE=C \
+		CARGO_INCREMENTAL=0 \
+		"${cargo_bin}" clippy -p destack_runtime --all-targets -- -D warnings
+
+	LC_ALL=C \
+		LANG=C \
+		LC_CTYPE=C \
+		CARGO_INCREMENTAL=0 \
+		"${cargo_bin}" test -p destack_runtime -- --nocapture
+}
+
+runtime_run_linux_container_runtime_lane() {
+	container_engine="$1"
+	repo_root="$2"
+	toolchain_channel="$3"
+
+	container_image="${DESTACK_RUNTIME_LINUX_CONTAINER_IMAGE:-rust:bookworm}"
+
+	"${container_engine}" run --rm \
+		-v "${repo_root}:/work" \
+		-v destack-runtime-linux-cargo-registry:/usr/local/cargo/registry \
+		-v destack-runtime-linux-cargo-git:/usr/local/cargo/git \
+		-v destack-runtime-linux-rustup:/usr/local/rustup \
+		-w /work/language \
+		"${container_image}" \
+		bash -lc "
+			set -euo pipefail
+			apt-get update >/dev/null
+			apt-get install -y pkg-config python3 >/dev/null
+			rustup toolchain install '${toolchain_channel}' --profile minimal --component clippy >/dev/null
+			rustup default '${toolchain_channel}' >/dev/null
+			source /work/toolchain/lib/runtime-common.sh
+			runtime_set_standard_environment
+			runtime_run_full_runtime_crate_lane cargo
+		"
+}
+
 runtime_auto_install_toolchains_enabled() {
 	auto_install="${DESTACK_AUTO_INSTALL_TOOLCHAINS:-0}"
 	[ "${auto_install}" = "1" ]
