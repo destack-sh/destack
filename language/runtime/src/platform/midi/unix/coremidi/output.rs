@@ -3,7 +3,8 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiOutputRecordValue, MidiPortDescriptorValue, remove_labeled_resource, validate_record_shape,
+    MidiOutputRecordValue, MidiPortDescriptorValue, remove_labeled_resource,
+    validate_output_record_payload, validate_record_shape,
 };
 use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiOutputPortOpenOptions, MidiPortDirection,
@@ -249,12 +250,17 @@ pub(crate) fn midi_output_write(
     let session = output_resource(binding, handle, "destack.midi.output.write")?;
 
     for record in &records {
+        // transport shape
         validate_record_shape(
             "destack.midi.output.write",
             record.data_format,
             record.protocol,
         )?;
 
+        // transport payload
+        validate_output_record_payload("destack.midi.output.write", record)?;
+
+        // opened transport
         if record.data_format != session.data_format {
             return Err(core_platform::invalid_argument(
                 "records",

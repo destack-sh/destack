@@ -279,3 +279,85 @@ fn test_midi_output_write_rejects_misaligned_ump_payloads() {
         Ok(())
     });
 }
+
+/// Reject malformed MIDI 1 byte-stream records when one byte-stream virtual output exists.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_midi_output_write_rejects_invalid_midi1_byte_stream_records() {
+    with_harness_context(|mut context| {
+        // backend rows
+        let result = assert_ok_or_expected_error(
+            context.destack_midi_backend_list(),
+            &[PlatformErrorCode::NotSupported],
+        )?;
+
+        let Some(result) = result else {
+            return Ok(());
+        };
+
+        // one midi1 byte-stream virtual output
+        let descriptors = decode_backend_descriptors_full(&mut context, result)?;
+        for (
+            backend,
+            _name,
+            support,
+            _priority,
+            capability_flags,
+            supported_data_formats,
+            supported_protocols,
+        ) in descriptors
+        {
+            if support != BackendSupport::Available || backend == MidiBackend::Null {
+                continue;
+            }
+
+            if capability_flags.0 & MIDI_BACKEND_CAP_VIRTUAL_OUTPUT.0 == 0 {
+                continue;
+            }
+
+            if !supports_data_format(supported_data_formats, MidiDataFormat::Midi1Bytes) {
+                continue;
+            }
+
+            let protocol = if supports_protocol(supported_protocols, MidiProtocol::Midi1) {
+                MidiProtocol::Midi1
+            } else {
+                continue;
+            };
+
+            let name = format!("Destack MIDI Invalid MIDI1 Output {backend:?}");
+            let options = harness_virtual_output_create_options_for_backend_transport(
+                &mut context,
+                backend,
+                &name,
+                MidiDataFormat::Midi1Bytes,
+                protocol,
+            )?;
+            let handle = context.destack_midi_output_virtual_create(options)?;
+
+            // malformed midi1 record
+            let record = MidiOutputRecord {
+                send_at_ns: None,
+                data_format: MidiDataFormat::Midi1Bytes,
+                protocol: Some(protocol),
+                framing: MidiRecordFraming::Complete,
+                data: context.call_context.store_slice(vec![0x3C, 0x40]),
+            };
+            let records = harness_output_records(&mut context, &[record])?;
+            assert_platform_error_codes(
+                context.destack_midi_output_write(handle, records),
+                &[
+                    PlatformErrorCode::InvalidArgument,
+                    PlatformErrorCode::InvalidArgumentValue,
+                ],
+            )?;
+
+            // resource teardown
+            context.destack_midi_output_port_close(handle)?;
+
+            break;
+        }
+
+        Ok(())
+    });
+}

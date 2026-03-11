@@ -21,7 +21,7 @@ pub(crate) use store::{
     store_port_descriptors_native, store_port_descriptors_vm,
 };
 pub(crate) use support::binding_timestamp_now;
-pub(crate) use validate::validate_record_shape;
+pub(crate) use validate::{validate_output_record_payload, validate_record_shape};
 pub(crate) use value::{
     MidiBackendDescriptorValue, MidiEventMetadataValue, MidiEventValue, MidiInputRecordValue,
     MidiOutputRecordValue, MidiPortDescriptorValue,

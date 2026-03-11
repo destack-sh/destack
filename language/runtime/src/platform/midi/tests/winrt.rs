@@ -1,8 +1,8 @@
 use super::{
     assert_platform_error_codes, decode_backend_descriptors_full, decode_port_descriptors,
     harness_event_open_options, harness_port_list_options,
-    harness_virtual_input_create_options_for_transport,
-    harness_virtual_output_create_options_for_transport, with_harness_context,
+    harness_virtual_input_create_options_for_backend_transport,
+    harness_virtual_output_create_options_for_backend_transport, with_harness_context,
 };
 use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -220,8 +220,9 @@ fn test_midi_winrt_port_rows_advertise_midi1_transport_only_when_present() {
 fn test_midi_winrt_virtual_ports_report_not_supported() {
     with_harness_context(|mut context| {
         // virtual input
-        let input_options = harness_virtual_input_create_options_for_transport(
+        let input_options = harness_virtual_input_create_options_for_backend_transport(
             &mut context,
+            MidiBackend::WinRT,
             "Destack WinRT Virtual Input",
             MidiDataFormat::Midi1Bytes,
             MidiProtocol::Midi1,
@@ -232,8 +233,9 @@ fn test_midi_winrt_virtual_ports_report_not_supported() {
         )?;
 
         // virtual output
-        let output_options = harness_virtual_output_create_options_for_transport(
+        let output_options = harness_virtual_output_create_options_for_backend_transport(
             &mut context,
+            MidiBackend::WinRT,
             "Destack WinRT Virtual Output",
             MidiDataFormat::Midi1Bytes,
             MidiProtocol::Midi1,

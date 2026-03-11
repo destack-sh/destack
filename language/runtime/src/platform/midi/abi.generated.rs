@@ -410,8 +410,8 @@ impl VmAbiCodec for BackendSupport {
 pub enum MidiBackend {
     /// Auto.
     Auto = 0,
-    /// AlsaSequencer.
-    AlsaSequencer = 1,
+    /// Alsa.
+    Alsa = 1,
     /// JackMidi.
     JackMidi = 2,
     /// CoreMIDI.
@@ -429,7 +429,7 @@ impl VmValueCodec for MidiBackend {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             0u8 => Self::Auto,
-            1u8 => Self::AlsaSequencer,
+            1u8 => Self::Alsa,
             2u8 => Self::JackMidi,
             3u8 => Self::CoreMIDI,
             4u8 => Self::WinMM,

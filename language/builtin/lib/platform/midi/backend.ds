@@ -7,8 +7,8 @@ import { MidiDataFormatFlags, MidiProtocolFlags } from "./protocol.ds";
 export enum MidiBackend {
     /// Select the best backend for the current host.
     Auto = 0,
-    /// ALSA sequencer backend.
-    AlsaSequencer = 1,
+    /// ALSA backend.
+    Alsa = 1,
     /// JACK MIDI backend.
     JackMidi = 2,
     /// CoreMIDI backend.

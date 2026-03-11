@@ -97,19 +97,17 @@ impl HostLoopExecutor {
         let current_thread_id = thread::current().id();
 
         // bind the first observed host-loop thread
-        if !self.is_bound.load(Ordering::Acquire) {
-            if self.thread_id.set(current_thread_id).is_ok() {
-                self.is_bound.store(true, Ordering::Release);
+        if !self.is_bound.load(Ordering::Acquire) && self.thread_id.set(current_thread_id).is_ok() {
+            self.is_bound.store(true, Ordering::Release);
 
-                #[cfg(windows)]
-                {
-                    if self.host_loop == ServiceHostLoop::WindowsMessageLoop {
-                        register_windows_loop_queue(self);
-                    }
+            #[cfg(windows)]
+            {
+                if self.host_loop == ServiceHostLoop::WindowsMessageLoop {
+                    register_windows_loop_queue(self);
                 }
-
-                return Ok(());
             }
+
+            return Ok(());
         }
 
         // require all later calls to stay on the bound host-loop thread
