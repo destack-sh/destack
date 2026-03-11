@@ -343,7 +343,7 @@ fn socket_address_raw_vm(
     context: &mut vm::ExternalCallContext<'_>,
     address: SocketAddressVm,
 ) -> RuntimeResult<(u16, Vec<u8>)> {
-    let bytes = address.bytes.read_values(context)?;
+    let bytes = address.bytes.read_bytes(context)?;
     Ok((address.family, bytes))
 }
 
@@ -367,7 +367,7 @@ fn socket_addresses_vm(
     let mut decoded = Vec::with_capacity(values.len());
     for value in values {
         let address = socket_address_vm_from_value(context, value)?;
-        let bytes = address.bytes.read_values(context)?;
+        let bytes = address.bytes.read_bytes(context)?;
         decoded.push(socket_address_from_raw(address.family, &bytes)?);
     }
     Ok(decoded)
@@ -457,7 +457,7 @@ fn udp_receive_vm(
     context: &mut vm::ExternalCallContext<'_>,
     receive: UdpReceiveVm,
 ) -> RuntimeResult<(String, u16, SocketFamily, u64)> {
-    let bytes = receive.address.bytes.read_values(context)?;
+    let bytes = receive.address.bytes.read_bytes(context)?;
     let (host, port, family) = socket_address_from_raw(receive.address.family, &bytes)?;
     Ok((host, port, family, receive.bytes))
 }

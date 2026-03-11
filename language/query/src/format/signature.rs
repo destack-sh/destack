@@ -345,7 +345,7 @@ fn format_parameter(
         dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
         dir::Parameter::Pattern { .. } => "_".to_string(),
         dir::Parameter::VariadicNamed { name, .. } => {
-            format!("...{}", strings.get(*name).to_string())
+            format!("...{}", &*strings.get(*name))
         }
         dir::Parameter::VariadicPattern { .. } => "...<pattern>".to_string(),
     };

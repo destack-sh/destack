@@ -202,7 +202,7 @@ fn try_pop_session_event_batch(
 fn collect_native_event_sessions(
     registry: &Arc<Mutex<CoreMidiNativeEventRegistry>>,
 ) -> Vec<Arc<Mutex<CoreMidiEventSession>>> {
-    let sessions = {
+    {
         let mut registry = registry.lock();
         let mut sessions = Vec::with_capacity(registry.sessions.len());
         let mut stale_ids = Vec::new();
@@ -220,9 +220,7 @@ fn collect_native_event_sessions(
         }
 
         sessions
-    };
-
-    sessions
+    }
 }
 
 /// Refresh all native event subscriptions from one backend topology mutation.
@@ -285,54 +283,6 @@ pub(super) fn dispatch_native_notification(
     }
 
     refresh_native_event_sessions(registry, MidiEventSource::Native);
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::BTreeMap;
-    use std::sync::Arc;
-    use std::time::Duration;
-
-    use super::super::core::{CoreMidiEventDeliveryKind, CoreMidiEventSession, SharedQueue};
-    use super::queue_backend_disconnected_event;
-    use crate::platform::midi::core::MidiEventValue;
-    use crate::platform::midi::{
-        MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED, MIDI_PORT_DIRECTION_FLAG_INPUT, MidiBackend,
-        MidiEventOverflowPolicy, MidiEventSource, MidiEventSubscriptionFlags,
-        MidiPortDirectionFlags,
-    };
-
-    /// Queue one backend-disconnected event with the active backend metadata.
-    #[test]
-    fn test_queue_backend_disconnected_event_pushes_backend_event() {
-        let queue = Arc::new(SharedQueue::new(4));
-        let mut session = CoreMidiEventSession {
-            backend: MidiBackend::CoreMIDI,
-            direction_mask: MidiPortDirectionFlags(MIDI_PORT_DIRECTION_FLAG_INPUT.0),
-            flags: MidiEventSubscriptionFlags(MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED.0),
-            overflow_policy: MidiEventOverflowPolicy::DropOldest,
-            poll_interval: Duration::from_millis(1),
-            delivery_kind: CoreMidiEventDeliveryKind::Poll,
-            queue: queue.clone(),
-            next_sequence: 1,
-            snapshot: BTreeMap::new(),
-        };
-
-        queue_backend_disconnected_event(&mut session, MidiEventSource::Native, 7)
-            .expect("backend disconnected event should queue successfully");
-
-        let event = queue
-            .try_pop()
-            .expect("event queue should contain one event");
-        match event {
-            MidiEventValue::BackendDisconnected { metadata, flags } => {
-                assert_eq!(metadata.backend, MidiBackend::CoreMIDI);
-                assert_eq!(metadata.source, MidiEventSource::Native);
-                assert_eq!(flags, 7);
-            }
-            other => panic!("expected backendDisconnected event, got {other:?}"),
-        }
-    }
 }
 
 /// Open one CoreMIDI event subscription.
@@ -606,4 +556,52 @@ pub(crate) fn midi_event_try_read_batch(
     }
 
     Ok(batch)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use super::super::core::{CoreMidiEventDeliveryKind, CoreMidiEventSession, SharedQueue};
+    use super::queue_backend_disconnected_event;
+    use crate::platform::midi::core::MidiEventValue;
+    use crate::platform::midi::{
+        MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED, MIDI_PORT_DIRECTION_FLAG_INPUT, MidiBackend,
+        MidiEventOverflowPolicy, MidiEventSource, MidiEventSubscriptionFlags,
+        MidiPortDirectionFlags,
+    };
+
+    /// Queue one backend-disconnected event with the active backend metadata.
+    #[test]
+    fn test_queue_backend_disconnected_event_pushes_backend_event() {
+        let queue = Arc::new(SharedQueue::new(4));
+        let mut session = CoreMidiEventSession {
+            backend: MidiBackend::CoreMIDI,
+            direction_mask: MidiPortDirectionFlags(MIDI_PORT_DIRECTION_FLAG_INPUT.0),
+            flags: MidiEventSubscriptionFlags(MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED.0),
+            overflow_policy: MidiEventOverflowPolicy::DropOldest,
+            poll_interval: Duration::from_millis(1),
+            delivery_kind: CoreMidiEventDeliveryKind::Poll,
+            queue: queue.clone(),
+            next_sequence: 1,
+            snapshot: BTreeMap::new(),
+        };
+
+        queue_backend_disconnected_event(&mut session, MidiEventSource::Native, 7)
+            .expect("backend disconnected event should queue successfully");
+
+        let event = queue
+            .try_pop()
+            .expect("event queue should contain one event");
+        match event {
+            MidiEventValue::BackendDisconnected { metadata, flags } => {
+                assert_eq!(metadata.backend, MidiBackend::CoreMIDI);
+                assert_eq!(metadata.source, MidiEventSource::Native);
+                assert_eq!(flags, 7);
+            }
+            other => panic!("expected backendDisconnected event, got {other:?}"),
+        }
+    }
 }

@@ -343,64 +343,6 @@ fn packet_fanout_mode(mode: PacketFanoutMode) -> u32 {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Convert one valid timespec packet timestamp into nanoseconds.
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn test_timespec_to_nanos_converts_valid_packet_timestamp() {
-        let spec = libc::timespec {
-            tv_sec: 12,
-            tv_nsec: 345,
-        };
-
-        let nanos = timespec_to_nanos(spec, "destack.net.packetReceive")
-            .expect("timespec packet timestamp should convert");
-
-        assert_eq!(nanos, 12_000_000_345);
-    }
-
-    /// Return zero packet timestamp output when Linux timestamp mode is disabled.
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn test_linux_packet_timestamp_ns_returns_zero_when_disabled() {
-        let message: libc::msghdr = unsafe { std::mem::zeroed() };
-
-        let (timestamp_clock, timestamp_ns) =
-            linux_packet_timestamp_ns(&message, PacketTimestampMode::Disabled)
-                .expect("disabled Linux packet timestamp mode should succeed");
-
-        assert_eq!(timestamp_clock, PacketTimestampClock::None);
-        assert_eq!(timestamp_ns, 0);
-    }
-
-    /// Convert one valid timeval packet timestamp into nanoseconds.
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn test_timeval_to_nanos_converts_valid_packet_timestamp() {
-        let nanos = timeval_to_nanos(12, 345, "destack.net.packetReceive")
-            .expect("timeval packet timestamp should convert");
-
-        assert_eq!(nanos, 12_000_345);
-    }
-
-    /// Return zero packet timestamp output when macOS timestamp mode is disabled.
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn test_macos_packet_timestamp_ns_returns_zero_when_disabled() {
-        let header: libc::bpf_hdr = unsafe { std::mem::zeroed() };
-
-        let (timestamp_clock, timestamp_ns) =
-            macos_packet_timestamp_ns(&header, PacketTimestampMode::Disabled)
-                .expect("disabled macOS packet timestamp mode should succeed");
-
-        assert_eq!(timestamp_clock, PacketTimestampClock::None);
-        assert_eq!(timestamp_ns, 0);
-    }
-}
-
 /// Round one BPF payload length to the next kernel alignment boundary.
 #[cfg(target_os = "macos")]
 fn macos_bpf_word_align(length: usize) -> usize {
@@ -1819,5 +1761,63 @@ pub(crate) unsafe fn destack_net_packet_stats(
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Convert one valid timespec packet timestamp into nanoseconds.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_timespec_to_nanos_converts_valid_packet_timestamp() {
+        let spec = libc::timespec {
+            tv_sec: 12,
+            tv_nsec: 345,
+        };
+
+        let nanos = timespec_to_nanos(spec, "destack.net.packetReceive")
+            .expect("timespec packet timestamp should convert");
+
+        assert_eq!(nanos, 12_000_000_345);
+    }
+
+    /// Return zero packet timestamp output when Linux timestamp mode is disabled.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_linux_packet_timestamp_ns_returns_zero_when_disabled() {
+        let message: libc::msghdr = unsafe { std::mem::zeroed() };
+
+        let (timestamp_clock, timestamp_ns) =
+            linux_packet_timestamp_ns(&message, PacketTimestampMode::Disabled)
+                .expect("disabled Linux packet timestamp mode should succeed");
+
+        assert_eq!(timestamp_clock, PacketTimestampClock::None);
+        assert_eq!(timestamp_ns, 0);
+    }
+
+    /// Convert one valid timeval packet timestamp into nanoseconds.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn test_timeval_to_nanos_converts_valid_packet_timestamp() {
+        let nanos = timeval_to_nanos(12, 345, "destack.net.packetReceive")
+            .expect("timeval packet timestamp should convert");
+
+        assert_eq!(nanos, 12_000_345_000);
+    }
+
+    /// Return zero packet timestamp output when macOS timestamp mode is disabled.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn test_macos_packet_timestamp_ns_returns_zero_when_disabled() {
+        let header: libc::bpf_hdr = unsafe { std::mem::zeroed() };
+
+        let (timestamp_clock, timestamp_ns) =
+            macos_packet_timestamp_ns(&header, PacketTimestampMode::Disabled)
+                .expect("disabled macOS packet timestamp mode should succeed");
+
+        assert_eq!(timestamp_clock, PacketTimestampClock::None);
+        assert_eq!(timestamp_ns, 0);
     }
 }

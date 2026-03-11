@@ -417,21 +417,21 @@ pub(crate) fn midi_input_virtual_create(
         )
     };
 
-    if let Some(manufacturer) = manufacturer.as_ref() {
-        if let Some(value) = create_cf_string(manufacturer) {
-            unsafe {
-                let _ = MIDIObjectSetStringProperty(endpoint, kMIDIPropertyManufacturer, value);
-            }
-            release_cf(value.cast());
+    if let Some(manufacturer) = manufacturer.as_ref()
+        && let Some(value) = create_cf_string(manufacturer)
+    {
+        unsafe {
+            let _ = MIDIObjectSetStringProperty(endpoint, kMIDIPropertyManufacturer, value);
         }
+        release_cf(value.cast());
     }
-    if let Some(model) = model.as_ref() {
-        if let Some(value) = create_cf_string(model) {
-            unsafe {
-                let _ = MIDIObjectSetStringProperty(endpoint, kMIDIPropertyModel, value);
-            }
-            release_cf(value.cast());
+    if let Some(model) = model.as_ref()
+        && let Some(value) = create_cf_string(model)
+    {
+        unsafe {
+            let _ = MIDIObjectSetStringProperty(endpoint, kMIDIPropertyModel, value);
         }
+        release_cf(value.cast());
     }
     if let Some(version) = version.as_ref()
         && let Ok(version_value) = version.parse::<i32>()

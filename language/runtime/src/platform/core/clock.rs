@@ -5,7 +5,7 @@ pub(crate) fn monotonic_now_ns() -> u64 {
     // use the native Apple host-time domain
     #[cfg(target_vendor = "apple")]
     {
-        return super::apple_process_monotonic_nanos();
+        super::apple_process_monotonic_nanos()
     }
 
     // use process-relative CLOCK_MONOTONIC on non-Apple Unix hosts
@@ -17,7 +17,7 @@ pub(crate) fn monotonic_now_ns() -> u64 {
     // use process-relative QPC on Windows hosts
     #[cfg(windows)]
     {
-        return super::qpc_process_monotonic_nanos()
-            .unwrap_or_else(|| panic!("QueryPerformanceCounter monotonic clock unavailable"));
+        super::qpc_process_monotonic_nanos()
+            .unwrap_or_else(|| panic!("QueryPerformanceCounter monotonic clock unavailable"))
     }
 }
