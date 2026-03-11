@@ -1,835 +1,315 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(clippy::missing_safety_doc)]
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+use super::{
+    NativeRuntimeBinding, PinnedWorldView, RuntimeDescriptorCodec, RuntimeHandleCodec,
+    RuntimeRequestCodec,
+};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::runtime::bindings_generated as bindings;
-use crate::platform::{NativeArray, NativeStringRef, PlatformError};
-
-use crate::runtime::BindingCallContext;
-use bindings::*;
-
-use crate::platform::resource;
+use crate::platform::core::{ensure_out, io_not_found};
 use crate::platform::runtime::{
     AgentCreateOptions, AgentDescriptor, AgentFilter, AgentHandle, AgentId, BranchDescriptor,
     BranchFilter, BranchId, CheckpointDescriptor, CheckpointFilter, CheckpointId, EngineDescriptor,
-    EngineDescriptorKind, EventLoopDescriptor, HeapDescriptor, ImageDescriptor, ImageFilter,
-    ImageId, ObservationEventKind, ObservationHandle, ObservationOptions, ObservationRecord,
-    ResourceDescriptor, ResourceFilter, RevisionDescriptor, RevisionFilter, RevisionId,
-    RuntimeCreateOptions, RuntimeDescriptor, RuntimeEngineKind, RuntimeExecutionMode,
-    RuntimeFilter, RuntimeHandle, RuntimeId, RuntimeLabel, RuntimeLabelSelector,
-    RuntimeTickOutcome, RuntimeWorldKind, SnapshotDescriptor, SnapshotFormat, SnapshotId,
-    TopologyEdge, TopologyEdgeFilter, TopologyEdgeId, TopologyEdgeKind, TopologyEntity,
-    TopologyEntityFilter, TopologyEntityId, TopologyEntityKind, TraceCursorHandle,
-    TraceCursorOptions, TraceDescriptor, TraceEventKind, TraceRecord, TraceSequence,
+    EventLoopDescriptor, HeapDescriptor, ImageDescriptor, ImageFilter, ImageId, ObservationHandle,
+    ObservationOptions, ObservationRecord, ResourceDescriptor, ResourceFilter, RevisionDescriptor,
+    RevisionFilter, RevisionId, RuntimeCreateOptions, RuntimeDescriptor, RuntimeFilter,
+    RuntimeHandle, RuntimeId, RuntimeLabel, RuntimeTickOutcome, SnapshotDescriptor, SnapshotFormat,
+    SnapshotId, TopologyEdge as TopologyEdgeDescriptor, TopologyEdgeFilter, TopologyEdgeId,
+    TopologyEntity as TopologyEntityDescriptor, TopologyEntityFilter, TopologyEntityId,
+    TraceCursorHandle, TraceCursorOptions, TraceDescriptor, TraceRecord, TraceSequence,
     WorldCreateOptions, WorldDescriptor, WorldHandle, WorldResourceId, WorldViewHandle,
     WorldViewOptions,
 };
+use crate::platform::{NativeArray, NativeStringRef, PlatformError};
+use crate::runtime;
+use crate::runtime::control::inspect::labels_match_selectors;
+use crate::runtime::control::{control_table, empty_vm_engine};
+use crate::runtime::{BindingCallContext, TickOutcome};
 
 /// Close one agent.
-/// Remove one execution lane from its owning runtime and release its lane-local state.
-/// Resource teardown follows runtime and resource policy.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime agent teardown logic.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.agent.control`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_agent_close(
     binding: &BindingCallContext,
-    agent: AgentHandle,
+    argument_agent: AgentHandle,
 ) -> RuntimeResult<()> {
-    let _ = (binding, agent);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.core.agentClose",
-    ))
-    .boxed())
+    // remove the external handle first
+    let mut table = control_table().write();
+    let entry = table.close_agent(RuntimeHandleCodec::decode_agent_handle(argument_agent))?;
+    let world = table.world(entry.world_handle_id)?;
+
+    world.remove_agent(entry.agent_id)
 }
 
 /// Spawn one agent in one runtime.
-/// Create one execution lane inside one runtime with explicit metadata options.
-/// The agent is attached to the runtime's current world and trace context.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime agent construction logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.agent.create`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_agent_create(
     binding: &BindingCallContext,
     out: *mut AgentHandle,
     runtimehandle: RuntimeHandle,
     options: Option<AgentCreateOptions>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, runtimehandle, options);
+    ensure_out(out, "out")?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.core.agentCreate",
-    ))
-    .boxed())
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+
+    // decode create options
+    let options = options.unwrap_or(AgentCreateOptions {
+        name: None,
+        labels: None,
+    });
+    let name = unsafe { runtime_binding.decode_optional(options.name) }?;
+    let labels = unsafe { runtime_binding.decode_optional(options.labels) }?;
+    let runtime_options = RuntimeRequestCodec::agent_create_options(name, labels);
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    // spawn one agent in the live runtime
+    let mut table = control_table().write();
+    let entry = table.runtime_entry(RuntimeHandleCodec::decode_runtime_handle(runtimehandle))?;
+    let world = table.world(entry.world_handle_id)?;
+    let runtime_id = entry.runtime_id;
+    let agent_id =
+        world.spawn_agent_with_options(runtime_id, &runtime_options, empty_vm_engine()?)?;
+    let handle = RuntimeHandleCodec::encode_agent_handle(table.register_agent(
+        entry.world_handle_id,
+        world,
+        runtime_id,
+        agent_id,
+    ));
+
+    unsafe { out.write(handle) };
+
+    Ok(())
 }
 
 /// Describe one agent.
-/// Return one structured agent descriptor for one live agent handle.
-/// Descriptor fields summarize ownership, labels, pending-work state, and resource counts.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime agent state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.agent.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_agent_describe(
     binding: &BindingCallContext,
     out: *mut AgentDescriptor,
-    agent: AgentHandle,
+    argument_agent: AgentHandle,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, agent);
+    ensure_out(out, "out")?;
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.core.agentDescribe",
-    ))
-    .boxed())
+    // resolve one live agent descriptor
+    let table = control_table().read();
+    let (world, runtime_id, agent_id) =
+        table.agent(RuntimeHandleCodec::decode_agent_handle(argument_agent))?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor = world.with_runtime(runtime_id, |runtime| {
+        let agent = runtime.agent(agent_id).ok_or_else(|| {
+            RuntimeError::AgentNotFound {
+                agent_id: agent_id.0,
+            }
+            .boxed()
+        })?;
+
+        let descriptor = RuntimeDescriptorCodec::agent_descriptor_for_live(&world, agent)?;
+
+        Ok(runtime_binding.encode(descriptor))
+    })?;
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
 }
 
 /// Close one runtime.
-/// Remove one runtime container from its owning world and release its live execution state.
-/// Agent teardown follows runtime shutdown policy.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime teardown logic.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.runtime.control`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_runtime_close(
     binding: &BindingCallContext,
-    runtimehandle: RuntimeHandle,
+    argument_runtime: RuntimeHandle,
 ) -> RuntimeResult<()> {
-    let _ = (binding, runtimehandle);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.core.runtimeClose",
-    ))
-    .boxed())
+    // remove the external handle first
+    let mut table = control_table().write();
+    let entry = table.close_runtime(RuntimeHandleCodec::decode_runtime_handle(argument_runtime))?;
+    let world = table.world(entry.world_handle_id)?;
+    let runtime = world.remove_runtime(entry.runtime_id)?;
+    let agent_ids = runtime.agent_ids();
+
+    table.close_agent_handles(entry.world_handle_id, &agent_ids)?;
+
+    Ok(())
 }
 
 /// Spawn one runtime in one world.
-/// Create one process-like runtime container inside one world with explicit metadata options.
-/// The new runtime is attached to the world's active branch and trace state.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime world ownership and runtime construction logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.runtime.create`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_runtime_create(
     binding: &BindingCallContext,
     out: *mut RuntimeHandle,
     argument_world: WorldHandle,
     options: Option<RuntimeCreateOptions>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, argument_world, options);
+    ensure_out(out, "out")?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.core.runtimeCreate",
-    ))
-    .boxed())
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+
+    // decode create options
+    let options = options.unwrap_or(RuntimeCreateOptions {
+        name: None,
+        labels: None,
+    });
+    let name = unsafe { runtime_binding.decode_optional(options.name) }?;
+    let labels = unsafe { runtime_binding.decode_optional(options.labels) }?;
+    let runtime_options = RuntimeRequestCodec::runtime_create_options(name, labels);
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    // spawn one runtime in the live world
+    let mut table = control_table().write();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let runtime_id =
+        world.spawn_runtime(Vec::<String>::new(), &runtime_options, empty_vm_engine()?)?;
+    let handle = RuntimeHandleCodec::encode_runtime_handle(table.register_runtime(
+        RuntimeHandleCodec::decode_world_handle(argument_world),
+        world,
+        runtime_id,
+    ));
+
+    unsafe { out.write(handle) };
+
+    Ok(())
 }
 
 /// Describe one runtime.
-/// Return one structured runtime descriptor for one live runtime handle.
-/// Descriptor fields summarize runtime ownership, primary agent, labels, and agent counts.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.runtime.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_runtime_describe(
     binding: &BindingCallContext,
     out: *mut RuntimeDescriptor,
-    runtimehandle: RuntimeHandle,
+    argument_runtime: RuntimeHandle,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, runtimehandle);
+    ensure_out(out, "out")?;
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.core.runtimeDescribe",
-    ))
-    .boxed())
+    // resolve one live runtime descriptor
+    let table = control_table().read();
+    let (world, runtime_id) =
+        table.runtime(RuntimeHandleCodec::decode_runtime_handle(argument_runtime))?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor = world.with_runtime(runtime_id, |runtime| {
+        let descriptor = RuntimeDescriptorCodec::runtime_descriptor_for_live(&world, runtime)?;
+
+        Ok(runtime_binding.encode(descriptor))
+    })?;
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
 }
 
 /// Close one world.
-/// Tear down one low-level world control object and release its owned runtime state.
-/// Active runtimes, agents, and attached runtime resources are closed according to runtime shutdown policy.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime world teardown logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.world.control`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_world_close(
     binding: &BindingCallContext,
     argument_world: WorldHandle,
 ) -> RuntimeResult<()> {
-    let _ = (binding, argument_world);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.core.worldClose",
-    ))
-    .boxed())
+    let mut table = control_table().write();
+    table.close_world(RuntimeHandleCodec::decode_world_handle(argument_world))
 }
 
 /// Create one world.
-/// Allocate one new low-level world control object with explicit runtime options.
-/// World creation initializes clocks, lineage, topology, simulation, trace, and other world-owned state.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime world construction rather than host syscalls.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.world.create`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_world_create(
     binding: &BindingCallContext,
     out: *mut WorldHandle,
     options: Option<WorldCreateOptions>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, options);
+    ensure_out(out, "out")?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.core.worldCreate",
-    ))
-    .boxed())
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+
+    // decode labels
+    let options = options.unwrap_or(WorldCreateOptions {
+        engine: None,
+        execution: None,
+        world: None,
+        labels: None,
+    });
+    let labels = unsafe { runtime_binding.decode_optional(options.labels) }?;
+    let labels = RuntimeRequestCodec::labels_from_value(labels);
+    let runtime_options =
+        RuntimeRequestCodec::runtime_options_from_create(options.execution, options.world);
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    let world = runtime::world::World::from_options(&runtime_options)?;
+    let mut table = control_table().write();
+    let handle = RuntimeHandleCodec::encode_world_handle(table.register_world(world, labels));
+
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
 }
 
 /// Describe one world.
-/// Return one structured world descriptor for one live world handle.
-/// Descriptor fields reflect the current active branch, revision, time state, and runtime counts.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime world state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.world.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_world_describe(
     binding: &BindingCallContext,
     out: *mut WorldDescriptor,
     argument_world: WorldHandle,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, argument_world);
+    ensure_out(out, "out")?;
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.core.worldDescribe",
-    ))
-    .boxed())
+    // resolve live world state
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let labels = table.world_labels(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor: WorldDescriptor = runtime_binding.encode::<WorldDescriptor>(
+        RuntimeDescriptorCodec::world_descriptor(argument_world, &world, labels)?,
+    );
+
+    unsafe {
+        *out = descriptor;
+    }
+
+    Ok(())
 }
 
 /// Advance one world by one scheduler step.
-/// Execute one world-level deterministic advance step across runtimes, agents, clocks, and simulation.
-/// The returned outcome distinguishes idle, progressed, and time-advance results.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world scheduler and simulation coordination.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.world.control`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_world_tick(
     binding: &BindingCallContext,
     out: *mut RuntimeTickOutcome,
     argument_world: WorldHandle,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, argument_world);
+    ensure_out(out, "out")?;
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.core.worldTick",
-    ))
-    .boxed())
+    // tick one live world
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let outcome = match world.tick()? {
+        TickOutcome::Idle => RuntimeTickOutcome::Idle,
+        TickOutcome::Progressed => RuntimeTickOutcome::Progressed,
+        TickOutcome::AdvancedTime => RuntimeTickOutcome::AdvancedTime,
+    };
+
+    unsafe {
+        *out = outcome;
+    }
+
+    Ok(())
 }
 
-/// List agents visible through one pinned world view.
-/// Enumerate agent descriptors from the image backing one pinned world view.
-/// When one runtime identifier is provided, only agents owned by that runtime are returned.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned image and topology state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_agent_list(
-    binding: &BindingCallContext,
-    out: *mut NativeArray<AgentDescriptor>,
-    view: WorldViewHandle,
-    filter: Option<AgentFilter>,
-    after: Option<AgentId>,
-    limit: Option<u32>,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, filter, after, limit);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.agentList",
-    ))
-    .boxed())
-}
-
-/// Describe one agent visible through one pinned world view.
-/// Return one agent descriptor from the image backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned image and topology state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_agent_view(
-    binding: &BindingCallContext,
-    out: *mut AgentDescriptor,
-    view: WorldViewHandle,
-    agentid: AgentId,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, agentid);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.agentView",
-    ))
-    .boxed())
-}
-
-/// List topology edges visible through one pinned world view.
-/// Enumerate topology edges from the image backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned topology state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_edge_list(
-    binding: &BindingCallContext,
-    out: *mut NativeArray<TopologyEdge>,
-    view: WorldViewHandle,
-    filter: Option<TopologyEdgeFilter>,
-    after: Option<TopologyEdgeId>,
-    limit: Option<u32>,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, filter, after, limit);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.edgeList",
-    ))
-    .boxed())
-}
-
-/// Describe one topology edge visible through one pinned world view.
-/// Return one topology edge from the image backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned topology state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_edge_view(
-    binding: &BindingCallContext,
-    out: *mut TopologyEdge,
-    view: WorldViewHandle,
-    edgeid: TopologyEdgeId,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, edgeid);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.edgeView",
-    ))
-    .boxed())
-}
-
-/// Describe the execution engine for one agent visible through one pinned world view.
-/// Return one engine summary from the image backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned image state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_engine_view(
-    binding: &BindingCallContext,
-    out: *mut EngineDescriptor,
-    view: WorldViewHandle,
-    agentid: AgentId,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, agentid);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.engineView",
-    ))
-    .boxed())
-}
-
-/// List topology entities visible through one pinned world view.
-/// Enumerate topology entities from the image backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned topology state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_entity_list(
-    binding: &BindingCallContext,
-    out: *mut NativeArray<TopologyEntity>,
-    view: WorldViewHandle,
-    filter: Option<TopologyEntityFilter>,
-    after: Option<TopologyEntityId>,
-    limit: Option<u32>,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, filter, after, limit);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.entityList",
-    ))
-    .boxed())
-}
-
-/// Describe one topology entity visible through one pinned world view.
-/// Return one topology entity from the image backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned topology state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_entity_view(
-    binding: &BindingCallContext,
-    out: *mut TopologyEntity,
-    view: WorldViewHandle,
-    entityid: TopologyEntityId,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, entityid);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.entityView",
-    ))
-    .boxed())
-}
-
-/// Describe the event loop for one agent visible through one pinned world view.
-/// Return one event-loop summary from the image backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned image state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_event_loop_view(
-    binding: &BindingCallContext,
-    out: *mut EventLoopDescriptor,
-    view: WorldViewHandle,
-    agentid: AgentId,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, agentid);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.eventLoopView",
-    ))
-    .boxed())
-}
-
-/// Describe the heap for one agent visible through one pinned world view.
-/// Return one heap summary from the image backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned image state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_heap_view(
-    binding: &BindingCallContext,
-    out: *mut HeapDescriptor,
-    view: WorldViewHandle,
-    agentid: AgentId,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, agentid);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.heapView",
-    ))
-    .boxed())
-}
-
-/// Describe the pinned image for one world view.
-/// Return one image descriptor for the image backing the pinned revision in one world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned lineage and image state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_image_view(
-    binding: &BindingCallContext,
-    out: *mut ImageDescriptor,
-    view: WorldViewHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.imageView",
-    ))
-    .boxed())
-}
-
-/// List logical world resources visible through one pinned world view.
-/// Enumerate logical resource descriptors from the image and topology backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned image and topology state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_resource_list(
-    binding: &BindingCallContext,
-    out: *mut NativeArray<ResourceDescriptor>,
-    view: WorldViewHandle,
-    filter: Option<ResourceFilter>,
-    after: Option<WorldResourceId>,
-    limit: Option<u32>,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, filter, after, limit);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.resourceList",
-    ))
-    .boxed())
-}
-
-/// Describe one logical world resource visible through one pinned world view.
-/// Return one resource descriptor from the image and topology backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned image and topology state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_resource_view(
-    binding: &BindingCallContext,
-    out: *mut ResourceDescriptor,
-    view: WorldViewHandle,
-    resourceid: WorldResourceId,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, resourceid);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.resourceView",
-    ))
-    .boxed())
-}
-
-/// Describe the pinned revision for one world view.
-/// Return one revision descriptor for the exact revision pinned by one world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned lineage and image state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_revision_view(
-    binding: &BindingCallContext,
-    out: *mut RevisionDescriptor,
-    view: WorldViewHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.revisionView",
-    ))
-    .boxed())
-}
-
-/// List runtimes visible through one pinned world view.
-/// Enumerate runtime descriptors from the image backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned image and topology state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_runtime_list(
-    binding: &BindingCallContext,
-    out: *mut NativeArray<RuntimeDescriptor>,
-    view: WorldViewHandle,
-    filter: Option<RuntimeFilter>,
-    after: Option<RuntimeId>,
-    limit: Option<u32>,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, filter, after, limit);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.runtimeList",
-    ))
-    .boxed())
-}
-
-/// Describe one runtime visible through one pinned world view.
-/// Return one runtime descriptor from the image backing one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned image and topology state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_runtime_view(
-    binding: &BindingCallContext,
-    out: *mut RuntimeDescriptor,
-    view: WorldViewHandle,
-    runtimeid: RuntimeId,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view, runtimeid);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.runtimeView",
-    ))
-    .boxed())
-}
-
-/// Describe the pinned trace state for one world view.
-/// Return one trace descriptor for the exact trace position captured by one world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned lineage and trace state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_trace_view(
-    binding: &BindingCallContext,
-    out: *mut TraceDescriptor,
-    view: WorldViewHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.traceView",
-    ))
-    .boxed())
-}
-
-/// Describe the world visible through one pinned world view.
-/// Return one world descriptor as observed through one pinned world view.
-/// Descriptor values are stable for the lifetime of the view.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses pinned inspection state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_runtime_world_view(
-    binding: &BindingCallContext,
-    out: *mut WorldDescriptor,
-    view: WorldViewHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, view);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.worldView",
-    ))
-    .boxed())
-}
-
-/// Close one pinned world view.
-/// Release one previously opened world view and its pinned state.
-/// Closing one view does not affect the underlying world, trace, or lineage objects.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime inspection teardown logic.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
+/// Close one pinned runtime view.
 pub(crate) unsafe fn destack_runtime_world_view_close(
     binding: &BindingCallContext,
     view: WorldViewHandle,
 ) -> RuntimeResult<()> {
-    let _ = (binding, view);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.worldViewClose",
-    ))
-    .boxed())
+    // drop the external pinned view handle
+    let mut table = control_table().write();
+    table.close_world_view(RuntimeHandleCodec::decode_world_view_handle(view))?;
+
+    Ok(())
 }
 
 /// Open one pinned world view.
-/// Create one read-consistent world view over the current world head or one explicit pinned revision.
-/// Views provide stable reads across lineage, state, and trace metadata without racing live mutation.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime inspection and revision pinning logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.inspect.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_world_view_open(
     binding: &BindingCallContext,
     out: *mut WorldViewHandle,
@@ -839,26 +319,459 @@ pub(crate) unsafe fn destack_runtime_world_view_open(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, options);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.inspect.worldViewOpen",
-    ))
-    .boxed())
+    // pin one explicit or current revision
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let options = options.unwrap_or(WorldViewOptions { revision_id: None });
+    let revision_id = options
+        .revision_id
+        .map(RuntimeHandleCodec::decode_revision_id)
+        .unwrap_or_else(|| world.revision_id());
+    world.revision_info(revision_id)?;
+
+    drop(table);
+
+    // register the pinned view
+    let mut table = control_table().write();
+    let handle = RuntimeHandleCodec::encode_world_view_handle(table.open_world_view(
+        RuntimeHandleCodec::decode_world_handle(argument_world),
+        revision_id,
+    )?);
+    unsafe { out.write(handle) };
+
+    Ok(())
+}
+
+/// Describe the world visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_world_view(
+    binding: &BindingCallContext,
+    out: *mut WorldDescriptor,
+    view: WorldViewHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    binding.clear_values();
+
+    // resolve the pinned revision backing for this view
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor = runtime_binding.encode(world_view.world_descriptor()?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
+}
+
+/// Describe the pinned revision for one world view.
+pub(crate) unsafe fn destack_runtime_revision_view(
+    binding: &BindingCallContext,
+    out: *mut RevisionDescriptor,
+    view: WorldViewHandle,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+    binding.clear_values();
+
+    // resolve one pinned revision
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor = runtime_binding.encode(world_view.revision_descriptor()?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
+}
+
+/// Describe the pinned image for one world view.
+pub(crate) unsafe fn destack_runtime_image_view(
+    binding: &BindingCallContext,
+    out: *mut ImageDescriptor,
+    view: WorldViewHandle,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+    binding.clear_values();
+
+    // resolve one pinned image
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor = runtime_binding.encode(world_view.image_descriptor()?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
+}
+
+/// Describe the pinned trace state for one world view.
+pub(crate) unsafe fn destack_runtime_trace_view(
+    binding: &BindingCallContext,
+    out: *mut TraceDescriptor,
+    view: WorldViewHandle,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+    binding.clear_values();
+
+    // resolve one pinned trace position
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let descriptor = world_view.trace_descriptor()?;
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
+}
+
+/// List runtimes visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_runtime_list(
+    binding: &BindingCallContext,
+    out: *mut NativeArray<RuntimeDescriptor>,
+    view: WorldViewHandle,
+    filter: Option<RuntimeFilter>,
+    after: Option<RuntimeId>,
+    limit: Option<u32>,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+
+    // enumerate pinned runtimes in stable order
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let filter = unsafe { runtime_binding.decode_optional(filter) }?;
+    let filter = RuntimeRequestCodec::runtime_filter_from_value(filter);
+    let after = after.map(RuntimeHandleCodec::decode_runtime_id);
+    let limit = RuntimeRequestCodec::list_limit(limit);
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    let descriptors: NativeArray<RuntimeDescriptor> =
+        runtime_binding.encode(world_view.runtime_descriptors(&filter, after, limit)?);
+
+    unsafe { out.write(descriptors) };
+
+    Ok(())
+}
+
+/// Describe one runtime visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_runtime_view(
+    binding: &BindingCallContext,
+    out: *mut RuntimeDescriptor,
+    view: WorldViewHandle,
+    runtime_id: RuntimeId,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+    binding.clear_values();
+
+    // resolve one pinned runtime
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor: RuntimeDescriptor = runtime_binding
+        .encode(world_view.runtime_descriptor(RuntimeHandleCodec::decode_runtime_id(runtime_id))?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
+}
+
+/// List agents visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_agent_list(
+    binding: &BindingCallContext,
+    out: *mut NativeArray<AgentDescriptor>,
+    view: WorldViewHandle,
+    filter: Option<AgentFilter>,
+    after: Option<AgentId>,
+    limit: Option<u32>,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+
+    // enumerate pinned agents in stable order
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let filter = unsafe { runtime_binding.decode_optional(filter) }?;
+    let filter = RuntimeRequestCodec::agent_filter_from_value(filter);
+    let after = after.map(RuntimeHandleCodec::decode_agent_id);
+    let limit = RuntimeRequestCodec::list_limit(limit);
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    let descriptors: NativeArray<AgentDescriptor> =
+        runtime_binding.encode(world_view.agent_descriptors(&filter, after, limit)?);
+
+    unsafe { out.write(descriptors) };
+
+    Ok(())
+}
+
+/// Describe one agent visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_agent_view(
+    binding: &BindingCallContext,
+    out: *mut AgentDescriptor,
+    view: WorldViewHandle,
+    agent_id: AgentId,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+    binding.clear_values();
+
+    // resolve one pinned agent
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor: AgentDescriptor = runtime_binding
+        .encode(world_view.agent_descriptor(RuntimeHandleCodec::decode_agent_id(agent_id))?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
+}
+
+/// List logical world resources visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_resource_list(
+    binding: &BindingCallContext,
+    out: *mut NativeArray<ResourceDescriptor>,
+    view: WorldViewHandle,
+    filter: Option<ResourceFilter>,
+    after: Option<WorldResourceId>,
+    limit: Option<u32>,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+
+    // enumerate pinned logical resources in stable order
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let filter = unsafe { runtime_binding.decode_optional(filter) }?;
+    let filter = RuntimeRequestCodec::resource_filter_from_value(filter);
+    let after = after
+        .map(RuntimeHandleCodec::decode_world_resource_id)
+        .transpose()?;
+    let limit = RuntimeRequestCodec::list_limit(limit);
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    let descriptors: NativeArray<ResourceDescriptor> =
+        runtime_binding.encode(world_view.resource_descriptors(&filter, after, limit)?);
+
+    unsafe { out.write(descriptors) };
+
+    Ok(())
+}
+
+/// Describe one logical world resource visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_resource_view(
+    binding: &BindingCallContext,
+    out: *mut ResourceDescriptor,
+    view: WorldViewHandle,
+    resource_id: WorldResourceId,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+    binding.clear_values();
+
+    // resolve one pinned logical resource
+    let resource_id = RuntimeHandleCodec::decode_world_resource_id(resource_id)?;
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor: ResourceDescriptor =
+        runtime_binding.encode(world_view.resource_descriptor(resource_id)?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
+}
+
+/// List topology entities visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_entity_list(
+    binding: &BindingCallContext,
+    out: *mut NativeArray<TopologyEntityDescriptor>,
+    view: WorldViewHandle,
+    filter: Option<TopologyEntityFilter>,
+    after: Option<TopologyEntityId>,
+    limit: Option<u32>,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+
+    // enumerate pinned topology entities in stable order
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let filter = unsafe { runtime_binding.decode_optional(filter) }?;
+    let filter = RuntimeRequestCodec::entity_filter_from_value(filter);
+    let after = unsafe { runtime_binding.decode_optional(after) }?;
+    let after = RuntimeRequestCodec::topology_entity_id_from_value(after);
+    let limit = RuntimeRequestCodec::list_limit(limit);
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    let descriptors: NativeArray<TopologyEntityDescriptor> =
+        runtime_binding.encode(world_view.entity_descriptors(&filter, after.as_deref(), limit)?);
+
+    unsafe { out.write(descriptors) };
+
+    Ok(())
+}
+
+/// Describe one topology entity visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_entity_view(
+    binding: &BindingCallContext,
+    out: *mut TopologyEntityDescriptor,
+    view: WorldViewHandle,
+    entity_id: TopologyEntityId,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+
+    // resolve one pinned topology entity
+    let entity_id = unsafe { entity_id.0.as_str()? };
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    // encode one stable topology entity descriptor
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor: TopologyEntityDescriptor =
+        runtime_binding.encode(world_view.entity_descriptor(entity_id)?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
+}
+
+/// List topology edges visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_edge_list(
+    binding: &BindingCallContext,
+    out: *mut NativeArray<TopologyEdgeDescriptor>,
+    view: WorldViewHandle,
+    filter: Option<TopologyEdgeFilter>,
+    after: Option<TopologyEdgeId>,
+    limit: Option<u32>,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+
+    // enumerate pinned topology edges in stable order
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let filter = unsafe { runtime_binding.decode_optional(filter) }?;
+    let filter = RuntimeRequestCodec::edge_filter_from_value(filter);
+    let after = unsafe { runtime_binding.decode_optional(after) }?;
+    let after = RuntimeRequestCodec::topology_edge_id_from_value(after);
+    let limit = RuntimeRequestCodec::list_limit(limit);
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    let descriptors: NativeArray<TopologyEdgeDescriptor> =
+        runtime_binding.encode(world_view.edge_descriptors(&filter, after.as_deref(), limit)?);
+
+    unsafe { out.write(descriptors) };
+
+    Ok(())
+}
+
+/// Describe one topology edge visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_edge_view(
+    binding: &BindingCallContext,
+    out: *mut TopologyEdgeDescriptor,
+    view: WorldViewHandle,
+    edge_id: TopologyEdgeId,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+
+    // resolve one pinned topology edge
+    let edge_id = unsafe { edge_id.0.as_str()? };
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    // encode one stable topology edge descriptor
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor: TopologyEdgeDescriptor =
+        runtime_binding.encode(world_view.edge_descriptor(edge_id)?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
+}
+
+/// Describe the event loop for one agent visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_event_loop_view(
+    binding: &BindingCallContext,
+    out: *mut EventLoopDescriptor,
+    view: WorldViewHandle,
+    agent_id: AgentId,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+    binding.clear_values();
+
+    // resolve one pinned agent event loop
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor = runtime_binding
+        .encode(world_view.event_loop_descriptor(RuntimeHandleCodec::decode_agent_id(agent_id))?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
+}
+
+/// Describe the heap for one agent visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_heap_view(
+    binding: &BindingCallContext,
+    out: *mut HeapDescriptor,
+    view: WorldViewHandle,
+    agent_id: AgentId,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+    binding.clear_values();
+
+    // resolve one pinned agent heap
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor = runtime_binding
+        .encode(world_view.heap_descriptor(RuntimeHandleCodec::decode_agent_id(agent_id))?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
+}
+
+/// Describe the execution engine for one agent visible through one pinned world view.
+pub(crate) unsafe fn destack_runtime_engine_view(
+    binding: &BindingCallContext,
+    out: *mut EngineDescriptor,
+    view: WorldViewHandle,
+    agent_id: AgentId,
+) -> RuntimeResult<()> {
+    ensure_out(out, "out")?;
+    binding.clear_values();
+
+    // resolve one pinned agent engine
+    let table = control_table().read();
+    let world_view = PinnedWorldView::from_handle(&table, view)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor = runtime_binding
+        .encode(world_view.engine_descriptor(RuntimeHandleCodec::decode_agent_id(agent_id))?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
 }
 
 /// Describe one branch.
-/// Return one branch descriptor for one branch identifier in one world lineage.
-/// Descriptors include the current head revision and branch labels.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.lineage.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_branch_describe(
     binding: &BindingCallContext,
     out: *mut BranchDescriptor,
@@ -868,26 +781,22 @@ pub(crate) unsafe fn destack_runtime_branch_describe(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, branchid);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.branchDescribe",
-    ))
-    .boxed())
+    // load one live world and branch record
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let branch = world.branch_info(RuntimeHandleCodec::decode_branch_id(branchid))?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor: BranchDescriptor = runtime_binding
+        .encode::<BranchDescriptor>(RuntimeDescriptorCodec::branch_descriptor(branch)?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
 }
 
 /// List branches in one world lineage.
-/// Enumerate branch descriptors in stable branch-id order starting after the optional cursor.
-/// This is the low-level bulk enumeration surface for world branch heads.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.lineage.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_branch_list(
     binding: &BindingCallContext,
     out: *mut NativeArray<BranchDescriptor>,
@@ -899,26 +808,53 @@ pub(crate) unsafe fn destack_runtime_branch_list(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, filter, after, limit);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.branchList",
-    ))
-    .boxed())
+    // enumerate branch heads in stable order
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let filter = unsafe { runtime_binding.decode_optional(filter) }?;
+    let filter = RuntimeRequestCodec::branch_filter_from_value(filter);
+    let limit = RuntimeRequestCodec::list_limit_or_max(limit);
+    let after = after.map(|value| value.0).unwrap_or(0);
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    let descriptors = world
+        .branch_ids()
+        .into_iter()
+        .filter(|branch_id| after == 0 || branch_id.get() > u128::from(after))
+        .filter(|branch_id| {
+            let Ok(branch) = world.branch_info(*branch_id) else {
+                return false;
+            };
+
+            if let Some(name) = filter.name.as_deref()
+                && branch.name != name
+            {
+                return false;
+            }
+
+            labels_match_selectors(&branch.labels, &filter.labels)
+        })
+        .take(limit)
+        .map(|branch_id| world.branch_info(branch_id))
+        .map(|branch| {
+            let branch = branch?;
+            let descriptor: BranchDescriptor =
+                runtime_binding.encode(RuntimeDescriptorCodec::branch_descriptor(branch)?);
+
+            Ok(descriptor)
+        })
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    unsafe { out.write(binding.store_array(descriptors)) };
+
+    Ok(())
 }
 
 /// Create one checkpoint on the active branch.
-/// Materialize one durable checkpoint at the world's current active revision.
-/// The checkpoint anchors one revision and may force image capture according to runtime policy.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage and image capture logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.lineage.control`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_checkpoint_create(
     binding: &BindingCallContext,
     out: *mut CheckpointId,
@@ -929,26 +865,33 @@ pub(crate) unsafe fn destack_runtime_checkpoint_create(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, name, labels);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.checkpointCreate",
-    ))
-    .boxed())
+    // decode one checkpoint request
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let name = unsafe { runtime_binding.decode_optional(name) }?;
+    let labels = unsafe { runtime_binding.decode_optional(labels) }?;
+    let labels = RuntimeRequestCodec::labels_from_value(labels);
+    let checkpoint_name = name.as_deref().unwrap_or("checkpoint");
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    // capture the checkpoint through world lineage
+    let checkpoint_id = world.checkpoint(checkpoint_name)?;
+
+    // carry through low-level labels until checkpoint metadata grows a direct API
+    if !labels.is_empty() {
+        world.set_checkpoint_labels(checkpoint_id, labels)?;
+    }
+
+    unsafe { out.write(RuntimeHandleCodec::encode_checkpoint_id(checkpoint_id)?) };
+
+    Ok(())
 }
 
 /// Describe one checkpoint.
-/// Return one checkpoint descriptor for one checkpoint identifier in one world lineage.
-/// Descriptors include the anchored revision and checkpoint labels.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.lineage.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_checkpoint_describe(
     binding: &BindingCallContext,
     out: *mut CheckpointDescriptor,
@@ -958,26 +901,23 @@ pub(crate) unsafe fn destack_runtime_checkpoint_describe(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, checkpointid);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.checkpointDescribe",
-    ))
-    .boxed())
+    // load one live checkpoint record
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let checkpoint =
+        world.checkpoint_info(RuntimeHandleCodec::decode_checkpoint_id(checkpointid))?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor: CheckpointDescriptor = runtime_binding
+        .encode::<CheckpointDescriptor>(RuntimeDescriptorCodec::checkpoint_descriptor(checkpoint)?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
 }
 
 /// List checkpoints in one world lineage.
-/// Enumerate checkpoint descriptors in stable checkpoint-id order starting after the optional cursor.
-/// This is the low-level bulk enumeration surface for checkpoint tooling and inspection.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.lineage.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_checkpoint_list(
     binding: &BindingCallContext,
     out: *mut NativeArray<CheckpointDescriptor>,
@@ -989,26 +929,59 @@ pub(crate) unsafe fn destack_runtime_checkpoint_list(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, filter, after, limit);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.checkpointList",
-    ))
-    .boxed())
+    // enumerate checkpoints in stable order
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let filter = unsafe { runtime_binding.decode_optional(filter) }?;
+    let filter = RuntimeRequestCodec::checkpoint_filter_from_value(filter);
+    let limit = RuntimeRequestCodec::list_limit_or_max(limit);
+    let after = after.map(|value| value.0).unwrap_or(0);
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    let descriptors = world
+        .checkpoint_ids()
+        .into_iter()
+        .filter(|checkpoint_id| after == 0 || checkpoint_id.get() > u128::from(after))
+        .filter(|checkpoint_id| {
+            let Ok(checkpoint) = world.checkpoint_info(*checkpoint_id) else {
+                return false;
+            };
+
+            if let Some(revision_id) = filter.revision_id
+                && checkpoint.revision_id != revision_id
+            {
+                return false;
+            }
+
+            if let Some(name) = filter.name.as_deref()
+                && checkpoint.name != name
+            {
+                return false;
+            }
+
+            labels_match_selectors(&checkpoint.labels, &filter.labels)
+        })
+        .take(limit)
+        .map(|checkpoint_id| world.checkpoint_info(checkpoint_id))
+        .map(|checkpoint| {
+            let checkpoint = checkpoint?;
+            let descriptor: CheckpointDescriptor =
+                runtime_binding.encode(RuntimeDescriptorCodec::checkpoint_descriptor(checkpoint)?);
+
+            Ok(descriptor)
+        })
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    unsafe { out.write(binding.store_array(descriptors)) };
+
+    Ok(())
 }
 
 /// Capture one image at the active revision.
-/// Materialize one immutable image for the world's current active revision.
-/// Image capture may share lower-level heap and VM image backing with prior revisions.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world image capture logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.snapshot.create`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_image_capture(
     binding: &BindingCallContext,
     out: *mut ImageId,
@@ -1017,26 +990,20 @@ pub(crate) unsafe fn destack_runtime_image_capture(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.imageCapture",
-    ))
-    .boxed())
+    // materialize one live image through suspend capture
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let revision_id = world.suspend()?;
+    let revision = world.revision_info(revision_id)?;
+
+    unsafe { out.write(RuntimeHandleCodec::encode_image_id(revision.image_id)?) };
+
+    Ok(())
 }
 
 /// Describe one image.
-/// Return one image descriptor for one materialized image in one world lineage.
-/// Descriptors summarize the owning revision and optional shared backing size.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage and image metadata only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.snapshot.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_image_describe(
     binding: &BindingCallContext,
     out: *mut ImageDescriptor,
@@ -1046,26 +1013,22 @@ pub(crate) unsafe fn destack_runtime_image_describe(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, imageid);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.imageDescribe",
-    ))
-    .boxed())
+    // load one stored image descriptor
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let image = world.image_info(RuntimeHandleCodec::decode_image_id(imageid))?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor: ImageDescriptor = runtime_binding
+        .encode::<ImageDescriptor>(RuntimeDescriptorCodec::image_descriptor(&world, &image)?);
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
 }
 
 /// List images in one world lineage.
-/// Enumerate image descriptors in stable image-id order starting after the optional cursor.
-/// This is the low-level bulk enumeration surface for materialized world images.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world image metadata only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.snapshot.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_image_list(
     binding: &BindingCallContext,
     out: *mut NativeArray<ImageDescriptor>,
@@ -1077,26 +1040,49 @@ pub(crate) unsafe fn destack_runtime_image_list(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, filter, after, limit);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.imageList",
-    ))
-    .boxed())
+    // enumerate materialized images in stable order
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let filter = unsafe { runtime_binding.decode_optional(filter) }?;
+    let filter = RuntimeRequestCodec::image_filter_from_value(filter);
+    let limit = RuntimeRequestCodec::list_limit_or_max(limit);
+    let after = after.map(|value| value.0).unwrap_or(0);
+    let descriptors = world
+        .image_ids()
+        .into_iter()
+        .filter(|image_id| after == 0 || image_id.get() > u128::from(after))
+        .filter(|image_id| {
+            let Some(revision_id) = filter.revision_id else {
+                return true;
+            };
+
+            world.revision_ids().into_iter().any(|candidate| {
+                world
+                    .revision_info(candidate)
+                    .map(|revision| revision.id == revision_id && revision.image_id == *image_id)
+                    .unwrap_or(false)
+            })
+        })
+        .take(limit)
+        .map(|image_id| world.image_info(image_id))
+        .map(|image| {
+            let image = image?;
+            let descriptor: ImageDescriptor =
+                runtime_binding.encode(RuntimeDescriptorCodec::image_descriptor(&world, &image)?);
+
+            Ok(descriptor)
+        })
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    unsafe { out.write(binding.store_array(descriptors)) };
+
+    Ok(())
 }
 
 /// Describe one revision.
-/// Return one revision descriptor for one revision identifier in one world lineage.
-/// Descriptors include the captured trace sequence, clock instants, and optional image reference.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.lineage.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_revision_describe(
     binding: &BindingCallContext,
     out: *mut RevisionDescriptor,
@@ -1106,26 +1092,24 @@ pub(crate) unsafe fn destack_runtime_revision_describe(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, revisionid);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.revisionDescribe",
-    ))
-    .boxed())
+    // load one stored revision descriptor
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let revision = world.revision_info(RuntimeHandleCodec::decode_revision_id(revisionid))?;
+    let image = world.image_info(revision.image_id)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor: RevisionDescriptor = runtime_binding.encode::<RevisionDescriptor>(
+        RuntimeDescriptorCodec::revision_descriptor(revision, &image)?,
+    );
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
 }
 
 /// List revisions in one world lineage.
-/// Enumerate revision descriptors in stable revision-id order starting after the optional cursor.
-/// When one branch identifier is provided, only revisions from that branch are returned.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.lineage.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_revision_list(
     binding: &BindingCallContext,
     out: *mut NativeArray<RevisionDescriptor>,
@@ -1137,26 +1121,49 @@ pub(crate) unsafe fn destack_runtime_revision_list(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, filter, after, limit);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.revisionList",
-    ))
-    .boxed())
+    // enumerate revisions in stable order
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let filter = unsafe { runtime_binding.decode_optional(filter) }?;
+    let filter = RuntimeRequestCodec::revision_filter_from_value(filter);
+    let limit = RuntimeRequestCodec::list_limit_or_max(limit);
+    let after = after.map(|value| value.0).unwrap_or(0);
+    let descriptors = world
+        .revision_ids()
+        .into_iter()
+        .filter(|revision_id| after == 0 || revision_id.get() > u128::from(after))
+        .filter(|revision_id| {
+            let Some(branch_id) = filter.branch_id else {
+                return true;
+            };
+
+            world
+                .revision_info(*revision_id)
+                .map(|revision| revision.branch_id == branch_id)
+                .unwrap_or(false)
+        })
+        .take(limit)
+        .map(|revision_id| {
+            let revision = world.revision_info(revision_id)?;
+            let image = world.image_info(revision.image_id)?;
+
+            let descriptor: RevisionDescriptor = runtime_binding.encode(
+                RuntimeDescriptorCodec::revision_descriptor(revision, &image)?,
+            );
+
+            Ok(descriptor)
+        })
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    unsafe { out.write(binding.store_array(descriptors)) };
+
+    Ok(())
 }
 
 /// Return the active branch for one world.
-/// Read the current active branch identifier for one live world.
-/// Worlds always execute on exactly one active branch at a time.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.lineage.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_world_branch(
     binding: &BindingCallContext,
     out: *mut BranchId,
@@ -1165,26 +1172,18 @@ pub(crate) unsafe fn destack_runtime_world_branch(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.worldBranch",
-    ))
-    .boxed())
+    // read the active branch directly from the live world
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+
+    unsafe { out.write(RuntimeHandleCodec::encode_branch_id(world.branch_id())?) };
+
+    Ok(())
 }
 
 /// Fork one child world from one revision.
-/// Create one new world handle from one selected revision in the source world lineage.
-/// The forked world shares immutable lineage and image backing where possible and diverges only on later mutation.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world fork and lineage sharing logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.world.create`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_world_fork(
     binding: &BindingCallContext,
     out: *mut WorldHandle,
@@ -1196,26 +1195,40 @@ pub(crate) unsafe fn destack_runtime_world_fork(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, revisionid, name, labels);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.worldFork",
-    ))
-    .boxed())
+    // decode one fork request
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let revision_id = RuntimeHandleCodec::decode_revision_id(revisionid);
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let name = unsafe { runtime_binding.decode_optional(name) }?;
+    let labels = unsafe { runtime_binding.decode_optional(labels) }?;
+    let labels = RuntimeRequestCodec::labels_from_value(labels);
+    let branch_name = name.as_deref().unwrap_or("fork");
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    // fork one child world from one explicit revision
+    let child = world.fork_revision(revision_id, branch_name)?;
+
+    // carry branch labels through the child lineage until branch create grows them directly
+    if !labels.is_empty() {
+        child.set_branch_labels(child.branch_id(), labels)?;
+    }
+
+    drop(table);
+
+    // register the child world
+    let mut table = control_table().write();
+    let child_handle =
+        RuntimeHandleCodec::encode_world_handle(table.register_world(child, BTreeMap::new()));
+    unsafe { out.write(child_handle) };
+
+    Ok(())
 }
 
 /// Return the active revision for one world.
-/// Read the current active revision identifier for one live world.
-/// The active revision reflects the current trace position and optional image materialization.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.lineage.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_world_revision(
     binding: &BindingCallContext,
     out: *mut RevisionId,
@@ -1224,158 +1237,141 @@ pub(crate) unsafe fn destack_runtime_world_revision(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.worldRevision",
-    ))
-    .boxed())
+    // read the active revision directly from the live world
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+
+    unsafe { out.write(RuntimeHandleCodec::encode_revision_id(world.revision_id())?) };
+
+    Ok(())
 }
 
 /// Rewind one world to one checkpoint.
-/// Restore one live world to the revision anchored by the requested checkpoint.
-/// Rewind keeps the same live world handle while replacing its active revision and image state.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world restore and lineage control logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.lineage.control`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_world_rewind_checkpoint(
     binding: &BindingCallContext,
     argument_world: WorldHandle,
     checkpointid: CheckpointId,
 ) -> RuntimeResult<()> {
-    let _ = (binding, argument_world, checkpointid);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.worldRewindCheckpoint",
-    ))
-    .boxed())
+    // restore one live world to one checkpointed revision
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    world.rewind(RuntimeHandleCodec::decode_checkpoint_id(checkpointid))
 }
 
 /// Rewind one world to one revision.
-/// Restore one live world to the requested revision identifier.
-/// Rewind keeps the same live world handle while replacing its active revision and image state.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world restore and lineage control logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.lineage.control`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_world_rewind_revision(
     binding: &BindingCallContext,
     argument_world: WorldHandle,
     revisionid: RevisionId,
 ) -> RuntimeResult<()> {
-    let _ = (binding, argument_world, revisionid);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.lineage.worldRewindRevision",
-    ))
-    .boxed())
+    // restore one live world to one explicit revision
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    world.rewind_revision(RuntimeHandleCodec::decode_revision_id(revisionid))
 }
 
 /// Close one runtime observation subscription.
-/// Release one previously opened observation subscription and its buffered event state.
-/// Closing one observation feed does not affect the underlying world.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime observation teardown logic.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.observation.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_observation_close(
     binding: &BindingCallContext,
     handle: ObservationHandle,
 ) -> RuntimeResult<()> {
-    let _ = (binding, handle);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.observation.close",
-    ))
-    .boxed())
+    // drop the external observe handle first
+    let mut table = control_table().write();
+    let entry = RuntimeDescriptorCodec::observation_entry(
+        table.close_observation(RuntimeHandleCodec::decode_observation_handle(handle))?,
+    );
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(entry.world))?;
+
+    world.observation().close(entry.subscription_id)
 }
 
 /// Read the next batch of observation records.
-/// Decode up to the requested limit of live observation records from one open subscription.
-/// Observation records may include topology, resource, scheduler, diagnostic, and profile events.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime observation feed state.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.observation.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_observation_next(
     binding: &BindingCallContext,
     out: *mut NativeArray<ObservationRecord>,
     handle: ObservationHandle,
     limit: Option<u32>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, handle, limit);
+    ensure_out(out, "out")?;
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.observation.next",
-    ))
-    .boxed())
+    // read the next batch from the live subscription
+    let table = control_table().read();
+    let (world, subscription_id) =
+        table.observation(RuntimeHandleCodec::decode_observation_handle(handle))?;
+    let limit = RuntimeRequestCodec::list_limit_or_max(limit);
+    let records = world.observation().next(subscription_id, limit)?;
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let records: NativeArray<ObservationRecord> = runtime_binding
+        .encode::<NativeArray<ObservationRecord>>(RuntimeDescriptorCodec::observation_records(
+            records,
+        )?);
+
+    unsafe {
+        *out = records;
+    }
+
+    Ok(())
 }
 
 /// Open one runtime observation subscription.
-/// Create one low-level subscription for live runtime observation events from one world.
-/// Observation feeds are distinct from the structured causal trace and may include higher-volume diagnostic streams.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime observation and subscription state.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.observation.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_observation_open(
     binding: &BindingCallContext,
     out: *mut ObservationHandle,
     argument_world: WorldHandle,
     options: Option<ObservationOptions>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, argument_world, options);
+    ensure_out(out, "out")?;
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.observation.open",
-    ))
-    .boxed())
+    // open one live observation subscription
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let options = options.unwrap_or(ObservationOptions {
+        trace: None,
+        topology: None,
+        resources: None,
+        scheduler: None,
+        diagnostics: None,
+        profiles: None,
+    });
+    let subscription_id =
+        world
+            .observation()
+            .open(RuntimeRequestCodec::observation_options_from_flags(
+                options.trace,
+                options.topology,
+                options.resources,
+                options.scheduler,
+                options.diagnostics,
+                options.profiles,
+            ));
+
+    drop(table);
+
+    // register the observation handle
+    let mut table = control_table().write();
+    let handle = RuntimeHandleCodec::encode_observation_handle(table.open_observation_handle(
+        RuntimeHandleCodec::decode_world_handle(argument_world),
+        subscription_id,
+    )?);
+
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
 }
 
 /// Export one snapshot from one image.
-/// Serialize one materialized image into the requested snapshot format and return its snapshot identifier.
-/// Fast snapshots prefer runtime-specific backing, while portable snapshots favor compatibility metadata and transportability.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime snapshot export logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.snapshot.create`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_snapshot_create(
     binding: &BindingCallContext,
     out: *mut SnapshotId,
@@ -1383,87 +1379,99 @@ pub(crate) unsafe fn destack_runtime_snapshot_create(
     imageid: ImageId,
     format: SnapshotFormat,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, argument_world, imageid, format);
+    ensure_out(out, "out")?;
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.snapshot.create",
-    ))
-    .boxed())
+    // resolve the live world and export one snapshot
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let snapshot = world.snapshot(RuntimeHandleCodec::decode_image_id(imageid))?;
+    let bytes = Arc::<[u8]>::from(snapshot.encode()?);
+
+    drop(table);
+
+    // store the exported snapshot
+    let mut table = control_table().write();
+    let snapshot_id = RuntimeHandleCodec::encode_snapshot_id(table.store_snapshot_handle(
+        RuntimeHandleCodec::decode_world_handle(argument_world),
+        RuntimeHandleCodec::decode_snapshot_format(format),
+        snapshot,
+        bytes,
+    )?);
+
+    unsafe { out.write(snapshot_id) };
+
+    Ok(())
 }
 
 /// Describe one snapshot.
-/// Return one snapshot descriptor for one stored snapshot identifier in one world lineage.
-/// Descriptors summarize the backing image, format, and optional serialized size.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime snapshot metadata only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.snapshot.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_snapshot_describe(
     binding: &BindingCallContext,
     out: *mut SnapshotDescriptor,
     argument_world: WorldHandle,
     snapshotid: SnapshotId,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, argument_world, snapshotid);
+    ensure_out(out, "out")?;
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.snapshot.describe",
-    ))
-    .boxed())
+    // resolve the stored snapshot for this world
+    let table = control_table().read();
+    let entry = RuntimeDescriptorCodec::snapshot_entry(
+        table.snapshot(RuntimeHandleCodec::decode_snapshot_id(snapshotid))?,
+    );
+    if entry.world != argument_world {
+        return Err(io_not_found(
+            "destack.runtime.snapshot.describe",
+            format!("unknown snapshot {}", snapshotid.0),
+        ));
+    }
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+    let descriptor: SnapshotDescriptor = runtime_binding.encode::<SnapshotDescriptor>(
+        RuntimeDescriptorCodec::snapshot_descriptor(snapshotid, &entry)?,
+    );
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
 }
 
 /// Import one serialized snapshot payload.
-/// Decode one serialized snapshot payload and register it in the current world lineage.
-/// Imported snapshots may later be described, read again, or restored.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime snapshot import logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.snapshot.create`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_snapshot_import(
     binding: &BindingCallContext,
     out: *mut SnapshotId,
     argument_world: WorldHandle,
     argument_payload: NativeArray<u8>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, argument_world, argument_payload);
+    ensure_out(out, "out")?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.snapshot.import",
-    ))
-    .boxed())
+    // resolve the live world before storing the imported snapshot
+    let table = control_table().read();
+    let _world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+
+    // decode one stored snapshot payload
+    let payload = unsafe { argument_payload.as_slice()? }.to_vec();
+    let snapshot = runtime::world::Snapshot::decode(&payload)?;
+    let bytes = Arc::<[u8]>::from(payload);
+
+    // clear call-local output storage
+    binding.clear_values();
+    drop(table);
+
+    // store the imported snapshot
+    let snapshot_id =
+        RuntimeHandleCodec::encode_snapshot_id(control_table().write().store_snapshot_handle(
+            RuntimeHandleCodec::decode_world_handle(argument_world),
+            RuntimeHandleCodec::decode_snapshot_format(SnapshotFormat::Portable),
+            snapshot,
+            bytes,
+        )?);
+
+    unsafe { out.write(snapshot_id) };
+
+    Ok(())
 }
 
 /// List snapshots in one world lineage.
-/// Enumerate snapshot descriptors in stable snapshot-id order starting after the optional cursor.
-/// This is the low-level bulk enumeration surface for stored snapshot artifacts.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime snapshot metadata only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.snapshot.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_snapshot_list(
     binding: &BindingCallContext,
     out: *mut NativeArray<SnapshotDescriptor>,
@@ -1471,129 +1479,128 @@ pub(crate) unsafe fn destack_runtime_snapshot_list(
     after: Option<SnapshotId>,
     limit: Option<u32>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, argument_world, after, limit);
+    ensure_out(out, "out")?;
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.snapshot.list",
-    ))
-    .boxed())
+    // enumerate stored snapshots for this world
+    let limit = RuntimeRequestCodec::list_limit(limit);
+    let table = control_table().read();
+    let descriptors = table
+        .snapshots_for_world(
+            RuntimeHandleCodec::decode_world_handle(argument_world),
+            after.map(RuntimeHandleCodec::decode_snapshot_id),
+            limit,
+        )
+        .into_iter()
+        .map(|(snapshot_id, entry)| {
+            (
+                RuntimeHandleCodec::encode_snapshot_id(snapshot_id),
+                RuntimeDescriptorCodec::snapshot_entry(entry),
+            )
+        })
+        .into_iter()
+        .map(|(snapshot_id, entry)| {
+            let runtime_binding = NativeRuntimeBinding::new(binding);
+            let descriptor: SnapshotDescriptor = runtime_binding.encode(
+                RuntimeDescriptorCodec::snapshot_descriptor(snapshot_id, &entry)?,
+            );
+
+            Ok(descriptor)
+        })
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    unsafe { out.write(binding.store_array(descriptors)) };
+
+    Ok(())
 }
 
 /// Read one serialized snapshot payload.
-/// Return the encoded bytes for one stored snapshot identifier.
-/// Encoded bytes may be used for transport, persistence, or offline analysis.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime snapshot storage only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.snapshot.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_snapshot_read(
     binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
     argument_world: WorldHandle,
     snapshotid: SnapshotId,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (binding, out, argument_world, snapshotid);
+    ensure_out(out, "out")?;
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.snapshot.read",
-    ))
-    .boxed())
+    // resolve the stored snapshot payload for this world
+    let table = control_table().read();
+    let entry = RuntimeDescriptorCodec::snapshot_entry(
+        table.snapshot(RuntimeHandleCodec::decode_snapshot_id(snapshotid))?,
+    );
+    if entry.world != argument_world {
+        return Err(io_not_found(
+            "destack.runtime.snapshot.read",
+            format!("unknown snapshot {}", snapshotid.0),
+        ));
+    }
+
+    unsafe { out.write(binding.store_array(entry.bytes.as_ref().to_vec())) };
+
+    Ok(())
 }
 
 /// Restore one world from one image.
-/// Replace one live world's active state with the requested materialized image.
-/// Image restore keeps the same world handle while switching its active revision and state payload.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime image restore logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.snapshot.restore`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_restore_image(
     binding: &BindingCallContext,
     argument_world: WorldHandle,
     imageid: ImageId,
 ) -> RuntimeResult<()> {
-    let _ = (binding, argument_world, imageid);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.snapshot.restoreImage",
-    ))
-    .boxed())
+    // restore the requested image into the live world
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+
+    // release the read lock before mutating the world
+    drop(table);
+
+    world.restore_image_id(RuntimeHandleCodec::decode_image_id(imageid), None)
 }
 
 /// Restore one world from one snapshot.
-/// Replace one live world's active state with the requested stored snapshot.
-/// Snapshot restore may reconstruct one image before activating the restored revision.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime snapshot restore logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.snapshot.restore`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_restore_snapshot(
     binding: &BindingCallContext,
     argument_world: WorldHandle,
     snapshotid: SnapshotId,
 ) -> RuntimeResult<()> {
-    let _ = (binding, argument_world, snapshotid);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.snapshot.restoreSnapshot",
-    ))
-    .boxed())
+    // resolve the snapshot and restore it into the live world
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let entry = RuntimeDescriptorCodec::snapshot_entry(
+        table.snapshot(RuntimeHandleCodec::decode_snapshot_id(snapshotid))?,
+    );
+    if entry.world != argument_world {
+        return Err(io_not_found(
+            "destack.runtime.snapshot.restoreSnapshot",
+            format!("unknown snapshot {}", snapshotid.0),
+        ));
+    }
+
+    // release the read lock before mutating the world
+    drop(table);
+
+    world.restore_snapshot(&entry.snapshot, None)
 }
 
 /// Close one causal trace cursor.
-/// Release one previously opened trace cursor and its pinned reader state.
-/// Closing one cursor does not affect the underlying world trace.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world trace reader teardown logic.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.trace.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_trace_close(
     binding: &BindingCallContext,
     cursor: TraceCursorHandle,
 ) -> RuntimeResult<()> {
-    let _ = (binding, cursor);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.runtime.trace.close")).boxed())
+    // drop the external cursor handle
+    let mut table = control_table().write();
+    table.close_trace_cursor(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
+
+    Ok(())
 }
 
 /// Describe one world's causal trace.
-/// Return one summary of the active branch and current sequence boundary for one world trace.
-/// This is the low-level causal trace metadata surface rather than one debug sink interface.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world trace state only.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.trace.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_trace_describe(
     binding: &BindingCallContext,
     out: *mut TraceDescriptor,
@@ -1602,26 +1609,30 @@ pub(crate) unsafe fn destack_runtime_trace_describe(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.trace.describe",
-    ))
-    .boxed())
+    // summarize the active world trace
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let descriptor = TraceDescriptor {
+        branch_id: RuntimeHandleCodec::encode_branch_id(world.branch_id())?,
+        sequence: TraceSequence(
+            u64::try_from(world.trace().log().next_sequence().get()).map_err(|_| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    "sequence",
+                    "world trace sequence exceeds uint64",
+                ))
+                .boxed()
+            })?,
+        ),
+    };
+
+    unsafe { out.write(descriptor) };
+
+    Ok(())
 }
 
 /// Append one explicit trace marker.
-/// Record one explicit causal marker in the active world trace and return its sequence number.
-/// Markers are part of the structured causal trace rather than one debug sink side channel.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world trace append logic.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.trace.control`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_trace_mark(
     binding: &BindingCallContext,
     out: *mut TraceSequence,
@@ -1631,23 +1642,25 @@ pub(crate) unsafe fn destack_runtime_trace_mark(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, label);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.runtime.trace.mark")).boxed())
+    // decode the marker label before clearing call-local values
+    let label = unsafe { label.as_str()? }.to_string();
+
+    // clear call-local output storage
+    binding.clear_values();
+
+    // resolve the live world and record the marker
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    drop(table);
+    let sequence = world.trace().record_marker(label)?;
+
+    unsafe { out.write(TraceSequence(sequence.get())) };
+
+    Ok(())
 }
 
 /// Read the next batch of causal trace records.
-/// Decode up to the requested limit of causal trace records from one open cursor.
-/// Record payloads are returned as structured metadata plus optional encoded payload bytes.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world trace reader state.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.trace.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_trace_next(
     binding: &BindingCallContext,
     out: *mut NativeArray<TraceRecord>,
@@ -1657,23 +1670,35 @@ pub(crate) unsafe fn destack_runtime_trace_next(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, cursor, limit);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.runtime.trace.next")).boxed())
+    // read the next batch from one live cursor
+    let table = control_table().read();
+    let (_world, cursor) =
+        table.trace_cursor(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
+    let limit = RuntimeRequestCodec::list_limit_or_max(limit);
+    let mut records = Vec::new();
+
+    for _ in 0..limit {
+        let sequence = cursor.tell();
+        let Some(event) = cursor.next_event()? else {
+            break;
+        };
+
+        records.push((sequence, event));
+    }
+
+    let runtime_binding = NativeRuntimeBinding::new(binding);
+
+    let records: NativeArray<TraceRecord> = runtime_binding
+        .encode::<NativeArray<TraceRecord>>(RuntimeDescriptorCodec::trace_records(records)?);
+
+    unsafe { out.write(records) };
+
+    Ok(())
 }
 
 /// Open one causal trace cursor.
-/// Create one cursor for reading structured causal trace records from one world.
-/// Cursors start at one optional sequence boundary and advance independently from the live trace head.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world trace reader state.
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `runtime.trace.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_trace_open(
     binding: &BindingCallContext,
     out: *mut TraceCursorHandle,
@@ -1683,98 +1708,84 @@ pub(crate) unsafe fn destack_runtime_trace_open(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, argument_world, options);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.runtime.trace.open")).boxed())
+    // open one live cursor at the requested sequence
+    let table = control_table().read();
+    let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
+    let cursor = Arc::new(world.trace().log().reader());
+    let options = options.unwrap_or(TraceCursorOptions {
+        start_sequence: None,
+    });
+    if let Some(start_sequence) = options.start_sequence {
+        cursor.seek_sequence(runtime::replay::TraceSequence::new(start_sequence.0))?;
+    }
+
+    drop(table);
+
+    // register the trace cursor
+    let mut table = control_table().write();
+    let handle = RuntimeHandleCodec::encode_trace_cursor_handle(table.open_trace_cursor_handle(
+        RuntimeHandleCodec::decode_world_handle(argument_world),
+        cursor,
+    )?);
+    unsafe { out.write(handle) };
+
+    Ok(())
 }
 
 /// Seek one causal trace cursor to one checkpoint boundary.
-/// Reposition one open trace cursor so the next read starts at the trace sequence anchored by the requested checkpoint.
-/// This is the low-level checkpoint-to-trace bridge for debugging and replay tooling.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world trace and lineage metadata.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.trace.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_trace_seek_checkpoint(
     binding: &BindingCallContext,
     cursor: TraceCursorHandle,
     checkpointid: CheckpointId,
 ) -> RuntimeResult<()> {
-    let _ = (binding, cursor, checkpointid);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.trace.seekCheckpoint",
-    ))
-    .boxed())
+    // seek to the revision sequence anchored by one checkpoint
+    let table = control_table().read();
+    let (world, cursor) =
+        table.trace_cursor(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
+    let checkpoint =
+        world.checkpoint_info(RuntimeHandleCodec::decode_checkpoint_id(checkpointid))?;
+    let revision = world.revision_info(checkpoint.revision_id)?;
+
+    cursor.seek_sequence(revision.sequence)
 }
 
 /// Seek one causal trace cursor to one revision boundary.
-/// Reposition one open trace cursor so the next read starts at the trace sequence captured by the requested revision.
-/// This is the low-level revision-to-trace bridge for debugging and replay tooling.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world trace and lineage metadata.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.trace.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_trace_seek_revision(
     binding: &BindingCallContext,
     cursor: TraceCursorHandle,
     revisionid: RevisionId,
 ) -> RuntimeResult<()> {
-    let _ = (binding, cursor, revisionid);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.trace.seekRevision",
-    ))
-    .boxed())
+    // seek to the sequence captured by one revision
+    let table = control_table().read();
+    let (world, cursor) =
+        table.trace_cursor(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
+    let revision = world.revision_info(RuntimeHandleCodec::decode_revision_id(revisionid))?;
+
+    cursor.seek_sequence(revision.sequence)
 }
 
 /// Seek one causal trace cursor to one sequence.
-/// Reposition one open trace cursor so the next read starts at the requested sequence number.
-/// Seeking does not mutate the underlying world trace.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world trace reader state.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.trace.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_trace_seek_sequence(
     binding: &BindingCallContext,
     cursor: TraceCursorHandle,
     sequence: TraceSequence,
 ) -> RuntimeResult<()> {
-    let _ = (binding, cursor, sequence);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.runtime.trace.seekSequence",
-    ))
-    .boxed())
+    // seek one live cursor directly to one sequence boundary
+    let table = control_table().read();
+    let (_world, cursor) =
+        table.trace_cursor(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
+    cursor.seek_sequence(runtime::replay::TraceSequence::new(sequence.0))
 }
 
 /// Return the current sequence position of one causal trace cursor.
-/// Read the next sequence number that would be returned by one open trace cursor.
-/// This is the low-level cursor-position primitive for trace tooling and resumption.
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world trace reader state.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-/// # Security
-/// Requires `runtime.trace.read`.
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_runtime_trace_tell(
     binding: &BindingCallContext,
     out: *mut TraceSequence,
@@ -1783,7 +1794,22 @@ pub(crate) unsafe fn destack_runtime_trace_tell(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (binding, out, cursor);
+    binding.clear_values();
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.runtime.trace.tell")).boxed())
+    // expose the next visible sequence for one live cursor
+    let table = control_table().read();
+    let (_world, cursor) =
+        table.trace_cursor(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
+    let sequence = cursor.tell();
+    let sequence = TraceSequence(u64::try_from(sequence.get()).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "sequence",
+            "world trace sequence exceeds uint64",
+        ))
+        .boxed()
+    })?);
+
+    unsafe { out.write(sequence) };
+
+    Ok(())
 }

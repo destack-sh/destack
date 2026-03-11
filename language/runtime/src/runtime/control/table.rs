@@ -162,15 +162,6 @@ impl ControlKind {
     }
 }
 
-/// One process-global control-handle record.
-#[derive(Debug, Clone, Copy)]
-struct ControlEntry {
-    /// The owning thread for this handle.
-    owner_thread_id: ThreadId,
-    /// The control-object kind.
-    kind: ControlKind,
-}
-
 /// Process-global metadata for externally visible runtime control objects.
 #[derive(Debug, Default)]
 pub(crate) struct ControlTable {
@@ -185,6 +176,15 @@ pub(crate) struct ControlTable {
 struct ControlStore {
     /// Stored control objects keyed by their opaque handle id.
     objects: HashMap<ControlHandleId, ControlObject>,
+}
+
+/// One process-global control-handle record.
+#[derive(Debug, Clone, Copy)]
+struct ControlEntry {
+    /// The owning thread for this handle.
+    owner_thread_id: ThreadId,
+    /// The control-object kind.
+    kind: ControlKind,
 }
 
 /// One owner-thread control object stored under one external handle.
@@ -244,7 +244,7 @@ impl ControlStore {
     }
 
     /// Resolve one world entry.
-    fn world_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&WorldEntry> {
+    fn get_world_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&WorldEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::World(entry)) => Ok(entry),
             Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::World)),
@@ -253,7 +253,7 @@ impl ControlStore {
     }
 
     /// Remove one world entry.
-    fn remove_world_entry(&mut self, handle_id: ControlHandleId) -> RuntimeResult<WorldEntry> {
+    fn take_world_entry(&mut self, handle_id: ControlHandleId) -> RuntimeResult<WorldEntry> {
         match self.objects.remove(&handle_id) {
             Some(ControlObject::World(entry)) => Ok(entry),
             Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::World)),
@@ -262,7 +262,7 @@ impl ControlStore {
     }
 
     /// Resolve one runtime entry.
-    fn runtime_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&RuntimeEntry> {
+    fn get_runtime_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&RuntimeEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::Runtime(entry)) => Ok(entry),
             Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::Runtime)),
@@ -271,7 +271,7 @@ impl ControlStore {
     }
 
     /// Remove one runtime entry.
-    fn remove_runtime_entry(&mut self, handle_id: ControlHandleId) -> RuntimeResult<RuntimeEntry> {
+    fn take_runtime_entry(&mut self, handle_id: ControlHandleId) -> RuntimeResult<RuntimeEntry> {
         match self.objects.remove(&handle_id) {
             Some(ControlObject::Runtime(entry)) => Ok(entry),
             Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::Runtime)),
@@ -280,7 +280,7 @@ impl ControlStore {
     }
 
     /// Resolve one agent entry.
-    fn agent_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&AgentEntry> {
+    fn get_agent_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&AgentEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::Agent(entry)) => Ok(entry),
             Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::Agent)),
@@ -289,7 +289,7 @@ impl ControlStore {
     }
 
     /// Remove one agent entry.
-    fn remove_agent_entry(&mut self, handle_id: ControlHandleId) -> RuntimeResult<AgentEntry> {
+    fn take_agent_entry(&mut self, handle_id: ControlHandleId) -> RuntimeResult<AgentEntry> {
         match self.objects.remove(&handle_id) {
             Some(ControlObject::Agent(entry)) => Ok(entry),
             Some(_) => Err(control_store_kind_mismatch(handle_id, ControlKind::Agent)),
@@ -298,7 +298,10 @@ impl ControlStore {
     }
 
     /// Resolve one observation entry.
-    fn observation_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&ObservationEntry> {
+    fn get_observation_entry(
+        &self,
+        handle_id: ControlHandleId,
+    ) -> RuntimeResult<&ObservationEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::Observation(entry)) => Ok(entry),
             Some(_) => Err(control_store_kind_mismatch(
@@ -313,7 +316,7 @@ impl ControlStore {
     }
 
     /// Remove one observation entry.
-    fn remove_observation_entry(
+    fn take_observation_entry(
         &mut self,
         handle_id: ControlHandleId,
     ) -> RuntimeResult<ObservationEntry> {
@@ -331,7 +334,10 @@ impl ControlStore {
     }
 
     /// Resolve one trace-cursor entry.
-    fn trace_cursor_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&TraceCursorEntry> {
+    fn get_trace_cursor_entry(
+        &self,
+        handle_id: ControlHandleId,
+    ) -> RuntimeResult<&TraceCursorEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::TraceCursor(entry)) => Ok(entry),
             Some(_) => Err(control_store_kind_mismatch(
@@ -346,7 +352,7 @@ impl ControlStore {
     }
 
     /// Remove one trace-cursor entry.
-    fn remove_trace_cursor_entry(
+    fn take_trace_cursor_entry(
         &mut self,
         handle_id: ControlHandleId,
     ) -> RuntimeResult<TraceCursorEntry> {
@@ -364,7 +370,7 @@ impl ControlStore {
     }
 
     /// Resolve one world-view entry.
-    fn world_view_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&WorldViewEntry> {
+    fn get_world_view_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&WorldViewEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::WorldView(entry)) => Ok(entry),
             Some(_) => Err(control_store_kind_mismatch(
@@ -376,7 +382,7 @@ impl ControlStore {
     }
 
     /// Remove one world-view entry.
-    fn remove_world_view_entry(
+    fn take_world_view_entry(
         &mut self,
         handle_id: ControlHandleId,
     ) -> RuntimeResult<WorldViewEntry> {
@@ -391,7 +397,7 @@ impl ControlStore {
     }
 
     /// Resolve one snapshot entry.
-    fn snapshot_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&SnapshotEntry> {
+    fn get_snapshot_entry(&self, handle_id: ControlHandleId) -> RuntimeResult<&SnapshotEntry> {
         match self.objects.get(&handle_id) {
             Some(ControlObject::Snapshot(entry)) => Ok(entry),
             Some(_) => Err(control_store_kind_mismatch(
@@ -573,7 +579,7 @@ impl ControlTable {
 
         // detach local objects
         let attached_handle_ids = self.with_store_mut(|control_store| {
-            let _world_entry = control_store.remove_world_entry(handle_id)?;
+            let _world_entry = control_store.take_world_entry(handle_id)?;
             let attached_handle_ids = control_store.handles_for_world(handle_id);
 
             for attached_handle_id in &attached_handle_ids {
@@ -583,7 +589,6 @@ impl ControlTable {
             Ok(attached_handle_ids)
         })?;
 
-        // remove process-global metadata
         for attached_handle_id in attached_handle_ids {
             self.unregister_handle(attached_handle_id);
         }
@@ -598,7 +603,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::World)?;
 
         self.with_store(|control_store| {
-            let entry = control_store.world_entry(handle_id)?;
+            let entry = control_store.get_world_entry(handle_id)?;
             Ok(entry.world.clone())
         })
     }
@@ -608,7 +613,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::World)?;
 
         self.with_store(|control_store| {
-            let entry = control_store.world_entry(handle_id)?;
+            let entry = control_store.get_world_entry(handle_id)?;
             Ok(entry.clone())
         })
     }
@@ -621,7 +626,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::World)?;
 
         self.with_store(|control_store| {
-            let entry = control_store.world_entry(handle_id)?;
+            let entry = control_store.get_world_entry(handle_id)?;
             Ok(entry.labels.labels.clone())
         })
     }
@@ -667,7 +672,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::Runtime)?;
 
         let entry =
-            self.with_store_mut(|control_store| control_store.remove_runtime_entry(handle_id))?;
+            self.with_store_mut(|control_store| control_store.take_runtime_entry(handle_id))?;
 
         self.unregister_handle(handle_id);
 
@@ -682,7 +687,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::Runtime)?;
 
         self.with_store(|control_store| {
-            let entry = control_store.runtime_entry(handle_id)?;
+            let entry = control_store.get_runtime_entry(handle_id)?;
             Ok((entry.world.clone(), entry.runtime_id))
         })
     }
@@ -692,7 +697,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::Runtime)?;
 
         self.with_store(|control_store| {
-            let entry = control_store.runtime_entry(handle_id)?;
+            let entry = control_store.get_runtime_entry(handle_id)?;
             Ok(entry.clone())
         })
     }
@@ -737,7 +742,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::Agent)?;
 
         let entry =
-            self.with_store_mut(|control_store| control_store.remove_agent_entry(handle_id))?;
+            self.with_store_mut(|control_store| control_store.take_agent_entry(handle_id))?;
 
         self.unregister_handle(handle_id);
 
@@ -752,7 +757,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::Agent)?;
 
         self.with_store(|control_store| {
-            let entry = control_store.agent_entry(handle_id)?;
+            let entry = control_store.get_agent_entry(handle_id)?;
             Ok((entry.world.clone(), entry.runtime_id, entry.agent_id))
         })
     }
@@ -779,7 +784,7 @@ impl ControlTable {
                 .collect::<Vec<_>>();
 
             for handle_id in &handle_ids {
-                control_store.remove_agent_entry(*handle_id)?;
+                let _entry = control_store.take_agent_entry(*handle_id)?;
             }
 
             Ok(handle_ids)
@@ -844,7 +849,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::Observation)?;
 
         self.with_store(|control_store| {
-            let entry = control_store.observation_entry(handle_id)?;
+            let entry = control_store.get_observation_entry(handle_id)?;
             Ok((entry.world.clone(), entry.subscription_id))
         })
     }
@@ -857,7 +862,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::Observation)?;
 
         let entry =
-            self.with_store_mut(|control_store| control_store.remove_observation_entry(handle_id))?;
+            self.with_store_mut(|control_store| control_store.take_observation_entry(handle_id))?;
 
         self.unregister_handle(handle_id);
 
@@ -917,7 +922,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::Snapshot)?;
 
         self.with_store(|control_store| {
-            let entry = control_store.snapshot_entry(handle_id)?;
+            let entry = control_store.get_snapshot_entry(handle_id)?;
             Ok(entry.clone())
         })
     }
@@ -1008,7 +1013,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::TraceCursor)?;
 
         self.with_store(|control_store| {
-            let entry = control_store.trace_cursor_entry(handle_id)?;
+            let entry = control_store.get_trace_cursor_entry(handle_id)?;
             Ok((entry.world.clone(), entry.cursor.clone()))
         })
     }
@@ -1020,8 +1025,8 @@ impl ControlTable {
     ) -> RuntimeResult<TraceCursorEntry> {
         self.require_kind(handle_id, ControlKind::TraceCursor)?;
 
-        let entry = self
-            .with_store_mut(|control_store| control_store.remove_trace_cursor_entry(handle_id))?;
+        let entry =
+            self.with_store_mut(|control_store| control_store.take_trace_cursor_entry(handle_id))?;
 
         self.unregister_handle(handle_id);
 
@@ -1069,7 +1074,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::WorldView)?;
 
         self.with_store(|control_store| {
-            let entry = control_store.world_view_entry(handle_id)?;
+            let entry = control_store.get_world_view_entry(handle_id)?;
             Ok(entry.clone())
         })
     }
@@ -1082,7 +1087,7 @@ impl ControlTable {
         self.require_kind(handle_id, ControlKind::WorldView)?;
 
         let entry =
-            self.with_store_mut(|control_store| control_store.remove_world_view_entry(handle_id))?;
+            self.with_store_mut(|control_store| control_store.take_world_view_entry(handle_id))?;
 
         self.unregister_handle(handle_id);
 
