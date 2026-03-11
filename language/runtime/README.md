@@ -29,6 +29,10 @@ The runtime lives in a main `World`, which owns the root clocks, topology, simul
  - Each `Agent` has its own execution lane with one `EventLoop`, one `Heap`, one execution `Engine`, one platform resource table, etc..
  - The `Lineage` owns the authoritative `Trace` images for each `Revision`.
  - One `Image` only materializes world, runtime, and agent state for fast restore.
+Managed memory is part of this agent-local runtime state.
+The runtime owns the concrete managed backend for an agent, while MIR and Lower define the semantic contract for managed references, barriers, stack maps, and runtime type metadata.
+The current VM and native bring-up path uses the `destack_heap` managed heap backend.
+Other engines, including WasmGC-backed engines, may realize the same managed semantics with a different collector and object representation.
 
 | Noun | Meaning |
 |-----------|--------|
