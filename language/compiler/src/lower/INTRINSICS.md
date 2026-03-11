@@ -93,8 +93,6 @@ NaN converts to 0 and out of range values clamp to bounds.
 | `memmove` | `(dst, src, len) -> ()` | Move memory (handles overlap) |
 | `memset` | `(dst, val, len) -> ()` | Set memory to byte value |
 | `memcmp` | `(ptr, ptr, len) -> i32` | Compare memory regions |
-| `volatile.load` | `(ptr<T>) -> T` | Volatile load (not optimized away) |
-| `volatile.store` | `(ptr<T>, T) -> ()` | Volatile store (not optimized away) |
 | `prefetch.read` | `(ptr) -> ()` | Prefetch for reading (CPU hint) |
 | `prefetch.write` | `(ptr) -> ()` | Prefetch for writing (CPU hint) |
 
@@ -191,7 +189,8 @@ No intrinsics needed; Lower handles these like other well-known types (`String`,
 
 ## Atomics
 
-Atomic operations require explicit ordering and scope metadata.
+Source level atomic builtins lower to first class MIR atomic instructions.
+They are not represented as MIR intrinsics.
 Ordering, scope, memory scope, and semantics must be compile time constants.
 
 | Ordering | Description |
@@ -202,25 +201,25 @@ Ordering, scope, memory scope, and semantics must be compile time constants.
 | `acq_rel` | Both acquire and release |
 | `seq_cst` | Sequentially consistent (strongest) |
 
-| Intrinsic | Signature | Description |
+| Builtin | Signature | Description |
 |-----------|-----------|-------------|
 | `atomic.load` | `(ptr<T>, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Atomic load |
 | `atomic.store` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> ()` | Atomic store |
 | `atomic.cas` | `(ptr<T>, expected, new, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> (T, bool)` | Compare-and-swap, returns old value and success flag |
 | `atomic.cas.weak` | `(ptr<T>, expected, new, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> (T, bool)` | Weak compare-and-swap (may fail spuriously) |
-| `atomic.xchg` | `(ptr<T>, value, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Exchange, returns old value |
-| `atomic.fetch.add` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-add, returns old value |
-| `atomic.fetch.sub` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-subtract, returns old value |
-| `atomic.fetch.and` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-bitwise-and, returns old value |
-| `atomic.fetch.or` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-bitwise-or, returns old value |
-| `atomic.fetch.xor` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-bitwise-xor, returns old value |
-| `atomic.fetch.min` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-min (signed), returns old value |
-| `atomic.fetch.max` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-max (signed), returns old value |
-| `atomic.fetch.umin` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-min (unsigned), returns old value |
-| `atomic.fetch.umax` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-max (unsigned), returns old value |
-| `atomic.fetch.fadd` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-add (float), returns old value |
-| `atomic.fetch.fmin` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-min (float), returns old value |
-| `atomic.fetch.fmax` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-max (float), returns old value |
+| `atomic.xchg` | `(ptr<T>, value, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Exchange, lowers to `atomic.rmw.xchg`, returns old value |
+| `atomic.fetch.add` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-add, lowers to `atomic.rmw.add`, returns old value |
+| `atomic.fetch.sub` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-subtract, lowers to `atomic.rmw.sub`, returns old value |
+| `atomic.fetch.and` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-bitwise-and, lowers to `atomic.rmw.and`, returns old value |
+| `atomic.fetch.or` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-bitwise-or, lowers to `atomic.rmw.or`, returns old value |
+| `atomic.fetch.xor` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-bitwise-xor, lowers to `atomic.rmw.xor`, returns old value |
+| `atomic.fetch.min` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-min (signed), lowers to `atomic.rmw.min`, returns old value |
+| `atomic.fetch.max` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-max (signed), lowers to `atomic.rmw.max`, returns old value |
+| `atomic.fetch.umin` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-min (unsigned), lowers to `atomic.rmw.umin`, returns old value |
+| `atomic.fetch.umax` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-max (unsigned), lowers to `atomic.rmw.umax`, returns old value |
+| `atomic.fetch.fadd` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-add (float), lowers to `atomic.rmw.fadd`, returns old value |
+| `atomic.fetch.fmin` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-min (float), lowers to `atomic.rmw.fmin`, returns old value |
+| `atomic.fetch.fmax` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-max (float), lowers to `atomic.rmw.fmax`, returns old value |
 | `atomic.fence` | `(order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> ()` | Memory fence/barrier |
 
 ## Float Math
@@ -255,14 +254,15 @@ Ordering, scope, memory scope, and semantics must be compile time constants.
 
 | Intrinsic | Signature | Description |
 |-----------|-----------|-------------|
-| `unreachable` | `() -> !` | Mark code as unreachable (UB if executed) |
+| `unreachable` | `() -> !` | Mark code as unreachable, lowers to the MIR `unreachable` terminator |
 | `breakpoint` | `() -> ()` | Trigger debugger breakpoint |
-| `abort` | `() -> !` | Abort execution immediately |
+| `abort` | `() -> !` | Abort execution immediately, lowers to `trap abort` |
+| `panic` | `(string) -> !` | Panic with a message, lowers to `trap panic <message>` |
 | `return_address` | `() -> ptr` | Get return address of current function |
 | `frame_address` | `() -> ptr` | Get frame pointer of current function |
-| `expect` | `(bool, bool) -> bool` | Hint expected value of condition |
-| `likely` | `(bool) -> bool` | Hint condition is likely true |
-| `unlikely` | `(bool) -> bool` | Hint condition is likely false |
+| `expect` | `(bool, bool) -> bool` | Hint expected value of condition, lowers to the canonical MIR hint intrinsic |
+| `likely` | `(bool) -> bool` | Hint condition is likely true, lowers to `expect(cond, true)` |
+| `unlikely` | `(bool) -> bool` | Hint condition is likely false, lowers to `expect(cond, false)` |
 | `black_box` | `(T) -> T` | Optimization barrier |
 
 ## SIMD

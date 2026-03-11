@@ -1,7 +1,6 @@
 // Memory operation intrinsics.
 //
-// Low-level memory manipulation, volatile access for hardware I/O,
-// and type reinterpretation.
+// Low-level memory manipulation and type reinterpretation
 
 import { intrinsic } from "./decorator.ds";
 
@@ -31,20 +30,6 @@ export declare function memset(destination: *void, value: int32, length: int): v
 /// Returns negative if a < b, zero if equal, positive if a > b.
 @intrinsic("memcmp")
 export declare function memcmp(a: *void, b: *void, length: int): int32;
-
-/// Volatile load.
-///
-/// Reads a value from memory without the compiler reordering or optimizing away the access.
-/// Used for memory-mapped I/O and other hardware interactions.
-@intrinsic("volatile.load")
-export declare function volatileLoad<T>(source: *T): T;
-
-/// Volatile store.
-///
-/// Writes a value to memory without the compiler reordering or optimizing away the access.
-/// Used for memory-mapped I/O and other hardware interactions.
-@intrinsic("volatile.store")
-export declare function volatileStore<T>(destination: *T, value: T): void;
 
 /// Prefetch memory for reading.
 ///
