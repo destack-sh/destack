@@ -4,14 +4,12 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, OptimizeTask};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions};
 use destack_parser::source_colorizer;
-use destack_source::{
-    File, FileType, MemoryFileSystem, ModuleId, ModuleStamp, PrintOptions, ProfileStamp, Uri,
-};
+use destack_source::{File, FileType, MemoryFileSystem, ModuleId, PrintOptions, Uri};
 use destack_workspace::{
-    DsConfig, DsConfigOptions, DsConfigTargetOptions, MemoryCacheStore, OutputFormat, Session,
-    TargetId,
+    ArtifactKey, DsConfig, DsConfigOptions, DsConfigTargetOptions, MemoryCacheStore, OutputFormat,
+    Session, TargetId,
 };
 
 use crate::harness::print::color;
@@ -196,7 +194,7 @@ thread_local! {
 /// Run a single spec test: compile the code and compare errors against expectations.
 fn run_specification_test(test: &MdTestCase) -> TestResult {
     // setup the test environment
-    let (session, program, main_path) = SHARED_SPEC_ENV.with(|env| {
+    let (session, program, root, main_path) = SHARED_SPEC_ENV.with(|env| {
         let root = env.root_for(test);
         setup_test_environment_with_session(test, env.session.clone(), env.fs.clone(), root)
     });
@@ -216,108 +214,105 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     );
 
     // resolve the main module to compile
-    let module_id = match compiler.resolve_path_to_module(&main_path) {
-        Ok(id) => id,
-        Err(e) => {
-            return TestResult::Failed {
-                message: format!("failed to resolve module: {e:?}"),
-            };
-        }
-    };
-
-    // apply dsconfig options and targets
-    if let Err(error) = apply_dsconfig_for_spec(&program, module_id, &main_path, prefer_native) {
-        return TestResult::Failed { message: error };
-    }
-
-    // select profile and lib loading
-    let (profile, mut load_libs) =
-        select_profile_for_mdtest(&program, module_id, test, prefer_native);
-
-    // load libs only when explicitly requested
-    if !load_libs && has_explicit_libs(&program, module_id) {
-        load_libs = true;
-    }
-
-    // enqueue analysis task
-    compiler.options.load_libs = load_libs;
-    let module_version = program.modules.get(module_id).read().version;
-    let profile_version = program
-        .profiles
-        .get(profile)
-        .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
-        .version;
-    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-        module: ModuleStamp::new(module_id, module_version),
-        profile: ProfileStamp::new(profile, profile_version),
-    });
-
-    // run optimize passes only for native spec tests
-    let run_optimize = prefer_native;
-    if run_optimize {
-        // select target and profile for diagnostics
-        let diagnostic_target = program.ensure_target_for_module(module_id);
-        let diagnostic_profile =
-            program.profile_id_for_target_or_default(module_id, &diagnostic_target);
-        let diagnostic_profile_version = program
-            .profiles
-            .get(diagnostic_profile)
-            .unwrap_or_else(|| panic!("missing profile data for {diagnostic_profile:?}"))
-            .version;
-        compiler.enqueue(OptimizeTask::OptimizeModule {
-            module: ModuleStamp::new(module_id, module_version),
-            profile: ProfileStamp::new(diagnostic_profile, diagnostic_profile_version),
-            target: diagnostic_target,
-        });
-    }
-
-    // compile and drop the compiler
-    compiler.compile();
-    drop(compiler);
-
-    // collect actual diagnostics
-    let diagnostics = program.diagnostics.collect();
-    let diagnostics_vec = diagnostics.iter();
-    let actual_errors: Vec<String> = diagnostics_vec
-        .iter()
-        .filter(|d| d.severity == destack_source::DiagnosticSeverity::Error)
-        .map(|d| d.message.clone())
-        .collect();
-    let actual_warnings: Vec<String> = diagnostics_vec
-        .iter()
-        .filter(|d| d.severity == destack_source::DiagnosticSeverity::Warning)
-        .map(|d| d.message.clone())
-        .collect();
-
-    // split expected errors and warnings from bullet items
-    let (expected_errors, expected_warnings) = split_expected_diagnostics(&test.bullet_items);
-
-    // compare against expected diagnostics
-    let error_result = compare_expected("error", &expected_errors, &actual_errors);
-    // compare warnings only when warnings are expected
-    let warning_result = if expected_warnings.is_empty() {
-        TestResult::Passed
-    } else {
-        compare_expected("warning", &expected_warnings, &actual_warnings)
-    };
-    let result = merge_results(error_result, warning_result);
-
-    // append rendered diagnostics for failures
-    match result {
-        TestResult::Failed { mut message } => {
-            let options = PrintOptions::new().with_colorizer(source_colorizer());
-            let rendered = format_diagnostics(&program.files, &diagnostics, options);
-            if !rendered.is_empty() {
-                if !message.is_empty() {
-                    message.push('\n');
-                    message.push('\n');
-                }
-                message.push_str(&rendered);
+    // run the spec body, then always remove the shared session root
+    let result = (|| {
+        // resolve the main module to compile
+        let module_id = match compiler.resolve_path_to_module(&main_path) {
+            Ok(id) => id,
+            Err(e) => {
+                return TestResult::Failed {
+                    message: format!("failed to resolve module: {e:?}"),
+                };
             }
-            TestResult::Failed { message }
+        };
+
+        // apply dsconfig options and targets
+        if let Err(error) = apply_dsconfig_for_spec(&program, module_id, &main_path, prefer_native)
+        {
+            return TestResult::Failed { message: error };
         }
-        other => other,
-    }
+
+        // select profile and lib loading
+        let (profile, mut load_libs) =
+            select_profile_for_mdtest(&program, module_id, test, prefer_native);
+
+        // load libs only when explicitly requested
+        if !load_libs && has_explicit_libs(&program, module_id) {
+            load_libs = true;
+        }
+
+        // enqueue analysis task
+        compiler.options.load_libs = load_libs;
+        compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+            module: module_id,
+            profile,
+        }));
+
+        // run optimize passes only for native spec tests
+        let run_optimize = prefer_native;
+        if run_optimize {
+            // select target and profile for diagnostics
+            let diagnostic_target = program.ensure_target_for_module(module_id);
+            let diagnostic_profile =
+                program.profile_id_for_target_or_default(module_id, &diagnostic_target);
+            compiler.enqueue(BuildKey::Artifact(ArtifactKey::MirOptimized {
+                module: module_id,
+                profile: diagnostic_profile,
+                target: diagnostic_target,
+            }));
+        }
+
+        // compile and drop the compiler
+        compiler.compile();
+        drop(compiler);
+
+        // collect actual diagnostics
+        let diagnostics = program.diagnostics.collect();
+        let diagnostics_vec = diagnostics.iter();
+        let actual_errors: Vec<String> = diagnostics_vec
+            .iter()
+            .filter(|d| d.severity == destack_source::DiagnosticSeverity::Error)
+            .map(|d| d.message.clone())
+            .collect();
+        let actual_warnings: Vec<String> = diagnostics_vec
+            .iter()
+            .filter(|d| d.severity == destack_source::DiagnosticSeverity::Warning)
+            .map(|d| d.message.clone())
+            .collect();
+
+        // split expected errors and warnings from bullet items
+        let (expected_errors, expected_warnings) = split_expected_diagnostics(&test.bullet_items);
+
+        // compare against expected diagnostics
+        let error_result = compare_expected("error", &expected_errors, &actual_errors);
+        let warning_result = if expected_warnings.is_empty() {
+            TestResult::Passed
+        } else {
+            compare_expected("warning", &expected_warnings, &actual_warnings)
+        };
+        let result = merge_results(error_result, warning_result);
+
+        // append rendered diagnostics for failures
+        match result {
+            TestResult::Failed { mut message } => {
+                let options = PrintOptions::new().with_colorizer(source_colorizer());
+                let rendered = format_diagnostics(&program.files, &diagnostics, options);
+                if !rendered.is_empty() {
+                    if !message.is_empty() {
+                        message.push('\n');
+                        message.push('\n');
+                    }
+                    message.push_str(&rendered);
+                }
+                TestResult::Failed { message }
+            }
+            other => other,
+        }
+    })();
+
+    let _ = session.remove_root(&root);
+
+    result
 }
 
 fn test_option_bool(test: &MdTestCase, key: &str) -> Option<bool> {

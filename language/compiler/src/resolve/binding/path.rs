@@ -1,9 +1,12 @@
+use std::collections::HashSet;
+
+use destack_builtin::BuiltinLibKind;
 use destack_dir::{
     Argument, Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
     LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
     SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 use crate::resolve::binding::cache::{
     ResolveAbsoluteSymbolCacheKey, ResolveExpressionCache, ResolveScopeIndexCache,
@@ -23,10 +26,21 @@ struct ResolveState<'a> {
     space_order: SymbolSpaceOrder,
     /// The active symbol table.
     symbols: &'a SymbolTable,
+    /// FUGU #Cleanup #Architecture: slice 3 must delete this bridge once resolve builds from artifact-backed transient builders instead of module-owned mutable DIR state
+    active_tree: Option<&'a NodeTree>,
 }
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return true when one module should receive implicit prelude lookup.
+    fn module_uses_prelude(&self, module: &Module) -> bool {
+        match module.source {
+            ModuleSource::User => true,
+            ModuleSource::Builtin(BuiltinLibKind::Std | BuiltinLibKind::Lib) => true,
+            ModuleSource::Builtin(BuiltinLibKind::Core) => false,
+        }
+    }
+
     fn allow_runtime_namespace_member_fallback(
         &self,
         module: &Module,
@@ -283,6 +297,7 @@ impl Compiler {
             node,
             space_order,
             symbols,
+            active_tree: None,
         };
 
         self.resolve_absolute_symbol_from_state(pass, scope, key, scope_cache)
@@ -381,7 +396,7 @@ impl Compiler {
         tree: &mut NodeTree,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<Expression>> {
-        if !self.module_is_ambient_lib(pass.module) {
+        if !self.is_selected_lib_module(pass.profile_id, pass.module.id) {
             return Ok(None);
         }
 
@@ -391,7 +406,10 @@ impl Compiler {
                 && let Some(owner_id) = scope.1.owner_id
             {
                 match self.resolve_relative_symbol_with_ambient_merge_from_state(
-                    pass,
+                    ResolveState {
+                        active_tree: Some(&*tree),
+                        ..pass
+                    },
                     owner_id,
                     path,
                     scope_cache.as_deref_mut(),
@@ -458,6 +476,117 @@ impl Compiler {
         Ok(None)
     }
 
+    /// Resolve selected lib merge sources for one symbol key and space order.
+    fn resolve_selected_lib_symbol_sources_for_space_order(
+        &self,
+        pass: ResolveState<'_>,
+        profile_id: ProfileId,
+        key: StaticKey,
+        order: SymbolSpaceOrder,
+    ) -> ResolveResult<Option<Vec<GlobalSymbolId>>> {
+        if let Some(sources) = self.get_lib_symbol_sources_for_space_order(profile_id, key, order) {
+            return Ok(Some(sources));
+        }
+
+        let selected_lib_modules = self.selected_lib_modules(profile_id);
+        if selected_lib_modules.is_empty() {
+            return Ok(None);
+        }
+
+        // collect direct merge sources from selected lib modules
+        let mut sources = Vec::new();
+        let mut seen = HashSet::new();
+
+        for module_id in selected_lib_modules {
+            if module_id != pass.module.id {
+                self.require_dir_prepared_if_other(pass.module.id, module_id, profile_id)?;
+            }
+
+            let selected_module = self.program.modules.get(module_id);
+            let selected_module = selected_module.read();
+            let selected_dir = selected_module.dir(profile_id);
+            let exports = selected_dir.exported_symbols.read();
+
+            // reuse the active module tree and symbols when resolve already holds them
+            let selected_symbols =
+                (module_id != pass.module.id).then(|| selected_dir.symbols.read());
+            let selected_tree = (module_id != pass.module.id).then(|| selected_dir.tree.read());
+            let symbols = selected_symbols.as_deref().unwrap_or(pass.symbols);
+            let tree = selected_tree
+                .as_deref()
+                .or(pass.active_tree)
+                .expect("selected lib resolve requires active tree for current module");
+
+            // scope declarations
+            if let StaticKey::Name(_) = key {
+                let namespace_scope = symbols.get_scope_by_id(selected_dir.namespace_scope);
+                for (candidate_key, symbol_id) in symbols.active_named_symbols(namespace_scope) {
+                    if candidate_key != key {
+                        continue;
+                    }
+
+                    let symbol = symbols.get_symbol(symbol_id);
+                    if !self.symbol_matches_space_order(symbol.space, order) {
+                        continue;
+                    }
+
+                    let candidate = symbol_id.into_global(module_id);
+                    if seen.insert(candidate) {
+                        sources.push(candidate);
+                    }
+                }
+
+                let global_scope = symbols.get_scope_by_id(selected_dir.global_augmentation_scope);
+                for (candidate_key, symbol_id) in symbols.active_named_symbols(global_scope) {
+                    if candidate_key != key {
+                        continue;
+                    }
+
+                    let symbol = symbols.get_symbol(symbol_id);
+                    if !self.symbol_matches_space_order(symbol.space, order) {
+                        continue;
+                    }
+
+                    let candidate = symbol_id.into_global(module_id);
+                    if seen.insert(candidate) {
+                        sources.push(candidate);
+                    }
+                }
+            }
+
+            // exported symbols
+            for space in order.spaces() {
+                let export_order = match space {
+                    SymbolSpace::Type => SymbolSpaceOrder::TypeOnly,
+                    SymbolSpace::Value => SymbolSpaceOrder::ValueOnly,
+                    SymbolSpace::TypeValue => continue,
+                    SymbolSpace::Label => continue,
+                };
+
+                let Some(candidate) = self.resolve_exported_symbol(
+                    &selected_module,
+                    profile_id,
+                    &exports,
+                    &tree,
+                    export_order,
+                    key,
+                ) else {
+                    continue;
+                };
+
+                if seen.insert(candidate) {
+                    sources.push(candidate);
+                }
+            }
+        }
+
+        if sources.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(sources))
+        }
+    }
+
     /// Resolve a symbol from the prelude by name.
     pub(crate) fn resolve_prelude_symbol(
         &self,
@@ -475,8 +604,14 @@ impl Compiler {
         };
         let prelude_module_id = builtins.prelude_module_id;
 
-        // ensure the prelude module has been resolved (may yield)
-        self.require_resolve_module(prelude_module_id, profile)?;
+        // builtin environment is the primary source of implicit language item symbols
+        self.require_language_environment(profile)?;
+        if let Some(symbol_id) = self.get_builtin_symbol(profile, name) {
+            return Ok(Some(symbol_id));
+        }
+
+        // prelude symbols can come from reexports, so require resolved exports
+        self.require_dir_resolved(prelude_module_id, profile)?;
 
         // get the prelude module
         let prelude_module = self.program.modules.get(prelude_module_id);
@@ -542,6 +677,7 @@ impl Compiler {
                 node: pass.node,
                 space_order: pass.space_order,
                 symbols: &prelude_symbols,
+                active_tree: None,
             };
             match self.resolve_relative_symbol_with_ambient_merge_from_state(
                 prelude_pass,
@@ -606,22 +742,18 @@ impl Compiler {
         tree: &mut NodeTree,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<Expression>> {
-        let Some(builtins) = self.program.builtins.as_ref() else {
+        let selected_lib_modules = self.selected_lib_modules(pass.profile_id);
+        if selected_lib_modules.is_empty() {
             return Ok(None);
-        };
-        let profile = self.program.profile(pass.profile_id);
-        let profile_key = &profile.key;
-        let Some(ambient_modules) = builtins.ambient_libs(profile_key) else {
-            return Ok(None);
-        };
+        }
         let first_segment = path.first_segment().expect("path is empty");
         let key = StaticKey::Name(first_segment);
 
         // prefer cached declared lib symbols when available
         if let Some(symbol_id) =
-            builtins.get_declared_lib_symbol_from(profile_key, first_segment, pass.space_order)
+            self.get_declared_lib_symbol_from(pass.profile_id, first_segment, pass.space_order)
         {
-            self.require_resolve_module_prepare_if_needed(
+            self.require_dir_prepared_if_other(
                 pass.module.id,
                 symbol_id.module_id,
                 pass.profile_id,
@@ -652,6 +784,7 @@ impl Compiler {
                         node: pass.node,
                         space_order: pass.space_order,
                         symbols: &symbols,
+                        active_tree: None,
                     };
                     match self.resolve_relative_symbol_with_ambient_merge_from_state(
                         ambient_pass,
@@ -704,19 +837,15 @@ impl Compiler {
             }
         }
 
-        // search ambient lib namespace scopes in order
-        for module_id in ambient_modules {
+        // search selected lib namespace scopes in order
+        for module_id in selected_lib_modules {
             // skip self
             if module_id == pass.module.id {
                 continue;
             }
 
             // read the ambient module's symbols
-            self.require_resolve_module_prepare_if_needed(
-                pass.module.id,
-                module_id,
-                pass.profile_id,
-            )?;
+            self.require_dir_prepared_if_other(pass.module.id, module_id, pass.profile_id)?;
             let ambient_module = self.program.modules.get(module_id);
             let ambient_module = ambient_module.read();
             let ambient_dir = ambient_module.dir(pass.profile_id);
@@ -727,15 +856,16 @@ impl Compiler {
                 node: pass.node,
                 space_order: pass.space_order,
                 symbols: &symbols,
+                active_tree: None,
             };
 
-            // find symbol in ambient lib global augmentation scope
-            let global_scope = symbols.get_scope_by_id(ambient_dir.global_augmentation_scope);
+            // find symbol in the ambient module namespace scope first
+            let namespace_scope = symbols.get_scope_by_id(ambient_dir.namespace_scope);
             let symbol_id = self.resolve_absolute_symbol_from_state(
                 ambient_pass,
                 (
-                    ambient_dir.global_augmentation_scope,
-                    global_scope,
+                    ambient_dir.namespace_scope,
+                    namespace_scope,
                     LocalScopeMark::end(),
                 ),
                 key,
@@ -743,7 +873,26 @@ impl Compiler {
             );
             let symbol_id = match symbol_id {
                 Ok(symbol_id) => symbol_id,
-                Err(_) => continue,
+                Err(ResolveError::MissingSymbol { .. }) => {
+                    // otherwise fall back to ambient global augmentation scope
+                    let global_scope =
+                        symbols.get_scope_by_id(ambient_dir.global_augmentation_scope);
+                    match self.resolve_absolute_symbol_from_state(
+                        ambient_pass,
+                        (
+                            ambient_dir.global_augmentation_scope,
+                            global_scope,
+                            LocalScopeMark::end(),
+                        ),
+                        key,
+                        scope_cache.as_deref_mut(),
+                    ) {
+                        Ok(symbol_id) => symbol_id,
+                        Err(ResolveError::MissingSymbol { .. }) => continue,
+                        Err(error) => return Err(error),
+                    }
+                }
+                Err(error) => return Err(error),
             };
 
             // single-segment path: just return the GlobalReference
@@ -813,6 +962,84 @@ impl Compiler {
         Ok(None)
     }
 
+    /// Resolve one top-level symbol from the selected lib modules for a profile.
+    pub(crate) fn resolve_selected_lib_symbol(
+        &self,
+        module: &Module,
+        profile_id: ProfileId,
+        node: GlobalNodeIdAny,
+        key: StaticKey,
+        space_order: SymbolSpaceOrder,
+        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
+    ) -> ResolveResult<Option<GlobalSymbolId>> {
+        let selected_lib_modules = self.selected_lib_modules(profile_id);
+
+        for module_id in selected_lib_modules {
+            if module_id == module.id {
+                continue;
+            }
+
+            // read the selected lib module symbols
+            self.require_dir_prepared_if_other(module.id, module_id, profile_id)?;
+            let selected_module = self.program.modules.get(module_id);
+            let selected_module = selected_module.read();
+            let selected_dir = selected_module.dir(profile_id);
+            let symbols = selected_dir.symbols.read();
+            let selected_pass = ResolveState {
+                module: &selected_module,
+                profile_id,
+                node,
+                space_order,
+                symbols: &symbols,
+                active_tree: None,
+            };
+
+            // prefer the selected lib module namespace scope
+            let namespace_scope = symbols.get_scope_by_id(selected_dir.namespace_scope);
+            let symbol_id = self.resolve_absolute_symbol_from_state(
+                selected_pass,
+                (
+                    selected_dir.namespace_scope,
+                    namespace_scope,
+                    LocalScopeMark::end(),
+                ),
+                key,
+                scope_cache.as_deref_mut(),
+            );
+
+            match symbol_id {
+                Ok(symbol_id) => {
+                    return Ok(Some(symbol_id.into_global(module_id)));
+                }
+                Err(ResolveError::MissingSymbol { .. }) => {}
+                Err(error) => return Err(error),
+            }
+
+            // otherwise try the module's ambient global augmentation scope
+            let global_scope = symbols.get_scope_by_id(selected_dir.global_augmentation_scope);
+            let symbol_id = self.resolve_absolute_symbol_from_state(
+                selected_pass,
+                (
+                    selected_dir.global_augmentation_scope,
+                    global_scope,
+                    LocalScopeMark::end(),
+                ),
+                key,
+                scope_cache.as_deref_mut(),
+            );
+
+            match symbol_id {
+                Ok(symbol_id) => {
+                    return Ok(Some(symbol_id.into_global(module_id)));
+                }
+                Err(ResolveError::MissingSymbol { .. }) => {}
+                Err(error) => return Err(error),
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Resolve a relative path starting from a symbol.
     /// Returns the resolved symbol and any remaining path segments that couldn't be resolved
     /// (e.g., when hitting a non-namespace symbol with more segments to go).
@@ -833,6 +1060,7 @@ impl Compiler {
             node,
             space_order,
             symbols,
+            active_tree: None,
         };
 
         self.resolve_relative_symbol_with_ambient_merge_from_state(
@@ -866,26 +1094,28 @@ impl Compiler {
             Err(error) => return Err(error),
         };
 
-        // stop if the module is not an ambient lib module
-        if !self.module_is_ambient_lib(pass.module) {
+        // stop if the module is not in the selected lib environment
+        if !self.is_selected_lib_module(pass.profile_id, pass.module.id) {
             return Err(missing);
         }
 
-        // gather ambient merge sources for the symbol key
+        // gather selected lib merge sources for the symbol key
         let symbol_entry = pass.symbols.get_symbol(symbol_id);
         let Some(key) = symbol_entry.key else {
             return Err(missing);
         };
-        let Some(ambient_sources) = self.get_ambient_lib_symbol_sources_for_space_order(
+        let Some(lib_sources) = self.resolve_selected_lib_symbol_sources_for_space_order(
+            pass,
             pass.profile_id,
             key,
             pass.space_order,
-        ) else {
+        )?
+        else {
             return Err(missing);
         };
 
-        // search ambient sources for a matching path
-        for source_symbol in ambient_sources {
+        // search lib sources for a matching path
+        for source_symbol in lib_sources {
             // avoid re locking the same module while holding its symbols lock
             if source_symbol.module_id == pass.module.id {
                 // skip the original symbol, then try resolving within this module scope
@@ -910,7 +1140,7 @@ impl Compiler {
             }
 
             // prepare and read the source module before resolving
-            self.require_resolve_module_prepare_if_needed(
+            self.require_dir_prepared_if_other(
                 pass.module.id,
                 source_symbol.module_id,
                 pass.profile_id,
@@ -925,6 +1155,7 @@ impl Compiler {
                 node: pass.node,
                 space_order: pass.space_order,
                 symbols: &source_symbols,
+                active_tree: None,
             };
 
             // resolve using the source module symbols table
@@ -943,6 +1174,19 @@ impl Compiler {
         }
 
         Err(missing)
+    }
+
+    /// Return true when one symbol space can satisfy one order.
+    fn symbol_matches_space_order(&self, space: SymbolSpace, order: SymbolSpaceOrder) -> bool {
+        match space {
+            SymbolSpace::Type => order.spaces().contains(&SymbolSpace::Type),
+            SymbolSpace::Value => order.spaces().contains(&SymbolSpace::Value),
+            SymbolSpace::TypeValue => {
+                order.spaces().contains(&SymbolSpace::Type)
+                    || order.spaces().contains(&SymbolSpace::Value)
+            }
+            SymbolSpace::Label => false,
+        }
     }
 
     /// Resolve a relative symbol from one pass state.
@@ -1054,6 +1298,7 @@ impl Compiler {
             node,
             space_order,
             symbols,
+            active_tree: None,
         };
         let first_segment = path.first_segment().expect("path is empty in {node:?}");
         let first_segment_str = self.program.strings.get(first_segment);
@@ -1290,14 +1535,8 @@ impl Compiler {
             return Ok(expr);
         }
 
-        // avoid prelude lookup inside the prelude module itself
-        let is_prelude_module = self
-            .program
-            .builtins
-            .as_ref()
-            .is_some_and(|builtins| builtins.prelude_module_id == module.id);
-
-        if !is_prelude_module
+        // prelude injection applies to modules that consume the builtin environment
+        if self.module_uses_prelude(module)
             && let Some(prelude_symbol) = self.resolve_prelude_symbol(first_segment, profile)?
         {
             // canonicalize prelude symbols to avoid alias identity mismatches
@@ -1374,7 +1613,10 @@ impl Compiler {
         if symbol.kind == SymbolKind::Namespace {
             let remaining_path = path.slice(1..);
             match self.resolve_relative_symbol_with_ambient_merge_from_state(
-                pass,
+                ResolveState {
+                    active_tree: Some(&*tree),
+                    ..pass
+                },
                 local_id,
                 &remaining_path,
                 scope_cache,

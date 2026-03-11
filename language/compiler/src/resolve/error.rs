@@ -1,5 +1,5 @@
 use crate::{
-    DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
     TaskSkipReason,
 };
 use destack_builtin::LanguageSymbol;
@@ -13,15 +13,15 @@ use destack_workspace::{Program, TargetId};
 #[phase(Resolve)]
 pub enum ResolveError {
     // -------------------------------------------------------------------------
-    // 0xx: Yield / dependency
+    // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Wait for task dependency.
+    /// Wait for build requirement.
     #[error(code = "ER000", r#yield)]
-    Yield { dependency: TaskDependency },
+    Yield { requirement: BuildRequirementSet },
 
-    /// Yield dependency has failed.
+    /// Yield requirement has failed.
     #[error(code = "ER001", yield_failed)]
-    UnsatisfiedDependency { dependency: TaskDependency },
+    UnsatisfiedRequirement { requirement: BuildRequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "ER002", message = "task skipped")]

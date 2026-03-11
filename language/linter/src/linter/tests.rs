@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Once};
 
 use destack_ast::NodeParentIndex;
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportTask, ResolveTask};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions};
 use destack_fir::format as fir_format;
 use destack_formatter::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
@@ -16,8 +16,8 @@ use destack_source::{
     print_diagnostics, print_diff,
 };
 use destack_workspace::{
-    EnvSnapshot, LintCategory, LintSeverity, LinterOptions, MemoryCacheStore, OutputFormat,
-    Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime, Session,
+    ArtifactKey, EnvSnapshot, LintCategory, LintSeverity, LinterOptions, MemoryCacheStore,
+    OutputFormat, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime, Session,
 };
 use parking_lot::Mutex;
 
@@ -247,58 +247,31 @@ impl TestProgram {
 
     /// Import a module.
     pub(crate) fn import_module(&self, module: ModuleId) {
-        let module_stamp =
-            ModuleStamp::new(module, self.program.modules.get(module).read().version);
-        self.compiler.enqueue(ImportTask::ImportModule {
-            module: module_stamp,
-        });
+        self.compiler
+            .enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirBase { module }));
     }
 
     /// Resolve a module.
     pub(crate) fn resolve_module(&self, module: ModuleId) {
-        let module_stamp =
-            ModuleStamp::new(module, self.program.modules.get(module).read().version);
-        let profile_version = self
-            .program
-            .profiles
-            .get(self.profile_id)
-            .unwrap_or_else(|| panic!("missing profile data for {:?}", self.profile_id))
-            .version;
-        let profile_stamp = ProfileStamp::new(self.profile_id, profile_version);
-        let graph_stamp = self.compiler.module_graph_stamp(self.profile_id);
-        self.compiler.enqueue(ResolveTask::ResolveModuleCanonical {
-            module: module_stamp,
-            profile: profile_stamp,
-            graph: graph_stamp,
-        });
+        self.compiler
+            .enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirResolved {
+                module,
+                profile: self.profile_id,
+            }));
     }
 
-    /// Resolve builtin language items for the current profile.
-    pub(crate) fn resolve_builtins(&self) {
-        let profile_version = self
-            .program
-            .profiles
-            .get(self.profile_id)
-            .unwrap_or_else(|| panic!("missing profile data for {:?}", self.profile_id))
-            .version;
-        let profile_stamp = ProfileStamp::new(self.profile_id, profile_version);
-        self.compiler.enqueue(ResolveTask::ResolveBuiltins {
-            profile: profile_stamp,
-        });
+    /// Resolve the language environment for the current profile.
+    pub(crate) fn resolve_language_environment(&self) {
+        self.compiler
+            .drive(|compiler| compiler.require_language_environment(self.profile_id))
+            .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
     }
 
     /// Resolve builtin libs for the current profile.
     pub(crate) fn resolve_libs(&self) {
-        let profile_version = self
-            .program
-            .profiles
-            .get(self.profile_id)
-            .unwrap_or_else(|| panic!("missing profile data for {:?}", self.profile_id))
-            .version;
-        let profile_stamp = ProfileStamp::new(self.profile_id, profile_version);
-        self.compiler.enqueue(ResolveTask::ResolveLibs {
-            profile: profile_stamp,
-        });
+        self.compiler
+            .drive(|compiler| compiler.require_lib_environment(self.profile_id))
+            .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
     }
 
     /// Enqueue builtin and lib resolution once for this test program.
@@ -310,25 +283,17 @@ impl TestProgram {
             return;
         }
 
-        self.resolve_builtins();
+        self.resolve_language_environment();
         self.resolve_libs();
     }
 
     /// Analyze a module.
     pub(crate) fn analyze_module(&self, module: ModuleId) {
-        let module_stamp =
-            ModuleStamp::new(module, self.program.modules.get(module).read().version);
-        let profile_version = self
-            .program
-            .profiles
-            .get(self.profile_id)
-            .unwrap_or_else(|| panic!("missing profile data for {:?}", self.profile_id))
-            .version;
-        let profile_stamp = ProfileStamp::new(self.profile_id, profile_version);
-        self.compiler.enqueue(AnalyzeTask::AnalyzeModule {
-            module: module_stamp,
-            profile: profile_stamp,
-        });
+        self.compiler
+            .enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+                module,
+                profile: self.profile_id,
+            }));
     }
 
     /// Run all queued tasks.

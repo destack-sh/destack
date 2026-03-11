@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, ModuleTypeView, SymbolTypeView,
+    CanonicalSymbolMode, DirReadBoundary, ModuleTypeView, SymbolTypeView,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
-use destack_dir::{Extension, ExtensionKind, GlobalSymbolId, Lineage, SymbolType};
+use destack_dir::{Extension, ExtensionKind, GlobalSymbolId, Lineage, ModuleTarget, SymbolType};
 use destack_workspace::{ModuleSource, ProfileId};
 
 impl Compiler {
@@ -41,14 +41,48 @@ impl Compiler {
             }
         }
 
+        // include local extensions from directly imported modules
+        let mut imported_module_ids = HashSet::new();
+        for resolution in ctx.module.dir(ctx.profile).imported_modules.read().values() {
+            for target in [resolution.value, resolution.ty] {
+                let Some(ModuleTarget::Module(module_id)) = target else {
+                    continue;
+                };
+                imported_module_ids.insert(module_id);
+            }
+        }
+        for imported_module_id in imported_module_ids {
+            self.with_module_types_by_id_at_boundary(
+                ctx.profile,
+                imported_module_id,
+                DirReadBoundary::Declared,
+                |_, imported_types| {
+                    if let Some(extension_ids) =
+                        imported_types.get_extensions_for_target(declaration_target)
+                    {
+                        for extension_id in extension_ids {
+                            let extension = imported_types.get_extension(*extension_id);
+                            if extension.kind != ExtensionKind::Local {
+                                continue;
+                            }
+                            if seen.insert(extension.symbol) {
+                                extensions.push(extension.symbol);
+                            }
+                        }
+                    }
+                },
+            )
+            .map_err(AnalyzeError::from)?;
+        }
+
         // include inherent extensions from the target module
         let mut include_inherent_extensions = |target_symbol: GlobalSymbolId| -> AnalyzeResult<()> {
-            self.with_module_types_or_local_at_stage(
+            self.with_module_types_or_local_at_boundary(
                 ctx.module,
                 ctx.profile,
                 target_symbol.module_id,
                 ctx.types,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |_, target_types| {
                     if let Some(extension_ids) =
                         target_types.get_extensions_for_target(target_symbol)
@@ -74,12 +108,12 @@ impl Compiler {
 
         // include inherent extensions for global symbol groups
         let (should_scan_global_group, target_key, target_space) = self
-            .with_module_symbols_or_local_at_stage(
+            .with_module_symbols_or_local_at_boundary(
                 ctx.module,
                 ctx.profile,
                 declaration_target.module_id,
                 ctx.symbols,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |target_module, target_symbols| {
                     let symbol_entry = target_symbols.get_symbol(declaration_target.local_id);
                     let should_scan_global_group = if declaration_target.module_id == ctx.module.id
@@ -98,12 +132,24 @@ impl Compiler {
             )
             .map_err(AnalyzeError::from)?;
 
-        if should_scan_global_group
-            && let Some(key) = target_key
-            && let Some(global_symbols) =
+        if should_scan_global_group && let Some(key) = target_key {
+            let mut merge_symbols = Vec::new();
+
+            // target-discovery globals
+            if let Some(global_symbols) =
                 self.get_global_symbol_group(ctx.module.id, ctx.profile, key, target_space)
-        {
-            for global_symbol in global_symbols {
+            {
+                merge_symbols.extend(global_symbols);
+            }
+
+            // selected lib globals
+            if let Some(lib_symbols) =
+                self.get_lib_symbol_sources_for_merge(ctx.profile, key, target_space)
+            {
+                merge_symbols.extend(lib_symbols);
+            }
+
+            for global_symbol in merge_symbols {
                 let global_symbol = self.canonical_symbol_id(
                     ctx.module_symbol_view(),
                     global_symbol,
@@ -163,10 +209,10 @@ impl Compiler {
         profile: ProfileId,
         extension_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<Extension>> {
-        self.with_module_types_by_id_at_stage(
+        self.with_module_types_by_id_at_boundary(
             profile,
             extension_symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |_, types| {
                 let extension_id = types.get_extension_id_for_symbol(extension_symbol)?;
 
@@ -209,10 +255,10 @@ impl Compiler {
             return Ok(Some(ctx.types.get_lineage(lineage_id).clone()));
         }
 
-        self.with_module_types_by_id_at_stage(
+        self.with_module_types_by_id_at_boundary(
             ctx.profile,
             extension_symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |_, owner_types| Some(owner_types.get_lineage(lineage_id).clone()),
         )
         .map_err(AnalyzeError::from)

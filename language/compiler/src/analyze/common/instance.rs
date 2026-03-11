@@ -327,7 +327,7 @@ impl Compiler {
     }
 
     /// Normalize static arguments for canonical instance-key usage.
-    fn canonicalize_instance_arguments_for_key(
+    pub(crate) fn canonicalize_instance_arguments_for_key(
         &self,
         static_arguments: Vec<StaticArgument>,
     ) -> Vec<StaticArgument> {

@@ -23,6 +23,7 @@ destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_formatter = { workspace = true }
 destack_json = { workspace = true }
+destack_linter = { workspace = true }
 destack_query = { workspace = true }
 destack_source = { workspace = true }
 destack_resolver = { workspace = true }

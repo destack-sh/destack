@@ -1,18 +1,21 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, StaticArgument,
-    StaticParameterKind, Symbol, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement,
-    TypeField, TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, NormalizationMode,
+    StaticArgument, StaticParameterKind, Symbol, SymbolSpace, SymbolTable, SymbolType, Type,
+    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator,
+    WellKnownSymbol,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 use super::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, ModuleSymbolView, RelationMode, TypeContext,
+    CanonicalSymbolMode, DirReadBoundary, ModuleSymbolView, RelationMode, TypeContext,
     TypeRewriteCache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeError, Compiler};
+
+const MAX_ALIAS_NORMALIZATION_DEPTH: usize = 128;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -22,11 +25,11 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
-        self.with_module_symbols_base_at_stage(
+        self.with_module_symbols_base_at_boundary(
             view.module,
             view.profile,
             symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |owner_module, symbols| {
                 let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
                 self.normalize_reference_symbol_id_with_symbols(
@@ -113,12 +116,12 @@ impl Compiler {
             candidates.extend(group);
         }
         if let Some(ambient) =
-            self.get_ambient_lib_symbol_sources_for_merge(view.profile, key, SymbolSpace::Type)
+            self.get_lib_symbol_sources_for_merge(view.profile, key, SymbolSpace::Type)
         {
             candidates.extend(ambient);
         }
         if let Some(ambient) =
-            self.get_ambient_lib_symbol_sources_for_merge(view.profile, key, SymbolSpace::TypeValue)
+            self.get_lib_symbol_sources_for_merge(view.profile, key, SymbolSpace::TypeValue)
         {
             candidates.extend(ambient);
         }
@@ -248,15 +251,19 @@ impl Compiler {
             );
         }
 
-        // apply substitutions and normalize the result
-        let mut cache = HashMap::new();
-        let substituted = self.substitute_static_parameters(
+        // apply canonical alias instantiation before normalization
+        let mut materialize_cache = TypeRewriteCache::new();
+        let mut substitute_cache = HashMap::new();
+        let instantiated = self.instantiate_type_with_substitutions(
+            &mut ctx.reborrow(),
+            source_id,
+            None,
             alias_target_id,
             &substitutions,
-            ctx.types,
-            &mut cache,
+            &mut materialize_cache,
+            &mut substitute_cache,
         );
-        self.normalize_type(&mut ctx.reborrow(), substituted, NormalizationMode::Assign)
+        self.normalize_type(&mut ctx.reborrow(), instantiated, NormalizationMode::Assign)
     }
 
     /// Normalize a type id with a recursion guard.
@@ -284,9 +291,23 @@ impl Compiler {
             return entry.normalized_type;
         }
 
-        // avoid infinite recursion on self referential ctx.types
+        // report alias-driven normalization cycles instead of silently
+        // preserving the recursive type
         if visited.contains(&type_id) {
             ctx.types.record_normalization_dependency(type_id);
+
+            if ctx.types.normalization_alias_in_progress_depth() > 0 {
+                let source_id = ctx.types.get_type_source(type_id);
+                let node = ctx
+                    .types
+                    .get_type_source(type_id)
+                    .into_global(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
+                self.error(AnalyzeError::RecursiveTypeInstantiation { node });
+
+                return ctx.types.insert_type_from_any(Type::Error, source_id);
+            }
+
             return type_id;
         }
 
@@ -367,37 +388,48 @@ impl Compiler {
                     }
                     // expand type aliases with static arguments
                     else if symbol.ty() == SymbolType::TypeAlias {
-                        let arguments = static_arguments.as_deref().unwrap_or(&[]);
-                        let expanded = self.normalize_type_alias_reference_with_arguments(
-                            &mut ctx.reborrow(),
-                            source_id,
+                        // keep abstract associated aliases symbolic here
+                        if self.alias_reference_is_opaque_for_normalization(
+                            ctx.module,
+                            ctx.profile,
+                            ctx.tree,
+                            ctx.symbols,
                             symbol,
-                            arguments,
-                            mode,
-                            relation_mode,
-                            visited,
-                        );
-                        if let Some(expanded) = expanded {
-                            self.normalize_type_inner(
+                        ) {
+                            type_id
+                        } else {
+                            let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                            let expanded = self.normalize_type_alias_reference_with_arguments(
                                 &mut ctx.reborrow(),
-                                expanded,
+                                source_id,
+                                symbol,
+                                arguments,
                                 mode,
                                 relation_mode,
                                 visited,
-                            )
-                        } else {
-                            let unwrapped =
-                                self.unwrap_normalization_alias_reference(type_id, ctx.types);
-                            if unwrapped != type_id {
+                            );
+                            if let Some(expanded) = expanded {
                                 self.normalize_type_inner(
                                     &mut ctx.reborrow(),
-                                    unwrapped,
+                                    expanded,
                                     mode,
                                     relation_mode,
                                     visited,
                                 )
                             } else {
-                                type_id
+                                let unwrapped =
+                                    self.unwrap_normalization_alias_reference(type_id, ctx.types);
+                                if unwrapped != type_id {
+                                    self.normalize_type_inner(
+                                        &mut ctx.reborrow(),
+                                        unwrapped,
+                                        mode,
+                                        relation_mode,
+                                        visited,
+                                    )
+                                } else {
+                                    type_id
+                                }
                             }
                         }
                     } else {
@@ -1050,13 +1082,25 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         // normalize reference symbols to their declared type
         let symbol = self.normalize_reference_symbol_id(ctx.module_symbol_view(), symbol);
+        let arguments = self.canonicalize_instance_arguments_for_key(arguments.to_vec());
+
+        // keep abstract associated aliases symbolic here
+        if self.alias_reference_is_opaque_for_normalization(
+            ctx.module,
+            ctx.profile,
+            ctx.tree,
+            ctx.symbols,
+            symbol,
+        ) {
+            return None;
+        }
 
         // return cached normalization results when available
         let relation_key = relation_mode.cache_key();
         if relation_mode.is_cacheable()
             && let Some(entry) =
                 ctx.types
-                    .get_normalized_alias_reference(symbol, mode, relation_key, arguments)
+                    .get_normalized_alias_reference(symbol, mode, relation_key, &arguments)
         {
             for (dependency_id, _) in &entry.dependency_versions.type_versions {
                 ctx.types.record_normalization_dependency(*dependency_id);
@@ -1069,20 +1113,10 @@ impl Compiler {
         }
 
         // report recursion when already resolving the same alias
-        if ctx.types.is_normalization_alias_in_progress(symbol) {
-            let alias_target_id =
-                self.alias_target_type_id_for_symbol(&mut ctx.reborrow(), symbol, source_id);
-            alias_target_id?;
-            let is_direct_self_reference = alias_target_id.is_some_and(|alias_target_id| {
-                matches!(
-                    ctx.types.get_type(alias_target_id),
-                    Type::Reference { symbol: target_symbol, .. } if *target_symbol == symbol
-                )
-            });
-            if is_direct_self_reference {
-                return None;
-            }
-
+        if ctx
+            .types
+            .is_normalization_alias_in_progress(symbol, mode, relation_key, &arguments)
+        {
             let node = source_id
                 .into_global(ctx.module.id)
                 .into_anchored(Some(ctx.profile));
@@ -1090,13 +1124,29 @@ impl Compiler {
             let error_id = ctx.types.insert_type_from_any(Type::Error, source_id);
             return Some(error_id);
         }
-        ctx.types.mark_normalization_alias_in_progress(symbol);
+
+        // stop non-converging alias expansion before it blows the stack
+        if ctx.types.normalization_alias_in_progress_depth() >= MAX_ALIAS_NORMALIZATION_DEPTH {
+            let node = source_id
+                .into_global(ctx.module.id)
+                .into_anchored(Some(ctx.profile));
+            self.error(AnalyzeError::RecursiveTypeInstantiation { node });
+            let error_id = ctx.types.insert_type_from_any(Type::Error, source_id);
+            return Some(error_id);
+        }
+
+        ctx.types.mark_normalization_alias_in_progress(
+            symbol,
+            mode,
+            relation_key,
+            arguments.clone(),
+        );
         ctx.types.push_normalization_dependency_scope();
 
         let normalized = {
             // ensure remote declarations are ready before reading instance types
             if symbol.module_id != ctx.module.id {
-                let _ = self.require_analyze_module_declare(symbol.module_id, ctx.profile);
+                let _ = self.require_dir_declared(symbol.module_id, ctx.profile);
             }
 
             // resolve the instance type, including alias targets and remote imports
@@ -1110,12 +1160,17 @@ impl Compiler {
                 instance_type_id,
             );
 
+            // stop when the alias target already failed
+            if ctx.types.get_type(materialized_instance).is_error() {
+                return Some(materialized_instance);
+            }
+
             // select the static arguments to substitute
             let resolved_arguments = self.resolved_static_arguments_for_normalization(
                 &mut ctx.reborrow(),
                 source_id,
                 symbol,
-                arguments,
+                &arguments,
             );
 
             if resolved_arguments.is_empty() {
@@ -1181,8 +1236,22 @@ impl Compiler {
             }
         };
 
+        let normalized = normalized.map(|normalized_id| {
+            let mut visited = HashSet::new();
+            if self.type_contains_reference_symbol(normalized_id, symbol, ctx.types, &mut visited) {
+                let node = source_id
+                    .into_global(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
+                self.error(AnalyzeError::RecursiveTypeInstantiation { node });
+                return ctx.types.insert_type_from_any(Type::Error, source_id);
+            }
+
+            normalized_id
+        });
+
         let dependencies = ctx.types.pop_normalization_dependency_scope();
-        ctx.types.clear_normalization_alias_in_progress(symbol);
+        ctx.types
+            .clear_normalization_alias_in_progress(symbol, mode, relation_key, &arguments);
         if let Some(normalized_id) = normalized
             && relation_mode.is_cacheable()
         {
@@ -1191,7 +1260,7 @@ impl Compiler {
                 symbol,
                 mode,
                 relation_key,
-                arguments.to_vec(),
+                arguments,
                 normalized_id,
                 dependency_versions,
             );
@@ -1276,11 +1345,11 @@ impl Compiler {
                     {
                         self.error(error);
                     }
-                } else if let Err(error) = self.with_module_tree_symbol_view_at_stage(
+                } else if let Err(error) = self.with_module_tree_symbol_view_at_boundary(
                     ctx.module,
                     ctx.profile,
                     symbol.module_id,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |view| {
                         let options = self.analyze_context_options_for_module(view.module.id);
                         let mut ctx = ctx.reborrow_for_module_with_options(
@@ -1303,8 +1372,50 @@ impl Compiler {
             return Some(alias_target_id);
         }
 
-        // resolve the apparent instance type through the normal require gate
-        self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
+        // keep abstract aliases opaque here
+        None
+    }
+
+    /// Resolve the static arguments used for alias normalization.
+    fn alias_reference_is_opaque_for_normalization(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        symbol: GlobalSymbolId,
+    ) -> bool {
+        self.with_module_tree_symbol_view_or_local_at_boundary(
+            module,
+            profile,
+            symbol.module_id,
+            tree,
+            symbols,
+            DirReadBoundary::Declared,
+            |view| {
+                let symbol_entry = view.symbols.get_symbol(symbol.local_id);
+
+                // only associated type members can be abstract alias placeholders
+                if symbol_entry.ty != SymbolType::TypeAlias {
+                    return false;
+                }
+
+                let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                    return false;
+                };
+                if primary_declaration.local_id.ty != NodeType::Member {
+                    return false;
+                }
+
+                let member_id = primary_declaration.local_id.into_typed::<Member>();
+                let Member::Type { value, .. } = view.tree.get(member_id) else {
+                    return false;
+                };
+
+                value.is_none()
+            },
+        )
+        .unwrap_or(false)
     }
 
     /// Resolve the static arguments used for alias normalization.
@@ -1390,11 +1501,11 @@ impl Compiler {
                 &mut materialize_cache,
             )
         } else {
-            self.with_module_tree_symbol_view_at_stage(
+            self.with_module_tree_symbol_view_at_boundary(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |view| {
                     let options = self.analyze_context_options_for_module(view.module.id);
                     let mut ctx = ctx.reborrow_for_module_with_options(

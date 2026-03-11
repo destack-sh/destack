@@ -7,10 +7,6 @@ use destack_builtin::{
     BuiltinLibKind, BuiltinLibSource, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime,
     CORE_SOURCES, LanguageSymbol, PRELUDE_SOURCE, builtin_lib,
 };
-use destack_core::{StringId, StringPool};
-use destack_dir::{
-    GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol, WellKnownSymbolKey,
-};
 use destack_source::{
     File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri,
 };
@@ -18,80 +14,9 @@ use indexmap::IndexMap;
 
 use crate::{
     Loader, Module, ModuleFormat, ModuleRegistry, ModuleSource, OutputFormat, Package, PackageKind,
-    PackageRegistry, Platform, ProfileId, ProfileKey, Runtime, SourceType, TargetArch, TargetEnv,
+    PackageRegistry, Platform, ProfileKey, Runtime, SourceType, TargetArch, TargetEnv,
     TargetVendor,
 };
-
-/// A symbol group containing type and value space entries.
-/// Used to track both spaces for dual-space symbols like interfaces with constructors.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct SymbolGroup {
-    /// The type-space symbol, if any.
-    pub ty: Option<GlobalSymbolId>,
-    /// The value-space symbol, if any.
-    pub value: Option<GlobalSymbolId>,
-}
-
-/// A symbol key for ambient lib sources.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct AmbientLibSymbolKey {
-    /// The symbol key.
-    pub key: StaticKey,
-    /// The symbol space.
-    pub space: SymbolSpace,
-}
-
-impl SymbolGroup {
-    /// Create a new SymbolGroup from a type symbol.
-    pub fn from_type(symbol: GlobalSymbolId) -> Self {
-        Self {
-            ty: Some(symbol),
-            value: None,
-        }
-    }
-
-    /// Create a new SymbolGroup from a value symbol.
-    pub fn from_value(symbol: GlobalSymbolId) -> Self {
-        Self {
-            ty: None,
-            value: Some(symbol),
-        }
-    }
-
-    /// Create a new SymbolGroup from a type-value symbol (stored in both).
-    pub fn from_type_value(symbol: GlobalSymbolId) -> Self {
-        Self {
-            ty: Some(symbol),
-            value: Some(symbol),
-        }
-    }
-
-    /// Check if the group is empty.
-    pub fn is_empty(&self) -> bool {
-        self.ty.is_none() && self.value.is_none()
-    }
-
-    /// Get the symbol for the given space order preference.
-    pub fn symbol_for_space_order(&self, order: SymbolSpaceOrder) -> Option<GlobalSymbolId> {
-        match order {
-            SymbolSpaceOrder::None => None,
-            SymbolSpaceOrder::TypeOnly => self.ty,
-            SymbolSpaceOrder::ValueOnly => self.value,
-            SymbolSpaceOrder::TypeThenValue => self.ty.or(self.value),
-            SymbolSpaceOrder::ValueThenType => self.value.or(self.ty),
-        }
-    }
-
-    /// Merge another group into this one, overwriting None values.
-    pub fn merge(&mut self, other: SymbolGroup) {
-        if other.ty.is_some() {
-            self.ty = other.ty;
-        }
-        if other.value.is_some() {
-            self.value = other.value;
-        }
-    }
-}
 
 /// Resolve a file type for a builtin source name.
 fn file_type_for_builtin_name(name: &str) -> FileType {
@@ -103,17 +28,6 @@ pub const BUILTIN_PACKAGE_ID: PackageId = PackageId(1);
 
 /// Well-known package name for builtins.
 pub const BUILTIN_PACKAGE_NAME: &str = "@destack/builtin";
-
-/// Well-known symbol key metadata.
-#[derive(Debug, Clone, Copy)]
-pub struct WellKnownKey {
-    /// The base symbol for the key.
-    pub symbol: GlobalSymbolId,
-    /// The member name on the base symbol.
-    pub member: StringId,
-    /// The full global key name (like "Symbol.iterator").
-    pub global_name: StringId,
-}
 
 /// Key for builtin lib and symbol data.
 /// This intentionally excludes profile diagnostic flags so runtime policy variants
@@ -151,133 +65,17 @@ impl BuiltinLibKey {
     }
 }
 
-/// Resolved compiler-known symbols for a profile.
-#[derive(Debug, Clone)]
-pub struct WellKnownSymbols {
-    /// Top-level builtin symbols by well-known id.
-    pub symbols: IndexMap<WellKnownSymbol, SymbolGroup>,
-    /// Well-known symbol keys by id.
-    pub keys: IndexMap<WellKnownSymbolKey, WellKnownKey>,
-}
-
-impl WellKnownSymbols {
-    /// Build the well-known symbol map from resolved lib symbols.
-    pub fn build(strings: &StringPool, lib_symbols: &IndexMap<StringId, SymbolGroup>) -> Self {
-        let mut symbols = IndexMap::new();
-        let mut keys = IndexMap::new();
-
-        for item in WellKnownSymbol::all() {
-            let name_id = strings.intern(item.export_name());
-            let Some(group) = lib_symbols.get(&name_id).copied() else {
-                continue;
-            };
-            if group.is_empty() {
-                continue;
-            }
-            symbols.insert(item, group);
-        }
-
-        // for well-known keys, use the value symbol as the base (for member access)
-        for item in WellKnownSymbolKey::all() {
-            let base_symbol = item.base_symbol();
-            let Some(group) = symbols.get(&base_symbol) else {
-                continue;
-            };
-            let Some(base_symbol_id) = group.value.or(group.ty) else {
-                continue;
-            };
-            let member_id = strings.intern(item.member_name());
-            let global_name_id = strings.intern(item.global_symbol_name());
-            keys.insert(
-                item,
-                WellKnownKey {
-                    symbol: base_symbol_id,
-                    member: member_id,
-                    global_name: global_name_id,
-                },
-            );
-        }
-
-        Self { symbols, keys }
-    }
-
-    /// Get the symbol group for a well-known symbol.
-    pub fn get_group(&self, item: WellKnownSymbol) -> Option<SymbolGroup> {
-        self.symbols.get(&item).copied()
-    }
-
-    /// Get the value-space well-known symbol by id (for backwards compatibility).
-    pub fn get_symbol(&self, item: WellKnownSymbol) -> Option<GlobalSymbolId> {
-        self.symbols
-            .get(&item)
-            .and_then(|group| group.value.or(group.ty))
-    }
-
-    /// Get the type-space well-known symbol by id.
-    pub fn get_type_symbol(&self, item: WellKnownSymbol) -> Option<GlobalSymbolId> {
-        self.symbols
-            .get(&item)
-            .and_then(|group| group.ty.or(group.value))
-    }
-
-    /// Get the value-space well-known symbol by id.
-    pub fn get_value_symbol(&self, item: WellKnownSymbol) -> Option<GlobalSymbolId> {
-        self.symbols.get(&item).and_then(|group| group.value)
-    }
-
-    /// Get a well-known key by id.
-    pub fn get_key(&self, item: WellKnownSymbolKey) -> Option<&WellKnownKey> {
-        self.keys.get(&item)
-    }
-
-    /// Resolve a well-known key id for a base symbol and member name.
-    pub fn symbol_key_for_member(
-        &self,
-        symbol: GlobalSymbolId,
-        member: StringId,
-    ) -> Option<WellKnownSymbolKey> {
-        self.keys.iter().find_map(|(key_id, key)| {
-            if key.symbol == symbol && key.member == member {
-                return Some(*key_id);
-            }
-            None
-        })
-    }
-}
-
-/// Resolved compiler-known intrinsic bindings for a profile.
-#[derive(Debug, Clone)]
-pub struct WellKnownIntrinsics {
-    /// Intrinsic names keyed by symbol id.
-    pub names_by_symbol: IndexMap<GlobalSymbolId, StringId>,
-    /// Intrinsic symbols keyed by name.
-    pub symbols_by_name: IndexMap<StringId, GlobalSymbolId>,
-}
-
-impl WellKnownIntrinsics {
-    /// Create an empty well-known intrinsic map.
-    pub fn new() -> Self {
-        Self {
-            names_by_symbol: IndexMap::new(),
-            symbols_by_name: IndexMap::new(),
-        }
-    }
-
-    /// Resolve an intrinsic name for a symbol.
-    pub fn name_for_symbol(&self, symbol: GlobalSymbolId) -> Option<StringId> {
-        self.names_by_symbol.get(&symbol).copied()
-    }
-
-    /// Resolve a symbol for an intrinsic name.
-    pub fn symbol_for_name(&self, name: StringId) -> Option<GlobalSymbolId> {
-        self.symbols_by_name.get(&name).copied()
-    }
-}
-
-impl Default for WellKnownIntrinsics {
-    fn default() -> Self {
-        Self::new()
-    }
+/// Input-side builtin lib selection for one profile key.
+#[derive(Debug, Clone, Default)]
+pub struct BuiltinLibSelection {
+    /// Builtin libs in dependency order.
+    pub ordered_libs: Vec<String>,
+    /// Module batches in lib dependency order.
+    pub modules_to_resolve: Vec<Vec<ModuleId>>,
+    /// All selected lib modules in load order without duplicates.
+    pub lib_modules: Vec<ModuleId>,
+    /// Ambient lib modules in load order without duplicates.
+    pub ambient_modules: Vec<ModuleId>,
 }
 
 /// Language and library builtins.
@@ -294,29 +92,14 @@ pub struct Builtins {
 
     /// Lib modules cache ((profile, "dom") -> modules).
     lib_module_by_name: DashMap<(BuiltinLibKey, String), Vec<ModuleId>>,
+    /// Selected builtin lib modules for one profile key.
+    lib_selection_by_key: DashMap<BuiltinLibKey, BuiltinLibSelection>,
     /// Lib load markers by name.
-    /// #Cleanup: can we do better than lib load markers in Builtins?
-    /// (It's a little annoying fishy, but we have to protect against concurrent re-entrant loads.)
+    /// FUGU #Architecture: slice 3 should replace builtin-side load coordination
+    ///  with a cleaner input selection boundary instead of ad hoc re-entrant guards
     lib_loading_by_name: DashMap<(BuiltinLibKey, String), ()>,
     /// Lib name for each registered lib module.
     pub lib_name_by_module: DashMap<ModuleId, &'static str>,
-    /// Ambient lib modules per profile key.
-    ambient_libs_by_profile: DashMap<BuiltinLibKey, Vec<ModuleId>>,
-
-    /// Declared lib symbols per profile key.
-    declared_lib_symbols_by_profile: DashMap<BuiltinLibKey, IndexMap<StringId, SymbolGroup>>,
-    /// Ambient lib symbols per profile key (all exported symbols from ambient libs).
-    ambient_lib_symbols_by_profile: DashMap<BuiltinLibKey, IndexMap<StringId, SymbolGroup>>,
-    /// Ambient lib symbol sources per profile key (all occurrences by key and space).
-    ambient_lib_symbol_sources_by_profile:
-        DashMap<BuiltinLibKey, IndexMap<AmbientLibSymbolKey, Vec<GlobalSymbolId>>>,
-    /// Well-known symbols per profile key.
-    well_known_by_profile: DashMap<BuiltinLibKey, WellKnownSymbols>,
-    /// Well-known intrinsic bindings per profile key.
-    well_known_intrinsics_by_profile: DashMap<BuiltinLibKey, WellKnownIntrinsics>,
-
-    /// Resolved language items cache (ProfileId, LanguageSymbol -> GlobalSymbolId).
-    pub items: DashMap<(ProfileId, LanguageSymbol), GlobalSymbolId>,
 }
 
 impl Builtins {
@@ -423,15 +206,9 @@ impl Builtins {
             core_module_by_item: language_symbol_modules,
             prelude_module_id,
             lib_module_by_name: DashMap::new(),
+            lib_selection_by_key: DashMap::new(),
             lib_loading_by_name: DashMap::new(),
             lib_name_by_module: DashMap::new(),
-            ambient_libs_by_profile: DashMap::new(),
-            declared_lib_symbols_by_profile: DashMap::new(),
-            ambient_lib_symbols_by_profile: DashMap::new(),
-            ambient_lib_symbol_sources_by_profile: DashMap::new(),
-            well_known_by_profile: DashMap::new(),
-            well_known_intrinsics_by_profile: DashMap::new(),
-            items: DashMap::new(),
         }
     }
 
@@ -448,40 +225,33 @@ impl Builtins {
         BuiltinLibKey::from_profile_key(profile_key)
     }
 
-    /// Check whether all resolved lib caches are present for a profile key.
-    pub fn has_resolved_lib_state(&self, profile_key: &ProfileKey) -> bool {
-        let lib_key = Self::lib_key(profile_key);
-        self.ambient_libs_by_profile.contains_key(&lib_key)
-            && self.declared_lib_symbols_by_profile.contains_key(&lib_key)
-            && self.ambient_lib_symbols_by_profile.contains_key(&lib_key)
-            && self
-                .ambient_lib_symbol_sources_by_profile
-                .contains_key(&lib_key)
-            && self.well_known_by_profile.contains_key(&lib_key)
+    /// Return the cached builtin lib selection for one profile key.
+    pub fn lib_selection(&self, profile_key: &ProfileKey) -> Option<BuiltinLibSelection> {
+        let lib_cache_key = Self::lib_key(profile_key);
+        self.lib_selection_by_key
+            .get(&lib_cache_key)
+            .map(|selection| selection.clone())
     }
 
-    /// Get cached lib modules for a profile key and lib name.
-    pub fn cached_lib_modules_for_profile(
-        &self,
-        profile_key: &ProfileKey,
-        name: &str,
-    ) -> Option<Vec<ModuleId>> {
-        let lib_key = Self::lib_key(profile_key);
-        self.cached_lib_modules(name, &lib_key)
+    /// Return whether one builtin lib has sources for one profile key.
+    pub fn has_lib_for_profile(&self, name: &str, profile_key: &ProfileKey) -> bool {
+        let Some(lib) = builtin_lib(name) else {
+            return false;
+        };
+
+        let runtime = BuiltinRuntime::from(profile_key.runtime);
+        let output = BuiltinOutputFormat::from(profile_key.output);
+        let platform = BuiltinPlatform::from(profile_key.platform);
+
+        lib.sources
+            .iter()
+            .any(|source| source.matches_target(runtime, output, platform))
     }
 
-    /// Resolve the first available type-space well-known symbol from any loaded profile.
-    pub fn first_well_known_type_symbol(
-        &self,
-        well_known: WellKnownSymbol,
-    ) -> Option<GlobalSymbolId> {
-        for entry in self.well_known_by_profile.iter() {
-            let symbols = entry.value();
-            if let Some(symbol_id) = symbols.get_type_symbol(well_known) {
-                return Some(symbol_id);
-            }
-        }
-        None
+    /// Cache the builtin lib selection for one profile key.
+    pub fn set_lib_selection(&self, profile_key: &ProfileKey, selection: BuiltinLibSelection) {
+        let lib_cache_key = Self::lib_key(profile_key);
+        self.lib_selection_by_key.insert(lib_cache_key, selection);
     }
 
     /// Load a lib module set (e.g., "dom", "es2024").
@@ -666,140 +436,9 @@ impl Builtins {
         }
     }
 
-    /// Set the ambient lib modules for a profile key.
-    pub fn set_ambient_libs(&self, profile_key: &ProfileKey, modules: Vec<ModuleId>) {
-        let lib_cache_key = Self::lib_key(profile_key);
-        self.ambient_libs_by_profile.insert(lib_cache_key, modules);
-    }
-
-    /// Get the ambient lib modules for a profile key, if any.
-    pub fn ambient_libs(&self, profile_key: &ProfileKey) -> Option<Vec<ModuleId>> {
-        let lib_cache_key = Self::lib_key(profile_key);
-        self.ambient_libs_by_profile
-            .get(&lib_cache_key)
-            .map(|modules| modules.clone())
-    }
-
-    /// Get the declared lib symbol group for a profile key and name.
-    pub fn get_declared_lib_symbol_group(
-        &self,
-        profile_key: &ProfileKey,
-        name: StringId,
-    ) -> Option<SymbolGroup> {
-        let lib_cache_key = Self::lib_key(profile_key);
-        self.declared_lib_symbols_by_profile
-            .get(&lib_cache_key)
-            .and_then(|symbols| symbols.get(&name).copied())
-    }
-
-    /// Get a declared lib symbol for the given space order.
-    pub fn get_declared_lib_symbol_from(
-        &self,
-        profile_key: &ProfileKey,
-        name: StringId,
-        order: SymbolSpaceOrder,
-    ) -> Option<GlobalSymbolId> {
-        self.get_declared_lib_symbol_group(profile_key, name)
-            .and_then(|group| group.symbol_for_space_order(order))
-    }
-
     /// Get the lib name for a module, if any.
     pub fn lib_name_for_module(&self, module_id: ModuleId) -> Option<&'static str> {
         self.lib_name_by_module.get(&module_id).map(|name| *name)
-    }
-
-    /// Get well-known symbols for a profile key.
-    pub fn well_known_symbols(&self, profile_key: &ProfileKey) -> Option<WellKnownSymbols> {
-        let lib_cache_key = Self::lib_key(profile_key);
-        self.well_known_by_profile
-            .get(&lib_cache_key)
-            .map(|symbols| symbols.clone())
-    }
-
-    /// Get well-known intrinsic bindings for a profile key.
-    pub fn well_known_intrinsics(&self, profile_key: &ProfileKey) -> Option<WellKnownIntrinsics> {
-        let lib_cache_key = Self::lib_key(profile_key);
-        self.well_known_intrinsics_by_profile
-            .get(&lib_cache_key)
-            .map(|intrinsics| intrinsics.clone())
-    }
-
-    /// Set the declared lib symbols for a profile key.
-    pub fn set_declared_lib_symbols(
-        &self,
-        profile_key: &ProfileKey,
-        symbols: IndexMap<StringId, SymbolGroup>,
-    ) {
-        let lib_cache_key = Self::lib_key(profile_key);
-        self.declared_lib_symbols_by_profile
-            .insert(lib_cache_key, symbols);
-    }
-
-    /// Set the ambient lib symbols for a profile key.
-    pub fn set_ambient_lib_symbols(
-        &self,
-        profile_key: &ProfileKey,
-        symbols: IndexMap<StringId, SymbolGroup>,
-    ) {
-        let lib_cache_key = Self::lib_key(profile_key);
-        self.ambient_lib_symbols_by_profile
-            .insert(lib_cache_key, symbols);
-    }
-
-    /// Set the ambient lib symbol sources for a profile key.
-    pub fn set_ambient_lib_symbol_sources(
-        &self,
-        profile_key: &ProfileKey,
-        sources: IndexMap<AmbientLibSymbolKey, Vec<GlobalSymbolId>>,
-    ) {
-        let lib_cache_key = Self::lib_key(profile_key);
-        self.ambient_lib_symbol_sources_by_profile
-            .insert(lib_cache_key, sources);
-    }
-
-    /// Get ambient lib symbol sources for a profile key, key, and space.
-    pub fn get_ambient_lib_symbol_sources(
-        &self,
-        profile_key: &ProfileKey,
-        key: StaticKey,
-        space: SymbolSpace,
-    ) -> Option<Vec<GlobalSymbolId>> {
-        let lib_cache_key = Self::lib_key(profile_key);
-        let lookup = AmbientLibSymbolKey { key, space };
-        self.ambient_lib_symbol_sources_by_profile
-            .get(&lib_cache_key)
-            .and_then(|sources| sources.get(&lookup).cloned())
-    }
-
-    /// Get an ambient lib symbol for the given space order.
-    pub fn get_ambient_lib_symbol_for_space_order(
-        &self,
-        profile_key: &ProfileKey,
-        name: StringId,
-        order: SymbolSpaceOrder,
-    ) -> Option<GlobalSymbolId> {
-        let lib_cache_key = Self::lib_key(profile_key);
-        self.ambient_lib_symbols_by_profile
-            .get(&lib_cache_key)
-            .and_then(|symbols| symbols.get(&name).copied())
-            .and_then(|group| group.symbol_for_space_order(order))
-    }
-
-    /// Set well-known symbols for a profile key.
-    pub fn set_well_known_symbols(&self, profile_key: &ProfileKey, symbols: WellKnownSymbols) {
-        let lib_cache_key = Self::lib_key(profile_key);
-        self.well_known_by_profile.insert(lib_cache_key, symbols);
-    }
-
-    /// Set well-known intrinsic bindings for a profile key.
-    pub fn set_well_known_intrinsics(
-        &self,
-        profile_key: &ProfileKey,
-        intrinsics: WellKnownIntrinsics,
-    ) {
-        let lib_cache_key = Self::lib_key(profile_key);
-        self.well_known_intrinsics_by_profile
-            .insert(lib_cache_key, intrinsics);
     }
 
     /// Get builtin modules that define intrinsic bindings.

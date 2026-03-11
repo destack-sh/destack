@@ -1,4 +1,5 @@
 use super::*;
+use destack_dir::ModuleTarget;
 
 impl Compiler {
     /// Normalize one well known reference symbol before member inference recursion.
@@ -709,7 +710,7 @@ impl Compiler {
             else {
                 continue;
             };
-            if !self.is_extension_visible(ctx.module, &extension) {
+            if !self.is_extension_visible(ctx.module, ctx.profile, &extension) {
                 continue;
             }
 
@@ -821,7 +822,7 @@ impl Compiler {
             let Some(extension) = extension else {
                 continue;
             };
-            if !self.is_extension_visible(ctx.module, &extension) {
+            if !self.is_extension_visible(ctx.module, ctx.profile, &extension) {
                 continue;
             }
             if let Some(ty_id) =
@@ -874,10 +875,29 @@ impl Compiler {
     /// Native: Extension in same module as target type, always visible wherever type is used.
     /// Anonymous: Extension on foreign type, only visible in the file where it is declared.
     /// Named: Extension on foreign type, must be explicitly imported to use.
-    pub(crate) fn is_extension_visible(&self, module: &Module, extension: &Extension) -> bool {
+    pub(crate) fn is_extension_visible(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        extension: &Extension,
+    ) -> bool {
         match extension.kind {
             ExtensionKind::Inherent => true,
-            ExtensionKind::Local => extension.symbol.module_id == module.id,
+            ExtensionKind::Local => {
+                if extension.symbol.module_id == module.id {
+                    return true;
+                }
+
+                module
+                    .dir(profile)
+                    .imported_modules
+                    .read()
+                    .values()
+                    .flat_map(|resolution| [resolution.value, resolution.ty])
+                    .any(|target| {
+                        matches!(target, Some(ModuleTarget::Module(module_id)) if module_id == extension.symbol.module_id)
+                    })
+            }
             ExtensionKind::Nominal => true,
         }
     }

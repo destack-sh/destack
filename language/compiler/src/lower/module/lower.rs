@@ -10,20 +10,20 @@ use destack_workspace::{
 use indexmap::IndexSet;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{Compiler, LowerError, LowerResult};
 
 use crate::lower::emit::{RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig};
 use crate::lower::item::GlobalBinding;
 use crate::lower::table::interface::InterfaceSlot;
-use crate::lower::table::{VirtualMethodKey, VtableGlobal};
-use crate::lower::{BuiltinTypeLayouts, RuntimeStatusLayout, TypeLowerer};
+use crate::lower::table::{ClosureEnvLayout, VirtualMethodKey, VtableGlobal};
+use crate::lower::{BuiltinTypeLayouts, RuntimeStatusLayout, TypeCacheEntry, TypeLowerer};
 
 /// Context for lowering a DIR module to MIR.
 #[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct ModuleLowerer<'a> {
     /// Provide access to the compiler for shared resources.
-    pub(crate) compiler: &'a crate::Compiler,
+    pub(crate) compiler: &'a Compiler,
     /// Identify the module being lowered.
     pub(crate) module_id: ModuleId,
     /// Identify the profile used for DIR access.
@@ -59,7 +59,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Map string literal contents to MIR globals.
     pub(crate) string_literal_globals: HashMap<StringId, mir::LocalNodeId<mir::Global>>,
     /// Map closure environment layouts by function symbol.
-    pub(crate) closure_env_layouts: HashMap<GlobalSymbolId, crate::lower::table::ClosureEnvLayout>,
+    pub(crate) closure_env_layouts: HashMap<GlobalSymbolId, ClosureEnvLayout>,
     /// Cached empty closure environment type.
     pub(crate) empty_closure_env_type: Option<mir::LocalNodeId<mir::Type>>,
     /// Cached empty closure environment pointer type.
@@ -128,7 +128,7 @@ pub(crate) struct ModuleLowerer<'a> {
 impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowering context.
     pub(crate) fn new(
-        compiler: &'a crate::Compiler,
+        compiler: &'a Compiler,
         module: &'a Module,
         profile: ProfileId,
         dir_tree: &'a dir::NodeTree,
@@ -174,10 +174,11 @@ impl<'a> ModuleLowerer<'a> {
         let runtime_checks = RuntimeCheckConfig::from_target(&target_config, debug);
         let binding_abi_lowering = target_config.output.is_native();
 
-        let well_known_intrinsics = compiler.program.builtins.as_ref().and_then(|builtins| {
-            let profile_key = compiler.program.profile(profile).key.clone();
-            builtins.well_known_intrinsics(&profile_key)
-        });
+        let well_known_intrinsics = compiler
+            .program
+            .artifacts
+            .intrinsic_environment(profile)
+            .map(|environment| environment.intrinsics.clone());
 
         Self {
             compiler,
@@ -229,11 +230,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Resolve the target configuration for a module.
-    fn target_config_for_module(
-        compiler: &crate::Compiler,
-        module: &Module,
-        target: &TargetId,
-    ) -> Target {
+    fn target_config_for_module(compiler: &Compiler, module: &Module, target: &TargetId) -> Target {
         // load the package configuration
         let package = compiler.program.packages.get(module.package_id);
         let package = package.read();
@@ -758,9 +755,9 @@ impl<'a> ModuleLowerer<'a> {
         let mut cached_types = Vec::new();
         for (type_id, entry) in &self.type_lowerer.type_cache {
             let mir_type = match entry {
-                crate::lower::TypeCacheEntry::Ready(mir_type) => *mir_type,
-                crate::lower::TypeCacheEntry::InProgress => {
-                    return Err(crate::LowerError::Internal {
+                TypeCacheEntry::Ready(mir_type) => *mir_type,
+                TypeCacheEntry::InProgress => {
+                    return Err(LowerError::Internal {
                         module: self.module_id,
                         message: "type lowering cache left in progress".to_string(),
                     });

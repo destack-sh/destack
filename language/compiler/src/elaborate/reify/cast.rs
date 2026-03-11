@@ -1187,6 +1187,30 @@ impl Compiler {
             return Some(self.unwrap_value_type_id(state, type_id));
         }
 
+        // FUGU #Cleanup #Architecture: delete this fallback once elaborate
+        // starts from artifact-backed transient builders instead of mutable module workspace
+        let analyzed_dir = self
+            .program
+            .artifacts
+            .dir_analyzed(state.ctx.module_id, state.ctx.profile)?;
+        let analyzed_types = &analyzed_dir.types;
+        if let Some(type_id) = analyzed_types
+            .get_declared_or_inferred_type_id(value_id.into_global_any(state.ctx.module_id))
+        {
+            return Some(match analyzed_types.get_type(type_id) {
+                Type::Value { value } => *value,
+                _ => type_id,
+            });
+        }
+        if let Some(symbol) = symbol
+            && let Some(type_id) = analyzed_types.get_value_type_id(symbol)
+        {
+            return Some(match analyzed_types.get_type(type_id) {
+                Type::Value { value } => *value,
+                _ => type_id,
+            });
+        }
+
         None
     }
 
@@ -1645,7 +1669,6 @@ impl Compiler {
             }
             _ => return Ok(None),
         };
-
         // ensure element compatibility when the target is explicit
         if let Some(target_element_type_id) = target_element_type_id {
             let options = self.analyze_context_options_for_module(state.ctx.module.id);

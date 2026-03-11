@@ -4,7 +4,7 @@ use super::SignatureResolutionMode;
 use super::member::{MemberLookupMode, MemberLookupModuleContext, MemberResolution};
 use crate::analyze::StaticSubstitutionEnvironment;
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, InferContext, TreeSymbolView, TypeView,
+    CanonicalSymbolMode, DirReadBoundary, InferContext, TreeSymbolView, TypeView,
 };
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::timing::tags;
@@ -3069,13 +3069,13 @@ impl Compiler {
         ctx: &InferContext<'_>,
         class_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        self.with_module_tree_symbol_view_or_local_at_stage(
+        self.with_module_tree_symbol_view_or_local_at_boundary(
             ctx.module,
             ctx.profile,
             class_symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |view| {
                 // resolve the nominal declaration for the class symbol
                 let class_entry = view.symbols.get_symbol(class_symbol.local_id);
@@ -3493,7 +3493,13 @@ impl Compiler {
                 node: argument_id.into_global_any(ctx.module.id),
             })
             .collect::<Vec<_>>();
-        let prefilled_arguments = prefilled_static_arguments.unwrap_or(&[]);
+        // prefilled arguments are only meaningful when the signature still exposes
+        // the corresponding owner parameters positionally
+        let prefilled_arguments = if bound_substitutions.is_some() {
+            &[]
+        } else {
+            prefilled_static_arguments.unwrap_or(&[])
+        };
         let prefilled_count = prefilled_arguments.len().min(static_parameters.len());
         let mut assigned_arguments: Vec<Option<StaticArgument>> =
             vec![None; static_parameters.len()];

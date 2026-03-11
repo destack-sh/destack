@@ -14,6 +14,7 @@ use destack_dir::{
     ScalarLiteral, StringId, Symbol, SymbolTable, TypeTable,
 };
 use destack_formatter::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions};
+use destack_linter::Linter;
 use destack_mir as mir;
 use destack_mir::{MirFormatOptions, format_mir};
 use destack_source::{
@@ -24,16 +25,14 @@ use destack_source::{
 };
 use destack_vm::{Heap, Isolate, IsolateOptions, ManagedHeap, RawHeap, Value};
 use destack_workspace::{
-    CacheMode, CacheStore, DiskCacheStore, DsConfig, DsConfigJson, DsConfigOptions,
-    MemoryCacheStore, Module, OutputFormat, ProfileId, Program, Session, Target, TargetId,
+    ArtifactKey, CacheMode, CacheStore, DiskCacheStore, DsConfig, DsConfigJson, DsConfigOptions,
+    MemoryCacheStore, Module, ModuleDir, ModuleDirData, ModuleMir, ModuleMirData, OutputFormat,
+    ProfileId, Program, Session, Target, TargetId,
 };
 use parking_lot::RwLock;
 use serde_json::json;
 
-use crate::{
-    AnalyzeTask, Compiler, CompilerOptions, ElaborateTask, ExecuteTask, ImportTask, LintTask,
-    LowerTask, ResolveTask, Task, TaskPhase, default_workers,
-};
+use crate::{BuildKey, Compiler, CompilerOptions, Task, TaskPhase, default_workers};
 
 use super::tracing::init_tracing;
 
@@ -220,6 +219,71 @@ impl TestIsolate {
 }
 
 impl TestProgram {
+    /// Return the most advanced published DIR for one module and profile when available.
+    pub(crate) fn artifact_dir_data_maybe(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Option<ModuleDirData> {
+        // prefer the most advanced published semantic product
+        let dir = self
+            .program
+            .artifacts
+            .dir_patched(module_id, profile)
+            .or_else(|| self.program.artifacts.dir_elaborated(module_id, profile))
+            .or_else(|| self.program.artifacts.dir_analyzed(module_id, profile))
+            .or_else(|| self.program.artifacts.dir_interface(module_id, profile))
+            .or_else(|| self.program.artifacts.dir_declared(module_id, profile))
+            .or_else(|| self.program.artifacts.dir_resolved(module_id, profile))
+            .or_else(|| self.program.artifacts.dir_prepared(module_id, profile))
+            .or_else(|| self.program.artifacts.dir_base(module_id));
+
+        dir.map(|dir| dir.as_ref().clone())
+    }
+
+    /// Return the most advanced published DIR for one module and profile.
+    pub(crate) fn artifact_dir_data(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> ModuleDirData {
+        self.artifact_dir_data_maybe(module_id, profile)
+            .unwrap_or_else(|| panic!("missing artifact dir for module {module_id:?}"))
+    }
+
+    /// Return the most advanced published DIR for one module and profile.
+    pub(crate) fn artifact_dir(&self, module_id: ModuleId, profile: ProfileId) -> ModuleDir {
+        ModuleDir::from_data(self.artifact_dir_data(module_id, profile))
+    }
+
+    /// Return the most advanced published MIR for one module, profile, and target.
+    pub(crate) fn artifact_mir_data(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        target_id: &TargetId,
+    ) -> ModuleMirData {
+        // prefer optimized MIR when available
+        let mir = self
+            .program
+            .artifacts
+            .optimized_mir(module_id, profile, target_id)
+            .or_else(|| self.program.artifacts.mir(module_id, profile, target_id))
+            .unwrap_or_else(|| panic!("missing artifact mir for module {module_id:?}"));
+
+        mir.as_ref().clone()
+    }
+
+    /// Return the most advanced published MIR for one module, profile, and target.
+    pub(crate) fn artifact_mir(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        target_id: &TargetId,
+    ) -> ModuleMir {
+        ModuleMir::from_data(self.artifact_mir_data(module_id, profile, target_id))
+    }
+
     /// Create a new TestProgram with the given options.
     fn new(fs: TestFileSystem, workers: u16, inject_prelude: bool, load_libs: bool) -> Self {
         init_tracing();
@@ -497,60 +561,46 @@ impl TestProgram {
 
     /// Enqueue Import task for a module.
     pub fn import_module(&self, module: ModuleId) {
-        self.enqueue(ImportTask::ImportModule {
-            module: self.module_stamp(module),
-        });
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirBase { module }));
     }
 
     /// Enqueue Bind task for a module.
     pub fn bind_module(&self, module: ModuleId) {
-        self.enqueue(ImportTask::ImportModuleBind {
-            module: self.module_stamp(module),
-        });
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirBase { module }));
     }
 
     /// Enqueue Resolve task for a module.
     pub fn resolve_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue(ResolveTask::ResolveModule {
-            module: self.module_stamp(module),
-            profile: self.profile_stamp(profile),
-            graph: self.compiler.module_graph_stamp(profile),
-        });
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirResolved {
+            module,
+            profile,
+        }));
     }
 
-    /// Enqueue ResolveBuiltins task.
-    pub fn resolve_builtins(&self) {
+    /// Resolve the language environment for the default root profile.
+    pub fn resolve_language_environment(&self) {
         let profile = self.default_profile_id_for_root();
-        self.enqueue(ResolveTask::ResolveBuiltins {
-            profile: self.profile_stamp(profile),
-        });
+        self.compiler
+            .drive(|compiler| compiler.require_language_environment(profile))
+            .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
     }
 
-    /// Enqueue ResolveLibs task.
+    /// Resolve builtin libs for the default root profile.
     pub fn resolve_libs(&self) {
         let profile = self.default_profile_id_for_root();
-        self.enqueue(ResolveTask::ResolveLibs {
-            profile: self.profile_stamp(profile),
-        });
-    }
-
-    /// Enqueue ResolveBuiltins and ResolveLibs tasks.
-    pub fn resolve_builtins_and_libs(&self) {
-        // resolve builtins first
-        self.resolve_builtins();
-
-        // resolve libs next
-        self.resolve_libs();
+        self.compiler
+            .drive(|compiler| compiler.require_lib_environment(profile))
+            .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
     }
 
     /// Enqueue Analyze task for a module.
     pub fn analyze_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue(AnalyzeTask::AnalyzeModule {
-            module: self.module_stamp(module),
-            profile: self.profile_stamp(profile),
-        });
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+            module,
+            profile,
+        }));
     }
 
     /// Analyze a module and check no diagnostics.
@@ -562,31 +612,37 @@ impl TestProgram {
         self.compile_check_clean();
     }
 
-    /// Enqueue Lint task for a module.
+    /// Lint a module through the linter crate.
     pub fn lint_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue(LintTask::LintModule {
-            module: self.module_stamp(module),
-            profile: self.profile_stamp(profile),
-        });
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+            module,
+            profile,
+        }));
+        self.compile();
+
+        let linter = Linter::new(self.program.clone());
+        linter
+            .lint_module(module, profile)
+            .unwrap_or_else(|error| panic!("failed to lint module {module:?}: {error}"));
     }
 
     /// Enqueue Elaborate task for a module.
     pub fn elaborate_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue(ElaborateTask::ElaborateModule {
-            module: self.module_stamp(module),
-            profile: self.profile_stamp(profile),
-        });
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirElaborated {
+            module,
+            profile,
+        }));
     }
 
     /// Enqueue Execute task for a module.
     pub fn execute_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue(ExecuteTask::ExecuteModulePatch {
-            module: self.module_stamp(module),
-            profile: self.profile_stamp(profile),
-        });
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirPatched {
+            module,
+            profile,
+        }));
     }
 
     /// Add a build target to the package containing the given module.
@@ -681,11 +737,11 @@ impl TestProgram {
             .program
             .profile_id_for_target(module, &target_id)
             .unwrap_or_else(|| panic!("missing profile for target '{target}'"));
-        self.enqueue(LowerTask::LowerModule {
-            module: self.module_stamp(module),
-            profile: self.profile_stamp(profile),
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::Mir {
+            module,
+            profile,
             target: target_id,
-        });
+        }));
     }
 
     /// Enqueue Optimize task for a module.
@@ -697,11 +753,16 @@ impl TestProgram {
             .program
             .profile_id_for_target(module, &target_id)
             .unwrap_or_else(|| panic!("missing profile for target '{target}'"));
-        self.enqueue(crate::OptimizeTask::OptimizeModule {
-            module: self.module_stamp(module),
-            profile: self.profile_stamp(profile),
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::MirOptimized {
+            module,
+            profile,
             target: target_id,
-        });
+        }));
+    }
+
+    /// Enqueue the producer task for one build key.
+    pub fn enqueue_build_key(&self, build_key: BuildKey) {
+        self.compiler.enqueue_build_key(build_key);
     }
 
     /// Enqueue a task (does not run it).
@@ -783,11 +844,10 @@ impl TestProgram {
     pub fn module_dir_roots(&self, module_id: ModuleId) -> Vec<LocalNodeId<Expression>> {
         // load module state
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let dir = self.artifact_dir(module_id, profile);
 
         // return cloned roots
-        module.dir(profile).roots.clone()
+        dir.roots.clone()
     }
 
     /// Run a closure with read access to a module's DIR.
@@ -807,7 +867,7 @@ impl TestProgram {
         let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module_id, profile);
 
         // lock dir tables
         let tree = dir.tree.read();
@@ -815,7 +875,7 @@ impl TestProgram {
         let types = dir.types.read();
 
         // run the callback
-        f(&module, profile, dir, &tree, &symbols, &types)
+        f(&module, profile, &dir, &tree, &symbols, &types)
     }
 
     /// Run a closure with mutable access to a module's type table.
@@ -835,7 +895,7 @@ impl TestProgram {
         let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module_id, profile);
 
         // lock dir tables
         let tree = dir.tree.read();
@@ -843,7 +903,7 @@ impl TestProgram {
         let mut types = dir.types.write();
 
         // run the callback
-        f(&module, profile, dir, &tree, &symbols, &mut types)
+        f(&module, profile, &dir, &tree, &symbols, &mut types)
     }
 
     /// Get a module by URI.
@@ -1015,10 +1075,26 @@ impl TestProgram {
     pub fn unbind_to_string(&self, module_id: ModuleId) -> String {
         let module = self.program.modules.get(module_id);
         let module = module.read();
+        let profile = self.default_profile_id(module.id);
+        let dir = self.artifact_dir(module.id, profile);
 
         // unbind DIR to AST
-        let profile = self.default_profile_id(module.id);
-        let unbound = self.compiler.unbind_module(&module, profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let fallback_node = dir
+            .roots
+            .first()
+            .copied()
+            .map(LocalNodeId::into_any)
+            .unwrap_or(dir.anchor_node);
+        let unbound = self.compiler.unbind_module_from_parts(
+            &module,
+            &tree,
+            &symbols,
+            &dir.roots,
+            fallback_node,
+            profile,
+        );
 
         // create a synthetic file for formatting (no real source)
         let file = File::from_text(
@@ -1063,7 +1139,8 @@ impl TestProgram {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let target_id = TargetId::new(module.package_id, target);
-        let mir = module.mir(&target_id);
+        let profile = self.default_profile_id(module_id);
+        let mir = self.artifact_mir(module_id, profile, &target_id);
         let tree = mir.tree.read();
         let strings = mir.strings.clone().into_immutable();
         format_mir(&tree, &strings, self.mir_format_options())
@@ -1116,7 +1193,8 @@ impl TestProgram {
         let target_id = TargetId::new(module.package_id, target);
 
         // load the mir module state
-        let mir = module.mir(&target_id);
+        let profile = self.default_profile_id(module_id);
+        let mir = self.artifact_mir(module_id, profile, &target_id);
         let tree = mir.tree.read();
         let strings = mir.strings.clone().into_immutable();
 
@@ -1129,7 +1207,8 @@ impl TestProgram {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let target_id = TargetId::new(module.package_id, target);
-        let mir = module.mir(&target_id);
+        let profile = self.default_profile_id(module_id);
+        let mir = self.artifact_mir(module_id, profile, &target_id);
         let tree = mir.tree.read().clone();
         let strings = mir.strings.clone().into_immutable();
         let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
@@ -1230,9 +1309,8 @@ impl TestProgram {
     pub fn symbol_by_id(&self, symbol_id: GlobalSymbolId) -> Symbol {
         // load module state
         let profile = self.default_profile_id(symbol_id.module_id);
-        let module = self.program.modules.get(symbol_id.module_id);
-        let module = module.read();
-        let symbols = module.dir(profile).symbols.read();
+        let dir = self.artifact_dir(symbol_id.module_id, profile);
+        let symbols = dir.symbols.read();
 
         // return the symbol
         symbols.get_symbol(symbol_id.into_local()).clone()
@@ -1265,9 +1343,7 @@ impl TestProgram {
     pub fn expect_nth_function_symbol(&self, module_id: ModuleId, index: usize) -> GlobalSymbolId {
         // load the module tree and roots
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module_id, profile);
         let tree = dir.tree.read();
         let roots = &dir.roots;
 
@@ -1309,9 +1385,7 @@ impl TestProgram {
     ) -> LocalNodeId<Declarator> {
         // load the module tree and roots
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module_id, profile);
         let tree = dir.tree.read();
         let roots = &dir.roots;
 
@@ -1361,9 +1435,7 @@ impl TestProgram {
     ) -> GlobalSymbolId {
         // load the module tree and symbol table
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module_id, profile);
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
 
@@ -1401,9 +1473,7 @@ impl TestProgram {
     pub fn expect_nth_lambda_symbol(&self, module_id: ModuleId, index: usize) -> GlobalSymbolId {
         // load the module tree
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module_id, profile);
         let tree = dir.tree.read();
 
         // scan for the requested lambda declaration
@@ -1447,9 +1517,7 @@ impl TestProgram {
     ) -> CaptureSet {
         // load capture data for the module
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module_id, profile);
         let captures = dir.captures.read();
 
         // resolve the capture set
@@ -1467,9 +1535,7 @@ impl TestProgram {
     ) -> Vec<(String, CaptureKind)> {
         // load the module symbol table
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module_id, profile);
         let symbols = dir.symbols.read();
 
         // resolve capture names
@@ -1491,9 +1557,7 @@ impl TestProgram {
     pub fn capture_names(&self, module_id: ModuleId, capture_set: &CaptureSet) -> Vec<String> {
         // load the module symbol table
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module_id, profile);
         let symbols = dir.symbols.read();
 
         // resolve capture names
@@ -1518,9 +1582,7 @@ impl TestProgram {
     ) -> Vec<String> {
         // load the module symbol table
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module_id, profile);
         let symbols = dir.symbols.read();
         let captures = dir.captures.read();
 
@@ -1549,7 +1611,7 @@ impl TestProgram {
         let module = self.module(module_uri);
         let module = module.read();
         let profile = self.default_profile_id(module.id);
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module.id, profile);
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
 

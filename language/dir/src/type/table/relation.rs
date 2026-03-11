@@ -66,6 +66,15 @@ pub fn alias_normalization_key(
     }
 }
 
+/// In-progress alias normalization key.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliasNormalizationInProgressKey {
+    /// The alias normalization bucket key.
+    pub key: AliasNormalizationKey,
+    /// The static arguments applied to the alias.
+    pub arguments: Vec<StaticArgument>,
+}
+
 /// Cache entry for normalized types keyed by relation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NormalizationCacheEntry {
@@ -116,7 +125,7 @@ pub struct TypeNormalizationCache {
     pub(crate) normalized_alias_entries_by_key:
         IndexMap<AliasNormalizationKey, Vec<AliasNormalizationEntry>>,
     /// Alias normalization currently in progress.
-    pub(crate) normalization_alias_in_progress: HashSet<GlobalSymbolId>,
+    pub(crate) normalization_alias_in_progress: Vec<AliasNormalizationInProgressKey>,
     /// Assignability pairs currently in progress.
     pub(crate) assignability_in_progress: HashSet<(LocalTypeId, LocalTypeId)>,
     /// Active dependency tracking scopes for normalization.
@@ -171,7 +180,7 @@ impl TypeNormalizationCache {
             normalized_assignability_type_by_id: Vec::new(),
             normalized_flow_type_by_id: Vec::new(),
             normalized_alias_entries_by_key: IndexMap::new(),
-            normalization_alias_in_progress: HashSet::new(),
+            normalization_alias_in_progress: Vec::new(),
             assignability_in_progress: HashSet::new(),
             normalization_dependency_stack: Vec::new(),
             expression_type_in_progress: HashSet::new(),
@@ -608,27 +617,67 @@ impl TypeTable {
     }
 
     /// Mark an alias normalization as in progress.
-    pub fn mark_normalization_alias_in_progress(&mut self, symbol_id: GlobalSymbolId) {
+    pub fn mark_normalization_alias_in_progress(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        mode: NormalizationMode,
+        relation_key: u64,
+        arguments: Vec<StaticArgument>,
+    ) {
         self.relation
             .normalization
             .normalization_alias_in_progress
-            .insert(symbol_id);
+            .push(AliasNormalizationInProgressKey {
+                key: alias_normalization_key(symbol_id, mode, relation_key),
+                arguments,
+            });
     }
 
     /// Clear the alias normalization in progress marker.
-    pub fn clear_normalization_alias_in_progress(&mut self, symbol_id: GlobalSymbolId) {
-        self.relation
+    pub fn clear_normalization_alias_in_progress(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        mode: NormalizationMode,
+        relation_key: u64,
+        arguments: &[StaticArgument],
+    ) {
+        let key = alias_normalization_key(symbol_id, mode, relation_key);
+        if let Some(index) = self
+            .relation
             .normalization
             .normalization_alias_in_progress
-            .remove(&symbol_id);
+            .iter()
+            .position(|entry| entry.key == key && entry.arguments == arguments)
+        {
+            self.relation
+                .normalization
+                .normalization_alias_in_progress
+                .remove(index);
+        }
     }
 
     /// Check whether an alias normalization is in progress.
-    pub fn is_normalization_alias_in_progress(&self, symbol_id: GlobalSymbolId) -> bool {
+    pub fn is_normalization_alias_in_progress(
+        &self,
+        symbol_id: GlobalSymbolId,
+        mode: NormalizationMode,
+        relation_key: u64,
+        arguments: &[StaticArgument],
+    ) -> bool {
+        let key = alias_normalization_key(symbol_id, mode, relation_key);
         self.relation
             .normalization
             .normalization_alias_in_progress
-            .contains(&symbol_id)
+            .iter()
+            .any(|entry| entry.key == key && entry.arguments == arguments)
+    }
+
+    /// Return the current alias normalization stack depth.
+    pub fn normalization_alias_in_progress_depth(&self) -> usize {
+        self.relation
+            .normalization
+            .normalization_alias_in_progress
+            .len()
     }
 
     /// Get a cached normalized alias reference.

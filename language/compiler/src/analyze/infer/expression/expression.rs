@@ -5099,7 +5099,7 @@ impl Compiler {
 
         // ensure the target module is resolved
         if self
-            .require_resolve_module_direct(symbol_id.module_id, view.profile)
+            .require_dir_resolved(symbol_id.module_id, view.profile)
             .is_err()
         {
             return None;

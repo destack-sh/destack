@@ -77,8 +77,8 @@ impl TypeTable {
             .insert(key, ty);
     }
 
-    /// Publish a declared constraint type for a static parameter symbol.
-    pub fn publish_static_parameter_constraint_type(
+    /// Store one artifact constraint type for a static parameter symbol.
+    pub fn set_artifact_static_parameter_constraint_type(
         &mut self,
         symbol_id: GlobalSymbolId,
         ty: LocalTypeId,
@@ -101,8 +101,8 @@ impl TypeTable {
             .copied()
     }
 
-    /// Query the declare-published constraint type for a static parameter symbol.
-    pub fn query_published_static_parameter_constraint_type(
+    /// Query one artifact constraint type for a static parameter symbol.
+    pub fn query_artifact_static_parameter_constraint_type(
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<LocalTypeId> {
@@ -149,8 +149,8 @@ impl TypeTable {
             .insert(key, kind);
     }
 
-    /// Publish one declared static parameter kind for a symbol.
-    pub fn publish_static_parameter_kind(
+    /// Store one artifact static parameter kind for a symbol.
+    pub fn set_artifact_static_parameter_kind(
         &mut self,
         symbol_id: GlobalSymbolId,
         kind: StaticParameterKind,
@@ -173,8 +173,8 @@ impl TypeTable {
             .copied()
     }
 
-    /// Query the declare-published static parameter kind for a symbol.
-    pub fn query_published_static_parameter_kind(
+    /// Query one artifact static parameter kind for a symbol.
+    pub fn query_artifact_static_parameter_kind(
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<StaticParameterKind> {
@@ -197,8 +197,8 @@ impl TypeTable {
             .insert(key, variance);
     }
 
-    /// Publish one declared variance for a static parameter symbol.
-    pub fn publish_static_parameter_variance(
+    /// Store one artifact variance for a static parameter symbol.
+    pub fn set_artifact_static_parameter_variance(
         &mut self,
         symbol_id: GlobalSymbolId,
         variance: Option<VarianceModifier>,
@@ -221,8 +221,8 @@ impl TypeTable {
             .copied()
     }
 
-    /// Query the declare-published variance for a static parameter symbol.
-    pub fn query_published_static_parameter_variance(
+    /// Query one artifact variance for a static parameter symbol.
+    pub fn query_artifact_static_parameter_variance(
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<Option<VarianceModifier>> {
@@ -244,8 +244,8 @@ impl TypeTable {
             .insert(symbol_id, symbols);
     }
 
-    /// Publish declared static parameter symbols for one declaration symbol.
-    pub fn publish_static_parameter_symbols(
+    /// Store artifact static parameter symbols for one declaration symbol.
+    pub fn set_artifact_static_parameter_symbols(
         &mut self,
         symbol_id: GlobalSymbolId,
         symbols: Vec<GlobalSymbolId>,
@@ -266,8 +266,8 @@ impl TypeTable {
             .cloned()
     }
 
-    /// Query declare-published static parameter symbols for one declaration symbol.
-    pub fn query_published_static_parameter_symbols(
+    /// Query artifact static parameter symbols for one declaration symbol.
+    pub fn query_artifact_static_parameter_symbols(
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<Vec<GlobalSymbolId>> {

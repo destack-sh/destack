@@ -1742,7 +1742,7 @@ function printType(t: Type) {
 "#,
     );
 
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.resolve_module(module_id);
     test.compile();
     test.check_clean();

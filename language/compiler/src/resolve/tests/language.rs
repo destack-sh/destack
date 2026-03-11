@@ -6,15 +6,14 @@ use destack_dir::{WellKnownSymbol, WellKnownSymbolKey};
 #[test]
 fn test_resolve_language_symbol() {
     let test = TestProgram::memory_sequential_with_prelude();
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.compile();
 
     let profile = test.default_profile_id_for_root();
     let symbol_id = test.compiler.language_symbol(profile, LanguageSymbol::Add);
     let module = test.program.modules.get(symbol_id.module_id);
     let module = module.read();
-    let profile = test.default_profile_id(symbol_id.module_id);
-    let symbols = module.dir(profile).symbols.read();
+    let symbols = module.dir_base().symbols.read();
     let symbol = symbols.get_symbol(symbol_id.into_local());
     assert_string!(test.program, symbol.name().unwrap(), "Add");
 }
@@ -24,7 +23,7 @@ fn test_resolve_language_symbol() {
 fn test_error_on_conflicting_builtin_lib_versions() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
         .with_profile_libs(&["node", "node.v24"]);
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.resolve_libs();
     test.compile();
     test.check_has_diagnostic("ER402");
@@ -35,7 +34,7 @@ fn test_error_on_conflicting_builtin_lib_versions() {
 fn test_resolve_well_known_symbols() {
     let test =
         TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2020", "js"]);
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.resolve_libs();
     test.compile();
 
@@ -90,7 +89,7 @@ fn test_resolve_well_known_symbols() {
 fn test_resolve_native_well_known_fixed_array_symbol() {
     let test =
         TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
-    test.resolve_builtins();
+    test.resolve_language_environment();
     test.resolve_libs();
     test.compile();
 

@@ -17,11 +17,7 @@ mod warning;
 pub use analyses::*;
 #[cfg(feature = "optimize")]
 pub use common::*;
-#[cfg(not(feature = "optimize"))]
-pub use disabled::*;
 pub use error::*;
 #[cfg(feature = "optimize")]
 pub use pipeline::*;
-#[cfg(feature = "optimize")]
-pub use process::*;
 pub use warning::*;

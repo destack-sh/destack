@@ -1,12 +1,12 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 use indexmap::IndexMap;
 
 use crate::analyze::common::{ModuleTreeView, TypeContext};
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, ModuleCheckOptions, Task,
-    TaskDependencyError, TaskResultCollector,
+    AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementCollector, BuildRequirementError,
+    Compiler, ModuleCheckOptions,
 };
 use destack_builtin::BuiltinLibKind;
 use destack_dir::{
@@ -14,22 +14,21 @@ use destack_dir::{
     SymbolSpace, SymbolType, Type,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{Module, ModuleSource, ProfileId};
+use destack_workspace::{ArtifactKey, Module, ModuleSource, ProfileId};
 
 impl Compiler {
-    /// Ensure a module's types have been declared (evaluated).
-    pub fn require_analyze_module_declare(
+    /// Ensure declared DIR exists for a module.
+    pub fn require_dir_declared(
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
+    ) -> Result<(), BuildRequirementError> {
         // avoid self dependency when already declaring this module
-        if let Some(Task::Analyze(AnalyzeTask::AnalyzeModuleDeclare {
-            module: current_module,
-            profile: current_profile,
-        })) = self.current_task()
-            && current_module.id == module
-            && current_profile.id == profile
+        if self.current_build_key()
+            == Some(BuildKey::Artifact(ArtifactKey::DirDeclared {
+                module,
+                profile,
+            }))
         {
             return Ok(());
         }
@@ -43,9 +42,10 @@ impl Compiler {
             }
         }
 
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleDeclare { module, profile })
+        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirDeclared {
+            module,
+            profile,
+        }))
     }
 
     /// Phase 1: Evaluate declarations.
@@ -65,7 +65,7 @@ impl Compiler {
         )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_DECLARE);
 
-        self.require_resolve_module_canonical(module_id, profile)?;
+        self.require_dir_resolved(module_id, profile)?;
         if !self.is_code_module(module_id) {
             return Ok(());
         }
@@ -80,7 +80,8 @@ impl Compiler {
         }
 
         // ensure builtins are resolved before declaring symbols
-        self.require_resolve_builtins(profile)?;
+        self.require_language_environment(profile)
+            .map_err(AnalyzeError::from)?;
 
         // ensure ambient libs are declared before user modules
         self.ensure_ambient_libs_declared(&module, profile)?;
@@ -90,7 +91,7 @@ impl Compiler {
         let tree = dir.tree.read();
         let mut types = dir.types.write();
         let symbols = dir.symbols.read();
-        let mut collector = TaskResultCollector::new();
+        let mut collector = BuildRequirementCollector::new();
         let module_checks = self.module_check_options_for_module(module.id);
         let options = self.analyze_context_options_for_module(module.id);
         let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
@@ -113,11 +114,11 @@ impl Compiler {
         self.index_static_parameter_metadata(&mut ctx.reborrow());
 
         // yield after declaration metadata writes
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(AnalyzeError::Yield { dependency });
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(AnalyzeError::Yield { requirement });
         }
 
-        let mut collector = TaskResultCollector::new();
+        let mut collector = BuildRequirementCollector::new();
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_TYPES);
 
@@ -126,8 +127,8 @@ impl Compiler {
                 let has_dependency = self
                     .evaluate_unevaluated_types_to_fixpoint(&mut ctx.reborrow(), &mut collector);
                 if has_dependency {
-                    if let Some(dependency) = collector.try_into_yield_any() {
-                        return Err(AnalyzeError::Yield { dependency });
+                    if let Some(requirement) = collector.try_into_requirement() {
+                        return Err(AnalyzeError::Yield { requirement });
                     }
 
                     return Ok(());
@@ -136,11 +137,11 @@ impl Compiler {
         }
 
         // publish declared static parameter constraints
-        let mut publish_collector = TaskResultCollector::new();
+        let mut publish_collector = BuildRequirementCollector::new();
         {
             self.collect(
                 &mut publish_collector,
-                self.publish_static_parameter_constraints(&mut ctx),
+                self.record_artifact_static_parameter_constraints(&mut ctx),
             );
         }
 
@@ -169,8 +170,8 @@ impl Compiler {
         }
 
         // yield after static-constraint publication
-        if let Some(dependency) = publish_collector.try_into_yield_any() {
-            return Err(AnalyzeError::Yield { dependency });
+        if let Some(requirement) = publish_collector.try_into_requirement() {
+            return Err(AnalyzeError::Yield { requirement });
         }
 
         // drop the read guard before taking a mutable lock for decorators
@@ -196,14 +197,11 @@ impl Compiler {
 
         // cache well-known intrinsics after decorator registration
         if module.is_user() {
-            self.collect(
-                &mut collector,
-                self.ensure_well_known_intrinsics_for_profile(profile),
-            );
+            self.collect(&mut collector, self.resolve_intrinsic_environment(profile));
         }
         // yield on any yields
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(AnalyzeError::Yield { dependency });
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(AnalyzeError::Yield { requirement });
         }
 
         // return the collected result
@@ -271,37 +269,26 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
-        // collect dependency yields
-        let mut collector = TaskResultCollector::new();
-
         if self.options.load_libs && module.is_user() {
-            // resolve libs before declaring ambient modules
-            if let Err(error) = self.require_resolve_libs(profile)
-                && let Some(error) = collector.try_collect::<(), _>(Err(error))
-            {
-                return Err(AnalyzeError::from(error));
-            }
+            // resolve lib environment before declaring ambient modules
+            self.require_lib_environment(profile)
+                .map_err(AnalyzeError::from)?;
 
-            if let Some(builtins) = self.program.builtins.as_ref() {
-                let profile_key = &self.program.profile(profile).key;
-                if let Some(ambient_libs) = builtins.ambient_libs(profile_key) {
-                    for lib_module_id in ambient_libs {
-                        if lib_module_id == module.id {
-                            continue;
-                        }
-                        if let Err(error) =
-                            self.require_analyze_module_declare(lib_module_id, profile)
-                            && let Some(error) = collector.try_collect::<(), _>(Err(error))
-                        {
-                            return Err(AnalyzeError::from(error));
-                        }
-                    }
+            let mut collector = BuildRequirementCollector::new();
+            for lib_module_id in self.lib_environment_modules(profile) {
+                if lib_module_id == module.id {
+                    continue;
+                }
+                if let Err(error) = self.require_dir_declared(lib_module_id, profile)
+                    && let Some(error) = collector.try_collect::<(), _>(Err(error))
+                {
+                    return Err(AnalyzeError::from(error));
                 }
             }
-        }
 
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(AnalyzeError::Yield { dependency });
+            if let Some(requirement) = collector.try_into_requirement() {
+                return Err(AnalyzeError::Yield { requirement });
+            }
         }
 
         Ok(())
@@ -313,7 +300,7 @@ impl Compiler {
         _module: &Module,
         _module_checks: ModuleCheckOptions,
     ) -> bool {
-        // declared type commitments are stage-owned outputs for cross-module reads
+        // declared type commitments back cross-module declared reads
         true
     }
 
@@ -323,7 +310,7 @@ impl Compiler {
     fn evaluate_unevaluated_types_to_fixpoint(
         &self,
         ctx: &mut TypeContext<'_>,
-        collector: &mut TaskResultCollector,
+        collector: &mut BuildRequirementCollector,
     ) -> bool {
         // seed the worklist
         let mut pending: VecDeque<LocalTypeId> = (0..ctx.types.type_count())
@@ -348,7 +335,7 @@ impl Compiler {
                     self.resolve_declared_type(&mut ctx.reborrow(), ty_id),
                 );
 
-                if collector.has_dependencies() {
+                if collector.has_requirements() {
                     return true;
                 }
 
@@ -412,16 +399,7 @@ impl Compiler {
             };
             self.ensure_type_evaluated(&mut ctx.reborrow(), alias_target_id)?;
 
-            // materialize value static arguments before publishing
-            let needs_materialization = self.type_has_unevaluated_value_static_arguments(
-                ctx.type_view(),
-                alias_target_id,
-                &mut HashSet::new(),
-            );
-            if !needs_materialization {
-                continue;
-            }
-
+            // materialize static arguments before publishing
             let mut cache = HashMap::new();
             let materialized =
                 self.materialize_static_arguments_in_type(ctx, alias_target_id, &mut cache);

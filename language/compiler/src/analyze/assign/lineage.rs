@@ -115,11 +115,11 @@ impl Compiler {
             return None;
         }
 
-        self.with_module_types_at_stage(
+        self.with_module_types_at_boundary(
             ctx.module,
             ctx.profile,
             symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |_, remote_types| remote_types.get_lineage_for_symbol(symbol).cloned(),
         )
         .ok()

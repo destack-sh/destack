@@ -1,4 +1,4 @@
-use crate::analyze::common::{AnalyzeDependencyStage, TreeSymbolView, TypeContext, TypeView};
+use crate::analyze::common::{DirReadBoundary, TreeSymbolView, TypeContext, TypeView};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeType,
@@ -19,18 +19,18 @@ impl Compiler {
         if symbol.module_id == ctx.module.id && ctx.types.module_id == ctx.module.id {
             return ctx
                 .types
-                .query_published_static_parameter_constraint_type(symbol);
+                .query_artifact_static_parameter_constraint_type(symbol);
         }
 
         let remote_constraint = self
-            .with_module_types_at_stage(
+            .with_module_types_at_boundary(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |_owner_module, owner_types| {
                     let owner_constraint_type_id =
-                        owner_types.query_published_static_parameter_constraint_type(symbol)?;
+                        owner_types.query_artifact_static_parameter_constraint_type(symbol)?;
                     let owner_constraint_type = owner_types.get_type(owner_constraint_type_id);
                     let owner_snapshot = owner_types.clone();
                     Some((owner_constraint_type.clone(), owner_snapshot))
@@ -108,13 +108,13 @@ impl Compiler {
         }
 
         // resolve from published declare entries first
-        if let Ok(Some(kind)) = self.with_module_types_or_local_at_stage(
+        if let Ok(Some(kind)) = self.with_module_types_or_local_at_boundary(
             ctx.module,
             ctx.profile,
             symbol.module_id,
             ctx.types,
-            AnalyzeDependencyStage::Declare,
-            |_owner_module, owner_types| owner_types.query_published_static_parameter_kind(symbol),
+            DirReadBoundary::Declared,
+            |_owner_module, owner_types| owner_types.query_artifact_static_parameter_kind(symbol),
         ) {
             ctx.types.set_static_parameter_kind(symbol, kind);
             return kind;
@@ -146,15 +146,15 @@ impl Compiler {
         }
 
         // resolve from published declare entries first
-        if let Ok(Some(variance)) = self.with_module_types_or_local_at_stage(
+        if let Ok(Some(variance)) = self.with_module_types_or_local_at_boundary(
             ctx.module,
             ctx.profile,
             symbol.module_id,
             ctx.types,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |_owner_module, owner_types| {
                 owner_types
-                    .query_published_static_parameter_variance(symbol)
+                    .query_artifact_static_parameter_variance(symbol)
                     .flatten()
             },
         ) {
@@ -200,7 +200,7 @@ impl Compiler {
 
             state
                 .types
-                .publish_static_parameter_symbols(symbol, parameters.clone());
+                .set_artifact_static_parameter_symbols(symbol, parameters.clone());
             for parameter_symbol in parameters {
                 let (kind, variance) = self.static_parameter_metadata_for_symbol_in_module(
                     state.tree_symbol_view(),
@@ -209,16 +209,16 @@ impl Compiler {
 
                 state
                     .types
-                    .publish_static_parameter_kind(parameter_symbol, kind);
+                    .set_artifact_static_parameter_kind(parameter_symbol, kind);
                 state
                     .types
-                    .publish_static_parameter_variance(parameter_symbol, variance);
+                    .set_artifact_static_parameter_variance(parameter_symbol, variance);
             }
         }
     }
 
     /// Publish declared static parameter constraints for one module.
-    pub(crate) fn publish_static_parameter_constraints(
+    pub(crate) fn record_artifact_static_parameter_constraints(
         &self,
         ctx: &mut TypeContext<'_>,
     ) -> AnalyzeResult<()> {
@@ -233,7 +233,7 @@ impl Compiler {
                 .primary_declaration
                 .map(|declaration| declaration.local_id)
                 .unwrap_or(ctx.module.dir(ctx.profile).anchor_node);
-            let published_constraint_type_id = if let Some(primary_declaration) =
+            let artifact_constraint_type_id = if let Some(primary_declaration) =
                 symbol_entry.primary_declaration
                 && let Some(declared_type_id) = ctx.types.get_declared_type_id(primary_declaration)
             {
@@ -253,7 +253,7 @@ impl Compiler {
                 self.synthesize_implicit_static_parameter_constraint(source_id, ctx.types)
             };
             ctx.types
-                .publish_static_parameter_constraint_type(symbol, published_constraint_type_id);
+                .set_artifact_static_parameter_constraint_type(symbol, artifact_constraint_type_id);
         }
 
         Ok(())
@@ -311,13 +311,13 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> Option<Vec<GlobalSymbolId>> {
         if let Some(cached) = self
-            .with_module_types_or_local_at_stage(
+            .with_module_types_or_local_at_boundary(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
                 ctx.types,
-                AnalyzeDependencyStage::Declare,
-                |_, owner_types| owner_types.query_published_static_parameter_symbols(symbol),
+                DirReadBoundary::Declared,
+                |_, owner_types| owner_types.query_artifact_static_parameter_symbols(symbol),
             )
             .ok()
             .flatten()
@@ -334,7 +334,7 @@ impl Compiler {
             }
 
             if current.module_id == ctx.module.id {
-                if let Some(cached) = ctx.types.query_published_static_parameter_symbols(current) {
+                if let Some(cached) = ctx.types.query_artifact_static_parameter_symbols(current) {
                     break Some(cached);
                 }
 
@@ -355,15 +355,15 @@ impl Compiler {
             }
 
             let Some((parameters, next)) = self
-                .with_module_tree_symbol_view_at_stage(
+                .with_module_tree_symbol_view_at_boundary(
                     ctx.module,
                     ctx.profile,
                     current.module_id,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |view| {
                         let owner_types = view.module.dir(ctx.profile).types.read();
                         if let Some(cached) =
-                            owner_types.query_published_static_parameter_symbols(current)
+                            owner_types.query_artifact_static_parameter_symbols(current)
                         {
                             return (Some(cached), None);
                         }
@@ -470,13 +470,13 @@ impl Compiler {
     ) -> StaticParameter {
         // prefer parameter metadata from the owning module
         let parameter = self
-            .with_module_tree_symbol_view_or_local_at_stage(
+            .with_module_tree_symbol_view_or_local_at_boundary(
                 ctx.module,
                 ctx.profile,
                 symbol_id.module_id,
                 ctx.tree,
                 ctx.symbols,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |view| {
                     let owner_options = self.analyze_context_options_for_module(view.module.id);
                     let mut ctx = ctx.reborrow_for_module_with_options(

@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use dashmap::DashMap;
 use destack_source::{FileType, ModuleId, PackageId};
 
-use crate::TargetId;
+use crate::{OutputDependency, TargetId};
 
 use super::{Output, OutputId, OutputKey, OutputScope};
 
@@ -15,6 +15,8 @@ pub struct OutputRegistry {
     outputs_by_id: DashMap<OutputId, Arc<Output>>,
     /// Output ids by key and file type.
     outputs_by_key: DashMap<(OutputKey, FileType), OutputId>,
+    /// Dependency stamps by output key.
+    dependencies: DashMap<OutputKey, OutputDependency>,
     /// The next output id.
     next_id: AtomicU32,
 }
@@ -31,6 +33,7 @@ impl OutputRegistry {
         Self {
             outputs_by_id: DashMap::new(),
             outputs_by_key: DashMap::new(),
+            dependencies: DashMap::new(),
             next_id: AtomicU32::new(0),
         }
     }
@@ -88,6 +91,25 @@ impl OutputRegistry {
         file_type: FileType,
     ) -> Option<Arc<Output>> {
         self.get_by_key(OutputScope::Package(package), target, file_type)
+    }
+
+    /// Get the dependency stamp for one output key.
+    pub fn dependency(&self, key: &OutputKey) -> Option<OutputDependency> {
+        self.dependencies
+            .get(key)
+            .map(|dependency| *dependency.value())
+    }
+
+    /// Insert one dependency stamp for one output key.
+    pub fn set_dependency(&self, key: OutputKey, dependency: OutputDependency) {
+        self.dependencies.insert(key, dependency);
+    }
+
+    /// Return whether any output exists for one key.
+    pub fn contains_key(&self, key: &OutputKey) -> bool {
+        self.outputs_by_key
+            .iter()
+            .any(|entry| &entry.key().0 == key)
     }
 
     /// Check if an output exists by id.
@@ -174,6 +196,7 @@ impl OutputRegistry {
     pub fn clear(&self) {
         self.outputs_by_id.clear();
         self.outputs_by_key.clear();
+        self.dependencies.clear();
     }
 
     /// Return the number of outputs.

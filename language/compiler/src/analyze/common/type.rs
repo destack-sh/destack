@@ -12,7 +12,7 @@ use destack_source::ModuleId;
 use destack_workspace::Module;
 
 use super::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, InferContext, ModuleSymbolView, ModuleTypeView,
+    CanonicalSymbolMode, DirReadBoundary, InferContext, ModuleSymbolView, ModuleTypeView,
     NormalizationMode, RelationMode, SymbolTypeView, TreeSymbolView, TypeContext, TypeView,
     TypeWalkContext, TypeWalkKey,
 };
@@ -74,6 +74,11 @@ enum TypeContainmentKind<'a> {
         compiler: &'a Compiler,
         /// The tree-and-symbol ctx view for the current module.
         ctx: TreeSymbolView<'a>,
+    },
+    /// Detect direct references to one symbol.
+    ReferenceSymbol {
+        /// The symbol to detect.
+        symbol: GlobalSymbolId,
     },
     /// Detect `this` type references.
     ThisType,
@@ -244,6 +249,15 @@ impl<'a> TypeContainmentVisitor<'a> {
         )
     }
 
+    /// Create a visitor for direct symbol-reference containment.
+    fn new_reference_symbol(symbol: GlobalSymbolId, visited: &'a mut HashSet<LocalTypeId>) -> Self {
+        Self::new(
+            TypeContainmentKind::ReferenceSymbol { symbol },
+            visited,
+            None,
+        )
+    }
+
     /// Create a visitor for `this` type containment.
     fn new_this_type(visited: &'a mut HashSet<LocalTypeId>) -> Self {
         Self::new(TypeContainmentKind::ThisType, visited, None)
@@ -326,6 +340,7 @@ impl<'a> TypeContainmentVisitor<'a> {
             TypeContainmentKind::InferBinding => VisitedMode::Set,
             TypeContainmentKind::InferVar => VisitedMode::Set,
             TypeContainmentKind::AssociatedTypeReference { .. } => VisitedMode::Set,
+            TypeContainmentKind::ReferenceSymbol { .. } => VisitedMode::Set,
             TypeContainmentKind::ThisType => VisitedMode::Set,
             TypeContainmentKind::ForbiddenLiteral { .. } => VisitedMode::Set,
             TypeContainmentKind::ManagedType { .. } => VisitedMode::Set,
@@ -529,6 +544,16 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                         .query_static_member_symbol_kind_for_symbol(*ctx, *symbol)
                         .ok()
                         == Some(Some(StaticMemberSymbolKind::AssociatedType))
+                {
+                    self.found = true;
+                    return;
+                }
+            }
+            TypeContainmentKind::ReferenceSymbol {
+                symbol: target_symbol,
+            } => {
+                if let Type::Reference { symbol, .. } = ty
+                    && symbol == target_symbol
                 {
                     self.found = true;
                     return;
@@ -1084,12 +1109,12 @@ impl Compiler {
 
         // rely on the declared parameter metadata
         let Some(symbol) = self
-            .with_module_symbols_or_local_at_stage(
+            .with_module_symbols_or_local_at_boundary(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
                 ctx.symbols,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).clone(),
             )
             .ok()
@@ -1348,11 +1373,11 @@ impl Compiler {
         // enum-field ownership is module-local metadata
         if field_symbol.module_id != ctx.module.id {
             return self
-                .with_module_symbols_at_stage(
+                .with_module_symbols_at_boundary(
                     ctx.module,
                     ctx.profile,
                     field_symbol.module_id,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |owner_module, owner_symbols| {
                         let field_entry = owner_symbols.get_symbol(field_symbol.local_id);
                         let primary = field_entry.primary_declaration?;
@@ -1478,12 +1503,12 @@ impl Compiler {
             }
 
             let next_symbol = self
-                .with_module_symbols_or_local_at_stage(
+                .with_module_symbols_or_local_at_boundary(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |_owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)
@@ -1554,11 +1579,11 @@ impl Compiler {
 
             // import the alias target when the symbol is remote
             let (dependency_symbol, remote_alias_target, next) = match self
-                .with_module_tree_symbol_view_at_stage(
+                .with_module_tree_symbol_view_at_boundary(
                     ctx.module,
                     ctx.profile,
                     current.module_id,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |view| {
                         let symbol_entry = view.symbols.get_symbol(current.local_id);
                         if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
@@ -1678,13 +1703,13 @@ impl Compiler {
                 continue;
             }
 
-            // read one remote symbol edge under declare-stage gating
-            let (typed_symbol, next) = match self.with_module_symbols_or_local_at_stage(
+            // read one remote symbol edge under declare-boundary gating
+            let (typed_symbol, next) = match self.with_module_symbols_or_local_at_boundary(
                 ctx.module,
                 ctx.profile,
                 current.module_id,
                 ctx.symbols,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |_owner_module, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(current.local_id);
                     let typed_symbol = GlobalSymbolId::new(
@@ -1705,12 +1730,12 @@ impl Compiler {
                 SymbolType::TypeAlias | SymbolType::Newtype
             ) {
                 let resolved = self
-                    .with_module_types_or_local_at_stage(
+                    .with_module_types_or_local_at_boundary(
                         ctx.module,
                         ctx.profile,
                         current.module_id,
                         ctx.types,
-                        AnalyzeDependencyStage::Declare,
+                        DirReadBoundary::Declared,
                         |_owner_module, owner_types| {
                             owner_types.get_alias_target_type_id(typed_symbol)
                         },
@@ -2120,6 +2145,19 @@ impl Compiler {
         visitor.found
     }
 
+    /// Check whether a type contains a direct reference to one symbol.
+    pub(crate) fn type_contains_reference_symbol(
+        &self,
+        ty_id: LocalTypeId,
+        symbol: GlobalSymbolId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        let mut visitor = TypeContainmentVisitor::new_reference_symbol(symbol, visited);
+        visitor.visit_type_id(types, ty_id);
+        visitor.found
+    }
+
     pub(crate) fn type_has_unevaluated_value_static_arguments(
         &self,
         ctx: TypeView<'_>,
@@ -2156,13 +2194,13 @@ impl Compiler {
             let kind = parameter_symbols
                 .get(index)
                 .map(|parameter_symbol| {
-                    self.with_module_tree_symbol_view_or_local_at_stage(
+                    self.with_module_tree_symbol_view_or_local_at_boundary(
                         ctx.module,
                         ctx.profile,
                         parameter_symbol.module_id,
                         ctx.tree,
                         ctx.symbols,
-                        AnalyzeDependencyStage::Declare,
+                        DirReadBoundary::Declared,
                         |view| {
                             self.static_parameter_metadata_for_symbol_in_module(
                                 view,

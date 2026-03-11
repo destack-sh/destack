@@ -175,7 +175,7 @@ impl Compiler {
         drop(module);
 
         // ensure the target module is ready before scanning roots
-        self.require_resolve_module_prepare_if_needed(origin_module_id, module_id, profile)?;
+        self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
         // load target module state
         let module = self.program.modules.get(module_id);
@@ -757,6 +757,7 @@ impl Compiler {
             target: ExportTarget::Resolved(symbol),
             symbol: None,
             item: None,
+            dependencies: vec![symbol],
         }
     }
 

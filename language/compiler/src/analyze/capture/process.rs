@@ -3,21 +3,9 @@ use destack_workspace::ProfileId;
 
 use crate::analyze::common::TreeSymbolView;
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 impl Compiler {
-    /// Ensure a module's captures have been analyzed.
-    pub fn require_analyze_module_capture(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
-        use crate::AnalyzeTask;
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleCapture { module, profile })
-    }
-
     /// Post-commit pass: resolve captures for closures and nested functions.
     pub(crate) fn analyze_module_capture(
         &self,
@@ -34,9 +22,6 @@ impl Compiler {
             profile_version,
         )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_CAPTURE);
-
-        // ensure dependencies are ready
-        self.require_analyze_module_commit(module_id, profile)?;
 
         // skip non code modules
         if !self.is_code_module(module_id) {

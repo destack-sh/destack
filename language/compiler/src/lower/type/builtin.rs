@@ -7,7 +7,7 @@ use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 
 use crate::analyze::TreeSymbolTypeView;
-use crate::{Compiler, LowerError, LowerResult, TaskDependencyError};
+use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
 use crate::lower::static_key_to_field_name;
@@ -107,18 +107,18 @@ impl<'a> BuiltinTypeLayouts<'a> {
     /// Ensure the module has been analyzed for this profile.
     fn require_analyzed_module(&self, module_id: ModuleId) -> LowerResult<()> {
         // request the analyzed module
-        let result = self
-            .compiler
-            .require_analyze_module(module_id, self.profile);
+        let result = self.compiler.require_dir_analyzed(module_id, self.profile);
         let Err(error) = result else {
             return Ok(());
         };
 
         // forward dependency failures as lower errors
         match error {
-            TaskDependencyError::NotReady { dependency } => Err(LowerError::Yield { dependency }),
-            TaskDependencyError::Failed { dependency } => {
-                Err(LowerError::UnsatisfiedDependency { dependency })
+            BuildRequirementError::NotReady { requirement } => {
+                Err(LowerError::Yield { requirement })
+            }
+            BuildRequirementError::Failed { requirement } => {
+                Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }
     }

@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 impl Compiler {
-    /// Build one infer-table-missing internal error for commit stage paths.
+    /// Build one infer-table-missing internal error for commit paths.
     fn missing_commit_infer_table_error(
         &self,
         module_id: ModuleId,
@@ -13,7 +13,7 @@ impl Compiler {
     ) -> AnalyzeError {
         AnalyzeError::Internal {
             message: format!(
-                "missing infer table for commit stage ({context}): module={module_id:?}, profile={profile:?}"
+                "missing infer table for commit ({context}): module={module_id:?}, profile={profile:?}"
             ),
         }
     }

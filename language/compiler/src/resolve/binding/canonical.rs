@@ -27,11 +27,7 @@ impl Compiler {
             visited.push(current);
 
             // ensure the target module's direct symbols are resolved (may yield) - skip if it's the calling module
-            self.require_resolve_module_direct_if_other(
-                calling_module,
-                current.module_id,
-                profile_id,
-            )?;
+            self.require_dir_prepared_if_other(calling_module, current.module_id, profile_id)?;
 
             // get the symbol
             let module = self.program.modules.get(current.module_id);

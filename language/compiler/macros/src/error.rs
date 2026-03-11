@@ -509,12 +509,12 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
     let try_from_impl = if let Some(yv) = yield_variant {
         let yield_name = &yv.name;
         quote! {
-            impl TryFrom<#enum_name> for TaskDependency {
+            impl TryFrom<#enum_name> for BuildRequirementSet {
                 type Error = #enum_name;
 
                 fn try_from(error: #enum_name) -> Result<Self, Self::Error> {
                     match error {
-                        #enum_name::#yield_name { dependency } => Ok(dependency),
+                        #enum_name::#yield_name { requirement } => Ok(requirement),
                         _ => Err(error),
                     }
                 }
@@ -522,7 +522,7 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         }
     } else {
         quote! {
-            impl TryFrom<#enum_name> for TaskDependency {
+            impl TryFrom<#enum_name> for BuildRequirementSet {
                 type Error = #enum_name;
 
                 fn try_from(error: #enum_name) -> Result<Self, Self::Error> {
@@ -538,11 +538,11 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         let yield_name = &yv.name;
         let yield_failed_name = &yfv.name;
         quote! {
-            impl From<TaskDependencyError> for #enum_name {
-                fn from(error: TaskDependencyError) -> Self {
+            impl From<BuildRequirementError> for #enum_name {
+                fn from(error: BuildRequirementError) -> Self {
                     match error {
-                        TaskDependencyError::NotReady { dependency } => Self::#yield_name { dependency },
-                        TaskDependencyError::Failed { dependency } => Self::#yield_failed_name { dependency },
+                        BuildRequirementError::NotReady { requirement } => Self::#yield_name { requirement },
+                        BuildRequirementError::Failed { requirement } => Self::#yield_failed_name { requirement },
                     }
                 }
             }

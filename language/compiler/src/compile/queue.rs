@@ -8,17 +8,17 @@ use crossbeam_deque::{Injector, Steal};
 use dashmap::DashMap;
 use parking_lot::{Condvar, Mutex};
 
-use crate::{Task, TaskDependency, TaskHandle, TaskId, TaskOutcome, TaskStatus};
+use crate::{BuildKey, BuildRequirementSet, Task, TaskHandle, TaskId, TaskOutcome, TaskStatus};
 
 #[derive(Debug, Default)]
 struct TaskIndex {
     /// All tasks ever seen (index = TaskId).
     handles: Vec<TaskHandle>,
-    /// Fast lookup from task content to its id for deduplication.
-    ids: HashMap<Task, TaskId>,
+    /// Fast lookup from build key to task id for deduplication.
+    ids: HashMap<BuildKey, TaskId>,
 }
 
-/// Queue of compiler tasks with dependency tracking.
+/// Queue of compiler tasks with build requirement tracking.
 pub struct TaskQueue {
     tasks: Mutex<TaskIndex>,
     /// Ready queue.
@@ -26,8 +26,8 @@ pub struct TaskQueue {
     ready: Injector<TaskId>,
     #[cfg(not(feature = "parallel"))]
     ready: Mutex<VecDeque<TaskId>>,
-    /// Dependency tracking: when task X completes, wake these waiting tasks.
-    waiters: DashMap<TaskId, Vec<TaskId>>,
+    /// Waiters keyed by the build key they are waiting on.
+    waiters: DashMap<BuildKey, Vec<TaskId>>,
     /// Number of tasks currently being processed.
     active_count: AtomicUsize,
     /// Condvar to signal when work is available or done.
@@ -70,20 +70,40 @@ impl TaskQueue {
     /// Enqueue a task, returns the TaskId.
     /// If the task already exists, returns the existing TaskId (noop).
     pub(super) fn enqueue(&self, task: Task) -> (TaskId, bool) {
+        let build_key = task.build_key().clone();
         let mut tasks = self.tasks.lock();
-        if let Some(&task_id) = tasks.ids.get(&task) {
+        if let Some(&task_id) = tasks.ids.get(&build_key) {
             return (task_id, false);
         }
 
         let task_id = TaskId::new(tasks.handles.len() as u32);
         let handle = TaskHandle::new(task_id, task.clone());
         tasks.handles.push(handle);
-        tasks.ids.insert(task, task_id);
+        tasks.ids.insert(build_key, task_id);
         drop(tasks);
 
         // add to ready queue and notify workers
         self.push_ready(task_id);
         (task_id, true)
+    }
+
+    /// Requeue one existing final task for another build attempt.
+    pub(super) fn try_requeue_final(&self, build_key: &BuildKey) -> Option<TaskId> {
+        let mut tasks = self.tasks.lock();
+        let &task_id = tasks.ids.get(build_key)?;
+        let handle = tasks.handles.get_mut(task_id.0 as usize)?;
+
+        if !handle.status.is_final() {
+            return Some(task_id);
+        }
+
+        handle.status = TaskStatus::Queued;
+        handle.last_outcome = None;
+        handle.yield_count = 0;
+        drop(tasks);
+
+        self.push_ready(task_id);
+        Some(task_id)
     }
 
     /// Pop a task from the ready queue.
@@ -159,7 +179,7 @@ impl TaskQueue {
             && matches!(handle.status, TaskStatus::Yielded { .. })
         {
             handle.status = TaskStatus::Queued;
-            // clear last_outcome since we're requeuing (dependency was satisfied, progress made)
+            // clear last_outcome since we're requeuing after requirement progress
             handle.last_outcome = None;
             drop(tasks); // release lock before pushing
             self.push_ready(task_id);
@@ -175,18 +195,15 @@ impl TaskQueue {
             .map(|h| h.status.clone())
     }
 
-    /// Register a waiter: when `dependency_id` completes, `waiter_id` should be notified.
-    pub(super) fn add_waiter(&self, dependency_id: TaskId, waiter_id: TaskId) {
-        self.waiters
-            .entry(dependency_id)
-            .or_default()
-            .push(waiter_id);
+    /// Register one waiter for one required build key.
+    pub(super) fn add_waiter(&self, build_key: BuildKey, waiter_id: TaskId) {
+        self.waiters.entry(build_key).or_default().push(waiter_id);
     }
 
-    /// Get and remove all waiters for a task.
-    pub(super) fn take_waiters(&self, task_id: TaskId) -> Vec<TaskId> {
+    /// Get and remove all waiters for a build key.
+    pub(super) fn take_waiters(&self, build_key: &BuildKey) -> Vec<TaskId> {
         self.waiters
-            .remove(&task_id)
+            .remove(build_key)
             .map(|(_, waiters)| waiters)
             .unwrap_or_default()
     }
@@ -201,31 +218,31 @@ impl TaskQueue {
         self.notify_workers();
     }
 
-    /// Find a task by its content.
-    pub(super) fn find_task_handle(&self, task: &Task) -> Option<TaskHandle> {
+    /// Find a task by its build key.
+    pub(super) fn find_task_handle(&self, build_key: &BuildKey) -> Option<TaskHandle> {
         let tasks = self.tasks.lock();
         tasks
             .ids
-            .get(task)
+            .get(build_key)
             .and_then(|task_id| tasks.handles.get(task_id.0 as usize).cloned())
     }
 
-    /// Find a task by its content and return its status.
-    pub(super) fn find_task_status(&self, task: &Task) -> Option<TaskStatus> {
+    /// Find a task by its build key and return its status.
+    pub(super) fn find_task_status(&self, build_key: &BuildKey) -> Option<TaskStatus> {
         let tasks = self.tasks.lock();
         tasks
             .ids
-            .get(task)
+            .get(build_key)
             .and_then(|task_id| tasks.handles.get(task_id.0 as usize))
             .map(|handle| handle.status.clone())
     }
 
-    /// Find a task by its content and return its outcome.
-    pub(super) fn find_task_outcome(&self, task: &Task) -> Option<TaskOutcome> {
+    /// Find a task by its build key and return its outcome.
+    pub(super) fn find_task_outcome(&self, build_key: &BuildKey) -> Option<TaskOutcome> {
         let tasks = self.tasks.lock();
         tasks
             .ids
-            .get(task)
+            .get(build_key)
             .and_then(|task_id| tasks.handles.get(task_id.0 as usize))
             .and_then(|handle| handle.last_outcome.clone())
     }
@@ -254,13 +271,13 @@ impl TaskQueue {
     }
 
     /// Snapshot all yielded tasks with their current dependencies.
-    pub(super) fn yielded_tasks_with_dependencies(&self) -> Vec<(TaskId, TaskDependency)> {
+    pub(super) fn yielded_tasks_with_requirements(&self) -> Vec<(TaskId, BuildRequirementSet)> {
         let tasks = self.tasks.lock();
         tasks
             .handles
             .iter()
             .filter_map(|handle| match &handle.status {
-                TaskStatus::Yielded { dependency } => Some((handle.id, dependency.clone())),
+                TaskStatus::Yielded { requirement } => Some((handle.id, requirement.clone())),
                 _ => None,
             })
             .collect()

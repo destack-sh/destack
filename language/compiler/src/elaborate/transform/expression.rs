@@ -30,7 +30,7 @@ impl Compiler {
         )?;
 
         // ensure analysis is complete
-        self.require_analyze_module(module_id, profile)?;
+        self.require_dir_analyzed(module_id, profile)?;
         if !self.is_code_module(module_id) {
             return Ok(());
         }

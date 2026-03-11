@@ -1,3 +1,4 @@
+use crate::analyze::common::TreeSymbolView;
 use std::collections::HashSet;
 
 use crate::import::{SymbolDescriptor, can_merge_declarations};
@@ -6,13 +7,190 @@ use destack_builtin::builtin_lib;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, Export, ExportKind, Expression,
     GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleBinding,
-    ModuleBindingExports, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    SymbolType,
+    ModuleBindingExports, NodeTree, NodeVisitor, NodeVisitorOptions, StaticKey, SymbolKind,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, walk_expression,
 };
 use destack_source::{LanguageType, ModuleId};
 use destack_workspace::{Module, ModuleDir, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
+
+/// Collect canonical dependency symbols for one export initializer.
+#[derive(Debug)]
+struct ExportDependencyCollector<'a> {
+    /// The compiler driving export resolution.
+    compiler: &'a Compiler,
+    /// The module being resolved.
+    module: &'a Module,
+    /// The active profile.
+    profile: ProfileId,
+    /// The module symbol table.
+    symbols: &'a SymbolTable,
+    /// Collected dependency symbols.
+    dependencies: Vec<GlobalSymbolId>,
+    /// Visitor options.
+    options: NodeVisitorOptions,
+}
+
+impl<'a> ExportDependencyCollector<'a> {
+    /// Create a new export dependency collector.
+    fn new(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        profile: ProfileId,
+        symbols: &'a SymbolTable,
+    ) -> Self {
+        Self {
+            compiler,
+            module,
+            profile,
+            symbols,
+            dependencies: Vec::new(),
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Finish collection and return canonical dependency symbols.
+    fn finish(mut self) -> Vec<GlobalSymbolId> {
+        self.dependencies.sort_unstable();
+        self.dependencies.dedup();
+        self.dependencies
+    }
+
+    /// Return the namespace-like target symbol for member dependency collection.
+    fn namespace_target_symbol_maybe(
+        &self,
+        target_symbol: GlobalSymbolId,
+    ) -> Option<GlobalSymbolId> {
+        // keep imported aliases on their resolved remote target
+        if target_symbol.module_id == self.module.id
+            && let Some(imported_symbol) = self
+                .symbols
+                .get_symbol(target_symbol.local_id)
+                .target_symbol
+        {
+            return Some(imported_symbol);
+        }
+
+        // only namespace-like locals should drive member dependency lookup
+        if target_symbol.module_id == self.module.id {
+            let symbol = self.symbols.get_symbol(target_symbol.local_id);
+            if symbol.kind != SymbolKind::Namespace {
+                return None;
+            }
+        }
+
+        Some(target_symbol)
+    }
+}
+
+impl NodeVisitor for ExportDependencyCollector<'_> {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Expression>,
+        expression: &Expression,
+    ) {
+        // member access: resolve the member symbol once at export publication time
+        if let Expression::Member {
+            left,
+            name,
+            static_arguments,
+        } = expression
+        {
+            let left_expression = tree.get(*left);
+            let member_key = StaticKey::Name(*name);
+
+            if static_arguments.is_none()
+                && let Some(target_symbol) = left_expression.target_symbol()
+                && let Some(namespace_target) = self.namespace_target_symbol_maybe(target_symbol)
+            {
+                if let Ok(Some(member_symbol)) = self.compiler.resolve_symbol_in_namespace(
+                    id.into_global_any(self.module.id),
+                    namespace_target,
+                    self.profile,
+                    DependencyKind::Value,
+                    member_key,
+                    None,
+                ) {
+                    self.dependencies.push(member_symbol);
+                } else if let Some(member_symbol) = self.compiler.query_static_member_symbol(
+                    self.module,
+                    self.profile,
+                    target_symbol,
+                    member_key,
+                    tree,
+                    self.symbols,
+                ) {
+                    self.dependencies.push(member_symbol);
+                }
+            }
+        }
+
+        // encoded path member access
+        if let Expression::LocalReference {
+            path,
+            static_arguments,
+            target_symbol,
+        }
+        | Expression::ModuleReference {
+            path,
+            static_arguments,
+            target_symbol,
+        }
+        | Expression::GlobalReference {
+            path,
+            static_arguments,
+            target_symbol,
+        } = expression
+        {
+            if static_arguments.is_none() && path.segments.len() > 1 {
+                let mut current_symbol = *target_symbol;
+
+                for segment in path.segments.iter().copied().skip(1) {
+                    let member_key = StaticKey::Name(segment);
+                    let Some(member_symbol) = self.compiler.query_static_member_symbol(
+                        self.module,
+                        self.profile,
+                        current_symbol,
+                        member_key,
+                        tree,
+                        self.symbols,
+                    ) else {
+                        break;
+                    };
+                    current_symbol = member_symbol;
+                }
+
+                if current_symbol != *target_symbol {
+                    self.dependencies.push(current_symbol);
+                }
+            }
+        }
+
+        // direct references
+        if let Some(target_symbol) = expression.target_symbol() {
+            if target_symbol.module_id == self.module.id
+                && let Some(imported_symbol) = self
+                    .symbols
+                    .get_symbol(target_symbol.local_id)
+                    .target_symbol
+            {
+                self.dependencies.push(imported_symbol);
+            } else {
+                self.dependencies.push(target_symbol);
+            }
+        }
+
+        destack_core::ensure_sufficient_stack(|| {
+            walk_expression(self, tree, id, expression);
+        });
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -884,6 +1062,8 @@ impl Compiler {
     /// Finalize export targets after dependency resolution.
     pub(super) fn finalize_module_exports(
         &self,
+        module: &Module,
+        profile: ProfileId,
         dir: &ModuleDir,
         tree: &NodeTree,
         symbols: &mut SymbolTable,
@@ -921,11 +1101,14 @@ impl Compiler {
         // resolve export targets for reexports
         let mut exports = dir.exported_symbols.write();
         self.finalize_export_targets(tree, &mut exports);
+        self.finalize_export_dependencies(module, profile, tree, symbols, &mut exports);
     }
 
     /// Finalize export targets for module bindings after dependency resolution.
     pub(super) fn finalize_module_binding_exports(
         &self,
+        module: &Module,
+        profile: ProfileId,
         dir: &ModuleDir,
         tree: &NodeTree,
         symbols: &mut SymbolTable,
@@ -980,6 +1163,13 @@ impl Compiler {
             // resolve export targets for reexports
             if let Some(binding_exports) = binding_exports.get_mut(&binding_key) {
                 self.finalize_export_targets(tree, &mut binding_exports.exports);
+                self.finalize_export_dependencies(
+                    module,
+                    profile,
+                    tree,
+                    symbols,
+                    &mut binding_exports.exports,
+                );
             }
         }
     }
@@ -1006,6 +1196,59 @@ impl Compiler {
             };
             export.resolve_target(target_symbol);
         }
+    }
+
+    /// Finalize canonical export dependency symbols after target resolution.
+    fn finalize_export_dependencies(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
+    ) {
+        // publish the canonical dependency surface once at export finalization time
+        for export in exports.values_mut() {
+            export.dependencies =
+                self.export_dependencies_for_export(module, profile, tree, symbols, export);
+        }
+    }
+
+    /// Compute canonical dependency symbols for one finalized export.
+    fn export_dependencies_for_export(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        export: &Export,
+    ) -> Vec<GlobalSymbolId> {
+        // reexports depend directly on their resolved target symbol
+        if export.kind == ExportKind::ReExport {
+            return export.target.resolved().into_iter().collect();
+        }
+
+        // only local value exports with one direct binding initializer participate in
+        // export dependency cycles
+        let tree_symbol_view = TreeSymbolView::new(module, profile, tree, symbols);
+        let Some((_, value_symbol)) =
+            self.interface_value_symbol_for_export(symbols, module.id, export)
+        else {
+            return Vec::new();
+        };
+        let Some(declarator_id) =
+            self.direct_binding_declarator_for_symbol(tree_symbol_view, value_symbol)
+        else {
+            return Vec::new();
+        };
+        let Some(value_id) = tree.get(declarator_id).value else {
+            return Vec::new();
+        };
+
+        // collect dependencies from the initializer once
+        let mut collector = ExportDependencyCollector::new(self, module, profile, symbols);
+        collector.visit_expression(tree, value_id, tree.get(value_id));
+        collector.finish()
     }
 
     /// Resolve a default export target from dependency items.

@@ -5,11 +5,7 @@ use destack_workspace::TargetId;
 
 impl Compiler {
     /// Emit all outputs for a package target.
-    pub(super) fn emit_package(
-        &self,
-        package_id: PackageId,
-        target_id: &TargetId,
-    ) -> EmitResult<()> {
+    pub fn emit_package(&self, package_id: PackageId, target_id: &TargetId) -> EmitResult<()> {
         // verify target exists
         let has_target = {
             let package_ref = self.program.packages.get(package_id);
@@ -24,7 +20,15 @@ impl Compiler {
         }
 
         // honor noEmit configuration
-        if self.is_emit_disabled(package_id) {
+        if self
+            .program
+            .packages
+            .get(package_id)
+            .read()
+            .dsconfig
+            .as_ref()
+            .is_some_and(|dsconfig| dsconfig.options.compiler.no_emit)
+        {
             return Err(EmitError::NoEmit {
                 package: package_id,
                 target: target_id.clone(),
@@ -32,7 +36,7 @@ impl Compiler {
         }
 
         // ensure linking is complete
-        self.require_link_module(package_id, target_id)?;
+        self.require_package_output(package_id, target_id)?;
 
         // get all outputs for this package + target
         let outputs = self

@@ -1,4 +1,4 @@
-use crate::analyze::common::{AnalyzeDependencyStage, ModuleTypeView, TypeContext};
+use crate::analyze::common::{DirReadBoundary, ModuleTypeView, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, Member, NodeTree, NodeVisitor, NodeVisitorOptions,
@@ -103,12 +103,12 @@ impl Compiler {
         ctx: ModuleTypeView<'_>,
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<bool> {
-        self.with_module_types_or_local_at_stage(
+        self.with_module_types_or_local_at_boundary(
             ctx.module,
             ctx.profile,
             symbol.module_id,
             ctx.types,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |_, owner_types| {
                 owner_types.symbol_has_associated_comptime_projection_dependencies(symbol)
             },

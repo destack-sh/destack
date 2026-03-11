@@ -89,9 +89,9 @@ impl Compiler {
     ) -> ExecuteError {
         // preserve dependency yields as is
         match error {
-            LowerError::Yield { dependency } => ExecuteError::Yield { dependency },
-            LowerError::UnsatisfiedDependency { dependency } => {
-                ExecuteError::UnsatisfiedDependency { dependency }
+            LowerError::Yield { requirement } => ExecuteError::Yield { requirement },
+            LowerError::UnsatisfiedRequirement { requirement } => {
+                ExecuteError::UnsatisfiedRequirement { requirement }
             }
             error => ExecuteError::FailedLower {
                 module: module_id,
@@ -248,12 +248,9 @@ impl<'a> ComptimeLowerer<'a> {
         let well_known_intrinsics = self
             .compiler
             .program
-            .builtins
-            .as_ref()
-            .and_then(|builtins| {
-                let profile_key = self.compiler.program.profile(self.profile).key;
-                builtins.well_known_intrinsics(&profile_key)
-            });
+            .artifacts
+            .intrinsic_environment(self.profile)
+            .map(|environment| environment.intrinsics.clone());
 
         // build the empty closure env type
         let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();

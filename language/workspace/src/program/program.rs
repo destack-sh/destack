@@ -12,14 +12,16 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 
 use crate::{
-    Builtins, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot, FormatterOptions,
-    LinterOptions, Loader, Module, ModuleAst, ModuleDetection, ModuleFormat, ModuleGraphKey,
-    ModuleGraphStamp, ModuleGraphVersion, ModuleRegistry, ModuleSource, OutputRegistry, Package,
-    PackageKind, PackageRegistry, Platform, Profile, ProfileConfig, ProfileEnv, ProfileFlags,
-    ProfileId, ProfileKey, ProfileRegistry, ProgramIndex, Runtime, SourceType, Target, TargetId,
-    TsConfigId, TsConfigOptions, TsConfigRegistry, WorkspaceFileEntry, WorkspaceIndexSnapshot,
-    WorkspaceModuleEntry, builtin_libs_for_type_entries, discover_typescript_type_entries,
+    ArtifactRegistry, Builtins, DsConfigCompilerOptions, DsConfigOptions, DsPathAliases,
+    EnvSnapshot, FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleDetection,
+    ModuleFormat, ModuleGraphKey, ModuleGraphStamp, ModuleGraphVersion, ModuleRegistry,
+    ModuleSource, OutputRegistry, Package, PackageKind, PackageRegistry, Platform, Profile,
+    ProfileConfig, ProfileEnv, ProfileFlags, ProfileId, ProfileKey, ProfileRegistry, ProgramIndex,
+    Runtime, SourceType, Target, TargetId, TsConfig, TsConfigId, TsConfigOptions, TsConfigRegistry,
+    WorkspaceFileEntry, WorkspaceIndexSnapshot, WorkspaceModuleEntry,
+    builtin_libs_for_type_entries, discover_typescript_type_entries,
     normalize_typescript_lib_names, normalize_typescript_type_entries, payload_hash_from_bytes,
+    typescript_default_libs,
 };
 
 /// Unique identifier for Programs.
@@ -108,6 +110,8 @@ pub struct Program {
     pub tsconfigs: Arc<TsConfigRegistry>,
     /// The combined string pool.
     pub strings: Arc<StringPool>,
+    /// Semantic compiler products.
+    pub artifacts: Arc<ArtifactRegistry>,
     /// Generated outputs.
     pub outputs: Arc<OutputRegistry>,
     /// The profiles in this program.
@@ -157,6 +161,7 @@ impl Program {
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
         let tsconfigs = Arc::new(TsConfigRegistry::new());
+        let artifacts = Arc::new(ArtifactRegistry::new());
         let outputs = Arc::new(OutputRegistry::new());
         let profiles = Arc::new(ProfileRegistry::new());
         let index = Arc::new(ProgramIndex::new());
@@ -179,6 +184,7 @@ impl Program {
             modules,
             packages,
             tsconfigs,
+            artifacts,
             outputs,
             profiles,
             index,
@@ -204,6 +210,7 @@ impl Program {
         packages: Arc<PackageRegistry>,
         tsconfigs: Arc<TsConfigRegistry>,
         strings: Arc<StringPool>,
+        artifacts: Arc<ArtifactRegistry>,
         outputs: Arc<OutputRegistry>,
         builtins: Option<Arc<Builtins>>,
     ) -> Self {
@@ -227,6 +234,7 @@ impl Program {
             modules,
             packages,
             tsconfigs,
+            artifacts,
             outputs,
             profiles,
             index,
@@ -650,11 +658,7 @@ impl Program {
     }
 
     /// Access tsconfig for a module via closure.
-    pub fn with_tsconfig<T>(
-        &self,
-        module: &Module,
-        f: impl FnOnce(&crate::TsConfig) -> T,
-    ) -> Option<T> {
+    pub fn with_tsconfig<T>(&self, module: &Module, f: impl FnOnce(&TsConfig) -> T) -> Option<T> {
         let tsconfig_id = module.tsconfig_id?;
         let tsconfig = self.tsconfigs.get(tsconfig_id);
 
@@ -746,7 +750,7 @@ impl Program {
 
         compiler_options.base_url = ts_compiler_options.base_url.clone();
         compiler_options.paths = ts_compiler_options.paths.as_ref().map(|paths| {
-            let mut mapped_paths = crate::DsPathAliases::default();
+            let mut mapped_paths = DsPathAliases::default();
             for (key, values) in paths {
                 mapped_paths.insert(key.clone(), values.clone());
             }
@@ -1021,7 +1025,7 @@ impl Program {
             } else if !compiler_options.lib.is_empty() {
                 compiler_options.lib.clone()
             } else if let Some(tsconfig_options) = tsconfig_options {
-                crate::typescript_default_libs(tsconfig_options)
+                typescript_default_libs(tsconfig_options)
             } else {
                 derived_target.derived_lib()
             };

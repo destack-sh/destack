@@ -5,7 +5,7 @@ use super::{
     index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
 use crate::analyze::common::{
-    AnalyzeDependencyStage, ConstContext, REWRITER_TAG_LITERAL_WIDENING, ReadonlyMaterializer,
+    ConstContext, DirReadBoundary, REWRITER_TAG_LITERAL_WIDENING, ReadonlyMaterializer,
     RelationMode, TypeContext, TypeRewriteCache, TypeWalkContext, TypeWalkKey, WideningMode,
     rewrite_type_with_cache,
 };

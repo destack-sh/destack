@@ -3,15 +3,32 @@ use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::ProfileId;
 
 impl Compiler {
-    /// Route interface analysis tasks to component analysis.
+    /// Build interface state for a module by converging its canonical interface component.
     pub(crate) fn analyze_module_interface(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        _module_version: ModuleVersion,
-        _profile_version: ProfileVersion,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> AnalyzeResult<()> {
-        self.require_analyze_interface_component(module_id, profile)?;
+        // ensure forward dependency edges are available for component discovery
+        self.require_interface_forward_closure(module_id, profile)?;
+
+        // only the canonical anchor builds the shared component
+        let anchor_module_id = self.interface_component_anchor_module_id(module_id, profile);
+        if anchor_module_id != module_id {
+            self.require_dir_interface(anchor_module_id, profile)?;
+            return Ok(());
+        }
+
+        let graph_version = self.module_graph_version(profile);
+        self.analyze_interface_component(
+            module_id,
+            profile,
+            module_version,
+            profile_version,
+            graph_version,
+        )?;
         Ok(())
     }
 }

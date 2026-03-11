@@ -24,7 +24,7 @@ impl Compiler {
         )?;
         let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE);
 
-        self.require_import_module_validate(module_id)?;
+        self.require_dir_base(module_id)?;
 
         // data/text/binary modules have simpler preparation
         if !self.is_code_module(module_id) {
@@ -34,15 +34,6 @@ impl Compiler {
                 module_version,
                 profile_version,
             );
-        }
-
-        // resolve libs if needed
-        if self.options.load_libs {
-            let module = self.program.modules.get(module_id);
-            let module = module.read();
-            if module.is_user() {
-                self.require_resolve_libs(profile_id)?;
-            }
         }
 
         // resolve cache handle

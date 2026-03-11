@@ -1,15 +1,31 @@
+use std::sync::Arc;
+
 use std::collections::HashSet;
 
 use destack_dir::{
     BindingAnchor, Declaration, DynamicKey, Expression, GlobalSymbolId, Heritage, LocalNodeId,
     NodeTree, StaticKey, SymbolTable,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ModuleDirData, ProfileId};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Read one committed DIR snapshot for resolve-time cross-module member lookup.
+    fn artifact_dir_snapshot_for_member_lookup(
+        &self,
+        module_id: destack_source::ModuleId,
+        profile: ProfileId,
+    ) -> Arc<ModuleDirData> {
+        self.program
+            .artifacts
+            .dir_resolved(module_id, profile)
+            .or_else(|| self.program.artifacts.dir_prepared(module_id, profile))
+            .or_else(|| self.program.artifacts.dir_base(module_id))
+            .unwrap_or_else(|| panic!("missing artifact snapshot for module {module_id:?}"))
+    }
+
     /// Resolve a static member symbol for a target symbol using module context fields.
     pub fn query_static_member_symbol(
         &self,
@@ -20,14 +36,36 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
+        // canonicalize the target before member lookup
+        let target_symbol =
+            self.canonical_symbol_in_tables(module, profile, target_symbol, symbols);
         let mut visited_targets = HashSet::new();
+
+        // use the current module tables when the target is local
+        if target_symbol.module_id == module.id {
+            return self.query_static_member_symbol_inner(
+                module,
+                profile,
+                target_symbol,
+                member_key,
+                tree,
+                symbols,
+                &mut visited_targets,
+            );
+        }
+
+        // otherwise switch to the canonical target module snapshot
+        let target_module = self.program.modules.get(target_symbol.module_id);
+        let target_module = target_module.read();
+        let snapshot =
+            self.artifact_dir_snapshot_for_member_lookup(target_symbol.module_id, profile);
         self.query_static_member_symbol_inner(
-            module,
+            &target_module,
             profile,
             target_symbol,
             member_key,
-            tree,
-            symbols,
+            &snapshot.tree,
+            &snapshot.symbols,
             &mut visited_targets,
         )
     }
@@ -298,16 +336,15 @@ impl Compiler {
             } else {
                 let remote_module = self.program.modules.get(canonical_symbol.module_id);
                 let remote_module = remote_module.read();
-                let remote_dir = remote_module.dir(profile);
-                let remote_tree = remote_dir.tree.read();
-                let remote_symbols = remote_dir.symbols.read();
+                let snapshot = self
+                    .artifact_dir_snapshot_for_member_lookup(canonical_symbol.module_id, profile);
                 if let Some(symbol) = self.query_static_member_symbol_inner(
                     &remote_module,
                     profile,
                     canonical_symbol,
                     member_key,
-                    &remote_tree,
-                    &remote_symbols,
+                    &snapshot.tree,
+                    &snapshot.symbols,
                     visited_targets,
                 ) {
                     return Some(symbol);
@@ -326,16 +363,49 @@ impl Compiler {
         symbol: GlobalSymbolId,
         symbols: &SymbolTable,
     ) -> GlobalSymbolId {
-        if symbol.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(symbol.local_id);
-            symbol_entry.canonical_symbol.unwrap_or(symbol)
-        } else {
-            let remote_module = self.program.modules.get(symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_symbols = remote_module.dir(profile).symbols.read();
-            let symbol_entry = remote_symbols.get_symbol(symbol.local_id);
-            symbol_entry.canonical_symbol.unwrap_or(symbol)
+        self.canonical_symbol_in_tables_inner(module, profile, symbol, symbols, &mut HashSet::new())
+    }
+
+    /// Resolve canonical symbol identity using the provided symbol tables.
+    fn canonical_symbol_in_tables_inner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        visited_symbols: &mut HashSet<GlobalSymbolId>,
+    ) -> GlobalSymbolId {
+        // stop recursive target walks in malformed import graphs
+        if !visited_symbols.insert(symbol) {
+            return symbol;
         }
+
+        let (canonical_symbol, target_symbol) = if symbol.module_id == module.id {
+            let symbol_entry = symbols.get_symbol(symbol.local_id);
+            (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
+        } else {
+            let snapshot = self.artifact_dir_snapshot_for_member_lookup(symbol.module_id, profile);
+            let symbol_entry = snapshot.symbols.get_symbol(symbol.local_id);
+            (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
+        };
+
+        // prefer an explicitly resolved canonical symbol
+        if let Some(canonical_symbol) = canonical_symbol {
+            return canonical_symbol;
+        }
+
+        // otherwise keep following target aliases until the chain stabilizes
+        if let Some(target_symbol) = target_symbol {
+            return self.canonical_symbol_in_tables_inner(
+                module,
+                profile,
+                target_symbol,
+                symbols,
+                visited_symbols,
+            );
+        }
+
+        symbol
     }
 
     /// Resolve a static member symbol for a target symbol across module tables.
@@ -350,20 +420,15 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> ResolveResult<GlobalSymbolId> {
         // prefer the canonical symbol when available
-        self.require_resolve_module_canonical(target_symbol.module_id, profile)?;
-        let canonical_symbol = {
-            let module = self.program.modules.get(target_symbol.module_id);
-            let module = module.read();
-            let symbols = module.dir(profile).symbols.read();
-            let symbol = symbols.get_symbol(target_symbol.local_id);
-            symbol.canonical_symbol.unwrap_or(target_symbol)
-        };
+        self.require_dir_resolved(target_symbol.module_id, profile)?;
+        let canonical_symbol =
+            self.canonical_symbol_in_tables(module, profile, target_symbol, symbols);
 
         // use the canonical target for member lookup
         let target_symbol = canonical_symbol;
 
         // ensure target module symbols are resolved for member lookup
-        self.require_resolve_module_direct(target_symbol.module_id, profile)?;
+        self.require_dir_resolved(target_symbol.module_id, profile)?;
 
         // resolve the member when the target is in the current module
         if target_symbol.module_id == module.id {
@@ -387,17 +452,16 @@ impl Compiler {
         // load the target module tables for member lookup
         let target_module = self.program.modules.get(target_symbol.module_id);
         let target_module = target_module.read();
-        let target_dir = target_module.dir(profile);
-        let target_tree = target_dir.tree.read();
-        let target_symbols = target_dir.symbols.read();
+        let snapshot =
+            self.artifact_dir_snapshot_for_member_lookup(target_symbol.module_id, profile);
 
         let Some(symbol) = self.query_static_member_symbol(
             &target_module,
             profile,
             target_symbol,
             member_key,
-            &target_tree,
-            &target_symbols,
+            &snapshot.tree,
+            &snapshot.symbols,
         ) else {
             return Err(ResolveError::UnsupportedConstruct {
                 node: origin_id

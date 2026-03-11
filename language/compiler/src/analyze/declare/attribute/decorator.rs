@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Annotation, Argument, Binding, CaptureTable, Declaration, DeprecatedNotice, ExperimentalNotice,
+    Annotation, Argument, CaptureTable, Declaration, DeprecatedNotice, ExperimentalNotice,
     Expression, ExternBinding, GlobalSymbolId, IntrinsicBinding, LanguageItemBinding, LocalNodeId,
     LocalNodeIdAny, NodeTree, SanitizerMarker, SinkMarker, Symbol, SymbolDecorators, SymbolTable,
     TagMarker, TaintMarker, UnrollHint, WellKnownDecorator,
@@ -10,7 +10,7 @@ use destack_dir::{
 use destack_workspace::ProfileId;
 
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, ModuleSymbolView, ModuleTreeView, TreeSymbolView,
+    CanonicalSymbolMode, DirReadBoundary, ModuleSymbolView, ModuleTreeView, TreeSymbolView,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
@@ -351,12 +351,12 @@ impl Compiler {
         decorator_map: &HashMap<GlobalSymbolId, WellKnownDecorator>,
         target_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<WellKnownDecorator>> {
-        self.with_module_symbols_or_local_at_stage(
+        self.with_module_symbols_or_local_at_boundary(
             view.module,
             view.profile,
             target_symbol.module_id,
             view.symbols,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |owner_module, owner_symbols| {
                 let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
                 let group_id = symbol_entry.merge_group?;
@@ -408,52 +408,29 @@ impl Compiler {
         // apply decorator metadata
         match marker {
             WellKnownDecorator::Binding => {
-                let Some(name) =
-                    self.decorator_string_argument(view, annotation_id, decorator_name, &values)
+                let Some(binding) = self.decorator_binding_argument(view, annotation_id, &values)
                 else {
                     return;
                 };
-                if let Some(name) = name {
-                    if decorators.intrinsic_binding.is_some() || decorators.extern_binding.is_some()
-                    {
-                        self.report_invalid_well_known_decorator(
-                            view.module,
-                            view.profile,
-                            annotation_id,
-                            "binding cannot be combined with extern or intrinsic",
-                        );
-                        return;
-                    }
 
-                    let binding = Binding { name: Some(name) };
-                    self.merge_binding(
+                // reject conflicting binding forms
+                if decorators.intrinsic_binding.is_some() || decorators.extern_binding.is_some() {
+                    self.report_invalid_well_known_decorator(
                         view.module,
                         view.profile,
                         annotation_id,
-                        binding,
-                        decorators,
+                        "binding cannot be combined with extern or intrinsic",
                     );
-                } else {
-                    if decorators.intrinsic_binding.is_some() || decorators.extern_binding.is_some()
-                    {
-                        self.report_invalid_well_known_decorator(
-                            view.module,
-                            view.profile,
-                            annotation_id,
-                            "binding cannot be combined with extern or intrinsic",
-                        );
-                        return;
-                    }
-
-                    let binding = Binding { name: None };
-                    self.merge_binding(
-                        view.module,
-                        view.profile,
-                        annotation_id,
-                        binding,
-                        decorators,
-                    );
+                    return;
                 }
+
+                self.merge_binding(
+                    view.module,
+                    view.profile,
+                    annotation_id,
+                    binding,
+                    decorators,
+                );
             }
             WellKnownDecorator::Extern => {
                 let Some(name) =

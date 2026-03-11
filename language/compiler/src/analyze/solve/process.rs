@@ -1,22 +1,10 @@
 use crate::analyze::common::InferContext;
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::ProfileId;
 
 impl Compiler {
-    /// Ensure a module's infer constraints have been solved.
-    pub fn require_analyze_module_solve(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
-        use crate::AnalyzeTask;
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleSolve { module, profile })
-    }
-
     /// Phase 4: Solve infer constraints.
     pub(crate) fn analyze_module_solve(
         &self,
@@ -34,9 +22,6 @@ impl Compiler {
         )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_SOLVE);
 
-        // ensure infer preconditions are complete
-        self.require_analyze_module_infer(module_id, profile)?;
-
         // skip non-code modules
         if !self.is_code_module(module_id) {
             return Ok(());
@@ -47,7 +32,7 @@ impl Compiler {
             return Ok(());
         }
 
-        // declaration modules have no infer-table solve stage
+        // declaration modules have no solve-time infer table
         let module = self.program.modules.get(module_id);
         let module = module.read();
         if module.language_type.is_declaration() {
@@ -85,7 +70,7 @@ impl Compiler {
         })
         .ok_or_else(|| AnalyzeError::Internal {
             message: format!(
-                "missing infer table for solve stage: module={module_id:?}, profile={profile:?}"
+                "missing infer table for solve: module={module_id:?}, profile={profile:?}"
             ),
         })??;
 

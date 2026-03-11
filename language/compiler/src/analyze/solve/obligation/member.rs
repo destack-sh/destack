@@ -75,11 +75,11 @@ impl Compiler {
 
         let actions = match self.collect_missing_member_obligation_actions(ctx, &obligations) {
             Ok(actions) => actions,
-            Err(AnalyzeError::Yield { dependency }) => {
+            Err(AnalyzeError::Yield { requirement }) => {
                 for obligation in obligations {
                     ctx.infer.push_missing_member_obligation(obligation);
                 }
-                return Err(AnalyzeError::Yield { dependency });
+                return Err(AnalyzeError::Yield { requirement });
             }
             Err(error) => return Err(error),
         };

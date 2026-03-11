@@ -1,5 +1,5 @@
 use crate::analyze::common::{
-    AnalyzeDependencyStage, ModuleTypeView, SymbolTypeView, TreeSymbolView, TypeContext, TypeView,
+    DirReadBoundary, ModuleTypeView, SymbolTypeView, TreeSymbolView, TypeContext, TypeView,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
@@ -223,11 +223,11 @@ impl Compiler {
             ));
         }
 
-        self.with_module_symbols_at_stage(
+        self.with_module_symbols_at_boundary(
             ctx.module,
             ctx.profile,
             target_symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |owner_module, owner_symbols| {
                 let owner_types = owner_module.dir(ctx.profile).types.read();
                 self.enum_field_value_for_symbol_reference_read(
@@ -323,11 +323,11 @@ impl Compiler {
         // consume already published values from remote modules
         if enum_symbol.module_id != ctx.module.id {
             let remote_backing = self
-                .with_module_types_at_stage(
+                .with_module_types_at_boundary(
                     ctx.module,
                     ctx.profile,
                     enum_symbol.module_id,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |_owner_module, owner_types| owner_types.get_enum_backing_type(enum_symbol),
                 )
                 .map_err(AnalyzeError::from);
@@ -435,13 +435,13 @@ impl Compiler {
         ctx: TypeView<'_>,
         enum_symbol: GlobalSymbolId,
     ) -> Vec<GlobalSymbolId> {
-        self.with_module_tree_symbol_view_or_local_at_stage(
+        self.with_module_tree_symbol_view_or_local_at_boundary(
             ctx.module,
             ctx.profile,
             enum_symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |view| {
                 let fields = self.enum_fields_for_symbol_in_tree(view, enum_symbol);
                 fields
@@ -516,11 +516,11 @@ impl Compiler {
         // resolve fields in remote modules when needed
         if enum_symbol.module_id != ctx.module.id {
             return self
-                .with_module_tree_symbol_view_at_stage(
+                .with_module_tree_symbol_view_at_boundary(
                     ctx.module,
                     ctx.profile,
                     enum_symbol.module_id,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |view| self.enum_field_symbol_for_name_in_tree(view, enum_symbol, field_name),
                 )
                 .map_err(AnalyzeError::from);

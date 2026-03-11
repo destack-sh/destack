@@ -1,13 +1,11 @@
-use crate::analyze::common::{InferContext, TreeSymbolView, TypeContext};
+use crate::analyze::common::{InferContext, TypeContext};
 use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferState};
 use destack_dir::{
     Constraint, Declaration, Declarator, Export, Expression, GlobalNodeIdAny, GlobalSymbolId,
     InferOrigin, InferScope, InferTable, LocalNodeId, LocalTypeId, Mutability, NodeTree, NodeType,
-    NodeVisitor, NodeVisitorOptions, StaticKey, SymbolSpace, SymbolTable, Type, TypeLiteral,
-    TypeTable, walk_expression,
+    StaticKey, SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::Module;
 use indexmap::IndexMap;
 
 /// Track an exported declarator that needs surface inference.
@@ -30,62 +28,6 @@ struct InterfaceValueInference {
 struct InterfaceDeclarationInference {
     /// The declaration id to infer.
     declaration_id: LocalNodeId<Declaration>,
-}
-
-/// Collect remote references in interface value initializers.
-#[derive(Debug)]
-struct InterfaceValueReferenceCollector<'a> {
-    /// The module being analyzed.
-    module: &'a Module,
-    /// The symbol table for the module.
-    symbols: &'a SymbolTable,
-    /// Remote symbols referenced by the interface initializer.
-    references: Vec<GlobalSymbolId>,
-    /// Node visitor options.
-    options: NodeVisitorOptions,
-}
-
-impl<'a> InterfaceValueReferenceCollector<'a> {
-    /// Create a new interface value reference collector.
-    fn new(module: &'a Module, symbols: &'a SymbolTable) -> Self {
-        // initialize the collector state
-        Self {
-            module,
-            symbols,
-            references: Vec::new(),
-            options: NodeVisitorOptions::default(),
-        }
-    }
-}
-
-impl NodeVisitor for InterfaceValueReferenceCollector<'_> {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_expression(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
-    ) {
-        // collect remote references for interface value inference
-        if let Some(target_symbol) = expression.target_symbol() {
-            if target_symbol.module_id != self.module.id {
-                self.references.push(target_symbol);
-            } else if let Some(imported_symbol) = self
-                .symbols
-                .get_symbol(target_symbol.local_id)
-                .target_symbol
-            {
-                self.references.push(imported_symbol);
-            }
-        }
-
-        destack_core::ensure_sufficient_stack(|| {
-            walk_expression(self, tree, id, expression);
-        });
-    }
 }
 
 impl Compiler {
@@ -510,18 +452,6 @@ impl Compiler {
         Ok(Some(declared_type_id))
     }
 
-    /// Collect remote references used by an interface value initializer.
-    pub(crate) fn interface_value_references(
-        &self,
-        ctx: TreeSymbolView<'_>,
-        value_id: LocalNodeId<Expression>,
-    ) -> Vec<GlobalSymbolId> {
-        // walk the initializer and collect remote symbols
-        let mut collector = InterfaceValueReferenceCollector::new(ctx.module, ctx.symbols);
-        collector.visit_expression(ctx.tree, value_id, ctx.tree.get(value_id));
-        collector.references
-    }
-
     /// Follow local export aliases to reach the concrete symbol.
     fn local_export_target_symbol(
         &self,
@@ -582,15 +512,6 @@ impl Compiler {
             }
             _ => None,
         }
-    }
-
-    /// Return true when one interface value type still requires solver convergence.
-    pub(crate) fn interface_value_requires_solver(
-        &self,
-        types: &TypeTable,
-        ty_id: LocalTypeId,
-    ) -> bool {
-        types.get_type(ty_id).is_infer()
     }
 
     /// Return true when one interface value type is the semantic `unknown` top type.

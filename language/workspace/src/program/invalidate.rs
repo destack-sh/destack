@@ -4,7 +4,7 @@ use destack_source::{
     File, FileContent, FileId, FileType, FileVersion, ModuleId, PackageId, ProfileId,
 };
 
-use crate::{ModuleContent, Program, TsConfigId};
+use crate::{ModuleContent, PackageManifest, Program, TsConfigId};
 
 /// Content update payload for an invalidated file.
 #[derive(Debug, Clone)]
@@ -695,7 +695,7 @@ impl Program {
 
             // parse and apply the updated package manifest
             let Ok(next_manifest) =
-                crate::PackageManifest::parse(&file, existing_manifest.realpath.clone())
+                PackageManifest::parse(&file, existing_manifest.realpath.clone())
             else {
                 continue;
             };

@@ -1,33 +1,21 @@
 use crate::analyze::common::TypeContext;
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
+use crate::{AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementError, Compiler};
 use destack_dir::{Annotation, Declaration, Expression, Member, Parameter, Pattern};
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleDir, ModuleSource, ProfileId};
+use destack_workspace::{ArtifactKey, ModuleDir, ModuleSource, ProfileId};
 
 impl Compiler {
-    /// Ensure a module has been validated after analysis.
-    pub fn require_analyze_module_validate(
+    /// Ensure analyzed DIR exists for a module.
+    pub fn require_dir_analyzed(
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
-        use crate::AnalyzeTask;
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleValidate { module, profile })
-    }
-
-    /// Ensure a module has been fully analyzed (including checks).
-    pub fn require_analyze_module(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<(), TaskDependencyError> {
-        use crate::AnalyzeTask;
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleValidate { module, profile })
+    ) -> Result<(), BuildRequirementError> {
+        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+            module,
+            profile,
+        }))
     }
 
     /// Final pass: run validation checks over committed semantics.
@@ -107,7 +95,7 @@ impl Compiler {
         }
 
         // ensure analyze dependencies are ready
-        self.require_analyze_module_capture(module_id, profile)?;
+        // the analyzed-dir producer runs infer through validate as one sequence
 
         let module = self.program.modules.get(module_id);
         let module = module.read();

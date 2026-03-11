@@ -6,8 +6,8 @@ use destack_dir::{
 };
 use destack_workspace::ProfileId;
 
-use crate::analyze::common::{AnalyzeDependencyStage, ModuleSymbolView, TypeContext};
-use crate::{Compiler, TaskDependencyError};
+use crate::analyze::common::{DirReadBoundary, ModuleSymbolView, TypeContext};
+use crate::{BuildRequirementError, Compiler};
 
 /// Control how canonical symbol resolution treats aliases.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -20,14 +20,14 @@ pub(crate) enum CanonicalSymbolMode {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve the canonical symbol for a reference with an explicit stage contract.
-    pub(crate) fn canonical_symbol_id_at_stage(
+    /// Resolve the canonical symbol for a reference with an explicit boundary contract.
+    pub(crate) fn canonical_symbol_id_at_boundary(
         &self,
         view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
         mode: CanonicalSymbolMode,
-        stage: AnalyzeDependencyStage,
-    ) -> Result<GlobalSymbolId, TaskDependencyError> {
+        boundary: DirReadBoundary,
+    ) -> Result<GlobalSymbolId, BuildRequirementError> {
         let mut current_symbol = symbol;
         let mut visited = Vec::new();
 
@@ -39,12 +39,12 @@ impl Compiler {
             visited.push(current_symbol);
 
             let (symbol_ty, canonical_symbol, target_symbol) = self
-                .with_module_symbols_or_local_at_stage(
+                .with_module_symbols_or_local_at_boundary(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    stage,
+                    boundary,
                     |_, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         (
@@ -77,18 +77,18 @@ impl Compiler {
         }
     }
 
-    /// Resolve a symbol to the declaration owner symbol with an explicit stage contract.
-    pub(crate) fn declaration_symbol_id_at_stage(
+    /// Resolve a symbol to the declaration owner symbol with an explicit boundary contract.
+    pub(crate) fn declaration_symbol_id_at_boundary(
         &self,
         view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
-        stage: AnalyzeDependencyStage,
-    ) -> Result<Option<GlobalSymbolId>, TaskDependencyError> {
-        let mut current_symbol = self.canonical_symbol_id_at_stage(
+        boundary: DirReadBoundary,
+    ) -> Result<Option<GlobalSymbolId>, BuildRequirementError> {
+        let mut current_symbol = self.canonical_symbol_id_at_boundary(
             view,
             symbol,
             CanonicalSymbolMode::FollowAliases,
-            stage,
+            boundary,
         )?;
         let mut visited_symbols = HashSet::new();
 
@@ -98,12 +98,12 @@ impl Compiler {
             }
 
             let (normalized_symbol, is_declaration, target_symbol, canonical_symbol) = self
-                .with_module_symbols_or_local_at_stage(
+                .with_module_symbols_or_local_at_boundary(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    stage,
+                    boundary,
                     |owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         let normalized_symbol = GlobalSymbolId::new(
@@ -131,11 +131,11 @@ impl Compiler {
             let Some(next_symbol) = target_symbol.or(canonical_symbol) else {
                 return Ok(None);
             };
-            current_symbol = self.canonical_symbol_id_at_stage(
+            current_symbol = self.canonical_symbol_id_at_boundary(
                 view,
                 next_symbol,
                 CanonicalSymbolMode::FollowAliases,
-                stage,
+                boundary,
             )?;
         }
     }
@@ -158,12 +158,12 @@ impl Compiler {
             visited.push(current_symbol);
 
             let Some((symbol_ty, canonical_symbol, target_symbol)) = self
-                .with_module_symbols_or_local_at_stage(
+                .with_module_symbols_or_local_at_boundary(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |_, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         (
@@ -216,12 +216,12 @@ impl Compiler {
             }
 
             let (normalized_symbol, is_declaration, target_symbol, canonical_symbol) = self
-                .with_module_symbols_or_local_at_stage(
+                .with_module_symbols_or_local_at_boundary(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         let normalized_symbol = GlobalSymbolId::new(
@@ -310,11 +310,11 @@ impl Compiler {
                 .unwrap_or(symbol);
         }
 
-        self.with_module_symbols_at_stage(
+        self.with_module_symbols_at_boundary(
             view.module,
             view.profile,
             symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |owner_module, owner_symbols| {
                 let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
                 // stop when the symbol is not a namespace

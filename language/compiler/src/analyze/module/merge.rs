@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace};
 use destack_workspace::{Module, ProfileId};
 
-use super::AnalyzeDependencyStage;
+use super::DirReadBoundary;
 use crate::analyze::common::ModuleSymbolView;
-use crate::{Compiler, TaskDependencyError};
+use crate::{BuildRequirementError, Compiler};
 
 /// Select merge source categories for global declaration merging.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -55,7 +55,7 @@ impl Compiler {
         // collect ambient symbols from compatible spaces for user modules
         if !self.module_is_ambient_lib(module) {
             for space in self.global_merge_spaces_for_category(anchor_space, category) {
-                if let Some(group) = self.get_ambient_lib_symbol_sources(profile, key, *space) {
+                if let Some(group) = self.get_lib_symbol_sources_for_merge(profile, key, *space) {
                     symbols.extend(group);
                 }
             }
@@ -93,7 +93,8 @@ impl Compiler {
         {
             candidates.extend(group);
         }
-        if let Some(group) = self.get_ambient_lib_symbol_sources(profile, key, SymbolSpace::Type) {
+        if let Some(group) = self.get_lib_symbol_sources_for_merge(profile, key, SymbolSpace::Type)
+        {
             candidates.extend(group);
         }
 
@@ -116,18 +117,18 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         symbol: GlobalSymbolId,
-    ) -> Result<GlobalSymbolId, TaskDependencyError> {
+    ) -> Result<GlobalSymbolId, BuildRequirementError> {
         let module_symbols = module.dir(profile).symbols.read();
         let view = ModuleSymbolView::new(module, profile, &module_symbols);
 
         // normalize symbol typing first
         let symbol = self.normalize_reference_symbol_id(view, symbol);
 
-        self.with_module_symbols_at_stage(
+        self.with_module_symbols_at_boundary(
             module,
             profile,
             symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |_, owner_symbols| {
                 let owner_symbol = owner_symbols.get_symbol(symbol.local_id);
                 if owner_symbol.space != SymbolSpace::TypeValue {

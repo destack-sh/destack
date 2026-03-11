@@ -6,7 +6,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ModuleGraphKey, ModuleSource, ProfileId};
 
 use crate::analyze::common::ModuleTreeView;
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, ResolveError};
 
 impl Compiler {
     /// Require interface analysis for the type-import dependency closure used during infer.
@@ -54,10 +54,18 @@ impl Compiler {
                 DependencyKind::Type,
             ) {
                 Ok(target_module) => target_module,
-                Err(error) => {
-                    self.error(error);
-                    continue;
-                }
+                Err(error) => match error {
+                    ResolveError::Yield { requirement } => {
+                        return Err(AnalyzeError::Yield { requirement });
+                    }
+                    ResolveError::UnsatisfiedRequirement { requirement } => {
+                        return Err(AnalyzeError::UnsatisfiedRequirement { requirement });
+                    }
+                    error => {
+                        self.error(error);
+                        continue;
+                    }
+                },
             };
             if let Some(target_module_id) = target_module.module_id()
                 && target_module_id != view.module.id
@@ -100,8 +108,8 @@ impl Compiler {
                 message: format!("missing module graph snapshot for infer declare deps: profile={profile:?}, module={module_id:?}"),
             })?;
 
-        // require declare analysis for the transitive dependency closure
-        // this prevents late declare-stage yields during remote alias or template evaluation
+        // require declared artifacts for the transitive dependency closure
+        // this prevents late declared-boundary yields during remote alias or template evaluation
         let mut pending = graph.dependencies_for(module_id);
         let mut visited = HashSet::new();
         while let Some(dependency) = pending.pop() {
@@ -157,26 +165,11 @@ impl Compiler {
             return Ok(());
         }
 
-        // skip when builtins are not loaded
-        let Some(builtins) = self.builtins() else {
-            return Ok(());
-        };
-
-        // resolve the profile key for ambient lib lookup
-        let profile_entry = self
-            .program
-            .profiles
-            .get(profile)
-            .ok_or(AnalyzeError::Internal {
-                message: format!(
-                    "missing profile data for infer interface ambient libs: {profile:?}"
-                ),
-            })?;
-
         // require interface analysis for ambient lib modules
-        let Some(lib_modules) = builtins.ambient_libs(&profile_entry.key) else {
+        let lib_modules = self.lib_environment_modules(profile);
+        if lib_modules.is_empty() {
             return Ok(());
-        };
+        }
         self.require_interface_modules_for_infer(profile, lib_modules)?;
 
         Ok(())
@@ -203,7 +196,7 @@ impl Compiler {
         let module_ids = self.sorted_unique_module_ids(modules);
         let mut first_error = None;
         for module_id in module_ids {
-            if let Err(error) = self.require_analyze_module_declare(module_id, profile)
+            if let Err(error) = self.require_dir_declared(module_id, profile)
                 && first_error.is_none()
             {
                 first_error = Some(error);
@@ -227,7 +220,7 @@ impl Compiler {
         let module_ids = self.sorted_unique_module_ids(modules);
         let mut first_error = None;
         for module_id in module_ids {
-            if let Err(error) = self.require_analyze_module_interface(module_id, profile)
+            if let Err(error) = self.require_dir_interface(module_id, profile)
                 && first_error.is_none()
             {
                 first_error = Some(error);

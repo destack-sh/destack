@@ -30,7 +30,6 @@ default = ["full"]
 parallel = ["destack_compiler/parallel"]
 native-codegen = ["destack_compiler/native-codegen"]
 deadlock-detection = ["destack_compiler/deadlock-detection"]
-lint = ["destack_compiler/lint"]
 optimize = ["destack_compiler/optimize"]
 builtin-full = ["destack_compiler/builtin-full", "destack_workspace/builtin-full"]
 builtin-core = [
@@ -41,7 +40,6 @@ full = [
     "parallel",
     "native-codegen",
     "deadlock-detection",
-    "lint",
     "optimize",
     "builtin-full",
 ]

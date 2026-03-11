@@ -294,13 +294,27 @@ impl Compiler {
         let resolve_target =
             self.canonical_import_specifier(module, profile, node, resolve_target)?;
 
+        // builtin libs prefer ambient module bindings before package resolution
+        if module.is_builtin()
+            && loader_override.is_none()
+            && let Some(binding_target) =
+                self.resolve_module_binding_target(module.id, profile, resolve_target)?
+        {
+            let binding_targets = ModuleResolution::from_target(binding_target);
+            dir.imported_modules
+                .write()
+                .insert(cache_key, binding_targets);
+
+            if let Some(remote_target) =
+                self.select_import_target_for_kind(module, binding_targets, kind)
+            {
+                return Ok(remote_target);
+            }
+        }
+
         // prepare root context for non-relative import resolution
         if !self.is_import_relative(resolve_target) && !module.is_builtin() {
-            self.require_resolve_module_prepare_if_needed(
-                module.id,
-                self.program.root_module_id,
-                profile,
-            )?;
+            self.require_dir_prepared_if_other(module.id, self.program.root_module_id, profile)?;
         }
 
         // resolve specifier to module ids first
@@ -332,7 +346,7 @@ impl Compiler {
 
             // require resolved modules to be bound
             for module_id in required_module_ids {
-                self.require_import_module_validate(module_id)?;
+                self.require_dir_base(module_id)?;
             }
 
             // record the resolved import
@@ -343,7 +357,7 @@ impl Compiler {
             return Ok(remote_target);
         }
 
-        // fall back to module bindings when module resolution has no usable target
+        // user modules fall back to ambient module bindings after package resolution
         if loader_override.is_none()
             && let Some(binding_target) =
                 self.resolve_module_binding_target(module.id, profile, resolve_target)?
@@ -360,8 +374,9 @@ impl Compiler {
             }
         }
 
-        // retry unresolved bare node builtins through canonical `node:` form
-        if loader_override.is_none()
+        // only user modules get bare node builtin compatibility
+        if !module.is_builtin()
+            && loader_override.is_none()
             && let Some(prefixed_target) = self.ambient_node_builtin_prefixed_specifier_for_bare(
                 module.id,
                 profile,
@@ -471,14 +486,7 @@ impl Compiler {
             return false;
         };
 
-        builtins
-            .load_lib(
-                lib_name,
-                self.program.files.clone(),
-                self.program.modules.clone(),
-                &profile_key,
-            )
-            .is_some()
+        builtins.has_lib_for_profile(lib_name, &profile_key)
     }
 
     /// Describe one active target profile for protocol diagnostics.
@@ -556,7 +564,7 @@ impl Compiler {
             return Ok(false);
         };
 
-        let ambient_modules = self.ambient_binding_module_ids(profile);
+        let ambient_modules = self.ambient_binding_module_ids(profile)?;
         Ok(bindings
             .iter()
             .any(|binding| ambient_modules.contains(&binding.module_id)))

@@ -18,8 +18,8 @@ struct RemoteValueTypeLookupResult {
     imported_type_id: Option<LocalTypeId>,
     /// Symbols that should be continued in the outer cross-module queue.
     forwarded_symbols: Vec<GlobalSymbolId>,
-    /// Whether one interface-published value symbol was observed on this lookup path.
-    saw_interface_published_symbol: bool,
+    /// Whether one interface-artifact value symbol was observed on this lookup path.
+    saw_interface_artifact_symbol: bool,
 }
 
 /// One immutable remote module snapshot used for cross-module value type reads.
@@ -95,24 +95,24 @@ impl Compiler {
             .into_anchored(Some(ctx.profile));
         let mut pending_symbols = vec![target_symbol];
         let mut visited_symbols = HashSet::new();
-        let mut saw_interface_published_symbol = false;
+        let mut saw_interface_artifact_symbol = false;
 
         while let Some(candidate_symbol) = pending_symbols.pop() {
             if !visited_symbols.insert(candidate_symbol) {
                 continue;
             }
 
-            let read_stage = match read_domain {
-                RemoteValueTypeReadDomain::Surface => AnalyzeDependencyStage::Declare,
-                RemoteValueTypeReadDomain::Interface => AnalyzeDependencyStage::Interface,
+            let read_boundary = match read_domain {
+                RemoteValueTypeReadDomain::Surface => DirReadBoundary::Declared,
+                RemoteValueTypeReadDomain::Interface => DirReadBoundary::Interface,
             };
 
             let lookup = self
-                .with_module_tree_symbol_view_at_stage(
+                .with_module_tree_symbol_view_at_boundary(
                     ctx.module,
                     ctx.profile,
                     candidate_symbol.module_id,
-                    read_stage,
+                    read_boundary,
                     |view| -> AnalyzeResult<RemoteValueTypeLookupResult> {
                         let remote_types = view.module.dir(ctx.profile).types.read();
                         self.query_remote_symbol_value_type_in_snapshot(
@@ -135,8 +135,8 @@ impl Compiler {
             if let Some(imported_type_id) = lookup.imported_type_id {
                 return Ok(imported_type_id);
             }
-            if lookup.saw_interface_published_symbol {
-                saw_interface_published_symbol = true;
+            if lookup.saw_interface_artifact_symbol {
+                saw_interface_artifact_symbol = true;
             }
 
             for forwarded_symbol in lookup.forwarded_symbols {
@@ -151,7 +151,7 @@ impl Compiler {
             node_id,
             target_symbol,
             read_domain,
-            saw_interface_published_symbol,
+            saw_interface_artifact_symbol,
             ctx.types,
         )
     }
@@ -189,15 +189,15 @@ impl Compiler {
             let is_value_capable = self.symbol_entry_is_value_capable(local_entry);
 
             if is_value_capable {
-                let is_interface_published_value = self.remote_symbol_is_interface_published_value(
+                let is_interface_artifact_value = self.remote_symbol_is_interface_artifact_value(
                     ModuleSymbolView::new(remote.remote_module, profile, remote.remote_symbols),
                     resolved_symbol,
                 );
                 if read_domain == RemoteValueTypeReadDomain::Interface
-                    && is_interface_published_value
+                    && is_interface_artifact_value
                     && resolved_symbol.ty() != SymbolType::Void
                 {
-                    lookup.saw_interface_published_symbol = true;
+                    lookup.saw_interface_artifact_symbol = true;
                 }
 
                 let remote_type_id = match read_domain {
@@ -212,8 +212,7 @@ impl Compiler {
                         resolved_symbol,
                     ),
                     RemoteValueTypeReadDomain::Interface => {
-                        if is_interface_published_value && resolved_symbol.ty() != SymbolType::Void
-                        {
+                        if is_interface_artifact_value && resolved_symbol.ty() != SymbolType::Void {
                             Some(self.require_remote_interface_value_type_id(
                                 SymbolTypeView::new(
                                     remote.remote_module,
@@ -272,7 +271,7 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         target_symbol: GlobalSymbolId,
         read_domain: RemoteValueTypeReadDomain,
-        saw_interface_published_symbol: bool,
+        saw_interface_artifact_symbol: bool,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         // surface reads participate in interface fixed-point convergence:
@@ -288,7 +287,7 @@ impl Compiler {
 
         // interface reads for non-published value symbols can remain indeterminate:
         // model this as semantic unknown instead of an internal error
-        if read_domain == RemoteValueTypeReadDomain::Interface && !saw_interface_published_symbol {
+        if read_domain == RemoteValueTypeReadDomain::Interface && !saw_interface_artifact_symbol {
             return Ok(types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
@@ -457,8 +456,8 @@ impl Compiler {
             .get_signature_type_for_node(primary_declaration)
     }
 
-    /// Return true when a symbol is one published interface value of the remote module.
-    fn remote_symbol_is_interface_published_value(
+    /// Return true when a symbol is one interface-artifact value of the remote module.
+    fn remote_symbol_is_interface_artifact_value(
         &self,
         view: ModuleSymbolView<'_>,
         target_symbol: GlobalSymbolId,

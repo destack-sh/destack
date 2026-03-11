@@ -1,5 +1,6 @@
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, ModuleSymbolView, TreeSymbolView, TypeContext,
+    CanonicalSymbolMode, DirReadBoundary, ModuleSymbolView, TreeSymbolView, TypeContext,
+    TypeRewriteCache, TypeView,
 };
 use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::analyze::infer::RemoteValueTypeReadDomain;
@@ -114,6 +115,17 @@ impl Compiler {
                 validate_static_argument_bounds,
                 enforce_implicit_managed,
             )?;
+            let mut materialize_cache = TypeRewriteCache::new();
+            let materialized_type_id = self.materialize_static_arguments_in_type(
+                &mut ctx.reborrow(),
+                index_ty_id,
+                &mut materialize_cache,
+            );
+            let materialized_type_id = self.normalize_type(
+                &mut ctx.reborrow(),
+                materialized_type_id,
+                NormalizationMode::Assign,
+            );
             let symbol = self.unwrap_type_value_symbol(ctx.types, index_ty_id);
             let selection = self.associated_comptime_selection_from_expression(
                 &mut ctx.reborrow(),
@@ -144,7 +156,7 @@ impl Compiler {
                     Some(StaticMemberSymbolKind::AssociatedComptimeConst)
                 );
             if !is_static_parameter && !is_associated_comptime {
-                // explicit comptime aliases are allowed to stay symbolic for projection materialization
+                // explicit comptime aliases stay symbolic unless we already have one concrete result
                 if is_explicit_comptime {
                     let mut inferred_id = ctx.types.unwrap_value_type_id(index_ty_id);
                     if matches!(
@@ -176,6 +188,25 @@ impl Compiler {
                 return Ok(None);
             }
             if is_associated_comptime {
+                let receiver_has_static_parameters = selection.as_ref().is_some_and(|selection| {
+                    self.receiver_projection_arguments_have_static_parameters(
+                        ctx.type_view(),
+                        &selection.receiver_arguments,
+                    )
+                });
+                if !receiver_has_static_parameters
+                    && self.array_size_materialized_type_is_concrete(
+                        ctx.type_view(),
+                        materialized_type_id,
+                    )
+                {
+                    ctx.types.set_inferred_type(
+                        expression_id.into_global_any(ctx.module.id),
+                        materialized_type_id,
+                    );
+                    return Ok(Some(materialized_type_id));
+                }
+
                 // explicit comptime fixed-array lengths require fully resolved receiver substitutions
                 if let Some(selection) = selection.as_ref()
                     && self.receiver_projection_arguments_require_deferral(
@@ -211,6 +242,18 @@ impl Compiler {
                 );
                 return Ok(Some(reference_type_id));
             }
+
+            if is_explicit_comptime
+                && self
+                    .array_size_materialized_type_is_concrete(ctx.type_view(), materialized_type_id)
+            {
+                ctx.types.set_inferred_type(
+                    expression_id.into_global_any(ctx.module.id),
+                    materialized_type_id,
+                );
+                return Ok(Some(materialized_type_id));
+            }
+
             self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), symbol)
         };
 
@@ -239,6 +282,23 @@ impl Compiler {
         ctx.types
             .set_inferred_type(expression_id.into_global_any(ctx.module.id), inferred_id);
         Ok(Some(inferred_id))
+    }
+
+    /// Return whether one materialized array-size type is concrete enough to keep.
+    fn array_size_materialized_type_is_concrete(
+        &self,
+        view: TypeView<'_>,
+        type_id: LocalTypeId,
+    ) -> bool {
+        !matches!(
+            view.types.get_type(type_id),
+            Type::Reference { .. }
+                | Type::Unevaluated(_)
+                | Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                }
+                | Type::Error
+        )
     }
 
     /// Check whether an expression can be used as an array size candidate.
@@ -464,14 +524,14 @@ impl Compiler {
             if target_symbol.module_id == ctx.module.id && ctx.types.module_id == ctx.module.id {
                 Some(self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol))
             } else {
-                self.with_module_types_or_local_at_stage(
+                self.with_module_types_or_local_at_boundary(
                     ctx.module,
                     ctx.profile,
                     target_symbol.module_id,
                     ctx.types,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |_owner_module, owner_types| {
-                        owner_types.query_published_static_parameter_kind(target_symbol)
+                        owner_types.query_artifact_static_parameter_kind(target_symbol)
                     },
                 )
                 .ok()
@@ -1015,13 +1075,13 @@ impl Compiler {
             }
             if let Some(projected_symbol) = ctx.tree.get(expression_id).target_symbol() {
                 let is_enum_field = self
-                    .with_module_tree_symbol_view_or_local_at_stage(
+                    .with_module_tree_symbol_view_or_local_at_boundary(
                         ctx.module,
                         ctx.profile,
                         projected_symbol.module_id,
                         ctx.tree,
                         ctx.symbols,
-                        AnalyzeDependencyStage::Declare,
+                        DirReadBoundary::Declared,
                         |view| {
                             let symbol_entry = view.symbols.get_symbol(projected_symbol.local_id);
                             let Some(primary_declaration) = symbol_entry.primary_declaration else {
@@ -1295,12 +1355,12 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         target_symbol: GlobalSymbolId,
     ) -> Option<SymbolSpace> {
-        self.with_module_symbols_or_local_at_stage(
+        self.with_module_symbols_or_local_at_boundary(
             view.module,
             view.profile,
             target_symbol.module_id,
             view.symbols,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |_owner_module, owner_symbols| {
                 let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
                 Some(symbol_entry.space)

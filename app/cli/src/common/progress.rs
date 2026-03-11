@@ -554,8 +554,6 @@ fn phase_to_verb(phase: TaskPhase) -> &'static str {
         TaskPhase::Optimize => "Optimizing",
         TaskPhase::Generate => "Generating",
         TaskPhase::Link => "Linking",
-        TaskPhase::Emit => "Writing",
-        TaskPhase::Lint => "Linting",
     }
 }
 

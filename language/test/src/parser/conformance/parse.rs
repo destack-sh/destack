@@ -3,15 +3,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportError, ResolveMode};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions, ImportError, ResolveMode};
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{
-    DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleId,
-    ModuleStamp, ProfileStamp, Uri,
+    DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleId, Uri,
 };
 use destack_workspace::{
-    DsConfig, DsConfigOptions, DsConfigTargetOptions, MemoryCacheStore, OutputFormat, Program,
-    Session, TargetId,
+    ArtifactKey, DsConfig, DsConfigOptions, DsConfigTargetOptions, MemoryCacheStore, OutputFormat,
+    Program, Session, TargetId,
 };
 
 /// Outcome of checking a file for conformance testing.
@@ -345,16 +344,10 @@ fn parse_file_with_compiler(
 
     // run up to analyze
     let profile = program.default_profile_id_for_module(module_id);
-    let module_version = program.modules.get(module_id).read().version;
-    let profile_version = program
-        .profiles
-        .get(profile)
-        .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
-        .version;
-    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-        module: ModuleStamp::new(module_id, module_version),
-        profile: ProfileStamp::new(profile, profile_version),
-    });
+    compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+        module: module_id,
+        profile,
+    }));
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
         compiler.compile();
     }));

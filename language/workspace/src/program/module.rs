@@ -8,8 +8,8 @@ use destack_builtin::BuiltinLibKind;
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
 use crate::{
-    Loader, ModuleAst, ModuleComptime, ModuleDir, ModuleMir, ProfileId, SourceType, TargetId,
-    TsConfigId,
+    Loader, ModuleAst, ModuleComptime, ModuleDir, ModuleMir, ModuleTarget, ProfileId, SourceType,
+    TargetId, TsConfigId,
 };
 
 /// The source/origin of a module.
@@ -95,20 +95,20 @@ impl ModuleFormat {
     }
 
     /// Detect a module format from one tsconfig module target.
-    pub fn from_tsconfig_target(target: crate::ModuleTarget) -> Option<Self> {
+    pub fn from_tsconfig_target(target: ModuleTarget) -> Option<Self> {
         match target {
-            crate::ModuleTarget::CommonJs => Some(Self::CommonJs),
-            crate::ModuleTarget::Es2015
-            | crate::ModuleTarget::Es2020
-            | crate::ModuleTarget::Es2022
-            | crate::ModuleTarget::EsNext
-            | crate::ModuleTarget::Preserve => Some(Self::Esm),
-            crate::ModuleTarget::Amd
-            | crate::ModuleTarget::Umd
-            | crate::ModuleTarget::System
-            | crate::ModuleTarget::Node16
-            | crate::ModuleTarget::NodeNext
-            | crate::ModuleTarget::None => None,
+            ModuleTarget::CommonJs => Some(Self::CommonJs),
+            ModuleTarget::Es2015
+            | ModuleTarget::Es2020
+            | ModuleTarget::Es2022
+            | ModuleTarget::EsNext
+            | ModuleTarget::Preserve => Some(Self::Esm),
+            ModuleTarget::Amd
+            | ModuleTarget::Umd
+            | ModuleTarget::System
+            | ModuleTarget::Node16
+            | ModuleTarget::NodeNext
+            | ModuleTarget::None => None,
         }
     }
 
@@ -383,6 +383,22 @@ impl Module {
         }
     }
 
+    /// Insert or replace the AST.
+    ///
+    /// # Panics
+    /// Panics if the module content is unloaded.
+    pub fn set_ast(&mut self, ast: ModuleAst) {
+        match &mut self.content {
+            ModuleContent::Code(code) => code.ast = Some(ast),
+            ModuleContent::Data { ast: existing, .. } => *existing = ast,
+            ModuleContent::Text { ast: existing, .. } => *existing = ast,
+            ModuleContent::Binary { ast: existing, .. } => *existing = ast,
+            ModuleContent::Unloaded => {
+                panic!("cannot set AST on unloaded module");
+            }
+        }
+    }
+
     /// Get the base DIR.
     ///
     /// # Panics
@@ -422,6 +438,22 @@ impl Module {
             ModuleContent::Text { dir_base, .. } => dir_base.as_ref(),
             ModuleContent::Binary { dir_base, .. } => dir_base.as_ref(),
             ModuleContent::Unloaded => None,
+        }
+    }
+
+    /// Insert or replace the base DIR.
+    ///
+    /// # Panics
+    /// Panics if the module content is unloaded.
+    pub fn set_dir_base(&mut self, dir: ModuleDir) {
+        match &mut self.content {
+            ModuleContent::Code(code) => code.dir_base = Some(dir),
+            ModuleContent::Data { dir_base, .. } => *dir_base = Some(dir),
+            ModuleContent::Text { dir_base, .. } => *dir_base = Some(dir),
+            ModuleContent::Binary { dir_base, .. } => *dir_base = Some(dir),
+            ModuleContent::Unloaded => {
+                panic!("cannot set base dir on unloaded module");
+            }
         }
     }
 
@@ -566,6 +598,16 @@ impl Module {
             .iter_mut()
             .find(|mir| &mir.target == target)
             .unwrap_or_else(|| panic!("no MIR for target {target:?}"))
+    }
+
+    /// Insert or replace the MIR for one target.
+    ///
+    /// # Panics
+    /// Panics if this is not a code module.
+    pub fn set_mir(&mut self, mir: ModuleMir) {
+        let code = self.code_mut();
+        code.mirs.retain(|existing| existing.target != mir.target);
+        code.mirs.push(mir);
     }
 }
 

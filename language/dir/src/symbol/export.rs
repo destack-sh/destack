@@ -46,6 +46,8 @@ pub struct Export {
     pub symbol: Option<LocalSymbolId>,
     /// The reexport item.
     pub item: Option<LocalNodeId<DependencyItem>>,
+    /// Canonical export dependency symbols.
+    pub dependencies: Vec<GlobalSymbolId>,
 }
 
 impl Export {
@@ -63,6 +65,7 @@ impl Export {
             target: ExportTarget::Resolved(symbol.into_global(module_id)),
             symbol: Some(symbol),
             item: None,
+            dependencies: Vec::new(),
         }
     }
 
@@ -75,6 +78,7 @@ impl Export {
             target: ExportTarget::Unresolved,
             symbol: None,
             item: Some(item),
+            dependencies: Vec::new(),
         }
     }
 

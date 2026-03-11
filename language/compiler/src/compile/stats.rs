@@ -75,8 +75,6 @@ pub struct ModuleStats {
     pub elaborated: AtomicUsize,
     /// Modules generated (generate phase).
     pub generated: AtomicUsize,
-    /// Modules linted (lint phase).
-    pub linted: AtomicUsize,
     /// Modules executed (execute phase).
     pub executed: AtomicUsize,
     /// Modules lowered (lower phase).
@@ -309,12 +307,6 @@ impl CompilerStats {
     #[inline]
     pub fn record_generate(&self) {
         self.modules.generated.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record a module being linted.
-    #[inline]
-    pub fn record_lint(&self) {
-        self.modules.linted.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being executed (comptime).
@@ -623,7 +615,6 @@ impl CompilerStats {
                 analyzed: self.modules.analyzed.load(Ordering::Relaxed),
                 elaborated: self.modules.elaborated.load(Ordering::Relaxed),
                 generated: self.modules.generated.load(Ordering::Relaxed),
-                linted: self.modules.linted.load(Ordering::Relaxed),
                 executed: self.modules.executed.load(Ordering::Relaxed),
                 lowered: self.modules.lowered.load(Ordering::Relaxed),
                 verified: self.modules.verified.load(Ordering::Relaxed),
@@ -743,8 +734,6 @@ pub struct ModuleStatsSnapshot {
     pub elaborated: usize,
     /// Modules generated.
     pub generated: usize,
-    /// Modules linted.
-    pub linted: usize,
     /// Modules executed.
     pub executed: usize,
     /// Modules lowered.

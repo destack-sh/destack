@@ -1,5 +1,5 @@
 use crate::timing::tags;
-use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
+use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::ProfileId;
 
@@ -21,7 +21,7 @@ impl Compiler {
         )?;
         let _timing = self.timing_scope(tags::RESOLVE_MODULE_CANONICAL);
 
-        self.require_resolve_module_direct(module_id, profile)?;
+        self.require_dir_prepared(module_id, profile)?;
         if !self.is_code_module(module_id) {
             self.update_module_graph(module_id, profile, module_version, profile_version)?;
             return Ok(());
@@ -72,7 +72,7 @@ impl Compiler {
 
         // resolve canonical symbols
         // (this may yield for cross module resolution)
-        let mut collector = TaskResultCollector::new();
+        let mut collector = BuildRequirementCollector::new();
         for (symbol_id, node) in symbols_to_resolve {
             self.collect(
                 &mut collector,
@@ -81,8 +81,8 @@ impl Compiler {
         }
 
         // yield on any yield
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(ResolveError::Yield { dependency });
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(ResolveError::Yield { requirement });
         }
 
         self.update_module_graph(module_id, profile, module_version, profile_version)?;

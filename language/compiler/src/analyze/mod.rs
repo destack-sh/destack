@@ -4,6 +4,7 @@ mod capture;
 mod commit;
 pub(crate) mod common;
 mod declare;
+mod environment;
 mod error;
 mod infer;
 mod interface;
@@ -27,8 +28,7 @@ pub(crate) use common::{
 };
 pub use error::*;
 pub use infer::*;
-pub(crate) use module::AnalyzeDependencyStage;
+pub(crate) use module::DirReadBoundary;
 pub use options::*;
-pub use process::*;
 pub(crate) use r#static::{StaticArgumentResolver, StaticSubstitutionEnvironment};
 pub use warning::*;

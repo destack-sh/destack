@@ -1,34 +1,58 @@
 use destack_dir::{AnchoredGlobalNodeId, Symbol, SymbolType};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, WellKnownIntrinsics};
+use destack_workspace::{ArtifactKey, IntrinsicEnvironment, ProfileId, WellKnownIntrinsics};
 
 use crate::analyze::common::{CanonicalSymbolMode, ModuleSymbolView};
-use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskResultCollector};
+use crate::{
+    AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementCollector, BuildRequirementError,
+    Compiler,
+};
 
 impl Compiler {
-    /// Ensure well-known intrinsic bindings are cached for a profile.
-    pub(crate) fn ensure_well_known_intrinsics_for_profile(
+    /// Process the intrinsic environment for a profile.
+    pub(crate) fn process_intrinsic_environment(&self, profile: ProfileId) -> AnalyzeResult<()> {
+        self.resolve_intrinsic_environment(profile)
+    }
+
+    /// Require the intrinsic environment for a profile.
+    pub(crate) fn require_intrinsic_environment(
         &self,
         profile: ProfileId,
-    ) -> AnalyzeResult<()> {
-        // return early when builtins are unavailable
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return Ok(());
-        };
+    ) -> Result<(), BuildRequirementError> {
+        self.require_build_key(BuildKey::Artifact(ArtifactKey::IntrinsicEnvironment {
+            profile,
+        }))
+    }
 
-        // reuse cached intrinsics when available
-        let profile_key = self.program.profile(profile).key.clone();
-        if builtins.well_known_intrinsics(&profile_key).is_some() {
+    /// Resolve the intrinsic environment for a profile.
+    pub(crate) fn resolve_intrinsic_environment(&self, profile: ProfileId) -> AnalyzeResult<()> {
+        // skip when builtins are unavailable
+        if self.program.builtins.is_none() {
+            return Ok(());
+        }
+
+        // reuse the committed environment when available
+        if self
+            .program
+            .artifacts
+            .intrinsic_environment(profile)
+            .is_some()
+        {
             return Ok(());
         }
 
         // collect builtin modules that can host intrinsic bindings
-        let mut collector = TaskResultCollector::new();
+        let mut collector = BuildRequirementCollector::new();
+        let builtins = self
+            .program
+            .builtins
+            .as_ref()
+            .unwrap_or_else(|| unreachable!());
         let module_ids = builtins.intrinsic_module_ids();
 
         // ensure builtin module decorators are registered before scanning bindings
         for module_id in module_ids.iter().copied() {
-            if let Err(error) = self.require_analyze_module_declare(module_id, profile)
+            if let Err(error) = self.require_dir_declared(module_id, profile)
                 && let Some(error) = collector.try_collect::<(), _>(Err(error))
             {
                 return Err(AnalyzeError::from(error));
@@ -36,13 +60,15 @@ impl Compiler {
         }
 
         // yield if any dependencies are outstanding
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(AnalyzeError::Yield { dependency });
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(AnalyzeError::Yield { requirement });
         }
 
-        // build and cache the intrinsic binding table
+        // build and publish the intrinsic binding table
         let intrinsics = self.build_well_known_intrinsics(module_ids, profile)?;
-        builtins.set_well_known_intrinsics(&profile_key, intrinsics);
+        self.program
+            .artifacts
+            .set_intrinsic_environment(profile, IntrinsicEnvironment { intrinsics });
 
         Ok(())
     }

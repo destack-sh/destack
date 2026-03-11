@@ -11,7 +11,7 @@ impl TestProgram {
         let module = self.module(module_uri);
         let module = module.read();
         let profile = self.default_profile_id(module.id);
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module.id, profile);
         let symbols = dir.symbols.read();
 
         let segments: Vec<&str> = path.split('.').collect();
@@ -50,7 +50,8 @@ impl TestProgram {
         let module = self.module(module_uri);
         let module = module.read();
         let profile = self.default_profile_id(module.id);
-        let symbols = module.dir(profile).symbols.read();
+        let dir = self.artifact_dir(module.id, profile);
+        let symbols = dir.symbols.read();
         let symbol = symbols.get_symbol(symbol_id.into_local());
         Some((symbol_id, symbol.primary_declaration?))
     }
@@ -71,7 +72,7 @@ impl TestProgram {
         let module = self.module(module_uri);
         let module = module.read();
         let profile = self.default_profile_id(module.id);
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module.id, profile);
         let tree = dir.tree.read();
 
         // scan declarations for a matching function name
@@ -101,7 +102,7 @@ impl TestProgram {
         let module = self.module(module_uri);
         let module = module.read();
         let profile = self.default_profile_id(module.id);
-        let dir = module.dir(profile);
+        let dir = self.artifact_dir(module.id, profile);
         let tree = dir.tree.read();
 
         // scan declarations for a matching name
@@ -176,7 +177,8 @@ impl TestProgram {
         let module = self.module(module_uri);
         let module = module.read();
         let profile = self.default_profile_id(module.id);
-        let symbols = module.dir(profile).symbols.read();
+        let dir = self.artifact_dir(module.id, profile);
+        let symbols = dir.symbols.read();
         let name_id = self.program.strings.intern(name);
 
         // search all symbols for a matching label symbol

@@ -22,7 +22,7 @@ mod template;
 mod r#type;
 mod walk;
 
-pub(crate) use super::AnalyzeDependencyStage;
+pub(crate) use super::DirReadBoundary;
 pub(crate) use canonical::CanonicalSymbolMode;
 pub(crate) use context::{ConstContext, ContextualTypingMode, FreshnessMode, WideningMode};
 pub(crate) use destack_dir::NormalizationMode;

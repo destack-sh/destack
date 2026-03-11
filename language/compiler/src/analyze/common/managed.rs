@@ -7,7 +7,7 @@ use destack_dir::{
 use destack_workspace::ModuleSource;
 
 use super::r#type::TypeContainmentVisitor;
-use super::{AnalyzeDependencyStage, ModuleTypeView};
+use super::{DirReadBoundary, ModuleTypeView};
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 
 #[allow(clippy::too_many_arguments)]
@@ -235,12 +235,12 @@ impl Compiler {
         symbol: GlobalSymbolId,
         handle: impl FnOnce(ModuleTypeView<'_>, LocalTypeId, &Type) -> R,
     ) -> Option<R> {
-        self.with_module_types_or_local_at_stage(
+        self.with_module_types_or_local_at_boundary(
             ctx.module,
             ctx.profile,
             symbol.module_id,
             ctx.types,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |owner_module, owner_types| {
                 let target_id = owner_types.get_alias_target_type_id(symbol)?;
                 let target_ty = owner_types.get_type(target_id);

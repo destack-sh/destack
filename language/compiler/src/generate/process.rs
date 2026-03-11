@@ -1,52 +1,35 @@
 use crate::timing::tags;
-use crate::{Compiler, GenerateError, GenerateResult, TaskDependencyError};
+use crate::{BuildKey, BuildRequirementError, Compiler, GenerateError, GenerateResult};
 
-use destack_compiler_macros::DefineTask;
-use destack_source::{ModuleId, ModuleStamp, ModuleVersion, ProfileStamp, ProfileVersion};
-use destack_workspace::{OutputFormat, ProfileId, TargetId};
-
-/// Task to generate code for a module into outputs.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
-#[phase(Generate)]
-pub enum GenerateTask {
-    /// Generate a module for a specific target.
-    #[task(code = 1, trace = "module={module} target={target}")]
-    GenerateModule {
-        /// The module stamp to generate.
-        module: ModuleStamp,
-        /// The profile stamp for generation.
-        profile: ProfileStamp,
-        /// The target id (for the module's package).
-        target: TargetId,
-    },
-}
+use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
+use destack_workspace::{OutputFormat, OutputKey, ProfileId, TargetId};
 
 impl Compiler {
-    /// Process a generate task.
-    pub fn process_generate(&self, task: GenerateTask) -> GenerateResult<()> {
-        match task {
-            GenerateTask::GenerateModule {
-                module,
-                profile,
-                target,
-            } => {
-                self.ensure_module_profile_matches::<GenerateError>(
-                    module.id,
-                    module.version,
-                    profile.id,
-                    profile.version,
-                )?;
-                let _timing = self.timing_scope(tags::GENERATE_MODULE);
-                self.generate_module(
-                    module.id,
-                    profile.id,
-                    module.version,
-                    profile.version,
-                    &target,
-                )?;
-                self.stats.record_generate();
-            }
-        }
+    /// Build one module output.
+    pub fn process_module_output(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    ) -> GenerateResult<()> {
+        let module_stamp = self.module_stamp(module);
+        let profile_stamp = self.profile_stamp(profile);
+        self.ensure_module_profile_matches::<GenerateError>(
+            module_stamp.id,
+            module_stamp.version,
+            profile_stamp.id,
+            profile_stamp.version,
+        )?;
+        let _timing = self.timing_scope(tags::GENERATE_MODULE);
+        self.generate_module(
+            module_stamp.id,
+            profile_stamp.id,
+            module_stamp.version,
+            profile_stamp.version,
+            &target,
+        )?;
+        self.stats.record_generate();
+
         Ok(())
     }
 
@@ -92,7 +75,7 @@ impl Compiler {
             return Ok(());
         }
 
-        self.require_execute_module_patch(module_id, profile)?;
+        self.require_dir_patched(module_id, profile)?;
 
         // dispatch based on output format
         match target.output {
@@ -114,19 +97,14 @@ impl Compiler {
         }
     }
 
-    /// Ensure a module has been generated.
-    pub fn require_generate_module(
+    /// Require one module output build product.
+    pub fn require_module_output(
         &self,
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Result<(), TaskDependencyError> {
-        let module = self.module_stamp(module);
-        let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(GenerateTask::GenerateModule {
-            module,
-            profile,
-            target: target.clone(),
-        })
+    ) -> Result<(), BuildRequirementError> {
+        let _ = profile;
+        self.require_build_key(BuildKey::Output(OutputKey::module(module, target.clone())))
     }
 }

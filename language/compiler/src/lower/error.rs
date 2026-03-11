@@ -1,5 +1,5 @@
 use crate::{
-    DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
     TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
@@ -13,20 +13,20 @@ use destack_workspace::Program;
 #[phase(Lower)]
 pub enum LowerError {
     // -------------------------------------------------------------------------
-    // 0xx: Yield / dependency
+    // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Wait for task dependency.
+    /// Wait for build requirement.
     #[error(code = "EM000", r#yield)]
     Yield {
-        /// Carry the dependency that must be satisfied before lowering can proceed.
-        dependency: TaskDependency,
+        /// Carry the requirement that must be satisfied before lowering can proceed.
+        requirement: BuildRequirementSet,
     },
 
-    /// Yield dependency has failed.
+    /// Yield requirement has failed.
     #[error(code = "EM001", yield_failed)]
-    UnsatisfiedDependency {
-        /// Carry the dependency that failed to resolve.
-        dependency: TaskDependency,
+    UnsatisfiedRequirement {
+        /// Carry the requirement that failed to resolve.
+        requirement: BuildRequirementSet,
     },
 
     /// Task was skipped due to stale versions.

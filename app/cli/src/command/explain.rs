@@ -7,7 +7,7 @@ use destack_compiler::{
     AnalyzeError, AnalyzeWarning, DiagnosticDefinition, ElaborateError, ElaborateWarning,
     EmitError, EmitWarning, ExecuteError, ExecuteWarning, GenerateError, GenerateWarning,
     ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning, OptimizeError,
-    OptimizeWarning, ResolveError, ResolveWarning, TaskPhase,
+    OptimizeWarning, ResolveError, ResolveWarning,
 };
 
 use crate::common::{
@@ -99,11 +99,36 @@ enum CompilerSeverity {
 #[derive(Debug, Clone, Copy)]
 struct CompilerDiagnosticGroup {
     /// Compiler phase for the diagnostics.
-    phase: TaskPhase,
+    phase: CompilerPhase,
     /// Severity for the diagnostics.
     severity: CompilerSeverity,
     /// Diagnostics defined in the group.
     definitions: &'static [DiagnosticDefinition],
+}
+
+/// Compiler diagnostic phase.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CompilerPhase {
+    /// Import, parse, and bind source into DIR.
+    Import,
+    /// Resolve symbol references and semantic environments.
+    Resolve,
+    /// Declare, interface, analyze, and validate.
+    Analyze,
+    /// Elaborate analyzed DIR.
+    Elaborate,
+    /// Execute comptime and patch DIR.
+    Execute,
+    /// Lower DIR into MIR.
+    Lower,
+    /// Optimize MIR.
+    Optimize,
+    /// Generate build products.
+    Generate,
+    /// Link build products.
+    Link,
+    /// Emit user-visible files.
+    Emit,
 }
 
 /// Lint rule metadata returned by the explain command.
@@ -226,102 +251,102 @@ enum ExplainPayload {
 /// Compiler diagnostics grouped by phase and severity.
 const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Import,
+        phase: CompilerPhase::Import,
         severity: CompilerSeverity::Error,
         definitions: ImportError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Resolve,
+        phase: CompilerPhase::Resolve,
         severity: CompilerSeverity::Error,
         definitions: ResolveError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Analyze,
+        phase: CompilerPhase::Analyze,
         severity: CompilerSeverity::Error,
         definitions: AnalyzeError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Elaborate,
+        phase: CompilerPhase::Elaborate,
         severity: CompilerSeverity::Error,
         definitions: ElaborateError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Execute,
+        phase: CompilerPhase::Execute,
         severity: CompilerSeverity::Error,
         definitions: ExecuteError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Lower,
+        phase: CompilerPhase::Lower,
         severity: CompilerSeverity::Error,
         definitions: LowerError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Optimize,
+        phase: CompilerPhase::Optimize,
         severity: CompilerSeverity::Error,
         definitions: OptimizeError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Generate,
+        phase: CompilerPhase::Generate,
         severity: CompilerSeverity::Error,
         definitions: GenerateError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Link,
+        phase: CompilerPhase::Link,
         severity: CompilerSeverity::Error,
         definitions: LinkError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Emit,
+        phase: CompilerPhase::Emit,
         severity: CompilerSeverity::Error,
         definitions: EmitError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Import,
+        phase: CompilerPhase::Import,
         severity: CompilerSeverity::Warning,
         definitions: ImportWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Resolve,
+        phase: CompilerPhase::Resolve,
         severity: CompilerSeverity::Warning,
         definitions: ResolveWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Analyze,
+        phase: CompilerPhase::Analyze,
         severity: CompilerSeverity::Warning,
         definitions: AnalyzeWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Elaborate,
+        phase: CompilerPhase::Elaborate,
         severity: CompilerSeverity::Warning,
         definitions: ElaborateWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Execute,
+        phase: CompilerPhase::Execute,
         severity: CompilerSeverity::Warning,
         definitions: ExecuteWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Lower,
+        phase: CompilerPhase::Lower,
         severity: CompilerSeverity::Warning,
         definitions: LowerWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Optimize,
+        phase: CompilerPhase::Optimize,
         severity: CompilerSeverity::Warning,
         definitions: OptimizeWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Generate,
+        phase: CompilerPhase::Generate,
         severity: CompilerSeverity::Warning,
         definitions: GenerateWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Link,
+        phase: CompilerPhase::Link,
         severity: CompilerSeverity::Warning,
         definitions: LinkWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: TaskPhase::Emit,
+        phase: CompilerPhase::Emit,
         severity: CompilerSeverity::Warning,
         definitions: EmitWarning::ALL,
     },
@@ -718,20 +743,19 @@ fn output_compiler_entry(args: &ExplainArgs, entry: CompilerExplainEntry) -> i32
 }
 
 /// Render a phase label for compiler diagnostics.
-fn phase_label(phase: TaskPhase) -> &'static str {
+fn phase_label(phase: CompilerPhase) -> &'static str {
     // map phase enum to its label
     match phase {
-        TaskPhase::Import => "import",
-        TaskPhase::Resolve => "resolve",
-        TaskPhase::Analyze => "analyze",
-        TaskPhase::Elaborate => "elaborate",
-        TaskPhase::Execute => "execute",
-        TaskPhase::Lower => "lower",
-        TaskPhase::Optimize => "optimize",
-        TaskPhase::Generate => "generate",
-        TaskPhase::Link => "link",
-        TaskPhase::Emit => "emit",
-        TaskPhase::Lint => "lint",
+        CompilerPhase::Import => "import",
+        CompilerPhase::Resolve => "resolve",
+        CompilerPhase::Analyze => "analyze",
+        CompilerPhase::Elaborate => "elaborate",
+        CompilerPhase::Execute => "execute",
+        CompilerPhase::Lower => "lower",
+        CompilerPhase::Optimize => "optimize",
+        CompilerPhase::Generate => "generate",
+        CompilerPhase::Link => "link",
+        CompilerPhase::Emit => "emit",
     }
 }
 

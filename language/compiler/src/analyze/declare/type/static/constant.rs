@@ -1,6 +1,6 @@
 use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
 use crate::analyze::common::{
-    AnalyzeDependencyStage, RelationMode, TreeSymbolTypeView, TypeContext, TypeRewriteCache,
+    DirReadBoundary, RelationMode, TreeSymbolTypeView, TypeContext, TypeRewriteCache,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
@@ -10,7 +10,7 @@ use destack_dir::{
 use std::collections::{HashMap, HashSet};
 
 /// One declared static-constant lookup result for one module-local symbol graph walk.
-enum PublishedStaticConstantLookup {
+enum ArtifactStaticConstantLookup {
     /// One concrete published value found in the current module table walk.
     Found {
         symbol: GlobalSymbolId,
@@ -32,11 +32,11 @@ pub(super) enum StaticCycleDiagnosticMode {
 /// Select one static-constant resolution policy.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum StaticConstantResolutionMode {
-    /// Parametric evaluation with infer-stage dependency reads and suppressed cycle diagnostics.
+    /// Parametric evaluation with analyzed-boundary dependency reads and suppressed cycle diagnostics.
     Parametric,
-    /// Instantiated evaluation with infer-stage dependency reads.
+    /// Instantiated evaluation with analyzed-boundary dependency reads.
     InstantiatedInfer,
-    /// Instantiated evaluation with declare-stage dependency reads.
+    /// Instantiated evaluation with declared-boundary dependency reads.
     InstantiatedDeclare,
 }
 
@@ -52,10 +52,10 @@ impl StaticConstantResolutionMode {
     }
 
     /// Return the remote dependency stage for this resolution policy.
-    fn remote_dependency_stage(self) -> AnalyzeDependencyStage {
+    fn remote_dependency_boundary(self) -> DirReadBoundary {
         match self {
-            Self::Parametric | Self::InstantiatedInfer => AnalyzeDependencyStage::Infer,
-            Self::InstantiatedDeclare => AnalyzeDependencyStage::Declare,
+            Self::Parametric | Self::InstantiatedInfer => DirReadBoundary::Analyzed,
+            Self::InstantiatedDeclare => DirReadBoundary::Declared,
         }
     }
 
@@ -90,7 +90,7 @@ impl Compiler {
                 symbol_id,
                 StaticEvaluationMode::Parametric,
                 None,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 StaticCycleDiagnosticMode::Suppress,
                 &mut visited,
             );
@@ -105,7 +105,8 @@ impl Compiler {
             };
 
             // publish one declared static constant commitment per symbol
-            ctx.types.publish_static_constant_value(symbol_id, value);
+            ctx.types
+                .set_artifact_static_constant_value(symbol_id, value);
         }
 
         Ok(())
@@ -154,11 +155,11 @@ impl Compiler {
     }
 
     /// Query one declared static constant lookup in one module-local symbol graph.
-    fn query_published_static_constant_lookup_for_symbol(
+    fn query_artifact_static_constant_lookup_for_symbol(
         &self,
         ctx: TreeSymbolTypeView<'_>,
         symbol: GlobalSymbolId,
-    ) -> Option<PublishedStaticConstantLookup> {
+    ) -> Option<ArtifactStaticConstantLookup> {
         let mut pending_symbols = vec![symbol];
         let mut visited_symbols = HashSet::new();
         let mut forwarded_symbols = Vec::new();
@@ -170,9 +171,9 @@ impl Compiler {
 
             if let Some(value) = ctx
                 .types
-                .query_published_static_constant_value(candidate_symbol)
+                .query_artifact_static_constant_value(candidate_symbol)
             {
-                return Some(PublishedStaticConstantLookup::Found {
+                return Some(ArtifactStaticConstantLookup::Found {
                     symbol: candidate_symbol,
                     value,
                 });
@@ -190,9 +191,9 @@ impl Compiler {
             );
             if let Some(value) = ctx
                 .types
-                .query_published_static_constant_value(normalized_symbol)
+                .query_artifact_static_constant_value(normalized_symbol)
             {
-                return Some(PublishedStaticConstantLookup::Found {
+                return Some(ArtifactStaticConstantLookup::Found {
                     symbol: normalized_symbol,
                     value,
                 });
@@ -246,7 +247,7 @@ impl Compiler {
             return None;
         }
 
-        Some(PublishedStaticConstantLookup::Forward {
+        Some(ArtifactStaticConstantLookup::Forward {
             symbols: forwarded_symbols,
         })
     }
@@ -265,7 +266,7 @@ impl Compiler {
             symbol,
             resolution_mode.evaluation_mode(),
             substitutions,
-            resolution_mode.remote_dependency_stage(),
+            resolution_mode.remote_dependency_boundary(),
             resolution_mode.cycle_diagnostic_mode(),
             visited,
         )
@@ -317,7 +318,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
         mode: StaticEvaluationMode,
         substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        remote_dependency_stage: AnalyzeDependencyStage,
+        remote_dependency_boundary: DirReadBoundary,
         cycle_diagnostic_mode: StaticCycleDiagnosticMode,
         visited: &mut HashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<StaticExpression>> {
@@ -326,7 +327,7 @@ impl Compiler {
             symbol,
             mode,
             substitutions,
-            remote_dependency_stage,
+            remote_dependency_boundary,
             visited,
             None,
             cycle_diagnostic_mode,
@@ -340,7 +341,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
         mode: StaticEvaluationMode,
         substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        remote_dependency_stage: AnalyzeDependencyStage,
+        remote_dependency_boundary: DirReadBoundary,
         visited: &mut HashSet<GlobalSymbolId>,
         previsited_symbol: Option<GlobalSymbolId>,
         cycle_diagnostic_mode: StaticCycleDiagnosticMode,
@@ -442,27 +443,27 @@ impl Compiler {
             let mut pending_symbols = vec![symbol];
             let mut visited_symbols = HashSet::new();
             let mut local_value = None;
-            let can_use_published_lookup =
+            let can_use_artifact_lookup =
                 substitutions.is_none_or(|substitutions| substitutions.is_empty());
             let substitution_entries =
                 self.collect_remote_static_substitution_entries(substitutions, ctx.types);
 
-            if can_use_published_lookup {
+            if can_use_artifact_lookup {
                 while let Some(candidate_symbol) = pending_symbols.pop() {
                     if !visited_symbols.insert(candidate_symbol) {
                         continue;
                     }
 
                     let (found_value, forwarded_symbols) = self
-                        .with_module_tree_symbols_types_by_id_at_stage(
+                        .with_module_tree_symbols_types_by_id_at_boundary(
                             ctx.profile,
                             candidate_symbol.module_id,
                             ctx.tree,
                             ctx.symbols,
                             ctx.types,
-                            remote_dependency_stage,
+                            remote_dependency_boundary,
                             |owner_tree, owner_symbols, owner_types| match self
-                                .query_published_static_constant_lookup_for_symbol(
+                                .query_artifact_static_constant_lookup_for_symbol(
                                     TreeSymbolTypeView::new(
                                         ctx.profile,
                                         owner_tree,
@@ -471,14 +472,14 @@ impl Compiler {
                                     ),
                                     candidate_symbol,
                                 ) {
-                                Some(PublishedStaticConstantLookup::Found {
+                                Some(ArtifactStaticConstantLookup::Found {
                                     symbol: resolved_symbol,
                                     value,
                                 }) => {
                                     let snapshot = owner_types.clone();
                                     (Some((resolved_symbol, value, snapshot)), Vec::new())
                                 }
-                                Some(PublishedStaticConstantLookup::Forward {
+                                Some(ArtifactStaticConstantLookup::Forward {
                                     symbols: forwarded_symbols,
                                 }) => (None, forwarded_symbols),
                                 None => (None, Vec::new()),
@@ -507,11 +508,11 @@ impl Compiler {
             // evaluate unresolved remote constants on a cloned remote snapshot when publication is absent
             if local_value.is_none() {
                 let evaluated_remote_value = self
-                    .with_module_tree_symbol_view_at_stage(
+                    .with_module_tree_symbol_view_at_boundary(
                         ctx.module,
                         ctx.profile,
                         symbol.module_id,
-                        remote_dependency_stage,
+                        remote_dependency_boundary,
                         |view| -> AnalyzeResult<Option<(StaticExpression, TypeTable)>> {
                             let remote_types = view.module.dir(ctx.profile).types.read();
                             let mut remote_snapshot = remote_types.clone();
@@ -545,7 +546,7 @@ impl Compiler {
                                 symbol,
                                 mode,
                                 remote_substitutions.as_ref(),
-                                remote_dependency_stage,
+                                remote_dependency_boundary,
                                 &mut remote_visited,
                                 Some(symbol),
                                 cycle_diagnostic_mode,
@@ -574,7 +575,7 @@ impl Compiler {
 
         // ensure dependency items are resolved before evaluating local constants
         if symbol.module_id == ctx.module.id && mode == StaticEvaluationMode::Parametric {
-            self.require_resolve_module_direct(ctx.module.id, ctx.profile)
+            self.require_dir_resolved(ctx.module.id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
         }
 
@@ -626,7 +627,7 @@ impl Compiler {
                 mode,
                 StaticEvaluationDiagnosticMode::Report,
                 substitutions,
-                remote_dependency_stage,
+                remote_dependency_boundary,
                 visited,
             )?
         } else {
@@ -651,7 +652,7 @@ impl Compiler {
                             mode,
                             StaticEvaluationDiagnosticMode::Report,
                             substitutions,
-                            remote_dependency_stage,
+                            remote_dependency_boundary,
                             visited,
                         )?
                     };
@@ -732,7 +733,7 @@ impl Compiler {
                     *target_symbol,
                     mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     cycle_diagnostic_mode,
                     visited,
                 )?
@@ -766,7 +767,7 @@ impl Compiler {
                                     *target_symbol,
                                     mode,
                                     substitutions,
-                                    remote_dependency_stage,
+                                    remote_dependency_boundary,
                                     cycle_diagnostic_mode,
                                     visited,
                                 )? {
@@ -788,7 +789,7 @@ impl Compiler {
                     target_symbol,
                     mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     cycle_diagnostic_mode,
                     visited,
                 )?
@@ -798,7 +799,7 @@ impl Compiler {
                     canonical_symbol,
                     mode,
                     substitutions,
-                    remote_dependency_stage,
+                    remote_dependency_boundary,
                     cycle_diagnostic_mode,
                     visited,
                 )?

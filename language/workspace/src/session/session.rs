@@ -7,9 +7,9 @@ use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 use parking_lot::RwLock;
 
 use crate::{
-    Builtins, CacheStore, DiskCacheStore, FormatterOptions, LinterOptions, ModuleRegistry,
-    OutputRegistry, PackageRegistry, ProfileId, ProfileKey, Program, SessionOptions,
-    TsConfigRegistry, Workspace, resolve_workspace_cache_root,
+    ArtifactRegistry, Builtins, CacheStore, DiskCacheStore, DsConfig, FormatterOptions,
+    LinterOptions, ModuleRegistry, OutputRegistry, PackageRegistry, ProfileId, ProfileKey, Program,
+    SessionOptions, TsConfigRegistry, Workspace, resolve_workspace_cache_root,
 };
 
 /// A session is the persistent state for a workspace.
@@ -38,6 +38,8 @@ pub struct Session {
     pub tsconfigs: Arc<TsConfigRegistry>,
     /// The combined string pool.
     pub strings: Arc<StringPool>,
+    /// The semantic artifact registry.
+    pub artifacts: Arc<ArtifactRegistry>,
     /// The output registry.
     pub outputs: Arc<OutputRegistry>,
     /// Compiled builtins (always loaded).
@@ -70,6 +72,7 @@ impl Session {
             modules,
             builtins,
             strings: Arc::new(StringPool::new()),
+            artifacts: Arc::new(ArtifactRegistry::new()),
             outputs: Arc::new(OutputRegistry::new()),
             tsconfigs: Arc::new(TsConfigRegistry::new()),
         }
@@ -102,6 +105,7 @@ impl Session {
             modules,
             tsconfigs: Arc::new(TsConfigRegistry::new()),
             strings: Arc::new(StringPool::new()),
+            artifacts: Arc::new(ArtifactRegistry::new()),
             outputs: Arc::new(OutputRegistry::new()),
             builtins,
         }
@@ -171,12 +175,12 @@ impl Session {
     }
 
     /// Return the current workspace config.
-    pub fn workspace_config(&self) -> Option<Arc<crate::DsConfig>> {
+    pub fn workspace_config(&self) -> Option<Arc<DsConfig>> {
         self.workspace.read().config.clone()
     }
 
     /// Update the workspace configuration.
-    pub fn update_workspace_config(&self, config: Option<crate::DsConfig>) {
+    pub fn update_workspace_config(&self, config: Option<DsConfig>) {
         // update the workspace config in place
         let mut workspace = self.workspace.write();
         workspace.config = config.map(Arc::new);
@@ -202,6 +206,7 @@ impl Session {
             self.packages.clone(),
             self.tsconfigs.clone(),
             self.strings.clone(),
+            self.artifacts.clone(),
             self.outputs.clone(),
             Some(self.builtins.clone()),
         ));

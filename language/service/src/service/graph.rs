@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 
-use destack_compiler::{AnalyzeTask, Compiler, ResolveTask};
-use destack_source::{Diagnostic, DiagnosticStoreUpdate, FileId, ModuleId, ModuleStamp};
-use destack_workspace::{InvalidationKind, InvalidationPlan, ModuleGraphKey, Program};
+use destack_compiler::{BuildKey, Compiler};
+use destack_source::{Diagnostic, DiagnosticStoreUpdate, FileId, ModuleId};
+use destack_workspace::{ArtifactKey, InvalidationKind, InvalidationPlan, ModuleGraphKey, Program};
 
 use super::workspace::{ServiceUpdate, build_update};
 use super::{AnalyzeOutcome, LanguageService, LanguageServiceError};
@@ -47,9 +47,10 @@ impl LanguageService {
 
         // enqueue and run the module analysis task
         let profile_id = program.default_profile_id_for_module(module_id);
-        let module = compiler.module_stamp(module_id);
-        let profile = compiler.profile_stamp(profile_id);
-        compiler.enqueue(AnalyzeTask::AnalyzeModule { module, profile });
+        compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+            module: module_id,
+            profile: profile_id,
+        }));
         compiler.compile();
 
         // group fresh diagnostics by file id
@@ -230,9 +231,10 @@ impl LanguageService {
         if !module_ids.is_empty() {
             for module_id in &module_ids {
                 let profile = program.default_profile_id_for_module(*module_id);
-                let module = compiler.module_stamp(*module_id);
-                let profile = compiler.profile_stamp(profile);
-                compiler.enqueue(AnalyzeTask::AnalyzeModule { module, profile });
+                compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+                    module: *module_id,
+                    profile,
+                }));
             }
             compiler.compile();
 
@@ -301,14 +303,10 @@ impl LanguageService {
                 }
 
                 if queued.insert((module_id, profile_id)) {
-                    let module = ModuleStamp::new(module_id, module.version);
-                    let profile = compiler.profile_stamp(profile_id);
-                    let graph = compiler.module_graph_stamp(profile_id);
-                    resolve_tasks.push(ResolveTask::ResolveModuleCanonical {
-                        module,
-                        profile,
-                        graph,
-                    });
+                    resolve_tasks.push(BuildKey::Artifact(ArtifactKey::DirResolved {
+                        module: module_id,
+                        profile: profile_id,
+                    }));
                 }
 
                 continue;
@@ -324,14 +322,10 @@ impl LanguageService {
                 }
 
                 if queued.insert((module.id, profile_id)) {
-                    let module = ModuleStamp::new(module.id, module.version);
-                    let profile = compiler.profile_stamp(profile_id);
-                    let graph = compiler.module_graph_stamp(profile_id);
-                    resolve_tasks.push(ResolveTask::ResolveModuleCanonical {
-                        module,
-                        profile,
-                        graph,
-                    });
+                    resolve_tasks.push(BuildKey::Artifact(ArtifactKey::DirResolved {
+                        module: module.id,
+                        profile: profile_id,
+                    }));
                 }
             }
         }

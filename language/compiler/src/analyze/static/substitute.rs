@@ -1190,10 +1190,18 @@ impl Compiler {
 
         // rewrite owner-scoped associated aliases
         if let Some(owner_symbol) = owner_symbol {
+            let owner_receiver_arguments = self.owner_projection_receiver_arguments(
+                &mut ctx.reborrow(),
+                owner_symbol,
+                source_id,
+                substitutions,
+            );
             normalized = self.rewrite_associated_aliases_for_owner(
                 &mut ctx.reborrow(),
                 source_id,
                 owner_symbol,
+                Some(owner_symbol),
+                &owner_receiver_arguments,
                 substitutions,
                 normalized,
             );
@@ -1311,6 +1319,22 @@ impl Compiler {
             } else {
                 (projection_receiver_symbol, projection_receiver_arguments)
             };
+        let receiver_arguments = if substitutions.is_empty() {
+            receiver_arguments
+        } else {
+            let mut substitution_cache = HashMap::new();
+            receiver_arguments
+                .iter()
+                .map(|argument| {
+                    self.substitute_static_argument(
+                        argument,
+                        substitutions,
+                        ctx.types,
+                        &mut substitution_cache,
+                    )
+                })
+                .collect()
+        };
 
         receiver_symbol = self.canonical_symbol_id(
             ctx.module_symbol_view(),

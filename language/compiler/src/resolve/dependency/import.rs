@@ -25,11 +25,7 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module is prepared
-                self.require_resolve_module_prepare_if_needed(
-                    origin_module_id,
-                    module_id,
-                    profile,
-                )?;
+                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // load the module namespace symbol
                 let target_module = self.program.modules.get(module_id);
@@ -59,7 +55,7 @@ impl Compiler {
                 };
 
                 // ensure the binding module is prepared
-                self.require_resolve_module_prepare_if_needed(
+                self.require_dir_prepared_if_other(
                     origin_module_id,
                     binding_ref.module_id,
                     profile,
@@ -92,11 +88,7 @@ impl Compiler {
                 }
 
                 // ensure the target module is prepared
-                self.require_resolve_module_prepare_if_needed(
-                    origin_module_id,
-                    module_id,
-                    profile,
-                )?;
+                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // load the module export assignment state
                 let target_module = self.program.modules.get(module_id);
@@ -121,7 +113,7 @@ impl Compiler {
                 let mut resolved: Option<(GlobalSymbolId, Option<GlobalNodeIdAny>)> = None;
                 for binding_ref in bindings {
                     // ensure the binding module is prepared
-                    self.require_resolve_module_prepare_if_needed(
+                    self.require_dir_prepared_if_other(
                         origin_module_id,
                         binding_ref.module_id,
                         profile,
@@ -200,11 +192,7 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module is prepared
-                self.require_resolve_module_prepare_if_needed(
-                    origin_module_id,
-                    module_id,
-                    profile,
-                )?;
+                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // check if module has an export assignment
                 let module = self.program.modules.get(module_id);
@@ -249,7 +237,7 @@ impl Compiler {
                 // check each binding for an export assignment target
                 for binding_ref in bindings {
                     // ensure the binding module is prepared
-                    self.require_resolve_module_prepare_if_needed(
+                    self.require_dir_prepared_if_other(
                         origin_module_id,
                         binding_ref.module_id,
                         profile,
@@ -683,7 +671,7 @@ impl Compiler {
 
     /// Resolve a symbol by looking inside a namespace symbol's scope.
     /// Used for `export = LocalNamespace` where we need to find members of the namespace.
-    pub(super) fn resolve_symbol_in_namespace(
+    pub(crate) fn resolve_symbol_in_namespace(
         &self,
         _node: GlobalNodeIdAny,
         namespace_symbol: GlobalSymbolId,

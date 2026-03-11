@@ -1,7 +1,7 @@
 use super::*;
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, InferContext, ModuleSymbolView, ModuleTypeView,
+    CanonicalSymbolMode, DirReadBoundary, InferContext, ModuleSymbolView, ModuleTypeView,
     SymbolTypeView, TreeSymbolTypeView, TypeView,
 };
 use crate::analyze::infer::RemoteValueTypeReadDomain;
@@ -122,7 +122,7 @@ impl Compiler {
         let symbol_name = self.program.strings.intern(well_known_symbol.export_name());
         let symbol_key = StaticKey::Name(symbol_name);
         if let Some(symbol) = self
-            .get_ambient_lib_symbol_sources_for_space_order(
+            .get_lib_symbol_sources_for_space_order(
                 profile,
                 symbol_key,
                 SymbolSpaceOrder::TypeThenValue,
@@ -209,12 +209,12 @@ impl Compiler {
             }
 
             let (normalized_symbol, has_concrete_primary_declaration, next_symbol) = self
-                .with_module_symbols_or_local_at_stage(
+                .with_module_symbols_or_local_at_boundary(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         (
@@ -297,11 +297,11 @@ impl Compiler {
         }
 
         let remote_import = self
-            .with_module_tree_symbol_view_at_stage(
+            .with_module_tree_symbol_view_at_boundary(
                 ctx.module,
                 ctx.profile,
                 member_symbol.module_id,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |view| -> AnalyzeResult<Option<(GlobalSymbolId, Type, TypeTable)>> {
                     let remote_types = view.module.dir(ctx.profile).types.read();
                     let mut remote_snapshot = remote_types.clone();
@@ -973,7 +973,7 @@ impl Compiler {
         let mut symbol =
             self.resolve_implicit_well_known_carrier_symbol(lookup.profile, well_known_symbol);
         if symbol.is_none() && module.is_user() && self.options.load_libs {
-            self.require_resolve_libs(lookup.profile)
+            self.require_lib_environment(lookup.profile)
                 .map_err(AnalyzeError::from)?;
             symbol =
                 self.resolve_implicit_well_known_carrier_symbol(lookup.profile, well_known_symbol);
@@ -1047,11 +1047,11 @@ impl Compiler {
         }
 
         let resolved = self
-            .with_module_tree_symbol_view_at_stage(
+            .with_module_tree_symbol_view_at_boundary(
                 module,
                 lookup.profile,
                 symbol.module_id,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |view| {
                     let owner_types = view.module.dir(lookup.profile).types.read();
                     let owner_symbol_entry = view.symbols.get_symbol(symbol.local_id);
@@ -1225,7 +1225,7 @@ impl Compiler {
             else {
                 continue;
             };
-            if !self.is_extension_visible(module, &extension) {
+            if !self.is_extension_visible(module, lookup.profile, &extension) {
                 continue;
             }
 
@@ -1263,11 +1263,11 @@ impl Compiler {
             ));
         }
 
-        self.with_module_tree_symbol_view_at_stage(
+        self.with_module_tree_symbol_view_at_boundary(
             module,
             lookup.profile,
             extension_symbol.module_id,
-            AnalyzeDependencyStage::Declare,
+            DirReadBoundary::Declared,
             |view| {
                 let owner_types = view.module.dir(lookup.profile).types.read();
                 let owner_lookup = MemberLookupModuleContext::new(

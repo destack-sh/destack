@@ -8,12 +8,12 @@ use destack_dir::{
     walk_declaration, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, ObjectShape, ObjectShapeSet, TypeContext,
+    CanonicalSymbolMode, DirReadBoundary, ObjectShape, ObjectShapeSet, TypeContext,
 };
 
 /// Visitor used to declare type-level constructs across a module.
@@ -276,11 +276,28 @@ impl Compiler {
                 } else {
                     self.resolve_declared_type_expression(&mut ctx.reborrow(), *value, true, true)?
                 };
+                let symbol = descriptor.symbol.into_global(ctx.module.id);
+                let mut visited = HashSet::new();
+                let contains_recursive_alias_reference = self.type_contains_reference_symbol(
+                    declared_ty_id,
+                    symbol,
+                    ctx.types,
+                    &mut visited,
+                );
+                let declared_ty_id = if contains_recursive_alias_reference {
+                    let node = value
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
+                    self.error(AnalyzeError::RecursiveTypeInstantiation { node });
+                    ctx.types
+                        .insert_type_from_any(Type::Error, (*value).into_any())
+                } else {
+                    declared_ty_id
+                };
                 ctx.types
                     .set_declared_type(value.into_global_any(ctx.module.id), declared_ty_id);
 
                 // register the instance type for this symbol
-                let symbol = descriptor.symbol.into_global(ctx.module.id);
                 ctx.types.set_alias_target_type_id(symbol, declared_ty_id);
                 let instance_ty_id = match *kind {
                     TypeKind::Structural => declared_ty_id,
@@ -1871,11 +1888,11 @@ impl Compiler {
         }
 
         let remote_value = self
-            .with_module_types_at_stage(
+            .with_module_types_at_boundary(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |_, remote_types| {
                     let remote_value_id = remote_types.get_value_type_id(symbol)?;
                     let remote_value_ty = remote_types.get_type(remote_value_id).clone();

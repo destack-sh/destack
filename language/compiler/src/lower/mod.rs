@@ -14,7 +14,6 @@ pub(crate) use module::{
     ModuleLowerer, RuntimeStatusLayout, collect_expression_string_literals,
     static_key_to_field_name, string_literal_global_name_for_content,
 };
-pub use process::*;
 pub(crate) use result::*;
 pub(crate) use r#type::*;
 pub use warning::*;

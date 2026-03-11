@@ -19,6 +19,12 @@ use crate::{
     hash_bytes, hash_json_value, resolve_cache_dir, resolve_cache_root_for_scope,
 };
 
+#[cfg(test)]
+use crate::{
+    ArtifactRegistry, FormatterOptions, LinterOptions, ModuleRegistry, OutputRegistry,
+    PackageRegistry, TsConfigRegistry,
+};
+
 /// Header for workspace index snapshots.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceIndexHeader {
@@ -904,16 +910,17 @@ mod tests {
 
         let files = FileRegistry::new();
         let program = Program::new(
-            crate::FormatterOptions::default(),
-            crate::LinterOptions::default(),
+            FormatterOptions::default(),
+            LinterOptions::default(),
             root.root().to_path_buf(),
             Arc::new(PhysicalFileSystem),
             Arc::new(files),
-            Arc::new(crate::ModuleRegistry::new()),
-            Arc::new(crate::PackageRegistry::new()),
-            Arc::new(crate::TsConfigRegistry::new()),
+            Arc::new(ModuleRegistry::new()),
+            Arc::new(PackageRegistry::new()),
+            Arc::new(TsConfigRegistry::new()),
             Arc::new(StringPool::new()),
-            Arc::new(crate::OutputRegistry::new()),
+            Arc::new(ArtifactRegistry::new()),
+            Arc::new(OutputRegistry::new()),
             None,
         );
 
@@ -990,16 +997,17 @@ mod tests {
 
         // seed a program with the loaded snapshot
         let program = Program::new(
-            crate::FormatterOptions::default(),
-            crate::LinterOptions::default(),
+            FormatterOptions::default(),
+            LinterOptions::default(),
             root.root().to_path_buf(),
             Arc::new(PhysicalFileSystem),
             Arc::new(FileRegistry::new()),
-            Arc::new(crate::ModuleRegistry::new()),
-            Arc::new(crate::PackageRegistry::new()),
-            Arc::new(crate::TsConfigRegistry::new()),
+            Arc::new(ModuleRegistry::new()),
+            Arc::new(PackageRegistry::new()),
+            Arc::new(TsConfigRegistry::new()),
             Arc::new(StringPool::new()),
-            Arc::new(crate::OutputRegistry::new()),
+            Arc::new(ArtifactRegistry::new()),
+            Arc::new(OutputRegistry::new()),
             None,
         );
         program.apply_workspace_index(loaded);

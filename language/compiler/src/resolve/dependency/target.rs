@@ -32,10 +32,10 @@ impl Compiler {
         // rebuild when module bindings changed since the cache was built
         let mut rebuild_cache = true;
         if let Some(cache) = self.program.index.module_binding_tables.get(&key) {
-            rebuild_cache = self.module_binding_table_is_stale(package_id, profile_id, &cache);
+            rebuild_cache = self.module_binding_table_is_stale(package_id, profile_id, &cache)?;
         }
         if rebuild_cache {
-            let cache = self.build_module_binding_table(package_id, profile_id);
+            let cache = self.build_module_binding_table(package_id, profile_id)?;
             self.program
                 .index
                 .module_binding_tables
@@ -152,7 +152,7 @@ impl Compiler {
         &self,
         package_id: PackageId,
         profile_id: ProfileId,
-    ) -> ModuleBindingTable {
+    ) -> ResolveResult<ModuleBindingTable> {
         let mut cache = ModuleBindingTable::new();
 
         // collect module bindings declared in the current package
@@ -161,11 +161,11 @@ impl Compiler {
         }
 
         // include ambient lib module bindings visible to this profile
-        for module_id in self.ambient_binding_module_ids(profile_id) {
+        for module_id in self.ambient_binding_module_ids(profile_id)? {
             self.append_module_bindings_from_module(&mut cache, module_id);
         }
 
-        cache
+        Ok(cache)
     }
 
     /// Append one package registry to a module binding table.
@@ -219,13 +219,11 @@ impl Compiler {
     }
 
     /// Collect ambient modules that can contribute module bindings.
-    pub(crate) fn ambient_binding_module_ids(&self, profile_id: ProfileId) -> Vec<ModuleId> {
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return Vec::new();
-        };
-
-        let profile = self.program.profile(profile_id);
-        builtins.ambient_libs(&profile.key).unwrap_or_default()
+    pub(crate) fn ambient_binding_module_ids(
+        &self,
+        profile_id: ProfileId,
+    ) -> ResolveResult<Vec<ModuleId>> {
+        self.ambient_lib_modules_from_input(profile_id)
     }
 
     /// Collect package declared module binding versions for stale checks.
@@ -251,43 +249,43 @@ impl Compiler {
         package_id: PackageId,
         profile_id: ProfileId,
         cache: &ModuleBindingTable,
-    ) -> bool {
+    ) -> ResolveResult<bool> {
         // compare package registry inputs first
         let expected_registry_versions = self.registry_module_binding_versions(package_id);
         if expected_registry_versions.len() != cache.registry_module_versions.len() {
-            return true;
+            return Ok(true);
         }
 
         for (module_id, expected_version) in expected_registry_versions.clone() {
             let Some(cached_version) = cache.registry_module_versions.get(&module_id) else {
-                return true;
+                return Ok(true);
             };
             if cached_version != &expected_version {
-                return true;
+                return Ok(true);
             }
         }
 
         // compare the full module set, including ambient lib module bindings
         let mut expected_module_versions = expected_registry_versions;
-        for module_id in self.ambient_binding_module_ids(profile_id) {
+        for module_id in self.ambient_binding_module_ids(profile_id)? {
             let module = self.program.modules.get(module_id);
             let module = module.read();
             expected_module_versions.insert(module_id, module.version);
         }
 
         if expected_module_versions.len() != cache.module_versions.len() {
-            return true;
+            return Ok(true);
         }
 
         for (module_id, expected_version) in expected_module_versions {
             let Some(cached_version) = cache.module_versions.get(&module_id) else {
-                return true;
+                return Ok(true);
             };
             if cached_version != &expected_version {
-                return true;
+                return Ok(true);
             }
         }
 
-        false
+        Ok(false)
     }
 }

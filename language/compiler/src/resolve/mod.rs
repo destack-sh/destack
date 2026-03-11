@@ -11,5 +11,4 @@ mod warning;
 pub use binding::OperatorLanguageSymbolExt;
 pub(crate) use destack_workspace::TargetDiscoveryIssue;
 pub use error::*;
-pub use process::*;
 pub use warning::*;

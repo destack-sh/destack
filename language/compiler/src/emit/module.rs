@@ -5,7 +5,7 @@ use destack_workspace::TargetId;
 
 impl Compiler {
     /// Emit a single module's output for a target.
-    pub(super) fn emit_module(&self, module_id: ModuleId, target_id: &TargetId) -> EmitResult<()> {
+    pub fn emit_module(&self, module_id: ModuleId, target_id: &TargetId) -> EmitResult<()> {
         // get the package for this module
         let module = self.program.modules.get(module_id);
         let module = module.read();
@@ -26,7 +26,15 @@ impl Compiler {
         }
 
         // honor noEmit configuration
-        if self.is_emit_disabled(package_id) {
+        if self
+            .program
+            .packages
+            .get(package_id)
+            .read()
+            .dsconfig
+            .as_ref()
+            .is_some_and(|dsconfig| dsconfig.options.compiler.no_emit)
+        {
             return Err(EmitError::NoEmit {
                 package: package_id,
                 target: target_id.clone(),
@@ -34,7 +42,7 @@ impl Compiler {
         }
 
         // ensure linking is complete
-        self.require_link_module(package_id, target_id)?;
+        self.require_package_output(package_id, target_id)?;
 
         // get outputs for this module + target
         let outputs = self

@@ -9,7 +9,7 @@ use destack_dir::{
 use destack_workspace::WellKnownSymbols;
 
 use super::mapped::MappedIndexKind;
-use super::{AnalyzeDependencyStage, TreeSymbolTypeView};
+use super::{DirReadBoundary, TreeSymbolTypeView};
 use crate::Compiler;
 
 /// Accumulated key information for `keyof` computation.
@@ -133,11 +133,11 @@ impl Compiler {
 
         // helpers for well-known symbol resolution across ambient libs
         let symbol_key_for_global = |symbol: GlobalSymbolId| {
-            self.with_module_symbols_by_id_at_stage(
+            self.with_module_symbols_by_id_at_boundary(
                 ctx.profile,
                 symbol.module_id,
                 ctx.symbols,
-                AnalyzeDependencyStage::Declare,
+                DirReadBoundary::Declared,
                 |owner_symbols| owner_symbols.get_symbol(symbol.local_id).key,
             )
             .ok()
@@ -154,12 +154,7 @@ impl Compiler {
                     }
                 }
 
-                let is_ambient = self.program.builtins.as_ref().is_some_and(|builtins| {
-                    let profile = self.program.profile(ctx.profile);
-                    builtins
-                        .ambient_libs(&profile.key)
-                        .is_some_and(|modules| modules.contains(&symbol.module_id))
-                });
+                let is_ambient = self.is_ambient_lib_module(ctx.profile, symbol.module_id);
                 if !is_ambient {
                     return None;
                 }
@@ -298,13 +293,13 @@ impl Compiler {
 
             // check declared types in the owning module
             let is_unique = self
-                .with_module_tree_symbols_types_by_id_at_stage(
+                .with_module_tree_symbols_types_by_id_at_boundary(
                     ctx.profile,
                     symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
                     ctx.types,
-                    AnalyzeDependencyStage::Declare,
+                    DirReadBoundary::Declared,
                     |owner_tree, owner_symbols, owner_types| {
                         is_unique_symbol(owner_symbols, owner_types, owner_tree)
                     },

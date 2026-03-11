@@ -6,10 +6,10 @@ use std::time::{Duration, Instant};
 
 use clap::{Parser, ValueEnum};
 
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportTask, ResolveTask};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions};
 use destack_source::{MemoryFileSystem, ModuleId};
 use destack_workspace::{
-    CacheStore, LintPreset, LinterOptions, MemoryCacheStore, Program, Session,
+    ArtifactKey, CacheStore, LintPreset, LinterOptions, MemoryCacheStore, Program, Session,
 };
 
 use destack_linter::{LintLevel, LintPerformanceReport, LintRunner};
@@ -252,9 +252,9 @@ fn compute_line_stats(program: &Program, modules: &[ModuleId]) -> LineStats {
 /// Run import tasks for modules and return the duration.
 fn run_import_phase(compiler: &Compiler, modules: &[ModuleId]) -> Duration {
     for module_id in modules {
-        compiler.enqueue(ImportTask::ImportModule {
-            module: compiler.module_stamp(*module_id),
-        });
+        compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirBase {
+            module: *module_id,
+        }));
     }
 
     let start = Instant::now();
@@ -264,9 +264,9 @@ fn run_import_phase(compiler: &Compiler, modules: &[ModuleId]) -> Duration {
 
 /// Run builtin and lib resolve tasks and return the duration.
 fn run_resolve_phase(compiler: &Compiler, profile_id: destack_workspace::ProfileId) -> Duration {
-    let profile = compiler.profile_stamp(profile_id);
-    compiler.enqueue(ResolveTask::ResolveBuiltins { profile });
-    compiler.enqueue(ResolveTask::ResolveLibs { profile });
+    compiler.enqueue(BuildKey::Artifact(ArtifactKey::LibEnvironment {
+        profile: profile_id,
+    }));
 
     let start = Instant::now();
     compiler.compile();
@@ -280,10 +280,10 @@ fn run_analyze_phase(
     profile_id: destack_workspace::ProfileId,
 ) -> Duration {
     for module_id in modules {
-        compiler.enqueue(AnalyzeTask::AnalyzeModule {
-            module: compiler.module_stamp(*module_id),
-            profile: compiler.profile_stamp(profile_id),
-        });
+        compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+            module: *module_id,
+            profile: profile_id,
+        }));
     }
 
     let start = Instant::now();
