@@ -354,14 +354,18 @@ fn rotate_loop(
                 value: remap(*value, map),
                 expected: *expected,
             },
-            mir::CheckConstraint::Vtable { receiver, expected } => mir::CheckConstraint::Vtable {
-                receiver: remap(*receiver, map),
-                expected: *expected,
-            },
-            mir::CheckConstraint::Itab { receiver, expected } => mir::CheckConstraint::Itab {
-                receiver: remap(*receiver, map),
-                expected: *expected,
-            },
+            mir::CheckConstraint::ReceiverType { receiver, expected } => {
+                mir::CheckConstraint::ReceiverType {
+                    receiver: remap(*receiver, map),
+                    expected: *expected,
+                }
+            }
+            mir::CheckConstraint::Implements { receiver, expected } => {
+                mir::CheckConstraint::Implements {
+                    receiver: remap(*receiver, map),
+                    expected: *expected,
+                }
+            }
         }
     };
 

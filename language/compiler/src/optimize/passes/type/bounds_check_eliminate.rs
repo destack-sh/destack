@@ -422,25 +422,9 @@ struct BoundsCheckCandidate {
 
 /// Return whether a block is a dedicated trap block.
 fn is_trap_block(block_id: mir::LocalNodeId<mir::Block>, tree: &mir::NodeTree) -> bool {
-    // only accept blocks that end in unreachable
+    // only accept blocks that end in one fatal trap
     let block = tree.get(block_id);
-    if block.terminator != mir::Terminator::Unreachable {
-        return false;
-    }
-
-    // ensure all instructions are explicit traps
-    for &instruction_id in &block.instructions {
-        let instruction = tree.get(instruction_id);
-        match instruction {
-            mir::Instruction::Intrinsic { intrinsic, .. } => match intrinsic {
-                mir::Intrinsic::Abort | mir::Intrinsic::Panic | mir::Intrinsic::Unreachable => {}
-                _ => return false,
-            },
-            _ => return false,
-        }
-    }
-
-    true
+    block.instructions.is_empty() && matches!(block.terminator, mir::Terminator::Trap { .. })
 }
 
 /// Replace a block's terminator with a jump.

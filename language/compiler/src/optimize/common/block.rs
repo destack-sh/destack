@@ -52,6 +52,51 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
             resume_arguments,
             ..
         } => *v == value || resume_arguments.contains(&value),
+        mir::Terminator::Call {
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            arguments.contains(&value)
+                || normal_arguments.contains(&value)
+                || unwind_arguments.contains(&value)
+        }
+        mir::Terminator::CallIndirect {
+            callee,
+            env,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            *callee == value
+                || env.as_ref().is_some_and(|env| *env == value)
+                || arguments.contains(&value)
+                || normal_arguments.contains(&value)
+                || unwind_arguments.contains(&value)
+        }
+        mir::Terminator::CallVirtual {
+            receiver,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        }
+        | mir::Terminator::CallInterface {
+            receiver,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            *receiver == value
+                || arguments.contains(&value)
+                || normal_arguments.contains(&value)
+                || unwind_arguments.contains(&value)
+        }
+        mir::Terminator::Throw { value: v } => *v == value,
+        mir::Terminator::Trap { payload, .. } => payload.is_some_and(|payload| payload == value),
         mir::Terminator::TailCall { arguments, .. } => arguments.contains(&value),
         mir::Terminator::TailCallVirtual {
             receiver,
@@ -130,6 +175,56 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
             values.extend(resume_arguments.iter().copied());
             values
         }
+        mir::Terminator::Call {
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            let mut values = arguments.clone();
+            values.extend(normal_arguments.iter().copied());
+            values.extend(unwind_arguments.iter().copied());
+            values
+        }
+        mir::Terminator::CallIndirect {
+            callee,
+            env,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            let mut values = vec![*callee];
+            if let Some(env) = env {
+                values.push(*env);
+            }
+            values.extend(arguments.iter().copied());
+            values.extend(normal_arguments.iter().copied());
+            values.extend(unwind_arguments.iter().copied());
+            values
+        }
+        mir::Terminator::CallVirtual {
+            receiver,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        }
+        | mir::Terminator::CallInterface {
+            receiver,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            let mut values = vec![*receiver];
+            values.extend(arguments.iter().copied());
+            values.extend(normal_arguments.iter().copied());
+            values.extend(unwind_arguments.iter().copied());
+            values
+        }
+        mir::Terminator::Throw { value } => vec![*value],
+        mir::Terminator::Trap { payload, .. } => payload.iter().copied().collect(),
         mir::Terminator::TailCall { arguments, .. } => arguments.clone(),
         mir::Terminator::TailCallVirtual {
             receiver,
@@ -227,6 +322,50 @@ pub fn terminator_arguments_for_successor(
             resume_arguments,
             ..
         } if *resume == successor => resume_arguments,
+        mir::Terminator::Call {
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+            ..
+        } => {
+            if *normal_target == successor {
+                normal_arguments
+            } else if *unwind_target == successor {
+                unwind_arguments
+            } else {
+                &[]
+            }
+        }
+        mir::Terminator::CallIndirect {
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+            ..
+        }
+        | mir::Terminator::CallVirtual {
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+            ..
+        }
+        | mir::Terminator::CallInterface {
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+            ..
+        } => {
+            if *normal_target == successor {
+                normal_arguments
+            } else if *unwind_target == successor {
+                unwind_arguments
+            } else {
+                &[]
+            }
+        }
 
         _ => &[],
     }
@@ -1013,10 +1152,64 @@ pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::
             uses.push(*value);
             uses.extend(resume_arguments.iter().copied());
         }
+        mir::Terminator::Call {
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            uses.extend(arguments.iter().copied());
+            uses.extend(normal_arguments.iter().copied());
+            uses.extend(unwind_arguments.iter().copied());
+        }
+        mir::Terminator::CallIndirect {
+            callee,
+            env,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            uses.push(*callee);
+            if let Some(env) = env {
+                uses.push(*env);
+            }
+            uses.extend(arguments.iter().copied());
+            uses.extend(normal_arguments.iter().copied());
+            uses.extend(unwind_arguments.iter().copied());
+        }
+        mir::Terminator::CallVirtual {
+            receiver,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        }
+        | mir::Terminator::CallInterface {
+            receiver,
+            arguments,
+            normal_arguments,
+            unwind_arguments,
+            ..
+        } => {
+            uses.push(*receiver);
+            uses.extend(arguments.iter().copied());
+            uses.extend(normal_arguments.iter().copied());
+            uses.extend(unwind_arguments.iter().copied());
+        }
         mir::Terminator::Return { value } => {
             // record return value
             if let Some(value) = value {
                 uses.push(*value);
+            }
+        }
+        mir::Terminator::Throw { value } => {
+            // record thrown value
+            uses.push(*value);
+        }
+        mir::Terminator::Trap { payload, .. } => {
+            if let Some(payload) = payload {
+                uses.push(*payload);
             }
         }
         mir::Terminator::Unreachable
@@ -1168,7 +1361,9 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                     threadable.insert(block_id, ThreadableBlock::Forward { target: *target });
                 }
             }
-            mir::Terminator::Return { .. } | mir::Terminator::Unreachable => {
+            mir::Terminator::Return { .. }
+            | mir::Terminator::Trap { .. }
+            | mir::Terminator::Unreachable => {
                 if block.parameters.is_empty() {
                     threadable.insert(
                         block_id,
@@ -1585,16 +1780,18 @@ pub fn terminator_substitute_uses(
                     value: substitute(value),
                     expected: *expected,
                 },
-                mir::CheckConstraint::Vtable { receiver, expected } => {
-                    mir::CheckConstraint::Vtable {
+                mir::CheckConstraint::ReceiverType { receiver, expected } => {
+                    mir::CheckConstraint::ReceiverType {
                         receiver: substitute(receiver),
                         expected: *expected,
                     }
                 }
-                mir::CheckConstraint::Itab { receiver, expected } => mir::CheckConstraint::Itab {
-                    receiver: substitute(receiver),
-                    expected: *expected,
-                },
+                mir::CheckConstraint::Implements { receiver, expected } => {
+                    mir::CheckConstraint::Implements {
+                        receiver: substitute(receiver),
+                        expected: *expected,
+                    }
+                }
             };
 
             let success = mir::CheckTarget {
@@ -1641,6 +1838,89 @@ pub fn terminator_substitute_uses(
             resume: *resume,
             resume_arguments: resume_arguments.iter().map(&substitute).collect(),
         },
+        mir::Terminator::Call {
+            function,
+            arguments,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => mir::Terminator::Call {
+            function: *function,
+            arguments: arguments.iter().map(&substitute).collect(),
+            normal_target: *normal_target,
+            normal_arguments: normal_arguments.iter().map(&substitute).collect(),
+            unwind_target: *unwind_target,
+            unwind_arguments: unwind_arguments.iter().map(&substitute).collect(),
+        },
+        mir::Terminator::CallIndirect {
+            callee,
+            env,
+            arguments,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => mir::Terminator::CallIndirect {
+            callee: substitute(callee),
+            env: env.map(|value| substitute(&value)),
+            arguments: arguments.iter().map(&substitute).collect(),
+            signature: *signature,
+            normal_target: *normal_target,
+            normal_arguments: normal_arguments.iter().map(&substitute).collect(),
+            unwind_target: *unwind_target,
+            unwind_arguments: unwind_arguments.iter().map(&substitute).collect(),
+        },
+        mir::Terminator::CallVirtual {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => mir::Terminator::CallVirtual {
+            receiver: substitute(receiver),
+            arguments: arguments.iter().map(&substitute).collect(),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            signature: *signature,
+            normal_target: *normal_target,
+            normal_arguments: normal_arguments.iter().map(&substitute).collect(),
+            unwind_target: *unwind_target,
+            unwind_arguments: unwind_arguments.iter().map(&substitute).collect(),
+        },
+        mir::Terminator::CallInterface {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => mir::Terminator::CallInterface {
+            receiver: substitute(receiver),
+            arguments: arguments.iter().map(&substitute).collect(),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            signature: *signature,
+            normal_target: *normal_target,
+            normal_arguments: normal_arguments.iter().map(&substitute).collect(),
+            unwind_target: *unwind_target,
+            unwind_arguments: unwind_arguments.iter().map(&substitute).collect(),
+        },
+        mir::Terminator::Throw { value } => mir::Terminator::Throw {
+            value: substitute(value),
+        },
+        mir::Terminator::Trap { kind, payload } => mir::Terminator::Trap {
+            kind: *kind,
+            payload: payload.map(|value| substitute(&value)),
+        },
         mir::Terminator::Unreachable => mir::Terminator::Unreachable,
         mir::Terminator::TailCall {
             function,
@@ -1654,14 +1934,12 @@ pub fn terminator_substitute_uses(
             arguments,
             declaring_type,
             slot_id,
-            declared_target,
             signature,
         } => mir::Terminator::TailCallVirtual {
             receiver: substitute(receiver),
             arguments: arguments.iter().map(&substitute).collect(),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            declared_target: *declared_target,
             signature: *signature,
         },
         mir::Terminator::TailCallInterface {
@@ -1669,14 +1947,12 @@ pub fn terminator_substitute_uses(
             arguments,
             declaring_type,
             slot_id,
-            declared_target,
             signature,
         } => mir::Terminator::TailCallInterface {
             receiver: substitute(receiver),
             arguments: arguments.iter().map(&substitute).collect(),
             declaring_type: *declaring_type,
             slot_id: *slot_id,
-            declared_target: *declared_target,
             signature: *signature,
         },
         mir::Terminator::TailCallIndirect {

@@ -628,10 +628,13 @@ fn apply_instruction_effects(
             }
         }
 
-        // tensor stores do not produce values
+        // write like operations do not produce borrowed values
         Instruction::TensorStore { .. }
         | Instruction::TensorFill { .. }
-        | Instruction::TensorCopy { .. } => {}
+        | Instruction::TensorCopy { .. }
+        | Instruction::AtomicStore { .. }
+        | Instruction::AtomicFence { .. }
+        | Instruction::Barrier { .. } => {}
 
         // globals are static borrows
         Instruction::GlobalAddr { destination, .. }
@@ -659,6 +662,26 @@ fn apply_instruction_effects(
 
         // loads preserve the pointer origin
         Instruction::Load {
+            destination,
+            pointer,
+            ..
+        } => {
+            let origins = state.value_origin(*pointer);
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+
+        // atomic memory reads preserve the pointer origin
+        Instruction::AtomicLoad {
+            destination,
+            pointer,
+            ..
+        }
+        | Instruction::AtomicCompareExchange {
+            destination,
+            pointer,
+            ..
+        }
+        | Instruction::AtomicRmw {
             destination,
             pointer,
             ..
@@ -858,14 +881,12 @@ fn apply_instruction_effects(
         // virtual and interface calls use signature fallback
         Instruction::CallVirtual {
             destination: Some(dest),
-            declared_target,
             arguments,
             signature,
             ..
         }
         | Instruction::CallInterface {
             destination: Some(dest),
-            declared_target,
             arguments,
             signature,
             ..
@@ -877,14 +898,6 @@ fn apply_instruction_effects(
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
                     origins_for_targets(
                         targets,
-                        tree.get_arguments(*arguments),
-                        state,
-                        lifetime_analysis,
-                        return_contains_borrow,
-                    )
-                } else if let Some(function_id) = declared_target {
-                    origins_for_call(
-                        *function_id,
                         tree.get_arguments(*arguments),
                         state,
                         lifetime_analysis,

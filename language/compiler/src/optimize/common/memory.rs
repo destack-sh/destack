@@ -271,6 +271,135 @@ pub fn collect_non_escaping_stack_allocs(
                     );
                 }
             }
+            mir::Terminator::Call {
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                for &arg in arguments
+                    .iter()
+                    .chain(normal_arguments.iter())
+                    .chain(unwind_arguments.iter())
+                {
+                    record_stack_escape(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
+                }
+            }
+            mir::Terminator::CallIndirect {
+                callee,
+                env,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                record_stack_escape(
+                    *callee,
+                    definitions,
+                    &local_defs,
+                    &param_defs,
+                    tree,
+                    &stack_allocs,
+                    &mut escaping,
+                );
+                if let Some(env) = env {
+                    record_stack_escape(
+                        *env,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
+                }
+                for &arg in arguments
+                    .iter()
+                    .chain(normal_arguments.iter())
+                    .chain(unwind_arguments.iter())
+                {
+                    record_stack_escape(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
+                }
+            }
+            mir::Terminator::CallVirtual {
+                receiver,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            }
+            | mir::Terminator::CallInterface {
+                receiver,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                record_stack_escape(
+                    *receiver,
+                    definitions,
+                    &local_defs,
+                    &param_defs,
+                    tree,
+                    &stack_allocs,
+                    &mut escaping,
+                );
+                for &arg in arguments
+                    .iter()
+                    .chain(normal_arguments.iter())
+                    .chain(unwind_arguments.iter())
+                {
+                    record_stack_escape(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
+                }
+            }
+            mir::Terminator::Throw { value } => {
+                record_stack_escape(
+                    *value,
+                    definitions,
+                    &local_defs,
+                    &param_defs,
+                    tree,
+                    &stack_allocs,
+                    &mut escaping,
+                );
+            }
+            mir::Terminator::Trap { payload, .. } => {
+                if let Some(payload) = payload {
+                    record_stack_escape(
+                        *payload,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
+                }
+            }
             mir::Terminator::TailCall { arguments, .. }
             | mir::Terminator::TailCallVirtual { arguments, .. }
             | mir::Terminator::TailCallInterface { arguments, .. } => {
@@ -823,11 +952,16 @@ pub fn instruction_has_atomic_ordering(
     tree: &mir::NodeTree,
     instruction: mir::LocalNodeId<mir::Instruction>,
 ) -> bool {
-    // intrinsic atomic operations carry ordering on the instruction
-    if let mir::Instruction::Intrinsic {
-        ordering: Some(_), ..
-    } = tree.get(instruction)
-    {
+    // atomic instructions carry ordering on the instruction
+    if matches!(
+        tree.get(instruction),
+        mir::Instruction::AtomicLoad { .. }
+            | mir::Instruction::AtomicStore { .. }
+            | mir::Instruction::AtomicCompareExchange { .. }
+            | mir::Instruction::AtomicRmw { .. }
+            | mir::Instruction::AtomicFence { .. }
+            | mir::Instruction::Barrier { .. }
+    ) {
         return true;
     }
 
@@ -849,27 +983,16 @@ pub fn instruction_requires_exact_access(
     tree: &mir::NodeTree,
     instruction: mir::LocalNodeId<mir::Instruction>,
 ) -> bool {
-    // intrinsics with atomic metadata must preserve access semantics
-    if let mir::Instruction::Intrinsic {
-        ordering: Some(_), ..
-    } = tree.get(instruction)
-    {
-        return true;
-    }
-
-    if let mir::Instruction::Intrinsic {
-        semantics: Some(_), ..
-    } = tree.get(instruction)
-    {
-        return true;
-    }
-
-    if let mir::Instruction::Intrinsic { scope: Some(_), .. }
-    | mir::Instruction::Intrinsic {
-        memory_scope: Some(_),
-        ..
-    } = tree.get(instruction)
-    {
+    // atomic instructions must preserve exact access semantics
+    if matches!(
+        tree.get(instruction),
+        mir::Instruction::AtomicLoad { .. }
+            | mir::Instruction::AtomicStore { .. }
+            | mir::Instruction::AtomicCompareExchange { .. }
+            | mir::Instruction::AtomicRmw { .. }
+            | mir::Instruction::AtomicFence { .. }
+            | mir::Instruction::Barrier { .. }
+    ) {
         return true;
     }
 
@@ -905,7 +1028,7 @@ pub fn memory_locations_compatible(a: &MemoryLocation, b: &MemoryLocation) -> bo
 }
 
 /// Check whether two location sets may alias.
-pub fn location_sets_may_alias(a: mir::MemoryLocationSet, b: mir::MemoryLocationSet) -> bool {
+pub fn location_sets_may_alias(a: mir::MemoryRegionSet, b: mir::MemoryRegionSet) -> bool {
     !a.is_disjoint(b)
 }
 

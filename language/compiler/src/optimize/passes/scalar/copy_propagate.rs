@@ -147,7 +147,46 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
                     .unwrap()
                     .push((block_id, resume_arguments.clone()));
             }
+            Terminator::Call {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            }
+            | Terminator::CallIndirect {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            }
+            | Terminator::CallVirtual {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            }
+            | Terminator::CallInterface {
+                normal_target,
+                normal_arguments,
+                unwind_target,
+                unwind_arguments,
+                ..
+            } => {
+                predecessors
+                    .get_mut(normal_target)
+                    .unwrap()
+                    .push((block_id, normal_arguments.clone()));
+                predecessors
+                    .get_mut(unwind_target)
+                    .unwrap()
+                    .push((block_id, unwind_arguments.clone()));
+            }
             Terminator::Return { .. }
+            | Terminator::Throw { .. }
+            | Terminator::Trap { .. }
             | Terminator::Unreachable
             | Terminator::TailCall { .. }
             | Terminator::TailCallVirtual { .. }

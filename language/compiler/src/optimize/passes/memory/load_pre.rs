@@ -662,7 +662,7 @@ extern function @read_only() -> void"#;
         let join_block = function.blocks[3];
         let call_inst = test.instructions_in_block(join_block)[0];
         let call_effects = mir::CallEffects::default()
-            .with_memory_effects(mir::MemoryEffect::read_only(mir::MemoryLocationSet::ANY))
+            .with_memory_effects(mir::MemoryEffect::read_only(mir::MemoryRegionSet::ANY))
             .with_behavior(mir::CallBehavior::none());
         let instruction = test.tree.get_mut(call_inst);
         let mir::Instruction::Call { effects, .. } = instruction else {

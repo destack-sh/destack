@@ -196,7 +196,7 @@ struct MemoryEntry {
     /// Value produced by the load.
     value: mir::Value,
     /// The memory location set for the access.
-    location_set: mir::MemoryLocationSet,
+    location_set: mir::MemoryRegionSet,
     /// The address spaces for the access.
     address_spaces: Option<mir::AddressSpaceSet>,
     /// Alias scopes applied to the access.

@@ -298,6 +298,71 @@ impl<'a> MoveCheckContext<'a> {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }
+            mir::Terminator::Call {
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                for &arg in arguments
+                    .iter()
+                    .chain(normal_arguments.iter())
+                    .chain(unwind_arguments.iter())
+                {
+                    self.check_use(state, arg, None, block_id, context);
+                }
+            }
+            mir::Terminator::CallIndirect {
+                callee,
+                env,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                self.check_use(state, *callee, None, block_id, context);
+                if let Some(env) = env {
+                    self.check_use(state, *env, None, block_id, context);
+                }
+                for &arg in arguments
+                    .iter()
+                    .chain(normal_arguments.iter())
+                    .chain(unwind_arguments.iter())
+                {
+                    self.check_use(state, arg, None, block_id, context);
+                }
+            }
+            mir::Terminator::CallVirtual {
+                receiver,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            }
+            | mir::Terminator::CallInterface {
+                receiver,
+                arguments,
+                normal_arguments,
+                unwind_arguments,
+                ..
+            } => {
+                self.check_use(state, *receiver, None, block_id, context);
+                for &arg in arguments
+                    .iter()
+                    .chain(normal_arguments.iter())
+                    .chain(unwind_arguments.iter())
+                {
+                    self.check_use(state, arg, None, block_id, context);
+                }
+            }
+            mir::Terminator::Throw { value } => {
+                self.check_use(state, *value, None, block_id, context);
+            }
+            mir::Terminator::Trap { payload, .. } => {
+                if let Some(payload) = payload {
+                    self.check_use(state, *payload, None, block_id, context);
+                }
+            }
             mir::Terminator::Unreachable => {}
             mir::Terminator::TailCall { arguments, .. } => {
                 for &arg in arguments {

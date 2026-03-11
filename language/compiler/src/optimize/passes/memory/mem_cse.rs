@@ -772,7 +772,7 @@ block0:
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
         test.tree.get_mut(callee).memory_effects =
-            Some(mir::MemoryEffect::read_only(mir::MemoryLocationSet::ANY));
+            mir::MemoryEffect::read_only(mir::MemoryRegionSet::ANY);
 
         test.run_pass(&MemCse);
         test.assert_output(expected);
@@ -800,7 +800,7 @@ block0:
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
         test.tree.get_mut(callee).memory_effects =
-            Some(mir::MemoryEffect::read_write(mir::MemoryLocationSet::ANY));
+            mir::MemoryEffect::read_write(mir::MemoryRegionSet::ANY);
 
         test.run_pass(&MemCse);
         test.assert_unchanged(input);
@@ -841,7 +841,7 @@ block0:
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
         test.tree.get_mut(callee).memory_effects =
-            Some(mir::MemoryEffect::write_only(mir::MemoryLocationSet::HEAP));
+            mir::MemoryEffect::write_only(mir::MemoryRegionSet::RAW_HEAP);
 
         test.run_pass(&MemCse);
         test.assert_output(expected);
@@ -881,10 +881,9 @@ block0:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.get_mut(callee).memory_effects = Some(
-            mir::MemoryEffect::write_only(mir::MemoryLocationSet::ANY)
-                .with_address_spaces(mir::AddressSpaceSet::new(vec![mir::AddressSpace::Shared])),
-        );
+        test.tree.get_mut(callee).memory_effects =
+            mir::MemoryEffect::write_only(mir::MemoryRegionSet::ANY)
+                .with_address_spaces(mir::AddressSpaceSet::new(vec![mir::AddressSpace::Shared]));
 
         test.run_pass(&MemCse);
         test.assert_output(expected);

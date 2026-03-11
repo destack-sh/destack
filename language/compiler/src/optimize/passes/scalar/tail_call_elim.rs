@@ -467,8 +467,110 @@ fn remap_terminator_blocks(
                 })
                 .collect(),
         },
+        mir::Terminator::Call {
+            function,
+            arguments,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => mir::Terminator::Call {
+            function: *function,
+            arguments: arguments.clone(),
+            normal_target: block_map
+                .get(normal_target)
+                .copied()
+                .unwrap_or(*normal_target),
+            normal_arguments: normal_arguments.clone(),
+            unwind_target: block_map
+                .get(unwind_target)
+                .copied()
+                .unwrap_or(*unwind_target),
+            unwind_arguments: unwind_arguments.clone(),
+        },
+        mir::Terminator::CallIndirect {
+            callee,
+            env,
+            arguments,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => mir::Terminator::CallIndirect {
+            callee: *callee,
+            env: *env,
+            arguments: arguments.clone(),
+            signature: *signature,
+            normal_target: block_map
+                .get(normal_target)
+                .copied()
+                .unwrap_or(*normal_target),
+            normal_arguments: normal_arguments.clone(),
+            unwind_target: block_map
+                .get(unwind_target)
+                .copied()
+                .unwrap_or(*unwind_target),
+            unwind_arguments: unwind_arguments.clone(),
+        },
+        mir::Terminator::CallVirtual {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => mir::Terminator::CallVirtual {
+            receiver: *receiver,
+            arguments: arguments.clone(),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            signature: *signature,
+            normal_target: block_map
+                .get(normal_target)
+                .copied()
+                .unwrap_or(*normal_target),
+            normal_arguments: normal_arguments.clone(),
+            unwind_target: block_map
+                .get(unwind_target)
+                .copied()
+                .unwrap_or(*unwind_target),
+            unwind_arguments: unwind_arguments.clone(),
+        },
+        mir::Terminator::CallInterface {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            signature,
+            normal_target,
+            normal_arguments,
+            unwind_target,
+            unwind_arguments,
+        } => mir::Terminator::CallInterface {
+            receiver: *receiver,
+            arguments: arguments.clone(),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            signature: *signature,
+            normal_target: block_map
+                .get(normal_target)
+                .copied()
+                .unwrap_or(*normal_target),
+            normal_arguments: normal_arguments.clone(),
+            unwind_target: block_map
+                .get(unwind_target)
+                .copied()
+                .unwrap_or(*unwind_target),
+            unwind_arguments: unwind_arguments.clone(),
+        },
         // return, unreachable, tailcall don't reference blocks that need remapping
         mir::Terminator::Return { .. }
+        | mir::Terminator::Throw { .. }
+        | mir::Terminator::Trap { .. }
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
         | mir::Terminator::TailCallVirtual { .. }

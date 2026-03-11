@@ -214,17 +214,11 @@ fn enforce_type_layouts(
     // scan layout sensitive types
     let mut ok = true;
     for (type_id, ty) in tree.iter_nodes::<mir::Type>() {
-        let type_metadata = tree.type_table.type_metadata(type_id);
-        if !type_requires_layout(ty, type_metadata) {
+        if !type_requires_layout(tree, type_id, ty) {
             continue;
         }
-        let Some(type_metadata) = type_metadata else {
-            emit_missing_type_layout(ctx, metadata, type_id, "type metadata");
-            ok = false;
-            continue;
-        };
 
-        let Some(layout_id) = type_metadata.layout_id else {
+        let Some(layout_id) = tree.type_table.layout_id(type_id) else {
             emit_missing_type_layout(ctx, metadata, type_id, "type layout");
             ok = false;
             continue;
@@ -292,19 +286,21 @@ fn is_memory_intrinsic(intrinsic: mir::Intrinsic) -> bool {
             | mir::Intrinsic::Memmove
             | mir::Intrinsic::Memset
             | mir::Intrinsic::Memcmp
-            | mir::Intrinsic::VolatileLoad
-            | mir::Intrinsic::VolatileStore
             | mir::Intrinsic::PrefetchRead
             | mir::Intrinsic::PrefetchWrite
     )
 }
 
 /// Return true when a type requires layout metadata.
-fn type_requires_layout(ty: &mir::Type, metadata: Option<&mir::TypeMetadata>) -> bool {
+fn type_requires_layout(
+    tree: &mir::NodeTree,
+    type_id: mir::LocalNodeId<mir::Type>,
+    ty: &mir::Type,
+) -> bool {
     matches!(
         ty,
         mir::Type::Struct { .. } | mir::Type::Tuple { .. } | mir::Type::Array { .. }
-    ) || metadata.is_some_and(|metadata| metadata.union_layout.is_some())
+    ) || tree.type_table.union_layout(type_id).is_some()
 }
 
 /// Return true when a layout entry exists in the layout table.

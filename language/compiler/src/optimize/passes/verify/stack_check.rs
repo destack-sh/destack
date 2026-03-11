@@ -185,7 +185,6 @@ impl StackPointerMap {
                 destination: Some(dest),
                 receiver,
                 arguments,
-                declared_target,
                 signature,
                 ..
             }
@@ -193,7 +192,6 @@ impl StackPointerMap {
                 destination: Some(dest),
                 receiver,
                 arguments,
-                declared_target,
                 signature,
                 ..
             } => {
@@ -203,9 +201,6 @@ impl StackPointerMap {
 
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
                     self.apply_call_targets(*dest, &args, targets, lifetime_analysis);
-                } else if let Some(target) = declared_target {
-                    let lifetime = lifetime_analysis.get(*target);
-                    self.apply_lifetime_result(*dest, lifetime, &args);
                 } else {
                     self.apply_signature_lifetime(*dest, *signature, tree, &args, None);
                 }

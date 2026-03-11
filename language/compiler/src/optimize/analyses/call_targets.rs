@@ -151,7 +151,7 @@ block0(v0: i32):
 }
 function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1: i32 = call.virtual v0, i32, 1, @callee(v0) -> fn(i32) -> i32
+    v1: i32 = call.virtual v0, i32, 1(v0) -> fn(i32) -> i32
     return v1
 }"#,
         );

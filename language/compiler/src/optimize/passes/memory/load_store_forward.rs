@@ -69,7 +69,7 @@ struct MemoryEntry {
     /// The available value.
     value: mir::Value,
     /// The memory location set for the access.
-    location_set: mir::MemoryLocationSet,
+    location_set: mir::MemoryRegionSet,
     /// The address spaces for the access.
     address_spaces: Option<mir::AddressSpaceSet>,
     /// Alias scopes applied to the access.
@@ -536,6 +536,14 @@ fn process_block(
                     available.clear();
                 }
             }
+            mir::Instruction::AtomicLoad { .. }
+            | mir::Instruction::AtomicStore { .. }
+            | mir::Instruction::AtomicCompareExchange { .. }
+            | mir::Instruction::AtomicRmw { .. }
+            | mir::Instruction::AtomicFence { .. }
+            | mir::Instruction::Barrier { .. } => {
+                available.clear();
+            }
 
             mir::Instruction::RawDrop { .. } | mir::Instruction::StackDrop { .. } => {
                 // clear across destructor boundaries
@@ -608,29 +616,7 @@ fn resolve_trivial_clobber(
 /// Check if an intrinsic acts as a memory barrier.
 fn is_memory_barrier(intrinsic: mir::Intrinsic) -> bool {
     // match barrier intrinsics
-    matches!(
-        intrinsic,
-        mir::Intrinsic::VolatileLoad
-            | mir::Intrinsic::VolatileStore
-            | mir::Intrinsic::AtomicLoad
-            | mir::Intrinsic::AtomicStore
-            | mir::Intrinsic::AtomicCas
-            | mir::Intrinsic::AtomicCasWeak
-            | mir::Intrinsic::AtomicExchange
-            | mir::Intrinsic::AtomicFetchAdd
-            | mir::Intrinsic::AtomicFetchSub
-            | mir::Intrinsic::AtomicFetchAnd
-            | mir::Intrinsic::AtomicFetchOr
-            | mir::Intrinsic::AtomicFetchXor
-            | mir::Intrinsic::AtomicFetchMin
-            | mir::Intrinsic::AtomicFetchMax
-            | mir::Intrinsic::AtomicFetchUmin
-            | mir::Intrinsic::AtomicFetchUmax
-            | mir::Intrinsic::AtomicFetchFadd
-            | mir::Intrinsic::AtomicFetchFmin
-            | mir::Intrinsic::AtomicFetchFmax
-            | mir::Intrinsic::AtomicFence
-    )
+    matches!(intrinsic, mir::Intrinsic::GcWriteBarrier)
 }
 
 #[cfg(test)]
@@ -1204,14 +1190,29 @@ block0:
     v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     v2: i32 = iconst 42i32
     store v0, v2
-    v3: ref<raw addrspace(stack) i32> = intrinsic.volatile.load(v1)
+    v3: i32 = load v1
     v4: i32 = load v0
-    v5: ref<raw addrspace(stack) i32> = iadd v3, v4
+    v5: i32 = iadd v3, v4
     return v5
 }"#;
         let expected = input;
 
         let mut test = TestProgram::new(input);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let block = test.tree.get(function.blocks[0]);
+        let volatile_load = block.instructions[2];
+        test.insert_pointer_access_with_options(
+            volatile_load,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+            true,
+            None,
+        );
         test.run_pass(&LoadStoreForward);
         test.assert_output(expected);
     }
@@ -1226,13 +1227,28 @@ block0:
     v2: i32 = iconst 42i32
     v3: i32 = iconst 99i32
     store v0, v2
-    intrinsic.volatile.store(v1, v3)
+    store v1, v3
     v4: i32 = load v0
     return v4
 }"#;
         let expected = input;
 
         let mut test = TestProgram::new(input);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let block = test.tree.get(function.blocks[0]);
+        let volatile_store = block.instructions[3];
+        test.insert_pointer_access_with_options(
+            volatile_store,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+            true,
+            None,
+        );
         test.run_pass(&LoadStoreForward);
         test.assert_output(expected);
     }
@@ -1246,7 +1262,7 @@ block0:
     v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     v2: i32 = iconst 42i32
     store v0, v2
-    v3: i32 = intrinsic.atomic.load(v1, ordering=acquire, scope=device, memory_scope=device, semantics=any)
+    v3: i32 = atomic.load v1, ordering=acquire, scope=device, memory_scope=device, semantics=any
     v4: i32 = load v0
     v5: i32 = iadd v3, v4
     return v5
@@ -1268,7 +1284,7 @@ block0:
     v2: i32 = iconst 42i32
     v3: i32 = iconst 99i32
     store v0, v2
-    intrinsic.atomic.store(v1, v3, ordering=release, scope=device, memory_scope=device, semantics=any)
+    atomic.store v1, v3, ordering=release, scope=device, memory_scope=device, semantics=any
     v4: i32 = load v0
     return v4
 }"#;
@@ -1287,7 +1303,7 @@ block0:
     v0: ref<raw addrspace(stack) i32> = stack.alloc i32
     v1: i32 = iconst 42i32
     store v0, v1
-    intrinsic.atomic.fence(ordering=seq_cst, scope=device, memory_scope=device, semantics=any)
+    atomic.fence, ordering=seq_cst, scope=device, memory_scope=device, semantics=any
     v2: i32 = load v0
     return v2
 }"#;
