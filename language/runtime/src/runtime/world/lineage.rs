@@ -9,7 +9,6 @@ use crate::runtime::time::WorldInstant;
 
 use super::{
     Branch, BranchId, BranchOrigin, Checkpoint, CheckpointId, Image, ImageId, Revision, RevisionId,
-    TraceImageId,
 };
 
 /// First active branch identifier for one new world.
@@ -18,8 +17,6 @@ pub(super) const ROOT_BRANCH_ID: BranchId = BranchId::new(0);
 pub(super) const ROOT_REVISION_ID: RevisionId = RevisionId::new(0);
 /// Root image identifier for one new world.
 pub(super) const ROOT_IMAGE_ID: ImageId = ImageId::new(0);
-/// Root trace image identifier for one new world.
-pub(super) const ROOT_TRACE_IMAGE_ID: TraceImageId = TraceImageId::new(0);
 /// First allocated branch identifier after the root branch.
 const INITIAL_BRANCH_ID: u128 = 1;
 /// First allocated revision identifier after the root revision.
@@ -28,8 +25,6 @@ const INITIAL_REVISION_ID: u128 = 1;
 const INITIAL_CHECKPOINT_ID: u128 = 1;
 /// First allocated image identifier.
 const INITIAL_IMAGE_ID: u128 = 1;
-/// First allocated trace image identifier.
-const INITIAL_TRACE_IMAGE_ID: u128 = 1;
 
 /// World-owned lineage metadata and durable restore metadata.
 #[derive(Debug)]
@@ -42,8 +37,6 @@ pub(super) struct Lineage {
     pub next_checkpoint_id: u128,
     /// The next image identifier to allocate.
     pub next_image_id: u128,
-    /// The next trace image identifier to allocate.
-    pub next_trace_image_id: u128,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
@@ -52,8 +45,8 @@ pub(super) struct Lineage {
     pub checkpoints: BTreeMap<CheckpointId, Checkpoint>,
     /// The known image metadata records.
     pub images: BTreeMap<ImageId, Arc<Image>>,
-    /// The known trace image records.
-    pub trace_images: BTreeMap<TraceImageId, Arc<TraceImage>>,
+    /// The known trace image records keyed by revision identifier.
+    pub trace_images: BTreeMap<RevisionId, Arc<TraceImage>>,
 }
 
 /// Fully resolved backing for one materialized revision.
@@ -89,8 +82,6 @@ pub struct LineageSnapshot {
     pub next_checkpoint_id: u128,
     /// The next image identifier to allocate.
     pub next_image_id: u128,
-    /// The next trace image identifier to allocate.
-    pub next_trace_image_id: u128,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
@@ -99,8 +90,8 @@ pub struct LineageSnapshot {
     pub checkpoints: BTreeMap<CheckpointId, Checkpoint>,
     /// The known image metadata records.
     pub images: BTreeMap<ImageId, Image>,
-    /// The known trace image records.
-    pub trace_images: BTreeMap<TraceImageId, TraceImage>,
+    /// The known trace image records keyed by revision identifier.
+    pub trace_images: BTreeMap<RevisionId, TraceImage>,
 }
 
 impl Lineage {
@@ -123,7 +114,6 @@ impl Lineage {
                 parent_revision_id: None,
                 sequence,
                 image_id: ROOT_IMAGE_ID,
-                trace_image_id: ROOT_TRACE_IMAGE_ID,
                 wall,
                 mono,
                 labels: BTreeMap::new(),
@@ -142,14 +132,13 @@ impl Lineage {
         );
 
         images.insert(ROOT_IMAGE_ID, image);
-        trace_images.insert(ROOT_TRACE_IMAGE_ID, trace_image);
+        trace_images.insert(ROOT_REVISION_ID, trace_image);
 
         Self {
             next_branch_id: INITIAL_BRANCH_ID,
             next_revision_id: INITIAL_REVISION_ID,
             next_checkpoint_id: INITIAL_CHECKPOINT_ID,
             next_image_id: INITIAL_IMAGE_ID,
-            next_trace_image_id: INITIAL_TRACE_IMAGE_ID,
             branches,
             revisions,
             checkpoints: BTreeMap::new(),
@@ -168,7 +157,7 @@ impl Lineage {
         let trace_images = self
             .trace_images
             .iter()
-            .map(|(trace_image_id, trace_image)| (*trace_image_id, trace_image.as_ref().clone()))
+            .map(|(revision_id, trace_image)| (*revision_id, trace_image.as_ref().clone()))
             .collect();
 
         LineageSnapshot {
@@ -176,7 +165,6 @@ impl Lineage {
             next_revision_id: self.next_revision_id,
             next_checkpoint_id: self.next_checkpoint_id,
             next_image_id: self.next_image_id,
-            next_trace_image_id: self.next_trace_image_id,
             branches: self.branches.clone(),
             revisions: self.revisions.clone(),
             checkpoints: self.checkpoints.clone(),
@@ -195,7 +183,7 @@ impl Lineage {
         let trace_images = snapshot
             .trace_images
             .into_iter()
-            .map(|(trace_image_id, trace_image)| (trace_image_id, Arc::new(trace_image)))
+            .map(|(revision_id, trace_image)| (revision_id, Arc::new(trace_image)))
             .collect();
 
         Self {
@@ -203,7 +191,6 @@ impl Lineage {
             next_revision_id: snapshot.next_revision_id,
             next_checkpoint_id: snapshot.next_checkpoint_id,
             next_image_id: snapshot.next_image_id,
-            next_trace_image_id: snapshot.next_trace_image_id,
             branches: snapshot.branches,
             revisions: snapshot.revisions,
             checkpoints: snapshot.checkpoints,
@@ -238,13 +225,6 @@ impl Lineage {
         let image_id = ImageId::new(self.next_image_id);
         self.next_image_id += 1;
         image_id
-    }
-
-    /// Allocate one new trace image identifier.
-    pub(super) fn allocate_trace_image_id(&mut self) -> TraceImageId {
-        let trace_image_id = TraceImageId::new(self.next_trace_image_id);
-        self.next_trace_image_id += 1;
-        trace_image_id
     }
 
     /// Set the current head revision for one branch.
@@ -309,7 +289,6 @@ impl Lineage {
 
         image.id = self.allocate_image_id();
         let image = Arc::new(image);
-        let trace_image_id = self.allocate_trace_image_id();
         let trace_image = Arc::new(trace_image);
         let revision = Revision {
             id: self.allocate_revision_id(),
@@ -317,7 +296,6 @@ impl Lineage {
             parent_revision_id: Some(parent_branch.head_revision_id),
             sequence: trace_image.next_sequence,
             image_id: image.id,
-            trace_image_id,
             wall,
             mono,
             labels: BTreeMap::new(),
@@ -336,8 +314,7 @@ impl Lineage {
         });
 
         self.images.insert(image.id, image.clone());
-        self.trace_images
-            .insert(trace_image_id, trace_image.clone());
+        self.trace_images.insert(revision.id, trace_image.clone());
         self.revisions.insert(revision.id, revision.clone());
         self.branches.insert(branch_id, branch.clone());
 
@@ -383,12 +360,11 @@ impl Lineage {
             })?;
         let trace_image = self
             .trace_images
-            .get(&revision.trace_image_id)
+            .get(&revision.id)
             .cloned()
             .ok_or_else(|| {
                 RuntimeError::RevisionTraceImageMissing {
                     revision_id: revision.id.get(),
-                    trace_image_id: revision.trace_image_id.get(),
                 }
                 .boxed()
             })?;

@@ -22,7 +22,7 @@ use destack_workspace::{
 use postcard::to_allocvec;
 
 use super::{
-    BranchId, CheckpointId, Lineage, LineageSnapshot, RevisionId, RuntimeId, World, WorldEdge,
+    CheckpointId, Lineage, LineageSnapshot, Revision, RevisionId, RuntimeId, World, WorldEdge,
     WorldEntity, WorldResource, WorldResourceId,
 };
 
@@ -79,22 +79,6 @@ impl ImageId {
     }
 
     /// Return the raw image identifier value.
-    pub const fn get(self) -> u128 {
-        self.0
-    }
-}
-
-/// Trace image identifier for one materialized lineage trace state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct TraceImageId(u128);
-
-impl TraceImageId {
-    /// Create a new trace image identifier.
-    pub const fn new(value: u128) -> Self {
-        Self(value)
-    }
-
-    /// Return the raw trace image identifier value.
     pub const fn get(self) -> u128 {
         self.0
     }
@@ -198,33 +182,51 @@ pub struct Snapshot {
     pub format_version: u32,
     /// Runtime construction metadata for the restored world.
     pub config: SnapshotConfig,
-    /// The active branch captured by this snapshot.
-    pub active_branch_id: BranchId,
     /// The revision selected for restore from this snapshot.
     pub revision_id: RevisionId,
-    /// The captured image.
-    pub image: Image,
     /// The captured lineage metadata.
     pub lineage: LineageSnapshot,
 }
 
 impl Snapshot {
-    /// Create one serialized snapshot wrapper for one image.
+    /// Create one serialized snapshot wrapper for one materialized revision.
     pub const fn new(
         config: SnapshotConfig,
-        active_branch_id: BranchId,
         revision_id: RevisionId,
-        image: Image,
         lineage: LineageSnapshot,
     ) -> Self {
         Self {
             format_version: 1,
             config,
-            active_branch_id,
             revision_id,
-            image,
             lineage,
         }
+    }
+
+    /// Return the captured revision metadata.
+    pub fn revision(&self) -> RuntimeResult<&Revision> {
+        self.lineage
+            .revisions
+            .get(&self.revision_id)
+            .ok_or_else(|| {
+                RuntimeError::RevisionNotFound {
+                    revision_id: self.revision_id.get(),
+                }
+                .boxed()
+            })
+    }
+
+    /// Return the captured image metadata.
+    pub fn image(&self) -> RuntimeResult<&Image> {
+        let revision = self.revision()?;
+
+        self.lineage.images.get(&revision.image_id).ok_or_else(|| {
+            RuntimeError::RevisionImageMissing {
+                revision_id: revision.id.get(),
+                image_id: revision.image_id.get(),
+            }
+            .boxed()
+        })
     }
 
     /// Encode one snapshot into bytes.
@@ -319,9 +321,9 @@ impl World {
 
     /// Create one serialized snapshot from one stored image.
     pub fn snapshot(&self, image_id: ImageId) -> RuntimeResult<Snapshot> {
-        let (image, revision_id, lineage_snapshot) = {
+        let (revision_id, lineage_snapshot) = {
             let lineage = self.lineage.read();
-            let image = lineage.images.get(&image_id).ok_or_else(|| {
+            lineage.images.get(&image_id).ok_or_else(|| {
                 RuntimeError::ImageNotFound {
                     image_id: image_id.get(),
                 }
@@ -334,14 +336,12 @@ impl World {
                 .boxed()
             })?;
 
-            (image.as_ref().clone(), revision_id, lineage.snapshot())
+            (revision_id, lineage.snapshot())
         };
 
         Ok(Snapshot::new(
             self.snapshot_config(),
-            self.branch_id,
             revision_id,
-            image,
             lineage_snapshot,
         ))
     }
@@ -409,7 +409,7 @@ impl World {
         rebind_context: Option<&RebindContext>,
     ) -> RuntimeResult<Arc<Self>> {
         let options = Self::runtime_options_from_snapshot(snapshot);
-        let world = Self::build_with_branch(snapshot.active_branch_id, &options, None)?;
+        let world = Self::build_with_branch(snapshot.revision()?.branch_id, &options, None)?;
         world.restore_snapshot(snapshot, rebind_context)?;
 
         Ok(world)
@@ -431,9 +431,11 @@ impl World {
         snapshot: &Snapshot,
         rebind_context: Option<&RebindContext>,
     ) -> RuntimeResult<()> {
-        if snapshot.active_branch_id != self.branch_id {
+        let revision = snapshot.revision()?;
+
+        if revision.branch_id != self.branch_id {
             return Err(RuntimeError::SnapshotBranchMismatch {
-                snapshot_branch_id: snapshot.active_branch_id.get(),
+                snapshot_branch_id: revision.branch_id.get(),
                 world_branch_id: self.branch_id.get(),
             }
             .boxed());
@@ -441,19 +443,14 @@ impl World {
 
         let _exclusive_access = self.acquire_exclusive_access()?;
         *self.lineage.write() = Lineage::from_snapshot(snapshot.lineage.clone());
-        let trace_image = {
+        let (image, trace_image) = {
             let lineage = self.lineage.read();
             let backing = lineage.resolve_revision_backing(snapshot.revision_id)?;
 
-            backing.trace_image
+            (backing.image, backing.trace_image)
         };
 
-        self.restore_revision_image(
-            snapshot.revision_id,
-            &snapshot.image,
-            &trace_image,
-            rebind_context,
-        )
+        self.restore_revision_image(snapshot.revision_id, &image, &trace_image, rebind_context)
     }
 
     /// Capture one materialized world image while the world is under exclusive access.

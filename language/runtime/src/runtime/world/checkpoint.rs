@@ -1,12 +1,13 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 
 use destack_core::CaptureMode;
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::runtime::policy::PolicyState;
 use crate::runtime::random::Random;
 use crate::runtime::replay::{Trace, TraceCheckpointIndex, TraceHeader, TraceImage};
 use crate::runtime::time::WorldInstant;
@@ -355,26 +356,34 @@ impl World {
     /// Build one fresh child-world shell for one forked branch.
     #[allow(clippy::arc_with_non_send_sync)] // NOTE #Architecture: worlds are intentionally thread-affine and still reference counted
     fn fork_child_world(&self, branch_id: BranchId, trace_header: TraceHeader) -> Arc<World> {
+        // parent execution mode
+        let trace_mode = self.trace.mode();
+
+        // parent clock and randomness policy
+        let clock = self.clock.clone();
+        let random = Random::new(self.random.root_seed());
+
+        // fresh child shell: restore_image will install policy, topology, resources, simulation, ids, and runtimes
         Arc::new(World {
             branch_id,
             runtimes: RwLock::new(Default::default()),
             simulation: RwLock::new(Default::default()),
             time_mode: self.time_mode,
             random_mode: self.random_mode,
-            clock: self.clock.clone(),
-            random: Random::new(self.random.root_seed()),
-            trace: Trace::new(self.trace.mode(), trace_header),
+            clock,
+            random,
+            trace: Trace::new(trace_mode, trace_header),
             observation: Observation::default(),
-            policy: RwLock::new(self.policy.read().clone()),
+            policy: RwLock::new(PolicyState::new(self.policy())),
             mutation_lock: Mutex::new(()),
-            next_runtime_id: AtomicU64::new(self.next_runtime_id.load(Ordering::SeqCst)),
-            next_agent_id: AtomicU64::new(self.next_agent_id.load(Ordering::SeqCst)),
+            next_runtime_id: AtomicU64::new(0),
+            next_agent_id: AtomicU64::new(0),
             lineage: self.lineage.clone(),
             access_state: RwLock::new(AccessState::Shared {
                 active_operations: 0,
             }),
-            topology: RwLock::new(self.topology.read().clone()),
-            resources: RwLock::new(self.resources.read().clone()),
+            topology: RwLock::new(Default::default()),
+            resources: RwLock::new(Default::default()),
         })
     }
 }

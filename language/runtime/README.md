@@ -14,8 +14,8 @@ Runtime behavior is modeled along the three basic dimensions of engine ("where?"
 | execution | `fast`, `deterministic`, `record`, `replay` | chooses determinism and replay behavior |
 | world | `host`, `simulation` | chooses host-backed or simulation-backed bindings |
 
-The runtime is organized around core `runtime`, `platform` bindings, and `host` integration:
- - `runtime/`: all the core runtime scaffolding and orchestration (poller, scheduler/loop, etc.)
+The runtime is organized around core `runtime`, `platform` bindings, and the underlying `host` integration:
+ - `runtime/`: all the core runtime scaffolding and orchestration (world, topology, poller, scheduler/loop, etc.)
  - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/lib/platform) lib
  - `host/`: host adapters, host event bridges, host ffi entrypoints, and host state integration
  
@@ -24,11 +24,11 @@ The point of explicitly modeling execution like this is to enable end-to-end sim
  
 ## World
 
-The Runtime lives in a main `World`, which owns the root clocks, topology, simulation state, policy / rules, trace / replay, and lineage ("history").
-One `World` contains 1-n `Runtime`s, one `Runtime` contains 1-n `Agent`s (roughly aligned with WHATWG / ECMAScript).
-Each `Agent` has its own execution lane with one `EventLoop`, one `Heap`, one execution `Engine`, one platform resource table, etc..
-Lineage owns the authoritative `Trace` images for each `Revision`.
-One `Image` only materializes world, runtime, and agent state for fast restore.
+The runtime lives in a main `World`, which owns the root clocks, topology, simulation state, policy / rules, trace / replay, and lineage ("history").
+ - Each `World` contains 1-n `Runtime`s, and one `Runtime` contains 1-n `Agent`s.
+ - Each `Agent` has its own execution lane with one `EventLoop`, one `Heap`, one execution `Engine`, one platform resource table, etc..
+ - The `Lineage` owns the authoritative `Trace` images for each `Revision`.
+ - One `Image` only materializes world, runtime, and agent state for fast restore.
 
 | Noun | Meaning |
 |-----------|--------|
