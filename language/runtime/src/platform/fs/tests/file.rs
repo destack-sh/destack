@@ -8,6 +8,64 @@ use crate::platform::fs::{
 };
 use crate::platform::resource::{PipeHandle, ResourceId};
 
+/// Windows local value for `O_DIRECTORY`.
+#[cfg(windows)]
+const WINDOWS_O_DIRECTORY: u32 = 0o200000;
+/// Positioned I/O flag bit for high-priority polling.
+#[cfg(target_os = "linux")]
+const RWF_HIPRI: u32 = 0x1;
+
+/// Require `O_DIRECTORY` opens to accept directories and reject regular files.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_fs_open_directory_flag_requires_directory() {
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_open_directory_flag");
+        let file_path = temp_dir.join("data.txt");
+        let child_dir = temp_dir.join("child");
+
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
+
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.destack_fs_open(file, flags, FileMode(0o644))?;
+        context.destack_fs_close(handle)?;
+
+        let child = context.path_bytes(&child_dir);
+        context.destack_fs_mkdir(child, FileMode(0o755))?;
+
+        #[cfg(unix)]
+        let directory_flags = OpenFlags(libc::O_DIRECTORY as u32);
+        #[cfg(windows)]
+        let directory_flags = OpenFlags(WINDOWS_O_DIRECTORY);
+
+        // reject opening a regular file as a directory
+        let file = context.path_bytes(&file_path);
+        let result = context.destack_fs_open(file, directory_flags, FileMode(0));
+        assert_platform_error_codes_with_privileged_policy(
+            result,
+            &[PlatformErrorCode::IoNotDirectory],
+        )?;
+
+        // allow opening a real directory with the directory flag
+        let child = context.path_bytes(&child_dir);
+        let handle = context.destack_fs_open(child, directory_flags, FileMode(0))?;
+        context.destack_fs_close(handle)?;
+
+        // cleanup
+        let child = context.path_bytes(&child_dir);
+        context.destack_fs_rmdir(child)?;
+        let file = context.path_bytes(&file_path);
+        context.destack_fs_unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
 /// Truncate a file and persist the change with fsync.
 #[cfg(any(unix, windows))]
 #[test]
@@ -214,8 +272,12 @@ fn test_fs_preadv2_pwritev2_nonzero_flags_support_matches_platform() {
         // run one preadv2 probe with non-zero flags
         let mut preadv2_buffers = vec![vec![0u8; 5]];
         let preadv2_buffers = context.mutable_bytes_slices_value(&mut preadv2_buffers)?;
-        let preadv2_result =
-            context.destack_fs_preadv2(handle, preadv2_buffers, FileOffset(0), ReadWriteFlags(0x1));
+        let preadv2_result = context.destack_fs_preadv2(
+            handle,
+            preadv2_buffers,
+            FileOffset(0),
+            ReadWriteFlags(RWF_HIPRI),
+        );
 
         // run one pwritev2 probe with non-zero flags
         let pwritev2_payload = b"x".to_vec();
@@ -225,7 +287,7 @@ fn test_fs_preadv2_pwritev2_nonzero_flags_support_matches_platform() {
             handle,
             pwritev2_buffers,
             FileOffset(0),
-            ReadWriteFlags(0x1),
+            ReadWriteFlags(RWF_HIPRI),
         );
 
         // linux hosts may accept the flags or reject by kernel policy or support level
@@ -237,7 +299,6 @@ fn test_fs_preadv2_pwritev2_nonzero_flags_support_matches_platform() {
                     PlatformErrorCode::InvalidArgumentValue,
                     PlatformErrorCode::IoInvalidData,
                     PlatformErrorCode::IoWouldBlock,
-                    PlatformErrorCode::Io,
                 ],
             )?;
         }
@@ -249,7 +310,6 @@ fn test_fs_preadv2_pwritev2_nonzero_flags_support_matches_platform() {
                     PlatformErrorCode::InvalidArgumentValue,
                     PlatformErrorCode::IoInvalidData,
                     PlatformErrorCode::IoWouldBlock,
-                    PlatformErrorCode::Io,
                 ],
             )?;
         }
@@ -296,6 +356,47 @@ fn test_fs_mkfifo_and_mkfifoat_support_matches_platform() {
 
         // enforce platform behavior for mkfifoat
         mkfifoat_result?;
+        let fifo = context.path_bytes(&temp_dir.join("fifoat.pipe"));
+        let stat = context.destack_fs_stat(fifo)?;
+        assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
+
+        // cleanup created nodes and directory resources
+        context.destack_fs_closedir(directory)?;
+        let fifo = context.path_bytes(&temp_dir.join("fifoat.pipe"));
+        context.destack_fs_unlink(fifo)?;
+        let fifo = context.path_bytes(&fifo_path);
+        context.destack_fs_unlink(fifo)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
+/// Create fifo nodes through utf16 path lanes on unix hosts.
+#[cfg(unix)]
+#[test]
+fn test_fs_mkfifo_and_mkfifoat_utf16_roundtrip() {
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_mkfifo_utf16");
+        let fifo_path = temp_dir.join("fifo.pipe");
+
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
+
+        // create fifo through absolute utf16 path lane
+        let fifo = context.path_utf16(&fifo_path);
+        context.destack_fs_mkfifo(fifo, FileMode(0o644))?;
+        let fifo = context.path_bytes(&fifo_path);
+        let stat = context.destack_fs_stat(fifo)?;
+        assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
+
+        // create fifo through directory-relative utf16 lane
+        let dir = context.path_bytes(&temp_dir);
+        let directory = context.destack_fs_opendir(dir)?;
+        let fifo_relative = context.path_utf16(Path::new("fifoat.pipe"));
+        context.destack_fs_mkfifoat(directory, fifo_relative, FileMode(0o644))?;
         let fifo = context.path_bytes(&temp_dir.join("fifoat.pipe"));
         let stat = context.destack_fs_stat(fifo)?;
         assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
@@ -386,6 +487,48 @@ fn test_fs_mknod_and_mknodat_fifo_support_matches_platform() {
     });
 }
 
+/// Create fifo-style nodes through utf16 path lanes on unix hosts.
+#[cfg(unix)]
+#[test]
+fn test_fs_mknod_and_mknodat_utf16_roundtrip() {
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_mknod_utf16");
+        let node_path = temp_dir.join("node.pipe");
+
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
+
+        // create fifo-style node through utf16 mknod
+        let node_mode = FileMode((libc::S_IFIFO as u32) | 0o644);
+        let node = context.path_utf16(&node_path);
+        context.destack_fs_mknod(node, node_mode, NodeDevice(0))?;
+        let node = context.path_bytes(&node_path);
+        let stat = context.destack_fs_stat(node)?;
+        assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
+
+        // create fifo-style node through utf16 mknodat
+        let dir = context.path_bytes(&temp_dir);
+        let directory = context.destack_fs_opendir(dir)?;
+        let node_relative = context.path_utf16(Path::new("nodeat.pipe"));
+        context.destack_fs_mknodat(directory, node_relative, node_mode, NodeDevice(0))?;
+        let node = context.path_bytes(&temp_dir.join("nodeat.pipe"));
+        let stat = context.destack_fs_stat(node)?;
+        assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
+
+        // cleanup created nodes and directory resources
+        context.destack_fs_closedir(directory)?;
+        let node = context.path_bytes(&temp_dir.join("nodeat.pipe"));
+        context.destack_fs_unlink(node)?;
+        let node = context.path_bytes(&node_path);
+        context.destack_fs_unlink(node)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
 /// Surface explicit unsupported or invalid-handle outcomes for tee and vmsplice lanes.
 #[cfg(any(unix, windows))]
 #[test]
@@ -396,28 +539,32 @@ fn test_fs_tee_vmsplice_invalid_handle_contract() {
         let payload = [b"destack".as_slice()];
         let payload = context.bytes_slices_value(&payload)?;
 
-        // tee must return one explicit unsupported or invalid-handle style error
+        // linux validates the pipe handle before tee dispatch
+        #[cfg(target_os = "linux")]
         assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_tee(invalid_pipe, invalid_pipe, FileSize(64), SpliceFlags(0)),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoNotFound,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::IoWouldBlock,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
-        // vmsplice must return one explicit unsupported or invalid-handle style error
+        // non-linux targets reject tee at the feature boundary
+        #[cfg(not(target_os = "linux"))]
+        assert_platform_error_codes_with_privileged_policy(
+            context.destack_fs_tee(invalid_pipe, invalid_pipe, FileSize(64), SpliceFlags(0)),
+            &[PlatformErrorCode::NotSupported],
+        )?;
+
+        // linux validates the pipe handle before vmsplice dispatch
+        #[cfg(target_os = "linux")]
         assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_vmsplice(invalid_pipe, payload, SpliceFlags(0)),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoInvalidData,
-                PlatformErrorCode::IoNotFound,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::IoWouldBlock,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
+        )?;
+
+        // non-linux targets reject vmsplice at the feature boundary
+        #[cfg(not(target_os = "linux"))]
+        assert_platform_error_codes_with_privileged_policy(
+            context.destack_fs_vmsplice(invalid_pipe, payload, SpliceFlags(0)),
+            &[PlatformErrorCode::NotSupported],
         )?;
 
         Ok(())
