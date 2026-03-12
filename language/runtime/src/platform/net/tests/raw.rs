@@ -13,15 +13,30 @@ use super::{
 use super::{assert_platform_error_codes_with_privileged_policy, with_harness_context};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(target_os = "linux")]
+use crate::platform::net::{
+    PACKET_BACKEND_CAP_CAPTURE, PACKET_BACKEND_CAP_FANOUT, PACKET_BACKEND_CAP_FILTER,
+    PACKET_BACKEND_CAP_RING, PACKET_BACKEND_CAP_SEND, PACKET_BACKEND_CAP_TIMESTAMP,
+};
+#[cfg(windows)]
+use crate::platform::net::{
+    PACKET_BACKEND_CAP_CAPTURE, PACKET_BACKEND_CAP_FILTER, PACKET_BACKEND_CAP_SEND,
+};
+#[cfg(target_os = "macos")]
+use crate::platform::net::{
+    PACKET_BACKEND_CAP_CAPTURE, PACKET_BACKEND_CAP_FILTER, PACKET_BACKEND_CAP_SEND,
+    PACKET_BACKEND_CAP_TIMESTAMP,
+};
 #[cfg(any(target_os = "linux", target_os = "macos", windows))]
 use crate::platform::net::{
     PacketBackend, PacketBackendSelectionPolicy, PacketCaptureOptions, PacketCaptureOptionsVm,
 };
 use crate::platform::net::{
-    PacketFanoutMode, PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, SocketFamily,
+    PacketFanoutMode, PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, RouteKind,
+    SocketFamily,
 };
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-use crate::platform::net::{RouteEntry, RouteEntryVm, RouteKind};
+use crate::platform::net::{RouteEntry, RouteEntryVm};
 use crate::platform::resource::{ResourceId, SocketHandle};
 #[cfg(windows)]
 use destack_workspace::{PlatformWindowsPacketBackend, RuntimeOptions};
@@ -42,15 +57,57 @@ fn assert_packet_control_error<T>(result: RuntimeResult<T>) -> RuntimeResult<()>
         result,
         &[
             PlatformErrorCode::NotSupported,
-            PlatformErrorCode::IoInvalidData,
-            PlatformErrorCode::IoPermissionDenied,
-            PlatformErrorCode::NetAddressNotAvailable,
             PlatformErrorCode::InvalidArgumentValue,
-            PlatformErrorCode::Net,
-            PlatformErrorCode::Io,
-            PlatformErrorCode::IoWouldBlock,
         ],
     )
+}
+
+/// Return the exact capability bitset for the active host packet backend.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+fn expected_packet_backend_capabilities() -> u64 {
+    #[cfg(target_os = "linux")]
+    {
+        return PACKET_BACKEND_CAP_CAPTURE.0
+            | PACKET_BACKEND_CAP_SEND.0
+            | PACKET_BACKEND_CAP_TIMESTAMP.0
+            | PACKET_BACKEND_CAP_FILTER.0
+            | PACKET_BACKEND_CAP_FANOUT.0
+            | PACKET_BACKEND_CAP_RING.0;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        PACKET_BACKEND_CAP_CAPTURE.0
+            | PACKET_BACKEND_CAP_SEND.0
+            | PACKET_BACKEND_CAP_TIMESTAMP.0
+            | PACKET_BACKEND_CAP_FILTER.0
+    }
+
+    #[cfg(windows)]
+    {
+        return PACKET_BACKEND_CAP_CAPTURE.0
+            | PACKET_BACKEND_CAP_SEND.0
+            | PACKET_BACKEND_CAP_FILTER.0;
+    }
+}
+
+/// Return the primary backend enum for the active host packet backend.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+fn expected_packet_backend() -> PacketBackend {
+    #[cfg(target_os = "linux")]
+    {
+        return PacketBackend::AfPacket;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        PacketBackend::Bpf
+    }
+
+    #[cfg(windows)]
+    {
+        return PacketBackend::WinRawSocket;
+    }
 }
 
 /// Return route-list snapshots where supported and surface notSupported elsewhere.
@@ -58,8 +115,39 @@ fn assert_packet_control_error<T>(result: RuntimeResult<T>) -> RuntimeResult<()>
 #[test]
 fn test_net_route_list_support_matches_platform() {
     with_harness_context(|mut context| {
-        let result = context.destack_net_route_list(SocketFamily::IPv4);
-        let _routes = result?;
+        // load both route families and decode every returned row
+        let routes_v4 = context.destack_net_route_list(SocketFamily::IPv4)?;
+        let routes_v4 = context.route_entries_from_value(routes_v4)?;
+        let routes_v6 = context.destack_net_route_list(SocketFamily::IPv6)?;
+        let routes_v6 = context.route_entries_from_value(routes_v6)?;
+
+        // validate ipv4 route family and prefix invariants for every row
+        for route in routes_v4 {
+            assert_eq!(route.family, SocketFamily::IPv4);
+            assert!(route.prefix_length <= 32);
+            assert!(matches!(
+                route.kind,
+                RouteKind::Unicast
+                    | RouteKind::Local
+                    | RouteKind::Broadcast
+                    | RouteKind::Multicast
+                    | RouteKind::Blackhole
+            ));
+        }
+
+        // validate ipv6 route family and prefix invariants for every row
+        for route in routes_v6 {
+            assert_eq!(route.family, SocketFamily::IPv6);
+            assert!(route.prefix_length <= 128);
+            assert!(matches!(
+                route.kind,
+                RouteKind::Unicast
+                    | RouteKind::Local
+                    | RouteKind::Broadcast
+                    | RouteKind::Multicast
+                    | RouteKind::Blackhole
+            ));
+        }
 
         Ok(())
     });
@@ -101,6 +189,65 @@ fn test_net_packet_open_requires_interface_for_promiscuous_mode() {
         let result = context.destack_net_packet_open(options);
         assert_platform_error_code_with_privileged_policy(
             result,
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        Ok(())
+    });
+}
+
+/// Reject one zero snap length for packet capture on every backend.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+#[test]
+fn test_net_packet_open_rejects_zero_snap_length() {
+    #[cfg(windows)]
+    with_harness_context_with_runtime_options(
+        |runtime_options: &mut RuntimeOptions| {
+            runtime_options.platform.windows.net_packet_backend =
+                PlatformWindowsPacketBackend::RawSocket;
+        },
+        |mut context| {
+            let options = PacketCaptureOptions {
+                backend: PacketBackend::Auto,
+                backend_policy: PacketBackendSelectionPolicy::AllowFallback,
+                interface_index: 0,
+                snap_length: 0,
+                timeout_ms: 0,
+                promiscuous: false,
+            };
+            let options = if context.vm_context.is_some() {
+                context.harness_value_vm::<PacketCaptureOptions, PacketCaptureOptionsVm>(options)
+            } else {
+                context.harness_value(options)
+            };
+
+            assert_platform_error_code_with_privileged_policy(
+                context.destack_net_packet_open(options),
+                PlatformErrorCode::InvalidArgumentValue,
+            )?;
+
+            Ok(())
+        },
+    );
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    with_harness_context(|mut context| {
+        let options = PacketCaptureOptions {
+            backend: PacketBackend::Auto,
+            backend_policy: PacketBackendSelectionPolicy::AllowFallback,
+            interface_index: 0,
+            snap_length: 0,
+            timeout_ms: 0,
+            promiscuous: false,
+        };
+        let options = if context.vm_context.is_some() {
+            context.harness_value_vm::<PacketCaptureOptions, PacketCaptureOptionsVm>(options)
+        } else {
+            context.harness_value(options)
+        };
+
+        assert_platform_error_code_with_privileged_policy(
+            context.destack_net_packet_open(options),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
@@ -166,6 +313,192 @@ fn test_net_packet_open_windows_enabled_runs_backend_validation() {
                 result,
                 PlatformErrorCode::InvalidArgumentValue,
             )?;
+
+            Ok(())
+        },
+    );
+}
+
+/// Reject one strict packet-backend request when the requested backend is unavailable.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+#[test]
+fn test_net_packet_open_strict_backend_selection_rejects_unavailable_backend() {
+    #[cfg(target_os = "linux")]
+    let strict_backend = PacketBackend::Bpf;
+    #[cfg(target_os = "macos")]
+    let strict_backend = PacketBackend::AfPacket;
+    #[cfg(windows)]
+    let strict_backend = PacketBackend::Bpf;
+
+    with_harness_context(|mut context| {
+        let options = PacketCaptureOptions {
+            backend: strict_backend,
+            backend_policy: PacketBackendSelectionPolicy::Strict,
+            interface_index: 1,
+            snap_length: 4096,
+            timeout_ms: 0,
+            promiscuous: false,
+        };
+        let options = if context.vm_context.is_some() {
+            context.harness_value_vm::<PacketCaptureOptions, PacketCaptureOptionsVm>(options)
+        } else {
+            context.harness_value(options)
+        };
+
+        assert_platform_error_code_with_privileged_policy(
+            context.destack_net_packet_open(options),
+            PlatformErrorCode::NotSupported,
+        )?;
+
+        Ok(())
+    });
+}
+
+/// Allow one unavailable packet-backend request to fall back to the active backend.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+#[test]
+fn test_net_packet_open_allow_fallback_uses_available_backend() {
+    #[cfg(target_os = "linux")]
+    let requested_backend = PacketBackend::Bpf;
+    #[cfg(target_os = "macos")]
+    let requested_backend = PacketBackend::AfPacket;
+    #[cfg(windows)]
+    let requested_backend = PacketBackend::Bpf;
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    with_harness_context(|mut context| {
+        let options = PacketCaptureOptions {
+            backend: requested_backend,
+            backend_policy: PacketBackendSelectionPolicy::AllowFallback,
+            interface_index: 0,
+            snap_length: 4096,
+            timeout_ms: 0,
+            promiscuous: true,
+        };
+        let options = if context.vm_context.is_some() {
+            context.harness_value_vm::<PacketCaptureOptions, PacketCaptureOptionsVm>(options)
+        } else {
+            context.harness_value(options)
+        };
+
+        assert_platform_error_code_with_privileged_policy(
+            context.destack_net_packet_open(options),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        Ok(())
+    });
+
+    #[cfg(windows)]
+    with_harness_context_with_runtime_options(
+        |runtime_options: &mut RuntimeOptions| {
+            runtime_options.platform.windows.net_packet_backend =
+                PlatformWindowsPacketBackend::RawSocket;
+        },
+        |mut context| {
+            let options = PacketCaptureOptions {
+                backend: requested_backend,
+                backend_policy: PacketBackendSelectionPolicy::AllowFallback,
+                interface_index: 0,
+                snap_length: 4096,
+                timeout_ms: 0,
+                promiscuous: true,
+            };
+            let options = if context.vm_context.is_some() {
+                context.harness_value_vm::<PacketCaptureOptions, PacketCaptureOptionsVm>(options)
+            } else {
+                context.harness_value(options)
+            };
+
+            assert_platform_error_code_with_privileged_policy(
+                context.destack_net_packet_open(options),
+                PlatformErrorCode::InvalidArgumentValue,
+            )?;
+
+            Ok(())
+        },
+    );
+}
+
+/// Report exact packet backend capability flags for the active host backend.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+#[test]
+fn test_net_packet_backend_list_reports_exact_capabilities() {
+    #[cfg(windows)]
+    with_harness_context_with_runtime_options(
+        |runtime_options: &mut RuntimeOptions| {
+            runtime_options.platform.windows.net_packet_backend =
+                PlatformWindowsPacketBackend::RawSocket;
+        },
+        |mut context| {
+            let descriptors = context.destack_net_packet_backend_list()?;
+            let descriptors = context.packet_backend_descriptors_from_value(descriptors)?;
+            let (_name, descriptor) = descriptors
+                .into_iter()
+                .find(|(_name, descriptor)| descriptor.backend == expected_packet_backend())
+                .expect("active packet backend should be listed");
+
+            assert_eq!(
+                descriptor.capability_flags.0,
+                expected_packet_backend_capabilities()
+            );
+
+            Ok(())
+        },
+    );
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    with_harness_context(|mut context| {
+        let descriptors = context.destack_net_packet_backend_list()?;
+        let descriptors = context.packet_backend_descriptors_from_value(descriptors)?;
+        let (_name, descriptor) = descriptors
+            .into_iter()
+            .find(|(_name, descriptor)| descriptor.backend == expected_packet_backend())
+            .expect("active packet backend should be listed");
+
+        assert_eq!(
+            descriptor.capability_flags.0,
+            expected_packet_backend_capabilities()
+        );
+
+        Ok(())
+    });
+}
+
+/// Reflect Windows packet-backend availability from runtime configuration.
+#[cfg(windows)]
+#[test]
+fn test_net_packet_backend_list_windows_tracks_runtime_backend_availability() {
+    with_harness_context_with_runtime_options(
+        |_| {},
+        |mut context| {
+            let descriptors = context.destack_net_packet_backend_list()?;
+            let descriptors = context.packet_backend_descriptors_from_value(descriptors)?;
+            let (_name, backend) = descriptors
+                .into_iter()
+                .find(|(_name, descriptor)| descriptor.backend == PacketBackend::WinRawSocket)
+                .expect("win_raw_socket backend should be listed");
+
+            assert!(!backend.available);
+
+            Ok(())
+        },
+    );
+
+    with_harness_context_with_runtime_options(
+        |runtime_options: &mut RuntimeOptions| {
+            runtime_options.platform.windows.net_packet_backend =
+                PlatformWindowsPacketBackend::RawSocket;
+        },
+        |mut context| {
+            let descriptors = context.destack_net_packet_backend_list()?;
+            let descriptors = context.packet_backend_descriptors_from_value(descriptors)?;
+            let (_name, backend) = descriptors
+                .into_iter()
+                .find(|(_name, descriptor)| descriptor.backend == PacketBackend::WinRawSocket)
+                .expect("win_raw_socket backend should be listed");
+
+            assert!(backend.available);
 
             Ok(())
         },

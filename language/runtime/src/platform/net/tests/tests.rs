@@ -14,10 +14,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{
     OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytesAbi, PathUtf16Abi,
 };
-#[cfg(windows)]
-use crate::platform::net::vm as platform_vm;
-#[cfg(windows)]
-use crate::platform::resource::{ResourceId, SocketHandle};
+use crate::platform::resource::SocketHandle;
 use crate::platform::{
     NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, net as platform_net,
 };
@@ -179,15 +176,7 @@ pub(crate) fn with_harness_context_with_runtime_options<F>(
     vm.run(&mut callback);
 }
 
-#[cfg(windows)]
 impl<'call> NetHarnessContext<'call> {
-    /// Return the VM context if available.
-    #[allow(clippy::mut_from_ref)]
-    fn vm_context_mut_manual(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
-        self.vm_context
-            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
-    }
-
     /// Create a connected socket pair.
     ///
     /// Allocate two already-connected peer sockets for local full-duplex communication.
@@ -211,37 +200,9 @@ impl<'call> NetHarnessContext<'call> {
         socket_type: SocketType,
         protocol: SocketProtocol,
     ) -> RuntimeResult<(SocketHandle, SocketHandle)> {
-        match self.vm_context_mut_manual() {
-            // dispatch through VM bindings
-            Some(context) => {
-                let pair = platform_vm::destack_net_socket_pair(
-                    self.call_context,
-                    context,
-                    family,
-                    socket_type,
-                    protocol,
-                )?;
-                Ok((pair.first, pair.second))
-            }
-
-            // dispatch through native bindings
-            None => {
-                let mut pair = platform_net::SocketPair {
-                    first: SocketHandle(ResourceId(0)),
-                    second: SocketHandle(ResourceId(0)),
-                };
-                let status = unsafe {
-                    platform_net::destack_net_socket_open_pair(
-                        &mut pair,
-                        family,
-                        socket_type,
-                        protocol,
-                    )
-                };
-                self.status_ok(status, "socketPair")?;
-
-                Ok((pair.first, pair.second))
-            }
+        match self.destack_net_socket_pair(family, socket_type, protocol)? {
+            HarnessValue::Native(pair) => Ok((pair.first, pair.second)),
+            HarnessValue::Vm(pair) => Ok((pair.first, pair.second)),
         }
     }
 
@@ -266,30 +227,9 @@ impl<'call> NetHarnessContext<'call> {
         &mut self,
         socket_type: SocketType,
     ) -> RuntimeResult<(SocketHandle, SocketHandle)> {
-        match self.vm_context_mut_manual() {
-            // dispatch through VM bindings
-            Some(context) => {
-                let pair = platform_vm::destack_net_uds_socket_pair(
-                    self.call_context,
-                    context,
-                    socket_type,
-                )?;
-                Ok((pair.first, pair.second))
-            }
-
-            // dispatch through native bindings
-            None => {
-                let mut pair = platform_net::SocketPair {
-                    first: SocketHandle(ResourceId(0)),
-                    second: SocketHandle(ResourceId(0)),
-                };
-                let status = unsafe {
-                    platform_net::destack_net_uds_uds_socket_pair(&mut pair, socket_type)
-                };
-                self.status_ok(status, "udsSocketPair")?;
-
-                Ok((pair.first, pair.second))
-            }
+        match self.destack_net_uds_socket_pair(socket_type)? {
+            HarnessValue::Native(pair) => Ok((pair.first, pair.second)),
+            HarnessValue::Vm(pair) => Ok((pair.first, pair.second)),
         }
     }
 }
@@ -447,19 +387,19 @@ fn reverse_lookup_records_vm(
     Ok(decoded)
 }
 
-fn udp_receive_native(receive: UdpReceive) -> RuntimeResult<(String, u16, SocketFamily, u64)> {
+fn udp_receive_native(receive: UdpReceive) -> RuntimeResult<(String, u16, SocketFamily, u64, u32)> {
     let bytes = unsafe { receive.address.bytes.as_slice()? };
     let (host, port, family) = socket_address_from_raw(receive.address.family, bytes)?;
-    Ok((host, port, family, receive.bytes))
+    Ok((host, port, family, receive.bytes, receive.recv_flags.0))
 }
 
 fn udp_receive_vm(
     context: &mut vm::ExternalCallContext<'_>,
     receive: UdpReceiveVm,
-) -> RuntimeResult<(String, u16, SocketFamily, u64)> {
+) -> RuntimeResult<(String, u16, SocketFamily, u64, u32)> {
     let bytes = receive.address.bytes.read_bytes(context)?;
     let (host, port, family) = socket_address_from_raw(receive.address.family, &bytes)?;
-    Ok((host, port, family, receive.bytes))
+    Ok((host, port, family, receive.bytes, receive.recv_flags.0))
 }
 
 #[cfg(unix)]

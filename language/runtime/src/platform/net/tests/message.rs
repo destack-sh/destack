@@ -6,7 +6,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{AcceptFlags, SocketFamily, SocketMessageFlags};
 
 /// Read raw local and peer socket address payloads for connected sockets.
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[test]
 fn test_net_raw_address_roundtrip() {
     with_harness_context(|mut context| {
@@ -41,15 +41,16 @@ fn test_net_raw_address_roundtrip() {
         let (server_peer_family, server_peer_bytes) =
             context.socket_address_raw_from_value(server_peer)?;
 
-        // validate raw payloads are present
-        assert!(client_local_family != 0);
-        assert!(client_peer_family != 0);
-        assert!(server_local_family != 0);
-        assert!(server_peer_family != 0);
+        // validate peer and local payloads mirror the connected pair exactly
+        assert_eq!(client_local_family, client_peer_family);
+        assert_eq!(client_local_family, server_local_family);
+        assert_eq!(server_local_family, server_peer_family);
         assert!(!client_local_bytes.is_empty());
         assert!(!client_peer_bytes.is_empty());
         assert!(!server_local_bytes.is_empty());
         assert!(!server_peer_bytes.is_empty());
+        assert_eq!(client_local_bytes, server_peer_bytes);
+        assert_eq!(client_peer_bytes, server_local_bytes);
 
         // close resources
         context.destack_net_close(server)?;
@@ -65,71 +66,50 @@ fn test_net_raw_address_roundtrip() {
 #[test]
 fn test_net_mmsg_roundtrip() {
     with_harness_context(|mut context| {
-        // set up a connected pair
-        let listener = context.destack_net_listen(
+        // set up one bound udp socket
+        let server = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+        context.destack_net_udp_bind(
+            server,
             context.socket_address_value_for_host_port("127.0.0.1", 0)?,
-            128,
         )?;
-        let port = context.listener_port(listener);
-        let client = context.destack_net_socket(
-            SocketFamily::IPv4,
-            tcp_stream_socket_type(),
-            tcp_protocol(),
-        )?;
-        context.destack_net_connect(
+        let server_address = context.destack_net_local_address(server)?;
+        let (_host, port, _family) = context.socket_address_from_value(server_address)?;
+
+        // connect one udp client to the server endpoint
+        let client = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+        context.destack_net_udp_connect(
             client,
             context.socket_address_value_for_host_port("127.0.0.1", port)?,
         )?;
-        let server = context.destack_net_accept(listener, AcceptFlags(0))?;
 
-        // send two fixed-size chunks
+        // send two datagrams through sendmmsg
         let first = b"ping".as_slice();
         let second = b"pong".as_slice();
         let messages = match context.send_mmsg_messages_value(&[first, second], 0) {
             Ok(messages) => messages,
             Err(error) => {
-                // sendmmsg may be unavailable on some harnesses
-                assert_platform_error_code_with_privileged_policy::<u64>(
-                    Err(error),
-                    PlatformErrorCode::NotSupported,
-                )?;
-                context.destack_net_close(server)?;
                 context.destack_net_close(client)?;
-                context.destack_net_close_listener(listener)?;
-                return Ok(());
+                context.destack_net_close(server)?;
+                return Err(error);
             }
         };
-        let sent = match context.destack_net_send_mmsg(client, messages) {
-            Ok(sent) => sent,
-            Err(error) => {
-                // sendmmsg may be unavailable on some harnesses
-                assert_platform_error_code_with_privileged_policy::<u64>(
-                    Err(error),
-                    PlatformErrorCode::NotSupported,
-                )?;
-                context.destack_net_close(server)?;
-                context.destack_net_close(client)?;
-                context.destack_net_close_listener(listener)?;
-                return Ok(());
-            }
-        };
+        let sent = context.destack_net_send_mmsg(client, messages)?;
         assert_eq!(sent, 2);
 
-        // receive both chunks into fixed-size buffers
+        // receive both datagrams into fixed-size buffers
         let mut receive_buffers = vec![vec![0u8; 4], vec![0u8; 4]];
         let requests = context.recv_mmsg_requests_value(&mut receive_buffers, 0)?;
         let (requests_call, requests_decode) = context.duplicate_value(requests);
-        let counts = context.destack_net_recv_mmsg(server, requests_call, 0, false, 0)?;
-        let counts = context.recv_mmsg_counts_from_value(counts)?;
+        let messages = context.destack_net_recv_mmsg(server, requests_call, 0, false, 0)?;
+        let counts = context.recv_mmsg_counts_from_value(messages)?;
         let payloads = context.recv_mmsg_payloads_from_requests(requests_decode, &counts)?;
         assert_eq!(counts, vec![4, 4]);
         assert_eq!(&payloads[0], b"ping");
         assert_eq!(&payloads[1], b"pong");
 
-        // close resources
+        // close sockets
         context.destack_net_close(server)?;
         context.destack_net_close(client)?;
-        context.destack_net_close_listener(listener)?;
 
         Ok(())
     });
@@ -168,27 +148,10 @@ fn test_net_sendmsg_recvmsg_roundtrip() {
         // receive payload bytes with recvmsg and explicit flags
         let recv_buffer = context.zeroed_bytes_slice_value(16)?;
         let (recv_call, recv_decode) = context.duplicate_value(recv_buffer);
-        let recv_result =
-            context.destack_net_recv_msg(server, recv_call, SocketMessageFlags(0), 0, false, 0);
+        let receive =
+            context.destack_net_recv_msg(server, recv_call, SocketMessageFlags(0), 0, false, 0)?;
         let (bytes, fds, has_credentials, recv_flags, payload_truncated, control_truncated) =
-            match recv_result {
-                Ok(receive) => context.recv_message_fields(receive),
-                Err(error) => {
-                    // recvmsg may be unavailable on some harnesses
-                    assert_platform_error_code_with_privileged_policy::<(
-                        u64,
-                        u32,
-                        bool,
-                        u32,
-                        bool,
-                        bool,
-                    )>(Err(error), PlatformErrorCode::NotSupported)?;
-                    context.destack_net_close(server)?;
-                    context.destack_net_close(client)?;
-                    context.destack_net_close_listener(listener)?;
-                    return Ok(());
-                }
-            };
+            context.recv_message_fields(receive);
         let buffer = context.bytes_prefix_from_slice_value(recv_decode, bytes as usize)?;
         assert_eq!(buffer, b"hello");
         assert_eq!(fds, 0);

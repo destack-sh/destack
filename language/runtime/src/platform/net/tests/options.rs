@@ -17,13 +17,6 @@ const ERR_UNSUPPORTED_PROTOCOL: [PlatformErrorCode; 2] = [
     PlatformErrorCode::NotSupported,
     PlatformErrorCode::NetUnsupportedProtocol,
 ];
-const ERR_UNSUPPORTED_TIMESTAMPING: [PlatformErrorCode; 5] = [
-    PlatformErrorCode::NotSupported,
-    PlatformErrorCode::NetUnsupportedProtocol,
-    PlatformErrorCode::IoInvalidData,
-    PlatformErrorCode::Io,
-    PlatformErrorCode::Net,
-];
 #[cfg(target_os = "linux")]
 const ERR_PACKET_MARK_LINUX: [PlatformErrorCode; 5] = [
     PlatformErrorCode::IoPermissionDenied,
@@ -92,11 +85,7 @@ fn test_net_socket_options() {
         let buffer = context.zeroed_bytes_slice_value(16)?;
         assert_platform_error_codes_with_privileged_policy(
             context.destack_net_read(socket, buffer),
-            &[
-                PlatformErrorCode::IoWouldBlock,
-                PlatformErrorCode::Io,
-                PlatformErrorCode::Net,
-            ],
+            &[PlatformErrorCode::IoWouldBlock],
         )?;
 
         // repeated option writes should remain idempotent
@@ -268,7 +257,7 @@ fn test_net_set_timestamping_hardware_rejects_unsupported_mode() {
         // hardware timestamp mode is not available on windows socket backends
         assert_platform_error_codes_with_privileged_policy(
             context.destack_net_set_timestamping(socket, SocketTimestampingMode::Hardware),
-            &ERR_UNSUPPORTED_TIMESTAMPING,
+            &[PlatformErrorCode::NotSupported],
         )?;
 
         // close the socket
@@ -537,16 +526,9 @@ fn test_net_only_v6_and_raw_socket_option_lanes() {
         let socket = context.destack_net_udp_socket(SocketFamily::IPv6)?;
 
         // set and read IPv6-only mode
-        let only_v6_result = context.destack_net_set_only_v6(socket, true);
-        if let Err(error) = only_v6_result {
-            assert_platform_error_codes_with_privileged_policy::<()>(
-                Err(error),
-                &ERR_UNSUPPORTED_TIMESTAMPING,
-            )?;
-        } else {
-            let is_only_v6 = context.destack_net_get_only_v6(socket)?;
-            assert!(is_only_v6);
-        }
+        context.destack_net_set_only_v6(socket, true)?;
+        let is_only_v6 = context.destack_net_get_only_v6(socket)?;
+        assert!(is_only_v6);
 
         // probe raw socket-option lanes with one intentionally generic option tuple
         let argument = context.bytes_slice_value(&[0, 0, 0, 0])?;
@@ -637,13 +619,7 @@ fn test_net_join_leave_multicast_v6_rejects_invalid_group() {
             context.destack_net_join_multicast_v6(socket, context.string_value("not-an-ipv6"), 0);
         assert_platform_error_codes_with_privileged_policy(
             join_result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::NetUnsupportedProtocol,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
         // reject invalid group text on leave
@@ -651,13 +627,7 @@ fn test_net_join_leave_multicast_v6_rejects_invalid_group() {
             context.destack_net_leave_multicast_v6(socket, context.string_value("not-an-ipv6"), 0);
         assert_platform_error_codes_with_privileged_policy(
             leave_result,
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::NetUnsupportedProtocol,
-                PlatformErrorCode::Net,
-                PlatformErrorCode::Io,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
         // close the socket

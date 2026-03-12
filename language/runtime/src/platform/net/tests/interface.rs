@@ -2,7 +2,7 @@ use super::with_harness_context;
 use crate::diagnostic::RuntimeError;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::tests::platform::assert_ok_or_expected_error;
+use crate::tests::platform::assert_platform_error_codes_with_privileged_policy;
 
 /// Enumerate interfaces through the host backend and return at least one row.
 #[test]
@@ -41,33 +41,14 @@ fn test_net_interface_name_index_roundtrip() {
             }
 
             // resolve name to index and ensure the mapping is stable
-            let resolved_index = assert_ok_or_expected_error(
-                context.destack_net_interface_index(context.string_value(&name)),
-                &[
-                    PlatformErrorCode::NotSupported,
-                    PlatformErrorCode::Net,
-                    PlatformErrorCode::Io,
-                ],
-            )?;
-            let Some(resolved_index) = resolved_index else {
-                continue;
-            };
+            let resolved_index =
+                context.destack_net_interface_index(context.string_value(&name))?;
             if resolved_index != index {
                 continue;
             }
 
             // resolve index to name and ensure the mapping is non-empty
-            let resolved_name = assert_ok_or_expected_error(
-                context.destack_net_interface_name(index),
-                &[
-                    PlatformErrorCode::NotSupported,
-                    PlatformErrorCode::Net,
-                    PlatformErrorCode::Io,
-                ],
-            )?;
-            let Some(resolved_name) = resolved_name else {
-                continue;
-            };
+            let resolved_name = context.destack_net_interface_name(index)?;
             let resolved_name = context.string_from_value(resolved_name)?;
             if resolved_name.is_empty() {
                 continue;
@@ -77,12 +58,7 @@ fn test_net_interface_name_index_roundtrip() {
             break;
         }
 
-        // tolerate windows hosts where reciprocal lookup APIs are unavailable
-        if !matched && cfg!(windows) {
-            return Ok(());
-        }
-
-        // require one successful reciprocal mapping row on other targets
+        // require one successful reciprocal mapping row
         if !matched {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "interfaces",
@@ -90,6 +66,24 @@ fn test_net_interface_name_index_roundtrip() {
             ))
             .boxed());
         }
+
+        Ok(())
+    });
+}
+
+/// Reject interface lookups for missing aliases and indices.
+#[test]
+fn test_net_interface_lookup_rejects_missing_rows() {
+    with_harness_context(|mut context| {
+        assert_platform_error_codes_with_privileged_policy(
+            context.destack_net_interface_index(context.string_value("destack-missing-interface")),
+            &[PlatformErrorCode::InvalidArgumentValue],
+        )?;
+
+        assert_platform_error_codes_with_privileged_policy(
+            context.destack_net_interface_name(u32::MAX),
+            &[PlatformErrorCode::InvalidArgumentValue],
+        )?;
 
         Ok(())
     });

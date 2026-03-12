@@ -16,7 +16,7 @@ mod raw;
 mod resolve;
 #[cfg(any(unix, windows))]
 mod shutdown;
-#[cfg(windows)]
+#[cfg(any(unix, windows))]
 mod socket_pair;
 #[cfg(any(unix, windows))]
 mod tests;
