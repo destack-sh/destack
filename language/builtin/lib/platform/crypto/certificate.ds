@@ -40,6 +40,7 @@ export enum CryptoCertificateIdentityKind {
     /// IP address identity in textual form.
     IpAddress = 2,
     /// URI identity.
+    /// This is matched against URI subject-alternative-name entries.
     Uri = 3,
     /// Email address identity.
     EmailAddress = 4,
@@ -151,6 +152,7 @@ export struct CryptoCertificateVerifyRequest {
     /// Use one omitted value when no identity check is required.
     identity?: CryptoCertificateVerifyIdentity;
     /// Verification time in Unix seconds.
+    /// Use one omitted value, not `0`, to request provider-default verification time behavior.
     verificationUnixSeconds?: uint64;
     /// Revocation policy.
     revocationMode: CryptoCertificateRevocationMode;
