@@ -8,23 +8,22 @@ use super::super::policy::{ExecutionMode, ExecutionModeJson};
 #[cfg(test)]
 use super::RuntimeSelector;
 use super::{
-    GcOptions, GcOptionsJson, PlatformAudioOptions, PlatformAudioOptionsJson,
+    HeapOptions, HeapOptionsJson, PlatformAudioOptions, PlatformAudioOptionsJson,
     PlatformCryptoOptions, PlatformCryptoOptionsJson, PlatformDebugOptions,
     PlatformDebugOptionsJson, PlatformDeviceOptions, PlatformDeviceOptionsJson,
     PlatformDisplayOptions, PlatformDisplayOptionsJson, PlatformErrorOptions,
     PlatformErrorOptionsJson, PlatformFfiOptions, PlatformFfiOptionsJson, PlatformFsOptions,
     PlatformFsOptionsJson, PlatformGpuOptions, PlatformGpuOptionsJson, PlatformInputOptions,
     PlatformInputOptionsJson, PlatformIoOptions, PlatformIoOptionsJson, PlatformIpcOptions,
-    PlatformIpcOptionsJson, PlatformMemoryOptions, PlatformMemoryOptionsJson, PlatformNetOptions,
-    PlatformNetOptionsJson, PlatformOptions, PlatformOptionsJson, PlatformOsOptions,
-    PlatformOsOptionsJson, PlatformProcessOptions, PlatformProcessOptionsJson,
-    PlatformResourceOptions, PlatformResourceOptionsJson, PlatformSecurityOptions,
-    PlatformSecurityOptionsJson, PlatformThreadOptions, PlatformThreadOptionsJson,
-    PlatformTlsOptions, PlatformTlsOptionsJson, PlatformTtyOptions, PlatformTtyOptionsJson,
-    RandomOptions, RandomOptionsJson, ReplayOptions, ReplayOptionsJson, RuntimeAccess,
-    RuntimeAccessJson, RuntimeDiagnosticOptions, RuntimeDiagnosticOptionsJson, RuntimeRule,
-    RuntimeRuleJson, RuntimeWorld, RuntimeWorldJson, SchedulerOptions, SchedulerOptionsJson,
-    TimeOptions, TimeOptionsJson,
+    PlatformIpcOptionsJson, PlatformNetOptions, PlatformNetOptionsJson, PlatformOptions,
+    PlatformOptionsJson, PlatformOsOptions, PlatformOsOptionsJson, PlatformProcessOptions,
+    PlatformProcessOptionsJson, PlatformResourceOptions, PlatformResourceOptionsJson,
+    PlatformSecurityOptions, PlatformSecurityOptionsJson, PlatformThreadOptions,
+    PlatformThreadOptionsJson, PlatformTlsOptions, PlatformTlsOptionsJson, PlatformTtyOptions,
+    PlatformTtyOptionsJson, RandomOptions, RandomOptionsJson, ReplayOptions, ReplayOptionsJson,
+    RuntimeAccess, RuntimeAccessJson, RuntimeDiagnosticOptions, RuntimeDiagnosticOptionsJson,
+    RuntimeRule, RuntimeRuleJson, RuntimeWorld, RuntimeWorldJson, SchedulerOptions,
+    SchedulerOptionsJson, TimeOptions, TimeOptionsJson,
 };
 
 /// Default identity options for one runtime primary agent.
@@ -36,7 +35,7 @@ pub struct RuntimeAgentOptions {
     pub labels: BTreeMap<String, String>,
 }
 
-/// Runtime execution options for scheduler, time, randomness, and GC.
+/// Runtime execution options for scheduler, time, randomness, and heap behavior.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeOptions {
     /// Stable runtime name for policy selection.
@@ -61,8 +60,8 @@ pub struct RuntimeOptions {
     pub random: RandomOptions,
     /// Runtime scheduler configuration.
     pub scheduler: SchedulerOptions,
-    /// Runtime garbage collector configuration.
-    pub gc: GcOptions,
+    /// Runtime heap configuration.
+    pub heap: HeapOptions,
     /// Runtime diagnostics configuration.
     pub diagnostic: RuntimeDiagnosticOptions,
     /// Global filesystem runtime defaults.
@@ -97,8 +96,6 @@ pub struct RuntimeOptions {
     pub io: PlatformIoOptions,
     /// IPC runtime options.
     pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
     /// Resource runtime options.
     pub resource: PlatformResourceOptions,
     /// Thread runtime options.
@@ -159,8 +156,8 @@ pub struct DsConfigRuntimeOptionsJson {
     pub random: Option<RandomOptionsJson>,
     /// Runtime scheduler configuration.
     pub scheduler: Option<SchedulerOptionsJson>,
-    /// Runtime garbage collector configuration.
-    pub gc: Option<GcOptionsJson>,
+    /// Runtime heap configuration.
+    pub heap: Option<HeapOptionsJson>,
     /// Runtime diagnostics configuration.
     pub diagnostic: Option<RuntimeDiagnosticOptionsJson>,
     /// Global filesystem runtime defaults.
@@ -197,8 +194,6 @@ pub struct DsConfigRuntimeOptionsJson {
     pub io: Option<PlatformIoOptionsJson>,
     /// Global ipc runtime defaults.
     pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Global memory runtime defaults.
-    pub memory: Option<PlatformMemoryOptionsJson>,
     /// Global resource runtime defaults.
     pub resource: Option<PlatformResourceOptionsJson>,
     /// Global thread runtime defaults.
@@ -291,9 +286,9 @@ impl DsConfigRuntimeOptionsJson {
             scheduler.apply_to(&mut options.scheduler);
         }
 
-        // apply gc overrides
-        if let Some(gc) = &self.gc {
-            gc.apply_to(&mut options.gc);
+        // apply heap overrides
+        if let Some(heap) = &self.heap {
+            heap.apply_to(&mut options.heap);
         }
 
         // apply diagnostic overrides
@@ -384,11 +379,6 @@ impl DsConfigRuntimeOptionsJson {
         // apply ipc defaults
         if let Some(ipc) = &self.ipc {
             ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory defaults
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
         }
 
         // apply resource defaults
