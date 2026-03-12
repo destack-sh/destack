@@ -838,7 +838,6 @@ pub(crate) unsafe fn destack_net_send_mmsg(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_recv_from(
     binding: &BindingCallContext,
     out: *mut SocketRecvFrom,
@@ -851,34 +850,35 @@ pub(crate) unsafe fn destack_net_recv_from(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve runtime values
-    let fd = socket_descriptor(binding, handle)?;
-    let buffer = unsafe { buffer.as_mut_slice()? };
-    let mut storage = unsafe { std::mem::zeroed::<libc::sockaddr_storage>() };
-    let mut length = std::mem::size_of::<libc::sockaddr_storage>() as libc::socklen_t;
-
-    // receive the datagram and source address
-    let bytes = unsafe {
-        libc::recvfrom(
-            fd,
-            buffer.as_mut_ptr() as *mut libc::c_void,
-            buffer.len(),
-            recv_flags.0 as libc::c_int,
-            &mut storage as *mut _ as *mut libc::sockaddr,
-            &mut length,
+    // reuse recvmsg so recvFlags and truncation metadata stay honest
+    let mut message = std::mem::MaybeUninit::<SocketRecvMessage>::uninit();
+    unsafe {
+        destack_net_recv_msg(
+            binding,
+            message.as_mut_ptr(),
+            handle,
+            buffer,
+            recv_flags,
+            0,
+            false,
+            0,
         )
-    };
-    if bytes < 0 {
-        return Err(RuntimeError::from(PlatformError::io("recvfrom failed".to_string())).boxed());
-    }
+    }?;
+    let message = unsafe { message.assume_init() };
+    let address = message.address.ok_or_else(|| {
+        core_platform::io_operation_error(
+            "destack.net.recvFrom",
+            Some(PlatformErrorCode::IoInvalidData),
+            "recvmsg did not report a source address",
+        )
+    })?;
 
-    // encode the source address and output payload
-    let address = socket_address_raw_from_storage(binding, &storage, length)?;
+    // write the recvfrom projection
     unsafe {
         *out = SocketRecvFrom {
-            bytes: bytes as u64,
+            bytes: message.bytes,
             address,
-            recv_flags: SocketMessageFlags(0),
+            recv_flags: message.recv_flags,
         };
     }
 
@@ -902,7 +902,6 @@ pub(crate) unsafe fn destack_net_recv_from(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_send_to(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -932,7 +931,7 @@ pub(crate) unsafe fn destack_net_send_to(
             )
         };
         if bytes < 0 {
-            return Err(RuntimeError::from(PlatformError::io("sendto failed".to_string())).boxed());
+            return Err(core_platform::net_error("sendto"));
         }
 
         unsafe {

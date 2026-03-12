@@ -252,7 +252,6 @@ pub(crate) unsafe fn destack_net_uds_close_listener(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_uds_socket_pair(
     binding: &BindingCallContext,
     out: *mut SocketPair,

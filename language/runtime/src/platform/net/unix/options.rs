@@ -850,7 +850,6 @@ pub(crate) unsafe fn destack_net_set_write_timeout(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_set_only_v6(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -871,7 +870,7 @@ pub(crate) unsafe fn destack_net_set_only_v6(
         )
     };
     if result != 0 {
-        return Err(RuntimeError::from(PlatformError::io("setsockopt failed".to_string())).boxed());
+        return Err(core_platform::net_error("setsockopt"));
     }
 
     Ok(())
@@ -894,7 +893,6 @@ pub(crate) unsafe fn destack_net_set_only_v6(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_keep_alive(
     binding: &BindingCallContext,
     out: *mut KeepAliveConfig,
@@ -956,7 +954,6 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_no_delay(
     binding: &BindingCallContext,
     out: *mut bool,
@@ -992,7 +989,6 @@ pub(crate) unsafe fn destack_net_get_no_delay(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_reuse_addr(
     binding: &BindingCallContext,
     out: *mut bool,
@@ -1028,7 +1024,6 @@ pub(crate) unsafe fn destack_net_get_reuse_addr(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_reuse_port(
     binding: &BindingCallContext,
     out: *mut bool,
@@ -1090,7 +1085,6 @@ pub(crate) unsafe fn destack_net_get_reuse_port(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_linger(
     binding: &BindingCallContext,
     out: *mut Linger,
@@ -1116,7 +1110,7 @@ pub(crate) unsafe fn destack_net_get_linger(
         )
     };
     if result != 0 {
-        return Err(RuntimeError::from(PlatformError::io("getsockopt failed".to_string())).boxed());
+        return Err(core_platform::net_error("getsockopt"));
     }
 
     unsafe {
@@ -1146,7 +1140,6 @@ pub(crate) unsafe fn destack_net_get_linger(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_recv_buffer(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1182,7 +1175,6 @@ pub(crate) unsafe fn destack_net_get_recv_buffer(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_send_buffer(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1218,7 +1210,6 @@ pub(crate) unsafe fn destack_net_get_send_buffer(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_broadcast(
     binding: &BindingCallContext,
     out: *mut bool,
@@ -1254,7 +1245,6 @@ pub(crate) unsafe fn destack_net_get_broadcast(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_ttl(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1290,7 +1280,6 @@ pub(crate) unsafe fn destack_net_get_ttl(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_tos(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1326,7 +1315,6 @@ pub(crate) unsafe fn destack_net_get_tos(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_read_timeout(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1352,7 +1340,7 @@ pub(crate) unsafe fn destack_net_get_read_timeout(
         )
     };
     if result != 0 {
-        return Err(RuntimeError::from(PlatformError::io("getsockopt failed".to_string())).boxed());
+        return Err(core_platform::net_error("getsockopt"));
     }
 
     unsafe {
@@ -1379,7 +1367,6 @@ pub(crate) unsafe fn destack_net_get_read_timeout(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_write_timeout(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1405,7 +1392,7 @@ pub(crate) unsafe fn destack_net_get_write_timeout(
         )
     };
     if result != 0 {
-        return Err(RuntimeError::from(PlatformError::io("getsockopt failed".to_string())).boxed());
+        return Err(core_platform::net_error("getsockopt"));
     }
 
     unsafe {
@@ -1432,7 +1419,6 @@ pub(crate) unsafe fn destack_net_get_write_timeout(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_get_only_v6(
     binding: &BindingCallContext,
     out: *mut bool,

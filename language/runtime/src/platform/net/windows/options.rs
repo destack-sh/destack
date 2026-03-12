@@ -1,9 +1,14 @@
-use std::ffi::CString;
 use std::mem;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-use windows_sys::Win32::Foundation::{ERROR_CALL_NOT_IMPLEMENTED, ERROR_NOT_SUPPORTED};
-use windows_sys::Win32::NetworkManagement::IpHelper::if_nametoindex;
+use windows_sys::Win32::Foundation::{
+    ERROR_CALL_NOT_IMPLEMENTED, ERROR_FILE_NOT_FOUND, ERROR_INVALID_NAME, ERROR_INVALID_PARAMETER,
+    ERROR_NOT_FOUND, ERROR_NOT_SUPPORTED, ERROR_SUCCESS,
+};
+use windows_sys::Win32::NetworkManagement::IpHelper::{
+    ConvertInterfaceAliasToLuid, ConvertInterfaceLuidToIndex,
+};
+use windows_sys::Win32::NetworkManagement::Ndis::NET_LUID_LH;
 use windows_sys::Win32::Networking::WinSock::{
     AF_INET, AF_INET6, FIONBIO, GROUP_SOURCE_REQ, IN_ADDR, IN_ADDR_0, IN6_ADDR, IN6_ADDR_0,
     IP_ADD_MEMBERSHIP, IP_ADD_SOURCE_MEMBERSHIP, IP_DROP_MEMBERSHIP, IP_DROP_SOURCE_MEMBERSHIP,
@@ -36,6 +41,32 @@ fn is_ip_helper_not_supported(status: u32) -> bool {
     status == ERROR_NOT_SUPPORTED || status == ERROR_CALL_NOT_IMPLEMENTED
 }
 
+fn interface_lookup_error(
+    field: &'static str,
+    operation: &'static str,
+    status: u32,
+) -> Box<RuntimeError> {
+    // map unavailable interface conversion APIs explicitly
+    if is_ip_helper_not_supported(status) {
+        return core_platform::not_supported(operation);
+    }
+
+    // reject missing or invalid interface references explicitly
+    if matches!(
+        status,
+        ERROR_NOT_FOUND | ERROR_FILE_NOT_FOUND | ERROR_INVALID_NAME | ERROR_INVALID_PARAMETER
+    ) {
+        return RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            "interface does not exist",
+        ))
+        .boxed();
+    }
+
+    // preserve remaining host status values
+    core_platform::net_error_with_code(operation, status as i32)
+}
+
 fn parse_ipv4_interface(value: &str) -> RuntimeResult<Ipv4Addr> {
     // treat empty values as INADDR_ANY
     if value.is_empty() {
@@ -63,25 +94,26 @@ fn resolve_interface_index(value: &str) -> RuntimeResult<u32> {
         return Ok(index);
     }
 
-    // map interface names to indices
-    let cstr = CString::new(value).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
+    // resolve the interface alias to one LUID
+    let name = core_platform::wide_with_nul(value);
+    let mut luid = NET_LUID_LH { Value: 0 };
+    let status = unsafe { ConvertInterfaceAliasToLuid(name.as_ptr(), &mut luid) };
+    if status != ERROR_SUCCESS {
+        return Err(interface_lookup_error(
             "interfaceAddress",
-            "interface name contains nul",
-        ))
-        .boxed()
-    })?;
+            INTERFACE_INDEX_OPERATION,
+            status,
+        ));
+    }
 
-    let index = unsafe { if_nametoindex(cstr.as_ptr() as *const u8) };
-    if index == 0 {
-        let status = core_platform::last_error_code() as u32;
-        if status == 0 || is_ip_helper_not_supported(status) {
-            return Err(core_platform::not_supported(INTERFACE_INDEX_OPERATION));
-        }
-
-        return Err(core_platform::net_error_with_code(
-            "if_nametoindex",
-            status as i32,
+    // resolve the LUID to one interface index
+    let mut index = 0u32;
+    let status = unsafe { ConvertInterfaceLuidToIndex(&luid, &mut index) };
+    if status != ERROR_SUCCESS {
+        return Err(interface_lookup_error(
+            "interfaceAddress",
+            INTERFACE_INDEX_OPERATION,
+            status,
         ));
     }
 
@@ -330,7 +362,7 @@ pub(crate) unsafe fn destack_net_set_linger(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "setsockopt(SO_LINGER",
+            "setsockopt(SO_LINGER)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -431,7 +463,7 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
             };
             if rc != 0 {
                 return Err(core_platform::net_error_with_code(
-                    "setsockopt(TCP_KEEPINTVL",
+                    "setsockopt(TCP_KEEPINTVL)",
                     core_platform::last_wsa_error_code(),
                 ));
             }
@@ -450,7 +482,7 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
             };
             if rc != 0 {
                 return Err(core_platform::net_error_with_code(
-                    "setsockopt(TCP_KEEPCNT",
+                    "setsockopt(TCP_KEEPCNT)",
                     core_platform::last_wsa_error_code(),
                 ));
             }
@@ -504,7 +536,7 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "getsockopt(SO_KEEPALIVE",
+            "getsockopt(SO_KEEPALIVE)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -523,7 +555,7 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "getsockopt(TCP_KEEPIDLE",
+            "getsockopt(TCP_KEEPIDLE)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -542,7 +574,7 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "getsockopt(TCP_KEEPINTVL",
+            "getsockopt(TCP_KEEPINTVL)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -561,7 +593,7 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "getsockopt(TCP_KEEPCNT",
+            "getsockopt(TCP_KEEPCNT)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -669,7 +701,7 @@ pub(crate) unsafe fn destack_net_set_reuse_port(
         }
 
         return Err(core_platform::net_error_with_code(
-            "setsockopt(SO_REUSE_UNICASTPORT",
+            "setsockopt(SO_REUSE_UNICASTPORT)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -1041,7 +1073,7 @@ pub(crate) unsafe fn destack_net_join_multicast(
             };
             if rc != 0 {
                 return Err(core_platform::net_error_with_code(
-                    "setsockopt(IP_ADD_MEMBERSHIP",
+                    "setsockopt(IP_ADD_MEMBERSHIP)",
                     core_platform::last_wsa_error_code(),
                 ));
             }
@@ -1082,7 +1114,7 @@ pub(crate) unsafe fn destack_net_join_multicast(
             };
             if rc != 0 {
                 return Err(core_platform::net_error_with_code(
-                    "setsockopt(IPV6_JOIN_GROUP",
+                    "setsockopt(IPV6_JOIN_GROUP)",
                     core_platform::last_wsa_error_code(),
                 ));
             }
@@ -1150,7 +1182,7 @@ pub(crate) unsafe fn destack_net_leave_multicast(
             };
             if rc != 0 {
                 return Err(core_platform::net_error_with_code(
-                    "setsockopt(IP_DROP_MEMBERSHIP",
+                    "setsockopt(IP_DROP_MEMBERSHIP)",
                     core_platform::last_wsa_error_code(),
                 ));
             }
@@ -1191,7 +1223,7 @@ pub(crate) unsafe fn destack_net_leave_multicast(
             };
             if rc != 0 {
                 return Err(core_platform::net_error_with_code(
-                    "setsockopt(IPV6_LEAVE_GROUP",
+                    "setsockopt(IPV6_LEAVE_GROUP)",
                     core_platform::last_wsa_error_code(),
                 ));
             }
@@ -1444,7 +1476,6 @@ pub(crate) unsafe fn destack_net_set_multicast_ttl(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_set_only_v6(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1466,7 +1497,7 @@ pub(crate) unsafe fn destack_net_set_only_v6(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "setsockopt(IPV6_V6ONLY",
+            "setsockopt(IPV6_V6ONLY)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -1491,7 +1522,6 @@ pub(crate) unsafe fn destack_net_set_only_v6(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_no_delay(
     binding: &BindingCallContext,
     out: *mut bool,
@@ -1529,7 +1559,6 @@ pub(crate) unsafe fn destack_net_get_no_delay(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_reuse_addr(
     binding: &BindingCallContext,
     out: *mut bool,
@@ -1567,7 +1596,6 @@ pub(crate) unsafe fn destack_net_get_reuse_addr(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_reuse_port(
     binding: &BindingCallContext,
     out: *mut bool,
@@ -1600,7 +1628,7 @@ pub(crate) unsafe fn destack_net_get_reuse_port(
         }
 
         return Err(core_platform::net_error_with_code(
-            "getsockopt(SO_REUSE_UNICASTPORT",
+            "getsockopt(SO_REUSE_UNICASTPORT)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -1629,7 +1657,6 @@ pub(crate) unsafe fn destack_net_get_reuse_port(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_linger(
     binding: &BindingCallContext,
     out: *mut Linger,
@@ -1658,7 +1685,7 @@ pub(crate) unsafe fn destack_net_get_linger(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "getsockopt(SO_LINGER",
+            "getsockopt(SO_LINGER)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -1690,7 +1717,6 @@ pub(crate) unsafe fn destack_net_get_linger(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_recv_buffer(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1728,7 +1754,6 @@ pub(crate) unsafe fn destack_net_get_recv_buffer(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_send_buffer(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1766,7 +1791,6 @@ pub(crate) unsafe fn destack_net_get_send_buffer(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_broadcast(
     binding: &BindingCallContext,
     out: *mut bool,
@@ -1804,7 +1828,6 @@ pub(crate) unsafe fn destack_net_get_broadcast(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_ttl(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1842,7 +1865,6 @@ pub(crate) unsafe fn destack_net_get_ttl(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_tos(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1880,7 +1902,6 @@ pub(crate) unsafe fn destack_net_get_tos(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_read_timeout(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1918,7 +1939,6 @@ pub(crate) unsafe fn destack_net_get_read_timeout(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_write_timeout(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -1956,7 +1976,6 @@ pub(crate) unsafe fn destack_net_get_write_timeout(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_only_v6(
     binding: &BindingCallContext,
     out: *mut bool,
@@ -2141,7 +2160,7 @@ pub(crate) unsafe fn destack_net_set_timestamping(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "setsockopt(SO_TIMESTAMP",
+            "setsockopt(SO_TIMESTAMP)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -2292,7 +2311,7 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "setsockopt(IP_MULTICAST_IF",
+            "setsockopt(IP_MULTICAST_IF)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -2344,7 +2363,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "getsockopt(IP_MULTICAST_IF",
+            "getsockopt(IP_MULTICAST_IF)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -2395,7 +2414,7 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v6(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "setsockopt(IPV6_MULTICAST_IF",
+            "setsockopt(IPV6_MULTICAST_IF)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -2445,7 +2464,7 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "getsockopt(IPV6_MULTICAST_IF",
+            "getsockopt(IPV6_MULTICAST_IF)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -2633,7 +2652,7 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v4(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "setsockopt(IP_ADD_SOURCE_MEMBERSHIP",
+            "setsockopt(IP_ADD_SOURCE_MEMBERSHIP)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -2701,7 +2720,7 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v6(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "setsockopt(MCAST_JOIN_SOURCE_GROUP",
+            "setsockopt(MCAST_JOIN_SOURCE_GROUP)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -2782,7 +2801,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "setsockopt(IP_DROP_SOURCE_MEMBERSHIP",
+            "setsockopt(IP_DROP_SOURCE_MEMBERSHIP)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -2850,7 +2869,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "setsockopt(MCAST_LEAVE_SOURCE_GROUP",
+            "setsockopt(MCAST_LEAVE_SOURCE_GROUP)",
             core_platform::last_wsa_error_code(),
         ));
     }
@@ -2957,7 +2976,7 @@ pub(crate) unsafe fn destack_net_raw_set_header_included(
     };
     if rc != 0 {
         return Err(core_platform::net_error_with_code(
-            "setsockopt(IP_HDRINCL",
+            "setsockopt(IP_HDRINCL)",
             core_platform::last_wsa_error_code(),
         ));
     }

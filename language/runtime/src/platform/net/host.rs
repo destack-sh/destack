@@ -16,6 +16,9 @@ mod unsupported;
 #[cfg(not(any(unix, windows)))]
 pub(crate) use unsupported::*;
 
+#[cfg(windows)]
+use destack_workspace::PlatformWindowsPacketBackend;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
@@ -26,8 +29,86 @@ use crate::platform::net::{
 };
 #[cfg(target_os = "linux")]
 use crate::platform::net::{PACKET_BACKEND_CAP_FANOUT, PACKET_BACKEND_CAP_RING};
-use crate::platform::net::{PacketBackend, PacketBackendCapabilityFlags, PacketBackendDescriptor};
+use crate::platform::net::{
+    PacketBackend, PacketBackendCapabilityFlags, PacketBackendDescriptor,
+    PacketBackendSelectionPolicy, PacketCaptureOptions,
+};
 use crate::runtime::{BindingCallContext, NativeSlice};
+
+/// Return the effective host packet backend for this runtime.
+pub(super) fn current_packet_backend(binding: &BindingCallContext) -> Option<PacketBackend> {
+    #[cfg(target_os = "linux")]
+    {
+        let _ = binding;
+        return Some(PacketBackend::AfPacket);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = binding;
+        Some(PacketBackend::Bpf)
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return match binding.agent().options.platform.windows.net_packet_backend {
+            PlatformWindowsPacketBackend::RawSocket => Some(PacketBackend::WinRawSocket),
+            PlatformWindowsPacketBackend::Disabled | PlatformWindowsPacketBackend::HostBackend => {
+                None
+            }
+        };
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        let _ = binding;
+        None
+    }
+}
+
+/// Return whether one packet backend is currently available on this runtime.
+pub(super) fn packet_backend_available(
+    binding: &BindingCallContext,
+    backend: PacketBackend,
+) -> bool {
+    current_packet_backend(binding) == Some(backend)
+}
+
+/// Validate shared packet-capture options before backend dispatch.
+fn validate_packet_capture_options(options: PacketCaptureOptions) -> RuntimeResult<()> {
+    // require one non-zero snap length
+    if options.snap_length == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "options.snapLength",
+            "snap length must be greater than zero",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Validate one packet-open backend request against the active host backend.
+pub(super) fn select_packet_backend_for_open(
+    binding: &BindingCallContext,
+    options: PacketCaptureOptions,
+    operation: &'static str,
+) -> RuntimeResult<PacketBackend> {
+    validate_packet_capture_options(options)?;
+
+    let fallback_backend = current_packet_backend(binding)
+        .ok_or_else(|| RuntimeError::from(PlatformError::not_supported(operation)).boxed())?;
+
+    if options.backend == PacketBackend::Auto || options.backend == fallback_backend {
+        return Ok(fallback_backend);
+    }
+
+    if options.backend_policy == PacketBackendSelectionPolicy::AllowFallback {
+        return Ok(fallback_backend);
+    }
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
 
 /// List host packet backends.
 pub(crate) unsafe fn destack_net_packet_backend_list(
@@ -45,7 +126,7 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
         descriptors.push(PacketBackendDescriptor {
             backend: PacketBackend::AfPacket,
             name: binding.store_string("af_packet"),
-            available: true,
+            available: packet_backend_available(binding, PacketBackend::AfPacket),
             priority: 100,
             capability_flags: PacketBackendCapabilityFlags(
                 PACKET_BACKEND_CAP_CAPTURE.0
@@ -63,7 +144,7 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
         descriptors.push(PacketBackendDescriptor {
             backend: PacketBackend::Bpf,
             name: binding.store_string("bpf"),
-            available: true,
+            available: packet_backend_available(binding, PacketBackend::Bpf),
             priority: 100,
             capability_flags: PacketBackendCapabilityFlags(
                 PACKET_BACKEND_CAP_CAPTURE.0
@@ -79,7 +160,7 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
         descriptors.push(PacketBackendDescriptor {
             backend: PacketBackend::WinRawSocket,
             name: binding.store_string("win_raw_socket"),
-            available: true,
+            available: packet_backend_available(binding, PacketBackend::WinRawSocket),
             priority: 100,
             capability_flags: PacketBackendCapabilityFlags(
                 PACKET_BACKEND_CAP_CAPTURE.0

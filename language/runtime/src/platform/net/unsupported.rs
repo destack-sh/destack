@@ -1244,12 +1244,12 @@ pub(crate) unsafe fn destack_net_listen_raw(
 pub(crate) unsafe fn destack_net_resolve_raw(
     binding: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
-    host: NativeStringRef,
-    port: u16,
+    host: Option<NativeStringRef>,
+    service: Option<NativeStringRef>,
     family: SocketFamily,
     flags: ResolveFlags,
 ) -> RuntimeResult<()> {
-    let _ = (binding, out, host, port, family, flags);
+    let _ = (binding, out, host, service, family, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolve")).boxed())
 }
 

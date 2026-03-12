@@ -117,32 +117,54 @@ pub fn destack_net_connect_text(
     host: destack_vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<SocketHandle> {
-    // resolve the remote endpoint from host and port text
-    let address =
-        resolve_text_address_from_vm(binding, context, host, port, "destack.net.connectText")?;
+    // resolve all candidate remote endpoints from host and port text
+    let addresses =
+        resolve_text_addresses_from_vm(binding, context, host, port, "destack.net.connectText")?;
+    let mut last_error = None;
 
-    // map raw address metadata into the socket family enum
-    let family = socket_family_from_address(address, "destack.net.connectText")?;
+    // try resolved addresses in order until one socket connects
+    for address in addresses {
+        let family = match socket_family_from_address(address, "destack.net.connectText") {
+            Ok(family) => family,
+            Err(error) => {
+                last_error = Some(error);
+                continue;
+            }
+        };
 
-    // create a stream socket for the resolved family
-    let handle = call_out(|out| unsafe {
-        host_net::destack_net_socket(
-            binding,
-            out,
-            family,
-            tcp_stream_socket_type(),
-            tcp_socket_protocol(),
-        )
-    })?;
+        let handle = match call_out(|out| unsafe {
+            host_net::destack_net_socket(
+                binding,
+                out,
+                family,
+                tcp_stream_socket_type(),
+                tcp_socket_protocol(),
+            )
+        }) {
+            Ok(handle) => handle,
+            Err(error) => {
+                last_error = Some(error);
+                continue;
+            }
+        };
 
-    // connect the socket and close on failure to avoid descriptor leaks
-    let result = unsafe { host_net::destack_net_connect_raw(binding, handle, address) };
-    if let Err(error) = result {
-        let _ = unsafe { host_net::destack_net_close(binding, handle) };
-        return Err(error);
+        let result = unsafe { host_net::destack_net_connect_raw(binding, handle, address) };
+        match result {
+            Ok(()) => return Ok(handle),
+            Err(error) => {
+                let _ = unsafe { host_net::destack_net_close(binding, handle) };
+                last_error = Some(error);
+            }
+        }
     }
 
-    Ok(handle)
+    Err(last_error.unwrap_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "host",
+            "destack.net.connectText: host and port resolved to no usable addresses",
+        ))
+        .boxed()
+    }))
 }
 
 /// Start listening on a raw socket address.
@@ -180,12 +202,28 @@ pub fn destack_net_listen_text(
     port: u16,
     backlog: u32,
 ) -> RuntimeResult<ListenerHandle> {
-    // resolve the local endpoint from host and port text
-    let address =
-        resolve_text_address_from_vm(binding, context, host, port, "destack.net.listenText")?;
+    // resolve all candidate local endpoints from host and port text
+    let addresses =
+        resolve_text_addresses_from_vm(binding, context, host, port, "destack.net.listenText")?;
+    let mut last_error = None;
 
-    // create and bind a listener at the resolved endpoint
-    call_out(|out| unsafe { host_net::destack_net_listen_raw(binding, out, address, backlog) })
+    // try resolved addresses in order until one listener binds
+    for address in addresses {
+        match call_out(|out| unsafe {
+            host_net::destack_net_listen_raw(binding, out, address, backlog)
+        }) {
+            Ok(listener) => return Ok(listener),
+            Err(error) => last_error = Some(error),
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "host",
+            "destack.net.listenText: host and port resolved to no usable addresses",
+        ))
+        .boxed()
+    }))
 }
 
 /// Read from a socket into the provided slice.
@@ -936,12 +974,11 @@ pub fn destack_net_resolve(
     query: ResolveQueryVm,
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
     // decode query host and service values
-    let host = resolve_host_from_vm(binding, context, query)?;
-    let port = resolve_port_from_vm(context, query)?;
+    let (host, service) = resolve_query_parts_from_vm(binding, context, query)?;
 
     // resolve via raw resolver and map to VM addresses
     let addresses = call_out(|out| unsafe {
-        host_net::destack_net_resolve_raw(binding, out, host, port, query.family, query.flags)
+        host_net::destack_net_resolve_raw(binding, out, host, service, query.family, query.flags)
     })?;
     socket_address_array_to_vm(context, addresses)
 }
@@ -957,10 +994,11 @@ pub fn destack_net_resolve_text(
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
     // resolve the host string into native storage
     let host = host_from_vm(binding, context, host)?;
+    let service = resolve_service_text(binding, port);
 
     // resolve via raw resolver and map to VM addresses
     let addresses = call_out(|out| unsafe {
-        host_net::destack_net_resolve_raw(binding, out, host, port, family, flags)
+        host_net::destack_net_resolve_raw(binding, out, Some(host), Some(service), family, flags)
     })?;
     socket_address_array_to_vm(context, addresses)
 }
@@ -1078,12 +1116,26 @@ pub fn destack_net_udp_bind_text(
     host: destack_vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<()> {
-    // resolve the local endpoint from host and port text
-    let address =
-        resolve_text_address_from_vm(binding, context, host, port, "destack.net.udpBindText")?;
+    // resolve all candidate local endpoints from host and port text
+    let addresses =
+        resolve_text_addresses_from_vm(binding, context, host, port, "destack.net.udpBindText")?;
+    let mut last_error = None;
 
-    // bind the udp socket at the resolved address
-    unsafe { host_net::destack_net_udp_bind_raw(binding, handle, address) }
+    // try resolved addresses in order until one bind succeeds
+    for address in addresses {
+        match unsafe { host_net::destack_net_udp_bind_raw(binding, handle, address) } {
+            Ok(()) => return Ok(()),
+            Err(error) => last_error = Some(error),
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "host",
+            "destack.net.udpBindText: host and port resolved to no usable addresses",
+        ))
+        .boxed()
+    }))
 }
 
 /// Connect a UDP socket to a raw remote address.
@@ -1121,12 +1173,26 @@ pub fn destack_net_udp_connect_text(
     host: destack_vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<()> {
-    // resolve the remote endpoint from host and port text
-    let address =
-        resolve_text_address_from_vm(binding, context, host, port, "destack.net.udpConnectText")?;
+    // resolve all candidate remote endpoints from host and port text
+    let addresses =
+        resolve_text_addresses_from_vm(binding, context, host, port, "destack.net.udpConnectText")?;
+    let mut last_error = None;
 
-    // connect the udp socket to the resolved address
-    unsafe { host_net::destack_net_udp_connect_raw(binding, handle, address) }
+    // try resolved addresses in order until one connect succeeds
+    for address in addresses {
+        match unsafe { host_net::destack_net_udp_connect_raw(binding, handle, address) } {
+            Ok(()) => return Ok(()),
+            Err(error) => last_error = Some(error),
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "host",
+            "destack.net.udpConnectText: host and port resolved to no usable addresses",
+        ))
+        .boxed()
+    }))
 }
 
 /// Receive a datagram from a remote address with raw address output.
@@ -1224,24 +1290,38 @@ pub fn destack_net_udp_send_to_text(
     port: u16,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    // resolve the remote endpoint from host and port text
-    let address =
-        resolve_text_address_from_vm(binding, context, host, port, "destack.net.udpSendToText")?;
-
     // resolve VM payload bytes into native storage
     let native = buffer_from_vm(binding, context, buffer)?;
 
-    // send one datagram to the resolved endpoint
-    call_out(|out| unsafe {
-        host_net::destack_net_udp_send_to_raw(
-            binding,
-            out,
-            handle,
-            address,
-            native,
-            UdpMessageFlags(0),
-        )
-    })
+    // resolve all candidate remote endpoints from host and port text
+    let addresses =
+        resolve_text_addresses_from_vm(binding, context, host, port, "destack.net.udpSendToText")?;
+    let mut last_error = None;
+
+    // try resolved addresses in order until one send succeeds
+    for address in addresses {
+        match call_out(|out| unsafe {
+            host_net::destack_net_udp_send_to_raw(
+                binding,
+                out,
+                handle,
+                address,
+                native,
+                UdpMessageFlags(0),
+            )
+        }) {
+            Ok(bytes_sent) => return Ok(bytes_sent),
+            Err(error) => last_error = Some(error),
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "host",
+            "destack.net.udpSendToText: host and port resolved to no usable addresses",
+        ))
+        .boxed()
+    }))
 }
 
 /// Accept a connection from a UDS listener.
@@ -2394,65 +2474,66 @@ fn uds_path(binding: &BindingCallContext, address: UdsAddress) -> RuntimeResult<
             }))
         }
         UdsAddress::UdsUnnamedAddress(UdsUnnamedAddress { .. }) => {
-            Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsConnect")).boxed())
+            Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "address",
+                "unnamed unix domain socket addresses cannot be used here",
+            ))
+            .boxed())
         }
     }
 }
 
-fn resolve_host_from_vm(
+fn resolve_query_parts_from_vm(
     binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
     query: ResolveQueryVm,
-) -> RuntimeResult<NativeStringRef> {
-    let Some(host) = query.host else {
+) -> RuntimeResult<(Option<NativeStringRef>, Option<NativeStringRef>)> {
+    // require at least one query component
+    if query.host.is_none() && query.service.is_none() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "query",
-            "host is required",
+            "host or service is required",
         ))
         .boxed());
+    }
+
+    // decode the optional host string
+    let host = match query.host {
+        Some(host) => Some(host_from_vm(binding, context, host)?),
+        None => None,
     };
 
-    host_from_vm(binding, context, host)
-}
-
-fn resolve_port_from_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    query: ResolveQueryVm,
-) -> RuntimeResult<u16> {
-    let Some(service) = query.service else {
-        return Ok(0);
+    // decode the optional service string
+    let service = match query.service {
+        Some(service) => Some(host_from_vm(binding, context, service)?),
+        None => None,
     };
 
-    let service = context
-        .string_ref(service)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    let service = service.as_str();
-    service.parse::<u16>().map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "query",
-            "service must be a numeric port",
-        ))
-        .boxed()
-    })
+    Ok((host, service))
 }
 
-fn resolve_text_address_from_vm(
+fn resolve_service_text(binding: &BindingCallContext, port: u16) -> NativeStringRef {
+    binding.store_string(&port.to_string())
+}
+
+fn resolve_text_addresses_from_vm(
     binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
     host: destack_vm::StringHandle,
     port: u16,
     binding_name: &'static str,
-) -> RuntimeResult<SocketAddress> {
+) -> RuntimeResult<Vec<SocketAddress>> {
     // resolve the host string into binding storage
     let host = host_from_vm(binding, context, host)?;
+    let service = resolve_service_text(binding, port);
 
     // resolve host and service to raw addresses
     let addresses = call_out(|out| unsafe {
         host_net::destack_net_resolve_raw(
             binding,
             out,
-            host,
-            port,
+            Some(host),
+            Some(service),
             SocketFamily::Unspecified,
             ResolveFlags(0),
         )
@@ -2460,14 +2541,14 @@ fn resolve_text_address_from_vm(
 
     // pick the first usable address from resolver output
     let addresses = unsafe { addresses.as_slice()? };
-    let Some(address) = addresses.first() else {
+    if addresses.is_empty() {
         let message = format!("{binding_name}: host and port resolved to no addresses");
         return Err(
             RuntimeError::from(PlatformError::invalid_argument_value("host", message)).boxed(),
         );
-    };
+    }
 
-    Ok(*address)
+    Ok(addresses.to_vec())
 }
 
 fn socket_family_from_address(
@@ -2477,8 +2558,18 @@ fn socket_family_from_address(
     // map raw family numbers into socket family variants
     match address.family {
         0 => Ok(SocketFamily::Unspecified),
-        4 => Ok(SocketFamily::IPv4),
-        6 => Ok(SocketFamily::IPv6),
+        #[cfg(unix)]
+        family if family == libc::AF_INET as u16 => Ok(SocketFamily::IPv4),
+        #[cfg(unix)]
+        family if family == libc::AF_INET6 as u16 => Ok(SocketFamily::IPv6),
+        #[cfg(windows)]
+        family if family == windows_sys::Win32::Networking::WinSock::AF_INET => {
+            Ok(SocketFamily::IPv4)
+        }
+        #[cfg(windows)]
+        family if family == windows_sys::Win32::Networking::WinSock::AF_INET6 => {
+            Ok(SocketFamily::IPv6)
+        }
         _ => {
             let message = format!(
                 "{binding_name}: unsupported socket family {}",

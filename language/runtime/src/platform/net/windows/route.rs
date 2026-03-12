@@ -368,12 +368,13 @@ fn route_entry_from_row(
 }
 
 /// Encode one runtime route entry into one host route row.
-fn route_row_from_entry(route: RouteEntry) -> RuntimeResult<MIB_IPFORWARD_ROW2> {
+fn route_row_from_entry(
+    route: RouteEntry,
+    operation: &'static str,
+) -> RuntimeResult<MIB_IPFORWARD_ROW2> {
     // reject unsupported route kinds for route mutation lanes
     if route.kind == RouteKind::Blackhole {
-        return Err(
-            RuntimeError::from(PlatformError::not_supported("destack.net.routeAdd")).boxed(),
-        );
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
     // initialize one empty route row with host defaults
@@ -460,7 +461,7 @@ pub(crate) unsafe fn destack_net_route_add(
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // convert one runtime route into host route row fields
-    let row = route_row_from_entry(route)?;
+    let row = route_row_from_entry(route, "destack.net.routeAdd")?;
 
     // submit one host route-table insertion
     let status = unsafe { CreateIpForwardEntry2(&row) };
@@ -498,7 +499,7 @@ pub(crate) unsafe fn destack_net_route_delete(
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // convert one runtime route into host route row fields
-    let row = route_row_from_entry(route)?;
+    let row = route_row_from_entry(route, "destack.net.routeDelete")?;
 
     // submit one host route-table deletion
     let status = unsafe { DeleteIpForwardEntry2(&row) };

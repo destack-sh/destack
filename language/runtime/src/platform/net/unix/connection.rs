@@ -1,12 +1,395 @@
 use super::core::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::net::core::decode_accept_flags;
 use crate::platform::net::*;
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
 use crate::runtime::BindingCallContext;
 
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::os::unix::io::RawFd;
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+const SOCKET_TYPE_FLAG_NONBLOCK: libc::c_int = libc::SOCK_NONBLOCK;
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+const SOCKET_TYPE_FLAG_NONBLOCK: libc::c_int = 0;
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+const SOCKET_TYPE_FLAG_CLOEXEC: libc::c_int = libc::SOCK_CLOEXEC;
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+const SOCKET_TYPE_FLAG_CLOEXEC: libc::c_int = 0;
+
+fn close_socket(fd: RawFd) {
+    let _ = unsafe { libc::close(fd) };
+}
+
+#[cfg(any(
+    target_vendor = "apple",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly"
+))]
+fn ipv4_loopback_address() -> libc::sockaddr_in {
+    libc::sockaddr_in {
+        sin_len: std::mem::size_of::<libc::sockaddr_in>() as u8,
+        sin_family: libc::AF_INET as libc::sa_family_t,
+        sin_port: 0,
+        sin_addr: libc::in_addr {
+            s_addr: u32::from(Ipv4Addr::LOCALHOST).to_be(),
+        },
+        sin_zero: [0; 8],
+    }
+}
+
+#[cfg(not(any(
+    target_vendor = "apple",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly"
+)))]
+fn ipv4_loopback_address() -> libc::sockaddr_in {
+    libc::sockaddr_in {
+        sin_family: libc::AF_INET as libc::sa_family_t,
+        sin_port: 0,
+        sin_addr: libc::in_addr {
+            s_addr: u32::from(Ipv4Addr::LOCALHOST).to_be(),
+        },
+        sin_zero: [0; 8],
+    }
+}
+
+#[cfg(any(
+    target_vendor = "apple",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly"
+))]
+fn ipv6_loopback_address() -> libc::sockaddr_in6 {
+    libc::sockaddr_in6 {
+        sin6_len: std::mem::size_of::<libc::sockaddr_in6>() as u8,
+        sin6_family: libc::AF_INET6 as libc::sa_family_t,
+        sin6_port: 0,
+        sin6_flowinfo: 0,
+        sin6_addr: libc::in6_addr {
+            s6_addr: Ipv6Addr::LOCALHOST.octets(),
+        },
+        sin6_scope_id: 0,
+    }
+}
+
+#[cfg(not(any(
+    target_vendor = "apple",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly"
+)))]
+fn ipv6_loopback_address() -> libc::sockaddr_in6 {
+    libc::sockaddr_in6 {
+        sin6_family: libc::AF_INET6 as libc::sa_family_t,
+        sin6_port: 0,
+        sin6_flowinfo: 0,
+        sin6_addr: libc::in6_addr {
+            s6_addr: Ipv6Addr::LOCALHOST.octets(),
+        },
+        sin6_scope_id: 0,
+    }
+}
+
+fn bind_socket_loopback(fd: RawFd, family: libc::c_int) -> RuntimeResult<()> {
+    if family == libc::AF_INET {
+        let address = ipv4_loopback_address();
+        let rc = unsafe {
+            libc::bind(
+                fd,
+                &address as *const _ as *const libc::sockaddr,
+                std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t,
+            )
+        };
+        if rc != 0 {
+            return Err(core_platform::net_error("bind"));
+        }
+
+        return Ok(());
+    }
+
+    if family == libc::AF_INET6 {
+        let address = ipv6_loopback_address();
+        let rc = unsafe {
+            libc::bind(
+                fd,
+                &address as *const _ as *const libc::sockaddr,
+                std::mem::size_of::<libc::sockaddr_in6>() as libc::socklen_t,
+            )
+        };
+        if rc != 0 {
+            return Err(core_platform::net_error("bind"));
+        }
+
+        return Ok(());
+    }
+
+    Err(RuntimeError::from(PlatformError::invalid_argument_value(
+        "family",
+        "unsupported socket family",
+    ))
+    .boxed())
+}
+
+fn local_socket_address(fd: RawFd) -> RuntimeResult<(libc::sockaddr_storage, libc::socklen_t)> {
+    let mut storage = unsafe { std::mem::zeroed::<libc::sockaddr_storage>() };
+    let mut length = std::mem::size_of::<libc::sockaddr_storage>() as libc::socklen_t;
+    let rc = unsafe {
+        libc::getsockname(
+            fd,
+            &mut storage as *mut _ as *mut libc::sockaddr,
+            &mut length,
+        )
+    };
+    if rc != 0 {
+        return Err(core_platform::net_error("getsockname"));
+    }
+
+    Ok((storage, length))
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn apply_socket_pair_flags(fd: RawFd, requested_type: libc::c_int) -> RuntimeResult<()> {
+    if (requested_type & SOCKET_TYPE_FLAG_NONBLOCK) != 0 {
+        let current_flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+        if current_flags < 0 {
+            return Err(core_platform::net_error("fcntl"));
+        }
+
+        let rc = unsafe { libc::fcntl(fd, libc::F_SETFL, current_flags | libc::O_NONBLOCK) };
+        if rc < 0 {
+            return Err(core_platform::net_error("fcntl"));
+        }
+    }
+
+    if (requested_type & SOCKET_TYPE_FLAG_CLOEXEC) != 0 {
+        let current_flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+        if current_flags < 0 {
+            return Err(core_platform::net_error("fcntl"));
+        }
+
+        let rc = unsafe { libc::fcntl(fd, libc::F_SETFD, current_flags | libc::FD_CLOEXEC) };
+        if rc < 0 {
+            return Err(core_platform::net_error("fcntl"));
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+fn apply_socket_pair_flags(_fd: RawFd, _requested_type: libc::c_int) -> RuntimeResult<()> {
+    Ok(())
+}
+
+fn register_socket_pair(
+    binding: &BindingCallContext,
+    out: *mut SocketPair,
+    first_fd: RawFd,
+    second_fd: RawFd,
+) {
+    let first_entry = ResourceEntry::new(ResourceKind::Socket)
+        .with_socket(first_fd)
+        .with_finalizer(DescriptorFinalizer { fd: first_fd });
+    let first_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), first_entry, Some(binding.engine()));
+
+    let second_entry = ResourceEntry::new(ResourceKind::Socket)
+        .with_socket(second_fd)
+        .with_finalizer(DescriptorFinalizer { fd: second_fd });
+    let second_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), second_entry, Some(binding.engine()));
+
+    unsafe {
+        *out = SocketPair {
+            first: SocketHandle(first_id),
+            second: SocketHandle(second_id),
+        };
+    }
+}
+
+fn socket_pair_stream_loopback(
+    binding: &BindingCallContext,
+    out: *mut SocketPair,
+    family: libc::c_int,
+    socket_type: libc::c_int,
+    protocol: libc::c_int,
+) -> RuntimeResult<()> {
+    let listener_fd = unsafe { libc::socket(family, libc::SOCK_STREAM, protocol) };
+    if listener_fd < 0 {
+        return Err(core_platform::net_error("socket"));
+    }
+
+    if let Err(error) = bind_socket_loopback(listener_fd, family) {
+        close_socket(listener_fd);
+        return Err(error);
+    }
+
+    let (listen_address, listen_length) = match local_socket_address(listener_fd) {
+        Ok(address) => address,
+        Err(error) => {
+            close_socket(listener_fd);
+            return Err(error);
+        }
+    };
+
+    let rc = unsafe { libc::listen(listener_fd, 1) };
+    if rc != 0 {
+        close_socket(listener_fd);
+        return Err(core_platform::net_error("listen"));
+    }
+
+    let client_fd = unsafe { libc::socket(family, libc::SOCK_STREAM, protocol) };
+    if client_fd < 0 {
+        close_socket(listener_fd);
+        return Err(core_platform::net_error("socket"));
+    }
+
+    let rc = unsafe {
+        libc::connect(
+            client_fd,
+            &listen_address as *const _ as *const libc::sockaddr,
+            listen_length,
+        )
+    };
+    if rc != 0 {
+        close_socket(client_fd);
+        close_socket(listener_fd);
+        return Err(core_platform::net_error("connect"));
+    }
+
+    let server_fd =
+        unsafe { libc::accept(listener_fd, std::ptr::null_mut(), std::ptr::null_mut()) };
+    if server_fd < 0 {
+        close_socket(client_fd);
+        close_socket(listener_fd);
+        return Err(core_platform::net_error("accept"));
+    }
+
+    close_socket(listener_fd);
+
+    if let Err(error) = apply_socket_pair_flags(client_fd, socket_type) {
+        close_socket(server_fd);
+        close_socket(client_fd);
+        return Err(error);
+    }
+
+    if let Err(error) = apply_socket_pair_flags(server_fd, socket_type) {
+        close_socket(server_fd);
+        close_socket(client_fd);
+        return Err(error);
+    }
+
+    register_socket_pair(binding, out, client_fd, server_fd);
+
+    Ok(())
+}
+
+fn socket_pair_dgram_loopback(
+    binding: &BindingCallContext,
+    out: *mut SocketPair,
+    family: libc::c_int,
+    socket_type: libc::c_int,
+    protocol: libc::c_int,
+) -> RuntimeResult<()> {
+    let first_fd = unsafe { libc::socket(family, libc::SOCK_DGRAM, protocol) };
+    if first_fd < 0 {
+        return Err(core_platform::net_error("socket"));
+    }
+
+    let second_fd = unsafe { libc::socket(family, libc::SOCK_DGRAM, protocol) };
+    if second_fd < 0 {
+        close_socket(first_fd);
+        return Err(core_platform::net_error("socket"));
+    }
+
+    if let Err(error) = bind_socket_loopback(first_fd, family) {
+        close_socket(second_fd);
+        close_socket(first_fd);
+        return Err(error);
+    }
+
+    if let Err(error) = bind_socket_loopback(second_fd, family) {
+        close_socket(second_fd);
+        close_socket(first_fd);
+        return Err(error);
+    }
+
+    let (first_address, first_length) = match local_socket_address(first_fd) {
+        Ok(address) => address,
+        Err(error) => {
+            close_socket(second_fd);
+            close_socket(first_fd);
+            return Err(error);
+        }
+    };
+
+    let (second_address, second_length) = match local_socket_address(second_fd) {
+        Ok(address) => address,
+        Err(error) => {
+            close_socket(second_fd);
+            close_socket(first_fd);
+            return Err(error);
+        }
+    };
+
+    let rc = unsafe {
+        libc::connect(
+            first_fd,
+            &second_address as *const _ as *const libc::sockaddr,
+            second_length,
+        )
+    };
+    if rc != 0 {
+        close_socket(second_fd);
+        close_socket(first_fd);
+        return Err(core_platform::net_error("connect"));
+    }
+
+    let rc = unsafe {
+        libc::connect(
+            second_fd,
+            &first_address as *const _ as *const libc::sockaddr,
+            first_length,
+        )
+    };
+    if rc != 0 {
+        close_socket(second_fd);
+        close_socket(first_fd);
+        return Err(core_platform::net_error("connect"));
+    }
+
+    if let Err(error) = apply_socket_pair_flags(first_fd, socket_type) {
+        close_socket(second_fd);
+        close_socket(first_fd);
+        return Err(error);
+    }
+
+    if let Err(error) = apply_socket_pair_flags(second_fd, socket_type) {
+        close_socket(second_fd);
+        close_socket(first_fd);
+        return Err(error);
+    }
+
+    register_socket_pair(binding, out, first_fd, second_fd);
+
+    Ok(())
+}
 
 /// Accept a new connection from a listener.
 ///
@@ -29,21 +412,59 @@ pub(crate) unsafe fn destack_net_accept(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
-    _flags: AcceptFlags,
+    flags: AcceptFlags,
 ) -> RuntimeResult<()> {
     // ensure the output pointer is valid
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // accept sockets on unix platforms
-    // resolve the listener descriptor
+    // resolve the listener descriptor and decode accept behavior
     let fd = listener_descriptor(binding, listener)?;
+    let accept_behavior = decode_accept_flags(flags)?;
 
-    // accept the connection
+    // accept the connection first
     let client_fd = unsafe { libc::accept(fd, std::ptr::null_mut(), std::ptr::null_mut()) };
     if client_fd < 0 {
         return Err(core_platform::net_error("accept"));
+    }
+
+    // apply requested file-status and descriptor flags
+    if accept_behavior.nonblocking {
+        let current_flags = unsafe { libc::fcntl(client_fd, libc::F_GETFL) };
+        if current_flags < 0 {
+            unsafe {
+                libc::close(client_fd);
+            }
+            return Err(core_platform::net_error("fcntl"));
+        }
+
+        let rc = unsafe { libc::fcntl(client_fd, libc::F_SETFL, current_flags | libc::O_NONBLOCK) };
+        if rc < 0 {
+            unsafe {
+                libc::close(client_fd);
+            }
+            return Err(core_platform::net_error("fcntl"));
+        }
+    }
+
+    // apply close-on-exec after accept on unix targets that do not expose a shared normalized path
+    if accept_behavior.cloexec {
+        let current_flags = unsafe { libc::fcntl(client_fd, libc::F_GETFD) };
+        if current_flags < 0 {
+            unsafe {
+                libc::close(client_fd);
+            }
+            return Err(core_platform::net_error("fcntl"));
+        }
+
+        let rc = unsafe { libc::fcntl(client_fd, libc::F_SETFD, current_flags | libc::FD_CLOEXEC) };
+        if rc < 0 {
+            unsafe {
+                libc::close(client_fd);
+            }
+            return Err(core_platform::net_error("fcntl"));
+        }
     }
 
     // register the new socket
@@ -165,7 +586,6 @@ pub(crate) unsafe fn destack_net_close_listener(
 }
 
 /// Connect an existing socket to a raw remote address.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_connect_raw(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -178,9 +598,7 @@ pub(crate) unsafe fn destack_net_connect_raw(
     with_socket_address_raw(address, |sockaddr, length| {
         let result = unsafe { libc::connect(fd, sockaddr, length) };
         if result != 0 {
-            return Err(
-                RuntimeError::from(PlatformError::io("connect failed".to_string())).boxed(),
-            );
+            return Err(core_platform::net_error("connect"));
         }
 
         Ok(())
@@ -204,7 +622,6 @@ pub(crate) unsafe fn destack_net_connect_raw(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_bind(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -217,7 +634,7 @@ pub(crate) unsafe fn destack_net_bind(
     with_socket_address_raw(address, |sockaddr, length| {
         let result = unsafe { libc::bind(fd, sockaddr, length) };
         if result != 0 {
-            return Err(RuntimeError::from(PlatformError::io("bind failed".to_string())).boxed());
+            return Err(core_platform::net_error("bind"));
         }
 
         Ok(())
@@ -225,7 +642,6 @@ pub(crate) unsafe fn destack_net_bind(
 }
 
 /// Start listening on a raw local socket address.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_listen_raw(
     binding: &BindingCallContext,
     out: *mut ListenerHandle,
@@ -251,10 +667,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
     with_socket_address_raw(address, |sockaddr, length| {
         let fd = unsafe { libc::socket(family, libc::SOCK_STREAM, libc::IPPROTO_TCP) };
         if fd < 0 {
-            let error = std::io::Error::last_os_error();
-            return Err(
-                RuntimeError::from(PlatformError::io(format!("socket failed: {error}"))).boxed(),
-            );
+            return Err(core_platform::net_error("socket"));
         }
 
         let enabled: libc::c_int = 1;
@@ -271,11 +684,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
             unsafe {
                 libc::close(fd);
             }
-            let error = std::io::Error::last_os_error();
-            return Err(RuntimeError::from(PlatformError::io(format!(
-                "setsockopt failed: {error}"
-            )))
-            .boxed());
+            return Err(core_platform::net_error("setsockopt"));
         }
 
         let result = unsafe { libc::bind(fd, sockaddr, length) };
@@ -283,10 +692,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
             unsafe {
                 libc::close(fd);
             }
-            let error = std::io::Error::last_os_error();
-            return Err(
-                RuntimeError::from(PlatformError::io(format!("bind failed: {error}"))).boxed(),
-            );
+            return Err(core_platform::net_error("bind"));
         }
 
         let result = unsafe { libc::listen(fd, backlog) };
@@ -294,10 +700,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
             unsafe {
                 libc::close(fd);
             }
-            let error = std::io::Error::last_os_error();
-            return Err(
-                RuntimeError::from(PlatformError::io(format!("listen failed: {error}"))).boxed(),
-            );
+            return Err(core_platform::net_error("listen"));
         }
 
         let entry = ResourceEntry::new(ResourceKind::Listener)
@@ -333,7 +736,6 @@ pub(crate) unsafe fn destack_net_listen_raw(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_socket(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -355,7 +757,7 @@ pub(crate) unsafe fn destack_net_socket(
         )
     };
     if fd < 0 {
-        return Err(RuntimeError::from(PlatformError::io("socket failed".to_string())).boxed());
+        return Err(core_platform::net_error("socket"));
     }
 
     // register the socket handle
@@ -391,7 +793,6 @@ pub(crate) unsafe fn destack_net_socket(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_socket_pair(
     binding: &BindingCallContext,
     out: *mut SocketPair,
@@ -404,57 +805,36 @@ pub(crate) unsafe fn destack_net_socket_pair(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // map the family to socketpair-compatible values
-    let family = match family {
-        SocketFamily::Unspecified => libc::AF_UNIX,
-        SocketFamily::IPv4 | SocketFamily::IPv6 => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "family",
-                "socketPair requires SocketFamily.Unspecified",
-            ))
-            .boxed());
-        }
-    };
-
-    // create the pair
-    let mut pair = [0 as RawFd; 2];
-    let result = unsafe {
-        libc::socketpair(
-            family,
-            socket_type.0 as libc::c_int,
-            protocol.0 as libc::c_int,
-            pair.as_mut_ptr(),
-        )
-    };
-    if result != 0 {
-        return Err(RuntimeError::from(PlatformError::io("socketpair failed".to_string())).boxed());
-    }
-
-    // register both sockets
-    let first_entry = ResourceEntry::new(ResourceKind::Socket)
-        .with_socket(pair[0])
-        .with_finalizer(DescriptorFinalizer { fd: pair[0] });
-    let first_id =
-        binding
-            .agent()
-            .resources
-            .insert(binding.world(), first_entry, Some(binding.engine()));
-
-    let second_entry = ResourceEntry::new(ResourceKind::Socket)
-        .with_socket(pair[1])
-        .with_finalizer(DescriptorFinalizer { fd: pair[1] });
-    let second_id =
-        binding
-            .agent()
-            .resources
-            .insert(binding.world(), second_entry, Some(binding.engine()));
-
-    unsafe {
-        *out = SocketPair {
-            first: SocketHandle(first_id),
-            second: SocketHandle(second_id),
+    if family == SocketFamily::Unspecified {
+        let mut pair = [0 as RawFd; 2];
+        let result = unsafe {
+            libc::socketpair(
+                libc::AF_UNIX,
+                socket_type.0 as libc::c_int,
+                protocol.0 as libc::c_int,
+                pair.as_mut_ptr(),
+            )
         };
+        if result != 0 {
+            return Err(core_platform::net_error("socketpair"));
+        }
+
+        register_socket_pair(binding, out, pair[0], pair[1]);
+
+        return Ok(());
     }
 
-    Ok(())
+    let family = socket_family_to_raw(family);
+    let requested_type = socket_type.0 as libc::c_int;
+    let base_type = requested_type & !(SOCKET_TYPE_FLAG_NONBLOCK | SOCKET_TYPE_FLAG_CLOEXEC);
+
+    if base_type == libc::SOCK_STREAM {
+        return socket_pair_stream_loopback(binding, out, family, requested_type, protocol.0);
+    }
+
+    if base_type == libc::SOCK_DGRAM {
+        return socket_pair_dgram_loopback(binding, out, family, requested_type, protocol.0);
+    }
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.socketPair")).boxed())
 }

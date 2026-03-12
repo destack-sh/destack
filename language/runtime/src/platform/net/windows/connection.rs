@@ -1,3 +1,4 @@
+use windows_sys::Win32::Foundation::{HANDLE_FLAG_INHERIT, SetHandleInformation};
 use windows_sys::Win32::Networking::WinSock::{
     IN_ADDR, IN_ADDR_0, IN6_ADDR, IN6_ADDR_0, INVALID_SOCKET, IPPROTO_TCP, SO_REUSEADDR,
     SOCK_DGRAM, SOCK_STREAM, SOCKADDR, SOCKADDR_IN, SOCKADDR_IN6, SOCKADDR_STORAGE, SOCKET_ERROR,
@@ -7,11 +8,12 @@ use windows_sys::Win32::Networking::WinSock::{
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
+use crate::platform::net::core::decode_accept_flags;
 use crate::platform::net::{
     AcceptFlags, SocketAddress, SocketFamily, SocketPair, SocketProtocol, SocketType,
 };
 use crate::platform::resource::{ListenerHandle, ResourceEntry, ResourceKind, SocketHandle};
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 const IPV4_LOOPBACK: [u8; 4] = [127, 0, 0, 1];
@@ -352,21 +354,54 @@ pub(crate) unsafe fn destack_net_accept(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
     listener: ListenerHandle,
-    _flags: AcceptFlags,
+    flags: AcceptFlags,
 ) -> RuntimeResult<()> {
     // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // ensure winsock is initialized
+    // ensure winsock is initialized and decode accept behavior
     ensure_winsock()?;
+    let accept_behavior = decode_accept_flags(flags)?;
 
     // accept the connection
     let socket = listener_descriptor(binding, listener)?;
     let client = unsafe { accept(socket, std::ptr::null_mut(), std::ptr::null_mut()) };
     if client == INVALID_SOCKET {
         return Err(last_net_error("accept"));
+    }
+
+    // apply requested nonblocking mode before publishing the socket
+    if accept_behavior.nonblocking {
+        let mut value: u32 = 1;
+        let rc = unsafe {
+            windows_sys::Win32::Networking::WinSock::ioctlsocket(
+                client,
+                windows_sys::Win32::Networking::WinSock::FIONBIO,
+                &mut value,
+            )
+        };
+        if rc != 0 {
+            unsafe {
+                closesocket(client);
+            }
+            return Err(last_net_error("ioctlsocket"));
+        }
+    }
+
+    // clear handle inheritance when close-on-exec semantics were requested
+    if accept_behavior.cloexec {
+        let rc = unsafe { SetHandleInformation(client as isize, HANDLE_FLAG_INHERIT, 0) };
+        if rc == 0 {
+            unsafe {
+                closesocket(client);
+            }
+            return Err(core_platform::io_error_with_code(
+                "SetHandleInformation",
+                core_platform::last_error_code(),
+            ));
+        }
     }
 
     // register the socket
@@ -465,7 +500,6 @@ pub(crate) unsafe fn destack_net_close_listener(
 }
 
 /// Connect an existing socket to a raw remote address.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_connect_raw(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -505,7 +539,6 @@ pub(crate) unsafe fn destack_net_connect_raw(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_bind(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -529,7 +562,6 @@ pub(crate) unsafe fn destack_net_bind(
 }
 
 /// Start listening on a raw local socket address.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_listen_raw(
     binding: &BindingCallContext,
     out: *mut ListenerHandle,
@@ -639,7 +671,6 @@ pub(crate) unsafe fn destack_net_listen_raw(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_socket(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -695,7 +726,6 @@ pub(crate) unsafe fn destack_net_socket(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_socket_pair(
     binding: &BindingCallContext,
     out: *mut SocketPair,

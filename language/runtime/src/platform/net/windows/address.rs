@@ -1,13 +1,16 @@
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use std::mem;
 use std::net::IpAddr;
 use windows_sys::Win32::Foundation::{
-    ERROR_BUFFER_OVERFLOW, ERROR_CALL_NOT_IMPLEMENTED, ERROR_NOT_SUPPORTED, ERROR_SUCCESS,
+    ERROR_BUFFER_OVERFLOW, ERROR_CALL_NOT_IMPLEMENTED, ERROR_FILE_NOT_FOUND, ERROR_INVALID_NAME,
+    ERROR_INVALID_PARAMETER, ERROR_NOT_FOUND, ERROR_NOT_SUPPORTED, ERROR_SUCCESS,
 };
 use windows_sys::Win32::NetworkManagement::IpHelper::{
-    GAA_FLAG_INCLUDE_PREFIX, GetAdaptersAddresses, IP_ADAPTER_ADDRESSES_LH, if_indextoname,
-    if_nametoindex,
+    ConvertInterfaceAliasToLuid, ConvertInterfaceIndexToLuid, ConvertInterfaceLuidToAlias,
+    ConvertInterfaceLuidToIndex, GAA_FLAG_INCLUDE_PREFIX, GetAdaptersAddresses,
+    IP_ADAPTER_ADDRESSES_LH,
 };
+use windows_sys::Win32::NetworkManagement::Ndis::{IF_MAX_STRING_SIZE, NET_LUID_LH};
 use windows_sys::Win32::Networking::WinSock::{
     ADDRINFOW, AF_INET, AF_INET6, AF_UNSPEC, AI_ADDRCONFIG, AI_ALL, AI_CANONNAME, AI_NUMERICHOST,
     AI_NUMERICSERV, AI_PASSIVE, AI_V4MAPPED, FreeAddrInfoW, GetAddrInfoW, GetNameInfoW, NI_DGRAM,
@@ -54,17 +57,29 @@ fn is_ip_helper_not_supported(status: u32) -> bool {
 
 /// Build one interface-lookup error from one Win32 status code.
 fn interface_lookup_error(
-    syscall: &'static str,
+    field: &'static str,
     operation: &'static str,
     status: u32,
 ) -> Box<RuntimeError> {
-    // map unsupported interfaces to one explicit notSupported lane
-    if status == 0 || is_ip_helper_not_supported(status) {
+    // map unavailable interface conversion APIs explicitly
+    if is_ip_helper_not_supported(status) {
         return core_platform::not_supported(operation);
     }
 
+    // reject missing or invalid interface references explicitly
+    if matches!(
+        status,
+        ERROR_NOT_FOUND | ERROR_FILE_NOT_FOUND | ERROR_INVALID_NAME | ERROR_INVALID_PARAMETER
+    ) {
+        return RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            "interface does not exist",
+        ))
+        .boxed();
+    }
+
     // preserve remaining host status values
-    core_platform::net_error_with_code(syscall, status as i32)
+    core_platform::net_error_with_code(operation, status as i32)
 }
 
 /// Convert one runtime reverse-lookup bitmask into WinSock flags.
@@ -170,22 +185,27 @@ pub(crate) unsafe fn destack_net_interface_index(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // decode and validate the interface name
+    // decode and validate the interface alias
     let name = unsafe { name.as_str()? };
-    let name = CString::new(name).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "name",
-            "interface name contains nul byte",
-        ))
-        .boxed()
-    })?;
+    let name = core_platform::wide_with_nul(name);
 
-    // resolve interface index
-    let index = unsafe { if_nametoindex(name.as_ptr() as *const u8) };
-    if index == 0 {
-        let status = core_platform::last_error_code() as u32;
+    // resolve the alias to one LUID
+    let mut luid = NET_LUID_LH { Value: 0 };
+    let status = unsafe { ConvertInterfaceAliasToLuid(name.as_ptr(), &mut luid) };
+    if status != ERROR_SUCCESS {
         return Err(interface_lookup_error(
-            "if_nametoindex",
+            "name",
+            INTERFACE_INDEX_OPERATION,
+            status,
+        ));
+    }
+
+    // resolve the LUID to one interface index
+    let mut index = 0u32;
+    let status = unsafe { ConvertInterfaceLuidToIndex(&luid, &mut index) };
+    if status != ERROR_SUCCESS {
+        return Err(interface_lookup_error(
+            "name",
             INTERFACE_INDEX_OPERATION,
             status,
         ));
@@ -226,21 +246,43 @@ pub(crate) unsafe fn destack_net_interface_name(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve the interface name
-    let mut buffer = vec![0u8; 256];
-    let pointer = unsafe { if_indextoname(index, buffer.as_mut_ptr()) };
-    if pointer.is_null() {
-        let status = core_platform::last_error_code() as u32;
+    // reject the zero interface index explicitly
+    if index == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "index",
+            "interface does not exist",
+        ))
+        .boxed());
+    }
+
+    // resolve the index to one LUID
+    let mut luid = NET_LUID_LH { Value: 0 };
+    let status = unsafe { ConvertInterfaceIndexToLuid(index, &mut luid) };
+    if status != ERROR_SUCCESS {
         return Err(interface_lookup_error(
-            "if_indextoname",
+            "index",
             INTERFACE_NAME_OPERATION,
             status,
         ));
     }
 
-    // decode and store output string
-    let name = unsafe { CStr::from_ptr(pointer as *const i8) };
-    let name = name.to_string_lossy().to_string();
+    // resolve the LUID to one interface alias
+    let mut buffer = vec![0u16; IF_MAX_STRING_SIZE as usize + 1];
+    let status = unsafe { ConvertInterfaceLuidToAlias(&luid, buffer.as_mut_ptr(), buffer.len()) };
+    if status != ERROR_SUCCESS {
+        return Err(interface_lookup_error(
+            "index",
+            INTERFACE_NAME_OPERATION,
+            status,
+        ));
+    }
+
+    // decode and store the interface alias
+    let terminator = buffer
+        .iter()
+        .position(|value| *value == 0)
+        .unwrap_or(buffer.len());
+    let name = core_platform::string_from_wide("name", &buffer[..terminator])?;
     let name = binding.store_string(&name);
     unsafe {
         *out = name;
@@ -450,12 +492,11 @@ pub(crate) unsafe fn destack_net_peer_address_raw(
 }
 
 /// Resolve host and port into raw socket addresses.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_resolve_raw(
     binding: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
-    host: NativeStringRef,
-    port: u16,
+    host: Option<NativeStringRef>,
+    service: Option<NativeStringRef>,
     family: SocketFamily,
     flags: ResolveFlags,
 ) -> RuntimeResult<()> {
@@ -467,22 +508,55 @@ pub(crate) unsafe fn destack_net_resolve_raw(
     // ensure winsock is initialized
     core_platform::ensure_winsock()?;
 
-    // decode and validate the host
-    let host = unsafe { host.as_str()? };
-    if host.contains('\0') {
+    // require at least one query component
+    if host.is_none() && service.is_none() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "host",
-            "host contains nul byte",
+            "query",
+            "host or service is required",
         ))
         .boxed());
     }
-    if flags.0 & 0x4 != 0 && host.parse::<IpAddr>().is_err() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "host",
-            "numeric host required",
-        ))
-        .boxed());
-    }
+
+    // decode and validate the optional host string
+    let host = match host {
+        Some(host) => {
+            let host = unsafe { host.as_str()? };
+            if host.contains('\0') {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "host",
+                    "host contains nul byte",
+                ))
+                .boxed());
+            }
+            if flags.0 & 0x4 != 0 && host.parse::<IpAddr>().is_err() {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "host",
+                    "numeric host required",
+                ))
+                .boxed());
+            }
+
+            Some(host)
+        }
+        None => None,
+    };
+
+    // decode and validate the optional service string
+    let service = match service {
+        Some(service) => {
+            let service = unsafe { service.as_str()? };
+            if service.contains('\0') {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "service",
+                    "service contains nul byte",
+                ))
+                .boxed());
+            }
+
+            Some(service)
+        }
+        None => None,
+    };
 
     // build addrinfo hints
     let mut hints: ADDRINFOW = unsafe { std::mem::zeroed() };
@@ -517,10 +591,15 @@ pub(crate) unsafe fn destack_net_resolve_raw(
     }
 
     // resolve addresses
-    let host = core_platform::wide_with_nul(host);
-    let service = core_platform::wide_with_nul(&port.to_string());
+    let host = host.map(core_platform::wide_with_nul);
+    let service = service.map(core_platform::wide_with_nul);
+    let host_pointer = host.as_ref().map_or(std::ptr::null(), |host| host.as_ptr());
+    let service_pointer = service
+        .as_ref()
+        .map_or(std::ptr::null(), |service| service.as_ptr());
+
     let mut result: *mut ADDRINFOW = std::ptr::null_mut();
-    let rc = unsafe { GetAddrInfoW(host.as_ptr(), service.as_ptr(), &hints, &mut result) };
+    let rc = unsafe { GetAddrInfoW(host_pointer, service_pointer, &hints, &mut result) };
     if rc != 0 {
         return Err(core_platform::net_error_with_code("GetAddrInfoW", rc));
     }
@@ -552,7 +631,6 @@ pub(crate) unsafe fn destack_net_resolve_raw(
 }
 
 /// Reverse lookup a raw socket address into host and service names.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_reverse_lookup_names_raw(
     binding: &BindingCallContext,
     out: *mut NativeArray<ReverseLookupName>,
@@ -628,7 +706,6 @@ pub(crate) unsafe fn destack_net_reverse_lookup_names_raw(
 }
 
 /// Reverse lookup a raw socket address into hostnames.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_reverse_lookup_raw(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
