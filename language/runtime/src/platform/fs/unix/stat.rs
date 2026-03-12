@@ -467,63 +467,62 @@ pub(crate) unsafe fn destack_fs_statx(
         path,
         "path",
         |path| {
-            #[cfg(unix)]
-            {
-                let directory_fd = directory_descriptor(binding, dir)?;
-                let path = path_bytes_to_cstring(path, "path")?;
-                let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
-                let result = unsafe {
-                    libc::fstatat(
-                        directory_fd,
-                        path.as_ptr(),
-                        stat.as_mut_ptr(),
-                        flags.0 as libc::c_int,
-                    )
+            let directory_fd = directory_descriptor(binding, dir)?;
+            let path = path_bytes_to_cstring(path, "path")?;
+            let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
+            let result = unsafe {
+                libc::fstatat(
+                    directory_fd,
+                    path.as_ptr(),
+                    stat.as_mut_ptr(),
+                    flags.0 as libc::c_int,
+                )
+            };
+            if result != 0 {
+                return Err(core_platform::io_error("fstatat", None));
+            }
+            let stat = unsafe { stat.assume_init() };
+
+            let atime_ns = nanos_from_secs_and_nanos(stat.st_atime, stat.st_atime_nsec);
+            let btime_ns = 0;
+            let ctime_ns = nanos_from_secs_and_nanos(stat.st_ctime, stat.st_ctime_nsec);
+            let mtime_ns = nanos_from_secs_and_nanos(stat.st_mtime, stat.st_mtime_nsec);
+
+            unsafe {
+                *out = Statx {
+                    mask: STATX_BASIC_STATS,
+                    blksize: stat.st_blksize as u32,
+                    mount_id: 0,
+                    dev_major: ((stat.st_dev >> 8) & 0xfff) as u32,
+                    dev_minor: ((stat.st_dev & 0xff) | ((stat.st_dev >> 12) & 0xfff00)) as u32,
+                    ino: stat.st_ino,
+                    mode: FileMode(file_mode_u32(stat.st_mode)),
+                    nlink: file_nlink_u32(stat.st_nlink),
+                    uid: stat.st_uid,
+                    gid: stat.st_gid,
+                    rdev_major: ((stat.st_rdev >> 8) & 0xfff) as u32,
+                    rdev_minor: ((stat.st_rdev & 0xff) | ((stat.st_rdev >> 12) & 0xfff00)) as u32,
+                    size: FileSize(stat_u64(stat.st_size)),
+                    blocks: stat_u64(stat.st_blocks),
+                    atime_ns,
+                    btime_ns,
+                    ctime_ns,
+                    mtime_ns,
                 };
-                if result != 0 {
-                    return Err(RuntimeError::from(PlatformError::io(
-                        "fstatat failed".to_string(),
-                    ))
-                    .boxed());
-                }
-                let stat = unsafe { stat.assume_init() };
-
-                let atime_ns = nanos_from_secs_and_nanos(stat.st_atime, stat.st_atime_nsec);
-                let btime_ns = 0;
-                let ctime_ns = nanos_from_secs_and_nanos(stat.st_ctime, stat.st_ctime_nsec);
-                let mtime_ns = nanos_from_secs_and_nanos(stat.st_mtime, stat.st_mtime_nsec);
-
-                unsafe {
-                    *out = Statx {
-                        mask: StatxMask(0),
-                        blksize: stat.st_blksize as u32,
-                        mount_id: 0,
-                        dev_major: ((stat.st_dev >> 8) & 0xfff) as u32,
-                        dev_minor: ((stat.st_dev & 0xff) | ((stat.st_dev >> 12) & 0xfff00)) as u32,
-                        ino: stat.st_ino,
-                        mode: FileMode(file_mode_u32(stat.st_mode)),
-                        nlink: file_nlink_u32(stat.st_nlink),
-                        uid: stat.st_uid,
-                        gid: stat.st_gid,
-                        rdev_major: ((stat.st_rdev >> 8) & 0xfff) as u32,
-                        rdev_minor: ((stat.st_rdev & 0xff) | ((stat.st_rdev >> 12) & 0xfff00))
-                            as u32,
-                        size: FileSize(stat_u64(stat.st_size)),
-                        blocks: stat_u64(stat.st_blocks),
-                        atime_ns,
-                        btime_ns,
-                        ctime_ns,
-                        mtime_ns,
-                    };
-                }
-                Ok(())
             }
-            #[cfg(not(unix))]
-            {
-                let _ = (binding, dir, path, flags);
-                Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statx")).boxed())
-            }
+            Ok(())
         },
-        |_path| Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statx")).boxed()),
+        |path| unsafe {
+            core_fs::with_utf16_as_bytes(path, "path", |path| {
+                destack_fs_statx(
+                    binding,
+                    out,
+                    dir,
+                    core_fs::path_ref_from_bytes(path),
+                    flags,
+                    _mask,
+                )
+            })
+        },
     )
 }

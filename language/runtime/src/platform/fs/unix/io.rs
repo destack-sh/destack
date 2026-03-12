@@ -1,7 +1,7 @@
 use super::core::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::*;
+use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
 use crate::runtime::{BindingCallContext, NativeSlice};
@@ -37,7 +37,6 @@ const SPLICE_SUPPORTED_FLAGS: u32 =
     SPLICE_FLAG_MOVE | SPLICE_FLAG_NONBLOCK | SPLICE_FLAG_MORE | SPLICE_FLAG_GIFT;
 
 /// Resolve one descriptor endpoint for splice-style operations.
-#[cfg(unix)]
 fn splice_descriptor(
     binding: &BindingCallContext,
     handle: ResourceId,
@@ -587,9 +586,10 @@ pub(crate) unsafe fn destack_fs_preadv2(
     #[cfg(not(target_os = "linux"))]
     {
         if flags.0 != 0 {
-            return Err(
-                RuntimeError::from(PlatformError::not_supported("destack.fs.preadv2")).boxed(),
-            );
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.fs.file.preadv2",
+            ))
+            .boxed());
         }
 
         unsafe { destack_fs_preadv(binding, out, handle, buffers, offset) }
@@ -597,7 +597,6 @@ pub(crate) unsafe fn destack_fs_preadv2(
 }
 
 /// Write from multiple buffers with explicit write flags.
-#[cfg(unix)]
 /// Write from multiple buffers at the given file offset with explicit write flags.
 ///
 /// Write bytes from a gather buffer list at an explicit file offset and apply host write flags.
@@ -670,9 +669,10 @@ pub(crate) unsafe fn destack_fs_pwritev2(
     #[cfg(not(target_os = "linux"))]
     {
         if flags.0 != 0 {
-            return Err(
-                RuntimeError::from(PlatformError::not_supported("destack.fs.pwritev2")).boxed(),
-            );
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.fs.file.pwritev2",
+            ))
+            .boxed());
         }
 
         unsafe { destack_fs_pwritev(binding, out, handle, buffers, offset) }
@@ -680,7 +680,6 @@ pub(crate) unsafe fn destack_fs_pwritev2(
 }
 
 /// Move data between resource handles.
-#[cfg(unix)]
 /// Transfer bytes between descriptors using kernel splice pipelines.
 ///
 /// Move bytes between descriptor endpoints and optionally update explicit cursors for each side.
@@ -732,7 +731,8 @@ pub(crate) unsafe fn destack_fs_splice(
         let mut target_offset = targetcursor.offset.map(|value| value.0);
         let mut remaining = length.0;
         let mut total = 0u64;
-        let mut buffer = vec![0u8; 1024 * 1024];
+        let buffer_length = core_fs::copy_fallback_buffer_length(length.0);
+        let mut buffer = vec![0u8; buffer_length];
         while remaining > 0 {
             // read one source chunk
             let chunk = remaining.min(buffer.len() as u64) as usize;
@@ -892,7 +892,6 @@ pub(crate) unsafe fn destack_fs_splice(
 }
 
 /// Duplicate pipe data between pipe handles.
-#[cfg(unix)]
 /// Duplicate bytes from one pipe to another without consuming source bytes.
 ///
 /// Clone bytes between two pipe descriptors while preserving source pipe contents.
@@ -967,7 +966,6 @@ pub(crate) unsafe fn destack_fs_tee(
 }
 
 /// Move user buffers into a pipe.
-#[cfg(unix)]
 /// Map user memory pages into a pipe as queued pipe buffers.
 ///
 /// Publish one set of user buffers into a pipe endpoint for downstream splice pipelines.

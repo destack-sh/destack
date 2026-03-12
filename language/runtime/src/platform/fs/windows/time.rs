@@ -9,6 +9,28 @@ use crate::platform::fs::{
 };
 use crate::runtime::BindingCallContext;
 
+/// Validate one `utimensat` flag payload on Windows.
+fn validate_utimensat_flags(flags: AtFlags) -> RuntimeResult<bool> {
+    // reject unknown flag bits explicitly
+    let unknown_bits = flags.0 & !(AT_SYMLINK_NOFOLLOW | AT_REMOVEDIR);
+    if unknown_bits != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            format!("unsupported destack.fs.utimensat flags: {unknown_bits:#x}"),
+        ))
+        .boxed());
+    }
+
+    // surface known but unsupported directory-removal semantics directly
+    if flags.0 & AT_REMOVEDIR != 0 {
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.utimensat")).boxed(),
+        );
+    }
+
+    Ok(flags.0 & AT_SYMLINK_NOFOLLOW != 0)
+}
+
 /// Update access and modification times.
 ///
 /// Update access and modification times via host kernel APIs.
@@ -178,11 +200,22 @@ pub(crate) unsafe fn destack_fs_utimensat_bytes(
     mtime_ns: u64,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    // reject unsupported flags on windows
-    if flags.0 != 0 {
-        return Err(
-            RuntimeError::from(PlatformError::not_supported("destack.fs.utimensat")).boxed(),
-        );
+    let nofollow = validate_utimensat_flags(flags)?;
+
+    // preserve nofollow semantics through the lutimes path
+    if nofollow {
+        let pathbuf = pathbuf_from_bytes(path, "path")?;
+        let full_path = if pathbuf.is_absolute() {
+            pathbuf
+        } else {
+            let mut base = directory_path(binding, dir)?;
+            base.push(pathbuf);
+            base
+        };
+        let bytes = bytes_from_pathbuf(&full_path, "path")?;
+        let path = PathBytesAbi::<NativeAbi>(binding.store_array(bytes));
+
+        return unsafe { destack_fs_lutimes_bytes(binding, path, atime_ns, mtime_ns) };
     }
 
     // resolve the path and delegate to utimes
@@ -224,11 +257,21 @@ pub(crate) unsafe fn destack_fs_utimensat_utf16(
     mtime_ns: u64,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    // reject unsupported flags on windows
-    if flags.0 != 0 {
-        return Err(
-            RuntimeError::from(PlatformError::not_supported("destack.fs.utimensat")).boxed(),
-        );
+    let nofollow = validate_utimensat_flags(flags)?;
+
+    // preserve nofollow semantics through the lutimes path
+    if nofollow {
+        let pathbuf = pathbuf_from_utf16(path, "path")?;
+        let full_path = if pathbuf.is_absolute() {
+            pathbuf
+        } else {
+            let mut base = directory_path(binding, dir)?;
+            base.push(pathbuf);
+            base
+        };
+        let path = path_utf16_from_pathbuf(binding, &full_path);
+
+        return unsafe { destack_fs_lutimes_utf16(binding, path, atime_ns, mtime_ns) };
     }
 
     // resolve the path and delegate to utimes

@@ -8,13 +8,85 @@ use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::fs::{
-    AtFlags, DirectoryHandle, OsPath, PathBytes, PathUtf16, Stat, StatFs, Statx, StatxFlags,
-    StatxMask, core as core_fs,
+    AtFlags, DirectoryHandle, OsPath, PathBytes, PathUtf16, STATX_BASIC_STATS, STATX_BTIME, Stat,
+    StatFs, Statx, StatxFlags, StatxMask, core as core_fs,
 };
 use crate::runtime::BindingCallContext;
 
+/// Known `statx` flag bits exported by the fs surface.
+const STATX_KNOWN_FLAGS: u32 = 0x1 | 0x10 | 0x2000 | 0x4000;
+/// `statx` flag bit for nofollow semantics.
+const STATX_FLAG_NOFOLLOW: u32 = 0x1;
+/// `statx` flag bit for empty-path semantics.
+const STATX_FLAG_EMPTY_PATH: u32 = 0x10;
+/// `statx` flag bit for force-sync semantics.
+const STATX_FLAG_FORCE_SYNC: u32 = 0x2000;
+/// `statx` flag bit for dont-sync semantics.
+const STATX_FLAG_DONT_SYNC: u32 = 0x4000;
+
+/// Decoded Windows `statx` flag payload.
+struct DecodedStatxFlags {
+    /// Mapped `statat` flags for the fallback path.
+    at_flags: AtFlags,
+    /// Whether empty paths should resolve to the directory handle itself.
+    allow_empty_path: bool,
+}
+
+/// Validate one stat-only `AtFlags` payload on Windows.
+fn validate_stat_only_at_flags(flags: AtFlags, binding_name: &'static str) -> RuntimeResult<bool> {
+    // reject unknown bits explicitly
+    let unknown_bits = flags.0 & !(AT_SYMLINK_NOFOLLOW | AT_REMOVEDIR);
+    if unknown_bits != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            format!("unknown at-flag bits: {unknown_bits:#x}"),
+        ))
+        .boxed());
+    }
+
+    // reject known but unsupported flags for stat-style lanes
+    if flags.0 & AT_REMOVEDIR != 0 {
+        return Err(RuntimeError::from(PlatformError::not_supported(binding_name)).boxed());
+    }
+
+    Ok(flags.0 & AT_SYMLINK_NOFOLLOW != 0)
+}
+
+/// Validate one `statx` flag payload on Windows.
+fn validate_statx_flags(flags: StatxFlags) -> RuntimeResult<DecodedStatxFlags> {
+    // reject unknown statx bits explicitly
+    let unknown_bits = flags.0 & !STATX_KNOWN_FLAGS;
+    if unknown_bits != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            format!("unknown statx flag bits: {unknown_bits:#x}"),
+        ))
+        .boxed());
+    }
+
+    // reject known but unsupported statx modes
+    let unsupported_bits = flags.0 & (STATX_FLAG_FORCE_SYNC | STATX_FLAG_DONT_SYNC);
+    if unsupported_bits != 0 {
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.fs.stat.pathx")).boxed(),
+        );
+    }
+
+    let mut at_flags = AtFlags(0);
+    if flags.0 & STATX_FLAG_NOFOLLOW != 0 {
+        at_flags.0 |= AT_SYMLINK_NOFOLLOW;
+    }
+
+    Ok(DecodedStatxFlags {
+        at_flags,
+        allow_empty_path: flags.0 & STATX_FLAG_EMPTY_PATH != 0,
+    })
+}
+
 /// Map one fallback `Stat` snapshot into `Statx`.
 fn statx_from_fallback_stat(stat: Stat) -> Statx {
+    let mask = STATX_BASIC_STATS.0 | STATX_BTIME.0;
+
     // derive major and minor pairs from encoded device ids
     let dev_major = ((stat.dev >> 8) & 0xfff) as u32;
     let dev_minor = ((stat.dev & 0xff) | ((stat.dev >> 12) & 0xfff00)) as u32;
@@ -26,7 +98,7 @@ fn statx_from_fallback_stat(stat: Stat) -> Statx {
 
     // map stat fields into the fallback statx payload
     Statx {
-        mask: StatxMask(0),
+        mask: StatxMask(mask),
         blksize,
         mount_id: 0,
         dev_major,
@@ -322,8 +394,8 @@ pub(crate) unsafe fn destack_fs_statat_bytes(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // decode the path and flags
-    let no_follow = flags.0 & AT_SYMLINK_NOFOLLOW != 0;
+    // validate the path flags
+    let no_follow = validate_stat_only_at_flags(flags, "destack.fs.statat")?;
     let pathbuf = pathbuf_from_bytes(path, "path")?;
 
     // use the absolute path when available
@@ -396,8 +468,8 @@ pub(crate) unsafe fn destack_fs_statat_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // decode the path and flags
-    let no_follow = flags.0 & AT_SYMLINK_NOFOLLOW != 0;
+    // validate the path flags
+    let no_follow = validate_stat_only_at_flags(flags, "destack.fs.statat")?;
     let pathbuf = pathbuf_from_utf16(path, "path")?;
 
     // use the absolute path when available
@@ -593,25 +665,58 @@ pub(crate) unsafe fn destack_fs_statx(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // map statx flags to the statat no-follow lane
-    if flags.0 & !AT_SYMLINK_NOFOLLOW != 0 {
-        return Err(
-            RuntimeError::from(PlatformError::not_supported("destack.fs.statx flags")).boxed(),
-        );
-    }
+    // validate statx flags before mapping them into statat
+    let flags = validate_statx_flags(flags)?;
 
-    // map supported statx flags into at-flag semantics
-    let mut at_flags = AtFlags(0);
-    if flags.0 & AT_SYMLINK_NOFOLLOW != 0 {
-        at_flags.0 |= AT_SYMLINK_NOFOLLOW;
-    }
+    // allow empty-path statx to target the directory handle itself
+    let stat = match path {
+        OsPath::OsPathBytes(path) if flags.allow_empty_path => {
+            let bytes = unsafe { path.bytes.0.as_slice()? };
+            if bytes.is_empty() {
+                let handle = directory_handle(binding, dir)?;
+                stat_from_handle(handle)?
+            } else {
+                let mut stat = std::mem::MaybeUninit::<Stat>::uninit();
+                unsafe {
+                    destack_fs_statat(
+                        binding,
+                        stat.as_mut_ptr(),
+                        dir,
+                        OsPath::OsPathBytes(path),
+                        flags.at_flags,
+                    )?;
+                }
+                unsafe { stat.assume_init() }
+            }
+        }
+        OsPath::OsPathUtf16(path) if flags.allow_empty_path => {
+            let units = utf16_units(path.utf16, "path")?;
+            if units.is_empty() {
+                let handle = directory_handle(binding, dir)?;
+                stat_from_handle(handle)?
+            } else {
+                let mut stat = std::mem::MaybeUninit::<Stat>::uninit();
+                unsafe {
+                    destack_fs_statat(
+                        binding,
+                        stat.as_mut_ptr(),
+                        dir,
+                        OsPath::OsPathUtf16(path),
+                        flags.at_flags,
+                    )?;
+                }
+                unsafe { stat.assume_init() }
+            }
+        }
+        path => {
+            let mut stat = std::mem::MaybeUninit::<Stat>::uninit();
+            unsafe {
+                destack_fs_statat(binding, stat.as_mut_ptr(), dir, path, flags.at_flags)?;
+            }
+            unsafe { stat.assume_init() }
+        }
+    };
 
-    // read fallback stat metadata through the statat implementation
-    let mut stat = std::mem::MaybeUninit::<Stat>::uninit();
-    unsafe {
-        destack_fs_statat(binding, stat.as_mut_ptr(), dir, path, at_flags)?;
-    }
-    let stat = unsafe { stat.assume_init() };
     let statx = statx_from_fallback_stat(stat);
 
     // write the fallback statx payload

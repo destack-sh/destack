@@ -10,14 +10,154 @@ use std::ffi::CString;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
 
+/// Copyfile flag to reject replacing an existing destination.
+const COPYFILE_FAIL_IF_EXISTS: u32 = 0x1;
+
+/// Copy one descriptor range through the portable pread or pwrite fallback.
+fn copy_range_fallback(
+    src_fd: RawFd,
+    mut src_offset: libc::off_t,
+    dst_fd: RawFd,
+    mut dst_offset: libc::off_t,
+    length: u64,
+) -> RuntimeResult<u64> {
+    // copy the requested range in bounded chunks
+    let mut remaining = length;
+    let mut total = 0u64;
+    let buffer_length = core_fs::copy_fallback_buffer_length(length);
+    let mut buffer = vec![0u8; buffer_length];
+
+    while remaining > 0 {
+        // read one source chunk
+        let chunk = remaining.min(buffer.len() as u64) as usize;
+        let rc = unsafe {
+            libc::pread(
+                src_fd,
+                buffer.as_mut_ptr() as *mut libc::c_void,
+                chunk,
+                src_offset,
+            )
+        };
+        if rc < 0 {
+            return Err(core_platform::io_error("pread", None));
+        }
+        if rc == 0 {
+            break;
+        }
+
+        // write the full chunk to the destination
+        let bytes = rc as usize;
+        let mut written = 0usize;
+        while written < bytes {
+            let wc = unsafe {
+                libc::pwrite(
+                    dst_fd,
+                    buffer[written..bytes].as_ptr() as *const libc::c_void,
+                    bytes - written,
+                    dst_offset + written as libc::off_t,
+                )
+            };
+            if wc < 0 {
+                return Err(core_platform::io_error("pwrite", None));
+            }
+            if wc == 0 {
+                return Err(RuntimeError::from(PlatformError::io(
+                    "copy_file_range fallback write returned zero bytes".to_string(),
+                ))
+                .boxed());
+            }
+
+            written = written.saturating_add(wc as usize);
+        }
+
+        src_offset += bytes as libc::off_t;
+        dst_offset += bytes as libc::off_t;
+        total += bytes as u64;
+        remaining = remaining.saturating_sub(bytes as u64);
+    }
+
+    Ok(total)
+}
+
+/// Return whether one copy_file_range failure should fall back to userspace copying.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn should_fallback_from_copy_file_range(errno: i32) -> bool {
+    matches!(
+        errno,
+        libc::ENOSYS | libc::EXDEV | libc::EINVAL | libc::EOPNOTSUPP | libc::EPERM
+    )
+}
+
+/// Copy one descriptor range through copy_file_range when the host supports it.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn copy_range_with_kernel_fast_path(
+    src_fd: RawFd,
+    mut src_offset: libc::off_t,
+    dst_fd: RawFd,
+    mut dst_offset: libc::off_t,
+    length: u64,
+) -> RuntimeResult<u64> {
+    // copy the requested range and retain explicit offsets
+    let mut remaining = length;
+    let mut total = 0u64;
+
+    while remaining > 0 {
+        // bound one syscall length to host size_t range
+        let chunk = remaining.min(usize::MAX as u64) as usize;
+        let rc = unsafe {
+            libc::copy_file_range(
+                src_fd,
+                &mut src_offset as *mut libc::off_t,
+                dst_fd,
+                &mut dst_offset as *mut libc::off_t,
+                chunk,
+                0,
+            )
+        };
+
+        // fall back to the portable loop only when the kernel rejects the primitive itself
+        if rc < 0 {
+            let errno = core_platform::get_errno();
+            if total == 0 && should_fallback_from_copy_file_range(errno) {
+                return copy_range_fallback(src_fd, src_offset, dst_fd, dst_offset, remaining);
+            }
+
+            return Err(core_platform::io_error("copy_file_range", None));
+        }
+
+        // stop at eof
+        if rc == 0 {
+            break;
+        }
+
+        let copied = rc as u64;
+        total += copied;
+        remaining = remaining.saturating_sub(copied);
+    }
+
+    Ok(total)
+}
+
+/// Copy one descriptor range on hosts without copy_file_range support.
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+fn copy_range_with_kernel_fast_path(
+    src_fd: RawFd,
+    src_offset: libc::off_t,
+    dst_fd: RawFd,
+    dst_offset: libc::off_t,
+    length: u64,
+) -> RuntimeResult<u64> {
+    copy_range_fallback(src_fd, src_offset, dst_fd, dst_offset, length)
+}
+
 /// Copy a file.
 ///
-/// Copy file contents and requested metadata behavior from source path to destination path.
-/// Copy flags control overwrite behavior and host fast-copy strategies.
+/// Copy file contents from source path to destination path.
+/// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+/// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -38,7 +178,8 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
     let to_path = resolve_path_bytes(to, "to")?;
 
     // reject unsupported flags
-    if flags.0 != 0 {
+    let supported_flags = COPYFILE_FAIL_IF_EXISTS;
+    if flags.0 & !supported_flags != 0 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "flags",
             "unsupported copyfile flags",
@@ -92,13 +233,11 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
         ))
         .boxed()
     })?;
-    let dst_fd = unsafe {
-        libc::open(
-            to_c.as_ptr(),
-            libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC,
-            mode as libc::c_uint,
-        )
-    };
+    let mut dst_open_flags = libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC;
+    if flags.0 & COPYFILE_FAIL_IF_EXISTS != 0 {
+        dst_open_flags |= libc::O_EXCL;
+    }
+    let dst_fd = unsafe { libc::open(to_c.as_ptr(), dst_open_flags, mode as libc::c_uint) };
     if dst_fd < 0 {
         return Err(core_platform::io_error(
             "open",
@@ -107,48 +246,16 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
     }
     let _dst_guard = FdGuard(dst_fd);
 
-    // copy the file contents in chunks
-    let mut buffer = vec![0u8; 64 * 1024];
-    loop {
-        let rc = unsafe {
-            libc::read(
-                src_fd,
-                buffer.as_mut_ptr() as *mut libc::c_void,
-                buffer.len(),
-            )
-        };
-        if rc == 0 {
-            break;
-        }
-        if rc < 0 {
-            let errno = core_platform::get_errno();
-            if errno == libc::EINTR {
-                continue;
-            }
-            return Err(core_platform::io_error(
-                "read",
-                Some(from_path.to_string_lossy().as_ref()),
-            ));
-        }
+    // copy the file contents with the best host primitive available
+    copy_range_with_kernel_fast_path(src_fd, 0, dst_fd, 0, stat.st_size.max(0) as u64)?;
 
-        let mut written = 0;
-        let total = rc as usize;
-        while written < total {
-            let slice = &buffer[written..total];
-            let wc =
-                unsafe { libc::write(dst_fd, slice.as_ptr() as *const libc::c_void, slice.len()) };
-            if wc < 0 {
-                let errno = core_platform::get_errno();
-                if errno == libc::EINTR {
-                    continue;
-                }
-                return Err(core_platform::io_error(
-                    "write",
-                    Some(to_path.to_string_lossy().as_ref()),
-                ));
-            }
-            written += wc as usize;
-        }
+    // restore the source permission bits after open so umask does not leak into the copy
+    let rc = unsafe { libc::fchmod(dst_fd, mode as libc::mode_t) };
+    if rc != 0 {
+        return Err(core_platform::io_error(
+            "fchmod",
+            Some(to_path.to_string_lossy().as_ref()),
+        ));
     }
 
     Ok(())
@@ -156,12 +263,12 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
 
 /// Copy a file.
 ///
-/// Copy file contents and requested metadata behavior from source path to destination path.
-/// Copy flags control overwrite behavior and host fast-copy strategies.
+/// Copy file contents from source path to destination path.
+/// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+/// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -178,7 +285,8 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
     flags: CopyFlags,
 ) -> RuntimeResult<()> {
     // reject unsupported flags
-    if flags.0 != 0 {
+    let supported_flags = COPYFILE_FAIL_IF_EXISTS;
+    if flags.0 & !supported_flags != 0 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "flags",
             "unsupported copyfile flags",
@@ -226,52 +334,11 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
     // resolve file descriptors
     let src_fd = file_descriptor(binding, src)?;
     let dst_fd = file_descriptor(binding, dst)?;
-    let mut src_offset = offset_to_off_t(src_offset)?;
-    let mut dst_offset = offset_to_off_t(dst_offset)?;
+    let src_offset = offset_to_off_t(src_offset)?;
+    let dst_offset = offset_to_off_t(dst_offset)?;
 
-    // copy the requested range in chunks
-    let mut remaining = length.0;
-    let mut total = 0u64;
-    let mut buffer = vec![0u8; 1024 * 1024];
-    while remaining > 0 {
-        let chunk = remaining.min(buffer.len() as u64) as usize;
-        let rc = unsafe {
-            libc::pread(
-                src_fd,
-                buffer.as_mut_ptr() as *mut libc::c_void,
-                chunk,
-                src_offset,
-            )
-        };
-        if rc < 0 {
-            return Err(core_platform::io_error("pread", None));
-        }
-        if rc == 0 {
-            break;
-        }
-
-        let bytes = rc as usize;
-        let wc = unsafe {
-            libc::pwrite(
-                dst_fd,
-                buffer.as_ptr() as *const libc::c_void,
-                bytes,
-                dst_offset,
-            )
-        };
-        if wc < 0 {
-            return Err(core_platform::io_error("pwrite", None));
-        }
-
-        let written = wc as u64;
-        src_offset += written as libc::off_t;
-        dst_offset += written as libc::off_t;
-        total += written;
-        remaining = remaining.saturating_sub(written);
-        if written as usize != bytes {
-            break;
-        }
-    }
+    // copy the requested range with the best host primitive available
+    let total = copy_range_with_kernel_fast_path(src_fd, src_offset, dst_fd, dst_offset, length.0)?;
 
     unsafe {
         *out = total;
@@ -375,7 +442,8 @@ pub(crate) unsafe fn destack_fs_sendfile(
             let mut remaining = length.0;
             let mut total = 0u64;
             let mut file_offset = offset_to_off_t(offset)?;
-            let mut buffer = vec![0u8; 1024 * 1024];
+            let buffer_length = core_fs::copy_fallback_buffer_length(length.0);
+            let mut buffer = vec![0u8; buffer_length];
 
             while remaining > 0 {
                 let chunk = remaining.min(buffer.len() as u64) as usize;
@@ -668,12 +736,12 @@ pub(super) fn decode_xattr_list_bytes(
 
 /// Copy a file.
 ///
-/// Copy file contents and requested metadata behavior from source path to destination path.
-/// Copy flags control overwrite behavior and host fast-copy strategies.
+/// Copy file contents from source path to destination path.
+/// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+/// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.

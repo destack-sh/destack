@@ -1,9 +1,9 @@
 use super::core::*;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
-use crate::platform::{core as core_platform, *};
 use crate::runtime::BindingCallContext;
 
 /// Check file access permissions.
@@ -254,7 +254,6 @@ pub(crate) unsafe fn destack_fs_chown_utf16(
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
-    // apply ownership by converting utf16 path input
     core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
         destack_fs_chown_bytes(binding, path, uid, gid)
     })
@@ -285,7 +284,6 @@ pub(crate) unsafe fn destack_fs_fchownat_bytes(
     gid: u32,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    // apply ownership relative to the directory on unix platforms
     let resource = directory_resource(binding, dir)?;
     let c_path = resolve_path_bytes_cstring(path, "path")?;
     let rc = unsafe { libc::fchownat(resource.fd, c_path.as_ptr(), uid, gid, flags.0 as i32) };
@@ -511,35 +509,32 @@ pub(crate) unsafe fn destack_fs_accessat(
         path,
         "path",
         |path| {
-            #[cfg(unix)]
-            {
-                let directory_fd = directory_descriptor(binding, dir)?;
-                let path = path_bytes_to_cstring(path, "path")?;
-                let result = unsafe {
-                    libc::faccessat(
-                        directory_fd,
-                        path.as_ptr(),
-                        mode.0 as libc::c_int,
-                        flags.0 as libc::c_int,
-                    )
-                };
-                if result != 0 {
-                    return Err(RuntimeError::from(PlatformError::io(
-                        "faccessat failed".to_string(),
-                    ))
-                    .boxed());
-                }
+            let directory_fd = directory_descriptor(binding, dir)?;
+            let path = path_bytes_to_cstring(path, "path")?;
+            let result = unsafe {
+                libc::faccessat(
+                    directory_fd,
+                    path.as_ptr(),
+                    mode.0 as libc::c_int,
+                    flags.0 as libc::c_int,
+                )
+            };
+            if result != 0 {
+                return Err(core_platform::io_error("faccessat", None));
+            }
 
-                Ok(())
-            }
-            #[cfg(not(unix))]
-            {
-                let _ = (binding, dir, path, mode, flags);
-                Err(RuntimeError::from(PlatformError::not_supported("destack.fs.accessat")).boxed())
-            }
+            Ok(())
         },
-        |_path| {
-            Err(RuntimeError::from(PlatformError::not_supported("destack.fs.accessat")).boxed())
+        |path| unsafe {
+            core_fs::with_utf16_as_bytes(path, "path", |path| {
+                destack_fs_accessat(
+                    binding,
+                    dir,
+                    core_fs::path_ref_from_bytes(path),
+                    mode,
+                    flags,
+                )
+            })
         },
     )
 }

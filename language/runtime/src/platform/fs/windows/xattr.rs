@@ -16,7 +16,7 @@ use windows_sys::Win32::System::IO::IO_STATUS_BLOCK;
 use super::util::{file_handle, last_os_error, wide_from_bytes, wide_from_utf16};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::fs::{OsPath, PathBytes, PathUtf16, XattrFlags};
+use crate::platform::fs::{OsPath, PathBytes, PathUtf16, XattrFlags, core as core_fs};
 use crate::platform::resource::FileHandle;
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
@@ -26,6 +26,7 @@ const STATUS_BUFFER_OVERFLOW: NTSTATUS = 0x8000_0005u32 as i32;
 const STATUS_BUFFER_TOO_SMALL: NTSTATUS = 0xC000_0023u32 as i32;
 const STATUS_EA_NOT_FOUND: NTSTATUS = 0xC000_0051u32 as i32;
 const STATUS_NO_EAS_ON_FILE: NTSTATUS = 0xC000_0052u32 as i32;
+const EA_QUERY_INITIAL_BUFFER_CAPACITY: usize = 256;
 
 fn nt_status_error(status: NTSTATUS, syscall: &str) -> Box<RuntimeError> {
     // convert the NTSTATUS into a Win32 error code
@@ -120,21 +121,6 @@ fn xattr_name_strings_from_bytes(
     Ok(binding.store_array(decoded))
 }
 
-fn validate_xattr_flags(flags: XattrFlags) -> RuntimeResult<()> {
-    // reject conflicting flags
-    let create = flags.0 & 0x1 != 0;
-    let replace = flags.0 & 0x2 != 0;
-    if create && replace {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "flags",
-            "XATTR_CREATE and XATTR_REPLACE are mutually exclusive",
-        ))
-        .boxed());
-    }
-
-    Ok(())
-}
-
 fn open_xattr_path(path: &[u16], write: bool, follow_symlink: bool) -> RuntimeResult<HANDLE> {
     // compute access flags
     let access = if write {
@@ -199,7 +185,8 @@ fn query_ea_entry(handle: HANDLE, name: &[u8]) -> RuntimeResult<Vec<u8>> {
     let ealist = build_get_ea_list(name)?;
 
     // attempt to read the entry with a growing buffer
-    let mut buffer_len = 256usize.max(ealist.len() + 64);
+    let mut buffer_len = EA_QUERY_INITIAL_BUFFER_CAPACITY
+        .max(ealist.len() + mem::size_of::<FILE_FULL_EA_INFORMATION>());
     loop {
         // allocate the output buffer
         let mut buffer = vec![0u8; buffer_len];
@@ -245,8 +232,8 @@ fn query_ea_entry(handle: HANDLE, name: &[u8]) -> RuntimeResult<Vec<u8>> {
 }
 
 fn query_ea_list(handle: HANDLE) -> RuntimeResult<Vec<u8>> {
-    // start with a reasonable buffer size
-    let mut buffer_len = 4096usize;
+    // start small and grow from the kernel hint when needed
+    let mut buffer_len = EA_QUERY_INITIAL_BUFFER_CAPACITY;
 
     loop {
         // allocate the output buffer
@@ -355,8 +342,8 @@ fn xattr_exists(handle: HANDLE, name: &[u8]) -> RuntimeResult<bool> {
     // build the EA list buffer
     let ealist = build_get_ea_list(name)?;
 
-    // issue a small query to detect existence
-    let mut buffer = vec![0u8; 64];
+    // issue a header-sized query to detect existence
+    let mut buffer = vec![0u8; mem::size_of::<FILE_FULL_EA_INFORMATION>()];
     let mut iosb = IO_STATUS_BLOCK {
         Anonymous: windows_sys::Win32::System::IO::IO_STATUS_BLOCK_0 { Status: 0 },
         Information: 0,
@@ -771,7 +758,7 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
     // run the set operation
     with_handle(handle, |handle| {
         // validate flags
-        validate_xattr_flags(flags)?;
+        core_fs::validate_xattr_flags(flags)?;
 
         // enforce create/replace flags
         if flags.0 & 0x1 != 0 || flags.0 & 0x2 != 0 {
@@ -826,7 +813,7 @@ pub(crate) unsafe fn destack_fs_setxattr_utf16(
     // run the set operation
     with_handle(handle, |handle| {
         // validate flags
-        validate_xattr_flags(flags)?;
+        core_fs::validate_xattr_flags(flags)?;
 
         // enforce create/replace flags
         if flags.0 & 0x1 != 0 || flags.0 & 0x2 != 0 {
@@ -881,7 +868,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
     // run the set operation
     with_handle(handle, |handle| {
         // validate flags
-        validate_xattr_flags(flags)?;
+        core_fs::validate_xattr_flags(flags)?;
 
         // enforce create/replace flags
         if flags.0 & 0x1 != 0 || flags.0 & 0x2 != 0 {
@@ -936,7 +923,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
     // run the set operation
     with_handle(handle, |handle| {
         // validate flags
-        validate_xattr_flags(flags)?;
+        core_fs::validate_xattr_flags(flags)?;
 
         // enforce create/replace flags
         if flags.0 & 0x1 != 0 || flags.0 & 0x2 != 0 {
@@ -986,7 +973,7 @@ pub(crate) unsafe fn destack_fs_fsetxattr_handle(
     let handle = file_handle(binding, handle)?;
 
     // validate flags
-    validate_xattr_flags(flags)?;
+    core_fs::validate_xattr_flags(flags)?;
 
     // enforce create/replace flags
     if flags.0 & 0x1 != 0 || flags.0 & 0x2 != 0 {

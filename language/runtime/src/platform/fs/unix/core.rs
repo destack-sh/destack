@@ -24,8 +24,22 @@ pub(super) struct DirectoryResource {
     pub(super) path: PathBuf,
     /// Directory file descriptor.
     pub(super) fd: RawFd,
-    /// Directory iteration cursor index.
-    pub(super) cursor: Arc<Mutex<u64>>,
+    /// Directory iteration stream.
+    pub(super) iterator: Arc<Mutex<DirectoryIterator>>,
+}
+
+/// Directory iterator state stored behind one handle-local mutex.
+#[derive(Debug)]
+pub(super) struct DirectoryIterator {
+    /// Native directory stream pointer.
+    pub(super) dir: usize,
+}
+
+impl DirectoryIterator {
+    /// Create one iterator wrapper for a native directory stream.
+    pub(super) fn new(dir: *mut libc::DIR) -> Self {
+        Self { dir: dir as usize }
+    }
 }
 
 /// Finalizer that closes a raw file descriptor.
@@ -33,11 +47,21 @@ pub(super) struct DirectoryResource {
 pub(super) struct FdFinalizer {
     /// File descriptor to close.
     pub(super) fd: RawFd,
+    /// Directory stream to close before the file descriptor.
+    pub(super) directory_stream: Option<usize>,
 }
 
 impl ResourceFinalizer for FdFinalizer {
     /// Close the file descriptor when the resource is finalized.
     fn finalize(self: Box<Self>, _resource_id: ResourceId) {
+        // close the directory stream first when present
+        if let Some(directory_stream) = self.directory_stream {
+            unsafe {
+                libc::closedir(directory_stream as *mut libc::DIR);
+            }
+        }
+
+        // close the owned file descriptor
         unsafe {
             libc::close(self.fd);
         }

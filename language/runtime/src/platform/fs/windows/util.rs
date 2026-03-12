@@ -16,13 +16,14 @@ use windows_sys::Win32::Security::Authorization::ConvertStringSidToSidW;
 use windows_sys::Win32::Storage::FileSystem::{
     CREATE_ALWAYS, CREATE_NEW, CreateDirectoryW, CreateFileW, FILE_APPEND_DATA,
     FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL, FILE_ATTRIBUTE_READONLY,
-    FILE_DISPOSITION_INFO, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT,
-    FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_READ_ATTRIBUTES, FILE_RENAME_INFO,
-    FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_WRITE_ATTRIBUTES,
+    FILE_ATTRIBUTE_REPARSE_POINT, FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_DISPOSITION_INFO,
+    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_GENERIC_READ,
+    FILE_GENERIC_WRITE, FILE_READ_ATTRIBUTES, FILE_RENAME_INFO, FILE_SHARE_DELETE, FILE_SHARE_READ,
+    FILE_SHARE_WRITE, FILE_WRITE_ATTRIBUTES, FileAttributeTagInfo, FileBasicInfo,
     FileDispositionInfo, FileRenameInfo, GetDiskFreeSpaceExW, GetDiskFreeSpaceW,
-    GetFileInformationByHandle, GetFinalPathNameByHandleW, GetVolumeInformationW,
-    GetVolumePathNameW, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, OPEN_ALWAYS, OPEN_EXISTING,
-    SetFileInformationByHandle, SetFileTime, TRUNCATE_EXISTING,
+    GetFileInformationByHandle, GetFileInformationByHandleEx, GetFinalPathNameByHandleW,
+    GetVolumeInformationW, GetVolumePathNameW, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, OPEN_ALWAYS,
+    OPEN_EXISTING, SetFileInformationByHandle, SetFileTime, TRUNCATE_EXISTING,
 };
 use windows_sys::Win32::System::IO::{DeviceIoControl, IO_STATUS_BLOCK};
 use windows_sys::Win32::System::Ioctl::FSCTL_GET_REPARSE_POINT;
@@ -32,9 +33,10 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::NativeAbi;
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{
     FileMode, FileSize, OpenFlags, PathBytes, PathUtf16, PathUtf16Abi, Stat, StatFs, StatFsFlags,
-    core as core_fs,
+    StatusFlags, core as core_fs,
 };
 use crate::platform::net::{SocketHandle, core as core_net};
 use crate::platform::resource::{
@@ -46,6 +48,10 @@ use crate::runtime::BindingCallContext;
 /// Random characters used for mkdtemp suffixes.
 pub(super) const MKDTEMP_CHARS: &[u8; 62] =
     b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+/// Required template suffix for mkdtemp-style directory creation.
+pub(super) const MKDTEMP_TEMPLATE_SUFFIX: &str = "XXXXXX";
+/// Maximum number of random-name attempts for mkdtemp emulation.
+const MKDTEMP_MAX_ATTEMPTS: usize = 128;
 /// AtFlags value for nofollow behavior.
 pub(super) const AT_SYMLINK_NOFOLLOW: u32 = 0x100;
 /// AtFlags value for directory removal.
@@ -56,6 +62,8 @@ pub(super) const DELETE_ACCESS: u32 = 0x0001_0000;
 pub(super) const REPARSE_TAG_SYMLINK: u32 = 0xA000000C;
 /// Reparse tag for mount points.
 pub(super) const REPARSE_TAG_MOUNT_POINT: u32 = 0xA0000003;
+/// Synthetic mode tag used for symlink-like reparse points.
+pub(super) const WINDOWS_S_IFLNK_MODE: u32 = 0o120000;
 /// Buffer capacity for legacy windows path APIs.
 const WINDOWS_LEGACY_PATH_CAPACITY: usize = 260;
 /// Initial buffer capacity for dynamic windows path APIs.
@@ -141,24 +149,22 @@ pub(super) fn mkdtemp_suffix() -> RuntimeResult<[u8; 6]> {
 
 /// Create a temporary directory from a template string.
 pub(super) fn mkdtemp_from_template(template: &str) -> RuntimeResult<PathBuf> {
-    // locate the suffix marker
-    let index = template.rfind("XXXXXX").ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "template",
-            "template must contain XXXXXX",
-        ))
-        .boxed()
-    })?;
-
-    // split the template into prefix and suffix
-    let prefix = &template[..index];
-    let suffix = &template[index + 6..];
+    // require the standard trailing suffix
+    let prefix = template
+        .strip_suffix(MKDTEMP_TEMPLATE_SUFFIX)
+        .ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "template",
+                "template must end with XXXXXX",
+            ))
+            .boxed()
+        })?;
 
     // try to create a unique directory
-    for _ in 0..128 {
+    for _ in 0..MKDTEMP_MAX_ATTEMPTS {
         let suffix_bytes = mkdtemp_suffix()?;
         let random: String = suffix_bytes.iter().map(|value| *value as char).collect();
-        let candidate = format!("{prefix}{random}{suffix}");
+        let candidate = format!("{prefix}{random}");
         let mut wide: Vec<u16> = OsString::from(&candidate).encode_wide().collect();
         wide.push(0);
         let rc = unsafe { CreateDirectoryW(wide.as_ptr(), std::ptr::null()) };
@@ -171,9 +177,7 @@ pub(super) fn mkdtemp_from_template(template: &str) -> RuntimeResult<PathBuf> {
             continue;
         }
 
-        return Err(
-            RuntimeError::from(PlatformError::io(format!("mkdtemp failed: {error}"))).boxed(),
-        );
+        return Err(last_os_error("CreateDirectoryW", Some(&candidate)));
     }
 
     Err(RuntimeError::from(PlatformError::io("mkdtemp could not find a unique name")).boxed())
@@ -506,7 +510,15 @@ pub(super) fn parse_reparse_target(buffer: &[u8]) -> RuntimeResult<Vec<u16>> {
     match tag {
         REPARSE_TAG_SYMLINK => parse_symlink_reparse(data),
         REPARSE_TAG_MOUNT_POINT => parse_mount_point_reparse(data),
-        _ => Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readlink")).boxed()),
+        _ => Err(RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoInvalidData),
+            None,
+            None,
+            Some("DeviceIoControl".to_string()),
+            None,
+            "reparse point is not a symlink or junction".to_string(),
+        ))
+        .boxed()),
     }
 }
 
@@ -643,6 +655,12 @@ pub(super) struct FileResource {
 
 /// Shared runtime file state for cursor and status-flag lanes.
 type FileState = (Arc<Mutex<i64>>, Arc<Mutex<u32>>);
+
+/// Access-mode bits that remain fixed for one Windows file handle.
+const WINDOWS_STATUS_ACCESS_MASK: u32 = libc::O_WRONLY as u32 | libc::O_RDWR as u32;
+
+/// Status flag bits that are tracked for Windows file handles.
+const WINDOWS_STATUS_FLAGS_MASK: u32 = WINDOWS_STATUS_ACCESS_MASK | libc::O_APPEND as u32;
 
 /// Heap-allocated SID wrapper that frees on drop.
 #[derive(Debug)]
@@ -806,6 +824,29 @@ pub(super) fn file_status_flags(
     Ok(status_flags)
 }
 
+/// Derive tracked status flags from one open flag set.
+pub(super) fn tracked_status_flags_from_open_flags(flags: OpenFlags) -> u32 {
+    flags.0 & WINDOWS_STATUS_FLAGS_MASK
+}
+
+/// Normalize one requested status-flag update against existing access mode bits.
+pub(super) fn normalize_status_flags(existing: u32, requested: StatusFlags) -> RuntimeResult<u32> {
+    // reject unsupported status bits on windows
+    if requested.0 & !WINDOWS_STATUS_FLAGS_MASK != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "unsupported status flag bits",
+        ))
+        .boxed());
+    }
+
+    // preserve access mode bits and update the mutable subset
+    let access_mode = existing & WINDOWS_STATUS_ACCESS_MASK;
+    let mutable_flags = requested.0 & libc::O_APPEND as u32;
+
+    Ok(access_mode | mutable_flags)
+}
+
 /// Resolve a resource entry for a directory handle.
 pub(super) fn directory_handle(
     binding: &BindingCallContext,
@@ -874,16 +915,22 @@ pub(super) fn desired_access_from_flags(flags: OpenFlags) -> u32 {
     let is_readwrite = flags & libc::O_RDWR as u32 != 0;
     let is_append = flags & libc::O_APPEND as u32 != 0;
 
-    // select the access mask
-    if is_append {
-        return FILE_APPEND_DATA | FILE_GENERIC_READ;
+    // preserve append only handles without silently granting read access
+    if is_append && is_write {
+        return FILE_APPEND_DATA;
     }
+
+    // allow read plus write access for readwrite opens
     if is_readwrite {
         return FILE_GENERIC_READ | FILE_GENERIC_WRITE;
     }
+
+    // preserve plain write only access
     if is_write {
         return FILE_GENERIC_WRITE;
     }
+
+    // fall back to readonly access
     FILE_GENERIC_READ
 }
 
@@ -925,11 +972,17 @@ pub(super) fn attributes_from_mode(mode: FileMode) -> u32 {
 /// Build a Stat struct from file information.
 pub(super) fn stat_from_info(
     info: windows_sys::Win32::Storage::FileSystem::BY_HANDLE_FILE_INFORMATION,
+    reparse_tag: Option<u32>,
 ) -> Stat {
     // decode the raw metadata
     let ino = ((info.nFileIndexHigh as u64) << 32) | info.nFileIndexLow as u64;
     let nlink = info.nNumberOfLinks;
-    let mode = if info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0 {
+    let mode = if matches!(
+        reparse_tag,
+        Some(REPARSE_TAG_SYMLINK | REPARSE_TAG_MOUNT_POINT)
+    ) {
+        WINDOWS_S_IFLNK_MODE
+    } else if info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0 {
         libc::S_IFDIR as u32
     } else {
         libc::S_IFREG as u32
@@ -969,6 +1022,21 @@ pub(super) fn filetime_to_nanos(filetime: FILETIME) -> u64 {
     (ticks - 116444736000000000) * 100
 }
 
+/// Convert Windows 100ns ticks since 1601 into nanoseconds since the unix epoch.
+fn windows_ticks_to_nanos(ticks: i64) -> u64 {
+    // saturate negative or pre epoch values to zero
+    if ticks <= 0 {
+        return 0;
+    }
+
+    let ticks = ticks as u64;
+    if ticks < 116444736000000000 {
+        return 0;
+    }
+
+    (ticks - 116444736000000000) * 100
+}
+
 /// Convert nanoseconds since the unix epoch to FILETIME.
 pub(super) fn filetime_from_nanos(nanos: u64) -> FILETIME {
     // convert unix nanos to filetime ticks
@@ -994,6 +1062,36 @@ pub(super) fn set_handle_times(handle: HANDLE, atime_ns: u64, mtime_ns: u64) -> 
     Ok(())
 }
 
+/// Read the reparse tag for one handle when the file is a reparse point.
+pub(super) fn reparse_tag_from_handle(
+    handle: HANDLE,
+    attributes: u32,
+) -> RuntimeResult<Option<u32>> {
+    // skip the extra query for non-reparse files
+    if attributes & FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+        return Ok(None);
+    }
+
+    // query the attribute tag payload
+    let mut info = FILE_ATTRIBUTE_TAG_INFO {
+        FileAttributes: 0,
+        ReparseTag: 0,
+    };
+    let rc = unsafe {
+        GetFileInformationByHandleEx(
+            handle,
+            FileAttributeTagInfo,
+            &mut info as *mut _ as *mut _,
+            std::mem::size_of::<FILE_ATTRIBUTE_TAG_INFO>() as u32,
+        )
+    };
+    if rc == 0 {
+        return Err(last_os_error("GetFileInformationByHandleEx", None));
+    }
+
+    Ok(Some(info.ReparseTag))
+}
+
 /// Resolve a file handle from a handle and build Stat.
 pub(super) fn stat_from_handle(handle: HANDLE) -> RuntimeResult<Stat> {
     // query the file information
@@ -1005,7 +1103,26 @@ pub(super) fn stat_from_handle(handle: HANDLE) -> RuntimeResult<Stat> {
 
     // decode the information
     let info = unsafe { info.assume_init() };
-    Ok(stat_from_info(info))
+    let reparse_tag = reparse_tag_from_handle(handle, info.dwFileAttributes)?;
+    let mut stat = stat_from_info(info, reparse_tag);
+
+    // query the file basic info to preserve real change time semantics
+    let mut basic = unsafe { std::mem::zeroed::<FILE_BASIC_INFO>() };
+    let rc = unsafe {
+        GetFileInformationByHandleEx(
+            handle,
+            FileBasicInfo,
+            &mut basic as *mut _ as *mut _,
+            std::mem::size_of::<FILE_BASIC_INFO>() as u32,
+        )
+    };
+    if rc == 0 {
+        return Err(last_os_error("GetFileInformationByHandleEx", None));
+    }
+
+    stat.ctime_ns = windows_ticks_to_nanos(basic.ChangeTime);
+
+    Ok(stat)
 }
 
 /// Resolve a stat structure for a path.
@@ -1171,7 +1288,7 @@ pub(super) fn open_for_metadata(path: &[u16], follow_symlink: bool) -> RuntimeRe
     let handle = unsafe {
         CreateFileW(
             path.as_ptr(),
-            FILE_GENERIC_READ,
+            FILE_READ_ATTRIBUTES,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             std::ptr::null(),
             OPEN_EXISTING,
@@ -1214,4 +1331,24 @@ pub(super) fn open_for_write_attributes(
     }
 
     Ok(handle)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_reparse_target;
+    use crate::platform::diagnostic::PlatformErrorCode;
+
+    /// Reject unsupported reparse tags as invalid link payloads.
+    #[test]
+    fn test_parse_reparse_target_rejects_unknown_tag() {
+        let mut buffer = Vec::new();
+
+        // header: unknown tag plus empty payload
+        buffer.extend_from_slice(&0xDEAD_BEEFu32.to_le_bytes());
+        buffer.extend_from_slice(&0u16.to_le_bytes());
+        buffer.extend_from_slice(&0u16.to_le_bytes());
+
+        let error = parse_reparse_target(&buffer).expect_err("unknown tag should fail");
+        assert_eq!(error.code(), PlatformErrorCode::IoInvalidData as u16);
+    }
 }

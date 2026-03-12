@@ -81,7 +81,7 @@ pub(crate) unsafe fn destack_fs_fadvise(
     )))]
     {
         let _ = (fd, offset, length, advice);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fadvise")).boxed())
+        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fadvise")).boxed())
     }
 }
 
@@ -167,7 +167,7 @@ pub(crate) unsafe fn destack_fs_fallocate(
     )))]
     {
         let _ = (fd, offset, length, flags);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fallocate")).boxed())
+        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fallocate")).boxed())
     }
 }
 

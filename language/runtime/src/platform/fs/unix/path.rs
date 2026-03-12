@@ -9,6 +9,24 @@ use crate::runtime::BindingCallContext;
 
 use std::ffi::CStr;
 
+/// `linkat` flag bit for following a source symlink.
+const LINKAT_FLAG_SYMLINK_FOLLOW: u32 = 0x400;
+
+/// Validate one `linkat` flag payload.
+fn validate_linkat_flags(flags: AtFlags) -> RuntimeResult<libc::c_int> {
+    // reject unknown bits explicitly
+    let unknown_bits = flags.0 & !LINKAT_FLAG_SYMLINK_FOLLOW;
+    if unknown_bits != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            format!("unknown linkat flag bits: {unknown_bits:#x}"),
+        ))
+        .boxed());
+    }
+
+    Ok(flags.0 as libc::c_int)
+}
+
 /// Create a hard link.
 ///
 /// Create a hard-link entry that points to an existing inode without copying file contents.
@@ -534,9 +552,10 @@ pub(crate) unsafe fn destack_fs_renameat2_bytes(
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
         if flags.0 != 0 {
-            return Err(
-                RuntimeError::from(PlatformError::not_supported("destack.fs.renameat2")).boxed(),
-            );
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.fs.path.renameat2",
+            ))
+            .boxed());
         }
         unsafe { destack_fs_renameat_bytes(binding, from_dir, from, to_dir, to) }
     }
@@ -665,13 +684,14 @@ pub(crate) unsafe fn destack_fs_linkat_bytes(
     let new_resource = directory_resource(binding, new_dir)?;
     let existing_path = resolve_path_bytes_cstring(existing_path, "existingPath")?;
     let new_path = resolve_path_bytes_cstring(new_path, "newPath")?;
+    let flags = validate_linkat_flags(flags)?;
     let result = unsafe {
         libc::linkat(
             existing_resource.fd,
             existing_path.as_ptr(),
             new_resource.fd,
             new_path.as_ptr(),
-            flags.0 as libc::c_int,
+            flags,
         )
     };
     if result != 0 {
@@ -1206,52 +1226,28 @@ pub(crate) unsafe fn destack_fs_readlink(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    #[cfg(unix)]
-    {
-        match path {
-            OsPath::OsPathBytes(path_bytes) => {
-                let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_readlink_bytes(binding, &mut inner, path_bytes.bytes) }?;
-                unsafe {
-                    *out = core_fs::path_ref_from_bytes(inner);
-                }
-                Ok(())
-            }
-            OsPath::OsPathUtf16(path_utf16) => {
-                let bytes = core_fs::with_utf16_as_bytes(path_utf16.utf16, "path", |path| {
-                    let mut inner = core_fs::empty_path_bytes();
-                    unsafe { destack_fs_readlink_bytes(binding, &mut inner, path) }?;
-                    Ok(inner)
-                })?;
-                let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "path")?;
-                unsafe {
-                    *out = core_fs::path_ref_from_utf16(utf16);
-                }
-                Ok(())
-            }
-        }
-    }
-    #[cfg(not(unix))]
-    core_fs::with_path_ref(
-        path,
-        "path",
-        |path| {
+    match path {
+        OsPath::OsPathBytes(path_bytes) => {
             let mut inner = core_fs::empty_path_bytes();
-            unsafe { destack_fs_readlink_bytes(binding, &mut inner, path) }?;
+            unsafe { destack_fs_readlink_bytes(binding, &mut inner, path_bytes.bytes) }?;
             unsafe {
                 *out = core_fs::path_ref_from_bytes(inner);
             }
             Ok(())
-        },
-        |path| {
-            let mut inner = core_fs::empty_path_utf16();
-            unsafe { destack_fs_readlink_utf16(binding, &mut inner, path) }?;
+        }
+        OsPath::OsPathUtf16(path_utf16) => {
+            let bytes = core_fs::with_utf16_as_bytes(path_utf16.utf16, "path", |path| {
+                let mut inner = core_fs::empty_path_bytes();
+                unsafe { destack_fs_readlink_bytes(binding, &mut inner, path) }?;
+                Ok(inner)
+            })?;
+            let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "path")?;
             unsafe {
-                *out = core_fs::path_ref_from_utf16(inner);
+                *out = core_fs::path_ref_from_utf16(utf16);
             }
             Ok(())
-        },
-    )
+        }
+    }
 }
 
 /// Read a symbolic link relative to a directory handle.
@@ -1280,52 +1276,28 @@ pub(crate) unsafe fn destack_fs_readlinkat(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    #[cfg(unix)]
-    {
-        match path {
-            OsPath::OsPathBytes(path_bytes) => {
-                let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_readlinkat_bytes(binding, &mut inner, dir, path_bytes.bytes) }?;
-                unsafe {
-                    *out = core_fs::path_ref_from_bytes(inner);
-                }
-                Ok(())
-            }
-            OsPath::OsPathUtf16(path_utf16) => {
-                let bytes = core_fs::with_utf16_as_bytes(path_utf16.utf16, "path", |path| {
-                    let mut inner = core_fs::empty_path_bytes();
-                    unsafe { destack_fs_readlinkat_bytes(binding, &mut inner, dir, path) }?;
-                    Ok(inner)
-                })?;
-                let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "path")?;
-                unsafe {
-                    *out = core_fs::path_ref_from_utf16(utf16);
-                }
-                Ok(())
-            }
-        }
-    }
-    #[cfg(not(unix))]
-    core_fs::with_path_ref(
-        path,
-        "path",
-        |path| {
+    match path {
+        OsPath::OsPathBytes(path_bytes) => {
             let mut inner = core_fs::empty_path_bytes();
-            unsafe { destack_fs_readlinkat_bytes(binding, &mut inner, dir, path) }?;
+            unsafe { destack_fs_readlinkat_bytes(binding, &mut inner, dir, path_bytes.bytes) }?;
             unsafe {
                 *out = core_fs::path_ref_from_bytes(inner);
             }
             Ok(())
-        },
-        |path| {
-            let mut inner = core_fs::empty_path_utf16();
-            unsafe { destack_fs_readlinkat_utf16(binding, &mut inner, dir, path) }?;
+        }
+        OsPath::OsPathUtf16(path_utf16) => {
+            let bytes = core_fs::with_utf16_as_bytes(path_utf16.utf16, "path", |path| {
+                let mut inner = core_fs::empty_path_bytes();
+                unsafe { destack_fs_readlinkat_bytes(binding, &mut inner, dir, path) }?;
+                Ok(inner)
+            })?;
+            let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "path")?;
             unsafe {
-                *out = core_fs::path_ref_from_utf16(inner);
+                *out = core_fs::path_ref_from_utf16(utf16);
             }
             Ok(())
-        },
-    )
+        }
+    }
 }
 
 /// Resolve a path to its canonical form.
@@ -1353,52 +1325,28 @@ pub(crate) unsafe fn destack_fs_realpath(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    #[cfg(unix)]
-    {
-        match path {
-            OsPath::OsPathBytes(path_bytes) => {
-                let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_realpath_bytes(binding, &mut inner, path_bytes.bytes) }?;
-                unsafe {
-                    *out = core_fs::path_ref_from_bytes(inner);
-                }
-                Ok(())
-            }
-            OsPath::OsPathUtf16(path_utf16) => {
-                let bytes = core_fs::with_utf16_as_bytes(path_utf16.utf16, "path", |path| {
-                    let mut inner = core_fs::empty_path_bytes();
-                    unsafe { destack_fs_realpath_bytes(binding, &mut inner, path) }?;
-                    Ok(inner)
-                })?;
-                let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "path")?;
-                unsafe {
-                    *out = core_fs::path_ref_from_utf16(utf16);
-                }
-                Ok(())
-            }
-        }
-    }
-    #[cfg(not(unix))]
-    core_fs::with_path_ref(
-        path,
-        "path",
-        |path| {
+    match path {
+        OsPath::OsPathBytes(path_bytes) => {
             let mut inner = core_fs::empty_path_bytes();
-            unsafe { destack_fs_realpath_bytes(binding, &mut inner, path) }?;
+            unsafe { destack_fs_realpath_bytes(binding, &mut inner, path_bytes.bytes) }?;
             unsafe {
                 *out = core_fs::path_ref_from_bytes(inner);
             }
             Ok(())
-        },
-        |path| {
-            let mut inner = core_fs::empty_path_utf16();
-            unsafe { destack_fs_realpath_utf16(binding, &mut inner, path) }?;
+        }
+        OsPath::OsPathUtf16(path_utf16) => {
+            let bytes = core_fs::with_utf16_as_bytes(path_utf16.utf16, "path", |path| {
+                let mut inner = core_fs::empty_path_bytes();
+                unsafe { destack_fs_realpath_bytes(binding, &mut inner, path) }?;
+                Ok(inner)
+            })?;
+            let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "path")?;
             unsafe {
-                *out = core_fs::path_ref_from_utf16(inner);
+                *out = core_fs::path_ref_from_utf16(utf16);
             }
             Ok(())
-        },
-    )
+        }
+    }
 }
 
 /// Create a FIFO special file.
@@ -1427,24 +1375,18 @@ pub(crate) unsafe fn destack_fs_mkfifo(
         path,
         "path",
         |path| {
-            #[cfg(unix)]
-            {
-                let path = path_bytes_to_cstring(path, "path")?;
-                let result = unsafe { libc::mkfifo(path.as_ptr(), mode.0 as libc::mode_t) };
-                if result != 0 {
-                    return Err(
-                        RuntimeError::from(PlatformError::io("mkfifo failed".to_string())).boxed(),
-                    );
-                }
-                Ok(())
+            let path = path_bytes_to_cstring(path, "path")?;
+            let result = unsafe { libc::mkfifo(path.as_ptr(), mode.0 as libc::mode_t) };
+            if result != 0 {
+                return Err(core_platform::io_error("mkfifo", None));
             }
-            #[cfg(not(unix))]
-            {
-                let _ = (binding, mode, path);
-                Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkfifo")).boxed())
-            }
+            Ok(())
         },
-        |_path| Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkfifo")).boxed()),
+        |path| {
+            core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+                destack_fs_mkfifo(_binding, core_fs::path_ref_from_bytes(path), mode)
+            })
+        },
     )
 }
 
@@ -1475,39 +1417,30 @@ pub(crate) unsafe fn destack_fs_mkfifoat(
         path,
         "path",
         |path| {
-            #[cfg(unix)]
-            {
-                let directory_fd = directory_descriptor(binding, dir)?;
-                let path = path_bytes_to_cstring(path, "path")?;
-                #[cfg(target_os = "android")]
-                let result = unsafe {
-                    libc::syscall(
-                        libc::SYS_mknodat,
-                        directory_fd,
-                        path.as_ptr(),
-                        (mode.0 | libc::S_IFIFO) as libc::mode_t,
-                        0 as libc::dev_t,
-                    ) as libc::c_int
-                };
-                #[cfg(not(target_os = "android"))]
-                let result =
-                    unsafe { libc::mkfifoat(directory_fd, path.as_ptr(), mode.0 as libc::mode_t) };
-                if result != 0 {
-                    return Err(RuntimeError::from(PlatformError::io(
-                        "mkfifoat failed".to_string(),
-                    ))
-                    .boxed());
-                }
-                Ok(())
+            let directory_fd = directory_descriptor(binding, dir)?;
+            let path = path_bytes_to_cstring(path, "path")?;
+            #[cfg(target_os = "android")]
+            let result = unsafe {
+                libc::syscall(
+                    libc::SYS_mknodat,
+                    directory_fd,
+                    path.as_ptr(),
+                    (mode.0 | libc::S_IFIFO) as libc::mode_t,
+                    0 as libc::dev_t,
+                ) as libc::c_int
+            };
+            #[cfg(not(target_os = "android"))]
+            let result =
+                unsafe { libc::mkfifoat(directory_fd, path.as_ptr(), mode.0 as libc::mode_t) };
+            if result != 0 {
+                return Err(core_platform::io_error("mkfifoat", None));
             }
-            #[cfg(not(unix))]
-            {
-                let _ = (binding, dir, path, mode);
-                Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkfifoat")).boxed())
-            }
+            Ok(())
         },
-        |_path| {
-            Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkfifoat")).boxed())
+        |path| {
+            core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+                destack_fs_mkfifoat(binding, dir, core_fs::path_ref_from_bytes(path), mode)
+            })
         },
     )
 }
@@ -1539,30 +1472,24 @@ pub(crate) unsafe fn destack_fs_mknod(
         path,
         "path",
         |path| {
-            #[cfg(unix)]
-            {
-                let path = path_bytes_to_cstring(path, "path")?;
-                let result = unsafe {
-                    libc::mknod(
-                        path.as_ptr(),
-                        mode.0 as libc::mode_t,
-                        device.0 as libc::dev_t,
-                    )
-                };
-                if result != 0 {
-                    return Err(
-                        RuntimeError::from(PlatformError::io("mknod failed".to_string())).boxed(),
-                    );
-                }
-                Ok(())
+            let path = path_bytes_to_cstring(path, "path")?;
+            let result = unsafe {
+                libc::mknod(
+                    path.as_ptr(),
+                    mode.0 as libc::mode_t,
+                    device.0 as libc::dev_t,
+                )
+            };
+            if result != 0 {
+                return Err(core_platform::io_error("mknod", None));
             }
-            #[cfg(not(unix))]
-            {
-                let _ = (binding, mode, device, path);
-                Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mknod")).boxed())
-            }
+            Ok(())
         },
-        |_path| Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mknod")).boxed()),
+        |path| {
+            core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+                destack_fs_mknod(_binding, core_fs::path_ref_from_bytes(path), mode, device)
+            })
+        },
     )
 }
 
@@ -1594,32 +1521,31 @@ pub(crate) unsafe fn destack_fs_mknodat(
         path,
         "path",
         |path| {
-            #[cfg(unix)]
-            {
-                let directory_fd = directory_descriptor(binding, dir)?;
-                let path = path_bytes_to_cstring(path, "path")?;
-                let result = unsafe {
-                    libc::mknodat(
-                        directory_fd,
-                        path.as_ptr(),
-                        mode.0 as libc::mode_t,
-                        device.0 as libc::dev_t,
-                    )
-                };
-                if result != 0 {
-                    return Err(RuntimeError::from(PlatformError::io(
-                        "mknodat failed".to_string(),
-                    ))
-                    .boxed());
-                }
-                Ok(())
+            let directory_fd = directory_descriptor(binding, dir)?;
+            let path = path_bytes_to_cstring(path, "path")?;
+            let result = unsafe {
+                libc::mknodat(
+                    directory_fd,
+                    path.as_ptr(),
+                    mode.0 as libc::mode_t,
+                    device.0 as libc::dev_t,
+                )
+            };
+            if result != 0 {
+                return Err(core_platform::io_error("mknodat", None));
             }
-            #[cfg(not(unix))]
-            {
-                let _ = (binding, dir, mode, device, path);
-                Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mknodat")).boxed())
-            }
+            Ok(())
         },
-        |_path| Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mknodat")).boxed()),
+        |path| {
+            core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+                destack_fs_mknodat(
+                    binding,
+                    dir,
+                    core_fs::path_ref_from_bytes(path),
+                    mode,
+                    device,
+                )
+            })
+        },
     )
 }

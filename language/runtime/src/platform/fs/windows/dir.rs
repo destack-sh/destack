@@ -4,35 +4,238 @@ use windows_sys::Win32::Foundation::{
     INVALID_HANDLE_VALUE, SetHandleInformation,
 };
 use windows_sys::Win32::Storage::FileSystem::{
-    CreateDirectoryW, CreateFileW, FILE_ATTRIBUTE_DIRECTORY, FILE_FLAG_BACKUP_SEMANTICS,
-    FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
-    FindClose, FindFirstFileW, FindNextFileW, OPEN_EXISTING, WIN32_FIND_DATAW,
+    CreateDirectoryW, CreateFileW, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT,
+    FILE_FLAG_BACKUP_SEMANTICS, FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_READ_ATTRIBUTES,
+    FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FindClose, FindFirstFileW, FindNextFileW,
+    OPEN_EXISTING, WIN32_FIND_DATAW,
 };
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{
     DirectoryHandle, Dirent, DirentKind, DirentNext, DirentNextEnd, DirentNextEntry, FileMode,
     OsPath, PathBytes, PathUtf16, WatchBatch, WatchOptions, core as core_fs,
 };
-use crate::platform::resource::{ResourceEntry, ResourceKind, WatchHandle};
+use crate::platform::resource::{
+    ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, WatchHandle,
+};
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 use std::sync::{Arc, Mutex};
 
 /// Directory payload stored in the resource table.
-#[derive(Debug)]
 struct DirectoryResource {
-    /// Directory iteration cursor index.
-    cursor: Arc<Mutex<u64>>,
+    /// Directory enumeration state.
+    enumerator: Arc<Mutex<DirectoryEnumerator>>,
 }
 
-/// Resolve a directory cursor from one directory handle.
-fn directory_cursor(
+impl std::fmt::Debug for DirectoryResource {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DirectoryResource")
+            .finish_non_exhaustive()
+    }
+}
+
+/// Directory enumeration state stored behind one handle-local mutex.
+struct DirectoryEnumerator {
+    /// Stable search pattern for the opened directory.
+    search_pattern: Vec<u16>,
+    /// Active `FindFirstFileW` handle when enumeration has started.
+    find_handle: isize,
+    /// Pending first or next result that has not yet been consumed.
+    pending: Option<WIN32_FIND_DATAW>,
+    /// Whether enumeration has started.
+    started: bool,
+    /// Whether enumeration has reached end-of-directory.
+    finished: bool,
+}
+
+impl std::fmt::Debug for DirectoryEnumerator {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DirectoryEnumerator")
+            .field("started", &self.started)
+            .field("finished", &self.finished)
+            .finish_non_exhaustive()
+    }
+}
+
+impl DirectoryEnumerator {
+    /// Create one directory enumerator from a stable search pattern.
+    fn new(search_pattern: Vec<u16>) -> Self {
+        Self {
+            search_pattern,
+            find_handle: INVALID_HANDLE_VALUE,
+            pending: None,
+            started: false,
+            finished: false,
+        }
+    }
+}
+
+/// Finalizer that closes one directory handle and any active enumeration handle.
+#[derive(Debug)]
+struct DirectoryHandleFinalizer {
+    /// Raw directory handle to close.
+    handle: isize,
+    /// Enumeration state whose find handle must be closed.
+    enumerator: Arc<Mutex<DirectoryEnumerator>>,
+}
+
+impl DirectoryHandleFinalizer {
+    /// Create one finalizer for a directory resource.
+    fn new(handle: isize, enumerator: Arc<Mutex<DirectoryEnumerator>>) -> Self {
+        Self { handle, enumerator }
+    }
+}
+
+impl ResourceFinalizer for DirectoryHandleFinalizer {
+    /// Close the active find handle and directory handle during finalization.
+    fn finalize(self: Box<Self>, _resource_id: ResourceId) {
+        let mut enumerator = match self.enumerator.lock() {
+            Ok(enumerator) => enumerator,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+
+        close_directory_enumerator(&mut enumerator);
+
+        unsafe {
+            CloseHandle(self.handle);
+        }
+    }
+}
+
+/// Require one opened handle to describe a directory for `opendir`.
+fn require_directory_handle(handle: isize) -> RuntimeResult<()> {
+    // stat the opened handle and reject non-directory targets
+    let stat = stat_from_handle(handle)?;
+    if stat.mode.0 & libc::S_IFMT as u32 == libc::S_IFDIR as u32 {
+        return Ok(());
+    }
+
+    Err(RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotDirectory),
+        None,
+        None,
+        Some("opendir".to_string()),
+        None,
+        "path is not a directory",
+    ))
+    .boxed())
+}
+
+/// Close one active Windows directory enumerator handle.
+fn close_directory_enumerator(enumerator: &mut DirectoryEnumerator) {
+    if enumerator.find_handle != INVALID_HANDLE_VALUE {
+        unsafe {
+            FindClose(enumerator.find_handle);
+        }
+        enumerator.find_handle = INVALID_HANDLE_VALUE;
+    }
+
+    enumerator.pending = None;
+}
+
+/// Reset one directory enumerator to the unopened state.
+fn reset_directory_enumerator(enumerator: &mut DirectoryEnumerator) {
+    close_directory_enumerator(enumerator);
+    enumerator.started = false;
+    enumerator.finished = false;
+}
+
+/// Ensure one directory enumerator has started.
+fn ensure_directory_enumerator_started(enumerator: &mut DirectoryEnumerator) -> RuntimeResult<()> {
+    if enumerator.started {
+        return Ok(());
+    }
+
+    let mut data = unsafe { std::mem::zeroed::<WIN32_FIND_DATAW>() };
+    let find_handle = unsafe { FindFirstFileW(enumerator.search_pattern.as_ptr(), &mut data) };
+    enumerator.started = true;
+
+    if find_handle == INVALID_HANDLE_VALUE {
+        let code = core_platform::last_error_code() as u32;
+        if code == ERROR_NO_MORE_FILES || code == ERROR_FILE_NOT_FOUND {
+            enumerator.finished = true;
+            return Ok(());
+        }
+
+        return Err(last_os_error("FindFirstFileW", None));
+    }
+
+    enumerator.find_handle = find_handle;
+    enumerator.pending = Some(data);
+
+    Ok(())
+}
+
+/// Read the next raw directory result from one Windows enumerator.
+fn next_directory_data(
+    enumerator: &mut DirectoryEnumerator,
+) -> RuntimeResult<Option<WIN32_FIND_DATAW>> {
+    ensure_directory_enumerator_started(enumerator)?;
+    if enumerator.finished {
+        return Ok(None);
+    }
+
+    if let Some(data) = enumerator.pending.take() {
+        return Ok(Some(data));
+    }
+
+    let mut data = unsafe { std::mem::zeroed::<WIN32_FIND_DATAW>() };
+    let rc = unsafe { FindNextFileW(enumerator.find_handle, &mut data) };
+    if rc != 0 {
+        return Ok(Some(data));
+    }
+
+    let code = core_platform::last_error_code() as u32;
+    if code == ERROR_NO_MORE_FILES {
+        close_directory_enumerator(enumerator);
+        enumerator.finished = true;
+        return Ok(None);
+    }
+
+    Err(last_os_error("FindNextFileW", None))
+}
+
+/// Read the next visible entry from one Windows directory enumerator.
+fn read_next_visible_dirent(
+    binding: &BindingCallContext,
+    enumerator: &mut DirectoryEnumerator,
+) -> RuntimeResult<Option<Dirent>> {
+    loop {
+        let Some(data) = next_directory_data(enumerator)? else {
+            return Ok(None);
+        };
+
+        let name_length = data
+            .cFileName
+            .iter()
+            .position(|value| *value == 0)
+            .unwrap_or(data.cFileName.len());
+        let is_dot = name_length == 1 && data.cFileName[0] == 0x2e;
+        let is_dot_dot = name_length == 2 && data.cFileName[0] == 0x2e && data.cFileName[1] == 0x2e;
+        if is_dot || is_dot_dot {
+            continue;
+        }
+
+        let kind = dirent_kind_from_find_data(&data);
+        let name = path_utf16_from_units(binding, &data.cFileName[..name_length]);
+        return Ok(Some(Dirent {
+            name: core_fs::path_ref_from_utf16(name),
+            kind,
+        }));
+    }
+}
+
+/// Resolve a directory enumerator from one directory handle.
+fn directory_enumerator(
     binding: &BindingCallContext,
     handle: DirectoryHandle,
-) -> RuntimeResult<Arc<Mutex<u64>>> {
-    // resolve the cursor payload for this directory handle
+) -> RuntimeResult<Arc<Mutex<DirectoryEnumerator>>> {
+    // resolve the enumerator payload for this directory handle
     core_fs::require_resource(
         binding,
         handle.0,
@@ -41,16 +244,35 @@ fn directory_cursor(
         |entry| {
             entry
                 .payload_ref::<DirectoryResource>()
-                .map(|directory| directory.cursor.clone())
+                .map(|directory| directory.enumerator.clone())
                 .ok_or_else(|| {
                     RuntimeError::from(PlatformError::generic(
                         None,
-                        "directory cursor missing payload",
+                        "directory enumerator missing payload",
                     ))
                     .boxed()
                 })
         },
     )
+}
+
+/// Classify one Windows directory entry using the native attribute payload.
+fn dirent_kind_from_find_data(data: &WIN32_FIND_DATAW) -> DirentKind {
+    // preserve symlink-like reparse points before collapsing to file or directory
+    if data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT != 0
+        && matches!(
+            data.dwReserved0,
+            REPARSE_TAG_SYMLINK | REPARSE_TAG_MOUNT_POINT
+        )
+    {
+        return DirentKind::Symlink;
+    }
+
+    if data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0 {
+        return DirentKind::Directory;
+    }
+
+    DirentKind::File
 }
 
 /// Open a directory and return a handle.
@@ -87,7 +309,7 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
     let handle = unsafe {
         CreateFileW(
             wide.as_ptr(),
-            FILE_GENERIC_READ,
+            FILE_READ_ATTRIBUTES,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             std::ptr::null(),
             OPEN_EXISTING,
@@ -97,6 +319,14 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
     };
     if handle == INVALID_HANDLE_VALUE {
         return Err(last_os_error("CreateFileW", None));
+    }
+
+    // reject non-directory targets explicitly
+    if let Err(error) = require_directory_handle(handle) {
+        unsafe {
+            CloseHandle(handle);
+        }
+        return Err(error);
     }
 
     // disable handle inheritance
@@ -109,13 +339,18 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
     }
 
     // register the resource handle
+    let mut search_pattern = final_path_from_handle(handle)?;
+    search_pattern.push('\\' as u16);
+    search_pattern.push('*' as u16);
+    search_pattern.push(0);
+    let enumerator = Arc::new(Mutex::new(DirectoryEnumerator::new(search_pattern)));
     let directory = DirectoryResource {
-        cursor: Arc::new(Mutex::new(0)),
+        enumerator: enumerator.clone(),
     };
     let entry = ResourceEntry::new(ResourceKind::Directory)
         .with_handle(handle as _)
         .with_payload(directory)
-        .with_finalizer(HandleFinalizer::new(handle));
+        .with_finalizer(DirectoryHandleFinalizer::new(handle, enumerator));
     let resource_id =
         binding
             .agent()
@@ -162,7 +397,7 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
     let handle = unsafe {
         CreateFileW(
             wide.as_ptr(),
-            FILE_GENERIC_READ,
+            FILE_READ_ATTRIBUTES,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             std::ptr::null(),
             OPEN_EXISTING,
@@ -172,6 +407,14 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
     };
     if handle == INVALID_HANDLE_VALUE {
         return Err(last_os_error("CreateFileW", None));
+    }
+
+    // reject non-directory targets explicitly
+    if let Err(error) = require_directory_handle(handle) {
+        unsafe {
+            CloseHandle(handle);
+        }
+        return Err(error);
     }
 
     // disable handle inheritance
@@ -184,13 +427,18 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
     }
 
     // register the resource handle
+    let mut search_pattern = final_path_from_handle(handle)?;
+    search_pattern.push('\\' as u16);
+    search_pattern.push('*' as u16);
+    search_pattern.push(0);
+    let enumerator = Arc::new(Mutex::new(DirectoryEnumerator::new(search_pattern)));
     let directory = DirectoryResource {
-        cursor: Arc::new(Mutex::new(0)),
+        enumerator: enumerator.clone(),
     };
     let entry = ResourceEntry::new(ResourceKind::Directory)
         .with_handle(handle as _)
         .with_payload(directory)
-        .with_finalizer(HandleFinalizer::new(handle));
+        .with_finalizer(DirectoryHandleFinalizer::new(handle, enumerator));
     let resource_id =
         binding
             .agent()
@@ -230,60 +478,23 @@ pub(crate) unsafe fn destack_fs_readdir(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve the directory handle
-    let handle = directory_handle(binding, handle)?;
+    // resolve the shared directory enumerator
+    let enumerator = directory_enumerator(binding, handle)?;
+    let mut enumerator = enumerator.lock().map_err(|_| {
+        RuntimeError::from(PlatformError::generic(
+            None,
+            "directory enumerator lock is poisoned",
+        ))
+        .boxed()
+    })?;
     let mut entries = Vec::new();
-    let mut search: Vec<u16> = final_path_from_handle(handle)?;
-    search.push('\\' as u16);
-    search.push('*' as u16);
-    search.push(0);
 
-    // seed the search
-    let mut data = unsafe { std::mem::zeroed::<WIN32_FIND_DATAW>() };
-    let find = unsafe { FindFirstFileW(search.as_ptr(), &mut data) };
-    if find == INVALID_HANDLE_VALUE {
-        return Err(last_os_error("FindFirstFileW", None));
+    // consume the remaining native enumeration stream
+    while let Some(entry) = read_next_visible_dirent(binding, &mut enumerator)? {
+        entries.push(entry);
     }
 
-    // walk directory entries
-    loop {
-        let name_len = data
-            .cFileName
-            .iter()
-            .position(|value| *value == 0)
-            .unwrap_or(data.cFileName.len());
-        let is_dot = name_len == 1 && data.cFileName[0] == 0x2e;
-        let is_dot_dot = name_len == 2 && data.cFileName[0] == 0x2e && data.cFileName[1] == 0x2e;
-        if !(is_dot || is_dot_dot) {
-            let kind = if data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0 {
-                DirentKind::Directory
-            } else {
-                DirentKind::File
-            };
-            let name = path_utf16_from_units(binding, &data.cFileName[..name_len]);
-            entries.push(Dirent {
-                name: core_fs::path_ref_from_utf16(name),
-                kind,
-            });
-        }
-
-        // advance to the next entry
-        let rc = unsafe { FindNextFileW(find, &mut data) };
-        if rc == 0 {
-            let code = core_platform::last_error_code() as u32;
-            if code == ERROR_NO_MORE_FILES {
-                break;
-            }
-            unsafe {
-                FindClose(find);
-            }
-            return Err(last_os_error("FindNextFileW", None));
-        }
-    }
-
-    // store the entries
     unsafe {
-        FindClose(find);
         *out = binding.store_array(entries);
     }
     Ok(())
@@ -678,109 +889,33 @@ pub(crate) unsafe fn destack_fs_readdir_next(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve the per-handle cursor index and directory path
-    let cursor = directory_cursor(binding, handle)?;
-    let mut cursor = cursor.lock().map_err(|_| {
+    // resolve the shared directory enumerator
+    let enumerator = directory_enumerator(binding, handle)?;
+    let mut enumerator = enumerator.lock().map_err(|_| {
         RuntimeError::from(PlatformError::generic(
             None,
-            "directory cursor lock is poisoned",
+            "directory enumerator lock is poisoned",
         ))
         .boxed()
     })?;
-    let current_index = *cursor;
-    let handle = directory_handle(binding, handle)?;
-    let mut search = final_path_from_handle(handle)?;
-    search.push('\\' as u16);
-    search.push('*' as u16);
-    search.push(0);
 
-    // start one transient enumeration stream
-    let mut data = unsafe { std::mem::zeroed::<WIN32_FIND_DATAW>() };
-    let find = unsafe { FindFirstFileW(search.as_ptr(), &mut data) };
-    if find == INVALID_HANDLE_VALUE {
-        let code = core_platform::last_error_code() as u32;
-        if code == ERROR_NO_MORE_FILES || code == ERROR_FILE_NOT_FOUND {
-            unsafe {
-                *out = DirentNext::DirentNextEnd(DirentNextEnd {
-                    kind: binding.store_string("end"),
-                });
-            }
-
-            return Ok(());
+    // emit one entry or mark end-of-directory on the shared enumerator
+    if let Some(entry) = read_next_visible_dirent(binding, &mut enumerator)? {
+        unsafe {
+            *out = DirentNext::DirentNextEntry(DirentNextEntry {
+                kind: binding.store_string("entry"),
+                entry,
+            });
         }
-
-        return Err(last_os_error("FindFirstFileW", None));
-    }
-
-    // close the transient enumeration stream automatically
-    struct FindGuard(isize);
-    impl Drop for FindGuard {
-        fn drop(&mut self) {
-            unsafe {
-                FindClose(self.0);
-            }
+    } else {
+        unsafe {
+            *out = DirentNext::DirentNextEnd(DirentNextEnd {
+                kind: binding.store_string("end"),
+            });
         }
     }
-    let _guard = FindGuard(find);
 
-    // walk entries until we reach the indexed cursor position
-    let mut visible_index = 0_u64;
-    loop {
-        // filter dot and dot-dot entries from the visible index stream
-        let name_length = data
-            .cFileName
-            .iter()
-            .position(|value| *value == 0)
-            .unwrap_or(data.cFileName.len());
-        let is_dot = name_length == 1 && data.cFileName[0] == 0x2e;
-        let is_dot_dot = name_length == 2 && data.cFileName[0] == 0x2e && data.cFileName[1] == 0x2e;
-        if !(is_dot || is_dot_dot) {
-            // skip entries before the current cursor
-            if visible_index < current_index {
-                visible_index = visible_index.saturating_add(1);
-            } else {
-                // emit one entry and advance the cursor index
-                let kind = if data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0 {
-                    DirentKind::Directory
-                } else {
-                    DirentKind::File
-                };
-                let name = path_utf16_from_units(binding, &data.cFileName[..name_length]);
-                *cursor = current_index.saturating_add(1);
-                unsafe {
-                    *out = DirentNext::DirentNextEntry(DirentNextEntry {
-                        kind: binding.store_string("entry"),
-                        entry: Dirent {
-                            name: core_fs::path_ref_from_utf16(name),
-                            kind,
-                        },
-                    });
-                }
-
-                return Ok(());
-            }
-        }
-
-        // advance to the next native entry
-        let rc = unsafe { FindNextFileW(find, &mut data) };
-        if rc != 0 {
-            continue;
-        }
-
-        // report end-of-directory
-        let code = core_platform::last_error_code() as u32;
-        if code == ERROR_NO_MORE_FILES {
-            unsafe {
-                *out = DirentNext::DirentNextEnd(DirentNextEnd {
-                    kind: binding.store_string("end"),
-                });
-            }
-
-            return Ok(());
-        }
-
-        return Err(last_os_error("FindNextFileW", None));
-    }
+    Ok(())
 }
 
 /// Reset an open directory handle to the first entry.
@@ -804,16 +939,16 @@ pub(crate) unsafe fn destack_fs_rewinddir(
     binding: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
-    // resolve and reset the per-handle directory cursor
-    let cursor = directory_cursor(binding, handle)?;
-    let mut cursor = cursor.lock().map_err(|_| {
+    // resolve and reset the shared directory enumerator
+    let enumerator = directory_enumerator(binding, handle)?;
+    let mut enumerator = enumerator.lock().map_err(|_| {
         RuntimeError::from(PlatformError::generic(
             None,
-            "directory cursor lock is poisoned",
+            "directory enumerator lock is poisoned",
         ))
         .boxed()
     })?;
-    *cursor = 0;
+    reset_directory_enumerator(&mut enumerator);
 
     Ok(())
 }
