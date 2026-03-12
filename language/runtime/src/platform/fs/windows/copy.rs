@@ -9,14 +9,17 @@ use crate::platform::fs::{
 };
 use crate::runtime::{BindingCallContext, NativeSlice};
 
+/// Copyfile flag to reject replacing an existing destination.
+const COPYFILE_FAIL_IF_EXISTS: u32 = 0x1;
+
 /// Copy a file.
 ///
-/// Copy file contents and requested metadata behavior from source path to destination path.
-/// Copy flags control overwrite behavior and host fast-copy strategies.
+/// Copy file contents from source path to destination path.
+/// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+/// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -32,12 +35,22 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
     to: PathBytes,
     flags: CopyFlags,
 ) -> RuntimeResult<()> {
+    // reject unsupported copyfile flags on windows
+    let supported_flags = COPYFILE_FAIL_IF_EXISTS;
+    if flags.0 & !supported_flags != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "unsupported copyfile flags",
+        ))
+        .boxed());
+    }
+
     // decode the source and destination paths
     let from = wide_from_bytes(from, "from")?;
     let to = wide_from_bytes(to, "to")?;
 
     // map flags into win32 behavior
-    let fail_if_exists = flags.0 & 1 != 0;
+    let fail_if_exists = flags.0 & COPYFILE_FAIL_IF_EXISTS != 0;
 
     // copy the file
     let rc = unsafe { CopyFileW(from.as_ptr(), to.as_ptr(), fail_if_exists as i32) };
@@ -50,12 +63,12 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
 
 /// Copy a file.
 ///
-/// Copy file contents and requested metadata behavior from source path to destination path.
-/// Copy flags control overwrite behavior and host fast-copy strategies.
+/// Copy file contents from source path to destination path.
+/// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+/// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -71,12 +84,22 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
     to: PathUtf16,
     flags: CopyFlags,
 ) -> RuntimeResult<()> {
+    // reject unsupported copyfile flags on windows
+    let supported_flags = COPYFILE_FAIL_IF_EXISTS;
+    if flags.0 & !supported_flags != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "unsupported copyfile flags",
+        ))
+        .boxed());
+    }
+
     // decode the source and destination paths
     let from = wide_from_utf16(from, "from")?;
     let to = wide_from_utf16(to, "to")?;
 
     // map flags into win32 behavior
-    let fail_if_exists = flags.0 & 1 != 0;
+    let fail_if_exists = flags.0 & COPYFILE_FAIL_IF_EXISTS != 0;
 
     // copy the file
     let rc = unsafe { CopyFileW(from.as_ptr(), to.as_ptr(), fail_if_exists as i32) };
@@ -121,7 +144,8 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
     // copy via pread/pwrite to keep offsets explicit
     let mut remaining = length.0;
     let mut total = 0u64;
-    let mut buffer = vec![0u8; 1024 * 1024];
+    let buffer_length = core_fs::copy_fallback_buffer_length(length.0);
+    let mut buffer = vec![0u8; buffer_length];
     let mut src_offset = src_offset;
     let mut dst_offset = dst_offset;
 
@@ -137,30 +161,50 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
         if bytes_read == 0 {
             break;
         }
-        let read_slice = NativeSlice {
-            data: buffer.as_mut_ptr(),
-            len: bytes_read as u32,
-        };
-        let mut bytes_written = 0u64;
-        unsafe { destack_fs_pwrite(binding, &mut bytes_written, dst, read_slice, dst_offset) }?;
-        total = total.saturating_add(bytes_written);
+        // write the full read chunk before advancing source state
+        let mut written = 0u64;
+        while written < bytes_read {
+            let local_offset = i64::try_from(written).map_err(|_| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    "length",
+                    "copy size exceeds signed offset range",
+                ))
+                .boxed()
+            })?;
+            let read_slice = NativeSlice {
+                data: unsafe { buffer.as_mut_ptr().add(written as usize) },
+                len: (bytes_read - written) as u32,
+            };
+            let mut local = 0u64;
+            unsafe {
+                destack_fs_pwrite(
+                    binding,
+                    &mut local,
+                    dst,
+                    read_slice,
+                    FileOffset(dst_offset.0.saturating_add(local_offset)),
+                )
+            }?;
+            if local == 0 {
+                return Err(RuntimeError::from(PlatformError::io(
+                    "copy_file_range fallback write returned zero bytes".to_string(),
+                ))
+                .boxed());
+            }
+            written = written.saturating_add(local);
+        }
 
-        // advance source and destination offsets
-        let written = i64::try_from(bytes_written).map_err(|_| {
+        let chunk_length = i64::try_from(bytes_read).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "length",
                 "copy size exceeds signed offset range",
             ))
             .boxed()
         })?;
-        src_offset = FileOffset(src_offset.0.saturating_add(written));
-        dst_offset = FileOffset(dst_offset.0.saturating_add(written));
-
-        // advance remaining count
-        remaining = remaining.saturating_sub(bytes_written);
-        if bytes_written < bytes_read {
-            break;
-        }
+        src_offset = FileOffset(src_offset.0.saturating_add(chunk_length));
+        dst_offset = FileOffset(dst_offset.0.saturating_add(chunk_length));
+        total = total.saturating_add(bytes_read);
+        remaining = remaining.saturating_sub(bytes_read);
     }
 
     unsafe {
@@ -172,12 +216,12 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
 
 /// Copy a file.
 ///
-/// Copy file contents and requested metadata behavior from source path to destination path.
-/// Copy flags control overwrite behavior and host fast-copy strategies.
+/// Copy file contents from source path to destination path.
+/// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+/// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.

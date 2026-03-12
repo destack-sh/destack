@@ -6,7 +6,7 @@ use super::copy::{
 use super::core::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::*;
+use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
@@ -326,6 +326,8 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
+    core_fs::validate_xattr_flags(flags)?;
+
     let path = resolve_path_bytes_cstring(path, "path")?;
     let name = resolve_name_bytes_cstring(name, "name")?;
     let value = unsafe { value.as_slice()? };
@@ -368,6 +370,8 @@ pub(crate) unsafe fn destack_fs_setxattr_utf16(
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
+    core_fs::validate_xattr_flags(flags)?;
+
     let path = resolve_path_utf16_cstring(path, "path")?;
     let name = resolve_name_bytes_cstring(name, "name")?;
     let value = unsafe { value.as_slice()? };
@@ -410,6 +414,8 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
+    core_fs::validate_xattr_flags(flags)?;
+
     let path = resolve_path_bytes_cstring(path, "path")?;
     let name = resolve_name_bytes_cstring(name, "name")?;
     let value = unsafe { value.as_slice()? };
@@ -452,6 +458,8 @@ pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
+    core_fs::validate_xattr_flags(flags)?;
+
     let path = resolve_path_utf16_cstring(path, "path")?;
     let name = resolve_name_bytes_cstring(name, "name")?;
     let value = unsafe { value.as_slice()? };
@@ -494,6 +502,8 @@ pub(crate) unsafe fn destack_fs_fsetxattr_handle(
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
+    core_fs::validate_xattr_flags(flags)?;
+
     let fd = file_descriptor(binding, handle)?;
     let name = resolve_name_bytes_cstring(name, "name")?;
     let value = unsafe { value.as_slice()? };

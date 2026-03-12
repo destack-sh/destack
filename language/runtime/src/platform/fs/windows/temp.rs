@@ -7,12 +7,13 @@ use crate::runtime::BindingCallContext;
 
 /// Create a temporary directory.
 ///
-/// Create a unique temporary directory from the template in the platform temp directory.
+/// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
+/// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
 /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdtemp(3) on Unix and GetTempPathW plus CreateDirectoryW on Windows.
+/// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -49,12 +50,13 @@ pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
 
 /// Create a temporary directory.
 ///
-/// Create a unique temporary directory from the template in the platform temp directory.
+/// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
+/// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
 /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdtemp(3) on Unix and GetTempPathW plus CreateDirectoryW on Windows.
+/// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -100,12 +102,13 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
 
 /// Create a temporary directory.
 ///
-/// Create a unique temporary directory from the template in the platform temp directory.
+/// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
+/// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
 /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdtemp(3) on Unix and GetTempPathW plus CreateDirectoryW on Windows.
+/// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -123,32 +126,7 @@ pub(crate) unsafe fn destack_fs_mkdtemp(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    #[cfg(unix)]
-    {
-        match template.encoding {
-            PathEncoding::Bytes => {
-                let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_mkdtemp_bytes(binding, &mut inner, template.bytes) }?;
-                unsafe {
-                    *out = core_fs::path_ref_from_bytes(inner);
-                }
-                Ok(())
-            }
-            PathEncoding::Utf16 => {
-                let bytes = core_fs::with_utf16_as_bytes(template.utf16, "template", |template| {
-                    let mut inner = core_fs::empty_path_bytes();
-                    unsafe { destack_fs_mkdtemp_bytes(binding, &mut inner, template) }?;
-                    Ok(inner)
-                })?;
-                let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "template")?;
-                unsafe {
-                    *out = core_fs::path_ref_from_utf16(utf16);
-                }
-                Ok(())
-            }
-        }
-    }
-    #[cfg(not(unix))]
+
     core_fs::with_path_ref(
         template,
         "template",

@@ -59,7 +59,10 @@ pub(crate) unsafe fn destack_fs_open_bytes(
 
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(fd)
-        .with_finalizer(FdFinalizer { fd });
+        .with_finalizer(FdFinalizer {
+            fd,
+            directory_stream: None,
+        });
     let resource_id =
         binding
             .agent()
@@ -142,15 +145,36 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
         return Err(core_platform::io_error("opendir", None));
     }
 
+    // open one shared directory stream for incremental iteration
+    let directory_fd = unsafe { libc::dup(fd) };
+    if directory_fd < 0 {
+        unsafe {
+            libc::close(fd);
+        }
+        return Err(core_platform::io_error("dup", None));
+    }
+
+    let directory_stream = unsafe { libc::fdopendir(directory_fd) };
+    if directory_stream.is_null() {
+        unsafe {
+            libc::close(directory_fd);
+            libc::close(fd);
+        }
+        return Err(core_platform::io_error("fdopendir", None));
+    }
+
     let path_buf = resolve_path_bytes(path, "path")?;
     let resource = DirectoryResource {
         path: path_buf,
         fd,
-        cursor: Arc::new(Mutex::new(0)),
+        iterator: Arc::new(Mutex::new(DirectoryIterator::new(directory_stream))),
     };
     let entry = ResourceEntry::new(ResourceKind::Directory)
         .with_payload(resource)
-        .with_finalizer(FdFinalizer { fd });
+        .with_finalizer(FdFinalizer {
+            fd,
+            directory_stream: Some(directory_stream as usize),
+        });
     let resource_id =
         binding
             .agent()
@@ -242,7 +266,10 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
     }
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(fd)
-        .with_finalizer(FdFinalizer { fd });
+        .with_finalizer(FdFinalizer {
+            fd,
+            directory_stream: None,
+        });
     let handle = binding
         .agent()
         .resources
@@ -341,7 +368,10 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
         }
         let entry = ResourceEntry::new(ResourceKind::File)
             .with_fd(fd)
-            .with_finalizer(FdFinalizer { fd });
+            .with_finalizer(FdFinalizer {
+                fd,
+                directory_stream: None,
+            });
         let handle =
             binding
                 .agent()
@@ -357,9 +387,10 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
         if how.resolve.0 != 0 {
-            return Err(
-                RuntimeError::from(PlatformError::not_supported("destack.fs.openat2")).boxed(),
-            );
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.fs.file.openat2",
+            ))
+            .boxed());
         }
         unsafe { destack_fs_openat_bytes(binding, out, dir, path, how.flags, how.mode) }
     }

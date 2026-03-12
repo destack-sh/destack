@@ -7,8 +7,61 @@ use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
 use crate::runtime::BindingCallContext;
 
-use std::ffi::CString;
-use std::os::unix::ffi::OsStrExt;
+/// Read the next visible entry from one native directory stream.
+fn read_next_visible_dirent(
+    binding: &BindingCallContext,
+    resource: &DirectoryResource,
+    directory: *mut libc::DIR,
+) -> RuntimeResult<Option<Dirent>> {
+    loop {
+        // read one raw entry from the shared directory stream
+        core_platform::set_errno(0);
+        let entry = unsafe { libc::readdir(directory) };
+        if entry.is_null() {
+            if core_platform::get_errno() != 0 {
+                return Err(core_platform::io_error(
+                    "readdir",
+                    Some(resource.path.to_string_lossy().as_ref()),
+                ));
+            }
+
+            return Ok(None);
+        }
+
+        // skip dot entries from the public stream
+        let name_pointer = unsafe { (*entry).d_name.as_ptr() };
+        let name = unsafe { std::ffi::CStr::from_ptr(name_pointer) };
+        let name_bytes = name.to_bytes();
+        if name_bytes == b"." || name_bytes == b".." {
+            continue;
+        }
+
+        // recover the entry kind when d_type is unknown
+        let mut kind = dirent_kind_from_type(unsafe { (*entry).d_type });
+        if kind == DirentKind::Unknown {
+            let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
+            let rc = unsafe {
+                libc::fstatat(
+                    resource.fd,
+                    name_pointer,
+                    stat.as_mut_ptr(),
+                    libc::AT_SYMLINK_NOFOLLOW,
+                )
+            };
+            if rc == 0 {
+                let stat = unsafe { stat.assume_init() };
+                kind = dirent_kind_from_mode(stat.st_mode);
+            }
+        }
+
+        // materialize one visible entry
+        let name = PathBytesAbi::<NativeAbi>(binding.store_array(name_bytes.to_vec()));
+        return Ok(Some(Dirent {
+            name: core_fs::path_ref_from_bytes(name),
+            kind,
+        }));
+    }
+}
 
 /// Read directory entries from an open directory handle.
 ///
@@ -39,70 +92,20 @@ pub(crate) unsafe fn destack_fs_readdir(
 
     // read directory entries on unix platforms
     let resource = directory_resource(binding, handle)?;
-    let dup_fd = unsafe { libc::dup(resource.fd) };
-    if dup_fd < 0 {
-        return Err(core_platform::io_error("dup", None));
-    }
-
-    let dirp = unsafe { libc::fdopendir(dup_fd) };
-    if dirp.is_null() {
-        unsafe {
-            libc::close(dup_fd);
-        }
-        return Err(core_platform::io_error("fdopendir", None));
-    }
-
-    struct DirGuard(*mut libc::DIR);
-    impl Drop for DirGuard {
-        fn drop(&mut self) {
-            unsafe {
-                libc::closedir(self.0);
-            }
-        }
-    }
-
-    let _guard = DirGuard(dirp);
+    let iterator = resource.iterator.lock().map_err(|_| {
+        RuntimeError::from(PlatformError::generic(
+            None,
+            "directory iterator lock is poisoned",
+        ))
+        .boxed()
+    })?;
     let mut dirents = Vec::new();
-    loop {
-        core_platform::set_errno(0);
-        let entry = unsafe { libc::readdir(dirp) };
-        if entry.is_null() {
-            if core_platform::get_errno() != 0 {
-                return Err(core_platform::io_error(
-                    "readdir",
-                    Some(resource.path.to_string_lossy().as_ref()),
-                ));
-            }
-            break;
-        }
 
-        let name_ptr = unsafe { (*entry).d_name.as_ptr() };
-        let name = unsafe { std::ffi::CStr::from_ptr(name_ptr) };
-        let name_bytes = name.to_bytes();
-        if name_bytes == b"." || name_bytes == b".." {
-            continue;
-        }
-        let mut kind = dirent_kind_from_type(unsafe { (*entry).d_type });
-        if kind == DirentKind::Unknown {
-            let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
-            let rc = unsafe {
-                libc::fstatat(
-                    resource.fd,
-                    name_ptr,
-                    stat.as_mut_ptr(),
-                    libc::AT_SYMLINK_NOFOLLOW,
-                )
-            };
-            if rc == 0 {
-                let stat = unsafe { stat.assume_init() };
-                kind = dirent_kind_from_mode(stat.st_mode);
-            }
-        }
-        let name = PathBytesAbi::<NativeAbi>(binding.store_array(name_bytes.to_vec()));
-        dirents.push(Dirent {
-            name: core_fs::path_ref_from_bytes(name),
-            kind,
-        });
+    // consume the remaining directory stream from the shared iterator
+    while let Some(entry) =
+        read_next_visible_dirent(binding, &resource, iterator.dir as *mut libc::DIR)?
+    {
+        dirents.push(entry);
     }
 
     let array = binding.store_array(dirents);
@@ -412,118 +415,31 @@ pub(crate) unsafe fn destack_fs_readdir_next(
 
     // resolve the directory resource and its iteration cursor
     let resource = directory_resource(binding, handle)?;
-    let mut cursor = resource.cursor.lock().map_err(|_| {
+    let iterator = resource.iterator.lock().map_err(|_| {
         RuntimeError::from(PlatformError::generic(
             None,
-            "directory cursor lock is poisoned",
+            "directory iterator lock is poisoned",
         ))
         .boxed()
     })?;
-    let current_index = *cursor;
 
-    // open a fresh directory descriptor so host offsets do not leak across calls
-    let c_path = CString::new(resource.path.as_os_str().as_bytes()).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "path",
-            "path contains nul byte",
-        ))
-        .boxed()
-    })?;
-    let flags = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC;
-    let duplicate_fd = unsafe { libc::open(c_path.as_ptr(), flags) };
-    if duplicate_fd < 0 {
-        return Err(core_platform::io_error(
-            "open",
-            Some(resource.path.to_string_lossy().as_ref()),
-        ));
-    }
-
-    // open a transient directory stream for this read step
-    let directory = unsafe { libc::fdopendir(duplicate_fd) };
-    if directory.is_null() {
-        unsafe {
-            libc::close(duplicate_fd);
-        }
-        return Err(core_platform::io_error("fdopendir", None));
-    }
-
-    // close the transient stream automatically on all exits
-    struct DirGuard(*mut libc::DIR);
-    impl Drop for DirGuard {
-        fn drop(&mut self) {
-            unsafe {
-                libc::closedir(self.0);
-            }
-        }
-    }
-    let _guard = DirGuard(directory);
-
-    // walk entries until we reach the indexed cursor position
-    let mut visible_index = 0_u64;
-    loop {
-        core_platform::set_errno(0);
-        let entry = unsafe { libc::readdir(directory) };
-        if entry.is_null() {
-            if core_platform::get_errno() != 0 {
-                return Err(core_platform::io_error(
-                    "readdir",
-                    Some(resource.path.to_string_lossy().as_ref()),
-                ));
-            }
-
-            // mark end-of-directory
-            unsafe {
-                *out = DirentNext::DirentNextEnd(DirentNextEnd { kind: "end".into() });
-            }
-            return Ok(());
-        }
-
-        // filter dot and dot-dot entries from the visible index stream
-        let name_pointer = unsafe { (*entry).d_name.as_ptr() };
-        let name = unsafe { std::ffi::CStr::from_ptr(name_pointer) };
-        let name_bytes = name.to_bytes();
-        if name_bytes == b"." || name_bytes == b".." {
-            continue;
-        }
-
-        // skip entries before the current cursor
-        if visible_index < current_index {
-            visible_index = visible_index.saturating_add(1);
-            continue;
-        }
-
-        // emit one entry and advance the cursor index
-        let mut kind = dirent_kind_from_type(unsafe { (*entry).d_type });
-        if kind == DirentKind::Unknown {
-            let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
-            let rc = unsafe {
-                libc::fstatat(
-                    resource.fd,
-                    name_pointer,
-                    stat.as_mut_ptr(),
-                    libc::AT_SYMLINK_NOFOLLOW,
-                )
-            };
-            if rc == 0 {
-                let stat = unsafe { stat.assume_init() };
-                kind = dirent_kind_from_mode(stat.st_mode);
-            }
-        }
-
-        let name = PathBytesAbi::<NativeAbi>(binding.store_array(name_bytes.to_vec()));
-        *cursor = current_index.saturating_add(1);
+    // emit one entry or mark end-of-directory on the shared iterator
+    if let Some(entry) =
+        read_next_visible_dirent(binding, &resource, iterator.dir as *mut libc::DIR)?
+    {
         unsafe {
             *out = DirentNext::DirentNextEntry(DirentNextEntry {
                 kind: "entry".into(),
-                entry: Dirent {
-                    name: core_fs::path_ref_from_bytes(name),
-                    kind,
-                },
+                entry,
             });
         }
-
-        return Ok(());
+    } else {
+        unsafe {
+            *out = DirentNext::DirentNextEnd(DirentNextEnd { kind: "end".into() });
+        }
     }
+
+    Ok(())
 }
 
 /// Reset an open directory handle to the first entry.
@@ -549,14 +465,18 @@ pub(crate) unsafe fn destack_fs_rewinddir(
 ) -> RuntimeResult<()> {
     // resolve the directory resource and reset its cursor
     let resource = directory_resource(binding, handle)?;
-    let mut cursor = resource.cursor.lock().map_err(|_| {
+    let iterator = resource.iterator.lock().map_err(|_| {
         RuntimeError::from(PlatformError::generic(
             None,
-            "directory cursor lock is poisoned",
+            "directory iterator lock is poisoned",
         ))
         .boxed()
     })?;
-    *cursor = 0;
+
+    // reset the shared directory stream
+    unsafe {
+        libc::rewinddir(iterator.dir as *mut libc::DIR);
+    }
 
     Ok(())
 }

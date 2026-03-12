@@ -35,7 +35,7 @@ pub(crate) unsafe fn destack_fs_fadvise(
     _length: FileSize,
     _advice: FileAdvice,
 ) -> RuntimeResult<()> {
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fadvise")).boxed())
 }
 
 /// Allocate or punch file space.
@@ -74,7 +74,7 @@ pub(crate) unsafe fn destack_fs_fallocate(
     // validate flags
     if flags.0 != 0 {
         return Err(
-            RuntimeError::from(PlatformError::not_supported("destack.fs.fallocate flags")).boxed(),
+            RuntimeError::from(PlatformError::not_supported("destack.fs.file.fallocate")).boxed(),
         );
     }
 

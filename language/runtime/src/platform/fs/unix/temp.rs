@@ -6,14 +6,17 @@ use crate::runtime::BindingCallContext;
 
 use std::ffi::CStr;
 
+const MKDTEMP_TEMPLATE_SUFFIX: &[u8] = b"XXXXXX";
+
 /// Create a temporary directory.
 ///
-/// Create a unique temporary directory from the template in the platform temp directory.
+/// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
+/// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
 /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdtemp(3) on Unix and GetTempPathW plus CreateDirectoryW on Windows.
+/// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -42,6 +45,16 @@ pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
         ))
         .boxed());
     }
+
+    // require the standard trailing suffix
+    if !bytes.ends_with(MKDTEMP_TEMPLATE_SUFFIX) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "template",
+            "template must end with XXXXXX",
+        ))
+        .boxed());
+    }
+
     let mut buffer = bytes.to_vec();
     buffer.push(0);
     let ptr = buffer.as_mut_ptr() as *mut libc::c_char;
@@ -61,12 +74,13 @@ pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
 #[allow(dead_code)]
 /// Create a temporary directory.
 ///
-/// Create a unique temporary directory from the template in the platform temp directory.
+/// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
+/// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
 /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdtemp(3) on Unix and GetTempPathW plus CreateDirectoryW on Windows.
+/// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -100,12 +114,13 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
 
 /// Create a temporary directory.
 ///
-/// Create a unique temporary directory from the template in the platform temp directory.
+/// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
+/// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
 /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdtemp(3) on Unix and GetTempPathW plus CreateDirectoryW on Windows.
+/// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -123,51 +138,26 @@ pub(crate) unsafe fn destack_fs_mkdtemp(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    #[cfg(unix)]
-    {
-        match template {
-            OsPath::OsPathBytes(path_bytes) => {
-                let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_mkdtemp_bytes(binding, &mut inner, path_bytes.bytes) }?;
-                unsafe {
-                    *out = core_fs::path_ref_from_bytes(inner);
-                }
-                Ok(())
-            }
-            OsPath::OsPathUtf16(path_utf16) => {
-                let bytes =
-                    core_fs::with_utf16_as_bytes(path_utf16.utf16, "template", |template| {
-                        let mut inner = core_fs::empty_path_bytes();
-                        unsafe { destack_fs_mkdtemp_bytes(binding, &mut inner, template) }?;
-                        Ok(inner)
-                    })?;
-                let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "template")?;
-                unsafe {
-                    *out = core_fs::path_ref_from_utf16(utf16);
-                }
-                Ok(())
-            }
-        }
-    }
-    #[cfg(not(unix))]
-    core_fs::with_path_ref(
-        template,
-        "template",
-        |template| {
+    match template {
+        OsPath::OsPathBytes(path_bytes) => {
             let mut inner = core_fs::empty_path_bytes();
-            unsafe { destack_fs_mkdtemp_bytes(binding, &mut inner, template) }?;
+            unsafe { destack_fs_mkdtemp_bytes(binding, &mut inner, path_bytes.bytes) }?;
             unsafe {
                 *out = core_fs::path_ref_from_bytes(inner);
             }
             Ok(())
-        },
-        |template| {
-            let mut inner = core_fs::empty_path_utf16();
-            unsafe { destack_fs_mkdtemp_utf16(binding, &mut inner, template) }?;
+        }
+        OsPath::OsPathUtf16(path_utf16) => {
+            let bytes = core_fs::with_utf16_as_bytes(path_utf16.utf16, "template", |template| {
+                let mut inner = core_fs::empty_path_bytes();
+                unsafe { destack_fs_mkdtemp_bytes(binding, &mut inner, template) }?;
+                Ok(inner)
+            })?;
+            let utf16 = core_fs::path_utf16_from_bytes(binding, bytes, "template")?;
             unsafe {
-                *out = core_fs::path_ref_from_utf16(inner);
+                *out = core_fs::path_ref_from_utf16(utf16);
             }
             Ok(())
-        },
-    )
+        }
+    }
 }
