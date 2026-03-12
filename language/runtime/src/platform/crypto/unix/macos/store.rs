@@ -1,6 +1,6 @@
-use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::ffi::CString;
 use std::os::raw::c_void;
+use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::ptr;
 
@@ -16,9 +16,7 @@ use security_framework_sys::item::{
     kSecAttrAccount, kSecAttrService, kSecClass, kSecClassGenericPassword, kSecReturnData,
     kSecUseAuthenticationUI, kSecUseAuthenticationUISkip, kSecValueData,
 };
-use security_framework_sys::keychain_item::{
-    SecItemAdd, SecItemCopyMatching, SecItemDelete, SecItemUpdate,
-};
+use security_framework_sys::keychain_item::{SecItemAdd, SecItemCopyMatching, SecItemUpdate};
 use security_framework_sys::trust_settings::{
     kSecTrustSettingsDomainAdmin, kSecTrustSettingsDomainUser,
 };
@@ -27,9 +25,9 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::core::CRYPTO_STORE_OPEN_OPERATION;
+use crate::platform::crypto::host::unix::core::{self as unix_core, SnapshotConfig};
 use crate::runtime::BindingCallContext;
 
-use super::super::super::core::next_store_write_probe_identifier;
 use super::certificate::{
     collect_trust_settings_certificates, collect_trusted_certificates,
     host_store_certificate_lane_is_available,
@@ -37,8 +35,13 @@ use super::certificate::{
 use super::core::{
     configured_keychain_snapshot_account, configured_keychain_snapshot_service,
     configured_store_path, create_cf_string, filesystem_mode_enabled,
-    filesystem_store_lane_is_available, invalid_data, load_host_key_snapshot_bytes_from_filesystem,
-    permission_denied, store_host_key_snapshot_bytes_to_filesystem,
+    filesystem_store_lane_is_available, invalid_data, permission_denied,
+};
+
+/// Snapshot codec configuration for macOS filesystem override lanes.
+const MACOS_FILESYSTEM_SNAPSHOT_CONFIG: SnapshotConfig = SnapshotConfig {
+    store_label: "macos",
+    associated_data: b"destack.crypto.macos.snapshot.v1",
 };
 
 /// Return whether one host lane has a writable persistent-key backend.
@@ -60,185 +63,33 @@ pub(crate) fn host_store_persistence_backend_is_available(
         return false;
     }
 
-    // keychain snapshot persistence is currently supported on the user lane
-    if kind != CryptoStoreKind::User {
-        return false;
-    }
-
-    // probe snapshot write access with one disposable keychain item
-    probe_keychain_snapshot_writeability(binding, "destack.crypto.store.probeCapability")
+    // keychain snapshot persistence is structurally exposed on the user lane
+    //
+    // the actual write path still fails explicitly when keychain policy denies access
+    kind == CryptoStoreKind::User
 }
 
 /// Return whether one filesystem key-store path is writable.
 fn probe_filesystem_store_writeability(path: &Path) -> bool {
-    // ensure the parent directory exists before probing write access
+    // walk up to one existing ancestor without mutating the filesystem
     let Some(parent_directory) = path.parent() else {
         return false;
     };
-    if fs::create_dir_all(parent_directory).is_err() {
-        return false;
-    }
+    let mut current = Some(parent_directory);
+    while let Some(candidate) = current {
+        if candidate.is_dir() {
+            let candidate = match CString::new(candidate.as_os_str().as_bytes()) {
+                Ok(candidate) => candidate,
+                Err(_) => return false,
+            };
 
-    // create one short-lived probe file and write one payload
-    let probe_identifier = next_store_write_probe_identifier();
-    let probe_file_path =
-        parent_directory.join(format!(".destack-crypto-write-probe-{probe_identifier}"));
-    let mut probe_file = match OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&probe_file_path)
-    {
-        Ok(file) => file,
-        Err(_) => return false,
-    };
-    if probe_file.write_all(b"probe").is_err() {
-        let _ = fs::remove_file(&probe_file_path);
-        return false;
-    }
-    if probe_file.sync_all().is_err() {
-        let _ = fs::remove_file(&probe_file_path);
-        return false;
-    }
-
-    // remove the probe file and report final result
-    fs::remove_file(probe_file_path).is_ok()
-}
-
-/// Return whether one keychain snapshot service and account pair is writable.
-fn probe_keychain_snapshot_writeability(
-    binding: &BindingCallContext,
-    operation: &'static str,
-) -> bool {
-    // build one unique probe account and payload for this writeability check
-    let service_name = configured_keychain_snapshot_service(binding);
-    let account_name = configured_keychain_snapshot_account(binding);
-    let probe_identifier = next_store_write_probe_identifier();
-    let probe_account_name = format!("{account_name}.destack.write-probe.{probe_identifier}");
-    let probe_payload = probe_identifier.into_bytes();
-
-    // encode keychain service, account, and payload values
-    let service = match create_cf_string(&service_name, operation) {
-        Ok(service) => service,
-        Err(_) => return false,
-    };
-    let account = match create_cf_string(&probe_account_name, operation) {
-        Ok(account) => account,
-        Err(_) => {
-            unsafe {
-                CFRelease(service as CFTypeRef);
-            }
-            return false;
+            return unsafe { libc::access(candidate.as_ptr(), libc::W_OK | libc::X_OK) == 0 };
         }
-    };
-    let data = unsafe {
-        CFDataCreate(
-            kCFAllocatorDefault,
-            probe_payload.as_ptr(),
-            probe_payload.len() as isize,
-        )
-    };
-    if data.is_null() {
-        unsafe {
-            CFRelease(service as CFTypeRef);
-            CFRelease(account as CFTypeRef);
-        }
-        return false;
+
+        current = candidate.parent();
     }
 
-    // write one disposable generic-password item
-    let add_keys = unsafe {
-        [
-            kSecClass as *const c_void,
-            kSecAttrService as *const c_void,
-            kSecAttrAccount as *const c_void,
-            kSecValueData as *const c_void,
-            kSecUseAuthenticationUI as *const c_void,
-        ]
-    };
-    let add_values = unsafe {
-        [
-            kSecClassGenericPassword as *const c_void,
-            service as *const c_void,
-            account as *const c_void,
-            data as *const c_void,
-            kSecUseAuthenticationUISkip as *const c_void,
-        ]
-    };
-    let add_query = unsafe {
-        CFDictionaryCreate(
-            kCFAllocatorDefault,
-            add_keys.as_ptr(),
-            add_values.as_ptr(),
-            add_keys.len() as isize,
-            &kCFTypeDictionaryKeyCallBacks,
-            &kCFTypeDictionaryValueCallBacks,
-        )
-    };
-    if add_query.is_null() {
-        unsafe {
-            CFRelease(service as CFTypeRef);
-            CFRelease(account as CFTypeRef);
-            CFRelease(data as CFTypeRef);
-        }
-        return false;
-    }
-    let add_status = unsafe { SecItemAdd(add_query, ptr::null_mut()) };
-    unsafe {
-        CFRelease(add_query as CFTypeRef);
-    }
-    if add_status != errSecSuccess && add_status != errSecDuplicateItem {
-        unsafe {
-            CFRelease(service as CFTypeRef);
-            CFRelease(account as CFTypeRef);
-            CFRelease(data as CFTypeRef);
-        }
-        return false;
-    }
-
-    // delete the disposable probe item to avoid persistent side effects
-    let delete_keys = unsafe {
-        [
-            kSecClass as *const c_void,
-            kSecAttrService as *const c_void,
-            kSecAttrAccount as *const c_void,
-            kSecUseAuthenticationUI as *const c_void,
-        ]
-    };
-    let delete_values = unsafe {
-        [
-            kSecClassGenericPassword as *const c_void,
-            service as *const c_void,
-            account as *const c_void,
-            kSecUseAuthenticationUISkip as *const c_void,
-        ]
-    };
-    let delete_query = unsafe {
-        CFDictionaryCreate(
-            kCFAllocatorDefault,
-            delete_keys.as_ptr(),
-            delete_values.as_ptr(),
-            delete_keys.len() as isize,
-            &kCFTypeDictionaryKeyCallBacks,
-            &kCFTypeDictionaryValueCallBacks,
-        )
-    };
-    if delete_query.is_null() {
-        unsafe {
-            CFRelease(service as CFTypeRef);
-            CFRelease(account as CFTypeRef);
-            CFRelease(data as CFTypeRef);
-        }
-        return false;
-    }
-    let delete_status = unsafe { SecItemDelete(delete_query) };
-    unsafe {
-        CFRelease(delete_query as CFTypeRef);
-        CFRelease(service as CFTypeRef);
-        CFRelease(account as CFTypeRef);
-        CFRelease(data as CFTypeRef);
-    }
-
-    delete_status == errSecSuccess || delete_status == errSecItemNotFound
+    false
 }
 
 /// Return whether one host store lane is currently available.
@@ -303,7 +154,11 @@ pub(crate) fn load_host_key_snapshot_bytes(
 ) -> RuntimeResult<Option<Vec<u8>>> {
     // read snapshot bytes from configured filesystem lane when provided
     if let Some(path) = configured_store_path(binding, kind) {
-        return load_host_key_snapshot_bytes_from_filesystem(&path, operation);
+        return unix_core::load_host_key_snapshot_bytes(
+            Some(path),
+            MACOS_FILESYSTEM_SNAPSHOT_CONFIG,
+            operation,
+        );
     }
 
     // keychain snapshot storage currently only supports the user lane
@@ -401,7 +256,13 @@ pub(crate) fn store_host_key_snapshot_bytes(
 ) -> RuntimeResult<()> {
     // write snapshot bytes to configured filesystem lane when provided
     if let Some(path) = configured_store_path(binding, kind) {
-        return store_host_key_snapshot_bytes_to_filesystem(&path, snapshot_bytes, operation);
+        return unix_core::store_host_key_snapshot_bytes(
+            Some(path),
+            kind,
+            snapshot_bytes,
+            MACOS_FILESYSTEM_SNAPSHOT_CONFIG,
+            operation,
+        );
     }
 
     // keychain snapshot storage currently only supports the user lane

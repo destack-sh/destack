@@ -19,11 +19,6 @@ mod key;
 mod path;
 mod policy;
 mod probe;
-#[cfg(any(
-    target_os = "android",
-    target_os = "ios",
-    not(any(target_os = "android", target_os = "ios", target_os = "macos"))
-))]
 mod snapshot;
 #[cfg(any(
     target_os = "android",
@@ -53,11 +48,6 @@ pub(crate) use key::*;
 pub(crate) use path::*;
 pub(crate) use policy::*;
 pub(crate) use probe::*;
-#[cfg(any(
-    target_os = "android",
-    target_os = "ios",
-    not(any(target_os = "android", target_os = "ios", target_os = "macos"))
-))]
 pub(crate) use snapshot::*;
 #[cfg(any(
     target_os = "android",

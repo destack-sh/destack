@@ -78,15 +78,40 @@ pub(crate) fn host_store_supports_hardware_backed_secret_key(
     false
 }
 
+/// Return whether one host store lane supports persistent non-extractable pair generation.
+pub(crate) fn host_store_supports_nonextractable_pair_algorithm(
+    _binding: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    unix_core::host_store_supports_key_persistence(kind)
+        && matches!(algorithm, CryptoKeyAlgorithm::Rsa | CryptoKeyAlgorithm::Ec)
+}
+
+/// Return whether one host store lane supports persistent non-extractable private-key import.
+pub(crate) fn host_store_supports_nonextractable_private_import_algorithm(
+    _binding: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    unix_core::host_store_supports_key_persistence(kind)
+        && matches!(algorithm, CryptoKeyAlgorithm::Rsa | CryptoKeyAlgorithm::Ec)
+}
+
 /// Generate one host-backed hardware key pair.
 pub(crate) fn host_generate_hardware_backed_key_pair(
     _binding: &BindingCallContext,
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
+    usage_mask: CryptoKeyUsageMask,
+    modulus_bits: u32,
+    public_exponent: u32,
     persistent_key_label: &str,
     operation: &'static str,
 ) -> RuntimeResult<HostGeneratedKeyPair> {
+    let _ = (usage_mask, modulus_bits, public_exponent);
+
     // enforce secure-enclave lane shape
     if kind != CryptoStoreKind::User {
         return Err(core_platform::not_supported(operation));

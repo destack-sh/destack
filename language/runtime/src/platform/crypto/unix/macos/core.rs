@@ -1,6 +1,3 @@
-use std::fs;
-#[cfg(target_family = "unix")]
-use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 use core_foundation_sys::base::{CFRelease, CFTypeRef, kCFAllocatorDefault};
@@ -159,68 +156,6 @@ pub(super) fn configured_keychain_snapshot_account(binding: &BindingCallContext)
         .macos_keychain_snapshot_account
         .clone()
         .unwrap_or_else(|| DEFAULT_MACOS_USER_KEYCHAIN_ACCOUNT.to_string())
-}
-
-/// Load one host-key snapshot blob from one filesystem path.
-pub(super) fn load_host_key_snapshot_bytes_from_filesystem(
-    path: &PathBuf,
-    operation: &'static str,
-) -> RuntimeResult<Option<Vec<u8>>> {
-    // read snapshot bytes when the file exists
-    let bytes = match fs::read(path) {
-        Ok(bytes) => bytes,
-        Err(error) => {
-            if error.kind() == std::io::ErrorKind::NotFound {
-                return Ok(None);
-            }
-
-            return Err(permission_denied(
-                operation,
-                format!("failed to read macOS host keystore snapshot {path:?}: {error}"),
-            ));
-        }
-    };
-
-    Ok(Some(bytes))
-}
-
-/// Store one host-key snapshot blob into one filesystem path.
-pub(super) fn store_host_key_snapshot_bytes_to_filesystem(
-    path: &PathBuf,
-    snapshot_bytes: &[u8],
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    // create parent directories before writing the snapshot
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|error| {
-            permission_denied(
-                operation,
-                format!("failed to create macOS host keystore path {parent:?}: {error}"),
-            )
-        })?;
-    }
-
-    // write the snapshot payload bytes
-    fs::write(path, snapshot_bytes).map_err(|error| {
-        permission_denied(
-            operation,
-            format!("failed to write macOS host keystore snapshot {path:?}: {error}"),
-        )
-    })?;
-
-    // narrow snapshot permissions for local-key stores
-    #[cfg(target_family = "unix")]
-    {
-        let permissions = fs::Permissions::from_mode(0o600);
-        fs::set_permissions(path, permissions).map_err(|error| {
-            permission_denied(
-                operation,
-                format!("failed to set macOS host keystore permissions for {path:?}: {error}"),
-            )
-        })?;
-    }
-
-    Ok(())
 }
 
 /// Decode one CFData payload into bytes.
