@@ -400,24 +400,13 @@ pub(crate) fn binding_type_from_type_id(
             let module = module.read();
             let dir = module.dir(profile_id);
             let tree = dir.tree.read();
+            let expression_text =
+                format_type_expression(*expression_id, &tree, strings).unwrap_or(type_text.clone());
 
-            binding_type_from_alias_expression(
-                type_text.as_str(),
-                *expression_id,
-                &tree,
-                types,
-                modules,
-                strings,
-                profile_id,
-                symbols,
-                domain,
+            unsupported_binding_type(
+                expression_text.as_str(),
+                "unevaluated type reached runtime binding generation",
             )
-            .unwrap_or_else(|| {
-                unsupported_binding_type(
-                    type_text.as_str(),
-                    "unsupported unevaluated type in platform bindings",
-                )
-            })
         }
         dir::Type::Reference {
             symbol,
@@ -773,23 +762,11 @@ pub(crate) fn binding_type_from_symbol(
                     symbols,
                     domain.as_str(),
                 )
-            }
-            // fall back to alias expression syntax when type-lowering omitted alias targets
-            else {
-                binding_type_from_alias_expression(
+            } else {
+                unsupported_binding_type(
                     &name,
-                    *value,
-                    &tree,
-                    &types,
-                    modules,
-                    strings,
-                    profile_id,
-                    symbols,
-                    domain.as_str(),
+                    "missing lowered type alias target for binding type",
                 )
-                .unwrap_or_else(|| {
-                    unsupported_binding_type(&name, "missing type alias target for binding type")
-                })
             };
 
             // preserve named aliases as newtypes for platform bindings
@@ -864,50 +841,6 @@ fn binding_tagged_union_variant_name(binding_type: &BindingType) -> Option<Strin
         | BindingType::Struct { name, .. }
         | BindingType::Enum { name, .. }
         | BindingType::TaggedUnion { name, .. } => Some(name.clone()),
-        _ => None,
-    }
-}
-
-/// Resolve a binding type directly from a type-alias expression node.
-fn binding_type_from_alias_expression(
-    type_text: &str,
-    expression_id: dir::LocalNodeId<Expression>,
-    tree: &dir::NodeTree,
-    types: &dir::TypeTable,
-    modules: &ModuleRegistry,
-    strings: &StringPool,
-    profile_id: ProfileId,
-    symbols: &BindingTypeSymbols,
-    domain: &str,
-) -> Option<BindingType> {
-    let expression = tree.get::<Expression>(expression_id);
-    match expression {
-        Expression::TypeLiteral {
-            value: TypeLiteral::Void,
-        } => Some(BindingType::Void),
-        Expression::TypeLiteral {
-            value: TypeLiteral::Primitive(primitive),
-        } => Some(binding_type_from_primitive(*primitive, type_text)),
-        Expression::Type { value } => Some(binding_type_from_type_id(
-            *value, types, modules, strings, profile_id, symbols, domain,
-        )),
-        Expression::TypeUnary { right, .. } => binding_type_from_alias_expression(
-            type_text, *right, tree, types, modules, strings, profile_id, symbols, domain,
-        ),
-        Expression::ReferenceOf { right, .. } | Expression::ValueOf { right, .. } => {
-            binding_type_from_alias_expression(
-                type_text, *right, tree, types, modules, strings, profile_id, symbols, domain,
-            )
-        }
-        Expression::LocalReference { target_symbol, .. }
-        | Expression::ModuleReference { target_symbol, .. }
-        | Expression::GlobalReference { target_symbol, .. } => Some(binding_type_from_symbol(
-            *target_symbol,
-            modules,
-            strings,
-            profile_id,
-            symbols,
-        )),
         _ => None,
     }
 }
