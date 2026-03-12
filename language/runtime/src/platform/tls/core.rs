@@ -9,6 +9,7 @@ use rustls::client::{
     ClientSessionMemoryCache, ClientSessionStore, Resumption, Tls12Resumption, WebPkiServerVerifier,
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
+use rustls::server::danger::{ClientCertVerified, ClientCertVerifier};
 use rustls::server::{
     NoServerSessionStorage, ProducesTickets, ServerSessionMemoryCache, StoresServerSessions,
     WebPkiClientVerifier,
@@ -33,6 +34,8 @@ use crate::runtime::BindingCallContext;
 const TLS_CONTEXT_RESOURCE_KIND: ResourceKind = ResourceKind::TlsContext;
 /// Canonical resource kind used for tls session resources.
 const TLS_SESSION_RESOURCE_KIND: ResourceKind = ResourceKind::TlsSession;
+/// Default number of cached resumable sessions per context.
+const DEFAULT_TLS_SESSION_CACHE_ENTRIES: usize = 256;
 
 /// Policy and material attached to one TLS context.
 #[derive(Debug, Clone)]
@@ -88,8 +91,12 @@ impl TlsContextRuntimeState {
         Self {
             client_config: None,
             server_config: None,
-            client_session_store: Arc::new(ClientSessionMemoryCache::new(256)),
-            server_session_storage: ServerSessionMemoryCache::new(256),
+            client_session_store: Arc::new(ClientSessionMemoryCache::new(
+                DEFAULT_TLS_SESSION_CACHE_ENTRIES,
+            )),
+            server_session_storage: ServerSessionMemoryCache::new(
+                DEFAULT_TLS_SESSION_CACHE_ENTRIES,
+            ),
             server_ticketer: None,
         }
     }
@@ -98,8 +105,11 @@ impl TlsContextRuntimeState {
     fn reset(&mut self) {
         self.client_config = None;
         self.server_config = None;
-        self.client_session_store = Arc::new(ClientSessionMemoryCache::new(256));
-        self.server_session_storage = ServerSessionMemoryCache::new(256);
+        self.client_session_store = Arc::new(ClientSessionMemoryCache::new(
+            DEFAULT_TLS_SESSION_CACHE_ENTRIES,
+        ));
+        self.server_session_storage =
+            ServerSessionMemoryCache::new(DEFAULT_TLS_SESSION_CACHE_ENTRIES);
         self.server_ticketer = None;
     }
 }
@@ -541,20 +551,23 @@ pub(crate) fn export_keying_material(
 
     // derive keying material via rustls exporter
     let mut output = vec![0u8; output_length as usize];
-    let context = if argument_context.is_empty() {
-        None
-    } else {
-        Some(argument_context)
-    };
     match connection {
         HostTlsConnection::Client(connection) => {
             connection
-                .export_keying_material(output.as_mut_slice(), label.as_bytes(), context)
+                .export_keying_material(
+                    output.as_mut_slice(),
+                    label.as_bytes(),
+                    Some(argument_context),
+                )
                 .map_err(|error| tls_protocol_error("session.exportKeyingMaterial", error))?;
         }
         HostTlsConnection::Server(connection) => {
             connection
-                .export_keying_material(output.as_mut_slice(), label.as_bytes(), context)
+                .export_keying_material(
+                    output.as_mut_slice(),
+                    label.as_bytes(),
+                    Some(argument_context),
+                )
                 .map_err(|error| tls_protocol_error("session.exportKeyingMaterial", error))?;
         }
     };
@@ -776,6 +789,10 @@ fn build_server_config(policy: &mut TlsContextResource) -> RuntimeResult<Arc<Ser
             ))
             .boxed()
         })?;
+        let verifier = Arc::new(PolicyClientVerifier::new(
+            verifier,
+            policy.signature_algorithms.clone(),
+        ));
         builder.with_client_cert_verifier(verifier)
     } else {
         builder.with_no_client_auth()
@@ -859,24 +876,7 @@ fn build_crypto_provider(
         for suite in &provider.cipher_suites {
             supported.insert(normalize_name(&format!("{:?}", suite.suite())), *suite);
         }
-        let mut ordered = Vec::new();
-        let mut seen = HashSet::new();
-        for suite in suites {
-            let normalized = normalize_name(suite);
-            if !seen.insert(normalized.clone()) {
-                continue;
-            }
-            if let Some(supported_suite) = supported.get(&normalized) {
-                ordered.push(*supported_suite);
-            }
-        }
-        if ordered.is_empty() {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "suites",
-                "none of the requested cipher suites are supported",
-            ))
-            .boxed());
-        }
+        let ordered = resolve_named_policy_entries("suites", suites, &supported, "cipher suites")?;
         provider.cipher_suites = ordered;
     }
 
@@ -886,24 +886,8 @@ fn build_crypto_provider(
         for group in &provider.kx_groups {
             supported.insert(normalize_name(&format!("{:?}", group.name())), *group);
         }
-        let mut ordered = Vec::new();
-        let mut seen = HashSet::new();
-        for group in groups {
-            let normalized = normalize_name(group);
-            if !seen.insert(normalized.clone()) {
-                continue;
-            }
-            if let Some(supported_group) = supported.get(&normalized) {
-                ordered.push(*supported_group);
-            }
-        }
-        if ordered.is_empty() {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "groups",
-                "none of the requested key exchange groups are supported",
-            ))
-            .boxed());
-        }
+        let ordered =
+            resolve_named_policy_entries("groups", groups, &supported, "key exchange groups")?;
         provider.kx_groups = ordered;
     }
 
@@ -957,19 +941,7 @@ fn build_root_store(policy: &TlsContextResource) -> RuntimeResult<RootCertStore>
         .boxed());
     };
 
-    // parse trust anchors
-    let certificates = parse_certificates(pem, "trustAnchorsPem")?;
-    let mut roots = RootCertStore::empty();
-    let (added, _ignored) = roots.add_parsable_certificates(certificates);
-    if added == 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "trustAnchorsPem",
-            "no parsable trust anchors were found",
-        ))
-        .boxed());
-    }
-
-    Ok(roots)
+    build_root_store_from_pem(pem, "trustAnchorsPem")
 }
 
 /// Parse one PEM certificate chain.
@@ -1064,6 +1036,85 @@ pub(crate) fn parse_signature_algorithms(
     Ok(parsed)
 }
 
+/// Validate one PEM identity payload pair.
+pub(crate) fn validate_identity_pem(
+    certificate_chain_pem: &[u8],
+    private_key_pem: &[u8],
+) -> RuntimeResult<()> {
+    parse_identity_chain(certificate_chain_pem)?;
+    parse_private_key(private_key_pem)?;
+
+    Ok(())
+}
+
+/// Validate one PEM trust anchor bundle.
+pub(crate) fn validate_trust_anchor_pem(trust_anchors_pem: &[u8]) -> RuntimeResult<()> {
+    let _roots = build_root_store_from_pem(trust_anchors_pem, "trustAnchorsPem")?;
+
+    Ok(())
+}
+
+/// Validate one cipher suite list against the current TLS policy.
+pub(crate) fn validate_cipher_suites(
+    policy: &TlsContextResource,
+    suites: &[String],
+) -> RuntimeResult<()> {
+    let mut policy = policy.clone();
+    policy.cipher_suites = Some(suites.to_vec());
+    let _provider = build_crypto_provider(&policy)?;
+
+    Ok(())
+}
+
+/// Validate one key exchange group list against the current TLS policy.
+pub(crate) fn validate_groups(policy: &TlsContextResource, groups: &[String]) -> RuntimeResult<()> {
+    let mut policy = policy.clone();
+    policy.groups = Some(groups.to_vec());
+    let _provider = build_crypto_provider(&policy)?;
+
+    Ok(())
+}
+
+/// Validate one signature scheme list against the current TLS policy.
+pub(crate) fn validate_signature_algorithms(
+    policy: &TlsContextResource,
+    algorithms: &[SignatureScheme],
+) -> RuntimeResult<()> {
+    let provider = build_crypto_provider(policy)?;
+    let supported = provider
+        .signature_verification_algorithms
+        .supported_schemes();
+    let mut unsupported = Vec::new();
+
+    for algorithm in algorithms {
+        if !supported.contains(algorithm) {
+            unsupported.push(format!("{algorithm:?}"));
+            continue;
+        }
+
+        if matches!(
+            (policy.min_version, policy.max_version),
+            (TlsVersion::Tls13, TlsVersion::Tls13)
+        ) && !signature_scheme_supported_in_tls13(*algorithm)
+        {
+            unsupported.push(format!("{algorithm:?}"));
+        }
+    }
+
+    if unsupported.is_empty() {
+        return Ok(());
+    }
+
+    Err(RuntimeError::from(PlatformError::invalid_argument_value(
+        "algorithms",
+        format!(
+            "unsupported signature algorithms for the current TLS policy: {}",
+            unsupported.join(", "),
+        ),
+    ))
+    .boxed())
+}
+
 /// Build one runtime error from one rustls protocol failure.
 fn tls_protocol_error(operation: &str, error: rustls::Error) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::io_with(
@@ -1110,6 +1161,86 @@ fn normalize_name(value: &str) -> String {
         .collect()
 }
 
+/// Resolve one ordered named policy list against a supported set.
+fn resolve_named_policy_entries<T: Copy>(
+    field: &str,
+    requested: &[String],
+    supported: &HashMap<String, T>,
+    subject: &str,
+) -> RuntimeResult<Vec<T>> {
+    let mut ordered = Vec::new();
+    let mut seen = HashSet::new();
+    let mut unsupported_names = Vec::new();
+
+    for name in requested {
+        let normalized = normalize_name(name);
+        if !seen.insert(normalized.clone()) {
+            continue;
+        }
+
+        let Some(entry) = supported.get(&normalized) else {
+            unsupported_names.push(name.clone());
+            continue;
+        };
+        ordered.push(*entry);
+    }
+
+    if !unsupported_names.is_empty() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            format!("unsupported {subject}: {}", unsupported_names.join(", ")),
+        ))
+        .boxed());
+    }
+
+    if !ordered.is_empty() {
+        return Ok(ordered);
+    }
+
+    Err(RuntimeError::from(PlatformError::invalid_argument_value(
+        field,
+        format!("no supported {subject} were requested"),
+    ))
+    .boxed())
+}
+
+/// Return whether one signature scheme is legal in TLS 1.3 handshakes.
+fn signature_scheme_supported_in_tls13(scheme: SignatureScheme) -> bool {
+    !matches!(
+        scheme,
+        SignatureScheme::RSA_PKCS1_SHA256
+            | SignatureScheme::RSA_PKCS1_SHA384
+            | SignatureScheme::RSA_PKCS1_SHA512
+            | SignatureScheme::RSA_PKCS1_SHA1
+            | SignatureScheme::ECDSA_SHA1_Legacy
+    )
+}
+
+/// Build one strict root store from one PEM bundle.
+fn build_root_store_from_pem(pem: &[u8], field: &str) -> RuntimeResult<RootCertStore> {
+    let certificates = parse_certificates(pem, field)?;
+    if certificates.is_empty() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            "no parsable trust anchors were found",
+        ))
+        .boxed());
+    }
+
+    let mut roots = RootCertStore::empty();
+    for certificate in certificates {
+        roots.add(certificate).map_err(|error| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                field,
+                format!("trust anchor bundle contains one invalid certificate: {error}"),
+            ))
+            .boxed()
+        })?;
+    }
+
+    Ok(roots)
+}
+
 /// Write one certificate block in PEM format.
 fn pem_write_certificate(output: &mut Vec<u8>, certificate: &[u8]) {
     // write one certificate header
@@ -1139,6 +1270,35 @@ struct PolicyServerVerifier {
     inner: Option<Arc<WebPkiServerVerifier>>,
     /// Fallback supported schemes when no inner verifier is available.
     fallback_schemes: Vec<SignatureScheme>,
+}
+
+/// Forwarding verifier that applies client-certificate signature policy.
+#[derive(Debug)]
+struct PolicyClientVerifier {
+    /// Wrapped webpki client verifier.
+    inner: Arc<dyn ClientCertVerifier>,
+    /// Optional signature scheme restrictions.
+    signature_schemes: Option<Vec<SignatureScheme>>,
+}
+
+impl PolicyClientVerifier {
+    /// Build one policy verifier.
+    fn new(
+        inner: Arc<dyn ClientCertVerifier>,
+        signature_schemes: Option<Vec<SignatureScheme>>,
+    ) -> Self {
+        Self {
+            inner,
+            signature_schemes,
+        }
+    }
+
+    /// Return whether one signature scheme is allowed by policy.
+    fn signature_scheme_allowed(&self, scheme: SignatureScheme) -> bool {
+        self.signature_schemes
+            .as_ref()
+            .is_none_or(|schemes| schemes.contains(&scheme))
+    }
 }
 
 impl PolicyServerVerifier {
@@ -1286,6 +1446,75 @@ impl ServerCertVerifier for PolicyServerVerifier {
         self.inner
             .as_ref()
             .and_then(|inner| inner.root_hint_subjects())
+    }
+}
+
+impl ClientCertVerifier for PolicyClientVerifier {
+    /// Return whether client authentication is offered.
+    fn offer_client_auth(&self) -> bool {
+        self.inner.offer_client_auth()
+    }
+
+    /// Return whether client authentication is mandatory.
+    fn client_auth_mandatory(&self) -> bool {
+        self.inner.client_auth_mandatory()
+    }
+
+    /// Return root hint subjects from the wrapped verifier.
+    fn root_hint_subjects(&self) -> &[rustls::DistinguishedName] {
+        self.inner.root_hint_subjects()
+    }
+
+    /// Verify one client certificate chain according to context policy.
+    fn verify_client_cert(
+        &self,
+        end_entity: &CertificateDer<'_>,
+        intermediates: &[CertificateDer<'_>],
+        now: rustls::pki_types::UnixTime,
+    ) -> Result<ClientCertVerified, rustls::Error> {
+        self.inner
+            .verify_client_cert(end_entity, intermediates, now)
+    }
+
+    /// Verify one TLS 1.2 handshake signature for client authentication.
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        if !self.signature_scheme_allowed(dss.scheme) {
+            return Err(rustls::Error::General(
+                "peer signature scheme not allowed by tls policy".to_string(),
+            ));
+        }
+
+        self.inner.verify_tls12_signature(message, cert, dss)
+    }
+
+    /// Verify one TLS 1.3 handshake signature for client authentication.
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        if !self.signature_scheme_allowed(dss.scheme) {
+            return Err(rustls::Error::General(
+                "peer signature scheme not allowed by tls policy".to_string(),
+            ));
+        }
+
+        self.inner.verify_tls13_signature(message, cert, dss)
+    }
+
+    /// Return supported signature verification schemes.
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        if let Some(schemes) = &self.signature_schemes {
+            return schemes.clone();
+        }
+
+        self.inner.supported_verify_schemes()
     }
 }
 

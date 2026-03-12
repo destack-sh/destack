@@ -77,12 +77,12 @@ fn socket_descriptor(
 
 /// Close one tls session object.
 ///
-/// Release one session object and provider-specific state.
+/// Release one session object and runtime tls state.
 /// Socket ownership remains with the caller and is not implicitly closed by this operation.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls provider session teardown APIs.
+/// Uses runtime tls session teardown.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -101,12 +101,13 @@ pub(crate) unsafe fn destack_tls_session_close(
 
 /// Export keying material bytes for one tls session.
 ///
-/// Derive exporter keying material for one label and optional context value.
-/// Exporter derivation follows RFC 5705 and RFC 8446 provider rules.
+/// Derive exporter keying material for one label and one explicit context value.
+/// Empty context bytes remain distinct input and are not treated as absence.
+/// Exporter derivation follows RFC 5705 and RFC 8446 runtime tls rules.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls provider exporter APIs.
+/// Uses runtime tls exporter support.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -150,11 +151,11 @@ pub(crate) unsafe fn destack_tls_session_export_keying_material(
 /// Advance one tls handshake state machine.
 ///
 /// Drive one handshake step for one session and return readiness requirements for continuation.
-/// Handshake transitions follow host provider semantics and selected protocol version.
+/// Handshake transitions follow rustls state-machine semantics for the selected protocol version.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls handshake step APIs.
+/// Uses runtime tls handshake state.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -192,11 +193,11 @@ pub(crate) unsafe fn destack_tls_session_handshake(
 /// Return negotiated alpn protocol bytes.
 ///
 /// Read one negotiated application protocol value selected during handshake.
-/// Empty bytes indicate no protocol was negotiated by the peer and provider.
+/// Empty bytes indicate no protocol was negotiated by the peer and runtime.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls provider negotiated-protocol query APIs.
+/// Uses runtime tls negotiated-protocol state.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -233,10 +234,11 @@ pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
 ///
 /// Bind one tls session object to one connected socket using one tls context.
 /// Transport ownership remains with the caller, and tls uses the socket for encrypted record I/O.
+/// `serverName` is required for client contexts and ignored for server contexts.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls provider session APIs over socket transports.
+/// Uses the runtime tls engine over host sockets.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -292,11 +294,11 @@ pub(crate) unsafe fn destack_tls_session_open(
 /// Return the peer certificate chain bytes in pem encoding.
 ///
 /// Read one peer certificate chain as normalized PEM bytes for verification and inspection.
-/// Chain ordering and included intermediates follow host provider behavior.
+/// Chain ordering and included intermediates follow peer presentation order.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls provider peer-certificate query APIs.
+/// Uses runtime tls peer-certificate state.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -332,11 +334,11 @@ pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
 /// Read decrypted application bytes from one tls session.
 ///
 /// Read plaintext bytes into one caller-provided buffer after record decryption.
-/// Decrypt and read semantics follow provider buffering behavior and transport readiness.
+/// Decrypt and read semantics follow runtime buffering behavior and transport readiness.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls provider read APIs.
+/// Uses runtime tls record processing over host sockets.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -377,12 +379,12 @@ pub(crate) unsafe fn destack_tls_session_read(
 
 /// Return whether one session resumed from cached state or ticket.
 ///
-/// Report resumption state as observed by the backend after handshake completion.
-/// State semantics follow backend cache and ticket policy behavior.
+/// Report resumption state as observed by the runtime after handshake completion.
+/// State semantics follow runtime cache and ticket policy behavior.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls provider session-state query APIs.
+/// Uses runtime tls session-state inspection.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -418,11 +420,11 @@ pub(crate) unsafe fn destack_tls_session_resumption_state(
 /// Shutdown one tls session.
 ///
 /// Emit closure alerts and transition one session to closed state.
-/// Half-close behavior and alert sequencing follow host provider semantics.
+/// Half-close behavior and alert sequencing follow rustls close-notify semantics.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls provider shutdown APIs.
+/// Uses runtime tls shutdown state.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -447,11 +449,11 @@ pub(crate) unsafe fn destack_tls_session_shutdown(
 /// Write plaintext application bytes to one tls session.
 ///
 /// Encrypt and write plaintext bytes from one caller-provided buffer into tls records.
-/// Record emission and flush behavior follow provider buffering and transport readiness.
+/// Record emission and flush behavior follow runtime buffering and transport readiness.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls provider write APIs.
+/// Uses runtime tls record processing over host sockets.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
