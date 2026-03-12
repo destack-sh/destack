@@ -1,7 +1,7 @@
 use std::fmt;
 
 use libc::{
-    EACCES, EADDRINUSE, EADDRNOTAVAIL, EAGAIN, EALREADY, EBUSY, ECONNABORTED, ECONNREFUSED,
+    EACCES, EADDRINUSE, EADDRNOTAVAIL, EAGAIN, EALREADY, EBADF, EBUSY, ECONNABORTED, ECONNREFUSED,
     ECONNRESET, EEXIST, EFBIG, EHOSTUNREACH, EINPROGRESS, EINTR, EINVAL, EISCONN, EISDIR, EMFILE,
     EMSGSIZE, ENAMETOOLONG, ENETUNREACH, ENFILE, ENOBUFS, ENOENT, ENOTCONN, ENOTDIR, ENOTEMPTY,
     ENOTSOCK, EPIPE, EPROTONOSUPPORT, EROFS, ETIMEDOUT, EWOULDBLOCK, EXDEV,
@@ -755,6 +755,7 @@ pub fn io_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
         EMFILE => Some(PlatformErrorCode::IoTooManyOpenFiles),
         ENFILE => Some(PlatformErrorCode::IoFileTableOverflow),
         EINVAL => Some(PlatformErrorCode::IoInvalidData),
+        EBADF => Some(PlatformErrorCode::IoInvalidData),
         EXDEV => Some(PlatformErrorCode::IoCrossDevice),
         EPIPE => Some(PlatformErrorCode::IoBrokenPipe),
         ETIMEDOUT => Some(PlatformErrorCode::IoTimedOut),

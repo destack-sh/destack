@@ -15,13 +15,71 @@ use parking_lot::Mutex;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{
-    OsPath, OsPathBytes, OsPathUtf16, PathBytes, PathBytesAbi, PathUtf16, PathUtf16Abi, WatchBatch,
-    WatchCreateEvent, WatchEvent, WatchEventMetadata, WatchMask, WatchMetadataEvent,
-    WatchModifyEvent, WatchOptions, WatchOverflowEvent, WatchRemoveEvent, WatchRenameEvent,
+    FileLockFlags, FileSize, MmapFlags, OsPath, OsPathBytes, OsPathUtf16, PathBytes, PathBytesAbi,
+    PathUtf16, PathUtf16Abi, WatchBatch, WatchCreateEvent, WatchEvent, WatchEventMetadata,
+    WatchMask, WatchMetadataEvent, WatchModifyEvent, WatchOptions, WatchOverflowEvent,
+    WatchRemoveEvent, WatchRenameEvent, XattrFlags,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind, WatchHandle};
 use crate::platform::{NativeArray, PlatformError, ResourceId};
 use crate::runtime::BindingCallContext;
+
+/// Maximum staging buffer used by fallback copy loops.
+const COPY_FALLBACK_BUFFER_CAPACITY: usize = 256 * 1024;
+/// Shared lock flag value.
+const FILE_LOCK_SHARED: u32 = 0x1;
+/// Exclusive lock flag value.
+const FILE_LOCK_EXCLUSIVE: u32 = 0x2;
+/// Non-blocking lock flag value.
+const FILE_LOCK_NONBLOCK: u32 = 0x4;
+/// Unlock flag value.
+const FILE_LOCK_UNLOCK: u32 = 0x8;
+/// Bitmask of all supported file-lock flag bits.
+const FILE_LOCK_SUPPORTED_FLAGS: u32 =
+    FILE_LOCK_SHARED | FILE_LOCK_EXCLUSIVE | FILE_LOCK_NONBLOCK | FILE_LOCK_UNLOCK;
+/// Shared mmap flag value.
+const MMAP_FLAG_SHARED: u32 = 0x1;
+/// Private mmap flag value.
+const MMAP_FLAG_PRIVATE: u32 = 0x2;
+/// Fixed-address mmap flag value.
+const MMAP_FLAG_FIXED: u32 = 0x10;
+/// Anonymous mmap flag value.
+const MMAP_FLAG_ANONYMOUS: u32 = 0x20;
+/// Bitmask of all supported mmap flag bits.
+const MMAP_SUPPORTED_FLAGS: u32 =
+    MMAP_FLAG_SHARED | MMAP_FLAG_PRIVATE | MMAP_FLAG_FIXED | MMAP_FLAG_ANONYMOUS;
+/// Create one extended attribute, failing if it already exists.
+const XATTR_FLAG_CREATE: u32 = 0x1;
+/// Replace one extended attribute, failing if it does not exist.
+const XATTR_FLAG_REPLACE: u32 = 0x2;
+/// Bitmask of all supported xattr flag bits.
+const XATTR_SUPPORTED_FLAGS: u32 = XATTR_FLAG_CREATE | XATTR_FLAG_REPLACE;
+
+/// Parsed file-lock operation.
+#[derive(Clone, Copy)]
+pub(crate) enum FileLockOperation {
+    /// Acquire one shared lock.
+    Shared {
+        /// Whether the operation should fail instead of blocking.
+        nonblocking: bool,
+    },
+    /// Acquire one exclusive lock.
+    Exclusive {
+        /// Whether the operation should fail instead of blocking.
+        nonblocking: bool,
+    },
+    /// Release an existing lock.
+    Unlock,
+}
+
+/// Parsed mmap flag payload.
+#[derive(Clone, Copy)]
+pub(crate) struct DecodedMmapFlags {
+    /// Whether the mapping is shared.
+    pub(crate) is_shared: bool,
+    /// Whether the mapping is fixed-address.
+    pub(crate) is_fixed: bool,
+}
 
 /// Resolve a file or directory handle to its resource entry.
 #[cfg_attr(not(any(unix, windows)), allow(dead_code))]
@@ -52,6 +110,153 @@ pub(crate) fn require_resource<T>(
         ))
         .boxed()),
     }
+}
+
+/// Choose one bounded staging buffer length for fallback copy loops.
+pub(crate) fn copy_fallback_buffer_length(length: u64) -> usize {
+    let requested = usize::try_from(length).unwrap_or(COPY_FALLBACK_BUFFER_CAPACITY);
+    requested.clamp(1, COPY_FALLBACK_BUFFER_CAPACITY)
+}
+
+/// Validate and decode one file-lock flag payload.
+pub(crate) fn decode_file_lock_flags(flags: FileLockFlags) -> RuntimeResult<FileLockOperation> {
+    // reject unknown flag bits
+    let unsupported_flags = flags.0 & !FILE_LOCK_SUPPORTED_FLAGS;
+    if unsupported_flags != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            format!("unsupported file lock flags: {unsupported_flags:#x}"),
+        ))
+        .boxed());
+    }
+
+    // require unlock to stand alone
+    if flags.0 & FILE_LOCK_UNLOCK != 0 {
+        if flags.0 != FILE_LOCK_UNLOCK {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "flags",
+                "unlock cannot be combined with other lock flags",
+            ))
+            .boxed());
+        }
+
+        return Ok(FileLockOperation::Unlock);
+    }
+
+    // require exactly one lock mode
+    let shared = flags.0 & FILE_LOCK_SHARED != 0;
+    let exclusive = flags.0 & FILE_LOCK_EXCLUSIVE != 0;
+    if shared == exclusive {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "exactly one of shared or exclusive lock must be requested",
+        ))
+        .boxed());
+    }
+
+    let nonblocking = flags.0 & FILE_LOCK_NONBLOCK != 0;
+    if shared {
+        return Ok(FileLockOperation::Shared { nonblocking });
+    }
+
+    Ok(FileLockOperation::Exclusive { nonblocking })
+}
+
+/// Validate and decode one mmap flag payload.
+pub(crate) fn decode_mmap_flags(
+    flags: MmapFlags,
+    allow_anonymous: bool,
+) -> RuntimeResult<DecodedMmapFlags> {
+    // reject unknown flag bits
+    let unsupported_flags = flags.0 & !MMAP_SUPPORTED_FLAGS;
+    if unsupported_flags != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            format!("unsupported mmap flags: {unsupported_flags:#x}"),
+        ))
+        .boxed());
+    }
+
+    // require exactly one sharing mode
+    let is_shared = flags.0 & MMAP_FLAG_SHARED != 0;
+    let is_private = flags.0 & MMAP_FLAG_PRIVATE != 0;
+    if is_shared == is_private {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "exactly one of MAP_SHARED or MAP_PRIVATE must be requested",
+        ))
+        .boxed());
+    }
+
+    // require or reject anonymous mapping mode explicitly
+    let is_anonymous = flags.0 & MMAP_FLAG_ANONYMOUS != 0;
+    if allow_anonymous {
+        if !is_anonymous {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "flags",
+                "MAP_ANON is required for anonymous mappings",
+            ))
+            .boxed());
+        }
+    } else if is_anonymous {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "MAP_ANON is invalid for file mappings",
+        ))
+        .boxed());
+    }
+
+    Ok(DecodedMmapFlags {
+        is_shared,
+        is_fixed: flags.0 & MMAP_FLAG_FIXED != 0,
+    })
+}
+
+/// Validate one xattr flag payload.
+pub(crate) fn validate_xattr_flags(flags: XattrFlags) -> RuntimeResult<()> {
+    // reject unknown flag bits
+    let unsupported_flags = flags.0 & !XATTR_SUPPORTED_FLAGS;
+    if unsupported_flags != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            format!("unsupported xattr flags: {unsupported_flags:#x}"),
+        ))
+        .boxed());
+    }
+
+    // reject mutually exclusive create and replace requests
+    let create = flags.0 & XATTR_FLAG_CREATE != 0;
+    let replace = flags.0 & XATTR_FLAG_REPLACE != 0;
+    if create && replace {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "XATTR_CREATE and XATTR_REPLACE are mutually exclusive",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Validate one native or vm mapping length against slice limits.
+pub(crate) fn validate_mapping_length(length: FileSize) -> RuntimeResult<usize> {
+    if length.0 == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "length",
+            "mapping length must be non-zero",
+        ))
+        .boxed());
+    }
+
+    if length.0 > u64::from(u32::MAX) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "length",
+            "mapping length exceeds slice limits",
+        ))
+        .boxed());
+    }
+
+    Ok(length.0 as usize)
 }
 
 /// Build an empty byte path payload.
@@ -359,6 +564,14 @@ const WATCH_MASK_METADATA: u32 = 1 << 4;
 /// Watch-mask bit for overflow events.
 #[cfg(any(unix, windows))]
 const WATCH_MASK_OVERFLOW: u32 = 1 << 5;
+/// Bitmask of all supported watch-mask bits.
+#[cfg(any(unix, windows))]
+const WATCH_MASK_SUPPORTED_BITS: u32 = WATCH_MASK_CREATE
+    | WATCH_MASK_REMOVE
+    | WATCH_MASK_MODIFY
+    | WATCH_MASK_RENAME
+    | WATCH_MASK_METADATA
+    | WATCH_MASK_OVERFLOW;
 
 /// One queued watch event record.
 #[cfg(any(unix, windows))]
@@ -439,6 +652,21 @@ fn watch_mask_allows(mask: WatchMask, kind: WatchQueuedKind) -> bool {
     mask.0 & bit != 0
 }
 
+/// Validate one caller-supplied watch mask.
+#[cfg(any(unix, windows))]
+fn validate_watch_mask(mask: WatchMask) -> RuntimeResult<()> {
+    let unsupported_bits = mask.0 & !WATCH_MASK_SUPPORTED_BITS;
+    if unsupported_bits != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "options.mask",
+            format!("unsupported watch mask bits: {unsupported_bits:#x}"),
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
 /// Enqueue one watch record when it passes the mask filter.
 #[cfg(any(unix, windows))]
 fn push_watch_record(
@@ -471,7 +699,8 @@ fn push_overflow_record(resource: &mut WatchResource, cookie: u64) {
 #[cfg(any(unix, windows))]
 fn push_notify_event(resource: &mut WatchResource, event: Event) {
     let cookie = event.tracker().unwrap_or(0) as u64;
-    if event.need_rescan() {
+    let needs_rescan = event.need_rescan();
+    if needs_rescan {
         push_overflow_record(resource, cookie);
     }
 
@@ -551,35 +780,12 @@ fn push_notify_event(resource: &mut WatchResource, event: Event) {
             }
         }
         EventKind::Access(_) => {
-            if event.paths.is_empty() {
-                push_watch_record(resource, WatchQueuedKind::Metadata, None, None, cookie);
-                return;
-            }
-
-            for path in event.paths {
-                push_watch_record(
-                    resource,
-                    WatchQueuedKind::Metadata,
-                    Some(path),
-                    None,
-                    cookie,
-                );
-            }
+            // ignore access events: the public watch contract does not expose an access class
         }
         EventKind::Any | EventKind::Other => {
-            if event.paths.is_empty() {
-                push_watch_record(resource, WatchQueuedKind::Metadata, None, None, cookie);
-                return;
-            }
-
-            for path in event.paths {
-                push_watch_record(
-                    resource,
-                    WatchQueuedKind::Metadata,
-                    Some(path),
-                    None,
-                    cookie,
-                );
+            // surface unknown backend events as overflow unless a rescan already did that
+            if !needs_rescan {
+                push_overflow_record(resource, cookie);
             }
         }
     }
@@ -694,6 +900,9 @@ pub(crate) fn open_watch(
     path: &Path,
     options: WatchOptions,
 ) -> RuntimeResult<WatchHandle> {
+    // reject unknown watch mask bits up front
+    validate_watch_mask(options.mask)?;
+
     // create one callback channel for backend events
     let (sender, receiver) = std::sync::mpsc::channel();
     let mut watcher = notify::recommended_watcher(move |result| {
@@ -784,4 +993,93 @@ pub(crate) fn read_watch(
         events: binding.store_array(events),
         overflowed,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build one watch resource for internal event-mapping tests.
+    fn test_watch_resource() -> WatchResource {
+        let (_sender, receiver) = std::sync::mpsc::channel();
+        let watcher = notify::recommended_watcher(|_| {}).expect("watcher should initialize");
+
+        WatchResource {
+            watcher,
+            receiver,
+            queued_events: VecDeque::new(),
+            overflowed: false,
+            mask: WatchMask(0),
+        }
+    }
+
+    /// Ignore access events because the watch contract does not expose them.
+    #[test]
+    fn test_watch_mapping_ignores_access_events() {
+        let mut resource = test_watch_resource();
+        let event = Event::new(EventKind::Access(notify::event::AccessKind::Open(
+            notify::event::AccessMode::Read,
+        )))
+        .add_path(PathBuf::from("alpha.txt"));
+
+        push_notify_event(&mut resource, event);
+
+        assert!(!resource.overflowed);
+        assert!(resource.queued_events.is_empty());
+    }
+
+    /// Surface unclassified backend events as overflow instead of relabeling them as metadata.
+    #[test]
+    fn test_watch_mapping_escalates_unknown_events_to_overflow() {
+        let mut resource = test_watch_resource();
+        let event = Event::new(EventKind::Other).set_tracker(7);
+
+        push_notify_event(&mut resource, event);
+
+        assert!(resource.overflowed);
+        assert_eq!(resource.queued_events.len(), 1);
+        assert_eq!(resource.queued_events[0].kind, WatchQueuedKind::Overflow);
+        assert_eq!(resource.queued_events[0].cookie, 7);
+    }
+
+    /// Preserve one rescan overflow without duplicating it for unknown event kinds.
+    #[test]
+    fn test_watch_mapping_does_not_duplicate_rescan_overflow() {
+        let mut resource = test_watch_resource();
+        let event = Event::new(EventKind::Any)
+            .set_flag(notify::event::Flag::Rescan)
+            .set_tracker(9);
+
+        push_notify_event(&mut resource, event);
+
+        assert!(resource.overflowed);
+        assert_eq!(resource.queued_events.len(), 1);
+        assert_eq!(resource.queued_events[0].kind, WatchQueuedKind::Overflow);
+        assert_eq!(resource.queued_events[0].cookie, 9);
+    }
+
+    /// Preserve paired rename paths when the backend supplies both sides.
+    #[test]
+    fn test_watch_mapping_preserves_rename_pair_paths() {
+        let mut resource = test_watch_resource();
+        let event = Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Both)))
+            .add_path(PathBuf::from("alpha.txt"))
+            .add_path(PathBuf::from("beta.txt"))
+            .set_tracker(11);
+
+        push_notify_event(&mut resource, event);
+
+        assert!(!resource.overflowed);
+        assert_eq!(resource.queued_events.len(), 1);
+        assert_eq!(resource.queued_events[0].kind, WatchQueuedKind::Rename);
+        assert_eq!(
+            resource.queued_events[0].path,
+            Some(PathBuf::from("alpha.txt"))
+        );
+        assert_eq!(
+            resource.queued_events[0].related_path,
+            Some(PathBuf::from("beta.txt"))
+        );
+        assert_eq!(resource.queued_events[0].cookie, 11);
+    }
 }
