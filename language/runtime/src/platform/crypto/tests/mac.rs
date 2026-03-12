@@ -3,10 +3,17 @@ use super::{
 };
 use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
-    CryptoDigestAlgorithm, CryptoKeyGenerationRequest, CryptoKeyResidency, CryptoKeyUsageMask,
-    CryptoMacAlgorithm, CryptoMacParameters, CryptoStoreKind, CryptoStoreProvider,
+    CryptoDigestAlgorithm, CryptoKeyFormat, CryptoKeyGenerationRequest, CryptoKeyImportRequest,
+    CryptoKeyResidency, CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters,
+    CryptoStoreKind, CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
+
+/// RFC 4231 HMAC-SHA256 tag for the "Hi There" vector.
+const HMAC_SHA256_HI_THERE_TAG: [u8; 32] = [
+    0xb0, 0x34, 0x4c, 0x61, 0xd8, 0xdb, 0x38, 0x53, 0x5c, 0xa8, 0xaf, 0xce, 0xaf, 0x0b, 0xf1, 0x2b,
+    0x88, 0x1d, 0xc2, 0x00, 0xc9, 0x83, 0x3d, 0xa7, 0x26, 0xe9, 0x37, 0x6c, 0x2e, 0x32, 0xcf, 0xf7,
+];
 
 /// Compute and verify one HMAC tag.
 #[cfg(any(unix, windows))]
@@ -75,6 +82,51 @@ fn test_mac_compute_and_verify() {
             tag,
         )?;
         assert!(!verified);
+
+        context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Match the RFC 4231 HMAC-SHA256 test vector.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_mac_compute_matches_rfc_4231_vector() {
+    with_harness_context(|mut context| {
+        // open one store and import the canonical RFC 4231 key
+        let options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let store = context.destack_crypto_store_open(options)?;
+        let import_request = CryptoKeyImportRequest::CryptoKeyImportRequestHmac(
+            platform_crypto::CryptoKeyImportRequestHmac {
+                algorithm: context.call_context.store_string("hmac"),
+                format: CryptoKeyFormat::Raw,
+                bytes: context.call_context.store_slice(vec![0x0b; 20]),
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                label: context.call_context.store_string("hmac-rfc-4231"),
+                extractable: true,
+                residency: Some(CryptoKeyResidency::Unknown),
+                passphrase: Some(context.call_context.store_slice(Vec::<u8>::new())),
+                persistent: false,
+            },
+        );
+        let key =
+            context.destack_crypto_key_import(store, context.request_value(import_request)?)?;
+
+        // compute the canonical "Hi There" HMAC payload
+        let parameters = CryptoMacParameters {
+            algorithm: CryptoMacAlgorithm::Hmac,
+            digest: CryptoDigestAlgorithm::Sha256,
+            tag_length_bytes: Some(0),
+        };
+        let payload = context.bytes_slice_value(b"Hi There")?;
+        let tag =
+            context.destack_crypto_mac_compute(key, context.request_value(parameters)?, payload)?;
+        let tag = context.bytes_from_slice_value(tag)?;
+
+        // require the exact RFC tag bytes
+        assert_eq!(tag, HMAC_SHA256_HI_THERE_TAG);
 
         context.destack_crypto_store_close(store)?;
 

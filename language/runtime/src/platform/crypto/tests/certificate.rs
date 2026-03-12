@@ -6,8 +6,9 @@ use super::{
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
     CryptoCertificateFormat, CryptoCertificateIdentityKind, CryptoCertificatePurpose,
-    CryptoCertificateQuery, CryptoCertificateRevocationMode, CryptoCertificateVerifyIdentity,
-    CryptoCertificateVerifyRequest, CryptoStoreKind, CryptoStoreProvider,
+    CryptoCertificateQuery, CryptoCertificateRevocationMode, CryptoCertificateVerifyError,
+    CryptoCertificateVerifyIdentity, CryptoCertificateVerifyRequest, CryptoStoreKind,
+    CryptoStoreProvider,
 };
 use crate::platform::resource;
 #[cfg(target_os = "macos")]
@@ -101,7 +102,7 @@ fn test_certificate_import_export_descriptor_verify_delete() {
                 kind: CryptoCertificateIdentityKind::DnsName,
                 value: context.call_context.store_string("localhost"),
             }),
-            verification_unix_seconds: Some(0),
+            verification_unix_seconds: None,
             revocation_mode: CryptoCertificateRevocationMode::Default,
         };
         let result =
@@ -122,7 +123,7 @@ fn test_certificate_import_export_descriptor_verify_delete() {
                 kind: CryptoCertificateIdentityKind::DnsName,
                 value: context.call_context.store_string("localhost"),
             }),
-            verification_unix_seconds: Some(0),
+            verification_unix_seconds: None,
             revocation_mode: CryptoCertificateRevocationMode::Default,
         };
         let result = context
@@ -140,6 +141,118 @@ fn test_certificate_import_export_descriptor_verify_delete() {
         assert!(key_usage_mask != 0);
 
         // clean up handles and store
+        context.destack_crypto_certificate_delete(certificate)?;
+        context.destack_crypto_certificate_delete(certificate_authority)?;
+        context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Reject URI identities when the certificate only carries DNS or IP subject-alt-names.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_certificate_verify_rejects_uri_identity_without_uri_san() {
+    with_harness_context(|mut context| {
+        // import the leaf and issuing certificate into one ephemeral store
+        let options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let store = context.destack_crypto_store_open(options)?;
+        let certificate = context.bytes_slice_value(TEST_CERTIFICATE_PEM)?;
+        let certificate = context.destack_crypto_certificate_import(
+            store,
+            CryptoCertificateFormat::Pem,
+            certificate,
+        )?;
+        let certificate_authority = context.bytes_slice_value(TEST_CERTIFICATE_AUTHORITY_PEM)?;
+        let certificate_authority = context.destack_crypto_certificate_import(
+            store,
+            CryptoCertificateFormat::Pem,
+            certificate_authority,
+        )?;
+
+        // require one explicit name mismatch for URI identity checks
+        let intermediates = context
+            .call_context
+            .store_slice(Vec::<resource::CryptoCertificateHandle>::new());
+        let trust_anchors = context
+            .call_context
+            .store_slice(vec![certificate_authority]);
+        let verify_request = CryptoCertificateVerifyRequest {
+            leaf: certificate,
+            intermediates,
+            trust_anchors,
+            use_system_trust_anchors: false,
+            purpose: CryptoCertificatePurpose::ServerAuth,
+            identity: Some(CryptoCertificateVerifyIdentity {
+                kind: CryptoCertificateIdentityKind::Uri,
+                value: context.call_context.store_string("https://localhost"),
+            }),
+            verification_unix_seconds: None,
+            revocation_mode: CryptoCertificateRevocationMode::Default,
+        };
+        let result =
+            context.destack_crypto_certificate_verify(context.request_value(verify_request)?)?;
+        let result = context.certificate_verify_result_from_value(result)?;
+        assert!(!result.valid);
+        assert_eq!(result.error, CryptoCertificateVerifyError::NameMismatch);
+        assert_eq!(result.failed_certificate_index, Some(0));
+
+        context.destack_crypto_certificate_delete(certificate)?;
+        context.destack_crypto_certificate_delete(certificate_authority)?;
+        context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Honor explicit epoch verification time instead of treating it as one missing field.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_certificate_verify_honors_explicit_unix_epoch_time() {
+    with_harness_context(|mut context| {
+        // import the leaf and issuing certificate into one ephemeral store
+        let options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let store = context.destack_crypto_store_open(options)?;
+        let certificate = context.bytes_slice_value(TEST_CERTIFICATE_PEM)?;
+        let certificate = context.destack_crypto_certificate_import(
+            store,
+            CryptoCertificateFormat::Pem,
+            certificate,
+        )?;
+        let certificate_authority = context.bytes_slice_value(TEST_CERTIFICATE_AUTHORITY_PEM)?;
+        let certificate_authority = context.destack_crypto_certificate_import(
+            store,
+            CryptoCertificateFormat::Pem,
+            certificate_authority,
+        )?;
+
+        // verify at the unix epoch and require the leaf to be not yet valid
+        let intermediates = context
+            .call_context
+            .store_slice(Vec::<resource::CryptoCertificateHandle>::new());
+        let trust_anchors = context
+            .call_context
+            .store_slice(vec![certificate_authority]);
+        let verify_request = CryptoCertificateVerifyRequest {
+            leaf: certificate,
+            intermediates,
+            trust_anchors,
+            use_system_trust_anchors: false,
+            purpose: CryptoCertificatePurpose::ServerAuth,
+            identity: Some(CryptoCertificateVerifyIdentity {
+                kind: CryptoCertificateIdentityKind::DnsName,
+                value: context.call_context.store_string("localhost"),
+            }),
+            verification_unix_seconds: Some(0),
+            revocation_mode: CryptoCertificateRevocationMode::Default,
+        };
+        let result =
+            context.destack_crypto_certificate_verify(context.request_value(verify_request)?)?;
+        let result = context.certificate_verify_result_from_value(result)?;
+        assert!(!result.valid);
+        assert_eq!(result.error, CryptoCertificateVerifyError::NotYetValid);
+        assert!(result.failed_certificate_index.is_some());
+
         context.destack_crypto_certificate_delete(certificate)?;
         context.destack_crypto_certificate_delete(certificate_authority)?;
         context.destack_crypto_store_close(store)?;

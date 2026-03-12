@@ -3,11 +3,16 @@ use super::{
 };
 use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
-    CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherParameters,
-    CryptoKeyGenerationRequest, CryptoKeyResidency, CryptoKeyUsageMask, CryptoStoreKind,
-    CryptoStoreProvider,
+    CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherParameters, CryptoKeyFormat,
+    CryptoKeyGenerationRequest, CryptoKeyImportRequest, CryptoKeyResidency, CryptoKeyUsageMask,
+    CryptoStoreKind, CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
+
+/// NIST AES-GCM tag for the all-zero AES-128 empty-message vector.
+const AES_GCM_ZERO_VECTOR_TAG: [u8; 16] = [
+    0x58, 0xe2, 0xfc, 0xce, 0xfa, 0x7e, 0x30, 0x61, 0x36, 0x7f, 0x1d, 0x57, 0xa4, 0xe7, 0x45, 0x5a,
+];
 
 /// Encrypt and decrypt one payload with AES-GCM.
 #[cfg(any(unix, windows))]
@@ -71,6 +76,57 @@ fn test_cipher_encrypt_decrypt_aes_gcm() {
         )?;
         let decrypted = context.bytes_from_slice_value(decrypted)?;
         assert_eq!(decrypted, b"cipher payload");
+
+        context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Match the NIST AES-GCM empty-message test vector.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_cipher_encrypt_matches_nist_aes_gcm_vector() {
+    with_harness_context(|mut context| {
+        // open one store and import the all-zero AES-128 key
+        let options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let store = context.destack_crypto_store_open(options)?;
+        let import_request = CryptoKeyImportRequest::CryptoKeyImportRequestAes(
+            platform_crypto::CryptoKeyImportRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                format: CryptoKeyFormat::Raw,
+                bytes: context.call_context.store_slice(vec![0u8; 16]),
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
+                label: context.call_context.store_string("aes-zero-vector"),
+                extractable: true,
+                residency: Some(CryptoKeyResidency::Unknown),
+                passphrase: Some(context.call_context.store_slice(Vec::<u8>::new())),
+                persistent: false,
+            },
+        );
+        let key =
+            context.destack_crypto_key_import(store, context.request_value(import_request)?)?;
+
+        // encrypt the empty payload with the all-zero nonce and empty aad
+        let empty = context.call_context.store_slice(Vec::<u8>::new());
+        let parameters = CryptoCipherParameters {
+            algorithm: CryptoCipherAlgorithm::AesGcm,
+            nonce: context.call_context.store_slice(vec![0u8; 12]),
+            additional_data: empty,
+            tag: empty,
+            tag_length_bytes: Some(16),
+        };
+        let payload = context.bytes_slice_value(&[])?;
+        let encrypted = context.destack_crypto_cipher_encrypt(
+            key,
+            context.request_value(parameters)?,
+            payload,
+        )?;
+        let (ciphertext, tag) = context.cipher_output_from_value(encrypted)?;
+
+        // require the exact standard-vector output
+        assert!(ciphertext.is_empty());
+        assert_eq!(tag, AES_GCM_ZERO_VECTOR_TAG);
 
         context.destack_crypto_store_close(store)?;
 

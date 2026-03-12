@@ -19,6 +19,92 @@ fn assert_unique_store_kinds(kinds: &[CryptoStoreKind]) {
     assert_eq!(unique_kinds.len(), kinds.len());
 }
 
+/// Assert that one key-capability row is internally coherent.
+fn assert_key_capability_shape(capability: &super::harness::HarnessStoreKeyCapability) {
+    let is_secret_algorithm = matches!(
+        capability.algorithm,
+        CryptoKeyAlgorithm::Aes | CryptoKeyAlgorithm::ChaCha20 | CryptoKeyAlgorithm::Hmac
+    );
+    let is_exportable = capability.residency == CryptoKeyResidency::SoftwareExportable;
+
+    // secret algorithms only expose secret generation and secret export
+    if is_secret_algorithm {
+        assert!(capability.supports_generate_secret);
+        assert!(!capability.supports_generate_pair);
+        assert!(!capability.supports_export_public);
+        assert!(!capability.supports_export_private);
+        assert_eq!(
+            capability.supports_import,
+            !capability.supported_import_formats.is_empty()
+        );
+        if capability.supports_import {
+            assert_eq!(
+                capability.supported_import_formats,
+                vec![CryptoKeyFormat::Raw]
+            );
+        } else {
+            assert!(capability.supported_import_formats.is_empty());
+        }
+        assert_eq!(capability.supports_export_secret, is_exportable);
+        if capability.supports_export_secret {
+            assert_eq!(
+                capability.supported_export_formats,
+                vec![CryptoKeyFormat::Raw]
+            );
+        } else {
+            assert!(capability.supported_export_formats.is_empty());
+        }
+
+        return;
+    }
+
+    // asymmetric algorithms never expose secret generation or secret export
+    assert!(!capability.supports_generate_secret);
+    assert!(!capability.supports_export_secret);
+    assert!(capability.supports_export_public);
+    assert_eq!(capability.supports_export_private, is_exportable);
+    assert_eq!(
+        capability.supports_import,
+        !capability.supported_import_formats.is_empty()
+    );
+    if capability.supports_import {
+        assert!(
+            capability
+                .supported_import_formats
+                .contains(&CryptoKeyFormat::SpkiPem)
+        );
+        assert!(
+            capability
+                .supported_import_formats
+                .contains(&CryptoKeyFormat::SpkiDer)
+        );
+    } else {
+        assert!(capability.supported_import_formats.is_empty());
+    }
+    assert!(
+        capability
+            .supported_export_formats
+            .contains(&CryptoKeyFormat::SpkiPem)
+    );
+    assert!(
+        capability
+            .supported_export_formats
+            .contains(&CryptoKeyFormat::SpkiDer)
+    );
+    if capability.supports_export_private {
+        assert!(
+            capability
+                .supported_export_formats
+                .contains(&CryptoKeyFormat::Pkcs8Pem)
+        );
+        assert!(
+            capability
+                .supported_export_formats
+                .contains(&CryptoKeyFormat::Pkcs8Der)
+        );
+    }
+}
+
 /// Open one ephemeral store, list entries, and close it.
 #[cfg(any(unix, windows))]
 #[test]
@@ -216,6 +302,9 @@ fn test_store_probe_capability_host_lane_key_fields() {
                 assert!(!capability.supported_key_algorithms.is_empty());
                 assert!(!capability.supported_key_formats.is_empty());
                 assert!(!capability.supported_key_residencies.is_empty());
+                for key_capability in &capability.key_capabilities {
+                    assert_key_capability_shape(key_capability);
+                }
                 continue;
             }
 
@@ -388,6 +477,9 @@ fn test_store_probe_capability_ephemeral() {
                 .len(),
             capability.supported_key_formats.len()
         );
+        for key_capability in &capability.key_capabilities {
+            assert_key_capability_shape(key_capability);
+        }
 
         Ok(())
     });
@@ -422,6 +514,9 @@ fn test_store_probe_capability_provider() {
                 CryptoKeyResidency::SoftwareNonExportable,
             ]
         );
+        for key_capability in &capability.key_capabilities {
+            assert_key_capability_shape(key_capability);
+        }
 
         Ok(())
     });

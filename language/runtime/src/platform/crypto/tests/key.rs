@@ -7,6 +7,7 @@ use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
 use serde_json::json;
 
+use super::harness::{HarnessStoreCapability, HarnessStoreKeyCapability};
 use super::{
     KEY_USAGE_DECRYPT, KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT, KEY_USAGE_SIGN, KEY_USAGE_UNWRAP,
     KEY_USAGE_VERIFY, KEY_USAGE_WRAP, assert_not_supported_platform_code,
@@ -22,6 +23,18 @@ use crate::platform::crypto::{
     CryptoStoreKind, CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
+
+/// Return one key-capability row for one algorithm and residency lane.
+fn key_capability(
+    capability: &HarnessStoreCapability,
+    algorithm: CryptoKeyAlgorithm,
+    residency: CryptoKeyResidency,
+) -> Option<&HarnessStoreKeyCapability> {
+    capability
+        .key_capabilities
+        .iter()
+        .find(|entry| entry.algorithm == algorithm && entry.residency == residency)
+}
 
 /// Assert that one SEC1 EC private-key export has a complete envelope.
 fn assert_sec1_private_key_pem_envelope(pem_text: &str) {
@@ -1264,6 +1277,13 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
             if !capability.is_available || !capability.supports_persistent {
                 continue;
             }
+            let supports_nonextractable_rsa_pair = key_capability(
+                &capability,
+                CryptoKeyAlgorithm::Rsa,
+                CryptoKeyResidency::SoftwareNonExportable,
+            )
+            .map(|entry| entry.supports_generate_pair)
+            .unwrap_or(false);
 
             // create one persistent non-extractable rsa pair
             let options = context.store_options_value(kind);
@@ -1293,6 +1313,7 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
                 Err(error) => {
                     let code = error_code_from_runtime_error(&error);
                     if is_not_supported_code(code) {
+                        assert!(!supports_nonextractable_rsa_pair);
                         context.destack_crypto_store_close(store)?;
                         continue;
                     }
@@ -1300,6 +1321,7 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
                     return Err(error);
                 }
             };
+            assert!(supports_nonextractable_rsa_pair);
             let pair = context.same_from_value(pair);
 
             // sign and verify one payload
@@ -1469,6 +1491,13 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             if !capability.is_available || !capability.supports_persistent {
                 continue;
             }
+            let supports_nonextractable_rsa_import = key_capability(
+                &capability,
+                CryptoKeyAlgorithm::Rsa,
+                CryptoKeyResidency::SoftwareNonExportable,
+            )
+            .map(|entry| entry.supports_import)
+            .unwrap_or(false);
 
             // import one persistent non-extractable rsa private key
             let options = context.store_options_value(kind);
@@ -1502,6 +1531,7 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
                 Err(error) => {
                     let code = error_code_from_runtime_error(&error);
                     if is_not_supported_code(code) {
+                        assert!(!supports_nonextractable_rsa_import);
                         context.destack_crypto_store_close(store)?;
                         continue;
                     }
@@ -1509,6 +1539,7 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
                     return Err(error);
                 }
             };
+            assert!(supports_nonextractable_rsa_import);
 
             // decrypt payloads encrypted with the source public key
             let encrypt_parameters = CryptoAsymmetricEncryptionParameters {
@@ -1636,6 +1667,13 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
             if !capability.is_available || !capability.supports_persistent {
                 continue;
             }
+            let supports_nonextractable_ec_pair = key_capability(
+                &capability,
+                CryptoKeyAlgorithm::Ec,
+                CryptoKeyResidency::SoftwareNonExportable,
+            )
+            .map(|entry| entry.supports_generate_pair)
+            .unwrap_or(false);
 
             // create one persistent non-extractable ec pair
             let options = context.store_options_value(kind);
@@ -1661,6 +1699,7 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
                 Err(error) => {
                     let code = error_code_from_runtime_error(&error);
                     if is_not_supported_code(code) {
+                        assert!(!supports_nonextractable_ec_pair);
                         context.destack_crypto_store_close(store)?;
                         continue;
                     }
@@ -1668,6 +1707,7 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
                     return Err(error);
                 }
             };
+            assert!(supports_nonextractable_ec_pair);
             let pair = context.same_from_value(pair);
 
             // sign and verify one payload
@@ -1865,6 +1905,148 @@ fn test_key_generate_hardware_backed_secret_follows_host_lane_support() {
                 }
             }
 
+            context.destack_crypto_store_close(store)?;
+        }
+
+        Ok(())
+    });
+}
+
+/// Follow host-lane hardware-backed pair support.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_generate_hardware_backed_pair_follows_host_lane_support() {
+    with_harness_context(|mut context| {
+        // exercise each available host lane for hardware-backed pair generation
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available {
+                continue;
+            }
+
+            let supports_hardware_rsa = capability.key_capabilities.iter().any(|entry| {
+                entry.algorithm == CryptoKeyAlgorithm::Rsa
+                    && entry.residency == CryptoKeyResidency::HardwareOpaque
+                    && (entry.supported_usage_mask.0
+                        & (KEY_USAGE_SIGN
+                            | KEY_USAGE_VERIFY
+                            | KEY_USAGE_ENCRYPT
+                            | KEY_USAGE_DECRYPT))
+                        == (KEY_USAGE_SIGN
+                            | KEY_USAGE_VERIFY
+                            | KEY_USAGE_ENCRYPT
+                            | KEY_USAGE_DECRYPT)
+            });
+
+            // open one host lane and attempt one hardware-backed rsa pair generation
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(
+                platform_crypto::CryptoKeyGenerationRequestRsa {
+                    algorithm: context.call_context.store_string("rsa"),
+                    modulus_bits: 2048,
+                    public_exponent: 65537,
+                    digest: Some(CryptoDigestAlgorithm::Sha256),
+                    usage_mask: CryptoKeyUsageMask(
+                        KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT,
+                    ),
+                    label: context.call_context.store_string("host-hardware-rsa"),
+                    extractable: false,
+                    residency: Some(CryptoKeyResidency::Unknown),
+                    hardware_backed: true,
+                    persistent: true,
+                },
+            );
+            let result =
+                context.destack_crypto_key_generate_pair(store, context.request_value(request)?);
+            let pair = match result {
+                Ok(pair) => pair,
+                Err(error) => {
+                    let platform = error
+                        .platform_error()
+                        .expect("key.generatePair error should contain one platform error");
+                    assert_not_supported_platform_code(platform.code);
+                    assert!(!supports_hardware_rsa);
+                    context.destack_crypto_store_close(store)?;
+                    continue;
+                }
+            };
+            assert!(supports_hardware_rsa);
+            let pair = context.same_from_value(pair);
+
+            // successful generation must preserve descriptor metadata and provenance
+            let descriptor = context.destack_crypto_key_descriptor(pair.private_key)?;
+            let (descriptor_algorithm, descriptor_provenance) = context.duplicate_value(descriptor);
+            let algorithm = context.key_algorithm_from_value(descriptor_algorithm);
+            assert_eq!(algorithm, CryptoKeyAlgorithm::Rsa);
+            let (store_kind, provider, _) =
+                context.key_descriptor_store_provenance_from_value(descriptor_provenance)?;
+            assert_eq!(store_kind, kind);
+            assert_eq!(provider, CryptoStoreProvider::OpenSsl);
+
+            // decrypt and sign usage requested at generation time must be operational
+            let encrypt_parameters = CryptoAsymmetricEncryptionParameters {
+                algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
+                label: context.call_context.store_slice(Vec::<u8>::new()),
+            };
+            let plaintext = context.bytes_slice_value(b"host-hardware-rsa-decrypt")?;
+            let ciphertext = context.destack_crypto_key_encrypt(
+                pair.public_key,
+                context.request_value(encrypt_parameters)?,
+                plaintext,
+            )?;
+            let ciphertext = context.bytes_from_slice_value(ciphertext)?;
+            let decrypt_parameters = CryptoAsymmetricEncryptionParameters {
+                algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
+                label: context.call_context.store_slice(Vec::<u8>::new()),
+            };
+            let ciphertext = context.bytes_slice_value(&ciphertext)?;
+            let decrypted = context.destack_crypto_key_decrypt(
+                pair.private_key,
+                context.request_value(decrypt_parameters)?,
+                ciphertext,
+            )?;
+            let decrypted = context.bytes_from_slice_value(decrypted)?;
+            assert_eq!(decrypted, b"host-hardware-rsa-decrypt");
+
+            let sign_parameters = CryptoSignatureParameters {
+                algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
+                salt_length_bytes: Some(0),
+            };
+            let payload = context.bytes_slice_value(b"host-hardware-rsa-sign")?;
+            let signature = context.destack_crypto_key_sign(
+                pair.private_key,
+                context.request_value(sign_parameters)?,
+                payload,
+            )?;
+            let signature = context.bytes_from_slice_value(signature)?;
+            assert!(!signature.is_empty());
+
+            let verify_parameters = CryptoSignatureParameters {
+                algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
+                digest: Some(CryptoDigestAlgorithm::Sha256),
+                salt_length_bytes: Some(0),
+            };
+            let payload = context.bytes_slice_value(b"host-hardware-rsa-sign")?;
+            let signature = context.bytes_slice_value(&signature)?;
+            let verified = context.destack_crypto_key_verify(
+                pair.public_key,
+                context.request_value(verify_parameters)?,
+                payload,
+                signature,
+            )?;
+            assert!(verified);
+
+            context.destack_crypto_key_delete(pair.private_key)?;
             context.destack_crypto_store_close(store)?;
         }
 
