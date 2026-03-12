@@ -1,0 +1,11 @@
+{
+    "name": "@destack/platform",
+    "private": true,
+    "version": "0.55.4",
+    "license": "MIT",
+    "type": "module",
+    "description": "Destack operated platform stack",
+    "scripts": {
+        "check": "echo \"platform stack scaffolding is intentionally empty\""
+    }
+}
