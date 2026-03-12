@@ -326,13 +326,13 @@ struct Point {
 
 | | struct | class |
 |---|---|---|
-| Reference identity | No (`===` is error) | Yes (`===` compares pointers) |
+| Reference identity | No (`===` is error) | Yes (`===` compares managed identity) |
 | Inheritance | No (use embedding) | Yes (`extends`) |
 | Default passing | Value | Reference |
 | Default storage | Inline | Managed reference |
 | JS output | Plain object | ES6 class |
 
-Classes are reference types, so `===` compares identity as usual.
+Classes are reference types, so `===` compares managed object identity as usual.
 Structs are value types, so `==` compares fields and `===` will just error (at compile time).
 
 ```ds
@@ -611,6 +611,12 @@ Raw pointers are separate from ownership modifiers:
 *readonly T  // raw pointer (readonly, unsafe)
 *T           // raw pointer (mutable, unsafe)
 ```
+
+For reference types, a plain `T` means a managed object reference by default.
+That managed reference has stable identity, but it is not required to be a permanent native address.
+If code needs a stable physical address, it must use pinned managed storage or raw allocation.
+Pinning is intentionally small:
+it mainly means scoped keepalive plus explicit raw-address exposure for managed storage.
 
 Passing `^T` transfers ownership, that is, the previous binding becomes invalid.
 Owned values are cleaned up at their last proven use, not only at lexical scope end.
