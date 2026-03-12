@@ -92,10 +92,10 @@ Most types lower exactly the way their surface semantics suggest.
 | Category | Shape | Placement | Notes |
 | --- | --- | --- | --- |
 | Scalar/Immediate | scalar value | fixed width | includes tagged pointer immediates |
-| Pointer | address | pointer-sized | heap-managed or external |
+| Pointer | address or handle | pointer-sized | raw address, borrowed address, or managed handle |
 | Tuple | ordered fields | packed/offset fields | homogeneous is still tuple |
 | Struct | named fields | packed/offset fields | nominal, value semantics |
-| Class | instance fields | pointer + optional vtable | reference semantics |
+| Class | instance fields | managed handle + payload layout | reference semantics |
 | Array/Slice | element + length | header + data | policy: inline vs heap |
 | Function | signature | function pointer or function value | closure values pair fn pointer with env pointer |
 | Tagged Union | tag + payload | inline or boxed | tag value + payload layout |
@@ -596,7 +596,7 @@ Lower may represent structs by reference when the observable semantics remain va
 
 | Aspect | struct | class |
 |--------|--------|-------|
-| Reference identity | No (`===` is compile error) | Yes (`===` compares pointers) |
+| Reference identity | No (`===` is compile error) | Yes (`===` compares reference identity) |
 | Type identity | Via metadata or fat pointer when needed | Via vtable or metadata when needed |
 | Equality | By value (`==` compares properties) | By reference (unless `Equal` implemented) |
 | Extends | No | Yes |
@@ -625,9 +625,9 @@ Polymorphic classes store a vtable pointer in the object layout for virtual disp
 If any class in a lineage requires virtual dispatch, every class in that lineage includes a vtable pointer at offset 0 so upcasts need no pointer adjustment.
 Vtable slot 0 stores the `TypeDescriptor` for fast `instanceof`, `T.is`, and `typeOf`.
 Structs remain headerless and never store a vtable pointer.
-Thin-pointer checks on structs recover `TypeDescriptor` from metadata when needed.
+Thin managed references recover `TypeDescriptor` from metadata when needed.
 Interface and `unknown` values carry `TypeDescriptor` in fat pointers.
-Class references are thin pointers, so the vtable pointer must live in the object layout when present.
+Class references are thin managed references, so the vtable pointer must live in the object layout when the chosen lowering uses in object dispatch metadata.
 
 Metadata lookup only applies to managed references.
 Non-managed values require explicit tags, fat pointers, or compile-time type knowledge.
@@ -693,8 +693,7 @@ struct NodeLayout {
 }
 ```
 
-Classes have both reference identity (`===` compares pointers) and type identity (via vtable or metadata).
-Polymorphic classes store their vtable pointer because class references are thin pointers and dynamic dispatch is required.
+Classes have both reference identity (`===` compares managed identity) and type identity (via vtable or metadata).
 (This is consistent with Java and C++ class objects while keeping struct layouts headerless like Go.)
 Non-polymorphic classes omit the vtable pointer and use metadata or fat pointers for runtime type identity when needed.
 
@@ -707,13 +706,14 @@ Dynamic property addition must use explicit map/dictionary types.
 Managed objects have no per object GC header.
 GC metadata is stored out of line in allocator side tables, similar to Go.
 TypeDescriptor values are canonical runtime metadata handles, while `TypeId` is the compact lowered identity token when one is needed for tables or side data.
-Null references use 0x0 for the pointer value.
+Null managed references use the null managed handle value.
 Undefined is represented through tagged unions, not pointer tagging.
 
 Per span metadata includes:
 - Mark bits for GC tracing
 - Size class and allocation layout info
-- A TypeDescriptor per object for scanning and type queries
+- A `LayoutId` per object for scanning
+- A `TypeDescriptor` when runtime type queries are enabled
 
 Polymorphic classes store a vtable pointer in the object for virtual dispatch and fast `instanceof`/`T.is`.
 Structs remain headerless and rely on metadata or fat pointers for runtime type identity.
@@ -969,7 +969,7 @@ At runtime, when user code accesses `User.properties` or `typeOf(value)`, the `T
 (Comptime and runtime share the same MIR representation, so no synthesis or conversion step is needed.)
 Runtime `Type<T>` values are represented as `TypeDescriptor` handles.
 When a vtable exists, slot 0 stores the `TypeDescriptor` handle.
-Interface and `unknown` values carry it in fat pointers, and thin pointers recover it via GC metadata when needed.
+Interface and `unknown` values carry it in fat pointers, and thin managed references recover it via GC metadata when needed.
 
 **Lowering Type<T> operations:**
 
@@ -1351,8 +1351,9 @@ See [INTRINSICS.md](INTRINSICS.md#garbage-collection) for details.
 **Roots:** Each function has a stack map describing which slots contain managed references.
 The GC uses these to find roots during collection.
 Managed allocations do not include per object headers.
-The allocator side tables store mark bits, size class, and the `TypeDescriptor` handle used for scanning and runtime type queries.
-The exact scan shape is derived from MIR type and layout facts through `TypeDescriptor` rather than from ad hoc collector-local type knowledge.
+The allocator side tables store mark bits, size class, and the `LayoutId` used for scanning.
+Runtime type queries use `TypeDescriptor` handles rather than collector-local type tags.
+The exact scan shape is derived from MIR layout facts rather than from ad hoc collector-local type knowledge.
 
 GC implementation details are target-specific and live in the runtime/codegen layers.
 The general approach (when GC is enabled) is Go-like: insertion write barriers with a concurrent mark phase.
@@ -1373,6 +1374,7 @@ For WasmGC-style targets, Lower may map `managed.alloc`, managed references, and
 
 Managed reference representation is a target and runtime policy, not a separate MIR type.
 By default, managed references use pointer width (`usize`) in native layouts.
+That machine word may be a direct pointer, compressed handle, object table index, page directory locator, or another equivalent runtime managed representation.
 Pointer compression can be enabled for managed references, typically as 32-bit handles into a bounded managed heap window.
 The MIR type remains `ref<managed ...>` either way.
 Both `ref<managed T>` and `ref<managed readonly T>` are first-class and Lower preserves mutability information from DIR.
@@ -1468,6 +1470,7 @@ Source level ownership semantics are defined in [language/SPECIFICATION.md](../.
 **Explicit Ownership:**
 
 To preserve TypeScript semantics, a plain type `T` always follows the same rules as TypeScript (objects are GC managed references, primitives are values).
+For reference types, that default `T` is a managed reference with logical object identity rather than guaranteed raw address semantics.
 
 | Modifier | Semantics | After `foo(x)` | Who cleans up? |
 |----------|-----------|----------------|----------------|
@@ -1510,8 +1513,8 @@ control flow merges and before coroutine suspension when the value is not used a
 
 #### Borrowing
 
-`&T` and `&readonly T` are explicit references (pointers) to data.
-They lower directly to pointer types in MIR:
+`&T` and `&readonly T` are explicit borrows of data.
+They lower to borrowed reference types in MIR, which are address carrying values but not the same thing as raw pointers:
 
 ```ds
 function process(data: &readonly Point) { ... }   // read only reference
@@ -1530,6 +1533,8 @@ Lower treats locals, `this`, globals, and member or index access as addressable 
 Non addressable expressions are materialized into a temporary local before `local.addr` is emitted.
 If the borrow target is a member or index on a reference-like base, Lower uses the base value directly and avoids a spill.
 Borrowing subfields lowers to explicit address projections (`field.addr`, `element.addr`).
+For movable managed storage, borrowed addresses are only required to remain valid within the proven borrow lifetime.
+Backends may rematerialize those addresses across safepoints or require pinning when code needs stable raw exposure.
 Borrowed references are verified by the borrow check pass in Optimize.
 Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
 A borrow ends when the reference value is no longer live.
@@ -1544,6 +1549,7 @@ In lenient mode, the same situations produce warnings.
 They lower directly to `ref<raw T>` and `ref<raw readonly T>`.
 Deref and mutation use explicit `load`/`store` and pointer operations.
 Conversions between borrowed references and raw pointers are explicit.
+Address sensitive APIs, FFI boundaries, and layout critical code should use raw pointers directly or request pinned managed storage.
 
 #### Address spaces
 
