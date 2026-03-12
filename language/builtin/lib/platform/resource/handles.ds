@@ -84,20 +84,8 @@ export newtype PtyHandle = ResourceId;
 /// Handle for a thread object.
 export newtype ThreadHandle = ResourceId;
 
-/// Handle for a mutex object.
-export newtype MutexHandle = ResourceId;
-
-/// Handle for a read write lock object.
-export newtype RwLockHandle = ResourceId;
-
-/// Handle for a condition variable object.
-export newtype CondVarHandle = ResourceId;
-
-/// Handle for a thread-scoped semaphore object.
-export newtype ThreadSemaphoreHandle = ResourceId;
-
-/// Handle for a thread-scoped barrier object.
-export newtype BarrierHandle = ResourceId;
+/// Handle for a runtime thread entry object.
+export newtype ThreadEntryHandle = ResourceId;
 
 /// Handle for a thread local key.
 export newtype ThreadLocalKey = ResourceId;

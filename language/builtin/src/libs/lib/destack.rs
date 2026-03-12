@@ -302,6 +302,8 @@ builtin_lib_sources_targeted!(
             "destack/string",
             "string.ds"
         ),
+        (LIB_DESTACK_SYNC_INDEX_DS, "lib", "destack/sync", "index.ds"),
+        (LIB_DESTACK_SYNC_SYNC_DS, "lib", "destack/sync", "sync.ds"),
         (LIB_DESTACK_SYS_INDEX_DS, "lib", "destack/sys", "index.ds"),
         (LIB_DESTACK_SYS_SYS_DS, "lib", "destack/sys", "sys.ds"),
         (LIB_DESTACK_TEST_INDEX_DS, "lib", "destack/test", "index.ds"),
@@ -419,6 +421,8 @@ pub const LIB_DESTACK: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_DESTACK_STREAM_STREAM_DS,
         LIB_DESTACK_STRING_INDEX_DS,
         LIB_DESTACK_STRING_STRING_DS,
+        LIB_DESTACK_SYNC_INDEX_DS,
+        LIB_DESTACK_SYNC_SYNC_DS,
         LIB_DESTACK_SYS_INDEX_DS,
         LIB_DESTACK_SYS_SYS_DS,
         LIB_DESTACK_TEST_INDEX_DS,

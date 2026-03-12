@@ -1,5 +1,5 @@
 import type { PlatformError } from "../error/index.ds";
-import { ThreadHandle } from "../resource/index.ds";
+import { ThreadEntryHandle, ThreadHandle } from "../resource/index.ds";
 
 /// Thread spawn options.
 export struct ThreadOptions {
@@ -13,8 +13,9 @@ export struct ThreadOptions {
 declare namespace thread {
     /// Spawn one host thread.
     ///
-    /// Spawn one host thread that enters a runtime-provided entry symbol.
-    /// Entry dispatch and argument passing are runtime ABI contracts.
+    /// Spawn one host thread that enters one runtime-provided thread entry handle.
+    /// The runtime resolves `entry` against its thread-entry table and passes `argument` as one machine-word payload.
+    /// Thread entry creation and argument interpretation are runtime ABI contracts.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -36,19 +37,18 @@ declare namespace thread {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function spawn(
-        entry: string,
+        entry: ThreadEntryHandle,
         argument: uint64,
         options: ThreadOptions,
     ): Result<ThreadHandle, PlatformError>;
 
     /// Join one host thread.
     ///
-    /// Wait for one joinable thread to exit and return its exit code.
-    /// Join behavior follows host thread lifecycle rules.
+    /// Wait for one joinable thread to exit and return its machine-word result.
+    /// Join lifecycle follows host thread rules, but the returned value is runtime-defined.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -70,10 +70,9 @@ declare namespace thread {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
-    export function join(handle: ThreadHandle): Result<uint32, PlatformError>;
+    export function join(handle: ThreadHandle): Result<uint64, PlatformError>;
 
     /// Detach one host thread.
     ///
@@ -100,7 +99,6 @@ declare namespace thread {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function detach(handle: ThreadHandle): Result<void, PlatformError>;

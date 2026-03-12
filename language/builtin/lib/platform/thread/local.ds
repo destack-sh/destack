@@ -28,7 +28,6 @@ declare namespace thread {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function localCreate(): Result<ThreadLocalKey, PlatformError>;
@@ -58,7 +57,6 @@ declare namespace thread {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function localSet(key: ThreadLocalKey, value: uint64): Result<void, PlatformError>;
@@ -88,7 +86,6 @@ declare namespace thread {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function localGet(key: ThreadLocalKey): Result<uint64, PlatformError>;
@@ -118,7 +115,6 @@ declare namespace thread {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function localDelete(key: ThreadLocalKey): Result<void, PlatformError>;

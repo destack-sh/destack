@@ -16,19 +16,18 @@ declare namespace thread {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.priority`.
+    /// Requires `thread.scheduling`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.thread.priority.setPriority", {
+    @binding("destack.thread.scheduling.setPriority", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["thread.priority"],
+        capabilities: ["thread.scheduling"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function setPriority(handle: ThreadHandle, priority: int32): Result<void, PlatformError>;
@@ -46,19 +45,18 @@ declare namespace thread {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.priority`.
+    /// Requires `thread.scheduling`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.thread.priority.getPriority", {
+    @binding("destack.thread.scheduling.getPriority", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["thread.priority"],
+        capabilities: ["thread.scheduling"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function getPriority(handle: ThreadHandle): Result<int32, PlatformError>;
@@ -76,19 +74,18 @@ declare namespace thread {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.priority`.
+    /// Requires `thread.scheduling`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.thread.priority.setAffinity", {
+    @binding("destack.thread.scheduling.setAffinity", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["thread.priority"],
+        capabilities: ["thread.scheduling"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function setAffinity(handle: ThreadHandle, mask: uint64): Result<void, PlatformError>;
@@ -106,19 +103,18 @@ declare namespace thread {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.priority`.
+    /// Requires `thread.scheduling`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.thread.priority.getAffinity", {
+    @binding("destack.thread.scheduling.getAffinity", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["thread.priority"],
+        capabilities: ["thread.scheduling"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function getAffinity(handle: ThreadHandle): Result<uint64, PlatformError>;

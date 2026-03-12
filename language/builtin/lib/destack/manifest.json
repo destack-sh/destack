@@ -61,6 +61,8 @@
         "lib/destack/stream/stream.ds",
         "lib/destack/string/index.ds",
         "lib/destack/string/string.ds",
+        "lib/destack/sync/index.ds",
+        "lib/destack/sync/sync.ds",
         "lib/destack/sys/index.ds",
         "lib/destack/sys/sys.ds",
         "lib/destack/test/index.ds",

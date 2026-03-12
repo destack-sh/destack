@@ -23,6 +23,7 @@ export { replay } from "./replay/index.ds";
 export { snapshot } from "./snapshot/index.ds";
 export { stream } from "./stream/index.ds";
 export { string } from "./string/index.ds";
+export { sync } from "./sync/index.ds";
 export { sys } from "./sys/index.ds";
 export { test } from "./test/index.ds";
 export { time } from "./time/index.ds";

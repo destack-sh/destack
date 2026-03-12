@@ -1,6 +1,24 @@
-// Synchronization primitives for native target.
-
-// Future:
-// export { Mutex, MutexGuard } from "./mutex.ds";
-// export { RwLock, ReadGuard, WriteGuard } from "./rwlock.ds";
-// export { Channel, Sender, Receiver } from "./channel.ds";
+export {
+    AtomicScope,
+    MemoryOrdering,
+    MemoryRegionSet,
+    MemoryScope,
+    atomicCas,
+    atomicCasWeak,
+    atomicExchange,
+    atomicFence,
+    atomicFetchAdd,
+    atomicFetchAnd,
+    atomicFetchFadd,
+    atomicFetchFmax,
+    atomicFetchFmin,
+    atomicFetchMax,
+    atomicFetchMin,
+    atomicFetchOr,
+    atomicFetchSub,
+    atomicFetchUmax,
+    atomicFetchUmin,
+    atomicFetchXor,
+    atomicLoad,
+    atomicStore,
+} from "../../../core/intrinsic/atomic.ds";
