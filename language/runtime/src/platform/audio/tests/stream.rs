@@ -11,6 +11,7 @@ use super::{
     is_not_supported_code, with_harness_context,
 };
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{AudioDeviceHandle, AudioEventHandle, AudioStreamHandle};
 use audio_core::{
@@ -20,12 +21,12 @@ use audio_core::{
     STREAM_REQUIRE_SCHEDULED_WRITE,
 };
 use core::{
-    DeterministicSequence, backend_availability_rows, backend_availability_rows_with_capabilities,
-    byte_len, event_batch_sequence_rows, harness_bytes, harness_bytes_slices,
-    harness_device_options, harness_event_options, harness_mutable_bytes_slices,
-    harness_stream_config, harness_stream_options, harness_string, open_null_duplex_stream,
-    stream_descriptor_flags_from_value, stream_open_with_default_options, stream_state_from_value,
-    stream_support_from_value, string_from_harness_value,
+    DeterministicSequence, backend_is_available_for_host_execution, backend_support_rows,
+    backend_support_rows_with_capabilities, byte_len, event_batch_sequence_rows, harness_bytes,
+    harness_bytes_slices, harness_device_options, harness_event_options,
+    harness_mutable_bytes_slices, harness_stream_config, harness_stream_options, harness_string,
+    open_null_duplex_stream, stream_descriptor_flags_from_value, stream_open_with_default_options,
+    stream_state_from_value, stream_support_from_value, string_from_harness_value,
 };
 
 const RANDOM_NULL_INTERLEAVING_ITERATIONS: usize = 128;
@@ -180,13 +181,21 @@ fn first_available_host_backend(
     context: &mut AudioHarnessContext<'_>,
 ) -> RuntimeResult<Option<AudioBackend>> {
     let backend_list = context.destack_audio_backend_list()?;
-    let backend_rows = backend_availability_rows(context, backend_list)?;
-    Ok(backend_rows
-        .into_iter()
-        .find(|(backend, available)| {
-            *available && *backend != AudioBackend::Auto && *backend != AudioBackend::Null
-        })
-        .map(|(backend, _available)| backend))
+    let backend_rows = backend_support_rows(context, backend_list)?;
+    let backend = backend_rows.iter().find_map(|(backend, _support)| {
+        // specimen tests only run on concrete host backends that are usable here
+        if *backend == AudioBackend::Auto || *backend == AudioBackend::Null {
+            return None;
+        }
+
+        if !backend_is_available_for_host_execution(&backend_rows, *backend) {
+            return None;
+        }
+
+        Some(*backend)
+    });
+
+    Ok(backend)
 }
 
 #[cfg(any(unix, windows))]
@@ -396,10 +405,13 @@ fn test_audio_stream_support_reports_unsatisfied_requirements() {
 fn test_audio_stream_open_non_interleaved_matches_backend_capability() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows_with_capabilities(&mut context, backend_list)?;
+        let backend_list = backend_support_rows_with_capabilities(&mut context, backend_list)?;
 
-        for (backend, available, capability_flags) in backend_list {
-            if !available || backend == AudioBackend::Auto || backend == AudioBackend::Null {
+        for (backend, support, capability_flags) in backend_list {
+            if support != BackendSupport::Available
+                || backend == AudioBackend::Auto
+                || backend == AudioBackend::Null
+            {
                 continue;
             }
 
@@ -928,13 +940,19 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
 fn test_audio_host_stream_open_close_when_backend_is_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let backend = backend_list
-            .into_iter()
-            .find(|(backend, available)| {
-                *available && *backend != AudioBackend::Auto && *backend != AudioBackend::Null
-            })
-            .map(|(backend, _available)| backend);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let backend = backend_list.iter().find_map(|(backend, _support)| {
+            // specimen tests only run on concrete host backends that are usable here
+            if *backend == AudioBackend::Auto || *backend == AudioBackend::Null {
+                return None;
+            }
+
+            if !backend_is_available_for_host_execution(&backend_list, *backend) {
+                return None;
+            }
+
+            Some(*backend)
+        });
         let Some(backend) = backend else {
             return Ok(());
         };
@@ -1001,13 +1019,19 @@ fn test_audio_host_stream_open_close_when_backend_is_available() {
 fn test_audio_host_stream_write_at_rejects_when_backend_lacks_schedule_lane() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let backend = backend_list
-            .into_iter()
-            .find(|(backend, available)| {
-                *available && *backend != AudioBackend::Auto && *backend != AudioBackend::Null
-            })
-            .map(|(backend, _available)| backend);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let backend = backend_list.iter().find_map(|(backend, _support)| {
+            // specimen tests only run on concrete host backends that are usable here
+            if *backend == AudioBackend::Auto || *backend == AudioBackend::Null {
+                return None;
+            }
+
+            if !backend_is_available_for_host_execution(&backend_list, *backend) {
+                return None;
+            }
+
+            Some(*backend)
+        });
         let Some(backend) = backend else {
             return Ok(());
         };
@@ -1097,10 +1121,13 @@ fn test_audio_host_stream_write_at_rejects_when_backend_lacks_schedule_lane() {
 fn test_audio_stream_descriptor_flags_match_control_behavior_for_available_backends() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_rows = backend_availability_rows_with_capabilities(&mut context, backend_list)?;
+        let backend_rows = backend_support_rows_with_capabilities(&mut context, backend_list)?;
 
-        for (backend, available, capability_flags) in backend_rows {
-            if !available || backend == AudioBackend::Auto || backend == AudioBackend::Null {
+        for (backend, support, capability_flags) in backend_rows {
+            if support != BackendSupport::Available
+                || backend == AudioBackend::Auto
+                || backend == AudioBackend::Null
+            {
                 continue;
             }
 
@@ -1258,10 +1285,9 @@ fn test_audio_stream_descriptor_flags_match_control_behavior_for_available_backe
 fn test_audio_coreaudio_loopback_open_start_stop_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let coreaudio_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::CoreAudio && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let coreaudio_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::CoreAudio);
         if !coreaudio_available {
             return Ok(());
         }
@@ -1339,10 +1365,9 @@ fn test_audio_coreaudio_loopback_open_start_stop_when_available() {
 fn test_audio_asio_playback_open_start_stop_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let asio_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Asio && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let asio_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::Asio);
         if !asio_available {
             return Ok(());
         }
@@ -1405,10 +1430,9 @@ fn test_audio_asio_playback_open_start_stop_when_available() {
 fn test_audio_asio_open_rejects_shared_mode_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let asio_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Asio && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let asio_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::Asio);
         if !asio_available {
             return Ok(());
         }
@@ -1448,10 +1472,9 @@ fn test_audio_asio_open_rejects_shared_mode_when_available() {
 fn test_audio_alsa_playback_open_start_stop_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let alsa_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Alsa && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let alsa_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::Alsa);
         if !alsa_available {
             return Ok(());
         }
@@ -1514,10 +1537,9 @@ fn test_audio_alsa_playback_open_start_stop_when_available() {
 fn test_audio_pipewire_playback_open_start_stop_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let pipewire_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::PipeWire && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let pipewire_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::PipeWire);
         if !pipewire_available {
             return Ok(());
         }
@@ -1580,10 +1602,9 @@ fn test_audio_pipewire_playback_open_start_stop_when_available() {
 fn test_audio_pipewire_loopback_open_start_stop_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let pipewire_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::PipeWire && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let pipewire_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::PipeWire);
         if !pipewire_available {
             return Ok(());
         }
@@ -1645,10 +1666,9 @@ fn test_audio_pipewire_loopback_open_start_stop_when_available() {
 fn test_audio_pulseaudio_playback_open_start_stop_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let pulseaudio_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::PulseAudio && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let pulseaudio_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::PulseAudio);
         if !pulseaudio_available {
             return Ok(());
         }
@@ -1711,10 +1731,9 @@ fn test_audio_pulseaudio_playback_open_start_stop_when_available() {
 fn test_audio_pulseaudio_loopback_open_start_stop_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let pulseaudio_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::PulseAudio && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let pulseaudio_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::PulseAudio);
         if !pulseaudio_available {
             return Ok(());
         }
@@ -1776,10 +1795,9 @@ fn test_audio_pulseaudio_loopback_open_start_stop_when_available() {
 fn test_audio_jack_playback_open_start_stop_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let jack_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Jack && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let jack_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::Jack);
         if !jack_available {
             return Ok(());
         }
@@ -1837,15 +1855,144 @@ fn test_audio_jack_playback_open_start_stop_when_available() {
     });
 }
 
+#[cfg(target_os = "android")]
+#[test]
+fn test_audio_aaudio_playback_open_start_stop_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let aaudio_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::AAudio);
+        if !aaudio_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::AAudio,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error_code_from_runtime_error(&error);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::AAudio,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream = stream_open_with_default_options(&mut context, device, config)?;
+        context.destack_audio_stream_start(stream)?;
+
+        let payload = harness_bytes(&mut context, &[0u8; 256])?;
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_write(stream, payload),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(target_os = "android")]
+#[test]
+fn test_audio_opensles_playback_open_start_stop_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let opensles_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::OpenSLES);
+        if !opensles_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::OpenSLES,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error_code_from_runtime_error(&error);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::OpenSLES,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream = stream_open_with_default_options(&mut context, device, config)?;
+        context.destack_audio_stream_start(stream)?;
+
+        let payload = harness_bytes(&mut context, &[0u8; 256])?;
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_write(stream, payload),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
 #[cfg(any(unix, windows))]
 #[test]
 fn test_audio_wasapi_loopback_open_start_stop_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let wasapi_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Wasapi && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let wasapi_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::Wasapi);
         if !wasapi_available {
             return Ok(());
         }
@@ -1923,10 +2070,9 @@ fn test_audio_wasapi_loopback_open_start_stop_when_available() {
 fn test_audio_wasapi_duplex_open_start_stop_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let wasapi_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Wasapi && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let wasapi_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::Wasapi);
         if !wasapi_available {
             return Ok(());
         }

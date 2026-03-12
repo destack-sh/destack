@@ -3,8 +3,6 @@ use super::super::{
     AudioEventOverflowPolicy, AudioEventSource, AudioEventSubscriptionFlags,
     AudioEventSubscriptionOptions, core as audio_core,
 };
-#[cfg(windows)]
-use super::core::backend_availability_rows;
 use super::core::{
     DeterministicSequence, backend_event_support_rows, event_batch_kind_rows, event_batch_len,
     event_batch_sequence_rows, harness_event_options, open_null_duplex_stream,
@@ -14,8 +12,12 @@ use super::{
     assert_code_is_not_not_supported, assert_not_supported_result, assert_ok_or_expected_error,
     assert_platform_error_code, error_code_from_runtime_error, with_harness_context,
 };
+use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{AudioStreamHandle, ResourceId};
+
+#[cfg(windows)]
+use super::core::{backend_is_available_for_host_execution, backend_support_rows};
 
 /// Build one default null backend event subscription payload.
 fn default_event_options() -> AudioEventSubscriptionOptions {
@@ -401,10 +403,9 @@ fn test_audio_event_open_native_only_accepts_alsa_device_lanes_when_available() 
 fn test_audio_event_open_native_only_accepts_asio_device_lanes_when_available() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_availability_rows(&mut context, backend_list)?;
-        let asio_available = backend_list
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Asio && *available);
+        let backend_list = backend_support_rows(&mut context, backend_list)?;
+        let asio_available =
+            backend_is_available_for_host_execution(&backend_list, AudioBackend::Asio);
         if !asio_available {
             return Ok(());
         }
@@ -440,6 +441,42 @@ fn test_audio_event_open_native_only_accepts_asio_device_lanes_when_available() 
                 Err(error)
             }
         }
+    });
+}
+
+#[cfg(target_os = "android")]
+#[test]
+fn test_audio_event_open_native_only_rejects_aaudio_device_lanes_when_available() {
+    with_harness_context(|mut context| {
+        let mut event_options = default_event_options();
+        event_options.backend = AudioBackend::AAudio;
+        event_options.backend_policy = AudioBackendSelectionPolicy::Strict;
+        event_options.flags = audio_core::EVENT_SUBSCRIBE_DEVICE_HOTPLUG;
+        event_options.delivery_mode = AudioEventDeliveryMode::NativeOnly;
+
+        let event_options = harness_event_options(&mut context, event_options);
+        let result = context.destack_audio_event_open(event_options);
+        assert_not_supported_result(result)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(target_os = "android")]
+#[test]
+fn test_audio_event_open_native_only_rejects_opensles_device_lanes_when_available() {
+    with_harness_context(|mut context| {
+        let mut event_options = default_event_options();
+        event_options.backend = AudioBackend::OpenSLES;
+        event_options.backend_policy = AudioBackendSelectionPolicy::Strict;
+        event_options.flags = audio_core::EVENT_SUBSCRIBE_DEVICE_HOTPLUG;
+        event_options.delivery_mode = AudioEventDeliveryMode::NativeOnly;
+
+        let event_options = harness_event_options(&mut context, event_options);
+        let result = context.destack_audio_event_open(event_options);
+        assert_not_supported_result(result)?;
+
+        Ok(())
     });
 }
 
@@ -672,8 +709,8 @@ fn test_audio_event_open_matches_backend_advertised_device_subscription_flags() 
             ("reroute", audio_core::EVENT_SUBSCRIBE_REROUTE),
         ];
 
-        for (backend, available, supported_flags) in rows {
-            if !available || backend == AudioBackend::Auto {
+        for (backend, support, supported_flags) in rows {
+            if support != BackendSupport::Available || backend == AudioBackend::Auto {
                 continue;
             }
 

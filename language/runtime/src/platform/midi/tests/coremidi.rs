@@ -2,9 +2,9 @@ use super::{
     decode_backend_descriptors_full, decode_event, decode_input_record, decode_port_descriptor,
     decode_port_descriptors, harness_event_open_options, harness_output_open_options_for_transport,
     harness_output_records, harness_port_list_options_with_flags, harness_string,
-    harness_virtual_input_create_options_for_backend_transport, with_harness_context,
+    harness_virtual_input_create_options_for_backend_transport, support_allows_host_execution,
+    with_harness_context,
 };
-use crate::platform::core::BackendSupport;
 use crate::platform::midi::{
     MIDI_BACKEND_CAP_NATIVE_EVENT_FEED, MIDI_BACKEND_CAP_RECEIVE_TIMESTAMPS,
     MIDI_BACKEND_CAP_SCHEDULED_OUTPUT, MIDI_BACKEND_CAP_TOPOLOGY_EVENTS, MIDI_BACKEND_CAP_UMP,
@@ -45,7 +45,7 @@ fn test_midi_coremidi_backend_row_advertises_real_host_capabilities() {
 
         // identity and support
         assert_eq!(name, "coremidi");
-        assert_eq!(support, BackendSupport::Available);
+        assert!(support_allows_host_execution(support));
         assert!(
             priority != 0,
             "CoreMIDI should participate in auto selection"

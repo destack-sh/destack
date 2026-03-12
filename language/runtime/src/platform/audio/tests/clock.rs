@@ -13,7 +13,7 @@ use super::super::{
     AudioShareMode, AudioStreamClockDomain, AudioStreamConfig, AudioStreamTransferMode,
 };
 use super::core::{
-    backend_availability_rows_with_capabilities, clock_snapshot_from_value,
+    backend_support_rows_with_capabilities, clock_snapshot_from_value,
     device_descriptor_stream_clock_domains_from_value, harness_device_options,
     harness_stream_config, harness_string, open_null_duplex_stream, open_null_playback_stream,
     stream_open_with_default_options, string_from_harness_value,
@@ -22,6 +22,7 @@ use super::{
     assert_code_is_not_not_supported, assert_not_supported_result, assert_ok_or_expected_error,
     error_code_from_runtime_error, is_not_supported_code, with_harness_context,
 };
+use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
 
 #[cfg(any(unix, windows))]
@@ -135,7 +136,7 @@ fn test_audio_stream_clock_rejects_input_adc_for_playback_streams() {
 fn test_audio_stream_clock_domain_support_matches_device_descriptor_for_available_backends() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_rows = backend_availability_rows_with_capabilities(&mut context, backend_list)?;
+        let backend_rows = backend_support_rows_with_capabilities(&mut context, backend_list)?;
         let domain_rows = [
             (
                 AudioStreamClockDomain::Monotonic,
@@ -160,8 +161,8 @@ fn test_audio_stream_clock_domain_support_matches_device_descriptor_for_availabl
             ),
         ];
 
-        for (backend, available, capability_flags) in backend_rows {
-            if !available || backend == AudioBackend::Auto {
+        for (backend, support, capability_flags) in backend_rows {
+            if support != BackendSupport::Available || backend == AudioBackend::Auto {
                 continue;
             }
 

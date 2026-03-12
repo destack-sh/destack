@@ -33,7 +33,7 @@ const DISPLAY_CAP_WINDOW_PARENTING: u64 = display_platform::DISPLAY_BACKEND_CAP_
 const DISPLAY_CAP_WINDOW_MODAL: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0;
 
 #[cfg(any(unix, windows))]
-fn backend_is_available(support: BackendSupport) -> bool {
+fn support_allows_host_execution(support: BackendSupport) -> bool {
     matches!(support, BackendSupport::Available)
 }
 
@@ -63,8 +63,8 @@ enum WindowEventMarker {
 }
 
 #[cfg(any(unix, windows))]
-/// Return available backend descriptors for the active harness context.
-fn available_backend_descriptors(
+/// Return backend descriptors that can run live host specimen cases here.
+fn backend_descriptors_for_host_execution(
     context: &mut DisplayHarnessContext<'_>,
 ) -> RuntimeResult<Vec<BackendDescriptorSummary>> {
     let descriptors = context.destack_display_backend_list()?;
@@ -72,7 +72,7 @@ fn available_backend_descriptors(
         HarnessValue::Native(values) => unsafe { values.as_slice()? }
             .iter()
             .filter(|descriptor| {
-                backend_is_available(descriptor.support)
+                support_allows_host_execution(descriptor.support)
                     && is_concrete_host_backend(descriptor.backend)
             })
             .map(|descriptor| BackendDescriptorSummary {
@@ -93,7 +93,7 @@ fn available_backend_descriptors(
                 .read_values(vm_context)?
                 .into_iter()
                 .filter(|descriptor| {
-                    backend_is_available(descriptor.support)
+                    support_allows_host_execution(descriptor.support)
                         && is_concrete_host_backend(descriptor.backend)
                 })
                 .map(|descriptor| BackendDescriptorSummary {
@@ -813,7 +813,7 @@ pub(super) fn test_window_event_visibility_changes_emit_expected_payloads() {
     }
 
     with_harness_context(|mut context| {
-        let backends = available_backend_descriptors(&mut context)?;
+        let backends = backend_descriptors_for_host_execution(&mut context)?;
         if backends.is_empty() {
             return Ok(());
         }
@@ -923,7 +923,7 @@ pub(super) fn test_window_event_occlusion_changes_follow_visibility_transitions(
     }
 
     with_harness_context(|mut context| {
-        let backends = available_backend_descriptors(&mut context)?;
+        let backends = backend_descriptors_for_host_execution(&mut context)?;
         if backends.is_empty() {
             return Ok(());
         }
@@ -1032,7 +1032,7 @@ pub(super) fn test_window_event_refresh_metadata_sequence_is_monotonic() {
     }
 
     with_harness_context(|mut context| {
-        let backends = available_backend_descriptors(&mut context)?;
+        let backends = backend_descriptors_for_host_execution(&mut context)?;
         if backends.is_empty() {
             return Ok(());
         }
@@ -1134,7 +1134,7 @@ pub(super) fn test_window_event_relation_and_modal_payloads_match_state_transiti
     }
 
     with_harness_context(|mut context| {
-        let backends = available_backend_descriptors(&mut context)?;
+        let backends = backend_descriptors_for_host_execution(&mut context)?;
         if backends.is_empty() {
             return Ok(());
         }
@@ -1306,7 +1306,7 @@ pub(super) fn test_window_close_emits_single_destroyed_lifecycle_event() {
     }
 
     with_harness_context(|mut context| {
-        let backends = available_backend_descriptors(&mut context)?;
+        let backends = backend_descriptors_for_host_execution(&mut context)?;
         if backends.is_empty() {
             return Ok(());
         }
@@ -1408,7 +1408,7 @@ pub(super) fn test_window_destroyed_is_terminal_for_window_event_stream() {
     }
 
     with_harness_context(|mut context| {
-        let backends = available_backend_descriptors(&mut context)?;
+        let backends = backend_descriptors_for_host_execution(&mut context)?;
         if backends.is_empty() {
             return Ok(());
         }

@@ -25,8 +25,8 @@ type NativeByteVectors = NativeSlice<NativeSlice<u8>>;
 type VmByteVectors = VmSlice<VmSlice<u8>>;
 type ByteVectorsHarnessValue = HarnessValue<NativeByteVectors, VmByteVectors>;
 
-/// Return whether one backend support state is available.
-fn backend_is_available(support: BackendSupport) -> bool {
+/// Return whether one backend support state allows live host execution.
+fn backend_support_allows_host_execution(support: BackendSupport) -> bool {
     matches!(support, BackendSupport::Available)
 }
 
@@ -401,52 +401,91 @@ pub(super) fn backend_descriptor_summaries(
     }
 }
 
-/// Decode one backend descriptor list into backend availability rows.
-pub(super) fn backend_availability_rows(
+/// Decode one backend descriptor list into backend support rows.
+pub(super) fn backend_support_rows(
     context: &mut AudioHarnessContext<'_>,
     value: HarnessValue<NativeSlice<AudioBackendDescriptor>, VmSlice<AudioBackendDescriptorVm>>,
-) -> RuntimeResult<Vec<(AudioBackend, bool)>> {
+) -> RuntimeResult<Vec<(AudioBackend, BackendSupport)>> {
     let rows = backend_descriptor_summaries(context, value)?;
     Ok(rows
         .into_iter()
-        .map(|value| (value.backend, backend_is_available(value.support)))
+        .map(|value| (value.backend, value.support))
         .collect())
 }
 
-/// Decode one backend descriptor list into backend availability and capability rows.
-pub(super) fn backend_availability_rows_with_capabilities(
+/// Decode one backend descriptor list into backend support and capability rows.
+pub(super) fn backend_support_rows_with_capabilities(
     context: &mut AudioHarnessContext<'_>,
     value: HarnessValue<NativeSlice<AudioBackendDescriptor>, VmSlice<AudioBackendDescriptorVm>>,
-) -> RuntimeResult<Vec<(AudioBackend, bool, AudioBackendCapabilityFlags)>> {
+) -> RuntimeResult<Vec<(AudioBackend, BackendSupport, AudioBackendCapabilityFlags)>> {
     let rows = backend_descriptor_summaries(context, value)?;
     Ok(rows
         .into_iter()
-        .map(|value| {
-            (
-                value.backend,
-                backend_is_available(value.support),
-                value.capability_flags,
-            )
-        })
+        .map(|value| (value.backend, value.support, value.capability_flags))
         .collect())
 }
 
-/// Decode one backend descriptor list into availability and event-support rows.
+/// Decode one backend descriptor list into support and event-subscription rows.
 pub(super) fn backend_event_support_rows(
     context: &mut AudioHarnessContext<'_>,
     value: HarnessValue<NativeSlice<AudioBackendDescriptor>, VmSlice<AudioBackendDescriptorVm>>,
-) -> RuntimeResult<Vec<(AudioBackend, bool, AudioSupportedEventSubscriptionFlags)>> {
+) -> RuntimeResult<
+    Vec<(
+        AudioBackend,
+        BackendSupport,
+        AudioSupportedEventSubscriptionFlags,
+    )>,
+> {
     let rows = backend_descriptor_summaries(context, value)?;
     Ok(rows
         .into_iter()
         .map(|value| {
             (
                 value.backend,
-                backend_is_available(value.support),
+                value.support,
                 value.supported_event_subscription_flags,
             )
         })
         .collect())
+}
+
+/// Return the reported support state for one backend row.
+pub(super) fn backend_support_for(
+    rows: &[(AudioBackend, BackendSupport)],
+    backend: AudioBackend,
+) -> BackendSupport {
+    rows.iter()
+        .find(|(row_backend, _support)| *row_backend == backend)
+        .map(|(_row_backend, support)| *support)
+        .unwrap_or_else(|| panic!("audio backend list should include {backend:?} row"))
+}
+
+/// Return whether one backend is available for live host execution.
+pub(super) fn backend_is_available_for_host_execution(
+    rows: &[(AudioBackend, BackendSupport)],
+    backend: AudioBackend,
+) -> bool {
+    let support = backend_support_for(rows, backend);
+
+    backend_support_allows_host_execution(support)
+}
+
+/// Return the first available concrete host backend.
+pub(super) fn first_available_host_backend(
+    rows: &[(AudioBackend, BackendSupport)],
+) -> Option<AudioBackend> {
+    rows.iter()
+        .find(|(backend, support)| {
+            *backend != AudioBackend::Auto
+                && *backend != AudioBackend::Null
+                && backend_support_allows_host_execution(*support)
+        })
+        .map(|(backend, _support)| *backend)
+}
+
+/// Return whether any concrete host backend is available.
+pub(super) fn has_available_host_backend(rows: &[(AudioBackend, BackendSupport)]) -> bool {
+    first_available_host_backend(rows).is_some()
 }
 
 /// Decode one native or VM string payload into one rust string.
