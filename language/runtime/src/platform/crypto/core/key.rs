@@ -39,6 +39,7 @@ use super::core::{
     host_store_supports_hardware_backed_pair_algorithm, insert_key_resource, invalid_data,
     message_digest, openssl_error, permission_denied, resolve_key_resource, resolve_store_resource,
     store_provenance_from_store, store_provenance_to_descriptor,
+    supported_hardware_backed_pair_usage_mask,
 };
 use super::store::{delete_persistent_key_if_present, persist_key_if_required};
 
@@ -1138,7 +1139,12 @@ pub(crate) fn key_generate_pair(
 
     // enforce supported usage lanes for hardware-backed key generation
     if request.hardware_backed {
-        enforce_hardware_backed_pair_usage(request.usage_mask, "destack.crypto.key.generatePair")?;
+        enforce_hardware_backed_pair_usage(
+            store_provenance.kind,
+            request.algorithm,
+            request.usage_mask,
+            "destack.crypto.key.generatePair",
+        )?;
     }
 
     // allocate persistent identifiers for both key resources when required
@@ -1188,6 +1194,9 @@ pub(crate) fn key_generate_pair(
             store_provenance.kind,
             request.algorithm,
             request.named_curve,
+            request.usage_mask,
+            request.modulus_bits,
+            request.public_exponent,
             &private_persistent_id,
             "destack.crypto.key.generatePair",
         )?;
@@ -1486,17 +1495,14 @@ fn generate_software_key_pair(
 
 /// Enforce usage-mask lanes supported by current hardware-backed key generation backends.
 fn enforce_hardware_backed_pair_usage(
+    store_kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
     usage_mask: CryptoKeyUsageMask,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    // current host hardware-backed lanes support signing and verification only
-    let unsupported_usage_mask = KEY_USAGE_ENCRYPT
-        | KEY_USAGE_DECRYPT
-        | KEY_USAGE_WRAP
-        | KEY_USAGE_UNWRAP
-        | KEY_USAGE_DERIVE_BITS
-        | KEY_USAGE_DERIVE_KEYS;
-    if (usage_mask.0 & unsupported_usage_mask) != 0 {
+    // require the requested usage set to fit the target lane mask
+    let supported_usage_mask = supported_hardware_backed_pair_usage_mask(store_kind, algorithm);
+    if supported_usage_mask.0 == 0 || (usage_mask.0 & !supported_usage_mask.0) != 0 {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 

@@ -36,7 +36,7 @@ use super::core::{
     host_store_supports_hardware_backed_key, host_store_supports_hardware_backed_pair_algorithm,
     host_store_supports_key_persistence, insert_certificate_resource, insert_key_resource,
     invalid_argument, invalid_data, not_supported, openssl_error, resolve_key_resource,
-    resolve_store_resource,
+    resolve_store_resource, supported_hardware_backed_pair_usage_mask,
 };
 use super::digest::digest_output_size_bytes;
 use super::probe::{
@@ -611,6 +611,10 @@ fn store_key_capabilities(
     }
 
     let mut capabilities = Vec::new();
+    let is_host_lane = matches!(
+        kind,
+        CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
+    );
     for algorithm in probe_key_algorithms() {
         for residency in store_supported_residencies_for_algorithm(
             binding,
@@ -618,11 +622,12 @@ fn store_key_capabilities(
             algorithm,
             supports_hardware_backed,
         ) {
-            let supports_generate_secret = matches!(
+            let is_secret_algorithm = matches!(
                 algorithm,
                 CryptoKeyAlgorithm::Aes | CryptoKeyAlgorithm::ChaCha20 | CryptoKeyAlgorithm::Hmac
             );
-            let supports_generate_pair = matches!(
+            let supports_generate_secret = is_secret_algorithm;
+            let mut supports_generate_pair = matches!(
                 algorithm,
                 CryptoKeyAlgorithm::Rsa
                     | CryptoKeyAlgorithm::Ec
@@ -631,21 +636,52 @@ fn store_key_capabilities(
                     | CryptoKeyAlgorithm::X25519
                     | CryptoKeyAlgorithm::X448
             );
-            let supports_import = residency != CryptoKeyResidency::HardwareOpaque;
-            let supports_export =
-                residency == CryptoKeyResidency::SoftwareExportable && supports_key_export;
+            let mut supports_import = residency != CryptoKeyResidency::HardwareOpaque;
+
+            // host-backed non-extractable asymmetric lanes are target-specific
+            if is_host_lane && residency == CryptoKeyResidency::SoftwareNonExportable {
+                if supports_generate_pair {
+                    supports_generate_pair =
+                        crypto_host::host_store_supports_nonextractable_pair_algorithm(
+                            binding, kind, algorithm,
+                        );
+                }
+                if matches!(
+                    algorithm,
+                    CryptoKeyAlgorithm::Rsa
+                        | CryptoKeyAlgorithm::Ec
+                        | CryptoKeyAlgorithm::Ed25519
+                        | CryptoKeyAlgorithm::Ed448
+                        | CryptoKeyAlgorithm::X25519
+                        | CryptoKeyAlgorithm::X448
+                ) {
+                    supports_import =
+                        crypto_host::host_store_supports_nonextractable_private_import_algorithm(
+                            binding, kind, algorithm,
+                        );
+                }
+            }
+
+            let supports_export_public = !is_secret_algorithm && supports_key_export;
+            let supports_export_private = !is_secret_algorithm
+                && residency == CryptoKeyResidency::SoftwareExportable
+                && supports_key_export;
+            let supports_export_secret = is_secret_algorithm
+                && residency == CryptoKeyResidency::SoftwareExportable
+                && supports_key_export;
             let supported_usage_mask =
-                key_usage_mask_for_algorithm(algorithm, residency, supports_key_export);
+                key_usage_mask_for_algorithm(kind, algorithm, residency, supports_key_export);
             let import_formats = if supports_import {
                 key_formats_for_algorithm(algorithm)
             } else {
                 Vec::new()
             };
-            let export_formats = if supports_export {
-                key_formats_for_algorithm(algorithm)
-            } else {
-                Vec::new()
-            };
+            let export_formats = key_export_formats_for_algorithm(
+                algorithm,
+                supports_export_public,
+                supports_export_private,
+                supports_export_secret,
+            );
 
             capabilities.push(CryptoStoreKeyCapability {
                 algorithm,
@@ -653,9 +689,9 @@ fn store_key_capabilities(
                 supports_generate_secret,
                 supports_generate_pair,
                 supports_import,
-                supports_export_public: supports_export,
-                supports_export_private: supports_export,
-                supports_export_secret: supports_export,
+                supports_export_public,
+                supports_export_private,
+                supports_export_secret,
                 supported_usage_mask,
                 supported_import_formats: binding.store_slice(import_formats),
                 supported_export_formats: binding.store_slice(export_formats),
@@ -876,6 +912,7 @@ fn store_supports_hardware_residency(
 
 /// Return key usage mask bits for one key algorithm and residency lane.
 fn key_usage_mask_for_algorithm(
+    kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     residency: CryptoKeyResidency,
     supports_key_export: bool,
@@ -892,6 +929,10 @@ fn key_usage_mask_for_algorithm(
         CryptoKeyAlgorithm::ChaCha20 => KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT,
         CryptoKeyAlgorithm::Hmac => KEY_USAGE_SIGN | KEY_USAGE_VERIFY,
         CryptoKeyAlgorithm::Rsa => {
+            if residency == CryptoKeyResidency::HardwareOpaque {
+                return supported_hardware_backed_pair_usage_mask(kind, algorithm);
+            }
+
             KEY_USAGE_SIGN
                 | KEY_USAGE_VERIFY
                 | KEY_USAGE_ENCRYPT
@@ -900,6 +941,10 @@ fn key_usage_mask_for_algorithm(
                 | KEY_USAGE_UNWRAP
         }
         CryptoKeyAlgorithm::Ec => {
+            if residency == CryptoKeyResidency::HardwareOpaque {
+                return supported_hardware_backed_pair_usage_mask(kind, algorithm);
+            }
+
             KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS
         }
         CryptoKeyAlgorithm::Ed25519 | CryptoKeyAlgorithm::Ed448 => {
@@ -951,6 +996,42 @@ fn key_formats_for_algorithm(algorithm: CryptoKeyAlgorithm) -> Vec<CryptoKeyForm
         ],
         CryptoKeyAlgorithm::Unknown => Vec::new(),
     }
+}
+
+/// Return supported export formats for one algorithm and export-policy row.
+fn key_export_formats_for_algorithm(
+    algorithm: CryptoKeyAlgorithm,
+    supports_export_public: bool,
+    supports_export_private: bool,
+    supports_export_secret: bool,
+) -> Vec<CryptoKeyFormat> {
+    let mut formats = Vec::new();
+
+    // public-key exports use spki formats across asymmetric key families
+    if supports_export_public {
+        formats.push(CryptoKeyFormat::SpkiPem);
+        formats.push(CryptoKeyFormat::SpkiDer);
+    }
+
+    // private-key exports add pkcs8 and ec sec1 formats
+    if supports_export_private {
+        formats.push(CryptoKeyFormat::Pkcs8Pem);
+        formats.push(CryptoKeyFormat::Pkcs8Der);
+        formats.push(CryptoKeyFormat::Pkcs8EncryptedPem);
+        formats.push(CryptoKeyFormat::Pkcs8EncryptedDer);
+
+        if algorithm == CryptoKeyAlgorithm::Ec {
+            formats.push(CryptoKeyFormat::Sec1Pem);
+            formats.push(CryptoKeyFormat::Sec1Der);
+        }
+    }
+
+    // secret-key exports are raw-only
+    if supports_export_secret {
+        formats.push(CryptoKeyFormat::Raw);
+    }
+
+    formats
 }
 
 /// Open one crypto store.

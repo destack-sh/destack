@@ -1,7 +1,15 @@
 use std::collections::HashSet;
-use std::fs;
+use std::ffi::OsString;
+use std::fs::{self, File, OpenOptions};
+use std::io::Write;
+use std::os::windows::ffi::OsStrExt;
+use std::path::{Path, PathBuf};
 
+use getrandom::fill as fill_secure_random;
 use openssl::x509::X509;
+use windows_sys::Win32::Storage::FileSystem::{
+    MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH, MoveFileExW,
+};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
@@ -30,6 +38,8 @@ const USER_STORE_LOCATIONS: [u32; 1] = [WINDOWS_CERT_STORE_CURRENT_USER];
 
 /// Windows host store locations for the machine lane.
 const MACHINE_STORE_LOCATIONS: [u32; 1] = [WINDOWS_CERT_STORE_LOCAL_MACHINE];
+/// Temporary-file prefix for atomic snapshot writes.
+const WINDOWS_SNAPSHOT_TEMPORARY_PREFIX: &str = ".destack-crypto-snapshot-";
 
 /// Return certificate store locations for one host store lane.
 fn store_locations_for_kind(kind: CryptoStoreKind) -> Option<&'static [u32]> {
@@ -201,10 +211,154 @@ pub(crate) fn store_host_key_snapshot_bytes(
     // protect bytes through crypt32 lane policy and write to disk
     let protect_for_machine = kind == CryptoStoreKind::Machine;
     let protected_bytes = windows_dpapi_protect(snapshot_bytes, protect_for_machine, operation)?;
-    fs::write(&path, protected_bytes).map_err(|error| {
+    write_snapshot_bytes_atomically(&path, &protected_bytes, operation)?;
+
+    Ok(())
+}
+
+/// Return one temporary path in the destination directory.
+fn temporary_snapshot_path(path: &Path, operation: &'static str) -> RuntimeResult<PathBuf> {
+    let temporary_identifier = temporary_snapshot_identifier(operation)?;
+    let file_name = path
+        .file_name()
+        .map(|value| {
+            let mut file_name = OsString::from(WINDOWS_SNAPSHOT_TEMPORARY_PREFIX);
+            file_name.push(&temporary_identifier);
+            file_name.push(".");
+            file_name.push(value);
+            file_name
+        })
+        .unwrap_or_else(|| {
+            let mut file_name = OsString::from(WINDOWS_SNAPSHOT_TEMPORARY_PREFIX);
+            file_name.push(&temporary_identifier);
+            file_name.push(".keys");
+            file_name
+        });
+
+    Ok(path.with_file_name(file_name))
+}
+
+/// Return one random temporary-file identifier.
+fn temporary_snapshot_identifier(operation: &'static str) -> RuntimeResult<String> {
+    // generate one random 128-bit identifier payload
+    let mut random_bytes = [0u8; 16];
+    fill_secure_random(&mut random_bytes).map_err(|error| {
         permission_denied(
             operation,
-            format!("failed to write windows host keystore snapshot {path:?}: {error}"),
+            format!("failed to generate windows host keystore temporary name: {error}"),
+        )
+    })?;
+
+    // format one lowercase hex identifier
+    let mut identifier = String::with_capacity(random_bytes.len() * 2);
+    for byte in random_bytes {
+        let high_nibble = byte >> 4;
+        let low_nibble = byte & 0x0f;
+        identifier.push(nibble_to_hex(high_nibble));
+        identifier.push(nibble_to_hex(low_nibble));
+    }
+
+    Ok(identifier)
+}
+
+/// Convert one nibble value into one lowercase hex character.
+fn nibble_to_hex(nibble: u8) -> char {
+    match nibble {
+        0..=9 => (b'0' + nibble) as char,
+        10..=15 => (b'a' + (nibble - 10)) as char,
+        _ => '0',
+    }
+}
+
+/// Replace one file with one fully-written temporary sibling.
+fn replace_file(path: &Path, temporary_path: &Path) -> std::io::Result<()> {
+    let mut path_wide = path.as_os_str().encode_wide().collect::<Vec<_>>();
+    path_wide.push(0);
+    let mut temporary_wide = temporary_path.as_os_str().encode_wide().collect::<Vec<_>>();
+    temporary_wide.push(0);
+
+    let status = unsafe {
+        MoveFileExW(
+            temporary_wide.as_ptr(),
+            path_wide.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+    if status != 0 {
+        return Ok(());
+    }
+
+    Err(std::io::Error::last_os_error())
+}
+
+/// Write one snapshot file atomically through one same-directory temporary path.
+fn write_snapshot_bytes_atomically(
+    path: &Path,
+    bytes: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // create one temporary file in the destination directory
+    let temporary_path = temporary_snapshot_path(path, operation)?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary_path)
+        .map_err(|error| {
+            permission_denied(
+                operation,
+                format!(
+                    "failed to create windows host keystore temporary file {temporary_path:?}: {error}"
+                ),
+            )
+        })?;
+
+    // write and flush the protected snapshot payload before rename
+    let write_result = (|| -> RuntimeResult<()> {
+        file.write_all(bytes).map_err(|error| {
+            permission_denied(
+                operation,
+                format!(
+                    "failed to write windows host keystore temporary file {temporary_path:?}: {error}"
+                ),
+            )
+        })?;
+        file.sync_all().map_err(|error| {
+            permission_denied(
+                operation,
+                format!(
+                    "failed to flush windows host keystore temporary file {temporary_path:?}: {error}"
+                ),
+            )
+        })?;
+
+        Ok(())
+    })();
+    drop(file);
+    if let Err(error) = write_result {
+        let _ = fs::remove_file(&temporary_path);
+        return Err(error);
+    }
+
+    // replace the destination with one fully-written temporary file
+    replace_file(path, &temporary_path).map_err(|error| {
+        let _ = fs::remove_file(&temporary_path);
+        permission_denied(
+            operation,
+            format!("failed to install windows host keystore snapshot {path:?}: {error}"),
+        )
+    })?;
+
+    // flush the final file handle after rename
+    let file = File::open(path).map_err(|error| {
+        permission_denied(
+            operation,
+            format!("failed to reopen windows host keystore snapshot {path:?}: {error}"),
+        )
+    })?;
+    file.sync_all().map_err(|error| {
+        permission_denied(
+            operation,
+            format!("failed to flush windows host keystore snapshot {path:?}: {error}"),
         )
     })?;
 

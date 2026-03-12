@@ -8,7 +8,7 @@ pub(crate) fn host_store_supports_key_persistence(kind: CryptoStoreKind) -> bool
     }
 
     // machine lane persistence requires root on non-macos unix hosts
-    #[cfg(all(unix, not(target_os = "macos")))]
+    #[cfg(not(target_os = "macos"))]
     {
         if kind == CryptoStoreKind::Machine {
             return unsafe { libc::geteuid() == 0 };

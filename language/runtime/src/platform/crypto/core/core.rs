@@ -23,6 +23,84 @@ use crate::runtime::BindingCallContext;
 pub(super) use super::constants::*;
 pub(super) use super::digest::message_digest;
 
+/// Return supported usage-mask bits for one hardware-backed pair lane on this target.
+pub(super) fn supported_hardware_backed_pair_usage_mask(
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> CryptoKeyUsageMask {
+    #[cfg(windows)]
+    {
+        let _ = kind;
+
+        let usage_mask = match algorithm {
+            CryptoKeyAlgorithm::Rsa => {
+                KEY_USAGE_SIGN
+                    | KEY_USAGE_VERIFY
+                    | KEY_USAGE_ENCRYPT
+                    | KEY_USAGE_DECRYPT
+                    | KEY_USAGE_WRAP
+                    | KEY_USAGE_UNWRAP
+            }
+            CryptoKeyAlgorithm::Ec => {
+                KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS
+            }
+            _ => 0,
+        };
+
+        return CryptoKeyUsageMask(usage_mask);
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        let _ = kind;
+
+        let usage_mask = match algorithm {
+            CryptoKeyAlgorithm::Rsa => {
+                KEY_USAGE_SIGN
+                    | KEY_USAGE_VERIFY
+                    | KEY_USAGE_ENCRYPT
+                    | KEY_USAGE_DECRYPT
+                    | KEY_USAGE_WRAP
+                    | KEY_USAGE_UNWRAP
+            }
+            CryptoKeyAlgorithm::Ec => {
+                KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS
+            }
+            _ => 0,
+        };
+
+        return CryptoKeyUsageMask(usage_mask);
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+        let usage_mask = if kind == CryptoStoreKind::User && algorithm == CryptoKeyAlgorithm::Ec {
+            KEY_USAGE_SIGN | KEY_USAGE_VERIFY
+        } else {
+            0
+        };
+
+        CryptoKeyUsageMask(usage_mask)
+    }
+
+    #[cfg(all(
+        unix,
+        not(any(target_os = "android", target_os = "ios", target_os = "macos"))
+    ))]
+    {
+        let _ = (kind, algorithm);
+
+        return CryptoKeyUsageMask(0);
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (kind, algorithm);
+
+        CryptoKeyUsageMask(0)
+    }
+}
+
 /// Cached capability probe snapshot.
 pub(super) struct CryptoProbeSupport {
     /// Whether RSA provider lanes are usable.

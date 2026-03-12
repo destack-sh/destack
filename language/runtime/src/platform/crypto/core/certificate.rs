@@ -39,7 +39,7 @@ fn verify_certificate_chain(
     intermediates: &openssl::stack::Stack<X509>,
     trust_anchors: &[X509],
     purpose: X509PurposeId,
-    verification_unix_seconds: u64,
+    verification_unix_seconds: Option<u64>,
     revocation_mode: CryptoCertificateRevocationMode,
     identity_kind: CryptoCertificateIdentityKind,
     identity_value: &str,
@@ -61,7 +61,7 @@ fn verify_certificate_chain(
     verify_parameters
         .set_purpose(purpose)
         .map_err(|error| openssl_error(operation, error))?;
-    if verification_unix_seconds != 0 {
+    if let Some(verification_unix_seconds) = verification_unix_seconds {
         verify_parameters.set_time(verification_unix_seconds as i64);
         verify_parameters
             .set_flags(X509VerifyFlags::USE_CHECK_TIME)
@@ -96,12 +96,7 @@ fn verify_certificate_chain(
                     .set_ip(ip_address)
                     .map_err(|error| openssl_error(operation, error))?;
             }
-            CryptoCertificateIdentityKind::Uri => {
-                let host = parse_uri_identity_host(identity_value)?;
-                verify_parameters
-                    .set_host(&host)
-                    .map_err(|error| openssl_error(operation, error))?;
-            }
+            CryptoCertificateIdentityKind::Uri => {}
             CryptoCertificateIdentityKind::EmailAddress => verify_parameters
                 .set_email(identity_value)
                 .map_err(|error| openssl_error(operation, error))?,
@@ -148,6 +143,22 @@ fn verify_certificate_chain(
     let chain_length = context_builder
         .chain()
         .map_or(0, |chain| chain.len() as u32);
+
+    // OpenSSL does not provide one URI SAN matcher, so enforce that explicitly
+    if valid
+        && identity_kind == CryptoCertificateIdentityKind::Uri
+        && !identity_value.is_empty()
+        && !certificate_has_uri_subject_alternative_name(leaf, identity_value)
+    {
+        return Ok((
+            false,
+            CryptoCertificateVerifyError::NameMismatch,
+            openssl_ffi::X509_V_ERR_HOSTNAME_MISMATCH as u32,
+            0,
+            x509_name_to_string(leaf.subject_name()),
+            chain_length,
+        ));
+    }
 
     Ok((
         valid,
@@ -376,7 +387,7 @@ pub(crate) fn certificate_verify(
         .map(|identity| decode_native_string(identity.value, "request.identity.value"))
         .transpose()?
         .unwrap_or_default();
-    let verification_unix_seconds = request.verification_unix_seconds.unwrap_or(0);
+    let verification_unix_seconds = request.verification_unix_seconds;
 
     // verify against explicit trust anchors only
     let (
@@ -484,58 +495,6 @@ fn classify_verify_error(error_code: i32) -> CryptoCertificateVerifyError {
         }
         _ => CryptoCertificateVerifyError::Unknown,
     }
-}
-
-/// Parse one URI identity into one hostname for x509 verification.
-fn parse_uri_identity_host(value: &str) -> RuntimeResult<String> {
-    // strip scheme if present
-    let authority = if let Some((_, rest)) = value.split_once("://") {
-        rest
-    } else {
-        value
-    };
-
-    // trim path/query/fragment and userinfo
-    let authority = authority.split('/').next().unwrap_or(authority);
-    let authority = authority
-        .rsplit_once('@')
-        .map_or(authority, |(_, tail)| tail);
-    if authority.is_empty() {
-        return Err(core_platform::invalid_argument(
-            "request.identity.value",
-            "uri identity must include one host",
-        ));
-    }
-
-    // remove brackets and port from authority host
-    if authority.starts_with('[') {
-        let Some(end_index) = authority.find(']') else {
-            return Err(core_platform::invalid_argument(
-                "request.identity.value",
-                "uri identity has one malformed ipv6 host",
-            ));
-        };
-
-        let host = &authority[1..end_index];
-        if host.is_empty() {
-            return Err(core_platform::invalid_argument(
-                "request.identity.value",
-                "uri identity must include one host",
-            ));
-        }
-
-        return Ok(host.to_owned());
-    }
-
-    let host = authority.split(':').next().unwrap_or(authority);
-    if host.is_empty() {
-        return Err(core_platform::invalid_argument(
-            "request.identity.value",
-            "uri identity must include one host",
-        ));
-    }
-
-    Ok(host.to_owned())
 }
 
 /// Delete one certificate handle.
@@ -700,6 +659,23 @@ pub(super) fn certificate_has_subject_alternative_name(certificate: &X509, query
         if let Some(ip_address) = name.ipaddress()
             && format_ip_subject_alternative_name(ip_address).as_deref() == Some(query)
         {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Return whether one certificate contains one URI subject-alternative-name.
+fn certificate_has_uri_subject_alternative_name(certificate: &X509, query: &str) -> bool {
+    // return false when certificate has no san extension
+    let Some(names) = certificate.subject_alt_names() else {
+        return false;
+    };
+
+    // match query against URI SAN entries only
+    for name in names {
+        if name.uri() == Some(query) {
             return true;
         }
     }
