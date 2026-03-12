@@ -20,6 +20,30 @@ export {
     alignOf,
     RawBuffer,
 } from "./memory/index.ds";
+export {
+    AtomicScope,
+    MemoryOrdering,
+    MemoryRegionSet,
+    MemoryScope,
+    atomicCas,
+    atomicCasWeak,
+    atomicExchange,
+    atomicFence,
+    atomicFetchAdd,
+    atomicFetchAnd,
+    atomicFetchFadd,
+    atomicFetchFmax,
+    atomicFetchFmin,
+    atomicFetchMax,
+    atomicFetchMin,
+    atomicFetchOr,
+    atomicFetchSub,
+    atomicFetchUmax,
+    atomicFetchUmin,
+    atomicFetchXor,
+    atomicLoad,
+    atomicStore,
+} from "./sync/index.ds";
 
 // math (not ambient)
 export {
