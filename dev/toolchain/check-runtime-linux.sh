@@ -2,9 +2,9 @@
 set -euo pipefail
 
 script_directory="$(cd "$(dirname "$0")" && pwd)"
-repo_root="$(cd "${script_directory}/.." && pwd)"
+repo_root="$(cd "${script_directory}/../.." && pwd)"
 
-# shellcheck source=./lib/runtime-common.sh
+# shellcheck source=./dev/toolchain/lib/runtime-common.sh
 source "${script_directory}/lib/runtime-common.sh"
 
 runtime_set_standard_environment

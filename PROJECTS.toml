@@ -37,6 +37,18 @@ tags = ["language", "linter"]
 summary = "Linter rules and linting interface"
 
 [[project]]
+id = "language-lsp"
+area = "language"
+name = "lsp"
+path = "language/lsp"
+readme = "language/lsp/README.md"
+status = "Experimental"
+languages = ["Rust"]
+license = "MIT"
+tags = ["language", "lsp"]
+summary = "Language Server Protocol service implementation"
+
+[[project]]
 id = "language-parser"
 area = "language"
 name = "parser"
@@ -47,6 +59,18 @@ languages = ["Rust"]
 license = "MIT"
 tags = ["language", "parser"]
 summary = "Lexer and parser for `.ds`, `.ts`, `.tsx`, `.js`, and `.jsx`"
+
+[[project]]
+id = "language-query"
+area = "language"
+name = "query"
+path = "language/query"
+readme = "language/query/README.md"
+status = "Experimental"
+languages = ["Rust"]
+license = "MIT"
+tags = ["language", "query"]
+summary = "Semantic tooling queries and presentation formatting"
 
 [[project]]
 id = "language-resolver"
@@ -119,18 +143,6 @@ languages = ["Rust"]
 license = "MIT"
 tags = ["service", "daemon"]
 summary = "Background service for watch mode, orchestration, and caching"
-
-[[project]]
-id = "language-lsp"
-area = "language"
-name = "lsp"
-path = "language/lsp"
-readme = "language/lsp/README.md"
-status = "Experimental"
-languages = ["Rust"]
-license = "MIT"
-tags = ["language", "lsp"]
-summary = "Language Server Protocol service implementation"
 
 [[project]]
 id = "app-cli"

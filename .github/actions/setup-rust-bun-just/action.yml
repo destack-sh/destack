@@ -39,7 +39,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        source "${GITHUB_ACTION_PATH}/../../../toolchain/versions.sh"
+        source "${GITHUB_ACTION_PATH}/../../../dev/toolchain/versions.sh"
         echo "bun_version=${DESTACK_BUN_VERSION}" >> "${GITHUB_OUTPUT}"
         echo "node_version=${DESTACK_NODE_VERSION}" >> "${GITHUB_OUTPUT}"
 

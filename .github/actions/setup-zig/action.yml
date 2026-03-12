@@ -13,7 +13,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        source "${GITHUB_ACTION_PATH}/../../../toolchain/versions.sh"
+        source "${GITHUB_ACTION_PATH}/../../../dev/toolchain/versions.sh"
         echo "zig_version=${DESTACK_ZIG_VERSION}" >> "${GITHUB_OUTPUT}"
 
     - uses: mlugg/setup-zig@53fc45b17fe98b52f92ee5ea08ff48a85a3e7eb7

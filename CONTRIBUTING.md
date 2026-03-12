@@ -55,6 +55,12 @@ Use conventional commits for all repository changes.
 
 If you find a security issue, please follow [SECURITY.md](SECURITY.md).
 
+## Licensing
+
+Repository authored code is MIT unless otherwise noted.
+Vendored components may retain their own licenses.
+See [LICENSE.txt](LICENSE.txt) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
 ## Setup
 
 Destack is *developed* primarily using Rust and TypeScript (and Destack itself, of course).

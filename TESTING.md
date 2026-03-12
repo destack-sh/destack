@@ -59,9 +59,9 @@ Nightly and release both run the full platform coverage.
 | `x86_64-unknown-linux-gnu` | Tier 1 | `runtime-linux-check.yml` | `just language/check-runtime-linux` | inline `cargo check`, `clippy`, and host tests in [language/justfile](/Users/florian/symbol/destack/language/justfile) |
 | `aarch64-unknown-linux-gnu` | Tier 1 | `runtime-linux-check.yml` | `just language/check-runtime-linux` | same host lane on `ubuntu-24.04-arm` |
 | `aarch64-apple-darwin` | Tier 1 | `runtime-macos-check.yml` | `just language/check-runtime-macos` | inline `cargo check`, `clippy`, and host tests in [language/justfile](/Users/florian/symbol/destack/language/justfile) |
-| `x86_64-pc-windows-msvc` | Tier 1 | `runtime-windows-check.yml` | `just language/check-runtime-windows-msvc` | [check-runtime-windows-msvc.sh](/Users/florian/symbol/destack/toolchain/check-runtime-windows-msvc.sh) |
-| `aarch64-apple-ios` | Tier 2 | `runtime-ios-check.yml` | `just language/check-runtime-ios` | [check-runtime-ios.sh](/Users/florian/symbol/destack/toolchain/check-runtime-ios.sh) |
-| `aarch64-linux-android` | Tier 2 | `runtime-android-check.yml` | `just language/check-runtime-android` | [check-runtime-android.sh](/Users/florian/symbol/destack/toolchain/check-runtime-android.sh) |
+| `x86_64-pc-windows-msvc` | Tier 1 | `runtime-windows-check.yml` | `just language/check-runtime-windows-msvc` | [check-runtime-windows-msvc.sh](/Users/florian/symbol/destack/dev/toolchain/check-runtime-windows-msvc.sh) |
+| `aarch64-apple-ios` | Tier 2 | `runtime-ios-check.yml` | `just language/check-runtime-ios` | [check-runtime-ios.sh](/Users/florian/symbol/destack/dev/toolchain/check-runtime-ios.sh) |
+| `aarch64-linux-android` | Tier 2 | `runtime-android-check.yml` | `just language/check-runtime-android` | [check-runtime-android.sh](/Users/florian/symbol/destack/dev/toolchain/check-runtime-android.sh) |
 
 ## Toolchains
 
@@ -71,13 +71,13 @@ GitHub Actions Rust lanes use the shared setup actions, which also enable `sccac
 
 | Purpose | Public command | Backing script |
 |---------|----------------|----------------|
-| CI workflow policy checks | `just check-workflow-policy` | [check-workflow-policy.sh](/Users/florian/symbol/destack/ci/check-workflow-policy.sh) |
-| CI hygiene tools | `just install-hygiene-toolchain`, `just doctor-hygiene-toolchain`, `just ensure-hygiene-toolchain` | [hygiene-toolchain.sh](/Users/florian/symbol/destack/ci/hygiene-toolchain.sh) |
-| Runtime toolchain management | `just language/install-toolchain`, `just language/doctor-toolchain`, `just language/ensure-toolchain`, `just language/lint-toolchain` | [runtime-toolchain.sh](/Users/florian/symbol/destack/toolchain/runtime-toolchain.sh) |
+| CI workflow policy checks | `just check-workflow-policy` | [check-workflow-policy.sh](/Users/florian/symbol/destack/dev/ci/check-workflow-policy.sh) |
+| CI hygiene tools | `just install-hygiene-toolchain`, `just doctor-hygiene-toolchain`, `just ensure-hygiene-toolchain` | [hygiene-toolchain.sh](/Users/florian/symbol/destack/dev/ci/hygiene-toolchain.sh) |
+| Runtime toolchain management | `just language/install-toolchain`, `just language/doctor-toolchain`, `just language/ensure-toolchain`, `just language/lint-toolchain` | [runtime-toolchain.sh](/Users/florian/symbol/destack/dev/toolchain/runtime-toolchain.sh) |
 | Bridge toolchain management | `just bridge/install-toolchain`, `just bridge/doctor-toolchain`, `just bridge/ensure-toolchain` | [language-bridge-toolchain.sh](/Users/florian/symbol/destack/bridge/scripts/language-bridge-toolchain.sh) |
-| Android host prerequisites | `just language/install-runtime-android-host-deps` | [install-runtime-android-host-deps.sh](/Users/florian/symbol/destack/toolchain/install-runtime-android-host-deps.sh) |
+| Android host prerequisites | `just language/install-runtime-android-host-deps` | [install-runtime-android-host-deps.sh](/Users/florian/symbol/destack/dev/toolchain/install-runtime-android-host-deps.sh) |
 | Android SDK and NDK install | `just language/install-runtime-android-ndk` | [install-android-ndk.sh](/Users/florian/symbol/destack/.github/scripts/install-android-ndk.sh) |
-| Linux Wayland runtime lane | `just language/check-runtime-linux-wayland` | [check-runtime-linux-wayland.sh](/Users/florian/symbol/destack/toolchain/check-runtime-linux-wayland.sh) |
+| Linux Wayland runtime lane | `just language/check-runtime-linux-wayland` | [check-runtime-linux-wayland.sh](/Users/florian/symbol/destack/dev/toolchain/check-runtime-linux-wayland.sh) |
 
 ## Commands
 

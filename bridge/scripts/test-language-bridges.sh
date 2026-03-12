@@ -8,7 +8,7 @@ repository_directory="$(cd "${bridge_directory}/.." && pwd)"
 host_kernel="$(uname -s)"
 
 # shellcheck disable=SC1091
-source "${repository_directory}/toolchain/versions.sh"
+source "${repository_directory}/dev/toolchain/versions.sh"
 
 if [[ -x "${HOME}/.dotnet/dotnet" ]]; then
 	export PATH="${HOME}/.dotnet:${PATH}"

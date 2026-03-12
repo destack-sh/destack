@@ -8,6 +8,6 @@ if [ -z "${release_tag}" ]; then
 	release_tag="v${version}"
 fi
 
-bash ci/validate-release-tag-version.sh "${release_tag}"
+bash dev/ci/validate-release-tag-version.sh "${release_tag}"
 cargo run --release -p destack_cli -- dev version check
-bash ci/validate-release-changelog.sh "${version}"
+bash dev/ci/validate-release-changelog.sh "${version}"
