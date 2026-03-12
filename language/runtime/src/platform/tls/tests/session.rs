@@ -6,7 +6,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource;
 use crate::platform::tls::{
-    TlsHandshakeStatus, TlsRole, TlsSessionResumptionMode, TlsSessionResumptionState, TlsVersion,
+    TlsHandshakeStatus, TlsHostnameVerificationMode, TlsRole, TlsSessionResumptionMode,
+    TlsSessionResumptionState, TlsVersion,
 };
 
 const TEST_CA_CERT_PEM: &[u8] = include_bytes!("fixtures/tls-test-ca.cert.pem");
@@ -148,6 +149,7 @@ fn complete_handshake(
     client_session: resource::TlsSessionHandle,
     server_session: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
+    // drive both state machines until both sides complete
     for _ in 0..256 {
         let client = context.destack_tls_session_handshake(client_session)?;
         let server = context.destack_tls_session_handshake(server_session)?;
@@ -161,11 +163,37 @@ fn complete_handshake(
     panic!("handshake did not complete in bounded steps");
 }
 
+fn complete_handshake_or_error(
+    context: &mut TlsHarnessContext<'_>,
+    client_session: resource::TlsSessionHandle,
+    server_session: resource::TlsSessionHandle,
+) -> RuntimeResult<()> {
+    // drive both state machines until one side errors or both complete
+    for _ in 0..256 {
+        let client = context.destack_tls_session_handshake(client_session);
+        let server = context.destack_tls_session_handshake(server_session);
+        match (client, server) {
+            (Ok(client), Ok(server))
+                if matches!(client, TlsHandshakeStatus::Complete)
+                    && matches!(server, TlsHandshakeStatus::Complete) =>
+            {
+                return Ok(());
+            }
+            (Err(error), _) => return Err(error),
+            (_, Err(error)) => return Err(error),
+            (Ok(_), Ok(_)) => {}
+        }
+    }
+
+    panic!("handshake did not reach a terminal state in bounded steps");
+}
+
 fn write_payload(
     context: &mut TlsHarnessContext<'_>,
     session: resource::TlsSessionHandle,
     payload: &[u8],
 ) -> RuntimeResult<()> {
+    // drain writes until the full payload is queued
     let mut offset = 0usize;
     for _ in 0..256 {
         if offset >= payload.len() {
@@ -195,6 +223,7 @@ fn read_payload(
     session: resource::TlsSessionHandle,
     expected_length: usize,
 ) -> RuntimeResult<Vec<u8>> {
+    // poll until one plaintext read succeeds
     for _ in 0..256 {
         let buffer = context.zeroed_bytes_value(expected_length)?;
         let (buffer_for_read, buffer_for_decode) = context.duplicate_value(buffer);
@@ -459,6 +488,382 @@ fn test_tls_session_mutual_tls_handshake() {
             context.destack_tls_session_open(server_context, server_socket, server_name)?;
 
         complete_handshake(&mut context, client_session, server_session)?;
+
+        context.destack_tls_session_close(client_session)?;
+        context.destack_tls_session_close(server_session)?;
+        context.close_socket(client_socket)?;
+        context.close_socket(server_socket)?;
+        context.destack_tls_context_close(client_context)?;
+        context.destack_tls_context_close(server_context)
+    });
+}
+
+/// Permit handshake completion when hostname mismatches are explicitly allowed.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_tls_session_handshake_allows_hostname_mismatch() {
+    with_harness_context(|mut context| {
+        let client_options = context.context_options_value(
+            TlsRole::Client,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            true,
+            &[],
+        )?;
+        let server_options = context.context_options_value(
+            TlsRole::Server,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            false,
+            &[],
+        )?;
+        let client_context = context.destack_tls_context_open(client_options)?;
+        let server_context = context.destack_tls_context_open(server_options)?;
+
+        context.destack_tls_context_set_hostname_verification_mode(
+            client_context,
+            TlsHostnameVerificationMode::AllowMismatch,
+        )?;
+
+        let server_cert = context.bytes_value(TEST_SERVER_CERT_PEM)?;
+        let server_key = context.bytes_value(TEST_SERVER_KEY_PEM)?;
+        context.destack_tls_context_set_identity_pem(server_context, server_cert, server_key)?;
+        let trust_anchors = context.bytes_value(TEST_CA_CERT_PEM)?;
+        context.destack_tls_context_set_trust_anchors_pem(client_context, trust_anchors)?;
+
+        let (client_socket, server_socket) = context.socket_pair()?;
+        context.set_socket_nonblocking(client_socket, true)?;
+        context.set_socket_nonblocking(server_socket, true)?;
+
+        let client_name = context.string_value("example.com");
+        let server_name = context.string_value("");
+        let client_session =
+            context.destack_tls_session_open(client_context, client_socket, client_name)?;
+        let server_session =
+            context.destack_tls_session_open(server_context, server_socket, server_name)?;
+
+        complete_handshake(&mut context, client_session, server_session)?;
+
+        context.destack_tls_session_close(client_session)?;
+        context.destack_tls_session_close(server_session)?;
+        context.close_socket(client_socket)?;
+        context.close_socket(server_socket)?;
+        context.destack_tls_context_close(client_context)?;
+        context.destack_tls_context_close(server_context)
+    });
+}
+
+/// Reject handshake completion when strict hostname verification sees a mismatch.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_tls_session_handshake_rejects_hostname_mismatch() {
+    with_harness_context(|mut context| {
+        let client_options = context.context_options_value(
+            TlsRole::Client,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            true,
+            &[],
+        )?;
+        let server_options = context.context_options_value(
+            TlsRole::Server,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            false,
+            &[],
+        )?;
+        let client_context = context.destack_tls_context_open(client_options)?;
+        let server_context = context.destack_tls_context_open(server_options)?;
+
+        let server_cert = context.bytes_value(TEST_SERVER_CERT_PEM)?;
+        let server_key = context.bytes_value(TEST_SERVER_KEY_PEM)?;
+        context.destack_tls_context_set_identity_pem(server_context, server_cert, server_key)?;
+        let trust_anchors = context.bytes_value(TEST_CA_CERT_PEM)?;
+        context.destack_tls_context_set_trust_anchors_pem(client_context, trust_anchors)?;
+
+        let (client_socket, server_socket) = context.socket_pair()?;
+        context.set_socket_nonblocking(client_socket, true)?;
+        context.set_socket_nonblocking(server_socket, true)?;
+
+        let client_name = context.string_value("example.com");
+        let server_name = context.string_value("");
+        let client_session =
+            context.destack_tls_session_open(client_context, client_socket, client_name)?;
+        let server_session =
+            context.destack_tls_session_open(server_context, server_socket, server_name)?;
+
+        let error = complete_handshake_or_error(&mut context, client_session, server_session)
+            .expect_err("strict hostname verification should fail");
+        assert_eq!(
+            platform_error_code(error.as_ref()),
+            PlatformErrorCode::IoInvalidData,
+        );
+
+        context.destack_tls_session_close(client_session)?;
+        context.destack_tls_session_close(server_session)?;
+        context.close_socket(client_socket)?;
+        context.close_socket(server_socket)?;
+        context.destack_tls_context_close(client_context)?;
+        context.destack_tls_context_close(server_context)
+    });
+}
+
+/// Export identical keying material on both peers and bind output to the explicit context bytes.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_tls_session_export_keying_material_roundtrip() {
+    with_harness_context(|mut context| {
+        let client_options = context.context_options_value(
+            TlsRole::Client,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            true,
+            &[],
+        )?;
+        let server_options = context.context_options_value(
+            TlsRole::Server,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            false,
+            &[],
+        )?;
+        let client_context = context.destack_tls_context_open(client_options)?;
+        let server_context = context.destack_tls_context_open(server_options)?;
+
+        let server_cert = context.bytes_value(TEST_SERVER_CERT_PEM)?;
+        let server_key = context.bytes_value(TEST_SERVER_KEY_PEM)?;
+        context.destack_tls_context_set_identity_pem(server_context, server_cert, server_key)?;
+        let trust_anchors = context.bytes_value(TEST_CA_CERT_PEM)?;
+        context.destack_tls_context_set_trust_anchors_pem(client_context, trust_anchors)?;
+
+        let (client_socket, server_socket) = context.socket_pair()?;
+        context.set_socket_nonblocking(client_socket, true)?;
+        context.set_socket_nonblocking(server_socket, true)?;
+
+        let client_name = context.string_value("localhost");
+        let server_name = context.string_value("");
+        let client_session =
+            context.destack_tls_session_open(client_context, client_socket, client_name)?;
+        let server_session =
+            context.destack_tls_session_open(server_context, server_socket, server_name)?;
+
+        complete_handshake(&mut context, client_session, server_session)?;
+
+        let label = context.string_value("EXPORTER-destack-test");
+        let empty_context = context.bytes_value(&[])?;
+        let client_empty = context.destack_tls_session_export_keying_material(
+            client_session,
+            label,
+            empty_context,
+            32,
+        )?;
+        let client_empty = context.bytes_from_value(client_empty)?;
+
+        let label = context.string_value("EXPORTER-destack-test");
+        let empty_context = context.bytes_value(&[])?;
+        let server_empty = context.destack_tls_session_export_keying_material(
+            server_session,
+            label,
+            empty_context,
+            32,
+        )?;
+        let server_empty = context.bytes_from_value(server_empty)?;
+        assert_eq!(client_empty, server_empty);
+
+        let label = context.string_value("EXPORTER-destack-test");
+        let explicit_context = context.bytes_value(b"context")?;
+        let client_context_bound = context.destack_tls_session_export_keying_material(
+            client_session,
+            label,
+            explicit_context,
+            32,
+        )?;
+        let client_context_bound = context.bytes_from_value(client_context_bound)?;
+        assert_ne!(client_empty, client_context_bound);
+
+        context.destack_tls_session_close(client_session)?;
+        context.destack_tls_session_close(server_session)?;
+        context.close_socket(client_socket)?;
+        context.close_socket(server_socket)?;
+        context.destack_tls_context_close(client_context)?;
+        context.destack_tls_context_close(server_context)
+    });
+}
+
+/// Return the normalized peer certificate chain for authenticated sessions.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_tls_session_peer_certificates_pem_roundtrip() {
+    with_harness_context(|mut context| {
+        let client_options = context.context_options_value(
+            TlsRole::Client,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            true,
+            &[],
+        )?;
+        let server_options = context.context_options_value(
+            TlsRole::Server,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            true,
+            &[],
+        )?;
+        let client_context = context.destack_tls_context_open(client_options)?;
+        let server_context = context.destack_tls_context_open(server_options)?;
+
+        let client_cert = context.bytes_value(TEST_CLIENT_CERT_PEM)?;
+        let client_key = context.bytes_value(TEST_CLIENT_KEY_PEM)?;
+        context.destack_tls_context_set_identity_pem(client_context, client_cert, client_key)?;
+        let server_cert = context.bytes_value(TEST_SERVER_CERT_PEM)?;
+        let server_key = context.bytes_value(TEST_SERVER_KEY_PEM)?;
+        context.destack_tls_context_set_identity_pem(server_context, server_cert, server_key)?;
+        let client_trust = context.bytes_value(TEST_CA_CERT_PEM)?;
+        context.destack_tls_context_set_trust_anchors_pem(client_context, client_trust)?;
+        let server_trust = context.bytes_value(TEST_CA_CERT_PEM)?;
+        context.destack_tls_context_set_trust_anchors_pem(server_context, server_trust)?;
+
+        let (client_socket, server_socket) = context.socket_pair()?;
+        context.set_socket_nonblocking(client_socket, true)?;
+        context.set_socket_nonblocking(server_socket, true)?;
+
+        let client_name = context.string_value("localhost");
+        let server_name = context.string_value("");
+        let client_session =
+            context.destack_tls_session_open(client_context, client_socket, client_name)?;
+        let server_session =
+            context.destack_tls_session_open(server_context, server_socket, server_name)?;
+
+        complete_handshake(&mut context, client_session, server_session)?;
+
+        let client_peer = context.destack_tls_session_peer_certificates_pem(client_session)?;
+        let client_peer = context.bytes_from_value(client_peer)?;
+        assert_eq!(client_peer, TEST_SERVER_CERT_PEM);
+
+        let server_peer = context.destack_tls_session_peer_certificates_pem(server_session)?;
+        let server_peer = context.bytes_from_value(server_peer)?;
+        assert_eq!(server_peer, TEST_CLIENT_CERT_PEM);
+
+        context.destack_tls_session_close(client_session)?;
+        context.destack_tls_session_close(server_session)?;
+        context.close_socket(client_socket)?;
+        context.close_socket(server_socket)?;
+        context.destack_tls_context_close(client_context)?;
+        context.destack_tls_context_close(server_context)
+    });
+}
+
+/// Reject a server certificate when signature policy excludes the peer scheme.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_tls_session_signature_algorithms_reject_server_certificate_scheme() {
+    with_harness_context(|mut context| {
+        let client_options = context.context_options_value(
+            TlsRole::Client,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            true,
+            &[],
+        )?;
+        let server_options = context.context_options_value(
+            TlsRole::Server,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            false,
+            &[],
+        )?;
+        let client_context = context.destack_tls_context_open(client_options)?;
+        let server_context = context.destack_tls_context_open(server_options)?;
+
+        let algorithms = context.string_slice_value(&["ED25519"])?;
+        context.destack_tls_context_set_signature_algorithms(client_context, algorithms)?;
+
+        let server_cert = context.bytes_value(TEST_SERVER_CERT_PEM)?;
+        let server_key = context.bytes_value(TEST_SERVER_KEY_PEM)?;
+        context.destack_tls_context_set_identity_pem(server_context, server_cert, server_key)?;
+        let trust_anchors = context.bytes_value(TEST_CA_CERT_PEM)?;
+        context.destack_tls_context_set_trust_anchors_pem(client_context, trust_anchors)?;
+
+        let (client_socket, server_socket) = context.socket_pair()?;
+        context.set_socket_nonblocking(client_socket, true)?;
+        context.set_socket_nonblocking(server_socket, true)?;
+
+        let client_name = context.string_value("localhost");
+        let server_name = context.string_value("");
+        let client_session =
+            context.destack_tls_session_open(client_context, client_socket, client_name)?;
+        let server_session =
+            context.destack_tls_session_open(server_context, server_socket, server_name)?;
+
+        let error = complete_handshake_or_error(&mut context, client_session, server_session)
+            .expect_err("server signature policy should reject the handshake");
+        assert_eq!(
+            platform_error_code(error.as_ref()),
+            PlatformErrorCode::IoInvalidData,
+        );
+
+        context.destack_tls_session_close(client_session)?;
+        context.destack_tls_session_close(server_session)?;
+        context.close_socket(client_socket)?;
+        context.close_socket(server_socket)?;
+        context.destack_tls_context_close(client_context)?;
+        context.destack_tls_context_close(server_context)
+    });
+}
+
+/// Reject a client certificate when server signature policy excludes the peer scheme.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_tls_session_signature_algorithms_reject_client_certificate_scheme() {
+    with_harness_context(|mut context| {
+        let client_options = context.context_options_value(
+            TlsRole::Client,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            true,
+            &[],
+        )?;
+        let server_options = context.context_options_value(
+            TlsRole::Server,
+            TlsVersion::Tls12,
+            TlsVersion::Tls13,
+            true,
+            &[],
+        )?;
+        let client_context = context.destack_tls_context_open(client_options)?;
+        let server_context = context.destack_tls_context_open(server_options)?;
+
+        let algorithms = context.string_slice_value(&["ED25519"])?;
+        context.destack_tls_context_set_signature_algorithms(server_context, algorithms)?;
+
+        let client_cert = context.bytes_value(TEST_CLIENT_CERT_PEM)?;
+        let client_key = context.bytes_value(TEST_CLIENT_KEY_PEM)?;
+        context.destack_tls_context_set_identity_pem(client_context, client_cert, client_key)?;
+        let server_cert = context.bytes_value(TEST_SERVER_CERT_PEM)?;
+        let server_key = context.bytes_value(TEST_SERVER_KEY_PEM)?;
+        context.destack_tls_context_set_identity_pem(server_context, server_cert, server_key)?;
+        let client_trust = context.bytes_value(TEST_CA_CERT_PEM)?;
+        context.destack_tls_context_set_trust_anchors_pem(client_context, client_trust)?;
+        let server_trust = context.bytes_value(TEST_CA_CERT_PEM)?;
+        context.destack_tls_context_set_trust_anchors_pem(server_context, server_trust)?;
+
+        let (client_socket, server_socket) = context.socket_pair()?;
+        context.set_socket_nonblocking(client_socket, true)?;
+        context.set_socket_nonblocking(server_socket, true)?;
+
+        let client_name = context.string_value("localhost");
+        let server_name = context.string_value("");
+        let client_session =
+            context.destack_tls_session_open(client_context, client_socket, client_name)?;
+        let server_session =
+            context.destack_tls_session_open(server_context, server_socket, server_name)?;
+
+        let error = complete_handshake_or_error(&mut context, client_session, server_session)
+            .expect_err("client signature policy should reject the handshake");
+        assert_eq!(
+            platform_error_code(error.as_ref()),
+            PlatformErrorCode::IoInvalidData,
+        );
 
         context.destack_tls_session_close(client_session)?;
         context.destack_tls_session_close(server_session)?;
