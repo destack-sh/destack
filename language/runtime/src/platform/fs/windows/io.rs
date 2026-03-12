@@ -1,19 +1,40 @@
 #![allow(dead_code)]
 
-use windows_sys::Win32::Foundation::ERROR_IO_PENDING;
-use windows_sys::Win32::Networking::WinSock::{SOCKET, SOCKET_ERROR, recv, send};
-use windows_sys::Win32::Storage::FileSystem::{ReadFile, WriteFile};
+use std::ffi::c_void;
+
+use windows_sys::Win32::Foundation::{BOOL, ERROR_IO_PENDING, HANDLE};
+use windows_sys::Win32::Networking::WinSock::{
+    SOCKET, SOCKET_ERROR, WSA_IO_PENDING, WSAEINVAL, WSAENOPROTOOPT, WSAEOPNOTSUPP,
+    WSAGetOverlappedResult, recv, send,
+};
+use windows_sys::Win32::Storage::FileSystem::{FILE_END, ReadFile, SetFilePointerEx, WriteFile};
 use windows_sys::Win32::System::IO::{GetOverlappedResult, OVERLAPPED, OVERLAPPED_0_0};
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{
-    FileHandle, FileOffset, FileSize, ReadWriteFlags, SpliceCursor, SpliceFlags,
+    FileHandle, FileOffset, FileSize, ReadWriteFlags, SpliceCursor, SpliceFlags, core as core_fs,
 };
 use crate::platform::net::SocketHandle;
 use crate::platform::resource::{PipeHandle, ResourceId, ResourceKind};
 use crate::platform::{NativeSlice, PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
+
+#[link(name = "mswsock")]
+unsafe extern "system" {
+    fn TransmitFile(
+        hsocket: SOCKET,
+        hfile: HANDLE,
+        nnumberofbytestowrite: u32,
+        nnumberofbytespersend: u32,
+        lpoverlapped: *mut OVERLAPPED,
+        lptransmitbuffers: *mut c_void,
+        dwflags: u32,
+    ) -> BOOL;
+}
+
+/// Largest chunk one `TransmitFile` call can describe.
+const TRANSMIT_FILE_MAX_CHUNK: u64 = u32::MAX as u64;
 
 /// Build a socket error from the last WSA error.
 fn last_socket_error(syscall: &str) -> Box<RuntimeError> {
@@ -51,6 +72,56 @@ fn add_offset(base: i64, delta: u64, name: &str) -> RuntimeResult<i64> {
         ))
         .boxed()
     })
+}
+
+/// Return whether one `TransmitFile` failure should fall back to the copy loop.
+fn should_fallback_from_transmit_file(error: i32) -> bool {
+    matches!(error, WSAEINVAL | WSAEOPNOTSUPP | WSAENOPROTOOPT)
+}
+
+/// Send file contents through the existing read and send fallback.
+fn sendfile_copy_fallback(
+    binding: &BindingCallContext,
+    socket: SOCKET,
+    file: FileHandle,
+    offset: FileOffset,
+    length: FileSize,
+) -> RuntimeResult<u64> {
+    let mut remaining = length.0;
+    let mut total = 0u64;
+    let mut file_offset = offset;
+    let buffer_length = core_fs::copy_fallback_buffer_length(length.0);
+    let mut buffer = vec![0u8; buffer_length];
+
+    while remaining > 0 {
+        let chunk = remaining.min(buffer.len() as u64) as usize;
+        let slice = NativeSlice {
+            data: buffer.as_mut_ptr(),
+            len: chunk as u32,
+        };
+        let mut bytes_read = 0u64;
+        unsafe { destack_fs_pread(binding, &mut bytes_read, file, slice, file_offset) }?;
+        if bytes_read == 0 {
+            break;
+        }
+
+        // send the full read chunk before advancing the file offset
+        let mut sent = 0u64;
+        while sent < bytes_read {
+            let ptr = unsafe { buffer.as_ptr().add(sent as usize) };
+            let rc = unsafe { send(socket, ptr, (bytes_read - sent) as i32, 0) };
+            if rc == SOCKET_ERROR {
+                return Err(last_socket_error("send"));
+            }
+            sent = sent.saturating_add(rc as u64);
+        }
+
+        total = total.saturating_add(sent);
+        file_offset = FileOffset(add_offset(file_offset.0, sent, "offset")?);
+        remaining = remaining.saturating_sub(sent);
+    }
+
+    Ok(total)
 }
 
 /// Splice endpoint kinds supported by the Windows fallback path.
@@ -583,7 +654,9 @@ pub(crate) unsafe fn destack_fs_preadv2(
 ) -> RuntimeResult<()> {
     // reject non zero flags on windows where preadv2 flags are unavailable
     if flags.0 != 0 {
-        return Err(RuntimeError::from(PlatformError::not_supported("destack.fs.preadv2")).boxed());
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.fs.file.preadv2")).boxed(),
+        );
     }
 
     unsafe { destack_fs_preadv(binding, out, handle, buffers, offset) }
@@ -617,7 +690,7 @@ pub(crate) unsafe fn destack_fs_pwritev2(
     // reject non zero flags on windows where pwritev2 flags are unavailable
     if flags.0 != 0 {
         return Err(
-            RuntimeError::from(PlatformError::not_supported("destack.fs.pwritev2")).boxed(),
+            RuntimeError::from(PlatformError::not_supported("destack.fs.file.pwritev2")).boxed(),
         );
     }
 
@@ -717,14 +790,27 @@ pub(crate) unsafe fn destack_fs_write(
     }
 
     // use tracked cursor when the resource carries file state
-    if let Ok(cursor) = file_resource(binding, handle) {
-        let mut guard = cursor.lock();
-        let offset = FileOffset(*guard);
+    if let Ok((cursor, status_flags)) = file_state(binding, handle) {
+        let mut cursor = cursor.lock();
+        let status_flags = *status_flags.lock();
+
+        // append mode writes always target the current end of file
+        let offset = if status_flags & libc::O_APPEND as u32 != 0 {
+            let handle = file_handle(binding, handle)?;
+            let mut end = 0i64;
+            let rc = unsafe { SetFilePointerEx(handle, 0, &mut end, FILE_END) };
+            if rc == 0 {
+                return Err(last_os_error("SetFilePointerEx", None));
+            }
+            FileOffset(end)
+        } else {
+            FileOffset(*cursor)
+        };
 
         unsafe { destack_fs_pwrite(binding, out, handle, buffer, offset) }?;
 
         let bytes_written = unsafe { *out };
-        *guard = add_offset(*guard, bytes_written, "cursor")?;
+        *cursor = add_offset(offset.0, bytes_written, "cursor")?;
         return Ok(());
     }
 
@@ -784,38 +870,72 @@ pub(crate) unsafe fn destack_fs_sendfile(
 
     // resolve the socket and file handles
     let socket = socket_handle(binding, socket)?;
+    let file_handle = file_handle(binding, file)?;
 
-    // stream data from the file into the socket
+    // prefer one real windows file-to-socket path before falling back
     let mut remaining = length.0;
     let mut total = 0u64;
-    let mut file_offset = offset;
-    let mut buffer = vec![0u8; 1024 * 1024];
+    let mut file_offset = offset.0;
     while remaining > 0 {
-        let chunk = remaining.min(buffer.len() as u64) as usize;
-        let slice = NativeSlice {
-            data: buffer.as_mut_ptr(),
-            len: chunk as u32,
+        let chunk = remaining.min(TRANSMIT_FILE_MAX_CHUNK) as u32;
+        let mut overlapped = OVERLAPPED {
+            Internal: 0,
+            InternalHigh: 0,
+            Anonymous: windows_sys::Win32::System::IO::OVERLAPPED_0 {
+                Anonymous: OVERLAPPED_0_0 {
+                    Offset: file_offset as u32,
+                    OffsetHigh: (file_offset >> 32) as u32,
+                },
+            },
+            hEvent: 0,
         };
-        let mut bytes_read = 0u64;
-        unsafe { destack_fs_pread(binding, &mut bytes_read, file, slice, file_offset) }?;
-        if bytes_read == 0 {
+
+        let started = unsafe {
+            TransmitFile(
+                socket,
+                file_handle,
+                chunk,
+                0,
+                &mut overlapped,
+                std::ptr::null_mut(),
+                0,
+            )
+        };
+        if started == 0 {
+            let error = core_platform::last_wsa_error_code();
+            if total == 0 && should_fallback_from_transmit_file(error) {
+                let total = sendfile_copy_fallback(
+                    binding,
+                    socket,
+                    file,
+                    FileOffset(file_offset),
+                    FileSize(remaining),
+                )?;
+                unsafe {
+                    *out = total;
+                }
+                return Ok(());
+            }
+
+            if error != WSA_IO_PENDING {
+                return Err(last_socket_error("TransmitFile"));
+            }
+        }
+
+        let mut transferred = 0u32;
+        let mut flags = 0u32;
+        let completed =
+            unsafe { WSAGetOverlappedResult(socket, &overlapped, &mut transferred, 1, &mut flags) };
+        if completed == 0 {
+            return Err(last_socket_error("WSAGetOverlappedResult"));
+        }
+        if transferred == 0 {
             break;
         }
 
-        // send the read bytes to the socket
-        let mut sent = 0u64;
-        while sent < bytes_read {
-            let ptr = unsafe { buffer.as_ptr().add(sent as usize) };
-            let rc = unsafe { send(socket, ptr, (bytes_read - sent) as i32, 0) };
-            if rc == SOCKET_ERROR {
-                return Err(last_socket_error("send"));
-            }
-            sent = sent.saturating_add(rc as u64);
-        }
-
-        total = total.saturating_add(sent);
-        file_offset = FileOffset(add_offset(file_offset.0, sent, "offset")?);
-        remaining = remaining.saturating_sub(sent);
+        total = total.saturating_add(transferred as u64);
+        file_offset = add_offset(file_offset, transferred as u64, "offset")?;
+        remaining = remaining.saturating_sub(transferred as u64);
     }
 
     unsafe {
@@ -859,7 +979,9 @@ pub(crate) unsafe fn destack_fs_splice(
 
     // reject splice flags that this fallback cannot honor
     if flags.0 != 0 {
-        return Err(RuntimeError::from(PlatformError::not_supported("destack.fs.splice")).boxed());
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.fs.file.splice")).boxed(),
+        );
     }
 
     // resolve source and target endpoints
@@ -871,7 +993,8 @@ pub(crate) unsafe fn destack_fs_splice(
     let mut target_offset = targetcursor.offset.map(|value| value.0);
     let mut remaining = length.0;
     let mut total = 0u64;
-    let mut buffer = vec![0u8; 1024 * 1024];
+    let buffer_length = core_fs::copy_fallback_buffer_length(length.0);
+    let mut buffer = vec![0u8; buffer_length];
     while remaining > 0 {
         // read one source chunk
         let chunk = remaining.min(buffer.len() as u64) as usize;
@@ -942,7 +1065,7 @@ pub(crate) unsafe fn destack_fs_tee(
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
     let _ = (binding, sourcepipe, targetpipe, length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.tee")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.tee")).boxed())
 }
 
 /// Map user memory pages into a pipe as queued pipe buffers.
@@ -970,7 +1093,7 @@ pub(crate) unsafe fn destack_fs_vmsplice(
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
     let _ = (binding, pipe, buffers, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.vmsplice")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.vmsplice")).boxed())
 }
 
 /// Read into multiple buffers.

@@ -1,4 +1,8 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use destack_vm;
+use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::{
@@ -10,6 +14,7 @@ use crate::platform::core::{
     store_vm_byte_slices as buffers_from_vm, string_array_to_vm,
     write_vm_read_buffer as write_read_buffer, write_vm_read_buffers as write_read_buffers,
 };
+use crate::platform::fs::core::{decode_mmap_flags, validate_mapping_length};
 use crate::platform::fs::{
     AccessMode, AllocFlags, AtFlags, CopyFlags, DirectoryHandle, DirentNext, DirentNextEndVm,
     DirentNextEntryVm, DirentNextVm, DirentVm, FdFlags, FileAdvice, FileHandle, FileLockFlags,
@@ -23,6 +28,59 @@ use crate::platform::fs::{
 use crate::platform::resource::{PipeHandle, ResourceId, SocketHandle, WatchHandle};
 use crate::platform::{PlatformError, VmArray, VmSlice};
 use crate::runtime::BindingCallContext;
+
+/// Runtime-owned metadata for one VM mmap allocation.
+#[derive(Debug, Clone, Copy)]
+struct VmMappingEntry {
+    /// Backing file handle for file mappings.
+    handle: Option<FileHandle>,
+    /// Starting file offset for file-backed mappings.
+    offset: FileOffset,
+    /// Current protection mask.
+    prot: MmapProt,
+    /// Whether writes should sync back to the file.
+    is_shared: bool,
+}
+
+/// Runtime-owned mutable state for vm mmap lanes.
+#[derive(Debug, Default)]
+pub(crate) struct VmMmapRuntimeState {
+    /// Mapping metadata keyed by vm pointer id.
+    mappings: Mutex<HashMap<u64, VmMappingEntry>>,
+}
+
+/// Return runtime-owned vm mmap mutable state.
+fn vm_mmap_runtime_state(binding: &BindingCallContext) -> Arc<VmMmapRuntimeState> {
+    binding
+        .agent()
+        .platform_state
+        .fs
+        .vm_mmap_runtime_state(VmMmapRuntimeState::default)
+}
+
+/// Build a stable vm mapping key from one slice.
+fn vm_mapping_key(mapping: VmSlice<u8>) -> u64 {
+    mapping.data.id()
+}
+
+/// Validate common mmap flags.
+fn validate_vm_mmap_flags(flags: MmapFlags, allow_anonymous: bool) -> RuntimeResult<bool> {
+    let flags = decode_mmap_flags(flags, allow_anonymous)?;
+
+    // reject fixed-address mappings in the vm backend
+    if flags.is_fixed {
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.fs.mmap MAP_FIXED")).boxed(),
+        );
+    }
+
+    Ok(flags.is_shared)
+}
+
+/// Validate one vm mapping length.
+fn validate_vm_mmap_length(length: FileSize) -> RuntimeResult<usize> {
+    validate_mapping_length(length)
+}
 
 /// Check file access permissions.
 ///
@@ -389,12 +447,13 @@ pub fn destack_fs_opendir(
 
 /// Create a temporary directory.
 ///
-/// Create a unique temporary directory from the template in the platform temp directory.
+/// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
+/// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
 /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdtemp(3) on Unix and GetTempPathW plus CreateDirectoryW on Windows.
+/// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -1700,12 +1759,12 @@ pub fn destack_fs_realpath(
 
 /// Copy a file.
 ///
-/// Copy file contents and requested metadata behavior from source path to destination path.
-/// Copy flags control overwrite behavior and host fast-copy strategies.
+/// Copy file contents from source path to destination path.
+/// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+/// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -3358,16 +3417,44 @@ pub fn destack_fs_fremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mmap_file(
-    _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
-    _handle: FileHandle,
-    _offset: FileOffset,
-    _length: FileSize,
-    _prot: MmapProt,
-    _flags: MmapFlags,
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: FileHandle,
+    offset: FileOffset,
+    length: FileSize,
+    prot: MmapProt,
+    flags: MmapFlags,
 ) -> RuntimeResult<VmSlice<u8>> {
-    // NOTE #Incomplete: implement VM-safe mmap by mapping into shared/foreign memory
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmapFile")).boxed())
+    let runtime_state = vm_mmap_runtime_state(binding);
+
+    // validate the mapping shape
+    let is_shared = validate_vm_mmap_flags(flags, false)?;
+    let length = validate_vm_mmap_length(length)?;
+    if offset.0 < 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "offset",
+            "offset must be non-negative",
+        ))
+        .boxed());
+    }
+
+    // allocate one zeroed vm slice
+    let mapping = VmSlice::from_bytes(context, &vec![0u8; length]);
+
+    // seed the mapping from the host file
+    let _ = destack_fs_pread(binding, context, handle, mapping, offset)?;
+
+    // record the mapping metadata
+    let key = vm_mapping_key(mapping);
+    let entry = VmMappingEntry {
+        handle: Some(handle),
+        offset,
+        prot,
+        is_shared,
+    };
+    runtime_state.mappings.lock().insert(key, entry);
+
+    Ok(mapping)
 }
 
 /// Create an anonymous memory mapping.
@@ -3388,14 +3475,32 @@ pub fn destack_fs_mmap_file(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mmap_anonymous(
-    _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
-    _length: FileSize,
-    _prot: MmapProt,
-    _flags: MmapFlags,
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    length: FileSize,
+    prot: MmapProt,
+    flags: MmapFlags,
 ) -> RuntimeResult<VmSlice<u8>> {
-    // NOTE #Incomplete: implement VM-safe mmap by mapping into shared/foreign memory
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmapAnonymous")).boxed())
+    let runtime_state = vm_mmap_runtime_state(binding);
+
+    // validate the mapping shape
+    let is_shared = validate_vm_mmap_flags(flags, true)?;
+    let length = validate_vm_mmap_length(length)?;
+
+    // allocate one zeroed vm slice
+    let mapping = VmSlice::from_bytes(context, &vec![0u8; length]);
+
+    // record the mapping metadata
+    let key = vm_mapping_key(mapping);
+    let entry = VmMappingEntry {
+        handle: None,
+        offset: FileOffset(0),
+        prot,
+        is_shared,
+    };
+    runtime_state.mappings.lock().insert(key, entry);
+
+    Ok(mapping)
 }
 
 /// Unmap a memory region.
@@ -3416,12 +3521,22 @@ pub fn destack_fs_mmap_anonymous(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_munmap(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut destack_vm::ExternalCallContext<'_>,
-    _mapping: VmSlice<u8>,
+    mapping: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement VM-safe mmap by mapping into shared/foreign memory
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.munmap")).boxed())
+    let runtime_state = vm_mmap_runtime_state(binding);
+    let key = vm_mapping_key(mapping);
+    let removed = runtime_state.mappings.lock().remove(&key);
+    if removed.is_none() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "mapping",
+            "mapping is not active",
+        ))
+        .boxed());
+    }
+
+    Ok(())
 }
 
 /// Change memory protection for a mapping.
@@ -3442,13 +3557,25 @@ pub fn destack_fs_munmap(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_mprotect(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut destack_vm::ExternalCallContext<'_>,
-    _mapping: VmSlice<u8>,
-    _prot: MmapProt,
+    mapping: VmSlice<u8>,
+    prot: MmapProt,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement VM-safe mmap by mapping into shared/foreign memory
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mprotect")).boxed())
+    let runtime_state = vm_mmap_runtime_state(binding);
+    let key = vm_mapping_key(mapping);
+    let mut mappings = runtime_state.mappings.lock();
+    let Some(entry) = mappings.get_mut(&key) else {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "mapping",
+            "mapping is not active",
+        ))
+        .boxed());
+    };
+
+    entry.prot = prot;
+
+    Ok(())
 }
 
 /// Flush a mapping to storage.
@@ -3469,13 +3596,38 @@ pub fn destack_fs_mprotect(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_msync(
-    _binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
-    _mapping: VmSlice<u8>,
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    mapping: VmSlice<u8>,
     _flags: MmapSyncFlags,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement VM-safe mmap by mapping into shared/foreign memory
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.msync")).boxed())
+    let runtime_state = vm_mmap_runtime_state(binding);
+    let key = vm_mapping_key(mapping);
+    let Some(entry) = runtime_state.mappings.lock().get(&key).copied() else {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "mapping",
+            "mapping is not active",
+        ))
+        .boxed());
+    };
+
+    // anonymous and private mappings have no writeback target
+    let Some(handle) = entry.handle else {
+        return Ok(());
+    };
+    if !entry.is_shared {
+        return Ok(());
+    }
+
+    // flush the current vm bytes back into the host file
+    let written = destack_fs_pwrite(binding, context, handle, mapping, entry.offset)?;
+    if written != u64::from(mapping.len) {
+        return Err(
+            RuntimeError::from(PlatformError::io("vm mmap writeback completed short")).boxed(),
+        );
+    }
+
+    Ok(())
 }
 
 /// Advise the kernel about access patterns.
@@ -3496,11 +3648,20 @@ pub fn destack_fs_msync(
 /// # Replay
 /// External, recordable.
 pub fn destack_fs_madvise(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut destack_vm::ExternalCallContext<'_>,
-    _mapping: VmSlice<u8>,
+    mapping: VmSlice<u8>,
     _advice: MmapAdvice,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement VM-safe mmap by mapping into shared/foreign memory
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.madvise")).boxed())
+    let runtime_state = vm_mmap_runtime_state(binding);
+    let key = vm_mapping_key(mapping);
+    if !runtime_state.mappings.lock().contains_key(&key) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "mapping",
+            "mapping is not active",
+        ))
+        .boxed());
+    }
+
+    Ok(())
 }
