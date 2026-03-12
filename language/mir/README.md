@@ -272,23 +272,28 @@ Canonical MIR treats function values as a dedicated two field aggregate rather t
 ### References
 
 References carry a kind _and_ mutability:
-- `managed` for auto-managed references
+- `managed` for runtime managed object references
 - `owned` for explicit ownership (`^T`)
 - `borrowed` for `&T` and `&readonly T`
-- `raw` for "unsafe" pointers
+- `raw` for "unsafe" physical pointers
 
 Reference syntax spells out the kind and mutability.
 Address spaces are optional and appear after the kind.
 
 | Kind | Mutability | Example | Meaning |
 | --- | --- | --- | --- |
-| managed | mutable or readonly | `ref<managed @T>`, `ref<managed readonly @T>` | GC-managed reference |
-| owned | mutable or readonly | `ref<owned @T>`, `ref<owned readonly @T>` | owned reference for `^T` |
+| managed | mutable or readonly | `ref<managed @T>`, `ref<managed readonly @T>` | managed object reference, logical by default |
+| owned | mutable or readonly | `ref<owned @T>`, `ref<owned readonly @T>` | owned handle for `^T` |
 | borrowed | mutable | `ref<borrowed @T>` | mutable borrow (`&T`) |
 | borrowed | readonly | `ref<borrowed readonly @T>` | readonly borrow (`&readonly T`) |
 | raw | mutable | `ref<raw @T>` | raw pointer (mutable) |
 | raw | readonly | `ref<raw readonly @T>` | raw pointer (readonly) |
 
+Managed references carry object identity, not guaranteed native address semantics.
+Backends may lower `ref<managed ...>` as a direct pointer, compact handle, page directory locator, or another equivalent runtime representation.
+Pinning is modeled as allocation or storage metadata rather than as a separate reference kind in MIR text.
+Pinned managed storage still uses `ref<managed ...>`, but the attached metadata guarantees stable physical address exposure when required.
+Live pin state is runtime metadata and is not part of the durable payload image.
 Borrowed references are safe aliases verified by the borrow check pass.
 Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
 A borrow ends when the reference value is no longer live.
@@ -303,6 +308,7 @@ Raw references are unsafe pointers with no borrow tracking.
 Raw references may be null or dangling and allow pointer arithmetic.
 Crossing through raw pointers may force conservative provenance and liveness reasoning.
 Deref and mutation use explicit `load` and `store` instructions.
+Converting a borrow of managed storage into a raw reference is explicit and may require pinning in the lowering or runtime contract.
 
 Nullable references use `ref?<...>` with the same kind and mutability rules.
 Mutability can be encoded for any reference kind.
@@ -370,9 +376,11 @@ Struct layouts describe value payloads with no identity semantics.
 
 Volatile memory behavior is modeled on memory access metadata attached to `load`, `store`, and other memory-touching operations rather than through dedicated volatile intrinsics.
 Class instance types are represented as `ref<managed @Payload>` or `ref<managed readonly @Payload>` where `@Payload` is the class field layout.
+That MIR reference names the logical class instance, not a required host address.
 Dispatch metadata is stored out of line, and polymorphic classes include a vtable pointer in the payload layout when dynamic dispatch remains.
 Boxing a value is represented as `managed.alloc` of the payload layout followed by `store` of the value.
 `managed.alloc` defines semantic managed allocation only.
+`managed.alloc` returns a managed reference capability, and any direct address materialization is a later backend decision.
 Canonical MIR does not commit to one collector, object header scheme, or managed reference representation.
 Native collectors, VM heaps, and WasmGC backends are all valid implementations of MIR managed allocation.
 `immortal_heap` is a distinct semantic region for process-lifetime managed storage and is not required to use the same allocation or collection strategy as `managed_heap`.
