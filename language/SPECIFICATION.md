@@ -468,7 +468,7 @@ class MyClass {
 ```
 
 Classes and structs can declare a `constructor` method, just like TypeScript.
-Classes have **identity**: two instances are only `===` if they're the same object (i.e. reference i.e. pointer):
+Classes have **identity**: two instances are only `===` if they're the same managed object:
 
 ```ds
 const a = new MyClass(1);
@@ -498,7 +498,7 @@ struct Point {
 
 | | struct | class |
 |---|---|---|
-| Reference identity | No (`===` is error) | Yes (`===` compares pointers) |
+| Reference identity | No (`===` is error) | Yes (`===` compares managed identity) |
 | Inheritance | No (use embedding) | Yes (`extends`) |
 | Default passing | Value | Reference |
 | Default storage | Inline | Managed reference |
@@ -2369,7 +2369,7 @@ Like in TypeScript, a plain `T` follows the default semantics of its type: objec
 Ownership is orthogonal to identity semantics, which are determined by the base type.
 Ownership modifiers change storage and lifetime but do not change whether a type has identity.
 This keeps `struct` value semantics and `class` identity semantics consistent across all ownership modes.
-Destack additionally supports explicit ownership control:
+Destack also supports explicit ownership control:
 
 ```ds
 T            // type default (value or managed reference)
@@ -2407,6 +2407,7 @@ Value types only drop when owned or used with `using`.
 For value types, `T` is an inline value with copy or move semantics, while `^T` is an owning handle that allocates and transfers ownership.
 Use `^T` when you need explicit ownership transfer, deterministic drop, or to avoid copying large value types.
 Use `^readonly T` when ownership transfer is required but mutation must be forbidden.
+Use plain managed `T` when you want ordinary object identity without forcing physical address stability.
 
 **Implicit managed defaults:**
 `noImplicitManaged` requires explicit ownership operators anywhere a type or value would otherwise use managed defaults.
@@ -2493,6 +2494,7 @@ Owned values (`^T`) may cross suspension points by moving into the coroutine fra
 Borrowed references (`&T`, `&readonly T`) must not remain live across suspension points in strict mode.
 In lenient mode, the same rule violations are warnings.
 If an owned value is dead before suspension, cleanup is inserted before the suspend edge.
+This rule is especially important for borrows of managed storage because a borrow does not imply a stable raw address across suspension or relocation points.
 
 ```ds
 async function bad(parent: ^Parent) {
@@ -2504,6 +2506,9 @@ async function bad(parent: ^Parent) {
 
 References can also target explicit address spaces for native and accelerator memory.
 The default is `generic`, which maps to the target's normal memory.
+Non generic address spaces apply to borrowed and raw references.
+Managed references carry logical object identity instead of an address space qualified native pointer.
+Pinned managed state is live runtime state and is not itself part of durable image or snapshot semantics.
 
 **Nested ownership:**
 
