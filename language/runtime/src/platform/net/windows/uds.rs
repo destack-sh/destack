@@ -2,9 +2,10 @@ use std::mem;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use windows_sys::Win32::Foundation::MAX_PATH;
 use windows_sys::Win32::Networking::WinSock::{
-    AF_UNIX, INVALID_SOCKET, SOCK_STREAM, SOCKADDR, SOCKADDR_UN, accept, bind, closesocket,
-    connect, listen, socket,
+    AF_UNIX, INVALID_SOCKET, SOCK_DGRAM, SOCK_STREAM, SOCKADDR, SOCKADDR_UN, WSAEAFNOSUPPORT,
+    WSAEINVAL, WSAEPROTONOSUPPORT, accept, bind, closesocket, connect, listen, socket,
 };
 use windows_sys::Win32::Storage::FileSystem::{DeleteFileW, GetTempPathW};
 use windows_sys::Win32::System::Threading::GetCurrentProcessId;
@@ -85,6 +86,11 @@ fn uds_sockaddr(path: OsPath) -> RuntimeResult<(SOCKADDR_UN, i32)> {
     uds_sockaddr_from_bytes(&path)
 }
 
+/// Decode one utf8 UDS path for filesystem cleanup when possible.
+fn uds_path_text(path: &[u8]) -> Option<String> {
+    String::from_utf8(path.to_vec()).ok()
+}
+
 /// Build one unique temporary path for UDS socket-pair emulation.
 fn temporary_uds_socket_pair_path(binding: &BindingCallContext) -> String {
     // build a deterministic short filename suffix
@@ -115,7 +121,7 @@ fn temporary_uds_socket_pair_path(binding: &BindingCallContext) -> String {
 
 /// Resolve the host temporary directory from Windows APIs.
 fn windows_temp_directory() -> String {
-    let mut buffer = vec![0_u16; 4096];
+    let mut buffer = vec![0_u16; MAX_PATH as usize + 1];
     let written = unsafe { GetTempPathW(buffer.len() as u32, buffer.as_mut_ptr()) };
     if written == 0 || written as usize >= buffer.len() {
         return String::new();
@@ -130,6 +136,177 @@ fn delete_socket_path(path: &str) {
     path_wide.push(0);
 
     let _ = unsafe { DeleteFileW(path_wide.as_ptr()) };
+}
+
+/// Return whether one Winsock error means AF_UNIX is unavailable at runtime.
+fn is_uds_runtime_not_supported(code: i32) -> bool {
+    code == WSAEAFNOSUPPORT || code == WSAEPROTONOSUPPORT || code == WSAEINVAL
+}
+
+/// Build one UDS socket creation error with runtime support mapping.
+fn uds_socket_error(operation: &'static str, code: i32) -> Box<RuntimeError> {
+    if is_uds_runtime_not_supported(code) {
+        return RuntimeError::from(PlatformError::not_supported(operation)).boxed();
+    }
+
+    core_platform::net_error_with_code("socket", code)
+}
+
+/// Register two sockets as one runtime socket pair.
+fn register_socket_pair(
+    binding: &BindingCallContext,
+    out: *mut SocketPair,
+    first_socket: usize,
+    second_socket: usize,
+) {
+    // register the first socket
+    let first_entry = ResourceEntry::new(ResourceKind::Socket)
+        .with_socket(first_socket as _)
+        .with_finalizer(SocketFinalizer::new(first_socket));
+    let first_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), first_entry, Some(binding.engine()));
+
+    // register the second socket
+    let second_entry = ResourceEntry::new(ResourceKind::Socket)
+        .with_socket(second_socket as _)
+        .with_finalizer(SocketFinalizer::new(second_socket));
+    let second_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), second_entry, Some(binding.engine()));
+
+    // write the pair output
+    unsafe {
+        *out = SocketPair {
+            first: SocketHandle(first_id),
+            second: SocketHandle(second_id),
+        };
+    }
+}
+
+/// Build one connected datagram UDS pair through two bound loopback-style endpoints.
+fn uds_datagram_socket_pair(
+    binding: &BindingCallContext,
+    out: *mut SocketPair,
+) -> RuntimeResult<()> {
+    // allocate two temporary paths for the datagram endpoints
+    let first_path = temporary_uds_socket_pair_path(binding);
+    let second_path = temporary_uds_socket_pair_path(binding);
+    let (first_address, first_length) = uds_sockaddr_from_bytes(first_path.as_bytes())?;
+    let (second_address, second_length) = uds_sockaddr_from_bytes(second_path.as_bytes())?;
+
+    // create the first endpoint
+    let first_socket = unsafe { socket(AF_UNIX as i32, SOCK_DGRAM, 0) };
+    if first_socket == INVALID_SOCKET {
+        let code = core_platform::last_wsa_error_code();
+        return Err(uds_socket_error("destack.net.udsSocketPair", code));
+    }
+
+    // create the second endpoint
+    let second_socket = unsafe { socket(AF_UNIX as i32, SOCK_DGRAM, 0) };
+    if second_socket == INVALID_SOCKET {
+        unsafe {
+            closesocket(first_socket);
+        }
+        let code = core_platform::last_wsa_error_code();
+        return Err(uds_socket_error("destack.net.udsSocketPair", code));
+    }
+
+    // bind the first endpoint
+    let rc = unsafe {
+        bind(
+            first_socket,
+            &first_address as *const _ as *const SOCKADDR,
+            first_length,
+        )
+    };
+    if rc != 0 {
+        unsafe {
+            closesocket(second_socket);
+            closesocket(first_socket);
+        }
+        delete_socket_path(&first_path);
+        return Err(core_platform::net_error_with_code(
+            "bind",
+            core_platform::last_wsa_error_code(),
+        ));
+    }
+
+    // bind the second endpoint
+    let rc = unsafe {
+        bind(
+            second_socket,
+            &second_address as *const _ as *const SOCKADDR,
+            second_length,
+        )
+    };
+    if rc != 0 {
+        unsafe {
+            closesocket(second_socket);
+            closesocket(first_socket);
+        }
+        delete_socket_path(&second_path);
+        delete_socket_path(&first_path);
+        return Err(core_platform::net_error_with_code(
+            "bind",
+            core_platform::last_wsa_error_code(),
+        ));
+    }
+
+    // connect the first endpoint to the second path
+    let rc = unsafe {
+        connect(
+            first_socket,
+            &second_address as *const _ as *const SOCKADDR,
+            second_length,
+        )
+    };
+    if rc != 0 {
+        unsafe {
+            closesocket(second_socket);
+            closesocket(first_socket);
+        }
+        delete_socket_path(&second_path);
+        delete_socket_path(&first_path);
+        return Err(core_platform::net_error_with_code(
+            "connect",
+            core_platform::last_wsa_error_code(),
+        ));
+    }
+
+    // connect the second endpoint to the first path
+    let rc = unsafe {
+        connect(
+            second_socket,
+            &first_address as *const _ as *const SOCKADDR,
+            first_length,
+        )
+    };
+    if rc != 0 {
+        unsafe {
+            closesocket(second_socket);
+            closesocket(first_socket);
+        }
+        delete_socket_path(&second_path);
+        delete_socket_path(&first_path);
+        return Err(core_platform::net_error_with_code(
+            "connect",
+            core_platform::last_wsa_error_code(),
+        ));
+    }
+
+    // unlink both filesystem paths after the pair is established
+    delete_socket_path(&second_path);
+    delete_socket_path(&first_path);
+
+    // publish both endpoints
+    register_socket_pair(binding, out, first_socket as usize, second_socket as usize);
+
+    Ok(())
 }
 
 /// Connect to a UDS endpoint.
@@ -168,10 +345,8 @@ pub(crate) unsafe fn destack_net_uds_connect(
     // create and connect the socket
     let socket = unsafe { socket(AF_UNIX as i32, SOCK_STREAM, 0) };
     if socket == INVALID_SOCKET {
-        return Err(core_platform::net_error_with_code(
-            "socket",
-            core_platform::last_wsa_error_code(),
-        ));
+        let code = core_platform::last_wsa_error_code();
+        return Err(uds_socket_error("destack.net.udsConnect", code));
     }
     let rc = unsafe { connect(socket, &addr as *const _ as *const SOCKADDR, len) };
     if rc != 0 {
@@ -231,16 +406,21 @@ pub(crate) unsafe fn destack_net_uds_listen(
     // ensure winsock is initialized
     core_platform::ensure_winsock()?;
 
-    // build the socket address
-    let (addr, len) = uds_sockaddr(path)?;
+    // decode the path so bind can clean up one stale socket path first
+    let path = uds_path_bytes(path)?;
+    let stale_path = uds_path_text(&path);
+    let (addr, len) = uds_sockaddr_from_bytes(&path)?;
 
     // create the socket
     let socket = unsafe { socket(AF_UNIX as i32, SOCK_STREAM, 0) };
     if socket == INVALID_SOCKET {
-        return Err(core_platform::net_error_with_code(
-            "socket",
-            core_platform::last_wsa_error_code(),
-        ));
+        let code = core_platform::last_wsa_error_code();
+        return Err(uds_socket_error("destack.net.udsListen", code));
+    }
+
+    // remove one pre-existing filesystem socket path before bind
+    if let Some(path) = stale_path.as_deref() {
+        delete_socket_path(path);
     }
 
     // bind the socket
@@ -350,7 +530,6 @@ pub(crate) unsafe fn destack_net_uds_close_listener(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_uds_socket_pair(
     binding: &BindingCallContext,
     out: *mut SocketPair,
@@ -361,7 +540,12 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // only stream sockets are currently emulatable
+    // emulate datagram pairs by binding and cross-connecting two endpoints
+    if socket_type.0 as i32 == SOCK_DGRAM {
+        return uds_datagram_socket_pair(binding, out);
+    }
+
+    // reject socket kinds that are not currently emulatable
     if socket_type.0 as i32 != SOCK_STREAM {
         return Err(
             RuntimeError::from(PlatformError::not_supported("destack.net.udsSocketPair")).boxed(),
@@ -378,10 +562,8 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
     // create one listener socket
     let listener_socket = unsafe { socket(AF_UNIX as i32, SOCK_STREAM, 0) };
     if listener_socket == INVALID_SOCKET {
-        return Err(core_platform::net_error_with_code(
-            "socket",
-            core_platform::last_wsa_error_code(),
-        ));
+        let code = core_platform::last_wsa_error_code();
+        return Err(uds_socket_error("destack.net.udsSocketPair", code));
     }
 
     // bind the listener on the temporary path
@@ -422,10 +604,8 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
             closesocket(listener_socket);
         }
         delete_socket_path(&socket_path);
-        return Err(core_platform::net_error_with_code(
-            "socket",
-            core_platform::last_wsa_error_code(),
-        ));
+        let code = core_platform::last_wsa_error_code();
+        return Err(uds_socket_error("destack.net.udsSocketPair", code));
     }
     let rc = unsafe {
         connect(
@@ -467,33 +647,8 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
     }
     delete_socket_path(&socket_path);
 
-    // register the first socket
-    let first_entry = ResourceEntry::new(ResourceKind::Socket)
-        .with_socket(client_socket as _)
-        .with_finalizer(SocketFinalizer::new(client_socket));
-    let first_id =
-        binding
-            .agent()
-            .resources
-            .insert(binding.world(), first_entry, Some(binding.engine()));
-
-    // register the second socket
-    let second_entry = ResourceEntry::new(ResourceKind::Socket)
-        .with_socket(server_socket as _)
-        .with_finalizer(SocketFinalizer::new(server_socket));
-    let second_id =
-        binding
-            .agent()
-            .resources
-            .insert(binding.world(), second_entry, Some(binding.engine()));
-
-    // write the pair output
-    unsafe {
-        *out = SocketPair {
-            first: SocketHandle(first_id),
-            second: SocketHandle(second_id),
-        };
-    }
+    // publish both endpoints
+    register_socket_pair(binding, out, client_socket as usize, server_socket as usize);
 
     Ok(())
 }

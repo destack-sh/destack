@@ -1,4 +1,5 @@
 use super::core::*;
+use super::io::destack_net_recv_from as recv_from_socket;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::*;
@@ -63,7 +64,6 @@ pub(crate) unsafe fn destack_net_udp_socket(
 }
 
 /// Bind a UDP socket to a raw local address.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_udp_bind_raw(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -76,7 +76,7 @@ pub(crate) unsafe fn destack_net_udp_bind_raw(
     with_socket_address_raw(address, |sockaddr, length| {
         let result = unsafe { libc::bind(fd, sockaddr, length) };
         if result != 0 {
-            return Err(RuntimeError::from(PlatformError::io("bind failed".to_string())).boxed());
+            return Err(core_platform::net_error("bind"));
         }
 
         Ok(())
@@ -84,7 +84,6 @@ pub(crate) unsafe fn destack_net_udp_bind_raw(
 }
 
 /// Connect a UDP socket to a raw remote address.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_udp_connect_raw(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -97,9 +96,7 @@ pub(crate) unsafe fn destack_net_udp_connect_raw(
     with_socket_address_raw(address, |sockaddr, length| {
         let result = unsafe { libc::connect(fd, sockaddr, length) };
         if result != 0 {
-            return Err(
-                RuntimeError::from(PlatformError::io("connect failed".to_string())).boxed(),
-            );
+            return Err(core_platform::net_error("connect"));
         }
 
         Ok(())
@@ -107,7 +104,6 @@ pub(crate) unsafe fn destack_net_udp_connect_raw(
 }
 
 /// Receive a UDP datagram with raw sender metadata.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_udp_recv_from_raw(
     binding: &BindingCallContext,
     out: *mut UdpReceive,
@@ -120,34 +116,25 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve runtime values
-    let fd = socket_descriptor(binding, handle)?;
-    let buffer = unsafe { buffer.as_mut_slice()? };
-    let mut storage = unsafe { std::mem::zeroed::<libc::sockaddr_storage>() };
-    let mut length = std::mem::size_of::<libc::sockaddr_storage>() as libc::socklen_t;
-
-    // receive the datagram
-    let bytes = unsafe {
-        libc::recvfrom(
-            fd,
-            buffer.as_mut_ptr() as *mut libc::c_void,
-            buffer.len(),
-            recv_flags.0 as libc::c_int,
-            &mut storage as *mut _ as *mut libc::sockaddr,
-            &mut length,
+    // reuse recvfrom projection so udp recvFlags match socket recvFlags
+    let mut receive = std::mem::MaybeUninit::<SocketRecvFrom>::uninit();
+    unsafe {
+        recv_from_socket(
+            binding,
+            receive.as_mut_ptr(),
+            handle,
+            buffer,
+            SocketMessageFlags(recv_flags.0),
         )
-    };
-    if bytes < 0 {
-        return Err(RuntimeError::from(PlatformError::io("recvfrom failed".to_string())).boxed());
-    }
+    }?;
+    let receive = unsafe { receive.assume_init() };
 
-    // encode the sender address and payload
-    let address = socket_address_raw_from_storage(binding, &storage, length)?;
+    // write the udp-specific projection
     unsafe {
         *out = UdpReceive {
-            address,
-            bytes: bytes as u64,
-            recv_flags: UdpMessageFlags(0),
+            address: receive.address,
+            bytes: receive.bytes,
+            recv_flags: UdpMessageFlags(receive.recv_flags.0),
         };
     }
 
@@ -155,7 +142,6 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
 }
 
 /// Send a UDP datagram to a raw destination address.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_udp_send_to_raw(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -186,7 +172,7 @@ pub(crate) unsafe fn destack_net_udp_send_to_raw(
             )
         };
         if bytes < 0 {
-            return Err(RuntimeError::from(PlatformError::io("sendto failed".to_string())).boxed());
+            return Err(core_platform::net_error("sendto"));
         }
 
         unsafe {

@@ -565,7 +565,7 @@ pub(super) fn get_socket_bool(
         )
     };
     if result != 0 {
-        return Err(RuntimeError::from(PlatformError::io(format!("{syscall} failed"))).boxed());
+        return Err(core_platform::net_error(syscall));
     }
 
     Ok(value != 0)
@@ -590,7 +590,7 @@ pub(super) fn get_socket_u32(
         )
     };
     if result != 0 {
-        return Err(RuntimeError::from(PlatformError::io(format!("{syscall} failed"))).boxed());
+        return Err(core_platform::net_error(syscall));
     }
 
     Ok(value as u32)

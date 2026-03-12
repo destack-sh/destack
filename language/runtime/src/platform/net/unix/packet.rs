@@ -1,5 +1,7 @@
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use super::core::*;
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use crate::platform::net::host::select_packet_backend_for_open;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
@@ -585,6 +587,9 @@ pub(crate) unsafe fn destack_net_packet_open(
 
     #[cfg(target_os = "linux")]
     {
+        // validate requested backend selection before opening resources
+        let _backend = select_packet_backend_for_open(binding, options, "destack.net.packetOpen")?;
+
         // validate output pointer
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -715,6 +720,9 @@ pub(crate) unsafe fn destack_net_packet_open(
 
     #[cfg(target_os = "macos")]
     {
+        // validate requested backend selection before opening resources
+        let _backend = select_packet_backend_for_open(binding, options, "destack.net.packetOpen")?;
+
         // validate output pointer
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());

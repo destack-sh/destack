@@ -16,6 +16,7 @@ use windows_sys::Win32::Networking::WinSock::{
 use super::util::{ensure_winsock, net_error_with_code, socket_descriptor};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::net::host::select_packet_backend_for_open;
 use crate::platform::net::*;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind, SocketHandle};
 use crate::platform::{NativeSlice, PlatformError, ResourceId};
@@ -754,6 +755,11 @@ fn update_packet_socket_state(
     Ok(())
 }
 
+/// Record one packet delivered from the host backend.
+fn record_received_packet(state: &mut WindowsPacketState) {
+    state.received_packets = state.received_packets.saturating_add(1);
+}
+
 /// Open a packet capture or inject endpoint.
 ///
 /// Opens one host packet endpoint for packet capture and injection.
@@ -781,6 +787,9 @@ pub(crate) unsafe fn destack_net_packet_open(
     out: *mut SocketHandle,
     options: PacketCaptureOptions,
 ) -> RuntimeResult<()> {
+    // validate requested backend selection before opening resources
+    let _backend = select_packet_backend_for_open(binding, options, "destack.net.packetOpen")?;
+
     // require backend enablement for Windows packet lanes
     require_windows_packet_backend(binding, "destack.net.packetOpen")?;
 
@@ -937,6 +946,10 @@ pub(crate) unsafe fn destack_net_packet_receive(
             ))
             .boxed()
         })?;
+
+        // count one backend-delivered packet before runtime filtering
+        update_packet_socket_state(handle, record_received_packet)?;
+
         let packet = &receive_buffer[..bytes];
         let accepted = match state.filter_program.as_ref() {
             Some(filter_program) => evaluate_filter_program(filter_program, packet) > 0,
@@ -945,10 +958,6 @@ pub(crate) unsafe fn destack_net_packet_receive(
         if accepted {
             break bytes;
         }
-
-        update_packet_socket_state(handle, |state| {
-            state.dropped_packets = state.dropped_packets.saturating_add(1);
-        })?;
     };
 
     // copy packet bytes into the caller payload buffer
@@ -964,14 +973,6 @@ pub(crate) unsafe fn destack_net_packet_receive(
         timestamp_ns: 0,
         truncated,
     };
-
-    // update packet counters after a successful receive
-    update_packet_socket_state(handle, |state| {
-        state.received_packets = state.received_packets.saturating_add(1);
-        if truncated {
-            state.dropped_packets = state.dropped_packets.saturating_add(1);
-        }
-    })?;
 
     // write one packet capture record to the output pointer
     unsafe {
@@ -1349,8 +1350,9 @@ mod tests {
     use crate::platform::PlatformErrorCode;
     use crate::platform::net::host::windows::packet::{
         BPF_CLASS_JMP, BPF_CLASS_LD, BPF_CLASS_RET, BPF_MODE_ABSOLUTE, BPF_OPERATION_JA,
-        BPF_OPERATION_JEQ, BPF_RETURN_K, BPF_SIZE_HALF, ClassicBpfInstruction,
-        decode_filter_program, evaluate_filter_program, validate_filter_program,
+        BPF_OPERATION_JEQ, BPF_RETURN_K, BPF_SIZE_HALF, ClassicBpfInstruction, WindowsPacketState,
+        decode_filter_program, evaluate_filter_program, record_received_packet,
+        validate_filter_program,
     };
 
     /// Return one encoded classic-BPF byte payload.
@@ -1429,5 +1431,25 @@ mod tests {
             .platform_error()
             .expect("platform error should be present");
         assert_eq!(platform_error.code, PlatformErrorCode::InvalidArgumentValue);
+    }
+
+    /// Count host-delivered packets without mutating backend-drop counters.
+    #[test]
+    fn test_record_received_packet_keeps_drop_counters_stable() {
+        let mut state = WindowsPacketState {
+            interface_index: 7,
+            snap_length: 4096,
+            received_packets: 0,
+            dropped_packets: 3,
+            interface_dropped_packets: 5,
+            filter_program: None,
+        };
+
+        record_received_packet(&mut state);
+        record_received_packet(&mut state);
+
+        assert_eq!(state.received_packets, 2);
+        assert_eq!(state.dropped_packets, 3);
+        assert_eq!(state.interface_dropped_packets, 5);
     }
 }

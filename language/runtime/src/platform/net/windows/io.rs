@@ -9,6 +9,7 @@ use windows_sys::Win32::Networking::WinSock::{
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{
     SocketControlBufferAbi, SocketHandle, SocketMessageFlags, SocketRecvFrom, SocketRecvMessage,
     SocketSendMessage, SocketSendTo,
@@ -347,8 +348,8 @@ pub(crate) unsafe fn destack_net_recv_msg(
     // resolve the recvmsg extension entrypoint when available
     let receive_message = receive_message_extension(socket)?;
 
-    // fall back to recvfrom when ancillary capture is not requested
-    if receive_message.is_none() && max_control_bytes == 0 {
+    // fall back to recvfrom when winsock does not expose recvmsg support
+    if receive_message.is_none() {
         let mut address = unsafe { std::mem::zeroed::<SOCKADDR_STORAGE>() };
         let mut address_length = std::mem::size_of::<SOCKADDR_STORAGE>() as i32;
         let recv_flags_i32 = socket_flags_i32(recv_flags.0, "recvFlags")?;
@@ -841,7 +842,6 @@ pub(crate) unsafe fn destack_net_send_mmsg(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_recv_from(
     binding: &BindingCallContext,
     out: *mut SocketRecvFrom,
@@ -854,47 +854,35 @@ pub(crate) unsafe fn destack_net_recv_from(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // ensure winsock is initialized
-    core_platform::ensure_winsock()?;
-
-    // resolve runtime values
-    let socket = socket_descriptor(binding, handle)?;
-    let buffer = unsafe { buffer.as_mut_slice()? };
-    let buffer_len = i32::try_from(buffer.len()).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "buffer",
-            "buffer too large",
-        ))
-        .boxed()
-    })?;
-    let mut address = unsafe { mem::zeroed::<SOCKADDR_STORAGE>() };
-    let mut address_length = mem::size_of::<SOCKADDR_STORAGE>() as i32;
-
-    // receive one datagram
-    let bytes = unsafe {
-        recvfrom(
-            socket,
-            buffer.as_mut_ptr() as *mut _,
-            buffer_len,
-            recv_flags.0 as i32,
-            &mut address as *mut _ as *mut SOCKADDR,
-            &mut address_length,
+    // reuse recvmsg so recvFlags and truncation metadata stay honest
+    let mut message = std::mem::MaybeUninit::<SocketRecvMessage>::uninit();
+    unsafe {
+        destack_net_recv_msg(
+            binding,
+            message.as_mut_ptr(),
+            handle,
+            buffer,
+            recv_flags,
+            0,
+            false,
+            0,
         )
-    };
-    if bytes == SOCKET_ERROR {
-        return Err(core_platform::net_error_with_code(
-            "recvfrom",
-            core_platform::last_wsa_error_code(),
-        ));
-    }
+    }?;
+    let message = unsafe { message.assume_init() };
+    let address = message.address.ok_or_else(|| {
+        core_platform::io_operation_error(
+            "destack.net.recvFrom",
+            Some(PlatformErrorCode::IoInvalidData),
+            "recvmsg did not report a source address",
+        )
+    })?;
 
-    // encode sender metadata and payload length
-    let address = socket_address_raw_from_storage(binding, &address, address_length)?;
+    // write the recvfrom projection
     unsafe {
         *out = SocketRecvFrom {
-            bytes: bytes as u64,
+            bytes: message.bytes,
             address,
-            recv_flags: SocketMessageFlags(0),
+            recv_flags: message.recv_flags,
         };
     }
 
@@ -918,7 +906,6 @@ pub(crate) unsafe fn destack_net_recv_from(
 ///
 /// # Replay
 /// External, recordable.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_send_to(
     binding: &BindingCallContext,
     out: *mut u64,

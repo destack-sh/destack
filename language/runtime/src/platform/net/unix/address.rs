@@ -30,6 +30,13 @@ const REVERSE_LOOKUP_SUPPORTED_FLAGS: u32 = REVERSE_LOOKUP_FLAG_NUMERIC_HOST
 const REVERSE_LOOKUP_HOST_CAPACITY: usize = 1025;
 /// Service-name buffer size for reverse lookup output.
 const REVERSE_LOOKUP_SERVICE_CAPACITY: usize = 32;
+/// Errno values that represent one missing or invalid interface reference.
+const INTERFACE_LOOKUP_INVALID_ERRNOS: &[i32] = &[libc::EINVAL, libc::ENODEV, libc::ENXIO];
+
+/// Return whether one errno represents a missing or invalid interface reference.
+fn is_invalid_interface_errno(errno: i32) -> bool {
+    INTERFACE_LOOKUP_INVALID_ERRNOS.contains(&errno)
+}
 
 /// Convert one runtime reverse-lookup bitmask into libc flags.
 fn reverse_lookup_native_flags(flags: ReverseLookupFlags) -> RuntimeResult<i32> {
@@ -201,6 +208,15 @@ pub(crate) unsafe fn destack_net_interface_index(
     // resolve the interface index
     let index = unsafe { libc::if_nametoindex(name.as_ptr()) };
     if index == 0 {
+        let errno = core_platform::get_errno();
+        if is_invalid_interface_errno(errno) {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "name",
+                "interface does not exist",
+            ))
+            .boxed());
+        }
+
         return Err(core_platform::net_error("if_nametoindex"));
     }
 
@@ -343,12 +359,30 @@ pub(crate) unsafe fn destack_net_interface_name(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
+    // reject the zero interface index explicitly
+    if index == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "index",
+            "interface does not exist",
+        ))
+        .boxed());
+    }
+
     // allocate interface name storage
     let mut buffer = vec![0 as libc::c_char; libc::IF_NAMESIZE];
 
     // resolve the interface name
     let pointer = unsafe { libc::if_indextoname(index, buffer.as_mut_ptr()) };
     if pointer.is_null() {
+        let errno = core_platform::get_errno();
+        if is_invalid_interface_errno(errno) {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "index",
+                "interface does not exist",
+            ))
+            .boxed());
+        }
+
         return Err(core_platform::net_error("if_indextoname"));
     }
 
@@ -435,8 +469,8 @@ pub(crate) unsafe fn destack_net_peer_address_raw(
 pub(crate) unsafe fn destack_net_resolve(
     binding: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
-    host: NativeStringRef,
-    port: u16,
+    host: Option<NativeStringRef>,
+    service: Option<NativeStringRef>,
     family: SocketFamily,
     flags: ResolveFlags,
 ) -> RuntimeResult<()> {
@@ -445,24 +479,55 @@ pub(crate) unsafe fn destack_net_resolve(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // decode the host string
-    let host = unsafe { host.as_str()? };
-    if host.contains('\0') {
+    // require at least one query component
+    if host.is_none() && service.is_none() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "host",
-            "host contains nul byte",
+            "query",
+            "host or service is required",
         ))
         .boxed());
     }
 
-    // enforce numeric-only resolution when requested
-    if flags.0 & 0x4 != 0 && host.parse::<IpAddr>().is_err() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "host",
-            "numeric host required",
-        ))
-        .boxed());
-    }
+    // decode and validate the optional host string
+    let host = match host {
+        Some(host) => {
+            let host = unsafe { host.as_str()? };
+            if host.contains('\0') {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "host",
+                    "host contains nul byte",
+                ))
+                .boxed());
+            }
+            if flags.0 & 0x4 != 0 && host.parse::<IpAddr>().is_err() {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "host",
+                    "numeric host required",
+                ))
+                .boxed());
+            }
+
+            Some(host)
+        }
+        None => None,
+    };
+
+    // decode and validate the optional service string
+    let service = match service {
+        Some(service) => {
+            let service = unsafe { service.as_str()? };
+            if service.contains('\0') {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "service",
+                    "service contains nul byte",
+                ))
+                .boxed());
+            }
+
+            Some(service)
+        }
+        None => None,
+    };
 
     // build addrinfo hints
     let mut hints: libc::addrinfo = unsafe { std::mem::zeroed() };
@@ -497,22 +562,36 @@ pub(crate) unsafe fn destack_net_resolve(
     }
 
     // resolve addresses
-    let host_c = CString::new(host).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "host",
-            "host contains nul byte",
-        ))
-        .boxed()
-    })?;
-    let service = CString::new(port.to_string()).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "port",
-            "port conversion failed",
-        ))
-        .boxed()
-    })?;
+    let host_c = match host {
+        Some(host) => Some(CString::new(host).map_err(|_| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "host",
+                "host contains nul byte",
+            ))
+            .boxed()
+        })?),
+        None => None,
+    };
+    let service_c = match service {
+        Some(service) => Some(CString::new(service).map_err(|_| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "service",
+                "service contains nul byte",
+            ))
+            .boxed()
+        })?),
+        None => None,
+    };
+
+    let host_pointer = host_c
+        .as_ref()
+        .map_or(std::ptr::null(), |host| host.as_ptr());
+    let service_pointer = service_c
+        .as_ref()
+        .map_or(std::ptr::null(), |service| service.as_ptr());
+
     let mut result: *mut libc::addrinfo = std::ptr::null_mut();
-    let rc = unsafe { libc::getaddrinfo(host_c.as_ptr(), service.as_ptr(), &hints, &mut result) };
+    let rc = unsafe { libc::getaddrinfo(host_pointer, service_pointer, &hints, &mut result) };
     if rc != 0 {
         let error = unsafe { CStr::from_ptr(libc::gai_strerror(rc)) }
             .to_string_lossy()
@@ -537,9 +616,36 @@ pub(crate) unsafe fn destack_net_resolve(
     let mut current = result;
     while !current.is_null() {
         let info = unsafe { &*current };
-        let storage = unsafe { &*(info.ai_addr as *const libc::sockaddr_storage) };
-        let address = socket_address_from_storage(binding, storage, info.ai_addrlen)?;
-        addresses.push(address);
+        if !info.ai_addr.is_null() && info.ai_addrlen > 0 {
+            // copy the returned sockaddr into fixed storage before decoding
+            let mut storage = unsafe { std::mem::zeroed::<libc::sockaddr_storage>() };
+            let length = usize::try_from(info.ai_addrlen).map_err(|_| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    "address",
+                    "host returned one negative socket address length",
+                ))
+                .boxed()
+            })?;
+            if length > std::mem::size_of::<libc::sockaddr_storage>() {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "address",
+                    "host returned one oversized socket address",
+                ))
+                .boxed());
+            }
+
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    info.ai_addr as *const u8,
+                    &mut storage as *mut _ as *mut u8,
+                    length,
+                );
+            }
+
+            let address = socket_address_from_storage(binding, &storage, info.ai_addrlen)?;
+            addresses.push(address);
+        }
+
         current = info.ai_next;
     }
 
@@ -678,20 +784,18 @@ pub(crate) unsafe fn destack_net_reverse_lookup(
 }
 
 /// Resolve host and port into raw socket addresses.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_resolve_raw(
     binding: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
-    host: NativeStringRef,
-    port: u16,
+    host: Option<NativeStringRef>,
+    service: Option<NativeStringRef>,
     family: SocketFamily,
     flags: ResolveFlags,
 ) -> RuntimeResult<()> {
-    unsafe { destack_net_resolve(binding, out, host, port, family, flags) }
+    unsafe { destack_net_resolve(binding, out, host, service, family, flags) }
 }
 
 /// Reverse lookup a raw socket address into hostnames.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_reverse_lookup_raw(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
@@ -701,7 +805,6 @@ pub(crate) unsafe fn destack_net_reverse_lookup_raw(
 }
 
 /// Reverse lookup a raw socket address into host and service names.
-#[cfg(unix)]
 pub(crate) unsafe fn destack_net_reverse_lookup_names_raw(
     binding: &BindingCallContext,
     out: *mut NativeArray<ReverseLookupName>,

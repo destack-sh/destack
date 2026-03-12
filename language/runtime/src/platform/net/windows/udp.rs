@@ -1,12 +1,14 @@
 use windows_sys::Win32::Networking::WinSock::{
-    AF_INET, AF_INET6, INVALID_SOCKET, IPPROTO_UDP, SOCK_DGRAM, SOCKADDR, SOCKADDR_STORAGE,
-    SOCKET_ERROR, bind, connect, recvfrom, sendto, socket,
+    AF_INET, AF_INET6, INVALID_SOCKET, IPPROTO_UDP, SOCK_DGRAM, SOCKET_ERROR, bind, connect,
+    sendto, socket,
 };
 
+use super::io::destack_net_recv_from as recv_from_socket;
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{
-    SocketAddress, SocketFamily, SocketHandle, UdpMessageFlags, UdpReceive,
+    SocketAddress, SocketFamily, SocketHandle, SocketMessageFlags, SocketRecvFrom, UdpMessageFlags,
+    UdpReceive,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform};
@@ -75,7 +77,6 @@ pub(crate) unsafe fn destack_net_udp_socket(
 }
 
 /// Bind a UDP socket to a raw local address.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_bind_raw(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -102,7 +103,6 @@ pub(crate) unsafe fn destack_net_udp_bind_raw(
 }
 
 /// Connect a UDP socket to a raw remote address.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_connect_raw(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -129,7 +129,6 @@ pub(crate) unsafe fn destack_net_udp_connect_raw(
 }
 
 /// Receive a UDP datagram with raw sender metadata.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_recv_from_raw(
     binding: &BindingCallContext,
     out: *mut UdpReceive,
@@ -142,47 +141,25 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // ensure winsock is initialized
-    core_platform::ensure_winsock()?;
-
-    // resolve runtime values
-    let socket = socket_descriptor(binding, handle)?;
-    let buffer = unsafe { buffer.as_mut_slice()? };
-    let buffer_len = i32::try_from(buffer.len()).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "buffer",
-            "buffer too large",
-        ))
-        .boxed()
-    })?;
-    let mut address = unsafe { std::mem::zeroed::<SOCKADDR_STORAGE>() };
-    let mut address_length = std::mem::size_of::<SOCKADDR_STORAGE>() as i32;
-
-    // receive one datagram
-    let bytes = unsafe {
-        recvfrom(
-            socket,
-            buffer.as_mut_ptr() as *mut _,
-            buffer_len,
-            recv_flags.0 as i32,
-            &mut address as *mut _ as *mut SOCKADDR,
-            &mut address_length,
+    // reuse recvfrom projection so udp recvFlags match socket recvFlags
+    let mut receive = std::mem::MaybeUninit::<SocketRecvFrom>::uninit();
+    unsafe {
+        recv_from_socket(
+            binding,
+            receive.as_mut_ptr(),
+            handle,
+            buffer,
+            SocketMessageFlags(recv_flags.0),
         )
-    };
-    if bytes == SOCKET_ERROR {
-        return Err(core_platform::net_error_with_code(
-            "recvfrom",
-            core_platform::last_wsa_error_code(),
-        ));
-    }
+    }?;
+    let receive = unsafe { receive.assume_init() };
 
-    // encode sender metadata and payload length
-    let address = socket_address_raw_from_storage(binding, &address, address_length)?;
+    // write the udp-specific projection
     unsafe {
         *out = UdpReceive {
-            address,
-            bytes: bytes as u64,
-            recv_flags: UdpMessageFlags(0),
+            address: receive.address,
+            bytes: receive.bytes,
+            recv_flags: UdpMessageFlags(receive.recv_flags.0),
         };
     }
 
@@ -190,7 +167,6 @@ pub(crate) unsafe fn destack_net_udp_recv_from_raw(
 }
 
 /// Send a UDP datagram to a raw destination address.
-#[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_udp_send_to_raw(
     binding: &BindingCallContext,
     out: *mut u64,
