@@ -7,12 +7,12 @@ use crate::runtime::{BindingCallContext, NativeSlice, NativeStringSlice};
 
 /// Close one tls context object.
 ///
-/// Release one backend-backed tls context and associated host resources.
-/// Existing sessions created from this context remain backend-defined.
+/// Release one backend-backed tls context and associated runtime resources.
+/// Existing sessions created from this context keep their current runtime state.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses provider-specific context teardown semantics.
+/// Uses runtime tls context teardown semantics.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -31,12 +31,12 @@ pub(crate) unsafe fn destack_tls_context_close(
 
 /// Open one tls context object.
 ///
-/// Create one backend-backed tls context with explicit role and version bounds.
-/// Cipher suite policy and backend defaults follow host tls backend semantics.
+/// Create one rustls-backed tls context with explicit role and version bounds.
+/// Cipher suite, group, signature, and resumption policy are runtime-owned rather than delegated to host provider state.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls provider context APIs.
+/// Uses the runtime tls engine over host sockets.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -71,11 +71,11 @@ pub(crate) unsafe fn destack_tls_context_open(
 /// Set allowed tls cipher suites for one context.
 ///
 /// Apply one ordered list of cipher-suite names to one context policy.
-/// Name parsing and provider-specific filtering follow backend rules.
+/// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls cipher-suite names.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SSL_CTX_set_ciphersuites style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+/// Uses runtime tls policy filtering.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -103,6 +103,7 @@ pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
     // store the suite policy
     let policy = core_tls::resolve_context_resource(binding, handle)?;
     let mut policy = policy.lock();
+    core_tls::validate_cipher_suites(&policy, &suites)?;
     policy.cipher_suites = Some(suites);
     policy.reset_runtime_state();
 
@@ -112,11 +113,11 @@ pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
 /// Set allowed tls key exchange groups for one context.
 ///
 /// Apply one ordered list of key exchange groups to one context policy.
-/// Group parsing and provider-specific filtering follow backend rules.
+/// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls key-exchange group names.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SSL_CTX_set1_groups_list style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+/// Uses runtime tls policy filtering.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -144,6 +145,7 @@ pub(crate) unsafe fn destack_tls_context_set_groups(
     // store the group policy
     let policy = core_tls::resolve_context_resource(binding, handle)?;
     let mut policy = policy.lock();
+    core_tls::validate_groups(&policy, &groups)?;
     policy.groups = Some(groups);
     policy.reset_runtime_state();
 
@@ -154,10 +156,11 @@ pub(crate) unsafe fn destack_tls_context_set_groups(
 ///
 /// Configure hostname verification behavior for sessions created by this context.
 /// Verification defaults match strict hostname checks unless explicitly overridden.
+/// This setting applies to client contexts, and server contexts ignore it.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses X509_VERIFY_PARAM_set_hostflags style APIs in OpenSSL or BoringSSL and equivalent provider verification controls in Schannel or SecureTransport.
+/// Uses runtime tls verification policy.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -184,11 +187,11 @@ pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
 /// Set one local certificate chain and private key on a tls context.
 ///
 /// Install one PEM-encoded certificate chain and one PEM-encoded private key for local endpoint authentication.
-/// Key parsing and supported key formats follow host provider behavior.
+/// PEM parsing is strict and malformed inputs fail immediately.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses provider identity import APIs.
+/// Uses runtime tls identity parsing and storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -221,6 +224,7 @@ pub(crate) unsafe fn destack_tls_context_set_identity_pem(
         ))
         .boxed());
     }
+    core_tls::validate_identity_pem(&certificate_chain, &private_key)?;
 
     // store identity material
     let policy = core_tls::resolve_context_resource(binding, handle)?;
@@ -235,11 +239,11 @@ pub(crate) unsafe fn destack_tls_context_set_identity_pem(
 /// Set session resumption policy for one context.
 ///
 /// Configure whether sessions use stateful cache, stateless tickets, or both.
-/// Cache size, lifetime, and ticket semantics follow backend policy.
+/// Cache size, lifetime, and ticket semantics follow bounded runtime policy.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SSL_CTX_set_session_cache_mode and SSL_CTX_set_options style APIs in OpenSSL or BoringSSL and equivalent provider controls in Schannel or SecureTransport.
+/// Uses runtime tls resumption controls.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -266,11 +270,11 @@ pub(crate) unsafe fn destack_tls_context_set_session_resumption(
 /// Set allowed tls signature algorithms for one context.
 ///
 /// Apply one ordered list of signature algorithms to one context policy.
-/// Algorithm parsing and provider-specific filtering follow backend rules.
+/// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls signature-scheme names.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SSL_CTX_set1_sigalgs_list style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+/// Uses runtime tls policy filtering.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -299,6 +303,7 @@ pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
     // store signature algorithm policy
     let policy = core_tls::resolve_context_resource(binding, handle)?;
     let mut policy = policy.lock();
+    core_tls::validate_signature_algorithms(&policy, &algorithms)?;
     policy.signature_algorithms = Some(algorithms);
     policy.reset_runtime_state();
 
@@ -308,11 +313,11 @@ pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
 /// Set trust anchors on a tls context from one PEM bundle.
 ///
 /// Install one PEM-encoded trust-anchor bundle used for peer certificate validation.
-/// Bundle parse rules and chain-building behavior follow host provider semantics.
+/// Bundle parsing is strict and malformed trust anchors fail immediately.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses provider trust-store APIs or runtime trust bundle loading.
+/// Uses runtime trust bundle loading.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -336,6 +341,7 @@ pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
         ))
         .boxed());
     }
+    core_tls::validate_trust_anchor_pem(&trust_anchors)?;
 
     // store trust anchors
     let policy = core_tls::resolve_context_resource(binding, handle)?;
