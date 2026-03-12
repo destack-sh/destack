@@ -1,5 +1,5 @@
 mod diagnostic;
-mod gc;
+mod heap;
 mod options;
 mod platform;
 mod random;
@@ -10,7 +10,7 @@ mod selectors;
 mod time;
 
 pub use diagnostic::*;
-pub use gc::*;
+pub use heap::*;
 pub use options::*;
 pub use platform::*;
 pub use random::*;

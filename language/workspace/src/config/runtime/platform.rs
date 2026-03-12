@@ -235,10 +235,6 @@ pub struct PlatformIpcOptions {
     pub unix_semaphore_poll_interval_ns: Option<u64>,
 }
 
-/// Memory runtime options.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformMemoryOptions {}
-
 /// Resource runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PlatformResourceOptions {}
@@ -1102,17 +1098,6 @@ impl PlatformIpcOptionsJson {
             options.unix_semaphore_poll_interval_ns = Some(unix_semaphore_poll_interval_ns);
         }
     }
-}
-
-/// Memory runtime options.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformMemoryOptionsJson {}
-
-impl PlatformMemoryOptionsJson {
-    /// Apply memory overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformMemoryOptions) {}
 }
 
 /// Resource runtime options.
