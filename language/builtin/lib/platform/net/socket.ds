@@ -149,11 +149,12 @@ declare namespace net {
     /// Create a connected socket pair.
     ///
     /// Allocate two already-connected peer sockets for local full-duplex communication.
+    /// `SocketFamily.Unspecified` creates one local AF_UNIX pair where supported, while `SocketFamily.IPv4` and `SocketFamily.IPv6` use one loopback transport pair.
     /// Pair creation semantics and descriptor inheritance follow host kernel behavior.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses socketpair(2) on Unix and loopback-pair emulation on Windows.
+    /// Uses socketpair(2) for `SocketFamily.Unspecified` and loopback-pair emulation for IP families.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.

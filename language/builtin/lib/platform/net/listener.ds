@@ -4,9 +4,13 @@ import { SocketAddress } from "./address.ds";
 
 /// Accept flags for listener sockets.
 ///
-/// This value maps to native accept flags such as SOCK_NONBLOCK and SOCK_CLOEXEC.
-/// Unsupported bits are rejected with `invalidArgument` or `notSupported`.
+/// This value is a normalized accept-flag bitset.
+/// The runtime maps it to native accept controls such as SOCK_NONBLOCK and SOCK_CLOEXEC.
 export newtype AcceptFlags = uint32;
+/// Accept the socket in nonblocking mode.
+export const ACCEPT_NONBLOCK: AcceptFlags = AcceptFlags(1 << 0);
+/// Accept the socket with close-on-exec or non-inheritable semantics.
+export const ACCEPT_CLOEXEC: AcceptFlags = AcceptFlags(1 << 1);
 
 /// Listener bindings for the native runtime.
 declare namespace net {
