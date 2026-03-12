@@ -33,7 +33,7 @@ const DISPLAY_CAP_WINDOW_DROP_EVENTS: u64 =
     display_platform::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0;
 
 #[cfg(windows)]
-fn backend_is_available(support: BackendSupport) -> bool {
+fn support_allows_host_execution(support: BackendSupport) -> bool {
     matches!(support, BackendSupport::Available)
 }
 
@@ -201,7 +201,7 @@ pub(super) fn test_display_backend_capabilities_match_win32_implementation() {
                     .find(|backend| backend.backend == DisplayBackend::Win32)
                     .expect("backend list should contain win32 descriptor");
                 (
-                    backend_is_available(backend.support),
+                    support_allows_host_execution(backend.support),
                     backend.capability_flags.0,
                 )
             }
@@ -218,7 +218,7 @@ pub(super) fn test_display_backend_capabilities_match_win32_implementation() {
                     .find(|backend| backend.backend == DisplayBackend::Win32)
                     .expect("backend list should contain win32 descriptor");
                 (
-                    backend_is_available(backend.support),
+                    support_allows_host_execution(backend.support),
                     backend.capability_flags.0,
                 )
             }

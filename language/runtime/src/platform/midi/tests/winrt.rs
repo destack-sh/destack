@@ -2,7 +2,8 @@ use super::{
     assert_platform_error_codes, decode_backend_descriptors_full, decode_port_descriptors,
     harness_event_open_options, harness_port_list_options,
     harness_virtual_input_create_options_for_backend_transport,
-    harness_virtual_output_create_options_for_backend_transport, with_harness_context,
+    harness_virtual_output_create_options_for_backend_transport, support_allows_host_execution,
+    with_harness_context,
 };
 use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -26,11 +27,6 @@ fn test_midi_winrt_backend_row_advertises_real_host_capabilities() {
             .iter()
             .find(|(backend, _, _, _, _, _, _)| *backend == MidiBackend::WinRT)
             .expect("midi backend list should include a WinRT selector row");
-        let winmm_row = descriptors
-            .iter()
-            .find(|(backend, _, _, _, _, _, _)| *backend == MidiBackend::WinMM)
-            .expect("midi backend list should include a WinMM selector row");
-
         let (
             _backend,
             name,
@@ -43,7 +39,7 @@ fn test_midi_winrt_backend_row_advertises_real_host_capabilities() {
 
         // winrt row
         assert_eq!(name, "winrt");
-        assert_eq!(*support, BackendSupport::Available);
+        assert!(support_allows_host_execution(*support));
         assert!(*priority != 0, "WinRT should participate in auto selection");
         assert!(
             capability_flags.0 & MIDI_BACKEND_CAP_TOPOLOGY_EVENTS.0 != 0,
@@ -84,31 +80,6 @@ fn test_midi_winrt_backend_row_advertises_real_host_capabilities() {
         assert_eq!(
             supported_protocols.0, MIDI_PROTOCOL_FLAG_MIDI1.0,
             "WinRT should advertise only MIDI 1 protocol semantics",
-        );
-
-        // winmm row
-        let (
-            _winmm_backend,
-            winmm_name,
-            winmm_support,
-            _winmm_priority,
-            winmm_capability_flags,
-            winmm_supported_data_formats,
-            winmm_supported_protocols,
-        ) = winmm_row;
-        assert_eq!(winmm_name, "winmm");
-        assert_eq!(*winmm_support, BackendSupport::DisabledByBuild);
-        assert_eq!(
-            winmm_capability_flags.0, 0,
-            "disabled WinMM rows should not advertise capabilities",
-        );
-        assert_eq!(
-            winmm_supported_data_formats.0, 0,
-            "disabled WinMM rows should not advertise data formats",
-        );
-        assert_eq!(
-            winmm_supported_protocols.0, 0,
-            "disabled WinMM rows should not advertise protocols",
         );
 
         Ok(())

@@ -377,7 +377,7 @@ fn harness_aspect_ratio(
 fn available_backends(
     context: &mut DisplayHarnessContext<'_>,
 ) -> RuntimeResult<Vec<DisplayBackend>> {
-    let descriptors = available_backend_descriptors(context)?;
+    let descriptors = backend_descriptors_for_host_execution(context)?;
     let backends = descriptors
         .into_iter()
         .filter(|descriptor| is_concrete_host_backend(descriptor.backend))
@@ -402,7 +402,7 @@ struct BackendDescriptorSummary {
 }
 
 #[cfg(any(unix, windows))]
-fn backend_is_available(support: BackendSupport) -> bool {
+fn support_allows_host_execution(support: BackendSupport) -> bool {
     matches!(support, BackendSupport::Available)
 }
 
@@ -453,13 +453,13 @@ fn backend_descriptors(
 }
 
 #[cfg(any(unix, windows))]
-/// Return available backend descriptors for the active harness context.
-fn available_backend_descriptors(
+/// Return backend descriptors that can run live host specimen cases here.
+fn backend_descriptors_for_host_execution(
     context: &mut DisplayHarnessContext<'_>,
 ) -> RuntimeResult<Vec<BackendDescriptorSummary>> {
     Ok(backend_descriptors(context)?
         .into_iter()
-        .filter(|descriptor| backend_is_available(descriptor.support))
+        .filter(|descriptor| support_allows_host_execution(descriptor.support))
         .collect())
 }
 
@@ -695,7 +695,7 @@ pub(super) fn test_display_monitor_desktop_mode_is_consistent_with_modes() {
     }
 
     with_harness_context(|mut context| {
-        let backend_descriptors = available_backend_descriptors(&mut context)?;
+        let backend_descriptors = backend_descriptors_for_host_execution(&mut context)?;
         if backend_descriptors.is_empty() {
             return Ok(());
         }
@@ -765,7 +765,7 @@ pub(super) fn test_display_window_remaining_surface_calls_follow_backend_contrac
     }
 
     with_harness_context(|mut context| {
-        let backend_descriptors = available_backend_descriptors(&mut context)?;
+        let backend_descriptors = backend_descriptors_for_host_execution(&mut context)?;
         if backend_descriptors.is_empty() {
             return Ok(());
         }
@@ -1244,7 +1244,7 @@ pub(super) fn test_display_window_capabilities_match_opened_window_backend() {
     }
 
     with_harness_context(|mut context| {
-        let descriptors = available_backend_descriptors(&mut context)?;
+        let descriptors = backend_descriptors_for_host_execution(&mut context)?;
         if descriptors.is_empty() {
             return Ok(());
         }
@@ -1295,7 +1295,7 @@ pub(super) fn test_display_x11_capabilities_match_implemented_contract() {
                 .find(|descriptor| descriptor.backend == DisplayBackend::X11)
                 .map(|descriptor| {
                     (
-                        backend_is_available(descriptor.support),
+                        support_allows_host_execution(descriptor.support),
                         descriptor.capability_flags.0,
                     )
                 })
@@ -1315,7 +1315,7 @@ pub(super) fn test_display_x11_capabilities_match_implemented_contract() {
                     .find(|descriptor| descriptor.backend == DisplayBackend::X11)
                     .map(|descriptor| {
                         (
-                            backend_is_available(descriptor.support),
+                            support_allows_host_execution(descriptor.support),
                             descriptor.capability_flags.0,
                         )
                     })
@@ -1556,7 +1556,7 @@ pub(super) fn test_display_wayland_capabilities_match_implemented_contract() {
                 .find(|descriptor| descriptor.backend == DisplayBackend::Wayland)
                 .map(|descriptor| {
                     (
-                        backend_is_available(descriptor.support),
+                        support_allows_host_execution(descriptor.support),
                         descriptor.capability_flags.0,
                     )
                 })
@@ -1576,7 +1576,7 @@ pub(super) fn test_display_wayland_capabilities_match_implemented_contract() {
                     .find(|descriptor| descriptor.backend == DisplayBackend::Wayland)
                     .map(|descriptor| {
                         (
-                            backend_is_available(descriptor.support),
+                            support_allows_host_execution(descriptor.support),
                             descriptor.capability_flags.0,
                         )
                     })
@@ -2046,7 +2046,7 @@ pub(super) fn test_display_linux_backend_capabilities_respect_ceiling_inventory(
     }
 
     with_harness_context(|mut context| {
-        let descriptors = available_backend_descriptors(&mut context)?;
+        let descriptors = backend_descriptors_for_host_execution(&mut context)?;
 
         // verify every available unix backend reports one subset of its capability ceiling
         for descriptor in descriptors {
@@ -2076,7 +2076,7 @@ pub(super) fn test_display_wayland_window_event_filter_accepts_scale_factor_kind
     }
 
     with_harness_context(|mut context| {
-        let descriptors = available_backend_descriptors(&mut context)?;
+        let descriptors = backend_descriptors_for_host_execution(&mut context)?;
         let is_wayland_available = descriptors
             .iter()
             .any(|descriptor| descriptor.backend == DisplayBackend::Wayland);
@@ -2142,7 +2142,7 @@ pub(super) fn test_display_win32_capabilities_match_implemented_contract() {
                 .find(|descriptor| descriptor.backend == DisplayBackend::Win32)
                 .map(|descriptor| {
                     (
-                        backend_is_available(descriptor.support),
+                        support_allows_host_execution(descriptor.support),
                         descriptor.capability_flags.0,
                     )
                 })
@@ -2162,7 +2162,7 @@ pub(super) fn test_display_win32_capabilities_match_implemented_contract() {
                     .find(|descriptor| descriptor.backend == DisplayBackend::Win32)
                     .map(|descriptor| {
                         (
-                            backend_is_available(descriptor.support),
+                            support_allows_host_execution(descriptor.support),
                             descriptor.capability_flags.0,
                         )
                     })
@@ -2298,7 +2298,7 @@ pub(super) fn test_display_appkit_capabilities_match_implemented_contract() {
                 .find(|descriptor| descriptor.backend == DisplayBackend::AppKit)
                 .map(|descriptor| {
                     (
-                        backend_is_available(descriptor.support),
+                        support_allows_host_execution(descriptor.support),
                         descriptor.capability_flags.0,
                     )
                 })
@@ -2318,7 +2318,7 @@ pub(super) fn test_display_appkit_capabilities_match_implemented_contract() {
                     .find(|descriptor| descriptor.backend == DisplayBackend::AppKit)
                     .map(|descriptor| {
                         (
-                            backend_is_available(descriptor.support),
+                            support_allows_host_execution(descriptor.support),
                             descriptor.capability_flags.0,
                         )
                     })

@@ -3,7 +3,8 @@ use super::{
     decode_port_descriptors, harness_event_open_options, harness_output_open_options_for_transport,
     harness_output_records, harness_port_list_options_with_flags, harness_string,
     harness_virtual_input_create_options_for_backend_transport,
-    harness_virtual_output_create_options_for_backend_transport, with_harness_context,
+    harness_virtual_output_create_options_for_backend_transport, support_allows_host_execution,
+    with_harness_context,
 };
 use crate::platform::core::BackendSupport;
 use crate::platform::midi::{
@@ -50,7 +51,7 @@ fn test_midi_alsa_backend_row_advertises_real_host_capabilities() {
         assert!(*priority != 0, "ALSA should participate in auto selection");
 
         // unavailable hosts still need one honest row
-        if *support != BackendSupport::Available {
+        if !support_allows_host_execution(*support) {
             return Ok(());
         }
 
@@ -113,7 +114,7 @@ fn test_midi_alsa_native_event_feed_reports_virtual_source_additions_and_removal
             .find(|(backend, _, _, _, _, _, _)| *backend == MidiBackend::Alsa)
             .map(|(_, _, support, _, _, _, _)| *support)
             .expect("midi backend list should include an ALSA selector row");
-        if support != BackendSupport::Available {
+        if !support_allows_host_execution(support) {
             return Ok(());
         }
 
@@ -200,7 +201,7 @@ fn test_midi_alsa_virtual_destination_roundtrips_midi1_records() {
             .find(|(backend, _, _, _, _, _, _)| *backend == MidiBackend::Alsa)
             .map(|(_, _, support, _, _, _, _)| *support)
             .expect("midi backend list should include an ALSA selector row");
-        if support != BackendSupport::Available {
+        if !support_allows_host_execution(support) {
             return Ok(());
         }
 

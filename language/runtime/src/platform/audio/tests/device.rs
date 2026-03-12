@@ -13,10 +13,11 @@ use super::super::{
     AudioDeviceListRequest, AudioDeviceOpenFlags, AudioDeviceOpenOptions, AudioShareMode,
 };
 use super::core::{
-    backend_availability_rows, backend_availability_rows_with_capabilities,
-    backend_descriptor_summaries, descriptor_count, device_descriptor_direction_from_value,
-    device_descriptor_identity_from_value, device_descriptor_stream_clock_domains_from_value,
-    device_direction_capability_rows, harness_device_options, harness_list_request, harness_string,
+    backend_descriptor_summaries, backend_is_available_for_host_execution, backend_support_rows,
+    backend_support_rows_with_capabilities, descriptor_count,
+    device_descriptor_direction_from_value, device_descriptor_identity_from_value,
+    device_descriptor_stream_clock_domains_from_value, device_direction_capability_rows,
+    harness_device_options, harness_list_request, harness_string, has_available_host_backend,
     string_from_harness_value,
 };
 use super::{
@@ -122,14 +123,16 @@ fn test_audio_null_device_scheduled_write_capability_matches_direction() {
 fn test_audio_backend_list_contains_null_and_available_backend() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
+        let rows = backend_support_rows(&mut context, rows)?;
         assert!(
-            rows.iter()
-                .any(|(backend, available)| *backend == AudioBackend::Null && *available),
+            rows.iter().any(|(backend, support)| {
+                *backend == AudioBackend::Null && *support == BackendSupport::Available
+            }),
             "backend list should always expose one available null backend",
         );
         assert!(
-            rows.iter().any(|(_backend, available)| *available),
+            rows.iter()
+                .any(|(_backend, support)| *support == BackendSupport::Available),
             "backend list should expose at least one available backend",
         );
 
@@ -142,18 +145,20 @@ fn test_audio_backend_list_contains_null_and_available_backend() {
 fn test_audio_backend_list_reports_auto_availability_from_host_backends() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
+        let rows = backend_support_rows(&mut context, rows)?;
 
-        let auto_available = rows
+        let auto_support = rows
             .iter()
-            .find(|(backend, _available)| *backend == AudioBackend::Auto)
-            .map(|(_backend, available)| *available)
-            .unwrap_or(false);
-        let host_available = rows.iter().any(|(backend, available)| {
-            *available && *backend != AudioBackend::Auto && *backend != AudioBackend::Null
-        });
+            .find(|(backend, _support)| *backend == AudioBackend::Auto)
+            .map(|(_backend, support)| *support)
+            .unwrap_or(BackendSupport::UnsupportedTarget);
+        let host_available = has_available_host_backend(&rows);
 
-        assert_eq!(auto_available, host_available);
+        if host_available {
+            assert_eq!(auto_support, BackendSupport::Available);
+        } else {
+            assert_ne!(auto_support, BackendSupport::Available);
+        }
         Ok(())
     });
 }
@@ -163,10 +168,10 @@ fn test_audio_backend_list_reports_auto_availability_from_host_backends() {
 fn test_audio_backend_list_sets_capabilities_for_available_rows() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows_with_capabilities(&mut context, rows)?;
+        let rows = backend_support_rows_with_capabilities(&mut context, rows)?;
 
-        for (backend, available, capability_flags) in rows {
-            if !available {
+        for (backend, support, capability_flags) in rows {
+            if support != BackendSupport::Available {
                 continue;
             }
 
@@ -193,6 +198,11 @@ fn test_audio_backend_list_sets_capabilities_for_available_rows() {
 
             if backend == AudioBackend::AAudio {
                 assert_ne!(capability_flags.0 & BACKEND_CAPABILITY_EXCLUSIVE_MODE.0, 0);
+            }
+
+            if backend == AudioBackend::OpenSLES {
+                assert_ne!(capability_flags.0 & BACKEND_CAPABILITY_SHARED_MODE.0, 0);
+                assert_eq!(capability_flags.0 & BACKEND_CAPABILITY_EXCLUSIVE_MODE.0, 0);
             }
 
             if backend == AudioBackend::Asio {
@@ -312,10 +322,10 @@ fn test_audio_backend_list_support_contract_matches_advertised_lanes() {
 fn test_audio_backend_disconnect_capability_matches_device_rows() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows_with_capabilities(&mut context, rows)?;
+        let rows = backend_support_rows_with_capabilities(&mut context, rows)?;
 
-        for (backend, available, backend_capability_flags) in rows {
-            if !available || backend == AudioBackend::Auto {
+        for (backend, support, backend_capability_flags) in rows {
+            if support != BackendSupport::Available || backend == AudioBackend::Auto {
                 continue;
             }
 
@@ -376,10 +386,13 @@ fn test_audio_backend_disconnect_capability_matches_device_rows() {
 fn test_audio_backend_share_mode_capabilities_match_device_open_behavior() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows_with_capabilities(&mut context, rows)?;
+        let rows = backend_support_rows_with_capabilities(&mut context, rows)?;
 
-        for (backend, available, backend_capability_flags) in rows {
-            if !available || backend == AudioBackend::Auto || backend == AudioBackend::Null {
+        for (backend, support, backend_capability_flags) in rows {
+            if support != BackendSupport::Available
+                || backend == AudioBackend::Auto
+                || backend == AudioBackend::Null
+            {
                 continue;
             }
 
@@ -449,10 +462,13 @@ fn test_audio_backend_share_mode_capabilities_match_device_open_behavior() {
 fn test_audio_available_host_backends_allow_strict_device_listing() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
+        let rows = backend_support_rows(&mut context, rows)?;
 
-        for (backend, available) in rows {
-            if !available || backend == AudioBackend::Auto || backend == AudioBackend::Null {
+        for (backend, support) in rows {
+            if support != BackendSupport::Available
+                || backend == AudioBackend::Auto
+                || backend == AudioBackend::Null
+            {
                 continue;
             }
 
@@ -485,10 +501,8 @@ fn test_audio_available_host_backends_allow_strict_device_listing() {
 fn test_audio_wasapi_device_list_exposes_loopback_and_duplex_ids_when_available() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
-        let wasapi_available = rows
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Wasapi && *available);
+        let rows = backend_support_rows(&mut context, rows)?;
+        let wasapi_available = backend_is_available_for_host_execution(&rows, AudioBackend::Wasapi);
         if !wasapi_available {
             return Ok(());
         }
@@ -533,10 +547,8 @@ fn test_audio_wasapi_device_list_exposes_loopback_and_duplex_ids_when_available(
 fn test_audio_asio_device_default_uses_stable_prefix_when_available() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
-        let asio_available = rows
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Asio && *available);
+        let rows = backend_support_rows(&mut context, rows)?;
+        let asio_available = backend_is_available_for_host_execution(&rows, AudioBackend::Asio);
         if !asio_available {
             return Ok(());
         }
@@ -569,10 +581,8 @@ fn test_audio_asio_device_default_uses_stable_prefix_when_available() {
 fn test_audio_alsa_device_default_uses_stable_prefix_when_available() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
-        let alsa_available = rows
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Alsa && *available);
+        let rows = backend_support_rows(&mut context, rows)?;
+        let alsa_available = backend_is_available_for_host_execution(&rows, AudioBackend::Alsa);
         if !alsa_available {
             return Ok(());
         }
@@ -605,10 +615,9 @@ fn test_audio_alsa_device_default_uses_stable_prefix_when_available() {
 fn test_audio_pipewire_device_default_uses_stable_prefix_when_available() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
-        let pipewire_available = rows
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::PipeWire && *available);
+        let rows = backend_support_rows(&mut context, rows)?;
+        let pipewire_available =
+            backend_is_available_for_host_execution(&rows, AudioBackend::PipeWire);
         if !pipewire_available {
             return Ok(());
         }
@@ -641,10 +650,9 @@ fn test_audio_pipewire_device_default_uses_stable_prefix_when_available() {
 fn test_audio_pulseaudio_device_default_uses_stable_prefix_when_available() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
-        let pulseaudio_available = rows
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::PulseAudio && *available);
+        let rows = backend_support_rows(&mut context, rows)?;
+        let pulseaudio_available =
+            backend_is_available_for_host_execution(&rows, AudioBackend::PulseAudio);
         if !pulseaudio_available {
             return Ok(());
         }
@@ -677,10 +685,8 @@ fn test_audio_pulseaudio_device_default_uses_stable_prefix_when_available() {
 fn test_audio_jack_device_default_uses_stable_prefix_when_available() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
-        let jack_available = rows
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Jack && *available);
+        let rows = backend_support_rows(&mut context, rows)?;
+        let jack_available = backend_is_available_for_host_execution(&rows, AudioBackend::Jack);
         if !jack_available {
             return Ok(());
         }
@@ -708,15 +714,83 @@ fn test_audio_jack_device_default_uses_stable_prefix_when_available() {
     });
 }
 
+#[cfg(target_os = "android")]
+#[test]
+fn test_audio_aaudio_device_default_uses_stable_prefix_when_available() {
+    with_harness_context(|mut context| {
+        let rows = context.destack_audio_backend_list()?;
+        let rows = backend_support_rows(&mut context, rows)?;
+        let aaudio_available = backend_is_available_for_host_execution(&rows, AudioBackend::AAudio);
+        if !aaudio_available {
+            return Ok(());
+        }
+
+        let playback = context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::AAudio,
+            AudioBackendSelectionPolicy::Strict,
+        );
+        let playback = match playback {
+            Ok(playback) => playback,
+            Err(error) => {
+                let code = error_code_from_runtime_error(&error);
+                assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
+                return Ok(());
+            }
+        };
+        let playback = string_from_harness_value(&mut context, playback)?;
+        assert!(
+            playback.starts_with("aaudio:playback:"),
+            "aaudio playback default id should use aaudio:playback: prefix",
+        );
+
+        Ok(())
+    });
+}
+
+#[cfg(target_os = "android")]
+#[test]
+fn test_audio_opensles_device_default_uses_stable_prefix_when_available() {
+    with_harness_context(|mut context| {
+        let rows = context.destack_audio_backend_list()?;
+        let rows = backend_support_rows(&mut context, rows)?;
+        let opensles_available =
+            backend_is_available_for_host_execution(&rows, AudioBackend::OpenSLES);
+        if !opensles_available {
+            return Ok(());
+        }
+
+        let playback = context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::OpenSLES,
+            AudioBackendSelectionPolicy::Strict,
+        );
+        let playback = match playback {
+            Ok(playback) => playback,
+            Err(error) => {
+                let code = error_code_from_runtime_error(&error);
+                assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
+                return Ok(());
+            }
+        };
+        let playback = string_from_harness_value(&mut context, playback)?;
+        assert!(
+            playback.starts_with("opensles:playback:"),
+            "opensles playback default id should use opensles:playback: prefix",
+        );
+
+        Ok(())
+    });
+}
+
 #[cfg(any(unix, windows))]
 #[test]
 fn test_audio_coreaudio_device_default_uses_stable_prefix_when_available() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
-        let coreaudio_available = rows
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::CoreAudio && *available);
+        let rows = backend_support_rows(&mut context, rows)?;
+        let coreaudio_available =
+            backend_is_available_for_host_execution(&rows, AudioBackend::CoreAudio);
         if !coreaudio_available {
             return Ok(());
         }
@@ -796,14 +870,16 @@ fn test_audio_device_default_returns_stable_null_ids() {
 fn test_audio_device_rescan_rejects_unsupported_backend() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
+        let rows = backend_support_rows(&mut context, rows)?;
 
         let unsupported_backend = rows
             .into_iter()
-            .find(|(backend, available)| {
-                !available && *backend != AudioBackend::Auto && *backend != AudioBackend::Null
+            .find(|(backend, support)| {
+                *support != BackendSupport::Available
+                    && *backend != AudioBackend::Auto
+                    && *backend != AudioBackend::Null
             })
-            .map(|(backend, _available)| backend);
+            .map(|(backend, _support)| backend);
         let Some(unsupported_backend) = unsupported_backend else {
             return Ok(());
         };
@@ -821,10 +897,8 @@ fn test_audio_device_rescan_rejects_unsupported_backend() {
 fn test_audio_device_rescan_allows_backend_fallback() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
-        let has_host_backend = rows.iter().any(|(backend, available)| {
-            *available && *backend != AudioBackend::Auto && *backend != AudioBackend::Null
-        });
+        let rows = backend_support_rows(&mut context, rows)?;
+        let has_host_backend = has_available_host_backend(&rows);
 
         let result = context.destack_audio_device_rescan(
             AudioBackend::Asio,
@@ -885,10 +959,8 @@ fn test_audio_device_open_rejects_raw_flag_for_non_wasapi_backend() {
 fn test_audio_device_open_alsa_no_resample_matches_backend_support() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
-        let alsa_available = rows
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Alsa && *available);
+        let rows = backend_support_rows(&mut context, rows)?;
+        let alsa_available = backend_is_available_for_host_execution(&rows, AudioBackend::Alsa);
         if !alsa_available {
             return Ok(());
         }
@@ -938,10 +1010,8 @@ fn test_audio_device_open_alsa_no_resample_matches_backend_support() {
 fn test_audio_device_open_jack_no_autoconnect_matches_backend_support() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
-        let jack_available = rows
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::Jack && *available);
+        let rows = backend_support_rows(&mut context, rows)?;
+        let jack_available = backend_is_available_for_host_execution(&rows, AudioBackend::Jack);
         if !jack_available {
             return Ok(());
         }
@@ -991,10 +1061,10 @@ fn test_audio_device_open_jack_no_autoconnect_matches_backend_support() {
 fn test_audio_device_open_require_hardware_timestamps_matches_backend_capability() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_rows = backend_availability_rows_with_capabilities(&mut context, backend_list)?;
+        let backend_rows = backend_support_rows_with_capabilities(&mut context, backend_list)?;
 
-        for (backend, available, capability_flags) in backend_rows {
-            if !available || backend == AudioBackend::Auto {
+        for (backend, support, capability_flags) in backend_rows {
+            if support != BackendSupport::Available || backend == AudioBackend::Auto {
                 continue;
             }
 
@@ -1145,10 +1215,10 @@ fn test_audio_device_open_rejects_unknown_open_flag_bits() {
 fn test_audio_device_open_require_loopback_matches_backend_capability() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows_with_capabilities(&mut context, rows)?;
+        let rows = backend_support_rows_with_capabilities(&mut context, rows)?;
 
-        for (backend, available, capability_flags) in rows {
-            if !available || backend == AudioBackend::Auto {
+        for (backend, support, capability_flags) in rows {
+            if support != BackendSupport::Available || backend == AudioBackend::Auto {
                 continue;
             }
 
@@ -1266,10 +1336,9 @@ fn test_audio_device_descriptor_reports_opened_direction() {
 fn test_audio_coreaudio_opened_device_descriptor_uses_stable_identity_prefixes() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
-        let rows = backend_availability_rows(&mut context, rows)?;
-        let coreaudio_available = rows
-            .iter()
-            .any(|(backend, available)| *backend == AudioBackend::CoreAudio && *available);
+        let rows = backend_support_rows(&mut context, rows)?;
+        let coreaudio_available =
+            backend_is_available_for_host_execution(&rows, AudioBackend::CoreAudio);
         if !coreaudio_available {
             return Ok(());
         }

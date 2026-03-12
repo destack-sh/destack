@@ -146,6 +146,11 @@ where
     });
 }
 
+/// Return whether one backend support state allows live host execution.
+pub(crate) fn support_allows_host_execution(support: BackendSupport) -> bool {
+    matches!(support, BackendSupport::Available)
+}
+
 #[cfg(any(target_os = "macos", target_os = "linux", windows))]
 /// Return one process-global serialization lock for backend-global MIDI tests.
 fn midi_test_lock() -> &'static Mutex<()> {
