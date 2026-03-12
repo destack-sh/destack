@@ -76,27 +76,27 @@ test-runtime-privileged:
 
 # install runtime target toolchains and host prerequisites where possible
 install-toolchain:
-    bash ../toolchain/runtime-toolchain.sh install
+    bash ../dev/toolchain/runtime-toolchain.sh install
 
 # inspect runtime target toolchain readiness on this host
 doctor-toolchain:
-    bash ../toolchain/runtime-toolchain.sh doctor
+    bash ../dev/toolchain/runtime-toolchain.sh doctor
 
 # ensure runtime target toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
 ensure-toolchain:
-    bash ../toolchain/runtime-toolchain.sh ensure
+    bash ../dev/toolchain/runtime-toolchain.sh ensure
 
 # lint runtime toolchain shell scripts
 lint-toolchain:
-    bash ../toolchain/runtime-toolchain.sh lint
+    bash ../dev/toolchain/runtime-toolchain.sh lint
 
 # check runtime for android target using one configured ndk toolchain
 check-runtime-android:
-    bash ../toolchain/check-runtime-android.sh
+    bash ../dev/toolchain/check-runtime-android.sh
 
 # ensure android host dependencies needed by sdkmanager setup
 install-runtime-android-host-deps:
-    bash ../toolchain/install-runtime-android-host-deps.sh
+    bash ../dev/toolchain/install-runtime-android-host-deps.sh
 
 # install android sdk commandline tools and ndk into the active sdk root
 install-runtime-android-ndk:
@@ -104,23 +104,23 @@ install-runtime-android-ndk:
 
 # check runtime for ios target using active xcode sdk
 check-runtime-ios:
-    bash ../toolchain/check-runtime-ios.sh
+    bash ../dev/toolchain/check-runtime-ios.sh
 
 # check runtime on linux host
 check-runtime-linux:
-    bash ../toolchain/check-runtime-linux.sh
+    bash ../dev/toolchain/check-runtime-linux.sh
 
 # check runtime for linux aarch64 target using one configured cross toolchain
 check-runtime-linux-aarch64:
-    bash ../toolchain/check-runtime-linux-aarch64.sh
+    bash ../dev/toolchain/check-runtime-linux-aarch64.sh
 
 # check runtime for windows gnu target using one configured mingw or zig cross toolchain
 check-runtime-windows-gnu:
-    bash ../toolchain/check-runtime-windows-gnu.sh
+    bash ../dev/toolchain/check-runtime-windows-gnu.sh
 
 # check runtime wayland backend against one real compositor on linux host
 check-runtime-linux-wayland:
-    bash ../toolchain/check-runtime-linux-wayland.sh
+    bash ../dev/toolchain/check-runtime-linux-wayland.sh
 
 # check runtime on macos host
 check-runtime-macos:
@@ -130,7 +130,7 @@ check-runtime-macos:
 
 # check runtime on windows host
 check-runtime-windows-msvc:
-    bash ../toolchain/check-runtime-windows-msvc.sh
+    bash ../dev/toolchain/check-runtime-windows-msvc.sh
 
 # build language packages
 build:

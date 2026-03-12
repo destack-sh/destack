@@ -9,7 +9,7 @@ import tomllib
 from pathlib import Path
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PROJECTS_FILE = REPOSITORY_ROOT / "PROJECTS.toml"
 
 ALLOWED_AREAS = {

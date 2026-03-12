@@ -10,11 +10,11 @@ _default:
 
 # link this worktree .env.local to the primary repo .env.local
 link-env:
-    bash ci/link-worktree-env-local.sh here
+    bash dev/ci/link-worktree-env-local.sh here
 
 # link all worktree .env.local files to the primary repo .env.local
 link-env-all:
-    bash ci/link-worktree-env-local.sh all
+    bash dev/ci/link-worktree-env-local.sh all
 
 # install all dependencies
 install:
@@ -111,33 +111,33 @@ full:
 check-hygiene:
     just ensure-hygiene-toolchain
     PATH="${HOME}/.local/bin:${PATH}" actionlint
-    shellcheck -x .github/scripts/*.sh toolchain/*.sh toolchain/lib/*.sh ci/*.sh app/scripts/*.sh bridge/scripts/*.sh language/scripts/*.sh
-    shfmt -d .github/scripts/*.sh toolchain/*.sh toolchain/lib/*.sh ci/*.sh app/scripts/*.sh bridge/scripts/*.sh language/scripts/*.sh
+    shellcheck -x .github/scripts/*.sh dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/scripts/*.sh bridge/scripts/*.sh language/scripts/*.sh
+    shfmt -d .github/scripts/*.sh dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/scripts/*.sh bridge/scripts/*.sh language/scripts/*.sh
     just check-workflow-policy
 
 # validate ci workflow and target policy architecture
 check-workflow-policy:
-    bash ci/check-workflow-policy.sh
+    bash dev/ci/check-workflow-policy.sh
 
 # validate project inventory docs and local status labels
 check-projects:
-    python3 ci/validate-projects.py
+    python3 dev/ci/validate-projects.py
 
 # validate local release metadata drift between VERSION.txt and CHANGELOG.md
 check-release-drift:
-    bash ci/validate-release-drift.sh
+    bash dev/ci/validate-release-drift.sh
 
 # install ci hygiene toolchains on this host
 install-hygiene-toolchain:
-    bash ci/hygiene-toolchain.sh install
+    bash dev/ci/hygiene-toolchain.sh install
 
 # inspect ci hygiene toolchain readiness on this host
 doctor-hygiene-toolchain:
-    bash ci/hygiene-toolchain.sh doctor
+    bash dev/ci/hygiene-toolchain.sh doctor
 
 # ensure ci hygiene toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
 ensure-hygiene-toolchain:
-    bash ci/hygiene-toolchain.sh ensure
+    bash dev/ci/hygiene-toolchain.sh ensure
 
 # install all toolchains used by runtime, bridge, and ci hygiene lanes
 install-toolchain:
@@ -159,7 +159,7 @@ ensure-toolchain:
 
 # apply github branch protection for tier 1 runtime checks
 apply-branch-protection *args:
-    bash ci/apply-branch-protection.sh {{args}}
+    bash dev/ci/apply-branch-protection.sh {{args}}
 
 # clean all build artifacts
 clean:
@@ -181,11 +181,11 @@ bump kind="patch":
 
 # generate or refresh the changelog entry for VERSION.txt
 generate-release-changelog:
-    bash ci/update-changelog.sh "$(cat VERSION.txt)"
+    bash dev/ci/update-changelog.sh "$(cat VERSION.txt)"
 
 # validate release version, tracked file versions, and changelog entry
 validate-release tag="":
-    bash ci/validate-release.sh "{{tag}}"
+    bash dev/ci/validate-release.sh "{{tag}}"
 
 # publish all packages (dry-run by default)
 publish dry="--dry-run":
@@ -206,12 +206,12 @@ publish-release:
 
 # publish all packages live with local cli binary staging
 publish-release-local:
-    bash ci/publish-release-local.sh
+    bash dev/ci/publish-release-local.sh
 
 # create a new release (bump, validate, changelog, commit, tag)
 release kind="patch":
-    bash ci/create-release.sh "{{kind}}"
+    bash dev/ci/create-release.sh "{{kind}}"
 
 # push the current release commit and tag
 release-push:
-    bash ci/release-push.sh
+    bash dev/ci/release-push.sh

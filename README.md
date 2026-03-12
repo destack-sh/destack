@@ -33,9 +33,10 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Apps**](app/README.md): First-party applications and programmer tools.
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
 - [**Destack Bridge**](bridge/README.md): Two-way bridges for the Destack universe.
+- [**Destack Platform**](platform/README.md): Destack's own operated stuff (built on the rest).
 
-The architecture of Destack is designed as a meta framework for developing and maintaining custom software stacks using [foundational building blocks](https://caseymuratori.com/blog_0016).
 The structure of Destack is more of a "software factory toolkit" than it is "ready-to-wear software": we do provide some apps with a common plugin system - built on top of the shared library and reusable services - but the entire Destack is optimized for programmers building their _own_ software processes in one correct, optimal, integrated system.
+Aspiritionally, Destack is intended as a meta framework for developing and maintaining custom software stacks using [foundational building blocks](https://caseymuratori.com/blog_0016).
 
 ---
 
@@ -107,14 +108,14 @@ Both Python and Rust are bad at "UI stuff", and both are structurally difficult 
 3. **Which JavaScript/TypeScript features are supported on Destack?** 
 Destack is a TypeScript engine, not a JavaScript engine.
 *Modern strict TypeScript* is fully supported, including all the fun stuff like structural interfaces and mapped types.
-However, while Destack passes 96.48% of test262, it's not ECMAScript compliant and dynamic runtime features like `prototype`, `eval` / `Function`, or dynamic `class` are forbidden. 
+However, Destack is intentionally not ECMAScript compliant because dynamic runtime features like `prototype`, `eval` / `Function`, or dynamic `class` are forbidden.
 We also don't support dynamic protocols like `[[Call]]` or "thenables" (only their explicit typed forms).
 
 4. **How does Destack interact with the existing JavaScript/TypeScript/Node/web ecosystem?**
 Destack runs TS directly, and "TS++" (`.ds` files) can transpile into `.js`/`.ts` for browsers and other JS-only runtimes. 
 Destack is not a browser, and has no renderer (yet).
 On the backend, Destack supports Node APIs, similar to other Node-derived runtimes like Bun or Deno.
-However, Destack does _not_ fully support arbitrary JS/TS code *on the native path*, and it also does not fully support _all_ web standards.
+However, Destack does _not_ intend to fully support arbitrary JS/TS code, and it also does not fully support _all_ web standards.
 
 5. **Why not support both a JavaScript "slow mode" and a TypeScript "fast mode"?**
 Running "regular" Javascript _well_ is complex as it's essentially a whole second lane alongside the strict TypeScript AOT model. 
@@ -162,8 +163,8 @@ See [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 ## License
 
-The Destack is fully open source under the MIT license.
+Destack is fully open source under the MIT license across the language, library, services, apps, bridges, and platform.
 See [LICENSE.txt](LICENSE.txt).
 
-Destack includes components licensed, vendored and integrated from third parties, which come with their own licenses including the Apache-2.0 (with LLVM-exception) license.
+Destack also includes components licensed, vendored, and integrated from third parties, which come with their own licenses including but not limited to the Apache-2.0 (with LLVM-exception) license.
 See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repository_root="$(cd "${script_directory}/.." && pwd)"
+repository_root="$(cd "${script_directory}/../.." && pwd)"
 cd "${repository_root}"
 
 ci_file="${repository_root}/.github/workflows/ci.yml"
@@ -12,7 +12,7 @@ runtime_workflow_files=("${repository_root}/.github/workflows/runtime-"*.yml)
 workflow_files=("${repository_root}/.github/workflows/"*.yml)
 
 # shellcheck disable=SC1091
-source "${repository_root}/toolchain/versions.sh"
+source "${repository_root}/dev/toolchain/versions.sh"
 
 recipe_list="$(just --list --unsorted)"
 
@@ -41,7 +41,7 @@ if rg -n "run: just runtime-" "${runtime_workflow_files[@]}"; then
 	exit 1
 fi
 
-if rg -n "run: \\./toolchain/runtime-" "${runtime_workflow_files[@]}"; then
+if rg -n "run: \\./dev/toolchain/runtime-" "${runtime_workflow_files[@]}"; then
 	echo "runtime workflows must not call toolchain directly" >&2
 	exit 1
 fi

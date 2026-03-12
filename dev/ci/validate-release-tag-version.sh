@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repository_root="$(cd "${script_directory}/.." && pwd)"
+repository_root="$(cd "${script_directory}/../.." && pwd)"
 cd "${repository_root}"
 
 tag="${1:-${GITHUB_REF_NAME:-}}"

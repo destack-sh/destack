@@ -323,7 +323,7 @@ jobs:
           persist-credentials: false
 
       - name: Check Release Tag Version
-        run: bash ci/validate-release-tag-version.sh "${GITHUB_REF_NAME}"
+        run: bash dev/ci/validate-release-tag-version.sh "${GITHUB_REF_NAME}"
 
       - name: Install Rust Bun and just
         uses: ./.github/actions/setup-rust-bun-just

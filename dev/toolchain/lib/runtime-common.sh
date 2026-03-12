@@ -125,7 +125,7 @@ runtime_run_linux_container_runtime_lane() {
 			apt-get install -y pkg-config python3 >/dev/null
 			rustup toolchain install '${toolchain_channel}' --profile minimal --component clippy >/dev/null
 			rustup default '${toolchain_channel}' >/dev/null
-			source /work/toolchain/lib/runtime-common.sh
+			source /work/dev/toolchain/lib/runtime-common.sh
 			runtime_set_standard_environment
 			runtime_run_full_runtime_crate_lane cargo
 		"
