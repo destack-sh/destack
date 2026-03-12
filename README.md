@@ -1,6 +1,6 @@
 <div align="center">
 <p>
-    <img src="./.github/assets/banner.svg" width="960" alt="Destack banner">
+    <img src="./platform/brand/banner/banner.svg" width="960" alt="Destack banner">
 </p>
 
 # Destack: Universal Software Engine
