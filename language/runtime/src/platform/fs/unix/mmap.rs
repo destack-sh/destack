@@ -1,6 +1,7 @@
 use super::core::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::fs::core::{decode_mmap_flags, validate_mapping_length};
 use crate::platform::fs::*;
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
@@ -39,20 +40,19 @@ pub(crate) unsafe fn destack_fs_mmap_file(
 
     // resolve file descriptor
     let fd = file_descriptor(binding, handle)?;
+    let mmap_flags = decode_mmap_flags(flags, false)?;
+    let length = validate_mapping_length(length)?;
 
     // map flags and protections
     let mut native_flags = 0;
-    if flags.0 & 0x1 != 0 {
+    if mmap_flags.is_shared {
         native_flags |= libc::MAP_SHARED;
     }
-    if flags.0 & 0x2 != 0 {
+    if !mmap_flags.is_shared {
         native_flags |= libc::MAP_PRIVATE;
     }
-    if flags.0 & 0x10 != 0 {
+    if mmap_flags.is_fixed {
         native_flags |= libc::MAP_FIXED;
-    }
-    if flags.0 & 0x20 != 0 {
-        native_flags |= libc::MAP_ANON;
     }
     let mut native_prot = 0;
     if prot.0 & 0x1 != 0 {
@@ -67,7 +67,6 @@ pub(crate) unsafe fn destack_fs_mmap_file(
 
     // map the file
     let offset = offset_to_off_t(offset)?;
-    let length = length.0 as libc::size_t;
     let mapping = unsafe {
         libc::mmap(
             std::ptr::null_mut(),
@@ -123,13 +122,15 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
 
     // map flags and protections
     let mut native_flags = libc::MAP_ANON;
-    if flags.0 & 0x1 != 0 {
+    let mmap_flags = decode_mmap_flags(flags, true)?;
+    let length = validate_mapping_length(length)?;
+    if mmap_flags.is_shared {
         native_flags |= libc::MAP_SHARED;
     }
-    if flags.0 & 0x2 != 0 {
+    if !mmap_flags.is_shared {
         native_flags |= libc::MAP_PRIVATE;
     }
-    if flags.0 & 0x10 != 0 {
+    if mmap_flags.is_fixed {
         native_flags |= libc::MAP_FIXED;
     }
     let mut native_prot = 0;
@@ -143,7 +144,6 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
         native_prot |= libc::PROT_EXEC;
     }
 
-    let length = length.0 as libc::size_t;
     let mapping = unsafe {
         libc::mmap(
             std::ptr::null_mut(),

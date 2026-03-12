@@ -18,6 +18,7 @@ use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::fs::core::{DecodedMmapFlags, decode_mmap_flags, validate_mapping_length};
 use crate::platform::fs::{
     FileHandle, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags,
 };
@@ -85,19 +86,9 @@ fn map_protection(prot: MmapProt) -> u32 {
 }
 
 /// Convert protection and flags into map view access.
-fn map_view_access(prot: MmapProt, flags: MmapFlags) -> RuntimeResult<u32> {
-    let is_private = flags.0 & 0x2 != 0;
-    let is_shared = flags.0 & 0x1 != 0;
-    if is_private && is_shared {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "flags",
-            "MAP_PRIVATE and MAP_SHARED are mutually exclusive",
-        ))
-        .boxed());
-    }
-
+fn map_view_access(prot: MmapProt, flags: DecodedMmapFlags) -> RuntimeResult<u32> {
     let mut access = 0u32;
-    if is_private {
+    if !flags.is_shared {
         access |= FILE_MAP_COPY;
     } else {
         if prot.0 & 0x1 != 0 {
@@ -111,24 +102,7 @@ fn map_view_access(prot: MmapProt, flags: MmapFlags) -> RuntimeResult<u32> {
         access |= FILE_MAP_EXECUTE;
     }
 
-    if access == 0 {
-        access = FILE_MAP_READ;
-    }
-
     Ok(access)
-}
-
-/// Validate mapping length against NativeSlice limits.
-fn validate_mapping_length(length: FileSize) -> RuntimeResult<usize> {
-    if length.0 > u64::from(u32::MAX) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "length",
-            "mapping length exceeds NativeSlice limits",
-        ))
-        .boxed());
-    }
-
-    Ok(length.0 as usize)
 }
 
 /// Create a file-backed memory mapping.
@@ -165,14 +139,8 @@ pub(crate) unsafe fn destack_fs_mmap_file(
     }
 
     // validate inputs
-    if flags.0 & 0x20 != 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "flags",
-            "MAP_ANON is invalid for file mappings",
-        ))
-        .boxed());
-    }
-    if flags.0 & 0x10 != 0 {
+    let mmap_flags = decode_mmap_flags(flags, false)?;
+    if mmap_flags.is_fixed {
         return Err(RuntimeError::from(PlatformError::not_supported(
             "destack.fs.mmapFile MAP_FIXED",
         ))
@@ -185,7 +153,7 @@ pub(crate) unsafe fn destack_fs_mmap_file(
 
     // configure protections and access
     let protection = map_protection(prot);
-    let access = map_view_access(prot, flags)?;
+    let access = map_view_access(prot, mmap_flags)?;
     if offset.0 < 0 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "offset",
@@ -274,7 +242,8 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    if flags.0 & 0x10 != 0 {
+    let mmap_flags = decode_mmap_flags(flags, true)?;
+    if mmap_flags.is_fixed {
         return Err(RuntimeError::from(PlatformError::not_supported(
             "destack.fs.mmapAnonymous MAP_FIXED",
         ))
@@ -426,12 +395,23 @@ pub(crate) unsafe fn destack_fs_mprotect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_msync(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
     _flags: MmapSyncFlags,
 ) -> RuntimeResult<()> {
+    let runtime_state = windows_mmap_runtime_state(binding);
+
     let slice = unsafe { mapping.as_slice()? };
     if slice.is_empty() {
+        return Ok(());
+    }
+
+    // anonymous mappings do not have backing storage to flush
+    let entry = {
+        let table = runtime_state.mapping_table.lock();
+        table.get(&(mapping.data as usize)).copied()
+    };
+    if matches!(entry, Some(entry) if entry.is_anon) {
         return Ok(());
     }
 

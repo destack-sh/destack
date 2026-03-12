@@ -435,7 +435,10 @@ pub(crate) unsafe fn destack_fs_dup(
     // register the new handle
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(dup_fd)
-        .with_finalizer(FdFinalizer { fd: dup_fd });
+        .with_finalizer(FdFinalizer {
+            fd: dup_fd,
+            directory_stream: None,
+        });
     let resource_id =
         binding
             .agent()
@@ -494,7 +497,10 @@ pub(crate) unsafe fn destack_fs_dup2(
     }
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(dup_fd)
-        .with_finalizer(FdFinalizer { fd: dup_fd });
+        .with_finalizer(FdFinalizer {
+            fd: dup_fd,
+            directory_stream: None,
+        });
     binding.agent().resources.insert_with_id(
         binding.world(),
         target.0,
@@ -566,7 +572,10 @@ pub(crate) unsafe fn destack_fs_dup3(
     }
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(dup_fd)
-        .with_finalizer(FdFinalizer { fd: dup_fd });
+        .with_finalizer(FdFinalizer {
+            fd: dup_fd,
+            directory_stream: None,
+        });
     binding.agent().resources.insert_with_id(
         binding.world(),
         target.0,
@@ -640,34 +649,28 @@ pub(crate) unsafe fn destack_fs_dirfd(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    #[cfg(unix)]
-    {
-        let directory_fd = directory_descriptor(binding, handle)?;
-        let file_fd = unsafe { libc::dup(directory_fd) };
-        if file_fd < 0 {
-            return Err(RuntimeError::from(PlatformError::io("dup failed".to_string())).boxed());
-        }
-
-        let resource = ResourceEntry::new(ResourceKind::File)
-            .with_fd(file_fd)
-            .with_finalizer(FdFinalizer { fd: file_fd });
-        let resource_id =
-            binding
-                .agent()
-                .resources
-                .insert(binding.world(), resource, Some(binding.engine()));
-        unsafe {
-            *out = FileHandle(resource_id);
-        }
-
-        Ok(())
+    let directory_fd = directory_descriptor(binding, handle)?;
+    let file_fd = unsafe { libc::dup(directory_fd) };
+    if file_fd < 0 {
+        return Err(core_platform::io_error("dup", None));
     }
 
-    #[cfg(not(unix))]
-    {
-        let _ = (binding, handle);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dirfd")).boxed())
+    let resource = ResourceEntry::new(ResourceKind::File)
+        .with_fd(file_fd)
+        .with_finalizer(FdFinalizer {
+            fd: file_fd,
+            directory_stream: None,
+        });
+    let resource_id =
+        binding
+            .agent()
+            .resources
+            .insert(binding.world(), resource, Some(binding.engine()));
+    unsafe {
+        *out = FileHandle(resource_id);
     }
+
+    Ok(())
 }
 
 /// Read file descriptor flags.
@@ -696,25 +699,16 @@ pub(crate) unsafe fn destack_fs_get_fd_flags(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    #[cfg(unix)]
-    {
-        let fd = file_descriptor(binding, handle)?;
-        let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
-        if flags < 0 {
-            return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
-        }
-        unsafe {
-            *out = FdFlags(flags as u32);
-        }
-
-        Ok(())
+    let fd = file_descriptor(binding, handle)?;
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+    if flags < 0 {
+        return Err(core_platform::io_error("fcntl", None));
+    }
+    unsafe {
+        *out = FdFlags(flags as u32);
     }
 
-    #[cfg(not(unix))]
-    {
-        let _ = (binding, handle);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.getFdFlags")).boxed())
-    }
+    Ok(())
 }
 
 /// Read file status flags.
@@ -743,25 +737,16 @@ pub(crate) unsafe fn destack_fs_get_status_flags(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    #[cfg(unix)]
-    {
-        let fd = file_descriptor(binding, handle)?;
-        let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
-        if flags < 0 {
-            return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
-        }
-        unsafe {
-            *out = StatusFlags(flags as u32);
-        }
-
-        Ok(())
+    let fd = file_descriptor(binding, handle)?;
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+    if flags < 0 {
+        return Err(core_platform::io_error("fcntl", None));
+    }
+    unsafe {
+        *out = StatusFlags(flags as u32);
     }
 
-    #[cfg(not(unix))]
-    {
-        let _ = (binding, handle);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.getStatusFlags")).boxed())
-    }
+    Ok(())
 }
 
 /// Write file descriptor flags.
@@ -786,21 +771,12 @@ pub(crate) unsafe fn destack_fs_set_fd_flags(
     handle: FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<()> {
-    #[cfg(unix)]
-    {
-        let fd = file_descriptor(binding, handle)?;
-        let result = unsafe { libc::fcntl(fd, libc::F_SETFD, flags.0 as libc::c_int) };
-        if result < 0 {
-            return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
-        }
-        Ok(())
+    let fd = file_descriptor(binding, handle)?;
+    let result = unsafe { libc::fcntl(fd, libc::F_SETFD, flags.0 as libc::c_int) };
+    if result < 0 {
+        return Err(core_platform::io_error("fcntl", None));
     }
-
-    #[cfg(not(unix))]
-    {
-        let _ = (binding, handle, flags);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.setFdFlags")).boxed())
-    }
+    Ok(())
 }
 
 /// Write file status flags.
@@ -825,21 +801,12 @@ pub(crate) unsafe fn destack_fs_set_status_flags(
     handle: FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<()> {
-    #[cfg(unix)]
-    {
-        let fd = file_descriptor(binding, handle)?;
-        let result = unsafe { libc::fcntl(fd, libc::F_SETFL, flags.0 as libc::c_int) };
-        if result < 0 {
-            return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
-        }
-        Ok(())
+    let fd = file_descriptor(binding, handle)?;
+    let result = unsafe { libc::fcntl(fd, libc::F_SETFL, flags.0 as libc::c_int) };
+    if result < 0 {
+        return Err(core_platform::io_error("fcntl", None));
     }
-
-    #[cfg(not(unix))]
-    {
-        let _ = (binding, handle, flags);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.setStatusFlags")).boxed())
-    }
+    Ok(())
 }
 
 /// Synchronize a filesystem by file handle.
@@ -863,34 +830,21 @@ pub(crate) unsafe fn destack_fs_syncfs(
     binding: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    #[cfg(unix)]
+    let fd = file_descriptor(binding, handle)?;
+    #[cfg(target_os = "linux")]
     {
-        let fd = file_descriptor(binding, handle)?;
-        #[cfg(target_os = "linux")]
-        {
-            let result = unsafe { libc::syncfs(fd) };
-            if result != 0 {
-                return Err(
-                    RuntimeError::from(PlatformError::io("syncfs failed".to_string())).boxed(),
-                );
-            }
-            Ok(())
+        let result = unsafe { libc::syncfs(fd) };
+        if result != 0 {
+            return Err(core_platform::io_error("syncfs", None));
         }
-        #[cfg(not(target_os = "linux"))]
-        {
-            let result = unsafe { libc::fsync(fd) };
-            if result != 0 {
-                return Err(
-                    RuntimeError::from(PlatformError::io("fsync failed".to_string())).boxed(),
-                );
-            }
-            Ok(())
-        }
+        Ok(())
     }
-
-    #[cfg(not(unix))]
+    #[cfg(not(target_os = "linux"))]
     {
-        let _ = (binding, handle);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.syncfs")).boxed())
+        let result = unsafe { libc::fsync(fd) };
+        if result != 0 {
+            return Err(core_platform::io_error("fsync", None));
+        }
+        Ok(())
     }
 }
