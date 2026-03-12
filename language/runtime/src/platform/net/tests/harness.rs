@@ -10,23 +10,18 @@ use super::{
     socket_addresses_native, socket_addresses_vm, udp_receive_native, udp_receive_vm,
     uds_path_address_native, uds_path_address_vm, vm_slice_of_slices,
 };
-#[cfg(windows)]
-use crate::diagnostic::{DiagnosticId, RuntimeStatus};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{NativeAbi, VmAbi};
-#[cfg(windows)]
-use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{OsPath, OsPathBytes, OsPathUtf16, PathBytesAbi, PathUtf16Abi};
 use crate::platform::net::{
     KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, NetInterface, NetInterfaceVm,
-    ResolveFlags, ResolveQuery, ReverseLookupName, SocketAddress, SocketAddressVm,
-    SocketCredentials, SocketCredentialsVm, SocketFamily, SocketMessageFlags,
-    SocketRecvBatchRequest, SocketRecvMessage, SocketSendBatchEntry, SocketSendMessage,
-    SocketSendMessageVm, UdpReceive, UdpReceiveVm, UdsAddress,
+    PacketBackendDescriptor, PacketBackendDescriptorVm, ResolveFlags, ResolveQuery,
+    ReverseLookupName, RouteEntry, RouteEntryVm, SocketAddress, SocketAddressVm, SocketCredentials,
+    SocketCredentialsVm, SocketFamily, SocketMessageFlags, SocketRecvBatchRequest,
+    SocketRecvMessage, SocketSendBatchEntry, SocketSendMessage, SocketSendMessageVm, UdpReceive,
+    UdpReceiveVm, UdsAddress, vm as platform_vm,
 };
-use crate::platform::resource::ListenerHandle;
-#[cfg(windows)]
-use crate::platform::resource::SocketHandle;
+use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice, net as platform_net};
 use crate::runtime::{NativeSlice, NativeStringRef};
 
@@ -49,6 +44,42 @@ impl<'call> NetHarnessContext<'call> {
     /// Read the port assigned to a listener handle.
     pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
         self.runtime.listener_port(handle)
+    }
+
+    /// Return whether one socket handle is in nonblocking mode on unix.
+    #[cfg(unix)]
+    pub(crate) fn socket_is_nonblocking(&self, handle: SocketHandle) -> bool {
+        self.runtime.socket_is_nonblocking(handle)
+    }
+
+    /// Return whether one socket handle is close-on-exec or non-inheritable.
+    pub(crate) fn socket_is_close_on_exec(&self, handle: SocketHandle) -> bool {
+        self.runtime.socket_is_close_on_exec(handle)
+    }
+
+    /// Connect to a host and port through the VM text helper.
+    pub(crate) fn vm_connect_text(&mut self, host: &str, port: u16) -> RuntimeResult<SocketHandle> {
+        let context = self
+            .vm_context_mut()
+            .expect("vm context required for vm connectText helper");
+        let host = vm::StringHandle::new(context.intern_string(host));
+
+        platform_vm::destack_net_connect_text(self.call_context, context, host, port)
+    }
+
+    /// Start listening through the VM text helper.
+    pub(crate) fn vm_listen_text(
+        &mut self,
+        host: &str,
+        port: u16,
+        backlog: u32,
+    ) -> RuntimeResult<ListenerHandle> {
+        let context = self
+            .vm_context_mut()
+            .expect("vm context required for vm listenText helper");
+        let host = vm::StringHandle::new(context.intern_string(host));
+
+        platform_vm::destack_net_listen_text(self.call_context, context, host, port, backlog)
     }
 
     /// Build one backend-specific UTF-8 string value.
@@ -179,6 +210,94 @@ impl<'call> NetHarnessContext<'call> {
         }
     }
 
+    /// Decode one backend-specific packet-backend descriptor list.
+    pub(crate) fn packet_backend_descriptors_from_value(
+        &self,
+        value: HarnessValue<
+            NativeSlice<PacketBackendDescriptor>,
+            VmSlice<PacketBackendDescriptorVm>,
+        >,
+    ) -> RuntimeResult<Vec<(String, PacketBackendDescriptor)>> {
+        match value {
+            HarnessValue::Native(value) => {
+                let descriptors = unsafe { value.as_slice()? };
+                let mut decoded = Vec::with_capacity(descriptors.len());
+                for descriptor in descriptors {
+                    let name = unsafe { descriptor.name.as_str()? };
+                    decoded.push((name.to_string(), *descriptor));
+                }
+                Ok(decoded)
+            }
+            HarnessValue::Vm(value) => {
+                let context = self
+                    .vm_context_mut()
+                    .expect("vm context required for vm packet-backend list");
+                let descriptors = value.read_values(context)?;
+                let mut decoded = Vec::with_capacity(descriptors.len());
+                for descriptor in descriptors {
+                    let name = context
+                        .string_ref(descriptor.name)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    decoded.push((
+                        name.as_str().to_string(),
+                        PacketBackendDescriptor {
+                            backend: descriptor.backend,
+                            name: self.call_context.store_string(name.as_str()),
+                            available: descriptor.available,
+                            priority: descriptor.priority,
+                            capability_flags: descriptor.capability_flags,
+                        },
+                    ));
+                }
+                Ok(decoded)
+            }
+        }
+    }
+
+    /// Decode one backend-specific route-entry list.
+    pub(crate) fn route_entries_from_value(
+        &self,
+        value: HarnessValue<NativeArray<RouteEntry>, VmArray<RouteEntryVm>>,
+    ) -> RuntimeResult<Vec<RouteEntry>> {
+        match value {
+            HarnessValue::Native(value) => {
+                let routes = unsafe { value.as_slice()? };
+                Ok(routes.to_vec())
+            }
+            HarnessValue::Vm(value) => {
+                let context = self
+                    .vm_context_mut()
+                    .expect("vm context required for vm route list");
+                let routes = value.read_values(context)?;
+                let mut decoded = Vec::with_capacity(routes.len());
+                for route in routes {
+                    decoded.push(RouteEntry {
+                        family: route.family,
+                        destination: SocketAddress {
+                            family: route.destination.family,
+                            length: route.destination.length,
+                            bytes: self
+                                .call_context
+                                .store_array(route.destination.bytes.read_bytes(context)?),
+                        },
+                        prefix_length: route.prefix_length,
+                        gateway: SocketAddress {
+                            family: route.gateway.family,
+                            length: route.gateway.length,
+                            bytes: self
+                                .call_context
+                                .store_array(route.gateway.bytes.read_bytes(context)?),
+                        },
+                        interface_index: route.interface_index,
+                        metric: route.metric,
+                        kind: route.kind,
+                    });
+                }
+                Ok(decoded)
+            }
+        }
+    }
+
     /// Build one backend-specific nested byte-slice value.
     pub(crate) fn bytes_slices_value(&self, buffers: &[&[u8]]) -> RuntimeResult<ByteSlicesValue> {
         match self.vm_context_mut() {
@@ -226,57 +345,13 @@ impl<'call> NetHarnessContext<'call> {
         }
     }
 
-    /// Convert a native status into a runtime result.
-    #[cfg(windows)]
-    pub(crate) fn status_result(&self, status: RuntimeStatus, label: &str) -> RuntimeResult<()> {
-        // fast path: success
-        if status == RuntimeStatus::OK {
-            return Ok(());
-        }
-
-        // decode status-only errors when no runtime id is attached
-        if status.error_id == 0 {
-            if status.code == PlatformErrorCode::NotSupported.number().saturating_add(1) {
-                return Err(RuntimeError::from(PlatformError::not_supported(label)).boxed());
-            }
-
-            return Err(RuntimeError::from(PlatformError::io(format!(
-                "{label} failed without runtime error id",
-            )))
-            .boxed());
-        }
-
-        // load the captured runtime error
-        let error = self
-            .runtime
-            .agent
-            .diagnostics
-            .take_error(DiagnosticId::from_raw(status.error_id))
-            .unwrap_or_else(|| {
-                RuntimeError::from(PlatformError::io(format!(
-                    "{label} failed with missing runtime error",
-                )))
-                .boxed()
-            });
-
-        Err(error)
-    }
-
-    /// Convert a native status into a test-friendly result.
-    #[cfg(windows)]
-    pub(crate) fn status_ok(&self, status: RuntimeStatus, label: &str) -> RuntimeResult<()> {
-        self.status_result(status, label)
-    }
-
     /// Write bytes to one socket handle.
-    #[cfg(windows)]
     pub(crate) fn write(&mut self, handle: SocketHandle, buffer: &[u8]) -> RuntimeResult<u64> {
         let buffer = self.bytes_slice_value(buffer)?;
         self.destack_net_write(handle, buffer)
     }
 
     /// Read bytes from one socket handle into one mutable buffer.
-    #[cfg(windows)]
     pub(crate) fn read(&mut self, handle: SocketHandle, buffer: &mut [u8]) -> RuntimeResult<u64> {
         // allocate one backend-specific mutable slice for socket reads
         let output = self.zeroed_bytes_slice_value(buffer.len())?;
@@ -443,25 +518,31 @@ impl<'call> NetHarnessContext<'call> {
         family: SocketFamily,
         flags: ResolveFlags,
     ) -> HarnessValue<ResolveQuery, platform_net::ResolveQueryVm> {
+        let service = port.to_string();
+        self.resolve_query_parts_value(Some(host), Some(service.as_str()), family, flags)
+    }
+
+    /// Build one backend-specific resolve-query value from optional parts.
+    pub(crate) fn resolve_query_parts_value(
+        &self,
+        host: Option<&str>,
+        service: Option<&str>,
+        family: SocketFamily,
+        flags: ResolveFlags,
+    ) -> HarnessValue<ResolveQuery, platform_net::ResolveQueryVm> {
         match self.vm_context_mut() {
-            Some(context) => {
-                let service = port.to_string();
-                self.harness_value_vm(platform_net::ResolveQueryVm {
-                    host: Some(host_from_vm(context, host)),
-                    service: Some(host_from_vm(context, &service)),
-                    family,
-                    flags,
-                })
-            }
-            None => {
-                let service = port.to_string();
-                self.harness_value(ResolveQuery {
-                    host: Some(NativeStringRef::from(host)),
-                    service: Some(NativeStringRef::from(service.as_str())),
-                    family,
-                    flags,
-                })
-            }
+            Some(context) => self.harness_value_vm(platform_net::ResolveQueryVm {
+                host: host.map(|host| host_from_vm(context, host)),
+                service: service.map(|service| host_from_vm(context, service)),
+                family,
+                flags,
+            }),
+            None => self.harness_value(ResolveQuery {
+                host: host.map(|host| self.call_context.store_string(host)),
+                service: service.map(|service| self.call_context.store_string(service)),
+                family,
+                flags,
+            }),
         }
     }
 
@@ -590,7 +671,7 @@ impl<'call> NetHarnessContext<'call> {
     pub(crate) fn udp_receive_from_value(
         &self,
         value: HarnessValue<UdpReceive, UdpReceiveVm>,
-    ) -> RuntimeResult<(String, u16, SocketFamily, u64)> {
+    ) -> RuntimeResult<(String, u16, SocketFamily, u64, u32)> {
         match value {
             HarnessValue::Native(value) => udp_receive_native(value),
             HarnessValue::Vm(value) => {

@@ -7,7 +7,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{AcceptFlags, SocketFamily, SocketShutdown};
 
 /// Shut down both directions and ensure writes fail afterward.
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[test]
 fn test_net_shutdown() {
     with_harness_context(|mut context| {
@@ -58,7 +58,7 @@ fn test_net_shutdown() {
 }
 
 /// Shut down writes only and keep the read side functional.
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[test]
 fn test_net_shutdown_write_keeps_read_path() {
     with_harness_context(|mut context| {
@@ -117,7 +117,7 @@ fn test_net_shutdown_write_keeps_read_path() {
 }
 
 /// Shut down reads only and keep the write side functional.
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[test]
 fn test_net_shutdown_read_keeps_write_path() {
     with_harness_context(|mut context| {

@@ -6,7 +6,9 @@ use super::{
     assert_platform_error_codes_with_privileged_policy, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::net::SocketMessageFlags;
+use crate::platform::net::{
+    SocketMessageFlags, UdsAddress, UdsAddressVm, UdsUnnamedAddress, UdsUnnamedAddressVm,
+};
 
 /// Exchange bytes over a unix domain socket listener and client pair.
 #[cfg(unix)]
@@ -18,18 +20,7 @@ fn test_net_uds_roundtrip() {
 
         // start listening on the unix socket
         let listener =
-            match context.destack_net_uds_listen(context.uds_address_value(&socket_path), 16) {
-                Ok(listener) => listener,
-                Err(error) => {
-                    // uds may be unavailable on some harnesses
-                    assert_platform_error_code_with_privileged_policy::<()>(
-                        Err(error),
-                        PlatformErrorCode::NotSupported,
-                    )?;
-                    let _ = std::fs::remove_file(&socket_path);
-                    return Ok(());
-                }
-            };
+            context.destack_net_uds_listen(context.uds_address_value(&socket_path), 16)?;
 
         // connect a client socket
         let client = context.destack_net_uds_connect(context.uds_address_value(&socket_path))?;
@@ -70,18 +61,7 @@ fn test_net_uds_sendmsg_recvmsg() {
 
         // start listening on the unix socket
         let listener =
-            match context.destack_net_uds_listen(context.uds_address_value(&socket_path), 16) {
-                Ok(listener) => listener,
-                Err(error) => {
-                    // uds may be unavailable on some harnesses
-                    assert_platform_error_code_with_privileged_policy::<()>(
-                        Err(error),
-                        PlatformErrorCode::NotSupported,
-                    )?;
-                    let _ = std::fs::remove_file(&socket_path);
-                    return Ok(());
-                }
-            };
+            context.destack_net_uds_listen(context.uds_address_value(&socket_path), 16)?;
 
         // connect a client socket
         let client = context.destack_net_uds_connect(context.uds_address_value(&socket_path))?;
@@ -100,28 +80,10 @@ fn test_net_uds_sendmsg_recvmsg() {
         // server receives using recvmsg
         let recv_buffer = context.zeroed_bytes_slice_value(16)?;
         let (recv_call, recv_decode) = context.duplicate_value(recv_buffer);
-        let recv_result =
-            context.destack_net_recv_msg(server, recv_call, SocketMessageFlags(0), 0, false, 0);
+        let receive =
+            context.destack_net_recv_msg(server, recv_call, SocketMessageFlags(0), 0, false, 0)?;
         let (bytes, fds, has_credentials, recv_flags, payload_truncated, control_truncated) =
-            match recv_result {
-                Ok(receive) => context.recv_message_fields(receive),
-                Err(error) => {
-                    // recvmsg may be unavailable on some harnesses
-                    assert_platform_error_code_with_privileged_policy::<(
-                        u64,
-                        u32,
-                        bool,
-                        u32,
-                        bool,
-                        bool,
-                    )>(Err(error), PlatformErrorCode::NotSupported)?;
-                    context.destack_net_close(server)?;
-                    context.destack_net_close(client)?;
-                    context.destack_net_uds_close_listener(listener)?;
-                    let _ = std::fs::remove_file(&socket_path);
-                    return Ok(());
-                }
-            };
+            context.recv_message_fields(receive);
         let buffer = context.bytes_prefix_from_slice_value(recv_decode, bytes as usize)?;
         assert_eq!(buffer, b"hello");
         assert_eq!(fds, 0);
@@ -152,18 +114,7 @@ fn test_net_uds_recvmsg_credentials() {
 
         // start listening on the unix socket
         let listener =
-            match context.destack_net_uds_listen(context.uds_address_value(&socket_path), 16) {
-                Ok(listener) => listener,
-                Err(error) => {
-                    // uds may be unavailable on some harnesses
-                    assert_platform_error_code_with_privileged_policy::<()>(
-                        Err(error),
-                        PlatformErrorCode::NotSupported,
-                    )?;
-                    let _ = std::fs::remove_file(&socket_path);
-                    return Ok(());
-                }
-            };
+            context.destack_net_uds_listen(context.uds_address_value(&socket_path), 16)?;
 
         // connect a client socket
         let client = context.destack_net_uds_connect(context.uds_address_value(&socket_path))?;
@@ -182,28 +133,10 @@ fn test_net_uds_recvmsg_credentials() {
         // server receives and requests credentials
         let recv_buffer = context.zeroed_bytes_slice_value(16)?;
         let (recv_call, recv_decode) = context.duplicate_value(recv_buffer);
-        let recv_result =
-            context.destack_net_recv_msg(server, recv_call, SocketMessageFlags(0), 0, true, 0);
+        let receive =
+            context.destack_net_recv_msg(server, recv_call, SocketMessageFlags(0), 0, true, 0)?;
         let (bytes, fds, has_credentials, recv_flags, payload_truncated, control_truncated) =
-            match recv_result {
-                Ok(receive) => context.recv_message_fields(receive),
-                Err(error) => {
-                    // credentials are unavailable on some hosts
-                    assert_platform_error_code_with_privileged_policy::<(
-                        u64,
-                        u32,
-                        bool,
-                        u32,
-                        bool,
-                        bool,
-                    )>(Err(error), PlatformErrorCode::NotSupported)?;
-                    context.destack_net_close(server)?;
-                    context.destack_net_close(client)?;
-                    context.destack_net_uds_close_listener(listener)?;
-                    let _ = std::fs::remove_file(&socket_path);
-                    return Ok(());
-                }
-            };
+            context.recv_message_fields(receive);
         let buffer = context.bytes_prefix_from_slice_value(recv_decode, bytes as usize)?;
         assert_eq!(buffer, b"hello");
         assert_eq!(fds, 0);
@@ -234,18 +167,7 @@ fn test_net_uds_sendmsg_invalid_flags() {
 
         // start listening on the unix socket
         let listener =
-            match context.destack_net_uds_listen(context.uds_address_value(&socket_path), 16) {
-                Ok(listener) => listener,
-                Err(error) => {
-                    // uds may be unavailable on some harnesses
-                    assert_platform_error_code_with_privileged_policy::<()>(
-                        Err(error),
-                        PlatformErrorCode::NotSupported,
-                    )?;
-                    let _ = std::fs::remove_file(&socket_path);
-                    return Ok(());
-                }
-            };
+            context.destack_net_uds_listen(context.uds_address_value(&socket_path), 16)?;
 
         // connect a client socket
         let client = context.destack_net_uds_connect(context.uds_address_value(&socket_path))?;
@@ -272,6 +194,49 @@ fn test_net_uds_sendmsg_invalid_flags() {
     });
 }
 
+/// Reject unnamed UDS addresses for connect and listen.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_net_uds_rejects_unnamed_addresses() {
+    with_harness_context(|mut context| {
+        let unnamed = match context.string_value("unnamed") {
+            super::HarnessValue::Native(kind) => {
+                context.harness_value(UdsAddress::UdsUnnamedAddress(UdsUnnamedAddress { kind }))
+            }
+            super::HarnessValue::Vm(kind) => {
+                context.harness_value_vm(UdsAddressVm::UdsUnnamedAddress(UdsUnnamedAddressVm {
+                    kind,
+                }))
+            }
+        };
+
+        let connect_result = context.destack_net_uds_connect(unnamed);
+        assert_platform_error_code_with_privileged_policy(
+            connect_result,
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        let unnamed = match context.string_value("unnamed") {
+            super::HarnessValue::Native(kind) => {
+                context.harness_value(UdsAddress::UdsUnnamedAddress(UdsUnnamedAddress { kind }))
+            }
+            super::HarnessValue::Vm(kind) => {
+                context.harness_value_vm(UdsAddressVm::UdsUnnamedAddress(UdsUnnamedAddressVm {
+                    kind,
+                }))
+            }
+        };
+
+        let listen_result = context.destack_net_uds_listen(unnamed, 16);
+        assert_platform_error_code_with_privileged_policy(
+            listen_result,
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        Ok(())
+    });
+}
+
 /// Exchange bytes over unix domain sockets using utf16 path bindings.
 #[cfg(unix)]
 #[test]
@@ -281,20 +246,8 @@ fn test_net_uds_roundtrip_utf16_path() {
         let socket_path = uds_path("net_uds_roundtrip_utf16");
 
         // start listening on the unix socket with utf16 path encoding
-        let listener = match context
-            .destack_net_uds_listen(context.uds_address_utf16_value(&socket_path), 16)
-        {
-            Ok(listener) => listener,
-            Err(error) => {
-                // utf16 uds bindings may be unavailable on some harnesses
-                assert_platform_error_code_with_privileged_policy::<()>(
-                    Err(error),
-                    PlatformErrorCode::NotSupported,
-                )?;
-                let _ = std::fs::remove_file(&socket_path);
-                return Ok(());
-            }
-        };
+        let listener =
+            context.destack_net_uds_listen(context.uds_address_utf16_value(&socket_path), 16)?;
 
         // connect a client socket with utf16 path encoding
         let client =
@@ -318,6 +271,50 @@ fn test_net_uds_roundtrip_utf16_path() {
         context.destack_net_close(server)?;
         context.destack_net_close(client)?;
         context.destack_net_uds_close_listener(listener)?;
+
+        // cleanup socket path if it exists
+        let _ = std::fs::remove_file(&socket_path);
+
+        Ok(())
+    });
+}
+
+/// Reuse the same UDS path after closing the previous listener.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_net_uds_listen_reuses_stale_socket_path() {
+    with_harness_context(|mut context| {
+        // build a unique socket path
+        let socket_path = uds_path("net_uds_reuse_path");
+
+        // create and close the first listener
+        let first_listener =
+            match context.destack_net_uds_listen(context.uds_address_value(&socket_path), 16) {
+                Ok(listener) => listener,
+                Err(error) => {
+                    #[cfg(windows)]
+                    {
+                        assert_platform_error_code_with_privileged_policy::<()>(
+                            Err(error),
+                            PlatformErrorCode::NotSupported,
+                        )?;
+                        let _ = std::fs::remove_file(&socket_path);
+                        return Ok(());
+                    }
+
+                    #[cfg(unix)]
+                    {
+                        let _ = std::fs::remove_file(&socket_path);
+                        return Err(error);
+                    }
+                }
+            };
+        context.destack_net_uds_close_listener(first_listener)?;
+
+        // reopening the same path should succeed
+        let second_listener =
+            context.destack_net_uds_listen(context.uds_address_value(&socket_path), 16)?;
+        context.destack_net_uds_close_listener(second_listener)?;
 
         // cleanup socket path if it exists
         let _ = std::fs::remove_file(&socket_path);

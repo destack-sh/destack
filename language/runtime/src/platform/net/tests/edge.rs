@@ -11,36 +11,24 @@ fn test_net_invalid_handles() {
     with_harness_context(|mut context| {
         assert_platform_error_codes_with_privileged_policy(
             context.destack_net_close(SocketHandle(ResourceId(9999))),
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Io,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
         assert_platform_error_codes_with_privileged_policy(
             context.destack_net_close_listener(ListenerHandle(ResourceId(9999))),
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Io,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
         assert_platform_error_codes_with_privileged_policy(
             context.destack_net_write(
                 SocketHandle(ResourceId(9999)),
                 context.bytes_slice_value(b"data")?,
             ),
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Io,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
         let buffer = context.zeroed_bytes_slice_value(8)?;
         assert_platform_error_codes_with_privileged_policy(
             context.destack_net_read(SocketHandle(ResourceId(9999)), buffer),
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Io,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
         Ok(())
@@ -48,7 +36,7 @@ fn test_net_invalid_handles() {
 }
 
 /// Reject accept calls on a listener that has already been closed.
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[test]
 fn test_net_accept_after_close() {
     with_harness_context(|mut context| {
@@ -63,10 +51,7 @@ fn test_net_accept_after_close() {
 
         assert_platform_error_codes_with_privileged_policy(
             context.destack_net_accept(listener, AcceptFlags(0)),
-            &[
-                PlatformErrorCode::InvalidArgumentValue,
-                PlatformErrorCode::Io,
-            ],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
         Ok(())
