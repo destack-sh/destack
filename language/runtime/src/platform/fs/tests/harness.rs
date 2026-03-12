@@ -239,26 +239,21 @@ impl<'call> FsHarnessContext<'call> {
         }
     }
 
-    /// Read one watch-event kind from a unified test payload.
-    pub(crate) fn watch_event_is_create_modify_metadata_or_rename(
-        &self,
-        event: FsWatchEvent,
-    ) -> bool {
+    /// Return one normalized watch-event kind name.
+    pub(crate) fn watch_event_kind_name(&self, event: FsWatchEvent) -> &'static str {
         match event {
-            FsWatchEvent::Native(event) => matches!(
-                event,
-                WatchEvent::WatchCreateEvent(_)
-                    | WatchEvent::WatchModifyEvent(_)
-                    | WatchEvent::WatchMetadataEvent(_)
-                    | WatchEvent::WatchRenameEvent(_)
-            ),
-            FsWatchEvent::Vm(event) => matches!(
-                event,
-                WatchEventVm::WatchCreateEvent(_)
-                    | WatchEventVm::WatchModifyEvent(_)
-                    | WatchEventVm::WatchMetadataEvent(_)
-                    | WatchEventVm::WatchRenameEvent(_)
-            ),
+            FsWatchEvent::Native(WatchEvent::WatchCreateEvent(_)) => "create",
+            FsWatchEvent::Native(WatchEvent::WatchRemoveEvent(_)) => "remove",
+            FsWatchEvent::Native(WatchEvent::WatchModifyEvent(_)) => "modify",
+            FsWatchEvent::Native(WatchEvent::WatchRenameEvent(_)) => "rename",
+            FsWatchEvent::Native(WatchEvent::WatchMetadataEvent(_)) => "metadata",
+            FsWatchEvent::Native(WatchEvent::WatchOverflowEvent(_)) => "overflow",
+            FsWatchEvent::Vm(WatchEventVm::WatchCreateEvent(_)) => "create",
+            FsWatchEvent::Vm(WatchEventVm::WatchRemoveEvent(_)) => "remove",
+            FsWatchEvent::Vm(WatchEventVm::WatchModifyEvent(_)) => "modify",
+            FsWatchEvent::Vm(WatchEventVm::WatchRenameEvent(_)) => "rename",
+            FsWatchEvent::Vm(WatchEventVm::WatchMetadataEvent(_)) => "metadata",
+            FsWatchEvent::Vm(WatchEventVm::WatchOverflowEvent(_)) => "overflow",
         }
     }
 
@@ -325,13 +320,12 @@ impl<'call> FsHarnessContext<'call> {
         }
     }
 
-    /// Convert one watch-event related path into a displayable string.
-    pub(crate) fn watch_event_related_path(&mut self, event: FsWatchEvent) -> String {
-        match event {
+    /// Convert one watch-event related path into a displayable string when present.
+    pub(crate) fn watch_event_related_path(&mut self, event: FsWatchEvent) -> Option<String> {
+        let related_path = match event {
             FsWatchEvent::Native(WatchEvent::WatchRenameEvent(event)) => {
                 path_ref_string_native(event.related_path)
             }
-            FsWatchEvent::Native(_) => String::new(),
             FsWatchEvent::Vm(WatchEventVm::WatchRenameEvent(event)) => path_ref_string_vm(
                 self.vm_context_mut()
                     .expect("vm context required for vm watch event"),
@@ -343,8 +337,14 @@ impl<'call> FsHarnessContext<'call> {
                     error.message()
                 )
             }),
-            FsWatchEvent::Vm(_) => String::new(),
+            _ => return None,
+        };
+
+        if related_path.is_empty() {
+            return None;
         }
+
+        Some(related_path)
     }
 
     /// Build one backend-specific string value.
@@ -867,7 +867,12 @@ impl<'call> FsHarnessContext<'call> {
                     ))
                     .boxed());
                 }
-                mapping.write_bytes(context, bytes)?;
+
+                // vm slices require whole-slice writes, so preserve the tail
+                let mut vm_bytes = mapping.read_bytes(context)?;
+                vm_bytes[..bytes.len()].copy_from_slice(bytes);
+                mapping.write_bytes(context, &vm_bytes)?;
+
                 Ok(())
             }
             (None, FsMapping::Native(mapping)) => {

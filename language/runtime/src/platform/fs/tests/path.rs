@@ -1,25 +1,17 @@
 use super::{temp_dir, with_harness_context};
-#[cfg(any(
-    target_os = "linux",
-    target_os = "android",
-    target_os = "freebsd",
-    target_os = "openbsd",
-    target_os = "netbsd",
-    target_os = "dragonfly"
-))]
+#[cfg(any(unix, windows))]
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(unix)]
 use crate::platform::fs::SymlinkType;
 use crate::platform::fs::{CopyFlags, FileMode, OpenFlags};
-#[cfg(any(
-    target_os = "linux",
-    target_os = "android",
-    target_os = "freebsd",
-    target_os = "openbsd",
-    target_os = "netbsd",
-    target_os = "dragonfly"
-))]
+#[cfg(any(unix, windows))]
 use crate::tests::platform::assert_platform_error_codes_with_privileged_policy;
+
+/// Copyfile flag to reject replacing an existing destination.
+const COPYFILE_FAIL_IF_EXISTS: u32 = 0x1;
+/// One unsupported copyfile flag bit for validation tests.
+#[cfg(windows)]
+const COPYFILE_UNKNOWN_FLAG: u32 = 0x2;
 
 /// Rename, hard link, and copy files while preserving payload bytes.
 #[cfg(any(unix, windows))]
@@ -89,6 +81,113 @@ fn test_fs_rename_unlink_copyfile() {
 
         let dir = context.path_bytes(&temp_dir);
         context.destack_fs_rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
+/// Reject replacing an existing destination when copyfile uses the no replace flag.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_fs_copyfile_respects_fail_if_exists_flag() {
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_copyfile_noreplace");
+        let source_path = temp_dir.join("source.txt");
+        let target_path = temp_dir.join("target.txt");
+
+        let directory = context.path_bytes(&temp_dir);
+        context.destack_fs_mkdir(directory, FileMode(0o755))?;
+
+        // seed the source and destination payloads
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+
+        let source = context.path_bytes(&source_path);
+        let handle = context.destack_fs_open(source, flags, FileMode(0o644))?;
+        let payload = context.bytes_slice_value(b"source")?;
+        context.destack_fs_write(handle, payload)?;
+        context.destack_fs_close(handle)?;
+
+        let target = context.path_bytes(&target_path);
+        let handle = context.destack_fs_open(target, flags, FileMode(0o644))?;
+        let payload = context.bytes_slice_value(b"target")?;
+        context.destack_fs_write(handle, payload)?;
+        context.destack_fs_close(handle)?;
+
+        // reject replacing the existing destination
+        let source = context.path_bytes(&source_path);
+        let target = context.path_bytes(&target_path);
+        assert_platform_error_codes_with_privileged_policy(
+            context.destack_fs_copyfile(source, target, CopyFlags(COPYFILE_FAIL_IF_EXISTS)),
+            &[PlatformErrorCode::IoAlreadyExists],
+        )?;
+
+        // verify the destination payload was preserved
+        let target = context.path_bytes(&target_path);
+        let handle =
+            context.destack_fs_open(target, OpenFlags(libc::O_RDONLY as u32), FileMode(0))?;
+        let buffer = context.zeroed_bytes_slice_value(16)?;
+        let (buffer_call, buffer_value) = context.duplicate_value(buffer);
+        let out = context.destack_fs_read(handle, buffer_call)?;
+        let buffer = context.bytes_prefix_from_slice_value(buffer_value, out as usize)?;
+        assert_eq!(buffer, b"target");
+        context.destack_fs_close(handle)?;
+
+        // cleanup
+        let target = context.path_bytes(&target_path);
+        context.destack_fs_unlink(target)?;
+        let source = context.path_bytes(&source_path);
+        context.destack_fs_unlink(source)?;
+        let directory = context.path_bytes(&temp_dir);
+        context.destack_fs_rmdir(directory)?;
+
+        Ok(())
+    });
+}
+
+/// Preserve source permission bits when copyfile creates the destination on unix.
+#[cfg(unix)]
+#[test]
+fn test_fs_copyfile_preserves_source_mode_bits() {
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_copyfile_mode");
+        let source_path = temp_dir.join("source.txt");
+        let target_path = temp_dir.join("target.txt");
+
+        let directory = context.path_bytes(&temp_dir);
+        context.destack_fs_mkdir(directory, FileMode(0o755))?;
+
+        // create the source and force a mode that differs from the common process umask
+        let source = context.path_bytes(&source_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.destack_fs_open(source, flags, FileMode(0o600))?;
+        context.destack_fs_close(handle)?;
+
+        let source = context.path_bytes(&source_path);
+        context.destack_fs_chmod(source, FileMode(0o777))?;
+
+        // copy the source into a new destination
+        let source = context.path_bytes(&source_path);
+        let target = context.path_bytes(&target_path);
+        context.destack_fs_copyfile(source, target, CopyFlags(0))?;
+
+        // require the destination mode bits to match the source permission bits exactly
+        let source = context.path_bytes(&source_path);
+        let source_stat = context.destack_fs_stat(source)?;
+
+        let target = context.path_bytes(&target_path);
+        let target_stat = context.destack_fs_stat(target)?;
+        assert_eq!(source_stat.mode.0 & 0o777, 0o777);
+        assert_eq!(target_stat.mode.0 & 0o777, source_stat.mode.0 & 0o777);
+
+        // cleanup
+        let target = context.path_bytes(&target_path);
+        context.destack_fs_unlink(target)?;
+        let source = context.path_bytes(&source_path);
+        context.destack_fs_unlink(source)?;
+        let directory = context.path_bytes(&temp_dir);
+        context.destack_fs_rmdir(directory)?;
 
         Ok(())
     });
@@ -305,18 +404,18 @@ fn test_fs_utf16_output_path_requires_utf8_on_unix() {
         let link = context.path_bytes(&link_path);
         context.destack_fs_symlink(target, link, SymlinkType::File)?;
 
-        // utf16 readlink is not supported on unix hosts
+        // utf16 readlink cannot encode non-utf8 host output
         let link = context.path_utf16(&link_path);
         assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_readlink(link),
-            &[PlatformErrorCode::NotSupported],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
-        // utf16 realpath is not supported on unix hosts
+        // utf16 realpath cannot encode non-utf8 host output
         let link = context.path_utf16(&link_path);
         assert_platform_error_codes_with_privileged_policy(
             context.destack_fs_realpath(link),
-            &[PlatformErrorCode::NotSupported],
+            &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
         // cleanup
@@ -326,6 +425,46 @@ fn test_fs_utf16_output_path_requires_utf8_on_unix() {
         context.destack_fs_unlink(file)?;
         let dir = context.path_bytes(&temp_dir);
         context.destack_fs_rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
+/// Reject unsupported copyfile flags on windows hosts.
+#[cfg(windows)]
+#[test]
+fn test_fs_copyfile_rejects_unknown_flags_on_windows() {
+    with_harness_context(|mut context| {
+        // runtime and temp directory
+        let temp_dir = temp_dir("fs_copyfile_flags_windows");
+        let source_path = temp_dir.join("source.txt");
+        let target_path = temp_dir.join("target.txt");
+
+        let directory = context.path_bytes(&temp_dir);
+        context.destack_fs_mkdir(directory, FileMode(0o755))?;
+
+        // create the source file
+        let source = context.path_bytes(&source_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.destack_fs_open(source, flags, FileMode(0o644))?;
+        let payload = context.bytes_slice_value(b"copy")?;
+        context.destack_fs_write(handle, payload)?;
+        context.destack_fs_close(handle)?;
+
+        // reject unsupported copy flags
+        let source = context.path_bytes(&source_path);
+        let target = context.path_bytes(&target_path);
+        let result = context.destack_fs_copyfile(source, target, CopyFlags(COPYFILE_UNKNOWN_FLAG));
+        assert_platform_error_codes_with_privileged_policy(
+            result,
+            &[PlatformErrorCode::InvalidArgumentValue],
+        )?;
+
+        // cleanup
+        let source = context.path_bytes(&source_path);
+        context.destack_fs_unlink(source)?;
+        let directory = context.path_bytes(&temp_dir);
+        context.destack_fs_rmdir(directory)?;
 
         Ok(())
     });
