@@ -746,7 +746,7 @@ declare namespace fs {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses sendfile(2) on Unix variants and TransmitFile or copy fallback on Windows.
+    /// Uses sendfile(2) on Unix variants and TransmitFile with userspace fallback on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
