@@ -5,12 +5,32 @@ import { FileOffset, FileSize } from "./flags.ds";
 
 /// Memory protection flags for mappings.
 export newtype MmapProt = uint32;
+/// Permit reads through the mapping.
+export const PROT_READ: MmapProt = MmapProt(0x1);
+/// Permit writes through the mapping.
+export const PROT_WRITE: MmapProt = MmapProt(0x2);
+/// Permit instruction fetch through the mapping.
+export const PROT_EXEC: MmapProt = MmapProt(0x4);
 
 /// Mapping flags.
 export newtype MmapFlags = uint32;
+/// Share mapping writes with the underlying object.
+export const MAP_SHARED: MmapFlags = MmapFlags(0x1);
+/// Keep mapping writes private to the process.
+export const MAP_PRIVATE: MmapFlags = MmapFlags(0x2);
+/// Request a fixed virtual address when the host supports it.
+export const MAP_FIXED: MmapFlags = MmapFlags(0x10);
+/// Create an anonymous mapping with no file backing.
+export const MAP_ANON: MmapFlags = MmapFlags(0x20);
 
 /// Sync flags for msync.
 export newtype MmapSyncFlags = uint32;
+/// Schedule asynchronous writeback for dirty mapping pages.
+export const MS_ASYNC: MmapSyncFlags = MmapSyncFlags(0x1);
+/// Invalidate cached mapping pages after synchronization.
+export const MS_INVALIDATE: MmapSyncFlags = MmapSyncFlags(0x2);
+/// Wait for dirty mapping pages to be written back.
+export const MS_SYNC: MmapSyncFlags = MmapSyncFlags(0x4);
 
 /// Advice for madvise.
 export enum MmapAdvice {

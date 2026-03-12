@@ -435,12 +435,12 @@ declare namespace fs {
 
     /// Copy a file.
     ///
-    /// Copy file contents and requested metadata behavior from source path to destination path.
-    /// Copy flags control overwrite behavior and host fast-copy strategies.
+    /// Copy file contents from source path to destination path.
+    /// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+    /// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
