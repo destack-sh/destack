@@ -1,7 +1,7 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 
 #[path = "harness.rs"]
-mod harness;
+pub(crate) mod harness;
 
 use destack_vm as vm;
 use std::sync::Mutex;

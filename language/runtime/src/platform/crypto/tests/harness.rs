@@ -92,6 +92,22 @@ pub(crate) struct HarnessStoreKeyCapability {
     pub(crate) algorithm: CryptoKeyAlgorithm,
     /// Key residency lane.
     pub(crate) residency: CryptoKeyResidency,
+    /// Secret-generation support lane.
+    pub(crate) supports_generate_secret: bool,
+    /// Pair-generation support lane.
+    pub(crate) supports_generate_pair: bool,
+    /// Import support lane.
+    pub(crate) supports_import: bool,
+    /// Public export support lane.
+    pub(crate) supports_export_public: bool,
+    /// Private export support lane.
+    pub(crate) supports_export_private: bool,
+    /// Secret export support lane.
+    pub(crate) supports_export_secret: bool,
+    /// Supported import-format rows.
+    pub(crate) supported_import_formats: Vec<CryptoKeyFormat>,
+    /// Supported export-format rows.
+    pub(crate) supported_export_formats: Vec<CryptoKeyFormat>,
     /// Supported usage-mask lane.
     pub(crate) supported_usage_mask: CryptoKeyUsageMask,
 }
@@ -136,21 +152,32 @@ fn key_wrap_rows_from_vm(
 }
 
 /// Decode key capability rows from native representation.
-fn key_rows_from_native(rows: &[CryptoStoreKeyCapability]) -> Vec<HarnessStoreKeyCapability> {
+fn key_rows_from_native(
+    rows: &[CryptoStoreKeyCapability],
+) -> RuntimeResult<Vec<HarnessStoreKeyCapability>> {
     let mut decoded = Vec::with_capacity(rows.len());
     for row in rows {
         decoded.push(HarnessStoreKeyCapability {
             algorithm: row.algorithm,
             residency: row.residency,
+            supports_generate_secret: row.supports_generate_secret,
+            supports_generate_pair: row.supports_generate_pair,
+            supports_import: row.supports_import,
+            supports_export_public: row.supports_export_public,
+            supports_export_private: row.supports_export_private,
+            supports_export_secret: row.supports_export_secret,
+            supported_import_formats: unsafe { row.supported_import_formats.as_slice()? }.to_vec(),
+            supported_export_formats: unsafe { row.supported_export_formats.as_slice()? }.to_vec(),
             supported_usage_mask: row.supported_usage_mask,
         });
     }
 
-    decoded
+    Ok(decoded)
 }
 
 /// Decode key capability rows from vm representation.
 fn key_rows_from_vm(
+    context: &mut destack_vm::ExternalCallContext<'_>,
     rows: &[CryptoStoreKeyCapabilityVm],
 ) -> RuntimeResult<Vec<HarnessStoreKeyCapability>> {
     let mut decoded = Vec::with_capacity(rows.len());
@@ -158,6 +185,14 @@ fn key_rows_from_vm(
         decoded.push(HarnessStoreKeyCapability {
             algorithm: row.algorithm,
             residency: row.residency,
+            supports_generate_secret: row.supports_generate_secret,
+            supports_generate_pair: row.supports_generate_pair,
+            supports_import: row.supports_import,
+            supports_export_public: row.supports_export_public,
+            supports_export_private: row.supports_export_private,
+            supports_export_secret: row.supports_export_secret,
+            supported_import_formats: row.supported_import_formats.read_values(context)?,
+            supported_export_formats: row.supported_export_formats.read_values(context)?,
             supported_usage_mask: row.supported_usage_mask,
         });
     }
@@ -936,7 +971,7 @@ impl<'call> CryptoHarnessContext<'call> {
                         .certificate_capabilities
                         .supports_system_trust_anchors,
                     key_wrap_capabilities: key_wrap_rows_from_native(key_wrap_capabilities)?,
-                    key_capabilities: key_rows_from_native(key_capabilities),
+                    key_capabilities: key_rows_from_native(key_capabilities)?,
                 })
             }
             HarnessValue::Vm(value) => {
@@ -954,7 +989,7 @@ impl<'call> CryptoHarnessContext<'call> {
                 let supported_key_residencies =
                     value.supported_key_residencies.read_values(context)?;
                 let key_capabilities =
-                    key_rows_from_vm(&value.key_capabilities.read_values(context)?)?;
+                    key_rows_from_vm(context, &value.key_capabilities.read_values(context)?)?;
                 let key_wrap_capabilities = key_wrap_rows_from_vm(
                     context,
                     &value.key_wrap_capabilities.read_values(context)?,
