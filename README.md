@@ -157,8 +157,8 @@ See [TARGETS.md](TARGETS.md).
 
 ## Contributing
 
-Destack is in [very active development](CONTRIBUTING.md) with a singular focus: a fully integrated software stack for optimal, correct, integrated software systems.
-We welcome feedback, issues, ideas, and small fixes, but please reach out first for non-trivial contributions.
+Destack is in [very active development](https://github.com/destack-sh/destack/commits/main/) with a singular focus: a fully integrated computing stack for building optimal, correct, integrated software systems.
+We welcome feedback, issues, ideas, and _maybe_ some small fixes, but please [reach out](https://discord.gg/xUFQ45TWYd) first for non-trivial contributions.
 See [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 ## License
