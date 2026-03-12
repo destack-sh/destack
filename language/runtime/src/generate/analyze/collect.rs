@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::str::FromStr;
 
 use destack_builtin::LanguageSymbol;
+use destack_compiler::Compiler;
 use destack_core::StringPool;
 use destack_dir::{
     self as dir, Annotation, Argument, BinaryOperator, Declaration, Expression, GlobalSymbolId,
@@ -104,13 +105,14 @@ fn binding_replay_kind_for_name(name: &str) -> CatalogBindingReplayKind {
 
 /// Collect platform bindings from builtin modules.
 pub(crate) fn collect_platform_bindings(
+    compiler: &Compiler,
     program: &Program,
     strings: &StringPool,
     profile_id: ProfileId,
     platform_modules: &[ModuleId],
 ) -> BindingCatalog {
     // resolve the canonical binding decorator symbol
-    let binding_decorator_symbol = binding_decorator_symbol_id(program, profile_id);
+    let binding_decorator_symbol = binding_decorator_symbol_id(compiler, profile_id);
 
     // collect binding type symbols
     let binding_symbols = binding_type_symbols(program, profile_id);
@@ -577,16 +579,8 @@ fn evaluate_integer_binary_expression(
 }
 
 /// Resolve the canonical binding decorator symbol for the profile.
-fn binding_decorator_symbol_id(program: &Program, profile_id: ProfileId) -> GlobalSymbolId {
-    let builtins = program
-        .builtins
-        .as_ref()
-        .expect("builtins must be loaded for binding generation");
-    builtins
-        .items
-        .get(&(profile_id, LanguageSymbol::Binding))
-        .map(|item| *item)
-        .unwrap_or_else(|| panic!("missing binding decorator symbol for profile {profile_id:?}"))
+fn binding_decorator_symbol_id(compiler: &Compiler, profile_id: ProfileId) -> GlobalSymbolId {
+    compiler.language_symbol(profile_id, LanguageSymbol::Binding)
 }
 
 /// Return the domain portion of a binding name.

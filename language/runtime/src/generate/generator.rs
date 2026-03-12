@@ -3,11 +3,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ResolveTask, TaskOutcome};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions, Task, TaskOutcome};
 use destack_source::DiagnosticSeverity;
 use destack_workspace::{
-    EnvSnapshot, OutputFormat, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime,
-    Session,
+    ArtifactKey, EnvSnapshot, OutputFormat, Platform, ProfileFlags, ProfileId, ProfileKey, Program,
+    Runtime, Session,
 };
 
 use crate::analyze::{
@@ -40,6 +40,7 @@ impl RuntimeGenerator {
         platform_modules: &[destack_source::ModuleId],
     ) -> BindingCatalog {
         let catalog = collect_platform_bindings(
+            &self.compiler,
             &self.program,
             self.session.strings.as_ref(),
             profile_id,
@@ -133,40 +134,42 @@ impl RuntimeGenerator {
         platform_modules: &[destack_source::ModuleId],
     ) {
         // build the profile stamp for analysis tasks
-        let profile_stamp = self.compiler.profile_stamp(profile_id);
-
         // resolve builtin symbols for the target profile
-        eprintln!("generate-bindings: resolving builtins");
-        let builtins_outcome = self.compiler.run_task(ResolveTask::ResolveBuiltins {
-            profile: profile_stamp,
-        });
+        let builtins_outcome = self.compiler.run_task(Task::new(BuildKey::Artifact(
+            ArtifactKey::LanguageEnvironment {
+                profile: profile_id,
+            },
+        )));
         self.assert_task_complete(builtins_outcome, "ResolveBuiltins");
 
         // resolve builtin libraries for the target profile
-        eprintln!("generate-bindings: resolving platform libs");
-        let resolve_outcome = self.compiler.run_task(ResolveTask::ResolveLibs {
-            profile: profile_stamp,
-        });
+        let resolve_outcome =
+            self.compiler
+                .run_task(Task::new(BuildKey::Artifact(ArtifactKey::LibEnvironment {
+                    profile: profile_id,
+                })));
         self.assert_task_complete(resolve_outcome, "ResolveLibs");
 
         // analyze module declarations sequentially
         for module_id in platform_modules {
-            let module = self.program.modules.get(*module_id);
-            let module = module.read();
-            eprintln!(
-                "generate-bindings: analyzing module {module_id:?} ({})",
-                module.uri
-            );
-            let outcome = self.compiler.run_task(AnalyzeTask::AnalyzeModuleDeclare {
-                module: self.compiler.module_stamp(*module_id),
-                profile: profile_stamp,
-            });
+            let module_uri = {
+                let module = self.program.modules.get(*module_id);
+                let module = module.read();
+                module.uri.to_string()
+            };
+            let outcome =
+                self.compiler
+                    .run_task(Task::new(BuildKey::Artifact(ArtifactKey::DirDeclared {
+                        module: *module_id,
+                        profile: profile_id,
+                    })));
             let task_name = format!("AnalyzeModuleDeclare({module_id:?})");
             self.assert_task_complete(outcome, &task_name);
         }
     }
 
     /// Print diagnostics and stop on errors.
+    /// TODO #Cleanup: use proper diagnostic reporting here?
     fn report_diagnostics(&self) {
         // exit early when no errors are present
         if !self
@@ -177,20 +180,6 @@ impl RuntimeGenerator {
             return;
         }
 
-        // emit diagnostics and fail fast
-        let diagnostics = self.program.diagnostics.drain();
-        for diagnostic in diagnostics {
-            let file = self.program.files.get(diagnostic.file_id);
-            eprintln!(
-                "{}:{}:{}: {} {}",
-                file.uri,
-                diagnostic.primary_span.span.start,
-                diagnostic.primary_span.span.end,
-                diagnostic.code,
-                diagnostic.message
-            );
-            eprintln!("{diagnostic:?}");
-        }
         panic!("binding generation failed due to diagnostics");
     }
 
@@ -225,10 +214,6 @@ impl RuntimeGenerator {
         }
 
         let requested = domains.iter().cloned().collect::<Vec<_>>().join(", ");
-        eprintln!(
-            "generate-bindings: selected {} module(s) for domains [{requested}]",
-            selected.len()
-        );
 
         selected
     }
@@ -321,8 +306,8 @@ impl RuntimeGenerator {
                     error.message(&self.program),
                 );
             }
-            TaskOutcome::Yield { dependency } => {
-                panic!("binding generation task {task_name} yielded unexpectedly: {dependency:?}");
+            TaskOutcome::Yield { requirement } => {
+                panic!("binding generation task {task_name} yielded unexpectedly: {requirement:?}");
             }
         }
     }
@@ -639,9 +624,14 @@ impl RuntimeGenerator {
         let selected_modules =
             generator.select_modules(&platform_modules, options.domains.as_ref());
 
-        // keep analysis global so cross-domain imported binding types remain typed
-        // domain filtering is applied at collection and emission time only
-        let analysis_modules = platform_modules.clone();
+        // keep full analysis for whole-library generation
+        // targeted domain runs should only analyze the selected surface so unrelated module drift
+        // does not block regeneration of one module under audit
+        let analysis_modules = if options.domains.is_some() {
+            selected_modules.clone()
+        } else {
+            platform_modules.clone()
+        };
 
         // run analysis passes before extraction
         generator.analyze_platform_modules(profile_id, &analysis_modules);
