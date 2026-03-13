@@ -1,4 +1,4 @@
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "ios"))]
 pub(crate) mod caller;
 #[cfg(windows)]
 pub(crate) mod dedicated;

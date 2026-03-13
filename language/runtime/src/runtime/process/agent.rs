@@ -6,7 +6,6 @@ use std::sync::Arc;
 use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::HostEventKind;
 use crate::platform::resource::ResourceTableSnapshot;
-use crate::platform::state::{PlatformState, PlatformStateImage};
 use crate::platform::{ResourceId, ResourceTable};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::capability::resolve_capability_profile;
@@ -17,7 +16,8 @@ use crate::runtime::poller::PollerToken;
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, EventLoopWatch};
 use crate::runtime::world::{RebindContext, RuntimeId, World};
 use crate::runtime::{
-    DropCounts, DropReason, ExecutionContextId, Hooks, RuntimeFinalizers, RuntimeFinalizersImage,
+    DropCounts, DropReason, ExecutionContextId, Hooks, PlatformState, PlatformStateImage,
+    RuntimeFinalizers, RuntimeFinalizersImage,
 };
 use destack_vm as vm;
 use destack_workspace::RuntimeOptions;

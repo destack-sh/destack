@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use crate::platform::service::affinity::{ServiceAffinity, ServiceHostLoop};
-use crate::platform::service::executor::host::HostLoopExecutor;
-use crate::platform::service::global_service;
 use crate::runtime::BindingCallContext;
+use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceHostLoop};
+use crate::runtime::process::service::executor::host::HostLoopExecutor;
+use crate::runtime::process::service::global_service;
 
 use super::runtime::Win32RuntimeState;
 

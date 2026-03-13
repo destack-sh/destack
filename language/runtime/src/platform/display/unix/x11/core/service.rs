@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use crate::platform::service::affinity::ServiceAffinity;
-use crate::platform::service::executor::caller::CallerThreadExecutor;
-use crate::platform::service::global_service;
 use crate::runtime::BindingCallContext;
+use crate::runtime::process::service::affinity::ServiceAffinity;
+use crate::runtime::process::service::executor::caller::CallerThreadExecutor;
+use crate::runtime::process::service::global_service;
 
 use super::runtime::X11RuntimeState;
 

@@ -8,9 +8,9 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::{
     AudioBackend, AudioEventDeliveryMode, AudioEventSource, backend as audio_backend,
 };
-use crate::platform::service::global_service;
+use crate::runtime::process::service::global_service;
 #[cfg(any(target_os = "linux", target_os = "macos", windows))]
-use crate::platform::service::registry::global_service_if_initialized;
+use crate::runtime::process::service::registry::global_service_if_initialized;
 use crate::runtime::{AgentId, ProcessSubscriberRegistry};
 
 use super::constants::host_monotonic_nanos;

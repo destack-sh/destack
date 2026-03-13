@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 #[cfg(target_os = "macos")]
 use crate::platform::audio::core::codec::frame_bytes;
 #[cfg(target_os = "macos")]
-use crate::platform::service::global_service;
+use crate::runtime::process::service::global_service;
 
 #[cfg(target_os = "macos")]
 use super::abi::{

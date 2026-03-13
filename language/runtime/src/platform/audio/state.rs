@@ -4,8 +4,8 @@ use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
-use crate::platform::service::CachedServiceHandle;
 use crate::runtime::BindingCallContext;
+use crate::runtime::process::service::CachedServiceHandle;
 
 use super::core::monitor::{AudioMonitorService, audio_monitor_service};
 use super::core::runtime::AudioRuntimeState;
