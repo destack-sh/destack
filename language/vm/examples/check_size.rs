@@ -1,5 +1,5 @@
 use destack_vm::{
-    Frame, ManagedPointer, RawPointer, StackPointer, ThreadedBlock, ThreadedFunction,
+    Frame, ManagedReference, RawPointer, StackPointer, ThreadedBlock, ThreadedFunction,
     ThreadedInstruction, ThreadedState, Value,
 };
 
@@ -24,8 +24,8 @@ fn main() {
 
     println!("Value: {} bytes", std::mem::size_of::<Value>());
     println!(
-        "ManagedPointer: {} bytes",
-        std::mem::size_of::<ManagedPointer>()
+        "ManagedReference: {} bytes",
+        std::mem::size_of::<ManagedReference>()
     );
     println!("RawPointer: {} bytes", std::mem::size_of::<RawPointer>());
     println!(

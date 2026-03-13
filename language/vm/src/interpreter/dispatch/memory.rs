@@ -461,7 +461,7 @@ pub(crate) fn handle_barrier(
     next!(state, block, pc)
 }
 
-/// Handle managed pointer load.
+/// Handle managed reference load.
 #[inline(always)]
 pub(crate) fn handle_load_managed(
     state: &mut ThreadedState<'_, '_>,
@@ -476,7 +476,7 @@ pub(crate) fn handle_load_managed(
     // load pointer value
     let ptr = state.get(*pointer);
 
-    // load from managed pointer
+    // load from managed reference
     let value = match instruction::load_from_managed_reference(state, ptr) {
         Ok(v) => v,
         Err(e) => return ControlFlow::Error(e),
@@ -601,7 +601,7 @@ pub(crate) fn handle_load_global(
     next!(state, block, pc)
 }
 
-/// Handle managed pointer store.
+/// Handle managed reference store.
 #[inline(always)]
 pub(crate) fn handle_store_managed(
     state: &mut ThreadedState<'_, '_>,
@@ -627,7 +627,7 @@ pub(crate) fn handle_store_managed(
         return ControlFlow::Error(error);
     }
 
-    // write through managed pointer
+    // write through managed reference
     if let Err(e) = instruction::store_to_managed_reference(state, ptr, val) {
         return ControlFlow::Error(e);
     }
@@ -802,15 +802,19 @@ pub(crate) fn handle_managed_alloc(
     // allocate heap cell
     let handle = {
         let heap = state.heap();
-        if heap.managed().cell_count() >= max_heap_cells {
+        if heap.managed_allocation_count() >= max_heap_cells {
             return ControlFlow::Error(Error::AllocationFailed);
         }
 
         if *slot_count == UNKNOWN_SLOT_COUNT {
-            heap.managed_mut().allocate()
+            heap.allocate_managed()
         } else {
-            heap.managed_mut().allocate_with_slots(*slot_count as usize)
+            heap.allocate_managed_slots(*slot_count as usize)
         }
+    };
+    let handle = match handle {
+        Ok(handle) => handle,
+        Err(error) => return ControlFlow::Error(Error::from(error)),
     };
     if state.collect_stats {
         state.interpreter.engine.statistics.heap_allocations += 1;
@@ -859,11 +863,15 @@ pub(crate) fn handle_managed_alloc_array(
     // allocate heap cell with slots
     let handle = {
         let heap = state.heap();
-        if heap.managed().cell_count() >= max_heap_cells {
+        if heap.managed_allocation_count() >= max_heap_cells {
             return ControlFlow::Error(Error::AllocationFailed);
         }
 
-        heap.managed_mut().allocate_with_slots(length)
+        heap.allocate_managed_slots(length)
+    };
+    let handle = match handle {
+        Ok(handle) => handle,
+        Err(error) => return ControlFlow::Error(Error::from(error)),
     };
     if state.collect_stats {
         state.interpreter.engine.statistics.heap_allocations += 1;
@@ -902,15 +910,19 @@ pub(crate) fn handle_raw_alloc(
     // allocate raw heap cell
     let ptr = {
         let heap = state.heap();
-        if heap.raw().cell_count() >= max_raw_cells {
+        if heap.raw_allocation_count() >= max_raw_cells {
             return ControlFlow::Error(Error::AllocationFailed);
         }
 
         if *slot_count == UNKNOWN_SLOT_COUNT {
-            heap.raw_mut().allocate()
+            heap.allocate_raw()
         } else {
-            heap.raw_mut().allocate_with_slots(*slot_count as usize)
+            heap.allocate_raw_slots(*slot_count as usize)
         }
+    };
+    let ptr = match ptr {
+        Ok(ptr) => ptr,
+        Err(error) => return ControlFlow::Error(Error::from(error)),
     };
     if state.collect_stats {
         state.interpreter.engine.statistics.heap_allocations += 1;
@@ -946,8 +958,8 @@ pub(crate) fn handle_raw_free(
     if let Some(p) = ptr.as_raw_pointer() {
         // report invalid handle
         let heap = state.heap();
-        if !heap.raw_mut().free(p) {
-            return ControlFlow::Error(Error::InvalidManagedPointer);
+        if !heap.free_raw(p) {
+            return ControlFlow::Error(Error::InvalidManagedReference);
         }
     }
     // otherwise report type mismatch
@@ -981,8 +993,8 @@ pub(crate) fn handle_raw_drop(
     if let Some(p) = ptr.as_raw_pointer() {
         // report invalid handle
         let heap = state.heap();
-        if !heap.raw_mut().free(p) {
-            return ControlFlow::Error(Error::InvalidManagedPointer);
+        if !heap.free_raw(p) {
+            return ControlFlow::Error(Error::InvalidManagedReference);
         }
     }
     // otherwise report type mismatch

@@ -1214,7 +1214,7 @@ impl TestProgram {
         let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
 
-        let heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+        let heap = Heap::new();
         let mut heap = heap;
 
         isolate

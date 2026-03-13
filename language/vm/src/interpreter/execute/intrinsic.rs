@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
 use crate::diagnostic::{Error, RuntimeResult};
-use destack_heap::{RawCellStorage, Value, ValueTag};
+use destack_heap::{Value, ValueTag};
 
 use super::super::state::InterpreterContext;
 
@@ -108,6 +108,23 @@ impl<'a> InterpreterContext<'a> {
 
             // control flow
             mir::Intrinsic::Breakpoint => Ok(Value::VOID),
+            mir::Intrinsic::Abort => Err(self.make_error(Error::Abort)),
+            mir::Intrinsic::Panic => {
+                // load panic message
+                let message_value = args.first().copied().ok_or_else(|| {
+                    self.make_error(Error::InvalidIntrinsicArguments {
+                        intrinsic: intrinsic.to_str().to_string(),
+                    })
+                })?;
+                let message = self
+                    .isolate
+                    .string_interner
+                    .string_value(self.heap, message_value)
+                    .map_err(|error| self.make_error(error))?;
+
+                // surface panic as a runtime error
+                Err(self.make_error(Error::Panic { message }))
+            }
             // reflection (should be resolved at compile time)
             mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => Err(self
                 .make_error(Error::UnsupportedInstruction {
@@ -1130,7 +1147,7 @@ impl<'a> InterpreterContext<'a> {
         // resolve pointer and slot offset
         match ptr.tag() {
             ValueTag::ManagedReference | ValueTag::Aggregate | ValueTag::String => {
-                let handle = ptr.as_managed_pointer().unwrap();
+                let handle = ptr.as_managed_reference().unwrap();
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
@@ -1140,14 +1157,10 @@ impl<'a> InterpreterContext<'a> {
                         field_count: 0,
                     })
                 })?;
-                if let Some(cell) = self.heap.managed().get(handle) {
-                    cell.slots
-                        .get(slot_index)
-                        .copied()
-                        .ok_or_else(|| self.make_error(Error::InvalidManagedPointer))
-                } else {
-                    Err(self.make_error(Error::InvalidManagedPointer))
-                }
+                self.heap
+                    .managed_slot(handle, slot_index)
+                    .copied()
+                    .ok_or_else(|| self.make_error(Error::InvalidManagedReference))
             }
             ValueTag::RawPointer => {
                 let raw_ptr = ptr.as_raw_pointer().unwrap();
@@ -1162,35 +1175,43 @@ impl<'a> InterpreterContext<'a> {
                 })?;
                 let cell = self
                     .heap
-                    .raw()
-                    .get(raw_ptr)
-                    .ok_or_else(|| self.make_error(Error::InvalidManagedPointer))?;
-                match &cell.storage {
-                    RawCellStorage::Bytes(bytes) => {
-                        if bytes.is_empty() && slot_index == 0 {
-                            return Ok(Value::VOID);
-                        }
-                        if slot_index >= bytes.len() {
-                            return Err(self.make_error(Error::InvalidFieldAccess {
-                                index: slot_index as u32,
-                                field_count: bytes.len(),
-                            }));
-                        }
-                        Ok(Value::uint(bytes[slot_index] as u64, 8))
+                    .raw_allocation(raw_ptr)
+                    .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
+                if cell.is_bytes() {
+                    let byte_len = self
+                        .heap
+                        .raw_byte_len(raw_ptr)
+                        .expect("raw bytes cell should resolve to one byte run");
+
+                    if byte_len == 0 && slot_index == 0 {
+                        return Ok(Value::VOID);
                     }
-                    RawCellStorage::Values(slots) => {
-                        if slots.is_empty() && slot_index == 0 {
-                            return Ok(Value::VOID);
-                        }
-                        if let Some(value) = slots.get(slot_index).copied() {
-                            return Ok(value);
-                        }
-                        Err(self.make_error(Error::InvalidFieldAccess {
+                    if slot_index >= byte_len {
+                        return Err(self.make_error(Error::InvalidFieldAccess {
                             index: slot_index as u32,
-                            field_count: slots.len(),
-                        }))
+                            field_count: byte_len,
+                        }));
                     }
+                    let byte = self
+                        .heap
+                        .raw_byte_at(raw_ptr, slot_index)
+                        .expect("validated raw byte slot should exist");
+                    return Ok(Value::uint(byte as u64, 8));
                 }
+
+                let slots = cell
+                    .values()
+                    .expect("raw value allocation should expose values");
+                if slots.is_empty() && slot_index == 0 {
+                    return Ok(Value::VOID);
+                }
+                if let Some(value) = slots.get(slot_index).copied() {
+                    return Ok(value);
+                }
+                Err(self.make_error(Error::InvalidFieldAccess {
+                    index: slot_index as u32,
+                    field_count: slots.len(),
+                }))
             }
             ValueTag::StackPointer => {
                 let sp = ptr.as_stack_pointer().unwrap();
@@ -1198,25 +1219,25 @@ impl<'a> InterpreterContext<'a> {
                     .engine
                     .call_stack
                     .get(sp.frame_idx)
-                    .ok_or_else(|| self.make_error(Error::InvalidManagedPointer))?;
+                    .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
                 let cell = frame
                     .get_stack_cell(sp.slot)
-                    .ok_or_else(|| self.make_error(Error::InvalidManagedPointer))?;
+                    .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
                 let slot_index = sp.slot_offset.checked_add(offset).ok_or_else(|| {
                     self.make_error(Error::InvalidFieldAccess {
                         index: offset as u32,
-                        field_count: cell.slots.len(),
+                        field_count: cell.len(),
                     })
                 })?;
-                if let Some(value) = cell.slots.get(slot_index).copied() {
+                if let Some(value) = cell.get(slot_index).copied() {
                     return Ok(value);
                 }
-                if cell.slots.is_empty() && offset == 0 {
+                if cell.is_empty() && offset == 0 {
                     return Ok(Value::VOID);
                 }
                 Err(self.make_error(Error::InvalidFieldAccess {
                     index: offset as u32,
-                    field_count: cell.slots.len(),
+                    field_count: cell.len(),
                 }))
             }
             ValueTag::LocalPointer => {
@@ -1231,7 +1252,7 @@ impl<'a> InterpreterContext<'a> {
                     .engine
                     .call_stack
                     .get(lp.frame_idx)
-                    .ok_or_else(|| self.make_error(Error::InvalidManagedPointer))?;
+                    .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
                 let local = mir::LocalNodeId::new(lp.local as u32);
                 frame
                     .get_local_or_error(&self.engine.local_stack, local)
@@ -1248,7 +1269,7 @@ impl<'a> InterpreterContext<'a> {
         // resolve pointer and slot offset
         match ptr.tag() {
             ValueTag::ManagedReference | ValueTag::Aggregate | ValueTag::String => {
-                let handle = ptr.as_managed_pointer().unwrap();
+                let handle = ptr.as_managed_reference().unwrap();
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
@@ -1259,26 +1280,27 @@ impl<'a> InterpreterContext<'a> {
                     })
                 })?;
                 // resolve the managed cell
-                let error = match self.heap.managed_mut().get_mut(handle) {
+                let error = match self.heap.managed_allocation(handle) {
                     Some(cell) => {
                         // ensure the slot exists
                         let required_len = slot_index + 1;
-                        if cell.slots.len() < required_len {
-                            cell.slots.resize(required_len, Value::VOID);
+                        if cell.len() < required_len {
+                            self.heap
+                                .resize_managed_slots(handle, required_len)
+                                .map_err(|error| self.make_error(Error::from(error)))?;
                         }
 
                         // write the slot value
-                        if let Some(slot) = cell.slots.get_mut(slot_index) {
-                            *slot = value;
+                        if self.heap.set_managed_slot(handle, slot_index, value) {
                             return Ok(());
                         }
 
                         Error::InvalidFieldAccess {
                             index: offset as u32,
-                            field_count: cell.slots.len(),
+                            field_count: required_len,
                         }
                     }
-                    None => return Err(self.make_error(Error::InvalidManagedPointer)),
+                    None => return Err(self.make_error(Error::InvalidManagedReference)),
                 };
 
                 Err(self.make_error(error))
@@ -1297,46 +1319,59 @@ impl<'a> InterpreterContext<'a> {
                 })?;
 
                 let write_error = {
-                    let cell = match self.heap.raw_mut().get_mut(raw_ptr) {
-                        Some(cell) => cell,
-                        None => return Err(self.make_error(Error::InvalidManagedPointer)),
+                    let is_bytes = match self.heap.raw_is_bytes(raw_ptr) {
+                        Some(is_bytes) => is_bytes,
+                        None => return Err(self.make_error(Error::InvalidManagedReference)),
                     };
 
-                    match &mut cell.storage {
-                        RawCellStorage::Bytes(bytes) => {
-                            let byte = if matches!(value.tag(), ValueTag::UInt) {
-                                value.as_uint().unwrap() as u8
-                            } else {
-                                return Err(self.make_error(Error::TypeMismatch {
-                                    expected: "integer".to_string(),
-                                    actual: format!("{value:?}"),
-                                }));
-                            };
+                    if is_bytes {
+                        let byte = if matches!(value.tag(), ValueTag::UInt) {
+                            value.as_uint().unwrap() as u8
+                        } else {
+                            return Err(self.make_error(Error::TypeMismatch {
+                                expected: "integer".to_string(),
+                                actual: format!("{value:?}"),
+                            }));
+                        };
 
-                            if slot_index >= bytes.len() {
-                                Some(Error::InvalidFieldAccess {
-                                    index: slot_index as u32,
-                                    field_count: bytes.len(),
-                                })
-                            } else {
-                                bytes[slot_index] = byte;
-                                None
-                            }
+                        let byte_len = self
+                            .heap
+                            .raw_byte_len(raw_ptr)
+                            .expect("raw bytes cell should resolve to one byte run");
+
+                        if slot_index >= byte_len {
+                            Some(Error::InvalidFieldAccess {
+                                index: slot_index as u32,
+                                field_count: byte_len,
+                            })
+                        } else if self.heap.set_raw_byte(raw_ptr, slot_index, byte) {
+                            None
+                        } else {
+                            Some(Error::InvalidFieldAccess {
+                                index: slot_index as u32,
+                                field_count: byte_len,
+                            })
                         }
-                        RawCellStorage::Values(slots) => {
-                            if slots.len() <= slot_index {
-                                slots.resize(slot_index + 1, Value::VOID);
-                            }
+                    } else {
+                        let value_len = self
+                            .heap
+                            .raw_values(raw_ptr)
+                            .map(|values| values.len())
+                            .expect("validated raw value allocation should expose values");
 
-                            if let Some(slot) = slots.get_mut(slot_index) {
-                                *slot = value;
-                                None
-                            } else {
-                                Some(Error::InvalidFieldAccess {
-                                    index: slot_index as u32,
-                                    field_count: slots.len(),
-                                })
-                            }
+                        if value_len <= slot_index {
+                            self.heap
+                                .resize_raw_values(raw_ptr, slot_index + 1)
+                                .map_err(|error| self.make_error(Error::from(error)))?;
+                        }
+
+                        if self.heap.set_raw_value(raw_ptr, slot_index, value) {
+                            None
+                        } else {
+                            Some(Error::InvalidFieldAccess {
+                                index: slot_index as u32,
+                                field_count: value_len.max(slot_index + 1),
+                            })
                         }
                     }
                 };
@@ -1359,27 +1394,27 @@ impl<'a> InterpreterContext<'a> {
                     Some(frame) => {
                         let cell = match frame.get_stack_cell_mut(sp.slot) {
                             Some(cell) => cell,
-                            None => return Err(self.make_error(Error::InvalidManagedPointer)),
+                            None => return Err(self.make_error(Error::InvalidManagedReference)),
                         };
 
                         // ensure the slot exists
                         let required_len = slot_index + 1;
-                        if cell.slots.len() < required_len {
-                            cell.slots.resize(required_len, Value::VOID);
+                        if cell.len() < required_len {
+                            cell.resize(required_len, Value::VOID);
                         }
 
                         // write the slot value
-                        if let Some(slot) = cell.slots.get_mut(slot_index) {
+                        if let Some(slot) = cell.get_mut(slot_index) {
                             *slot = value;
                             return Ok(());
                         }
 
                         Error::InvalidFieldAccess {
                             index: offset as u32,
-                            field_count: cell.slots.len(),
+                            field_count: cell.len(),
                         }
                     }
-                    None => return Err(self.make_error(Error::InvalidManagedPointer)),
+                    None => return Err(self.make_error(Error::InvalidManagedReference)),
                 };
 
                 Err(self.make_error(error))
@@ -1396,7 +1431,7 @@ impl<'a> InterpreterContext<'a> {
                     .engine
                     .call_stack
                     .get(lp.frame_idx)
-                    .ok_or_else(|| self.make_error(Error::InvalidManagedPointer))?;
+                    .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
                 let local = mir::LocalNodeId::new(lp.local as u32);
                 frame.set_local(&mut self.engine.local_stack, local, value);
                 Ok(())

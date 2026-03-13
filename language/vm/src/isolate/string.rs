@@ -6,16 +6,16 @@ use crate::diagnostic::Error;
 use crate::snapshot::StringInternerImage;
 
 use destack_heap::{
-    Heap, ManagedHeap, ManagedPointer, RawCellStorage, RawHeap, RawPointer, STRING_FLAG_IS_ASCII,
-    STRING_FLAG_IS_INTERNED, STRING_FLAG_IS_STATIC, StringLayout, Value, ValueTag,
+    Heap, ManagedReference, RawPointer, STRING_FLAG_IS_ASCII, STRING_FLAG_IS_INTERNED,
+    STRING_FLAG_IS_STATIC, StringLayout, Value, ValueTag,
 };
 
 /// Managed string interner for literal storage.
 pub(crate) struct StringInterner {
-    /// Interned string literals mapped to managed pointers.
-    literals: HashMap<String, ManagedPointer>,
+    /// Interned string literals mapped to managed references.
+    literals: HashMap<String, ManagedReference>,
     /// Raw heap buffers for string payloads.
-    buffers: HashMap<ManagedPointer, RawPointer>,
+    buffers: HashMap<ManagedReference, RawPointer>,
 }
 
 /// Borrowed string view metadata.
@@ -139,15 +139,20 @@ impl StringInterner {
     }
 
     /// Intern a string literal and return its managed value.
-    pub(crate) fn intern_string_literal(
+    pub(crate) fn intern_string_literal(&mut self, heap: &mut Heap, value: &str) -> Value {
+        self.try_intern_string_literal(heap, value)
+            .unwrap_or_else(|error| panic!("{error}"))
+    }
+
+    /// Intern a string literal and return its managed value.
+    pub(crate) fn try_intern_string_literal(
         &mut self,
-        managed_heap: &mut ManagedHeap,
-        raw_heap: &mut RawHeap,
+        heap: &mut Heap,
         value: &str,
-    ) -> Value {
+    ) -> Result<Value, Error> {
         // reuse existing interned handle
         if let Some(handle) = self.literals.get(value).copied() {
-            return Value::string(handle);
+            return Ok(Value::string(handle));
         }
 
         // compute and validate metadata
@@ -164,16 +169,16 @@ impl StringInterner {
         }
 
         // allocate
-        let data = Self::allocate_string_bytes(raw_heap, value.as_bytes());
+        let data = Self::allocate_string_bytes(heap, value.as_bytes())?;
         let handle = Self::allocate_string_cell(
-            managed_heap,
+            heap,
             length_utf16,
             length_bytes,
             0,
             length_bytes,
             flags,
             data,
-        );
+        )?;
 
         // record
         self.literals.insert(value.to_string(), handle);
@@ -181,41 +186,34 @@ impl StringInterner {
             self.buffers.insert(handle, data);
         }
 
-        Value::string(handle)
+        Ok(Value::string(handle))
     }
 
     /// Read a UTF-8 string value from the heap.
-    pub(crate) fn string_value(
-        &self,
-        managed_heap: &ManagedHeap,
-        raw_heap: &RawHeap,
-        value: Value,
-    ) -> Result<String, Error> {
+    pub(crate) fn string_value(&self, heap: &Heap, value: Value) -> Result<String, Error> {
         // load the borrowed view and allocate an owned copy
-        let value = self.string_value_ref(managed_heap, raw_heap, value)?;
+        let value = self.string_value_ref(heap, value)?;
         Ok(value.to_string())
     }
 
     /// Read a UTF-8 string from a managed handle.
     pub(crate) fn string_value_for_handle(
         &self,
-        managed_heap: &ManagedHeap,
-        raw_heap: &RawHeap,
-        handle: ManagedPointer,
+        heap: &Heap,
+        handle: ManagedReference,
     ) -> Result<String, Error> {
         // load the borrowed view and allocate an owned copy
-        let value = self.string_value_ref_for_handle(managed_heap, raw_heap, handle)?;
+        let value = self.string_value_ref_for_handle(heap, handle)?;
         Ok(value.to_string())
     }
 
     /// Read a UTF-8 string view from the heap.
     pub(crate) fn string_value_ref<'a>(
         &self,
-        managed_heap: &'a ManagedHeap,
-        raw_heap: &'a RawHeap,
+        heap: &'a Heap,
         value: Value,
     ) -> Result<&'a str, Error> {
-        let view = self.string_value_view(managed_heap, raw_heap, value)?;
+        let view = self.string_value_view(heap, value)?;
         if view.len == 0 {
             return Ok("");
         }
@@ -231,11 +229,10 @@ impl StringInterner {
     /// Read a UTF-8 string view from a managed handle.
     pub(crate) fn string_value_ref_for_handle<'a>(
         &self,
-        managed_heap: &'a ManagedHeap,
-        raw_heap: &'a RawHeap,
-        handle: ManagedPointer,
+        heap: &'a Heap,
+        handle: ManagedReference,
     ) -> Result<&'a str, Error> {
-        let view = self.string_value_view_for_handle(managed_heap, raw_heap, handle)?;
+        let view = self.string_value_view_for_handle(heap, handle)?;
         if view.len == 0 {
             return Ok("");
         }
@@ -249,15 +246,10 @@ impl StringInterner {
     }
 
     /// Read a UTF-8 string view from the heap.
-    pub(crate) fn string_value_view(
-        &self,
-        managed_heap: &ManagedHeap,
-        raw_heap: &RawHeap,
-        value: Value,
-    ) -> Result<StringView, Error> {
+    pub(crate) fn string_value_view(&self, heap: &Heap, value: Value) -> Result<StringView, Error> {
         // ensure the value is a string
         let handle = match value.tag() {
-            ValueTag::String => value.as_managed_pointer().unwrap(),
+            ValueTag::String => value.as_managed_reference().unwrap(),
             _ => {
                 return Err(Error::TypeMismatch {
                     expected: "string".to_string(),
@@ -267,15 +259,14 @@ impl StringInterner {
         };
 
         // load the borrowed view
-        self.string_value_view_for_handle(managed_heap, raw_heap, handle)
+        self.string_value_view_for_handle(heap, handle)
     }
 
     /// Read a UTF-8 string view from a managed handle.
     pub(crate) fn string_value_view_for_handle(
         &self,
-        managed_heap: &ManagedHeap,
-        raw_heap: &RawHeap,
-        handle: ManagedPointer,
+        heap: &Heap,
+        handle: ManagedReference,
     ) -> Result<StringView, Error> {
         // reject null handles
         if handle.is_null() {
@@ -283,14 +274,13 @@ impl StringInterner {
         }
 
         // load the managed string cell
-        let cell = managed_heap
-            .get(handle)
-            .ok_or(Error::InvalidManagedPointer)?;
+        let cell = heap
+            .managed_allocation(handle)
+            .ok_or(Error::InvalidManagedReference)?;
         let length_value = cell
-            .slots
             .get(StringLayout::LENGTH_BYTES)
             .copied()
-            .ok_or(Error::InvalidManagedPointer)?;
+            .ok_or(Error::InvalidManagedReference)?;
         let length = length_value.as_uint().ok_or_else(|| Error::TypeMismatch {
             expected: "u32".to_string(),
             actual: format!("{length_value:?}"),
@@ -301,20 +291,17 @@ impl StringInterner {
 
         // load the raw payload buffer
         let data_value = cell
-            .slots
             .get(StringLayout::DATA)
             .copied()
-            .ok_or(Error::InvalidManagedPointer)?;
+            .ok_or(Error::InvalidManagedReference)?;
         let data_ptr = data_value
             .as_raw_pointer()
-            .ok_or(Error::InvalidManagedPointer)?;
-        let raw_cell = raw_heap.get(data_ptr).ok_or(Error::InvalidManagedPointer)?;
-        let bytes = match &raw_cell.storage {
-            RawCellStorage::Bytes(bytes) => bytes,
-            _ => return Err(Error::InvalidManagedPointer),
-        };
+            .ok_or(Error::InvalidManagedReference)?;
+        let bytes = heap
+            .raw_bytes(data_ptr)
+            .ok_or(Error::InvalidManagedReference)?;
         if length > bytes.len() {
-            return Err(Error::InvalidManagedPointer);
+            return Err(Error::InvalidManagedReference);
         }
 
         let slice = &bytes[..length];
@@ -332,7 +319,7 @@ impl StringInterner {
     }
 
     /// Collect string literal handles as GC roots.
-    pub(crate) fn collect_roots(&self, roots: &mut Vec<ManagedPointer>) {
+    pub(crate) fn collect_roots(&self, roots: &mut Vec<ManagedReference>) {
         // extend roots with literal handles
         for handle in self.literals.values() {
             roots.push(*handle);
@@ -340,11 +327,11 @@ impl StringInterner {
     }
 
     /// Sweep raw string payloads for freed managed string headers.
-    pub(crate) fn sweep_buffers(&mut self, managed_heap: &ManagedHeap, raw_heap: &mut RawHeap) {
+    pub(crate) fn sweep_buffers(&mut self, heap: &mut Heap) {
         // collect handles to free without mutating during iteration
         let mut freed_buffers = Vec::new();
         for (&handle, &raw_ptr) in &self.buffers {
-            if !managed_heap.is_allocated(handle) {
+            if !heap.is_managed_allocated(handle) {
                 freed_buffers.push((handle, raw_ptr));
             }
         }
@@ -353,7 +340,7 @@ impl StringInterner {
         for (handle, raw_ptr) in freed_buffers {
             self.buffers.remove(&handle);
             if !raw_ptr.is_null() {
-                raw_heap.free(raw_ptr);
+                heap.free_raw(raw_ptr);
             }
         }
     }
@@ -371,26 +358,26 @@ impl StringInterner {
     }
 
     /// Allocate raw heap storage for string payload bytes.
-    fn allocate_string_bytes(raw_heap: &mut RawHeap, bytes: &[u8]) -> RawPointer {
+    fn allocate_string_bytes(heap: &mut Heap, bytes: &[u8]) -> Result<RawPointer, Error> {
         // treat empty payloads as null pointers
         if bytes.is_empty() {
-            return RawPointer::NULL;
+            return Ok(RawPointer::NULL);
         }
 
         // allocate raw heap buffer for payload
-        raw_heap.allocate_with_bytes(bytes)
+        heap.allocate_raw_bytes(bytes).map_err(Error::from)
     }
 
     /// Allocate a managed string header cell.
     fn allocate_string_cell(
-        managed_heap: &mut ManagedHeap,
+        heap: &mut Heap,
         length_utf16: u32,
         length_bytes: u32,
         hash: u64,
         capacity: u32,
         flags: u32,
         data: RawPointer,
-    ) -> ManagedPointer {
+    ) -> Result<ManagedReference, Error> {
         // assemble header slots for the string layout
         let mut slots = vec![Value::VOID; StringLayout::SLOT_COUNT];
         slots[StringLayout::LENGTH_UTF16] = Value::uint(length_utf16 as u64, 32);
@@ -401,7 +388,7 @@ impl StringInterner {
         slots[StringLayout::DATA] = Value::raw_pointer(data);
 
         // allocate managed heap cell for the header
-        managed_heap.allocate_with_values(slots)
+        heap.allocate_managed_values(slots).map_err(Error::from)
     }
 }
 

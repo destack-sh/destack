@@ -7,7 +7,7 @@ use smallvec::SmallVec;
 
 use crate::diagnostic::Error;
 use destack_heap::{
-    LocalPointer, ManagedPointer, RawPointer, ReferenceAddressSpace, ReferenceMeta, StackPointer,
+    LocalPointer, ManagedReference, RawPointer, ReferenceAddressSpace, ReferenceMeta, StackPointer,
     Value, ValueTag,
 };
 
@@ -161,18 +161,26 @@ fn aggregate_slots<'a>(
 ) -> Result<super::state::AggregateSlots<'a>, Error> {
     // require aggregate payload
     let handle = value
-        .as_managed_pointer()
+        .as_managed_reference()
         .ok_or_else(|| Error::TypeMismatch {
             expected: "aggregate".to_string(),
             actual: format!("{value:?}"),
         })?;
 
-    let cell = state
-        .heap_ref()
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
-    Ok(super::state::AggregateSlots::new(cell.slots.as_slice()))
+    let heap = state.heap_ref();
+    heap.managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+
+    // borrow inline aggregates and copy overflow backed aggregates
+    if let Some(slots) = heap.managed_inline_slots(handle) {
+        return Ok(super::state::AggregateSlots::borrowed(slots));
+    }
+
+    let slots = heap
+        .managed_slots_to_vec(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+
+    Ok(super::state::AggregateSlots::owned(slots))
 }
 
 /// Load aggregate slots and copy them into a Vec.
@@ -394,7 +402,7 @@ fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, E
 
     match value.tag() {
         ValueTag::ManagedReference => {
-            let Some(handle) = value.as_managed_pointer() else {
+            let Some(handle) = value.as_managed_reference() else {
                 return Err(Error::InvalidPointerType {
                     actual: format!("{value:?}"),
                 });
@@ -404,7 +412,7 @@ fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, E
             let slot = u32::try_from(slot).map_err(|_| Error::InvalidPointerType {
                 actual: format!("{value:?}"),
             })?;
-            let handle = ManagedPointer::with_slot_offset(handle.id(), slot);
+            let handle = ManagedReference::with_slot_offset(handle.id(), slot);
             Ok(Value::managed_reference_with_meta(handle, reference))
         }
         ValueTag::RawPointer => {

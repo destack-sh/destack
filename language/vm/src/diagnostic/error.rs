@@ -1,5 +1,5 @@
-use destack_mir as mir;
 use serde::{Deserialize, Serialize};
+use {destack_heap as heap, destack_mir as mir};
 
 /// Anchor for MIR-level error locations.
 #[derive(Debug, Clone, PartialEq)]
@@ -78,78 +78,85 @@ pub enum Error {
     /// Invalid instruction.
     InvalidInstruction = 11,
 
-    /// Memory allocation failed (heap limit exceeded).
+    /// Heap allocation failed.
     AllocationFailed = 12,
 
+    /// One heap hard limit was exceeded.
+    HeapLimitExceeded {
+        scope: String,
+        used_bytes: u64,
+        max_bytes: u64,
+    } = 13,
+
     /// Invalid cast operation.
-    InvalidCast = 13,
+    InvalidCast = 14,
 
     /// Execution step limit exceeded (infinite loop protection).
-    StepLimitExceeded = 14,
+    StepLimitExceeded = 15,
 
     /// Attempted to access an undefined local variable.
-    UndefinedLocal { local: mir::LocalNodeId<mir::Local> } = 15,
+    UndefinedLocal { local: mir::LocalNodeId<mir::Local> } = 16,
 
     /// Invalid field access (index out of bounds for struct/tuple).
-    InvalidFieldAccess { index: u32, field_count: usize } = 16,
+    InvalidFieldAccess { index: u32, field_count: usize } = 17,
 
     /// Invalid array element access.
-    InvalidArrayAccess { index: u64, length: u64 } = 17,
+    InvalidArrayAccess { index: u64, length: u64 } = 18,
 
-    /// Invalid managed pointer (dangling reference).
-    InvalidManagedPointer = 18,
+    /// Invalid managed reference (dangling reference).
+    InvalidManagedReference = 19,
 
     /// Unsupported instruction for comptime evaluation.
-    UnsupportedInstruction { name: String } = 19,
+    UnsupportedInstruction { name: String } = 20,
 
     /// Attempted to use a non-pointer value as a pointer (in Load/Store).
-    InvalidPointerType { actual: String } = 20,
+    InvalidPointerType { actual: String } = 21,
 
     /// Attempted to access an undefined global variable.
     UndefinedGlobal {
         global: mir::LocalNodeId<mir::Global>,
-    } = 21,
+    } = 22,
 
     /// Attempted to write to an immutable global.
     ImmutableGlobalWrite {
         global: mir::LocalNodeId<mir::Global>,
-    } = 22,
+    } = 23,
 
     /// Abort trap triggered.
-    Abort = 23,
+    Abort = 24,
 
     /// Invalid arguments to intrinsic.
-    InvalidIntrinsicArguments { intrinsic: String } = 24,
+    InvalidIntrinsicArguments { intrinsic: String } = 25,
 
     /// Attempted to write through an immutable reference.
-    ImmutableReferenceWrite { reference: String } = 25,
+    ImmutableReferenceWrite { reference: String } = 26,
 
     /// Reference kind is incompatible with the pointer storage.
-    InvalidReferenceKind { reference: String, actual: String } = 26,
+    InvalidReferenceKind { reference: String, actual: String } = 27,
 
     /// Yielded during a non-yielding execution.
-    UnexpectedYield = 27,
+    UnexpectedYield = 28,
 
     /// Attempted to resume without a pending yield.
-    ResumeWithoutYield = 28,
+    ResumeWithoutYield = 29,
 
     /// Attempted to resume with an invalid continuation.
-    InvalidContinuation = 29,
+    InvalidContinuation = 30,
 
     /// Reference address space is not supported by the VM.
-    UnsupportedAddressSpace { address_space: String } = 30,
+    UnsupportedAddressSpace { address_space: String } = 31,
 
     /// Reference address space does not match the pointer storage.
-    InvalidAddressSpace { expected: String, actual: String } = 31,
+    InvalidAddressSpace { expected: String, actual: String } = 33,
 
     /// Unsupported zero initialization for a MIR type.
-    UnsupportedZeroValue { ty: String } = 33,
+    UnsupportedZeroValue { ty: String } = 34,
 
     /// Panic trap triggered.
-    Panic { message: String } = 34,
+    Panic { message: String } = 35,
 
     /// Float to integer conversion failed.
-    BadConversionToInteger = 35,
+    BadConversionToInteger = 36,
 }
 
 impl Error {
@@ -190,7 +197,16 @@ impl Error {
                 format!("external call forbidden: {name}")
             }
             Self::InvalidInstruction => "invalid instruction".to_string(),
-            Self::AllocationFailed => "memory allocation failed (heap limit exceeded)".to_string(),
+            Self::AllocationFailed => "allocation failed".to_string(),
+            Self::HeapLimitExceeded {
+                scope,
+                used_bytes,
+                max_bytes,
+            } => {
+                format!(
+                    "{scope} heap limit exceeded: using {used_bytes} bytes with limit {max_bytes}"
+                )
+            }
             Self::InvalidCast => "invalid cast".to_string(),
             Self::StepLimitExceeded => "execution step limit exceeded".to_string(),
             Self::UndefinedLocal { local } => {
@@ -202,8 +218,8 @@ impl Error {
             Self::InvalidArrayAccess { index, length } => {
                 format!("invalid array access: index {index}, array has {length} elements")
             }
-            Self::InvalidManagedPointer => {
-                "invalid managed pointer (dangling reference)".to_string()
+            Self::InvalidManagedReference => {
+                "invalid managed reference (dangling reference)".to_string()
             }
             Self::UnsupportedInstruction { name } => {
                 format!("unsupported instruction for comptime: {name}")
@@ -261,6 +277,16 @@ impl std::fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl From<heap::HeapLimitError> for Error {
+    fn from(error: heap::HeapLimitError) -> Self {
+        Self::HeapLimitExceeded {
+            scope: error.scope.name().to_string(),
+            used_bytes: error.used_bytes,
+            max_bytes: error.max_bytes,
+        }
+    }
+}
 
 /// A runtime error with call stack and location information.
 #[derive(Debug, Clone)]

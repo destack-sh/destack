@@ -18,8 +18,8 @@ pub use destack_heap::string::{
 };
 pub use destack_heap::{
     GcStats, GlobalPointer, Heap, HeapImage, HeapSnapshot, LocalPointer, ManagedHeap,
-    ManagedPointer, RawCell, RawCellStorage, RawHeap, RawPointer, ReferenceAddressSpace,
-    ReferenceMeta, SlotStorage, StackPointer, Value, ValueTag,
+    ManagedReference, RawAllocation, RawHeap, RawPointer, ReferenceAddressSpace, ReferenceMeta,
+    StackPointer, Value, ValueCell, ValueTag,
 };
 
 #[cfg(test)]

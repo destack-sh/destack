@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use destack_mir as mir;
 
 use crate::ThreadedHandler;
-use destack_heap::{ManagedPointer, RawPointer, ReferenceMeta, Value};
+use destack_heap::{ManagedReference, RawPointer, ReferenceMeta, Value};
 
 use super::super::dispatch;
 use super::threaded::{
@@ -1512,7 +1512,7 @@ fn thread_instruction(
                     reference_meta_for_type(tree, value_type_for_value(*destination, value_types));
                 let value = match reference.kind() {
                     Some(mir::ReferenceKind::Managed) => {
-                        Value::managed_reference_with_meta(ManagedPointer::NULL, reference)
+                        Value::managed_reference_with_meta(ManagedReference::NULL, reference)
                     }
                     _ => Value::raw_pointer_with_meta(RawPointer::NULL, reference),
                 };

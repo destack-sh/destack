@@ -2,7 +2,7 @@ use std::fmt;
 use std::ptr::NonNull;
 
 use crate::diagnostic::Error;
-use destack_heap::{Heap, RawCellStorage, RawPointer, SlotStorage, Value, ValueTag};
+use destack_heap::{Heap, RawPointer, Value, ValueTag};
 
 use super::IsolateState;
 
@@ -38,8 +38,15 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 
     /// Intern a UTF-8 string and return the managed string value.
-    pub fn intern_string(&mut self, value: &str) -> Value {
-        self.state.intern_string_literal(self.heap, value)
+    pub fn intern_string(&mut self, value: &str) -> Result<Value, Error> {
+        self.state.try_intern_string_literal(self.heap, value)
+    }
+
+    /// Intern a UTF-8 string and return the managed string handle.
+    pub fn string_handle(&mut self, value: &str) -> Result<super::StringHandle, Error> {
+        let value = self.intern_string(value)?;
+
+        Ok(super::StringHandle::new(value))
     }
 
     /// Read a UTF-8 string value from the heap.
@@ -58,28 +65,28 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 
     /// Allocate an aggregate on the heap and return it as a Value.
-    pub fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        self.state.allocate_aggregate(self.heap, values)
+    pub fn allocate_aggregate(&mut self, values: Vec<Value>) -> Result<Value, Error> {
+        self.state.try_allocate_aggregate(self.heap, values)
     }
 
     /// Allocate a 2-element aggregate on the heap.
-    pub fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
-        self.state.allocate_pair(self.heap, first, second)
+    pub fn allocate_pair(&mut self, first: Value, second: Value) -> Result<Value, Error> {
+        self.state.try_allocate_pair(self.heap, first, second)
     }
 
     /// Allocate a 1-element aggregate on the heap.
-    pub fn allocate_single(&mut self, value: Value) -> Value {
-        self.state.allocate_single(self.heap, value)
+    pub fn allocate_single(&mut self, value: Value) -> Result<Value, Error> {
+        self.state.try_allocate_single(self.heap, value)
     }
 
     /// Allocate a raw heap cell with value slots and return its pointer.
-    pub fn allocate_raw_values(&mut self, values: Vec<Value>) -> RawPointer {
-        self.state.allocate_raw_values(self.heap, values)
+    pub fn allocate_raw_values(&mut self, values: Vec<Value>) -> Result<RawPointer, Error> {
+        self.state.try_allocate_raw_values(self.heap, values)
     }
 
     /// Allocate a raw heap byte buffer and return its pointer.
-    pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> RawPointer {
-        self.state.allocate_raw_bytes(self.heap, bytes)
+    pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> Result<RawPointer, Error> {
+        self.state.try_allocate_raw_bytes(self.heap, bytes)
     }
 
     /// Read aggregate slots from the heap.
@@ -91,85 +98,70 @@ impl<'ctx> ExternalCallContext<'ctx> {
             });
         }
         let handle = value
-            .as_managed_pointer()
-            .ok_or(Error::InvalidManagedPointer)?;
-        let cell = self
+            .as_managed_reference()
+            .ok_or(Error::InvalidManagedReference)?;
+        let slots = self
             .heap
-            .managed()
-            .get(handle)
-            .ok_or(Error::InvalidManagedPointer)?;
-        Ok(cell.slots.as_slice().to_vec())
-    }
-
-    /// Read the raw cell storage for a raw pointer.
-    pub fn raw_cell_storage(&self, pointer: RawPointer) -> Result<RawCellStorage, Error> {
-        let cell = self
-            .heap
-            .raw()
-            .get(pointer)
-            .ok_or(Error::InvalidManagedPointer)?;
-        Ok(cell.storage.clone())
+            .managed_slots_to_vec(handle)
+            .ok_or(Error::InvalidManagedReference)?;
+        Ok(slots)
     }
 
     /// Read raw values from a pointer to a values cell.
     pub fn raw_values(&self, pointer: RawPointer) -> Result<Vec<Value>, Error> {
-        match self.raw_cell_storage(pointer)? {
-            RawCellStorage::Values(storage) => Ok(storage.as_slice().to_vec()),
-            RawCellStorage::Bytes(_) => Err(Error::TypeMismatch {
+        self.heap
+            .raw_values(pointer)
+            .map(|values| values.to_vec())
+            .ok_or(Error::TypeMismatch {
                 expected: "values".to_string(),
                 actual: "bytes".to_string(),
-            }),
-        }
+            })
     }
 
     /// Read raw bytes from a pointer to a bytes cell.
     pub fn raw_bytes(&self, pointer: RawPointer) -> Result<Vec<u8>, Error> {
-        match self.raw_cell_storage(pointer)? {
-            RawCellStorage::Bytes(bytes) => Ok(bytes),
-            RawCellStorage::Values(_) => Err(Error::TypeMismatch {
+        self.heap
+            .raw_bytes_to_vec(pointer)
+            .ok_or(Error::TypeMismatch {
                 expected: "bytes".to_string(),
                 actual: "values".to_string(),
-            }),
-        }
+            })
     }
 
     /// Write raw values into a pointer to a values cell.
     pub fn write_raw_values(&mut self, pointer: RawPointer, values: &[Value]) -> Result<(), Error> {
-        let cell = self
+        if self
             .heap
-            .raw_mut()
-            .get_mut(pointer)
-            .ok_or(Error::InvalidManagedPointer)?;
-        match &mut cell.storage {
-            RawCellStorage::Values(_) => {
-                cell.storage = RawCellStorage::Values(SlotStorage::from_values(values.to_vec()));
-                Ok(())
-            }
-            RawCellStorage::Bytes(_) => Err(Error::TypeMismatch {
-                expected: "values".to_string(),
-                actual: "bytes".to_string(),
-            }),
+            .replace_raw_values(pointer, values)
+            .map_err(Error::from)?
+        {
+            return Ok(());
         }
+
+        Err(Error::TypeMismatch {
+            expected: "values".to_string(),
+            actual: "bytes".to_string(),
+        })
     }
 
     /// Write raw bytes into a pointer to a bytes cell.
     pub fn write_raw_bytes(&mut self, pointer: RawPointer, bytes: &[u8]) -> Result<(), Error> {
-        let cell = self
-            .heap
-            .raw_mut()
-            .get_mut(pointer)
-            .ok_or(Error::InvalidManagedPointer)?;
-        match &mut cell.storage {
-            RawCellStorage::Bytes(storage) => {
-                storage.clear();
-                storage.extend_from_slice(bytes);
-                Ok(())
-            }
-            RawCellStorage::Values(_) => Err(Error::TypeMismatch {
+        if self.heap.raw_is_bytes(pointer) != Some(true) {
+            return Err(Error::TypeMismatch {
                 expected: "bytes".to_string(),
                 actual: "values".to_string(),
-            }),
+            });
         }
+
+        if self
+            .heap
+            .replace_raw_bytes(pointer, bytes)
+            .map_err(Error::from)?
+        {
+            return Ok(());
+        }
+
+        Err(Error::InvalidManagedReference)
     }
 }
 

@@ -1,7 +1,6 @@
 use crate::diagnostic::Error;
 use destack_heap::{
-    GlobalPointer, LocalPointer, ManagedPointer, RawPointer, SlotStorage, StackPointer, Value,
-    ValueTag,
+    GlobalPointer, LocalPointer, ManagedReference, RawPointer, StackPointer, Value, ValueTag,
 };
 use destack_mir as mir;
 
@@ -22,7 +21,7 @@ pub(crate) fn load_from_pointer(
     // resolve pointer kind and load
     match ptr.tag() {
         ValueTag::ManagedReference => {
-            let handle = ptr.as_managed_pointer().unwrap();
+            let handle = ptr.as_managed_reference().unwrap();
             load_heap_slot(state, handle, handle.slot_offset())
         }
         ValueTag::RawPointer => {
@@ -62,7 +61,7 @@ pub(crate) fn store_to_pointer(
     // resolve pointer kind and store
     match ptr.tag() {
         ValueTag::ManagedReference => {
-            let handle = ptr.as_managed_pointer().unwrap();
+            let handle = ptr.as_managed_reference().unwrap();
             store_heap_slot(state, handle, handle.slot_offset(), val)
         }
         ValueTag::RawPointer => {
@@ -105,7 +104,7 @@ pub(crate) fn load_from_managed_reference(
     }
 
     // resolve handle
-    let handle = ptr.as_managed_pointer().unwrap();
+    let handle = ptr.as_managed_reference().unwrap();
     load_heap_slot(state, handle, handle.slot_offset())
 }
 
@@ -196,7 +195,7 @@ pub(crate) fn store_to_managed_reference(
     }
 
     // resolve handle
-    let handle = ptr.as_managed_pointer().unwrap();
+    let handle = ptr.as_managed_reference().unwrap();
     store_heap_slot(state, handle, handle.slot_offset(), val)
 }
 
@@ -350,9 +349,9 @@ pub(crate) fn field_addr(
     // resolve the source and compute the field pointer
     match aggregate.tag() {
         ValueTag::Aggregate | ValueTag::ManagedReference | ValueTag::String => {
-            let handle = aggregate.as_managed_pointer().unwrap();
+            let handle = aggregate.as_managed_reference().unwrap();
             let slot_index = resolve_heap_field_slot(state, handle, index, field_count)?;
-            let handle = ManagedPointer::with_slot_offset(handle.id(), slot_index);
+            let handle = ManagedReference::with_slot_offset(handle.id(), slot_index);
             Ok(Value::managed_reference(handle))
         }
         ValueTag::RawPointer => {
@@ -392,7 +391,7 @@ pub(crate) fn field_addr(
 #[inline(always)]
 pub(crate) fn field_addr_managed(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
@@ -401,10 +400,9 @@ pub(crate) fn field_addr_managed(
 
     // resolve slot offset
     let slot_index = resolve_heap_field_slot(state, handle, index, field_count)?;
-    Ok(Value::managed_reference(ManagedPointer::with_slot_offset(
-        handle.id(),
-        slot_index,
-    )))
+    Ok(Value::managed_reference(
+        ManagedReference::with_slot_offset(handle.id(), slot_index),
+    ))
 }
 
 /// Get the address of a field from a raw pointer.
@@ -491,9 +489,9 @@ pub(crate) fn element_addr(
     // resolve the source and compute the element pointer
     match array.tag() {
         ValueTag::Aggregate | ValueTag::ManagedReference => {
-            let handle = array.as_managed_pointer().unwrap();
+            let handle = array.as_managed_reference().unwrap();
             let slot_index = resolve_heap_element_slot(state, handle, index, array_length)?;
-            let handle = ManagedPointer::with_slot_offset(handle.id(), slot_index);
+            let handle = ManagedReference::with_slot_offset(handle.id(), slot_index);
             Ok(Value::managed_reference(handle))
         }
         ValueTag::RawPointer => {
@@ -533,7 +531,7 @@ pub(crate) fn element_addr(
 #[inline(always)]
 pub(crate) fn element_addr_managed(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
@@ -542,10 +540,9 @@ pub(crate) fn element_addr_managed(
 
     // resolve slot offset
     let slot_index = resolve_heap_element_slot(state, handle, index, array_length)?;
-    Ok(Value::managed_reference(ManagedPointer::with_slot_offset(
-        handle.id(),
-        slot_index,
-    )))
+    Ok(Value::managed_reference(
+        ManagedReference::with_slot_offset(handle.id(), slot_index),
+    ))
 }
 
 /// Get the address of an element from a raw pointer.
@@ -625,7 +622,7 @@ pub(crate) fn element_addr_global(
 #[inline(always)]
 pub(crate) fn load_field_managed(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
@@ -641,9 +638,9 @@ pub(crate) fn load_field_managed(
 
         let heap = state.heap_ref();
         // #Safety: checks are disabled, caller ensures validity
-        let cell = unsafe { heap.managed().get_unchecked(handle) };
-        debug_assert!(slot_index < cell.slots.len(), "heap field out of bounds");
-        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        let cell = unsafe { heap.managed_allocation_unchecked(handle) };
+        debug_assert!(slot_index < cell.len(), "heap field out of bounds");
+        let value = unsafe { *cell.get_unchecked(slot_index) };
         return Ok(value);
     }
 
@@ -658,24 +655,21 @@ pub(crate) fn load_field_managed(
     // look up the managed heap cell
     let heap = state.heap_ref();
     let cell = heap
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
 
-    // fast path for small known aggregates (e.g., overflow tuples)
-    // field_count ≤ 2 guarantees inline storage, index already validated
+    // fast path for small known aggregates
     if field_count != UNKNOWN_FIELD_COUNT && field_count <= 2 {
         let slot_index = handle.slot_offset().wrapping_add(index as usize);
-        // inline storage is guaranteed for field_count ≤ INLINE_SLOT_CAP (2)
-        if let SlotStorage::Inline { slots, .. } = &cell.slots {
-            debug_assert!(slot_index < slots.len(), "inline slot out of bounds");
-            return Ok(unsafe { *slots.get_unchecked(slot_index) });
+        if slot_index < cell_len {
+            return Ok(unsafe { *heap.managed_slot_unchecked(handle, slot_index) });
         }
     }
 
     // select field count for diagnostics
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        cell.slots.len()
+        cell_len
     } else {
         field_count as usize
     };
@@ -696,36 +690,36 @@ pub(crate) fn load_field_managed(
     // validate bounds when field count is unknown
     if state.bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.slots.is_empty()
-        && slot_index >= cell.slots.len()
+        && !cell.is_empty()
+        && slot_index >= cell_len
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.slots.len(),
+            field_count: cell_len,
         });
     }
 
     // treat empty slot 0 as void
-    if cell.slots.is_empty() && slot_index == 0 {
+    if cell.is_empty() && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "heap field out of bounds");
+        debug_assert!(slot_index < cell_len, "heap field out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        let value = unsafe { *heap.managed_slot_unchecked(handle, slot_index) };
         return Ok(value);
     }
 
     // read the slot when in bounds
-    if let Some(value) = cell.slots.get(slot_index).copied() {
+    if let Some(value) = heap.managed_slot(handle, slot_index).copied() {
         return Ok(value);
     }
 
     Err(Error::InvalidFieldAccess {
         index,
-        field_count: cell.slots.len(),
+        field_count: cell_len,
     })
 }
 
@@ -733,7 +727,7 @@ pub(crate) fn load_field_managed(
 #[inline(always)]
 pub(crate) fn store_field_managed(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u32,
     field_count: u32,
     value: Value,
@@ -753,9 +747,9 @@ pub(crate) fn store_field_managed(
 
         // #Safety: checks are disabled, caller ensures validity
         let heap = state.heap();
-        let cell = unsafe { heap.managed_mut().get_unchecked_mut(handle) };
-        debug_assert!(slot_index < cell.slots.len(), "heap field out of bounds");
-        unsafe { *cell.slots.get_unchecked_mut(slot_index) = value };
+        let cell_len = unsafe { heap.managed_allocation_unchecked(handle) }.len();
+        debug_assert!(slot_index < cell_len, "heap field out of bounds");
+        unsafe { heap.set_managed_slot_unchecked(handle, slot_index, value) };
         return Ok(());
     }
 
@@ -770,25 +764,23 @@ pub(crate) fn store_field_managed(
     // look up the managed heap cell
     let heap = state.heap();
     let cell = heap
-        .managed_mut()
-        .get_mut(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
+    let cell_is_empty = cell.is_empty();
 
-    // fast path for small known aggregates (e.g., overflow tuples)
-    // field_count ≤ 2 guarantees inline storage, index already validated
+    // fast path for small known aggregates
     if field_count != UNKNOWN_FIELD_COUNT && field_count <= 2 {
         let slot_index = handle.slot_offset().wrapping_add(index as usize);
-        // inline storage is guaranteed for field_count ≤ INLINE_SLOT_CAP (2)
-        if let SlotStorage::Inline { slots, .. } = &mut cell.slots {
-            debug_assert!(slot_index < slots.len(), "inline slot out of bounds");
-            unsafe { *slots.get_unchecked_mut(slot_index) = value };
+        if slot_index < cell_len {
+            unsafe { heap.set_managed_slot_unchecked(handle, slot_index, value) };
             return Ok(());
         }
     }
 
     // select field count for diagnostics
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        cell.slots.len()
+        cell_len
     } else {
         field_count as usize
     };
@@ -809,34 +801,31 @@ pub(crate) fn store_field_managed(
     // validate bounds when field count is unknown
     if bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.slots.is_empty()
-        && slot_index >= cell.slots.len()
+        && !cell_is_empty
+        && slot_index >= cell_len
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.slots.len(),
+            field_count: cell_len,
         });
     }
 
     // fast path without bounds checks
     if !bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "heap field out of bounds");
+        debug_assert!(slot_index < cell_len, "heap field out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
-        unsafe {
-            *cell.slots.get_unchecked_mut(slot_index) = value;
-        }
+        unsafe { heap.set_managed_slot_unchecked(handle, slot_index, value) };
         return Ok(());
     }
 
     // write the slot when in bounds
-    if let Some(slot) = cell.slots.get_mut(slot_index) {
-        *slot = value;
+    if heap.set_managed_slot(handle, slot_index, value) {
         return Ok(());
     }
 
     Err(Error::InvalidFieldAccess {
         index,
-        field_count: cell.slots.len(),
+        field_count: cell_len,
     })
 }
 
@@ -864,7 +853,7 @@ pub(crate) fn load_field_raw(
     // select field count for diagnostics
     let slot_count = state
         .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
         slot_count
     } else {
@@ -924,7 +913,7 @@ pub(crate) fn store_field_raw(
     // select field count for diagnostics
     let slot_count = state
         .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
         slot_count
     } else {
@@ -979,11 +968,12 @@ pub(crate) fn load_field_stack(
     let frame = state.frame_by_index(pointer.frame_idx)?;
     let cell = frame
         .get_stack_cell(pointer.slot)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
 
     // select field count for diagnostics
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        cell.slots.len()
+        cell_len
     } else {
         field_count as usize
     };
@@ -1004,36 +994,36 @@ pub(crate) fn load_field_stack(
     // validate bounds when field count is unknown
     if state.bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.slots.is_empty()
-        && slot_index >= cell.slots.len()
+        && !cell.is_empty()
+        && slot_index >= cell.len()
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.slots.len(),
+            field_count: cell.len(),
         });
     }
 
     // treat empty slot 0 as void
-    if cell.slots.is_empty() && slot_index == 0 {
+    if cell.is_empty() && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "stack field out of bounds");
+        debug_assert!(slot_index < cell.len(), "stack field out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        let value = unsafe { *cell.get_unchecked(slot_index) };
         return Ok(value);
     }
 
     // read the slot when in bounds
-    if let Some(value) = cell.slots.get(slot_index).copied() {
+    if let Some(value) = cell.get(slot_index).copied() {
         return Ok(value);
     }
 
     Err(Error::InvalidFieldAccess {
         index,
-        field_count: cell.slots.len(),
+        field_count: cell.len(),
     })
 }
 
@@ -1061,11 +1051,12 @@ pub(crate) fn store_field_stack(
     let frame = state.frame_by_index_mut(pointer.frame_idx)?;
     let cell = frame
         .get_stack_cell_mut(pointer.slot)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
 
     // select field count for diagnostics
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        cell.slots.len()
+        cell_len
     } else {
         field_count as usize
     };
@@ -1086,34 +1077,34 @@ pub(crate) fn store_field_stack(
     // validate bounds when field count is unknown
     if bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.slots.is_empty()
-        && slot_index >= cell.slots.len()
+        && !cell.is_empty()
+        && slot_index >= cell.len()
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.slots.len(),
+            field_count: cell.len(),
         });
     }
 
     // fast path without bounds checks
     if !bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "stack field out of bounds");
+        debug_assert!(slot_index < cell.len(), "stack field out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
         unsafe {
-            *cell.slots.get_unchecked_mut(slot_index) = value;
+            *cell.get_unchecked_mut(slot_index) = value;
         }
         return Ok(());
     }
 
     // write the slot when in bounds
-    if let Some(slot) = cell.slots.get_mut(slot_index) {
+    if let Some(slot) = cell.get_mut(slot_index) {
         *slot = value;
         return Ok(());
     }
 
     Err(Error::InvalidFieldAccess {
         index,
-        field_count: cell.slots.len(),
+        field_count: cell.len(),
     })
 }
 
@@ -1150,7 +1141,7 @@ pub(crate) fn load_field_global(
         });
     }
 
-    let handle = value.as_managed_pointer().unwrap();
+    let handle = value.as_managed_reference().unwrap();
 
     // reject null handles when enabled
     if state.null_checks && handle.is_null() {
@@ -1160,13 +1151,12 @@ pub(crate) fn load_field_global(
     // look up the managed heap cell
     let heap = state.heap_ref();
     let cell = heap
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
 
     // select field count for diagnostics
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        cell.slots.len()
+        cell.len()
     } else {
         field_count as usize
     };
@@ -1187,36 +1177,36 @@ pub(crate) fn load_field_global(
     // validate bounds when field count is unknown
     if state.bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.slots.is_empty()
-        && slot_index >= cell.slots.len()
+        && !cell.is_empty()
+        && slot_index >= cell.len()
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.slots.len(),
+            field_count: cell.len(),
         });
     }
 
     // treat empty slot 0 as void
-    if cell.slots.is_empty() && slot_index == 0 {
+    if cell.is_empty() && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "global field out of bounds");
+        debug_assert!(slot_index < cell.len(), "global field out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        let value = unsafe { *cell.get_unchecked(slot_index) };
         return Ok(value);
     }
 
     // read the slot when in bounds
-    if let Some(value) = cell.slots.get(slot_index).copied() {
+    if let Some(value) = cell.get(slot_index).copied() {
         return Ok(value);
     }
 
     Err(Error::InvalidFieldAccess {
         index,
-        field_count: cell.slots.len(),
+        field_count: cell.len(),
     })
 }
 
@@ -1257,7 +1247,7 @@ pub(crate) fn store_field_global(
         });
     }
 
-    let handle = current.as_managed_pointer().unwrap();
+    let handle = current.as_managed_reference().unwrap();
 
     // reject null handles when enabled
     if null_checks && handle.is_null() {
@@ -1265,16 +1255,17 @@ pub(crate) fn store_field_global(
     }
 
     {
-        // look up the managed heap cell
+        // look up the managed heap allocation
         let heap = state.heap();
-        let cell = heap
-            .managed_mut()
-            .get_mut(handle)
-            .ok_or(Error::InvalidManagedPointer)?;
+        let allocation = heap
+            .managed_allocation(handle)
+            .ok_or(Error::InvalidManagedReference)?;
+        let allocation_len = allocation.len();
+        let allocation_is_empty = allocation.is_empty();
 
         // select field count for diagnostics
         let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-            cell.slots.len()
+            allocation_len
         } else {
             field_count as usize
         };
@@ -1295,29 +1286,28 @@ pub(crate) fn store_field_global(
         // validate bounds when field count is unknown
         if bounds_checks
             && field_count == UNKNOWN_FIELD_COUNT
-            && !cell.slots.is_empty()
-            && slot_index >= cell.slots.len()
+            && !allocation_is_empty
+            && slot_index >= allocation_len
         {
             return Err(Error::InvalidFieldAccess {
                 index,
-                field_count: cell.slots.len(),
+                field_count: allocation_len,
             });
         }
 
         // fast path without bounds checks
         if !bounds_checks {
-            debug_assert!(slot_index < cell.slots.len(), "global field out of bounds");
+            debug_assert!(slot_index < allocation_len, "global field out of bounds");
             // #Safety: bounds checks are disabled and slot is trusted
             unsafe {
-                *cell.slots.get_unchecked_mut(slot_index) = value;
+                heap.set_managed_slot_unchecked(handle, slot_index, value);
             }
-        } else if let Some(slot) = cell.slots.get_mut(slot_index) {
+        } else if heap.set_managed_slot(handle, slot_index, value) {
             // write the slot when in bounds
-            *slot = value;
         } else {
             return Err(Error::InvalidFieldAccess {
                 index,
-                field_count: cell.slots.len(),
+                field_count: allocation_len,
             });
         }
     }
@@ -1330,7 +1320,7 @@ pub(crate) fn store_field_global(
 #[inline(always)]
 pub(crate) fn load_element_managed(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
@@ -1350,15 +1340,15 @@ pub(crate) fn load_element_managed(
     // look up the managed heap cell
     let heap = state.heap_ref();
     let cell = heap
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell_len as u64,
         })?
     } else {
         index as usize
@@ -1369,42 +1359,41 @@ pub(crate) fn load_element_managed(
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: cell.len() as u64,
             })?
     } else {
         handle.slot_offset().wrapping_add(index_usize)
     };
 
     // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.slots.len()
-    {
+    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell_len {
         return Err(Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell_len as u64,
         });
     }
 
     // treat empty slot 0 as void
-    if cell.slots.is_empty() && slot_index == 0 {
+    if cell.is_empty() && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "heap element out of bounds");
+        debug_assert!(slot_index < cell.len(), "heap element out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        let value = unsafe { *cell.get_unchecked(slot_index) };
         return Ok(value);
     }
 
     // read the slot when in bounds
-    if let Some(value) = cell.slots.get(slot_index).copied() {
+    if let Some(value) = cell.get(slot_index).copied() {
         return Ok(value);
     }
 
     Err(Error::InvalidArrayAccess {
         index,
-        length: cell.slots.len() as u64,
+        length: cell.len() as u64,
     })
 }
 
@@ -1412,7 +1401,7 @@ pub(crate) fn load_element_managed(
 #[inline(always)]
 pub(crate) fn store_element_managed(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u64,
     array_length: u64,
     value: Value,
@@ -1433,18 +1422,18 @@ pub(crate) fn store_element_managed(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    // look up the managed heap allocation
     let heap = state.heap();
-    let cell = heap
-        .managed_mut()
-        .get_mut(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+    let allocation = heap
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let allocation_len = allocation.len();
 
     // compute the absolute slot offset
     let index_usize = if bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: allocation_len as u64,
         })?
     } else {
         index as usize
@@ -1455,39 +1444,38 @@ pub(crate) fn store_element_managed(
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: allocation_len as u64,
             })?
     } else {
         handle.slot_offset().wrapping_add(index_usize)
     };
 
     // validate bounds when array length is unknown
-    if bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.slots.len() {
+    if bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= allocation_len {
         return Err(Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: allocation_len as u64,
         });
     }
 
     // fast path without bounds checks
     if !bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "heap element out of bounds");
+        debug_assert!(slot_index < allocation_len, "heap element out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
         unsafe {
-            *cell.slots.get_unchecked_mut(slot_index) = value;
+            heap.set_managed_slot_unchecked(handle, slot_index, value);
         }
         return Ok(());
     }
 
     // write the slot when in bounds
-    if let Some(slot) = cell.slots.get_mut(slot_index) {
-        *slot = value;
+    if heap.set_managed_slot(handle, slot_index, value) {
         return Ok(());
     }
 
     Err(Error::InvalidArrayAccess {
         index,
-        length: cell.slots.len() as u64,
+        length: allocation_len as u64,
     })
 }
 
@@ -1515,7 +1503,7 @@ pub(crate) fn load_element_raw(
     // look up the raw slot count
     let slot_count = state
         .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
@@ -1582,7 +1570,7 @@ pub(crate) fn store_element_raw(
     // look up the raw slot count
     let slot_count = state
         .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
@@ -1644,13 +1632,14 @@ pub(crate) fn load_element_stack(
     let frame = state.frame_by_index(pointer.frame_idx)?;
     let cell = frame
         .get_stack_cell(pointer.slot)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell_len as u64,
         })?
     } else {
         index as usize
@@ -1661,42 +1650,41 @@ pub(crate) fn load_element_stack(
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: cell_len as u64,
             })?
     } else {
         pointer.slot_offset.wrapping_add(index_usize)
     };
 
     // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.slots.len()
-    {
+    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell_len {
         return Err(Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell_len as u64,
         });
     }
 
     // treat empty slot 0 as void
-    if cell.slots.is_empty() && slot_index == 0 {
+    if cell.is_empty() && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "stack element out of bounds");
+        debug_assert!(slot_index < cell_len, "stack element out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        let value = unsafe { *cell.get_unchecked(slot_index) };
         return Ok(value);
     }
 
     // read the slot when in bounds
-    if let Some(value) = cell.slots.get(slot_index).copied() {
+    if let Some(value) = cell.get(slot_index).copied() {
         return Ok(value);
     }
 
     Err(Error::InvalidArrayAccess {
         index,
-        length: cell.slots.len() as u64,
+        length: cell.len() as u64,
     })
 }
 
@@ -1724,13 +1712,14 @@ pub(crate) fn store_element_stack(
     let frame = state.frame_by_index_mut(pointer.frame_idx)?;
     let cell = frame
         .get_stack_cell_mut(pointer.slot)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
 
     // compute the absolute slot offset
     let index_usize = if bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell_len as u64,
         })?
     } else {
         index as usize
@@ -1741,39 +1730,39 @@ pub(crate) fn store_element_stack(
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: cell_len as u64,
             })?
     } else {
         pointer.slot_offset.wrapping_add(index_usize)
     };
 
     // validate bounds when array length is unknown
-    if bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.slots.len() {
+    if bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell_len {
         return Err(Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell_len as u64,
         });
     }
 
     // fast path without bounds checks
     if !bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "stack element out of bounds");
+        debug_assert!(slot_index < cell_len, "stack element out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
         unsafe {
-            *cell.slots.get_unchecked_mut(slot_index) = value;
+            *cell.get_unchecked_mut(slot_index) = value;
         }
         return Ok(());
     }
 
     // write the slot when in bounds
-    if let Some(slot) = cell.slots.get_mut(slot_index) {
+    if let Some(slot) = cell.get_mut(slot_index) {
         *slot = value;
         return Ok(());
     }
 
     Err(Error::InvalidArrayAccess {
         index,
-        length: cell.slots.len() as u64,
+        length: cell.len() as u64,
     })
 }
 
@@ -1807,7 +1796,7 @@ pub(crate) fn load_element_global(
         return Err(Error::InvalidArrayAccess { index, length: 0 });
     }
 
-    let handle = value.as_managed_pointer().unwrap();
+    let handle = value.as_managed_reference().unwrap();
 
     // reject null handles when enabled
     if state.null_checks && handle.is_null() {
@@ -1817,15 +1806,15 @@ pub(crate) fn load_element_global(
     // look up the managed heap cell
     let heap = state.heap_ref();
     let cell = heap
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell_len as u64,
         })?
     } else {
         index as usize
@@ -1836,45 +1825,41 @@ pub(crate) fn load_element_global(
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: cell_len as u64,
             })?
     } else {
         pointer.slot_offset.wrapping_add(index_usize)
     };
 
     // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.slots.len()
-    {
+    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell_len {
         return Err(Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell_len as u64,
         });
     }
 
     // treat empty slot 0 as void
-    if cell.slots.is_empty() && slot_index == 0 {
+    if cell.is_empty() && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(
-            slot_index < cell.slots.len(),
-            "global element out of bounds"
-        );
+        debug_assert!(slot_index < cell.len(), "global element out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        let value = unsafe { *cell.get_unchecked(slot_index) };
         return Ok(value);
     }
 
     // read the slot when in bounds
-    if let Some(value) = cell.slots.get(slot_index).copied() {
+    if let Some(value) = cell.get(slot_index).copied() {
         return Ok(value);
     }
 
     Err(Error::InvalidArrayAccess {
         index,
-        length: cell.slots.len() as u64,
+        length: cell.len() as u64,
     })
 }
 
@@ -1912,7 +1897,7 @@ pub(crate) fn store_element_global(
         return Err(Error::InvalidArrayAccess { index, length: 0 });
     }
 
-    let handle = current.as_managed_pointer().unwrap();
+    let handle = current.as_managed_reference().unwrap();
 
     // reject null handles when enabled
     if null_checks && handle.is_null() {
@@ -1920,18 +1905,18 @@ pub(crate) fn store_element_global(
     }
 
     {
-        // look up the managed heap cell
+        // look up the managed heap allocation
         let heap = state.heap();
-        let cell = heap
-            .managed_mut()
-            .get_mut(handle)
-            .ok_or(Error::InvalidManagedPointer)?;
+        let allocation = heap
+            .managed_allocation(handle)
+            .ok_or(Error::InvalidManagedReference)?;
+        let allocation_len = allocation.len();
 
         // compute the absolute slot offset
         let index_usize = if bounds_checks {
             usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: allocation_len as u64,
             })?
         } else {
             index as usize
@@ -1942,37 +1927,33 @@ pub(crate) fn store_element_global(
                 .checked_add(index_usize)
                 .ok_or(Error::InvalidArrayAccess {
                     index,
-                    length: cell.slots.len() as u64,
+                    length: allocation_len as u64,
                 })?
         } else {
             pointer.slot_offset.wrapping_add(index_usize)
         };
 
         // validate bounds when array length is unknown
-        if bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.slots.len() {
+        if bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= allocation_len {
             return Err(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: allocation_len as u64,
             });
         }
 
         // fast path without bounds checks
         if !bounds_checks {
-            debug_assert!(
-                slot_index < cell.slots.len(),
-                "global element out of bounds"
-            );
+            debug_assert!(slot_index < allocation_len, "global element out of bounds");
             // #Safety: bounds checks are disabled and slot is trusted
             unsafe {
-                *cell.slots.get_unchecked_mut(slot_index) = value;
+                heap.set_managed_slot_unchecked(handle, slot_index, value);
             }
-        } else if let Some(slot) = cell.slots.get_mut(slot_index) {
+        } else if heap.set_managed_slot(handle, slot_index, value) {
             // write the slot when in bounds
-            *slot = value;
         } else {
             return Err(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: allocation_len as u64,
             });
         }
     }
@@ -1991,7 +1972,7 @@ pub(crate) fn get_field(
     // resolve aggregate value
     match agg.tag() {
         ValueTag::Aggregate | ValueTag::String => {
-            let handle = agg.as_managed_pointer().unwrap();
+            let handle = agg.as_managed_reference().unwrap();
             get_heap_field(state, handle, index)
         }
         _ => Err(Error::TypeMismatch {
@@ -2012,7 +1993,7 @@ pub(crate) fn set_field(
     // resolve aggregate value
     match agg.tag() {
         ValueTag::Aggregate | ValueTag::String => {
-            let handle = agg.as_managed_pointer().unwrap();
+            let handle = agg.as_managed_reference().unwrap();
             set_heap_field(state, handle, index, val)?;
             Ok(agg)
         }
@@ -2033,7 +2014,7 @@ pub(crate) fn get_element(
     // resolve array value
     match arr.tag() {
         ValueTag::Aggregate => {
-            let handle = arr.as_managed_pointer().unwrap();
+            let handle = arr.as_managed_reference().unwrap();
             get_heap_element(state, handle, index)
         }
         _ => Err(Error::TypeMismatch {
@@ -2054,7 +2035,7 @@ pub(crate) fn set_element(
     // resolve array value
     match arr.tag() {
         ValueTag::Aggregate => {
-            let handle = arr.as_managed_pointer().unwrap();
+            let handle = arr.as_managed_reference().unwrap();
             set_heap_element(state, handle, index, val)?;
             Ok(arr)
         }
@@ -2069,7 +2050,7 @@ pub(crate) fn set_element(
 #[inline(always)]
 fn load_heap_slot(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     slot_index: usize,
 ) -> Result<Value, Error> {
     let bounds_checks = state.bounds_checks;
@@ -2083,31 +2064,31 @@ fn load_heap_slot(
     // look up the managed heap cell
     let heap = state.heap_ref();
     let cell = heap
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
 
     // treat empty slot 0 as void
-    if cell.slots.is_empty() && slot_index == 0 {
+    if cell.is_empty() && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "heap slot out of bounds");
+        debug_assert!(slot_index < cell_len, "heap slot out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        let value = unsafe { *heap.managed_slot_unchecked(handle, slot_index) };
         return Ok(value);
     }
 
     // read the slot when in bounds
-    if let Some(value) = cell.slots.get(slot_index).copied() {
+    if let Some(value) = heap.managed_slot(handle, slot_index).copied() {
         return Ok(value);
     }
 
     Err(Error::InvalidFieldAccess {
         index: slot_index as u32,
-        field_count: cell.slots.len(),
+        field_count: cell_len,
     })
 }
 
@@ -2115,7 +2096,7 @@ fn load_heap_slot(
 #[inline(always)]
 fn store_heap_slot(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     slot_index: usize,
     value: Value,
 ) -> Result<(), Error> {
@@ -2127,37 +2108,46 @@ fn store_heap_slot(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    // look up the managed heap allocation
     let heap = state.heap();
-    let cell = heap
-        .managed_mut()
-        .get_mut(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+    let allocation = heap
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let mut allocation_len = allocation.len();
 
     // resize slots as needed when bounds checks are enabled
-    if bounds_checks && cell.slots.len() <= slot_index {
-        cell.slots.resize(slot_index + 1, Value::VOID);
+    if bounds_checks && allocation_len <= slot_index {
+        if !heap
+            .resize_managed_slots(handle, slot_index + 1)
+            .map_err(Error::from)?
+        {
+            return Err(Error::InvalidManagedReference);
+        }
+
+        allocation_len = heap
+            .managed_allocation(handle)
+            .ok_or(Error::InvalidManagedReference)?
+            .len();
     }
 
     // fast path without bounds checks
     if !bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "heap slot out of bounds");
+        debug_assert!(slot_index < allocation_len, "heap slot out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
         unsafe {
-            *cell.slots.get_unchecked_mut(slot_index) = value;
+            heap.set_managed_slot_unchecked(handle, slot_index, value);
         }
         return Ok(());
     }
 
     // write slot when in bounds
-    if let Some(slot) = cell.slots.get_mut(slot_index) {
-        *slot = value;
+    if heap.set_managed_slot(handle, slot_index, value) {
         return Ok(());
     }
 
     Err(Error::InvalidFieldAccess {
         index: slot_index as u32,
-        field_count: cell.slots.len(),
+        field_count: allocation_len,
     })
 }
 
@@ -2220,7 +2210,7 @@ fn load_global_slot(
         });
     }
 
-    let handle = value.as_managed_pointer().unwrap();
+    let handle = value.as_managed_reference().unwrap();
 
     load_heap_slot(state, handle, global.slot_offset)
 }
@@ -2253,7 +2243,7 @@ fn store_global_slot(
         });
     }
 
-    let handle = current.as_managed_pointer().unwrap();
+    let handle = current.as_managed_reference().unwrap();
 
     store_heap_slot(state, handle, global.slot_offset, value)?;
     state.interpreter.isolate.globals.set(global.id, current);
@@ -2264,7 +2254,7 @@ fn store_global_slot(
 #[inline(always)]
 fn get_heap_field(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u32,
 ) -> Result<Value, Error> {
     // reject null handles when enabled
@@ -2275,17 +2265,14 @@ fn get_heap_field(
     // look up the managed heap cell
     let heap = state.heap_ref();
     let cell = heap
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
 
-    // fast path for small inline cells (common: 2-slot tuples like overflow results)
-    if let SlotStorage::Inline { len, slots } = &cell.slots {
-        let slot_index = handle.slot_offset().wrapping_add(index as usize);
-        if slot_index < *len as usize {
-            return Ok(unsafe { *slots.get_unchecked(slot_index) });
-        }
-        // fall through to error path if out of bounds
+    // fast path for small known aggregates
+    let inline_slot_index = handle.slot_offset().wrapping_add(index as usize);
+    if inline_slot_index < cell_len && cell_len <= 2 {
+        return Ok(unsafe { *heap.managed_slot_unchecked(handle, inline_slot_index) });
     }
 
     // resolve the target slot
@@ -2295,7 +2282,7 @@ fn get_heap_field(
             .checked_add(index as usize)
             .ok_or(Error::InvalidFieldAccess {
                 index,
-                field_count: cell.slots.len(),
+                field_count: cell_len,
             })?
     } else {
         handle.slot_offset().wrapping_add(index as usize)
@@ -2303,21 +2290,20 @@ fn get_heap_field(
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "heap field out of bounds");
+        debug_assert!(slot_index < cell_len, "heap field out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        let value = unsafe { *heap.managed_slot_unchecked(handle, slot_index) };
         return Ok(value);
     }
 
     // read the slot when in bounds
-    let value = cell
-        .slots
-        .get(slot_index)
-        .copied()
-        .ok_or(Error::InvalidFieldAccess {
-            index,
-            field_count: cell.slots.len(),
-        })?;
+    let value =
+        heap.managed_slot(handle, slot_index)
+            .copied()
+            .ok_or(Error::InvalidFieldAccess {
+                index,
+                field_count: cell_len,
+            })?;
 
     Ok(value)
 }
@@ -2326,7 +2312,7 @@ fn get_heap_field(
 #[inline(always)]
 fn set_heap_field(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u32,
     value: Value,
 ) -> Result<(), Error> {
@@ -2341,18 +2327,15 @@ fn set_heap_field(
     // look up the managed heap cell
     let heap = state.heap();
     let cell = heap
-        .managed_mut()
-        .get_mut(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
 
-    // fast path for small inline cells (common: 2-slot tuples like overflow results)
-    if let SlotStorage::Inline { len, slots } = &mut cell.slots {
-        let slot_index = handle.slot_offset().wrapping_add(index as usize);
-        if slot_index < *len as usize {
-            unsafe { *slots.get_unchecked_mut(slot_index) = value };
-            return Ok(());
-        }
-        // fall through to error path if out of bounds
+    // fast path for small known aggregates
+    let inline_slot_index = handle.slot_offset().wrapping_add(index as usize);
+    if inline_slot_index < cell_len && cell_len <= 2 {
+        unsafe { heap.set_managed_slot_unchecked(handle, inline_slot_index, value) };
+        return Ok(());
     }
 
     // resolve the target slot
@@ -2362,7 +2345,7 @@ fn set_heap_field(
             .checked_add(index as usize)
             .ok_or(Error::InvalidFieldAccess {
                 index,
-                field_count: cell.slots.len(),
+                field_count: cell_len,
             })?
     } else {
         handle.slot_offset().wrapping_add(index as usize)
@@ -2370,23 +2353,22 @@ fn set_heap_field(
 
     // fast path without bounds checks
     if !bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "heap field out of bounds");
+        debug_assert!(slot_index < cell_len, "heap field out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
         unsafe {
-            *cell.slots.get_unchecked_mut(slot_index) = value;
+            heap.set_managed_slot_unchecked(handle, slot_index, value);
         }
         return Ok(());
     }
 
     // write slot when in bounds
-    if let Some(slot) = cell.slots.get_mut(slot_index) {
-        *slot = value;
+    if heap.set_managed_slot(handle, slot_index, value) {
         return Ok(());
     }
 
     Err(Error::InvalidFieldAccess {
         index,
-        field_count: cell.slots.len(),
+        field_count: cell_len,
     })
 }
 
@@ -2394,7 +2376,7 @@ fn set_heap_field(
 #[inline(always)]
 fn get_heap_element(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u64,
 ) -> Result<Value, Error> {
     // reject null handles when enabled
@@ -2405,15 +2387,14 @@ fn get_heap_element(
     // look up the managed heap cell
     let heap = state.heap_ref();
     let cell = heap
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
 
     // resolve the target slot
     let index_usize = if state.bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell.len() as u64,
         })?
     } else {
         index as usize
@@ -2424,7 +2405,7 @@ fn get_heap_element(
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: cell.len() as u64,
             })?
     } else {
         handle.slot_offset().wrapping_add(index_usize)
@@ -2432,20 +2413,19 @@ fn get_heap_element(
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "heap element out of bounds");
+        debug_assert!(slot_index < cell.len(), "heap element out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        let value = unsafe { *cell.get_unchecked(slot_index) };
         return Ok(value);
     }
 
     // read the slot when in bounds
     let value = cell
-        .slots
         .get(slot_index)
         .copied()
         .ok_or(Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell.len() as u64,
         })?;
 
     Ok(value)
@@ -2455,7 +2435,7 @@ fn get_heap_element(
 #[inline(always)]
 fn set_heap_element(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u64,
     value: Value,
 ) -> Result<(), Error> {
@@ -2467,18 +2447,18 @@ fn set_heap_element(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    // look up the managed heap allocation
     let heap = state.heap();
-    let cell = heap
-        .managed_mut()
-        .get_mut(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+    let allocation = heap
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let allocation_len = allocation.len();
 
     // resolve the target slot
     let index_usize = if bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: allocation_len as u64,
         })?
     } else {
         index as usize
@@ -2489,7 +2469,7 @@ fn set_heap_element(
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: allocation_len as u64,
             })?
     } else {
         handle.slot_offset().wrapping_add(index_usize)
@@ -2497,23 +2477,22 @@ fn set_heap_element(
 
     // fast path without bounds checks
     if !bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "heap element out of bounds");
+        debug_assert!(slot_index < allocation_len, "heap element out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
         unsafe {
-            *cell.slots.get_unchecked_mut(slot_index) = value;
+            heap.set_managed_slot_unchecked(handle, slot_index, value);
         }
         return Ok(());
     }
 
     // write slot when in bounds
-    if let Some(slot) = cell.slots.get_mut(slot_index) {
-        *slot = value;
+    if heap.set_managed_slot(handle, slot_index, value) {
         return Ok(());
     }
 
     Err(Error::InvalidArrayAccess {
         index,
-        length: cell.slots.len() as u64,
+        length: allocation_len as u64,
     })
 }
 
@@ -2521,7 +2500,7 @@ fn set_heap_element(
 #[inline(always)]
 fn resolve_heap_field_slot(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u32,
     field_count: u32,
 ) -> Result<u32, Error> {
@@ -2533,13 +2512,12 @@ fn resolve_heap_field_slot(
     // look up the managed heap cell
     let heap = state.heap_ref();
     let cell = heap
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
 
     // select field count for diagnostics
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        cell.slots.len()
+        cell.len()
     } else {
         field_count as usize
     };
@@ -2560,12 +2538,12 @@ fn resolve_heap_field_slot(
     // validate bounds when field count is unknown
     if state.bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.slots.is_empty()
-        && slot_index >= cell.slots.len()
+        && !cell.is_empty()
+        && slot_index >= cell.len()
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.slots.len(),
+            field_count: cell.len(),
         });
     }
 
@@ -2597,7 +2575,7 @@ fn resolve_raw_field_slot(
     // select field count for diagnostics
     let slot_count = state
         .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
         slot_count
     } else {
@@ -2653,7 +2631,7 @@ fn resolve_stack_field_slot(
     let frame = state.frame_by_index(pointer.frame_idx)?;
     let cell = frame
         .get_stack_cell(pointer.slot)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
 
     // compute the absolute slot offset
     let slot_index = if state.bounds_checks {
@@ -2662,7 +2640,7 @@ fn resolve_stack_field_slot(
             .checked_add(index as usize)
             .ok_or(Error::InvalidFieldAccess {
                 index,
-                field_count: cell.slots.len(),
+                field_count: cell.len(),
             })?
     } else {
         pointer.slot_offset.wrapping_add(index as usize)
@@ -2671,12 +2649,12 @@ fn resolve_stack_field_slot(
     // validate bounds when field count is unknown
     if state.bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.slots.is_empty()
-        && slot_index >= cell.slots.len()
+        && !cell.is_empty()
+        && slot_index >= cell.len()
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.slots.len(),
+            field_count: cell.len(),
         });
     }
 
@@ -2708,14 +2686,13 @@ fn resolve_global_field_slot(
         });
     }
 
-    let handle = value.as_managed_pointer().unwrap();
+    let handle = value.as_managed_reference().unwrap();
 
     // look up the managed heap cell
     let heap = state.heap_ref();
     let cell = heap
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
 
     // compute the absolute slot offset
     let slot_index = if state.bounds_checks {
@@ -2724,7 +2701,7 @@ fn resolve_global_field_slot(
             .checked_add(index as usize)
             .ok_or(Error::InvalidFieldAccess {
                 index,
-                field_count: cell.slots.len(),
+                field_count: cell.len(),
             })?
     } else {
         global.slot_offset.wrapping_add(index as usize)
@@ -2733,12 +2710,12 @@ fn resolve_global_field_slot(
     // validate bounds when field count is unknown
     if state.bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.slots.is_empty()
-        && slot_index >= cell.slots.len()
+        && !cell.is_empty()
+        && slot_index >= cell.len()
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.slots.len(),
+            field_count: cell.len(),
         });
     }
 
@@ -2749,7 +2726,7 @@ fn resolve_global_field_slot(
 #[inline(always)]
 fn resolve_heap_element_slot(
     state: &mut ThreadedState<'_, '_>,
-    handle: ManagedPointer,
+    handle: ManagedReference,
     index: u64,
     array_length: u64,
 ) -> Result<u32, Error> {
@@ -2761,15 +2738,14 @@ fn resolve_heap_element_slot(
     // look up the managed heap cell
     let heap = state.heap_ref();
     let cell = heap
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell.len() as u64,
         })?
     } else {
         index as usize
@@ -2780,18 +2756,17 @@ fn resolve_heap_element_slot(
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: cell.len() as u64,
             })?
     } else {
         handle.slot_offset().wrapping_add(index_usize)
     };
 
     // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.slots.len()
-    {
+    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.len() {
         return Err(Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell.len() as u64,
         });
     }
 
@@ -2799,7 +2774,7 @@ fn resolve_heap_element_slot(
     if state.bounds_checks {
         return u32::try_from(slot_index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell.len() as u64,
         });
     }
 
@@ -2826,7 +2801,7 @@ fn resolve_raw_element_slot(
     // look up the raw heap cell
     let slot_count = state
         .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
@@ -2884,13 +2859,13 @@ fn resolve_stack_element_slot(
     let frame = state.frame_by_index(pointer.frame_idx)?;
     let cell = frame
         .get_stack_cell(pointer.slot)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell.len() as u64,
         })?
     } else {
         index as usize
@@ -2901,18 +2876,17 @@ fn resolve_stack_element_slot(
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: cell.len() as u64,
             })?
     } else {
         pointer.slot_offset.wrapping_add(index_usize)
     };
 
     // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.slots.len()
-    {
+    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.len() {
         return Err(Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell.len() as u64,
         });
     }
 
@@ -2941,20 +2915,19 @@ fn resolve_global_element_slot(
         return Err(Error::InvalidArrayAccess { index, length: 0 });
     }
 
-    let handle = value.as_managed_pointer().unwrap();
+    let handle = value.as_managed_reference().unwrap();
 
     // look up the managed heap cell
     let heap = state.heap_ref();
     let cell = heap
-        .managed()
-        .get(handle)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .managed_allocation(handle)
+        .ok_or(Error::InvalidManagedReference)?;
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell.len() as u64,
         })?
     } else {
         index as usize
@@ -2965,18 +2938,17 @@ fn resolve_global_element_slot(
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.slots.len() as u64,
+                length: cell.len() as u64,
             })?
     } else {
         global.slot_offset.wrapping_add(index_usize)
     };
 
     // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.slots.len()
-    {
+    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.len() {
         return Err(Error::InvalidArrayAccess {
             index,
-            length: cell.slots.len() as u64,
+            length: cell.len() as u64,
         });
     }
 
@@ -2994,29 +2966,29 @@ fn load_stack_slot(
     let frame = state.frame_by_index(sp.frame_idx)?;
     let cell = frame
         .get_stack_cell(sp.slot)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
 
     // treat empty slot 0 as void
-    if cell.slots.is_empty() && slot_index == 0 {
+    if cell.is_empty() && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "stack slot out of bounds");
+        debug_assert!(slot_index < cell.len(), "stack slot out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        let value = unsafe { *cell.get_unchecked(slot_index) };
         return Ok(value);
     }
 
     // read the slot when in bounds
-    if let Some(value) = cell.slots.get(slot_index).copied() {
+    if let Some(value) = cell.get(slot_index).copied() {
         return Ok(value);
     }
 
     Err(Error::InvalidFieldAccess {
         index: slot_index as u32,
-        field_count: cell.slots.len(),
+        field_count: cell.len(),
     })
 }
 
@@ -3060,32 +3032,32 @@ fn store_stack_slot(
     let frame = state.frame_by_index_mut(sp.frame_idx)?;
     let cell = frame
         .get_stack_cell_mut(sp.slot)
-        .ok_or(Error::InvalidManagedPointer)?;
+        .ok_or(Error::InvalidManagedReference)?;
 
     // resize slots as needed when bounds checks are enabled
-    if bounds_checks && cell.slots.len() <= slot_index {
-        cell.slots.resize(slot_index + 1, Value::VOID);
+    if bounds_checks && cell.len() <= slot_index {
+        cell.resize(slot_index + 1, Value::VOID);
     }
 
     // fast path without bounds checks
     if !bounds_checks {
-        debug_assert!(slot_index < cell.slots.len(), "stack slot out of bounds");
+        debug_assert!(slot_index < cell.len(), "stack slot out of bounds");
         // #Safety: bounds checks are disabled and slot is trusted
         unsafe {
-            *cell.slots.get_unchecked_mut(slot_index) = value;
+            *cell.get_unchecked_mut(slot_index) = value;
         }
         return Ok(());
     }
 
     // write slot when in bounds
-    if let Some(slot) = cell.slots.get_mut(slot_index) {
+    if let Some(slot) = cell.get_mut(slot_index) {
         *slot = value;
         return Ok(());
     }
 
     Err(Error::InvalidFieldAccess {
         index: slot_index as u32,
-        field_count: cell.slots.len(),
+        field_count: cell.len(),
     })
 }
 

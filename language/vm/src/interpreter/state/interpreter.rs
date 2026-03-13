@@ -11,7 +11,7 @@ use crate::isolate::{ExternalFnPtr, GlobalStorage, IsolateState};
 use crate::snapshot::InterpreterImage;
 use crate::telemetry::Statistics;
 use destack_heap::{
-    GcStats, Heap, ManagedPointer, RawPointer, ReferenceMeta, Value, string_layout_matches,
+    GcStats, Heap, ManagedReference, RawPointer, ReferenceMeta, Value, string_layout_matches,
 };
 
 use super::super::decode::{INVALID_FUNCTION_INDEX, ThreadedFunction, thread_function};
@@ -162,14 +162,27 @@ pub(crate) struct InterpreterContext<'a> {
 
 /// Aggregate slots backed by a heap read guard.
 pub(crate) struct AggregateSlots<'a> {
-    /// Aggregate slot slice.
-    slots: &'a [Value],
+    /// Borrowed aggregate slot slice.
+    borrowed: Option<&'a [Value]>,
+    /// Owned aggregate slot storage.
+    owned: Option<Vec<Value>>,
 }
 
 impl<'a> AggregateSlots<'a> {
-    /// Create aggregate slots from a slice reference.
-    pub(crate) fn new(slots: &'a [Value]) -> Self {
-        Self { slots }
+    /// Create aggregate slots from a borrowed slice reference.
+    pub(crate) fn borrowed(slots: &'a [Value]) -> Self {
+        Self {
+            borrowed: Some(slots),
+            owned: None,
+        }
+    }
+
+    /// Create aggregate slots from one owned slot list.
+    pub(crate) fn owned(slots: Vec<Value>) -> Self {
+        Self {
+            borrowed: None,
+            owned: Some(slots),
+        }
     }
 }
 
@@ -177,7 +190,13 @@ impl<'a> Deref for AggregateSlots<'a> {
     type Target = [Value];
 
     fn deref(&self) -> &Self::Target {
-        self.slots
+        if let Some(slots) = self.borrowed {
+            return slots;
+        }
+
+        self.owned
+            .as_deref()
+            .expect("aggregate slots should always have one backing")
     }
 }
 
@@ -328,14 +347,19 @@ impl<'a> InterpreterContext<'a> {
                 // validate the declared string layout
                 self.validate_string_initializer_type(ty)?;
 
-                Ok(self.isolate.intern_string_literal(self.heap, value))
+                self.isolate
+                    .try_intern_string_literal(self.heap, value)
+                    .map_err(|error| self.make_error(error))
             }
             mir::GlobalInitializer::Bytes(bytes) => {
                 // convert bytes to u8 values
                 let values: Vec<Value> = bytes.iter().map(|&b| Value::uint(b as u64, 8)).collect();
 
                 // allocate managed aggregate for bytes
-                let handle = self.heap.managed_mut().allocate_with_values(values);
+                let handle = self
+                    .heap
+                    .allocate_managed_values(values)
+                    .map_err(|error| self.make_error(Error::from(error)))?;
 
                 Ok(Value::aggregate(handle))
             }
@@ -347,7 +371,10 @@ impl<'a> InterpreterContext<'a> {
                     .collect::<RuntimeResult<_>>()?;
 
                 // allocate managed aggregate for elements
-                let handle = self.heap.managed_mut().allocate_with_values(values);
+                let handle = self
+                    .heap
+                    .allocate_managed_values(values)
+                    .map_err(|error| self.make_error(Error::from(error)))?;
 
                 Ok(Value::aggregate(handle))
             }
@@ -439,7 +466,7 @@ impl<'a> InterpreterContext<'a> {
                 let meta = ReferenceMeta::new(kind, address_space, mutability, is_nullable);
                 match kind {
                     mir::ReferenceKind::Managed => Ok(Value::managed_reference_with_meta(
-                        ManagedPointer::NULL,
+                        ManagedReference::NULL,
                         meta,
                     )),
                     mir::ReferenceKind::Owned
@@ -460,7 +487,10 @@ impl<'a> InterpreterContext<'a> {
                     .collect::<RuntimeResult<_>>()?;
 
                 // allocate managed aggregate for tuple
-                let handle = self.heap.managed_mut().allocate_with_values(values);
+                let handle = self
+                    .heap
+                    .allocate_managed_values(values)
+                    .map_err(|error| self.make_error(Error::from(error)))?;
 
                 Ok(Value::aggregate(handle))
             }
@@ -474,7 +504,10 @@ impl<'a> InterpreterContext<'a> {
                 let values: Vec<Value> = (0..length).map(|_| elem_zero).collect();
 
                 // allocate managed aggregate for array
-                let handle = self.heap.managed_mut().allocate_with_values(values);
+                let handle = self
+                    .heap
+                    .allocate_managed_values(values)
+                    .map_err(|error| self.make_error(Error::from(error)))?;
 
                 Ok(Value::aggregate(handle))
             }
@@ -578,7 +611,7 @@ impl<'a> InterpreterContext<'a> {
 
         // collect roots from globals
         for value in self.isolate.globals.values() {
-            if let Some(handle) = value.as_managed_pointer() {
+            if let Some(handle) = value.as_managed_reference() {
                 roots.push(handle);
             }
         }
@@ -587,7 +620,7 @@ impl<'a> InterpreterContext<'a> {
         self.isolate.collect_string_roots(&mut roots);
 
         // run collection
-        let stats = self.heap.managed_mut().collect_handles(roots);
+        let stats = self.heap.collect_managed_handles(roots);
 
         // sweep raw payload buffers for freed strings
         self.sweep_string_buffers();

@@ -522,7 +522,7 @@ block1(v3: @Pair, v4: i32):
 
     // collect garbage while continuation is suspended
     let stats = isolate.collect_garbage_with_continuations(std::slice::from_ref(&continuation));
-    assert_eq!(stats.live_cells, 1);
+    assert_eq!(stats.live_allocations, 1);
 
     // resume and complete the coroutine
     let outcome = isolate
@@ -537,5 +537,5 @@ block1(v3: @Pair, v4: i32):
 
     // collect garbage after completion
     let stats = isolate.collect_garbage();
-    assert_eq!(stats.live_cells, 0);
+    assert_eq!(stats.live_allocations, 0);
 }

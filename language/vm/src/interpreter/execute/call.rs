@@ -610,8 +610,8 @@ impl<'a> InterpreterContext<'a> {
         let output = ExecutionOutput {
             value,
             statistics: self.engine.statistics.clone(),
-            heap_cells: self.heap.managed().cell_count(),
-            raw_heap_cells: self.heap.raw().cell_count(),
+            heap_cells: self.heap.managed_allocation_count(),
+            raw_heap_cells: self.heap.raw_allocation_count(),
         };
 
         // return completed outcome
