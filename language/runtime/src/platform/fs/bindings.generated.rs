@@ -560,7 +560,7 @@ fn encode_destack_fs_dir_dirfd_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.dir.mkdir.
@@ -677,7 +677,7 @@ fn encode_destack_fs_dir_opendir_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::DirectoryHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.dir.readdir.
@@ -888,7 +888,7 @@ fn encode_destack_fs_file_copy_file_range_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.dup.
@@ -910,7 +910,7 @@ fn encode_destack_fs_file_dup_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.dup2.
@@ -936,7 +936,7 @@ fn encode_destack_fs_file_dup2_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.dup3.
@@ -965,7 +965,7 @@ fn encode_destack_fs_file_dup3_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.fadvise.
@@ -1132,7 +1132,7 @@ fn encode_destack_fs_file_get_fd_flags_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<FdFlags>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Decode arguments for destack.fs.file.getStatusFlags.
@@ -1154,7 +1154,7 @@ fn encode_destack_fs_file_get_status_flags_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatusFlags>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Decode arguments for destack.fs.file.lock.
@@ -1205,7 +1205,7 @@ fn encode_destack_fs_file_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.openat.
@@ -1235,7 +1235,7 @@ fn encode_destack_fs_file_openat_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.openat2.
@@ -1290,7 +1290,7 @@ fn encode_destack_fs_file_openat2_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.pread.
@@ -1317,7 +1317,7 @@ fn encode_destack_fs_file_pread_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.preadv.
@@ -1345,7 +1345,7 @@ fn encode_destack_fs_file_preadv_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.preadv2.
@@ -1381,7 +1381,7 @@ fn encode_destack_fs_file_preadv2_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.pwrite.
@@ -1408,7 +1408,7 @@ fn encode_destack_fs_file_pwrite_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.pwritev.
@@ -1436,7 +1436,7 @@ fn encode_destack_fs_file_pwritev_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.pwritev2.
@@ -1472,7 +1472,7 @@ fn encode_destack_fs_file_pwritev2_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.read.
@@ -1496,7 +1496,7 @@ fn encode_destack_fs_file_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.readv.
@@ -1521,7 +1521,7 @@ fn encode_destack_fs_file_readv_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.seek.
@@ -1560,7 +1560,7 @@ fn encode_destack_fs_file_seek_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<FileOffset>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value.0, 64)))
+    result.map(|value| vm::Value::int(value.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.sendfile.
@@ -1597,7 +1597,7 @@ fn encode_destack_fs_file_sendfile_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.setFdFlags.
@@ -1746,7 +1746,7 @@ fn encode_destack_fs_file_splice_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.syncFileRange.
@@ -1838,7 +1838,7 @@ fn encode_destack_fs_file_tee_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.truncate.
@@ -1889,7 +1889,7 @@ fn encode_destack_fs_file_vmsplice_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.write.
@@ -1913,7 +1913,7 @@ fn encode_destack_fs_file_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.writev.
@@ -1938,7 +1938,7 @@ fn encode_destack_fs_file_writev_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.mmap.madvise.
@@ -3026,7 +3026,7 @@ fn encode_destack_fs_watch_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WatchHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.watch.openClose.
@@ -3131,7 +3131,7 @@ fn encode_destack_fs_watch_openat_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WatchHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.xattr.fgetxattr.

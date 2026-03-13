@@ -281,7 +281,7 @@ fn encode_destack_net_interface_interface_index_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.net.interface.interfaceName.
@@ -301,7 +301,7 @@ fn encode_destack_net_interface_interface_name_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result.map(|value| value.value())
 }
 
 /// Encode the result for destack.net.interface.listInterfaces.
@@ -336,7 +336,7 @@ fn encode_destack_net_listener_accept_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.net.listener.bind.
@@ -456,7 +456,7 @@ fn encode_destack_net_listener_listen_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ListenerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.net.options.getBroadcast.
@@ -478,7 +478,7 @@ fn encode_destack_net_options_get_broadcast_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.net.options.getLinger.
@@ -528,7 +528,7 @@ fn encode_destack_net_options_get_only_v6_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.net.options.getPacketMark.
@@ -550,7 +550,7 @@ fn encode_destack_net_options_get_packet_mark_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.net.options.getReadTimeout.
@@ -572,7 +572,7 @@ fn encode_destack_net_options_get_read_timeout_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.net.options.getRecvBuffer.
@@ -594,7 +594,7 @@ fn encode_destack_net_options_get_recv_buffer_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.net.options.getSendBuffer.
@@ -616,7 +616,7 @@ fn encode_destack_net_options_get_send_buffer_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.net.options.getSockOptRaw.
@@ -673,7 +673,7 @@ fn encode_destack_net_options_get_timestamping_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketTimestampingMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.net.options.getTos.
@@ -695,7 +695,7 @@ fn encode_destack_net_options_get_tos_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.net.options.getTtl.
@@ -717,7 +717,7 @@ fn encode_destack_net_options_get_ttl_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.net.options.getWriteTimeout.
@@ -739,7 +739,7 @@ fn encode_destack_net_options_get_write_timeout_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.net.options.setBroadcast.
@@ -1232,7 +1232,7 @@ fn encode_destack_net_raw_packet_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.net.raw.packetReceive.
@@ -1301,7 +1301,7 @@ fn encode_destack_net_raw_packet_send_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.net.raw.packetSetFanout.
@@ -1629,7 +1629,7 @@ fn encode_destack_net_raw_socket_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.net.resolve.lookup.
@@ -1771,7 +1771,7 @@ fn encode_destack_net_reuse_get_reuse_addr_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.net.reuse.getReusePort.
@@ -1793,7 +1793,7 @@ fn encode_destack_net_reuse_get_reuse_port_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.net.reuse.setReuseAddr.
@@ -2257,7 +2257,7 @@ fn encode_destack_net_socket_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.net.socket.openPair.
@@ -2325,7 +2325,7 @@ fn encode_destack_net_socket_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.net.socket.readv.
@@ -2350,7 +2350,7 @@ fn encode_destack_net_socket_readv_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.net.socket.recvFrom.
@@ -2546,7 +2546,7 @@ fn encode_destack_net_socket_send_mmsg_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.net.socket.sendMsg.
@@ -2675,7 +2675,7 @@ fn encode_destack_net_socket_send_msg_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.net.socket.sendTo.
@@ -2755,7 +2755,7 @@ fn encode_destack_net_socket_send_to_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.net.socket.setNonblocking.
@@ -2839,7 +2839,7 @@ fn encode_destack_net_socket_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.net.socket.writev.
@@ -2864,7 +2864,7 @@ fn encode_destack_net_socket_writev_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.net.tcp.getKeepAlive.
@@ -2917,7 +2917,7 @@ fn encode_destack_net_tcp_get_no_delay_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.net.tcp.setKeepAlive.
@@ -3116,7 +3116,7 @@ fn encode_destack_net_udp_get_multicast_interface_v4_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result.map(|value| value.value())
 }
 
 /// Decode arguments for destack.net.udp.getMulticastInterfaceV6.
@@ -3138,7 +3138,7 @@ fn encode_destack_net_udp_get_multicast_interface_v6_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.net.udp.getMulticastLoop.
@@ -3160,7 +3160,7 @@ fn encode_destack_net_udp_get_multicast_loop_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.net.udp.getMulticastTtl.
@@ -3182,7 +3182,7 @@ fn encode_destack_net_udp_get_multicast_ttl_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.net.udp.joinMulticastSourceV4.
@@ -3593,7 +3593,7 @@ fn encode_destack_net_udp_send_to_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.net.udp.setMulticastInterfaceV4.
@@ -3721,7 +3721,7 @@ fn encode_destack_net_udp_socket_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.net.uds.udsAccept.
@@ -3744,7 +3744,7 @@ fn encode_destack_net_uds_uds_accept_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.net.uds.udsCloseListener.
@@ -3786,7 +3786,7 @@ fn encode_destack_net_uds_uds_connect_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.net.uds.udsListen.
@@ -3808,7 +3808,7 @@ fn encode_destack_net_uds_uds_listen_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ListenerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.net.uds.udsSocketPair.

@@ -155,7 +155,9 @@ impl VmAggregateCodec for ThreadCpu {
             <u16 as VmAggregateCodec>::encode_with_context(self.group, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.cpu, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -258,7 +260,9 @@ impl VmAggregateCodec for ThreadCpuSetAbi<VmAbi> {
         let slots = vec![
             <VmArray<ThreadCpuVm> as VmAggregateCodec>::encode_with_context(self.cpus, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

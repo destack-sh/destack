@@ -742,7 +742,7 @@ fn encode_destack_display_monitor_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::DisplayEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.display.monitor.eventRead.
@@ -1819,7 +1819,7 @@ fn encode_destack_display_monitor_hdr_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayHdrMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.display.monitor.list.
@@ -1989,7 +1989,7 @@ fn encode_destack_display_monitor_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::DisplayHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.display.monitor.primary.
@@ -2062,9 +2062,9 @@ fn encode_destack_display_monitor_primary_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<Option<resource::DisplayHandle>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-        None => Ok(vm::Value::VOID),
+    result.map(|value| match value {
+        Some(value) => vm::Value::uint(value.0.0, 64),
+        None => vm::Value::VOID,
     })
 }
 
@@ -2292,7 +2292,7 @@ fn encode_destack_display_window_capabilities_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayBackendCapabilityFlags>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.display.window.close.
@@ -2639,7 +2639,7 @@ fn encode_destack_display_window_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WindowEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.display.window.eventRead.
@@ -5593,7 +5593,7 @@ fn encode_destack_display_window_opacity_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<f64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::float64(value)))
+    result.map(vm::Value::float64)
 }
 
 /// Decode arguments for destack.display.window.open.
@@ -5995,7 +5995,7 @@ fn encode_destack_display_window_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WindowHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.display.window.raise.

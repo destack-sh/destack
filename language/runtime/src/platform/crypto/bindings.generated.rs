@@ -539,7 +539,7 @@ fn encode_destack_crypto_certificate_import_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoCertificateHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.crypto.certificate.verify.
@@ -1058,7 +1058,7 @@ fn encode_destack_crypto_cipher_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoCipherHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.crypto.cipher.reset.
@@ -1335,7 +1335,7 @@ fn encode_destack_crypto_digest_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoDigestHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.crypto.digest.reset.
@@ -2598,7 +2598,7 @@ fn encode_destack_crypto_key_generate_secret_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.crypto.key.import.
@@ -2625,7 +2625,7 @@ fn encode_destack_crypto_key_import_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.crypto.key.sign.
@@ -2848,7 +2848,7 @@ fn encode_destack_crypto_key_unwrap_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.crypto.key.verify.
@@ -2963,7 +2963,7 @@ fn encode_destack_crypto_key_verify_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.crypto.key.wrap.
@@ -3326,7 +3326,7 @@ fn encode_destack_crypto_mac_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoMacHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.crypto.mac.reset.
@@ -3482,7 +3482,7 @@ fn encode_destack_crypto_mac_verify_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Encode the result for destack.crypto.probe.agreementAlgorithms.
@@ -3912,7 +3912,7 @@ fn encode_destack_crypto_store_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoStoreHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.crypto.store.probeCapability.

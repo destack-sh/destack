@@ -227,7 +227,7 @@ fn encode_destack_random_stream_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.random.stream.export.
@@ -375,7 +375,7 @@ fn encode_destack_random_stream_in_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.random.stream.jump.
@@ -407,7 +407,7 @@ fn encode_destack_random_stream_next_u64_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.random.stream.nextU64From.
@@ -428,7 +428,7 @@ fn encode_destack_random_stream_next_u64_from_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.random.stream.split.
@@ -449,7 +449,7 @@ fn encode_destack_random_stream_split_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Replay payload for destack.random.secure.metadata.

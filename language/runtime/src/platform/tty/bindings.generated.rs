@@ -161,7 +161,7 @@ fn encode_destack_tty_handle_is_terminal_file_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Encode the result for destack.tty.handle.stdioStderr.
@@ -170,7 +170,7 @@ fn encode_destack_tty_handle_stdio_stderr_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TtyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Encode the result for destack.tty.handle.stdioStdin.
@@ -179,7 +179,7 @@ fn encode_destack_tty_handle_stdio_stdin_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TtyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Encode the result for destack.tty.handle.stdioStdout.
@@ -188,7 +188,7 @@ fn encode_destack_tty_handle_stdio_stdout_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TtyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.tty.io.read.
@@ -212,7 +212,7 @@ fn encode_destack_tty_io_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.tty.io.write.
@@ -236,7 +236,7 @@ fn encode_destack_tty_io_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.tty.mode.getMode.
@@ -626,7 +626,7 @@ fn encode_destack_tty_termios_get_process_group_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<process::ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Decode arguments for destack.tty.termios.sendBreak.

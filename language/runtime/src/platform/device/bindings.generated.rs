@@ -342,7 +342,7 @@ fn encode_destack_device_bluetooth_gatt_mtu_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u16>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 16)))
+    result.map(|value| vm::Value::uint(value as u64, 16))
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.read.
@@ -484,7 +484,7 @@ fn encode_destack_device_bluetooth_gatt_request_mtu_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u16>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 16)))
+    result.map(|value| vm::Value::uint(value as u64, 16))
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.serviceList.
@@ -539,7 +539,7 @@ fn encode_destack_device_bluetooth_gatt_subscribe_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::BluetoothSubscriptionHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.tryReadEvent.
@@ -877,7 +877,7 @@ fn encode_destack_device_bluetooth_scan_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::BluetoothScanHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.device.bluetooth.scan.read.
@@ -1052,7 +1052,7 @@ fn encode_destack_device_bluetooth_session_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::BluetoothDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.device.bluetooth.session.pair.
@@ -1102,7 +1102,7 @@ fn encode_destack_device_bluetooth_session_rssi_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value as i64, 32)))
+    result.map(|value| vm::Value::int(value as i64, 32))
 }
 
 /// Decode arguments for destack.device.bluetooth.session.unpair.
@@ -1176,7 +1176,7 @@ fn encode_destack_device_camera_device_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CameraDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.device.camera.device.streamCapabilityList.
@@ -1318,7 +1318,7 @@ fn encode_destack_device_camera_stream_exposure_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraExposureMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.device.camera.stream.getControl.
@@ -1356,7 +1356,7 @@ fn encode_destack_device_camera_stream_get_control_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<f64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::float64(value)))
+    result.map(vm::Value::float64)
 }
 
 /// Decode arguments for destack.device.camera.stream.open.
@@ -1423,7 +1423,7 @@ fn encode_destack_device_camera_stream_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CameraStreamHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.device.camera.stream.read.
@@ -1663,7 +1663,7 @@ fn encode_destack_device_camera_stream_stabilization_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraStabilizationMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.device.camera.stream.start.
@@ -1732,7 +1732,7 @@ fn encode_destack_device_camera_stream_torch_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraTorchMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.device.camera.stream.tryRead.
@@ -2083,7 +2083,7 @@ fn encode_destack_device_serial_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SerialPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.device.serial.read.
@@ -2320,7 +2320,7 @@ fn encode_destack_device_serial_signal_bits_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.device.serial.tryEvent.
@@ -2507,7 +2507,7 @@ fn encode_destack_device_serial_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.device.usb.bulkRead.
@@ -2568,7 +2568,7 @@ fn encode_destack_device_usb_bulk_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.device.usb.claimInterface.
@@ -2660,7 +2660,7 @@ fn encode_destack_device_usb_configuration_get_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u8>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u64, 8))
 }
 
 /// Decode arguments for destack.device.usb.configurationList.
@@ -2830,7 +2830,7 @@ fn encode_destack_device_usb_control_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.device.usb.descriptor.
@@ -2938,7 +2938,7 @@ fn encode_destack_device_usb_interrupt_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.device.usb.isochronousRead.
@@ -3053,7 +3053,7 @@ fn encode_destack_device_usb_kernel_driver_active_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.device.usb.kernelDriverAttach.
@@ -3130,7 +3130,7 @@ fn encode_destack_device_usb_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::UsbDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.device.usb.releaseInterface.
@@ -3342,7 +3342,7 @@ fn encode_destack_device_usb_watch_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::UsbWatchHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.device.usb.watchRead.

@@ -131,7 +131,7 @@ fn encode_destack_security_capability_has_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Encode the result for destack.security.capability.list.
@@ -325,7 +325,7 @@ fn encode_destack_security_sandbox_enter_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SandboxHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.security.sandbox.exit.

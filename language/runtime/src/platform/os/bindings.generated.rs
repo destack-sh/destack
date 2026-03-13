@@ -356,7 +356,7 @@ fn encode_destack_os_background_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::BackgroundEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.os.background.event.read.
@@ -604,7 +604,7 @@ fn encode_destack_os_background_status_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BackgroundStatus>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.os.background.triggerTest.
@@ -624,7 +624,7 @@ fn encode_destack_os_background_trigger_test_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.os.background.unregister.
@@ -857,7 +857,7 @@ fn encode_destack_os_calendar_event_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result.map(|value| value.value())
 }
 
 /// Decode arguments for destack.os.calendar.eventDelete.
@@ -1292,7 +1292,7 @@ fn encode_destack_os_clipboard_has_text_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.os.clipboard.readBytes.
@@ -1333,7 +1333,7 @@ fn encode_destack_os_clipboard_read_text_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result.map(|value| value.value())
 }
 
 /// Encode the result for destack.os.clipboard.sequence.
@@ -1342,7 +1342,7 @@ fn encode_destack_os_clipboard_sequence_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.os.clipboard.writeBytes.
@@ -1533,7 +1533,7 @@ fn encode_destack_os_contact_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result.map(|value| value.value())
 }
 
 /// Decode arguments for destack.os.contact.delete.
@@ -1992,7 +1992,7 @@ fn encode_destack_os_credentials_contains_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.os.credentials.delete.
@@ -2254,7 +2254,7 @@ fn encode_destack_os_document_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::DocumentHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.os.document.pick.
@@ -2393,7 +2393,7 @@ fn encode_destack_os_document_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Encode the result for destack.os.host.identity.
@@ -2419,7 +2419,7 @@ fn encode_destack_os_info_boot_time_unix_ns_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Encode the result for destack.os.info.loadAverage.
@@ -2461,7 +2461,7 @@ fn encode_destack_os_info_uptime_ns_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.os.intent.canOpenUrl.
@@ -2481,7 +2481,7 @@ fn encode_destack_os_intent_can_open_url_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.os.intent.close.
@@ -2557,7 +2557,7 @@ fn encode_destack_os_intent_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::IntentHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.os.intent.openPath.
@@ -3109,7 +3109,7 @@ fn encode_destack_os_lifecycle_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::LifecycleEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.os.lifecycle.read.
@@ -3326,7 +3326,7 @@ fn encode_destack_os_lifecycle_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LifecycleState>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.os.lifecycle.tryRead.
@@ -3567,7 +3567,7 @@ fn encode_destack_os_location_services_enabled_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.os.location.watchClose.
@@ -3658,7 +3658,7 @@ fn encode_destack_os_location_watch_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::LocationWatchHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.os.location.watchRead.
@@ -3760,7 +3760,7 @@ fn encode_destack_os_media_delete_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.os.media.importPath.
@@ -3795,7 +3795,7 @@ fn encode_destack_os_media_import_path_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result.map(|value| value.value())
 }
 
 /// Decode arguments for destack.os.media.list.
@@ -4023,7 +4023,7 @@ fn encode_destack_os_network_watch_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::NetworkWatchHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.os.network.watchRead.
@@ -4267,7 +4267,7 @@ fn encode_destack_os_notification_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::NotificationEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.os.notification.event.read.
@@ -5286,7 +5286,7 @@ fn encode_destack_os_notification_permission_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NotificationPermissionState>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.os.notification.post.
@@ -5412,7 +5412,7 @@ fn encode_destack_os_notification_post_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result.map(|value| value.value())
 }
 
 /// Encode the result for destack.os.notification.requestPermission.
@@ -5421,7 +5421,7 @@ fn encode_destack_os_notification_request_permission_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NotificationPermissionState>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.os.notification.schedule.
@@ -5547,7 +5547,7 @@ fn encode_destack_os_notification_schedule_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result.map(|value| value.value())
 }
 
 /// Encode the result for destack.os.permission.openSettings.
@@ -5599,7 +5599,7 @@ fn encode_destack_os_permission_request_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PermissionState>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.os.permission.requestMany.
@@ -5663,7 +5663,7 @@ fn encode_destack_os_permission_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PermissionState>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.os.permission.stateMany.
@@ -5693,7 +5693,7 @@ fn encode_destack_os_power_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PowerState>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Encode the result for destack.os.power.suspend.

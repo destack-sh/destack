@@ -327,7 +327,7 @@ fn encode_destack_process_env_get_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result.map(|value| value.value())
 }
 
 /// Decode arguments for destack.process.env.getBytes.
@@ -577,7 +577,7 @@ fn encode_destack_process_fd_process_fd_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessFdHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.process.fd.processFdSendSignal.
@@ -842,7 +842,7 @@ fn encode_destack_process_fd_signal_fd_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SignalFdHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.process.fd.signalFdRead.
@@ -931,7 +931,7 @@ fn encode_destack_process_fd_stdio_stderr_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Encode the result for destack.process.fd.stdioStdin.
@@ -940,7 +940,7 @@ fn encode_destack_process_fd_stdio_stdin_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Encode the result for destack.process.fd.stdioStdout.
@@ -949,7 +949,7 @@ fn encode_destack_process_fd_stdio_stdout_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.process.group.cgroupGetLimit.
@@ -1127,7 +1127,7 @@ fn encode_destack_process_ids_egid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GroupId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Encode the result for destack.process.ids.euid.
@@ -1136,7 +1136,7 @@ fn encode_destack_process_ids_euid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UserId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Encode the result for destack.process.ids.gid.
@@ -1145,7 +1145,7 @@ fn encode_destack_process_ids_gid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GroupId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Encode the result for destack.process.ids.groupIds.
@@ -1179,7 +1179,7 @@ fn encode_destack_process_ids_pid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Encode the result for destack.process.ids.ppid.
@@ -1188,7 +1188,7 @@ fn encode_destack_process_ids_ppid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Decode arguments for destack.process.ids.setEgid.
@@ -1399,7 +1399,7 @@ fn encode_destack_process_ids_uid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UserId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Encode the result for destack.process.ids.userIds.
@@ -1680,7 +1680,7 @@ fn encode_destack_process_sched_get_priority_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value as i64, 32)))
+    result.map(|value| vm::Value::int(value as i64, 32))
 }
 
 /// Decode arguments for destack.process.sched.getScheduler.
@@ -1868,7 +1868,7 @@ fn encode_destack_process_session_getpgid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Decode arguments for destack.process.session.setpgid.
@@ -1901,7 +1901,7 @@ fn encode_destack_process_session_setsid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Decode arguments for destack.process.signals.kill.
@@ -2017,7 +2017,7 @@ fn encode_destack_process_signals_signal_subscribe_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SignalHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.process.signals.signalTryReceive.
@@ -2186,7 +2186,7 @@ fn encode_destack_process_spawn_start_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.process.spawn.withActions.
@@ -2265,7 +2265,7 @@ fn encode_destack_process_spawn_with_actions_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.process.umask.set.
@@ -2285,7 +2285,7 @@ fn encode_destack_process_umask_set_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.process.wait.handle.

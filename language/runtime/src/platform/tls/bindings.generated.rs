@@ -252,7 +252,7 @@ fn encode_destack_tls_context_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TlsContextHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.tls.context.setCipherSuites.
@@ -547,7 +547,7 @@ fn encode_destack_tls_session_handshake_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TlsHandshakeStatus>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.tls.session.negotiatedAlpn.
@@ -605,7 +605,7 @@ fn encode_destack_tls_session_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TlsSessionHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.tls.session.peerCertificatesPem.
@@ -651,7 +651,7 @@ fn encode_destack_tls_session_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.tls.session.resumptionState.
@@ -673,7 +673,7 @@ fn encode_destack_tls_session_resumption_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TlsSessionResumptionState>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.tls.session.shutdown.
@@ -719,7 +719,7 @@ fn encode_destack_tls_session_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Replay payload for destack.tls.context.close.

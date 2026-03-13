@@ -175,7 +175,7 @@ fn encode_destack_ipc_message_queue_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MessageQueueHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.ipc.message.queueReceive.
@@ -334,7 +334,7 @@ fn encode_destack_ipc_pipe_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.ipc.pipe.write.
@@ -358,7 +358,7 @@ fn encode_destack_ipc_pipe_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.ipc.sharedMemory.close.
@@ -405,7 +405,7 @@ fn encode_destack_ipc_shared_memory_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SharedMemoryHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.ipc.sharedMemory.map.
@@ -462,7 +462,7 @@ fn encode_destack_ipc_shared_memory_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SharedMemoryHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.ipc.sharedMemory.unmap.
@@ -546,7 +546,7 @@ fn encode_destack_ipc_sync_futex_wake_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.ipc.sync.semaphoreCreate.
@@ -570,7 +570,7 @@ fn encode_destack_ipc_sync_semaphore_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SemaphoreHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.ipc.sync.semaphorePost.
@@ -702,7 +702,7 @@ fn encode_destack_ipc_unix_send_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Replay payload for destack.ipc.message.queueClose.

@@ -321,7 +321,7 @@ fn encode_destack_midi_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.midi.event.read.
@@ -1261,7 +1261,7 @@ fn encode_destack_midi_input_port_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiInputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.midi.input.read.
@@ -1526,7 +1526,7 @@ fn encode_destack_midi_input_virtual_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiInputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.midi.output.flush.
@@ -1830,7 +1830,7 @@ fn encode_destack_midi_output_port_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiOutputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.midi.output.virtual.create.
@@ -1954,7 +1954,7 @@ fn encode_destack_midi_output_virtual_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiOutputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.midi.output.write.
@@ -1984,7 +1984,7 @@ fn encode_destack_midi_output_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Replay payload for destack.midi.backend.list.
