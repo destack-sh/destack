@@ -2,7 +2,8 @@ use super::{
     HarnessValue, HarnessWindowMode, decode_harness_value, default_window_options, error_code,
     harness_window_icon_set, harness_window_icon_set_none, harness_window_logical_size,
     harness_window_mode_options, harness_window_physical_size, is_not_supported_code,
-    open_window_or_skip_not_supported, run_display_case_or_return, with_harness_context,
+    open_window_or_skip_not_supported, run_display_case_or_return, wait_window_visibility,
+    with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{display as display_platform, resource};
@@ -390,21 +391,35 @@ pub(super) fn test_window_visibility_roundtrip_and_double_close_error() {
                 return Err(error);
             }
         } else {
-            let hidden_state = context.destack_display_window_state(window)?;
-            let hidden_state = decode_harness_value(hidden_state);
-            assert_eq!(hidden_state.visibility, WindowVisibility::Hidden);
+            assert!(wait_window_visibility(
+                &mut context,
+                window,
+                WindowVisibility::Hidden,
+            )?);
         }
 
-        // minimized visibility should stay available across implemented backends
-        context.destack_display_window_set_visibility(window, WindowVisibility::Minimized)?;
-        let minimized_state = context.destack_display_window_state(window)?;
-        let minimized_state = decode_harness_value(minimized_state);
-        assert_eq!(minimized_state.visibility, WindowVisibility::Minimized);
+        // minimized visibility should either transition cleanly or report unsupported
+        let minimized_result =
+            context.destack_display_window_set_visibility(window, WindowVisibility::Minimized);
+        if let Err(error) = minimized_result {
+            if !is_not_supported_code(error_code(&error)) {
+                context.destack_display_window_close(window)?;
+                return Err(error);
+            }
+        } else {
+            assert!(wait_window_visibility(
+                &mut context,
+                window,
+                WindowVisibility::Minimized,
+            )?);
 
-        context.destack_display_window_set_visibility(window, WindowVisibility::Visible)?;
-        let visible_state = context.destack_display_window_state(window)?;
-        let visible_state = decode_harness_value(visible_state);
-        assert_eq!(visible_state.visibility, WindowVisibility::Visible);
+            context.destack_display_window_set_visibility(window, WindowVisibility::Visible)?;
+            assert!(wait_window_visibility(
+                &mut context,
+                window,
+                WindowVisibility::Visible,
+            )?);
+        }
 
         // maximized visibility should be idempotent and restore cleanly back to visible
         let maximized_result =
@@ -415,19 +430,25 @@ pub(super) fn test_window_visibility_roundtrip_and_double_close_error() {
                 return Err(error);
             }
         } else {
-            let maximized_state = context.destack_display_window_state(window)?;
-            let maximized_state = decode_harness_value(maximized_state);
-            assert_eq!(maximized_state.visibility, WindowVisibility::Maximized);
+            assert!(wait_window_visibility(
+                &mut context,
+                window,
+                WindowVisibility::Maximized,
+            )?);
 
             context.destack_display_window_set_visibility(window, WindowVisibility::Maximized)?;
-            let maximized_state = context.destack_display_window_state(window)?;
-            let maximized_state = decode_harness_value(maximized_state);
-            assert_eq!(maximized_state.visibility, WindowVisibility::Maximized);
+            assert!(wait_window_visibility(
+                &mut context,
+                window,
+                WindowVisibility::Maximized,
+            )?);
 
             context.destack_display_window_set_visibility(window, WindowVisibility::Visible)?;
-            let visible_state = context.destack_display_window_state(window)?;
-            let visible_state = decode_harness_value(visible_state);
-            assert_eq!(visible_state.visibility, WindowVisibility::Visible);
+            assert!(wait_window_visibility(
+                &mut context,
+                window,
+                WindowVisibility::Visible,
+            )?);
         }
 
         context.destack_display_window_close(window)?;

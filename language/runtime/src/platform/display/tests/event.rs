@@ -5,9 +5,10 @@ use super::harness_window_mode_options;
 use super::{
     DisplayHarnessContext, HarnessValue, decode_monitor_list, default_monitor_event_open_options,
     default_monitor_list_request, default_window_event_open_options, default_window_options,
-    error_code, monitor_event_open_options, monitor_event_open_options_with_kind_mask,
-    open_window_or_skip_not_supported, result_or_skip_not_supported, run_display_case_or_return,
-    window_event_open_options, window_event_open_options_with_filter, with_harness_context,
+    error_code, is_not_supported_code, monitor_event_open_options,
+    monitor_event_open_options_with_kind_mask, open_window_or_skip_not_supported,
+    result_or_skip_not_supported, run_display_case_or_return, window_event_open_options,
+    window_event_open_options_with_filter, with_harness_context,
 };
 #[cfg(any(unix, windows))]
 use crate::diagnostic::RuntimeError;
@@ -839,8 +840,21 @@ pub(super) fn test_window_event_visibility_changes_emit_expected_payloads() {
 
             drain_window_event_stream(&mut context, stream)?;
 
-            // request one minimized transition and verify one matching payload
-            context.destack_display_window_set_visibility(window, WindowVisibility::Minimized)?;
+            // request one minimized transition and verify one matching payload when supported
+            let minimized_result =
+                context.destack_display_window_set_visibility(window, WindowVisibility::Minimized);
+            if let Err(error) = minimized_result {
+                if is_not_supported_code(error_code(&error)) {
+                    context.destack_display_window_event_close(stream)?;
+                    context.destack_display_window_close(window)?;
+                    continue;
+                }
+
+                context.destack_display_window_event_close(stream)?;
+                context.destack_display_window_close(window)?;
+                return Err(error);
+            }
+
             let mut saw_minimized = false;
             for _ in 0..32 {
                 let event = context.destack_display_window_event_read(stream, 100_000_000)?;
@@ -915,6 +929,12 @@ pub(super) fn test_window_event_occlusion_changes_follow_visibility_transitions(
         }
 
         for descriptor in backends {
+            // only explicit occlusion backends should expose this event lane
+            if descriptor.capability_flags & display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0 == 0
+            {
+                continue;
+            }
+
             // open one strict-backend window and occlusion-only stream
             let mut options = default_window_options(&mut context, "window-occlusion-events")?;
             force_window_backend(&mut options, descriptor.backend);

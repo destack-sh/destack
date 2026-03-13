@@ -33,6 +33,15 @@ pub(crate) fn enumerate_monitor_snapshots(
             snapshots.push(snapshot);
         }
 
+        // keep monitor enumeration stable across randr output ordering differences
+        snapshots.sort_by(|left, right| {
+            (!left.descriptor.primary)
+                .cmp(&!right.descriptor.primary)
+                .then(left.descriptor.y.cmp(&right.descriptor.y))
+                .then(left.descriptor.x.cmp(&right.descriptor.x))
+                .then(left.descriptor.id.cmp(&right.descriptor.id))
+        });
+
         return Ok(snapshots);
     }
 
@@ -63,6 +72,15 @@ pub(crate) fn enumerate_monitor_snapshots_for_runtime(
             };
             snapshots.push(snapshot);
         }
+
+        // keep monitor enumeration stable across randr output ordering differences
+        snapshots.sort_by(|left, right| {
+            (!left.descriptor.primary)
+                .cmp(&!right.descriptor.primary)
+                .then(left.descriptor.y.cmp(&right.descriptor.y))
+                .then(left.descriptor.x.cmp(&right.descriptor.x))
+                .then(left.descriptor.id.cmp(&right.descriptor.id))
+        });
 
         return Ok(snapshots);
     }

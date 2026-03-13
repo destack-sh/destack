@@ -1,3 +1,5 @@
+use dispatch2::run_on_main;
+use objc2_app_kit::NSScreen;
 use objc2_core_foundation::{CFArray, CFRetained};
 use objc2_core_graphics::{
     CGDirectDisplayID, CGDisplayBounds, CGDisplayCopyAllDisplayModes, CGDisplayCopyDisplayMode,
@@ -5,10 +7,12 @@ use objc2_core_graphics::{
     CGDisplayScreenSize, CGError, CGGetActiveDisplayList, CGMainDisplayID,
 };
 
+use super::core::{display_id as monitor_display_id, display_orientation};
 use crate::diagnostic::RuntimeResult;
 use crate::platform;
 use crate::platform::display::unix::appkit::core;
 use crate::platform::display::unix::appkit::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
+use crate::platform::display::unix::appkit::window::display_id_from_screen;
 use crate::platform::display::{DisplayDescriptor, DisplayMode, DisplaySupportStatus};
 use crate::runtime::BindingCallContext;
 
@@ -107,6 +111,7 @@ fn monitor_snapshot(
 
     let width_px = CGDisplayPixelsWide(display) as u32;
     let height_px = CGDisplayPixelsHigh(display) as u32;
+    let scale_factor_milli = display_scale_factor_milli(display);
     let descriptor = DisplayDescriptorSnapshot {
         backend: core::selected_backend(),
         id: super::core::display_id(display),
@@ -122,8 +127,8 @@ fn monitor_snapshot(
         work_area_height_px: height_px,
         width_mm: size_mm.width.max(0.0).round() as u32,
         height_mm: size_mm.height.max(0.0).round() as u32,
-        scale_factor_milli: 1000,
-        orientation: super::core::display_orientation(display),
+        scale_factor_milli,
+        orientation: display_orientation(display),
         builtin_panel: if CGDisplayIsBuiltin(display) {
             DisplaySupportStatus::Supported
         } else {
@@ -138,6 +143,27 @@ fn monitor_snapshot(
         current_mode,
         desktop_mode,
         modes,
+    })
+}
+
+/// Resolve one AppKit display scale factor in milli-scale units.
+fn display_scale_factor_milli(display: CGDirectDisplayID) -> u32 {
+    run_on_main(|mtm| {
+        let screens = NSScreen::screens(mtm);
+
+        // match the current CoreGraphics display against live AppKit screens
+        for screen in screens.iter() {
+            let Some(display_id) = display_id_from_screen(&screen) else {
+                continue;
+            };
+
+            if display_id == monitor_display_id(display) {
+                let scale_factor_milli = (screen.backingScaleFactor() * 1000.0).round() as u32;
+                return scale_factor_milli.max(1);
+            }
+        }
+
+        1000
     })
 }
 

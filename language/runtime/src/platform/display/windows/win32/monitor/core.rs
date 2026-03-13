@@ -1,14 +1,15 @@
 use windows_sys::Win32::Foundation::{BOOL, LPARAM, RECT};
 use windows_sys::Win32::Graphics::Gdi::{
     CreateDCW, DISPLAY_DEVICE_ACTIVE, DISPLAY_DEVICE_REMOVABLE, DISPLAY_DEVICEW, DeleteDC,
-    EnumDisplayDevicesW, EnumDisplayMonitors, GetDeviceCaps, GetMonitorInfoW, HORZSIZE, LOGPIXELSX,
+    EnumDisplayDevicesW, EnumDisplayMonitors, GetDeviceCaps, GetMonitorInfoW, HORZSIZE,
     MONITORINFOEXW, VERTSIZE,
 };
+use windows_sys::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
 use windows_sys::Win32::UI::WindowsAndMessaging::MONITORINFOF_PRIMARY;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
-use crate::platform::display::DisplayMode;
+use crate::platform::display::{DisplayMode, DisplaySupportStatus};
 
 use crate::platform::display::windows::win32::core as win32_core;
 /// Number of gamma entries per color channel in Win32.
@@ -16,7 +17,7 @@ pub(crate) const GAMMA_RAMP_CHANNEL_ENTRIES: usize = 256;
 /// Total number of gamma entries in one Win32 gamma table.
 pub(crate) const GAMMA_RAMP_TOTAL_ENTRIES: usize = GAMMA_RAMP_CHANNEL_ENTRIES * 3;
 /// One raw monitor-row tuple used by monitor enumeration.
-pub(crate) type MonitorRow = (String, RECT, RECT, bool);
+pub(crate) type MonitorRow = (String, RECT, RECT, bool, u32);
 
 /// Enumerate one monitor row and append normalized tuple payload.
 unsafe extern "system" fn enumerate_monitor_rows_callback(
@@ -43,11 +44,13 @@ unsafe extern "system" fn enumerate_monitor_rows_callback(
 
     // append one normalized monitor row
     let is_primary = (info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
+    let scale_factor_milli = monitor_scale_factor_milli(monitor);
     output.push((
         device_id,
         info.monitorInfo.rcMonitor,
         info.monitorInfo.rcWork,
         is_primary,
+        scale_factor_milli,
     ));
 
     1
@@ -90,8 +93,10 @@ pub(crate) fn display_name_for_device(device_id: &str) -> RuntimeResult<Option<S
     Ok(Some(value))
 }
 
-/// Resolve whether one display likely maps to one built-in panel.
-pub(crate) fn display_is_builtin(device_id: &str) -> RuntimeResult<bool> {
+/// Resolve one best effort built in panel support value for one display device.
+pub(crate) fn display_builtin_panel_support(
+    device_id: &str,
+) -> RuntimeResult<DisplaySupportStatus> {
     // iterate display devices attached to one monitor row
     let device_wide = core_platform::wide_from_str("id", device_id)?;
     let mut index = 0u32;
@@ -123,15 +128,28 @@ pub(crate) fn display_is_builtin(device_id: &str) -> RuntimeResult<bool> {
             || identifier.contains("LVDS")
             || identifier.contains("DSI")
         {
-            return Ok(true);
+            return Ok(DisplaySupportStatus::Supported);
         }
     }
 
-    Ok(false)
+    Ok(DisplaySupportStatus::Unknown)
 }
 
-/// Query physical monitor metrics and dpi-derived scale for one display device.
-pub(crate) fn display_metrics_for_device(device_id: &str) -> RuntimeResult<(u32, u32, u32)> {
+/// Resolve one effective scale factor for one monitor handle.
+fn monitor_scale_factor_milli(monitor: isize) -> u32 {
+    // query one per monitor effective dpi lane
+    let mut dpi_x = 0u32;
+    let mut dpi_y = 0u32;
+    let status = unsafe { GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) };
+    if status != 0 || dpi_x == 0 || dpi_y == 0 {
+        return 1000;
+    }
+
+    dpi_x.saturating_mul(1000).saturating_add(48) / 96
+}
+
+/// Query physical monitor metrics for one display device.
+pub(crate) fn display_metrics_for_device(device_id: &str) -> RuntimeResult<(u32, u32)> {
     // open one display device context for physical metrics
     let device_wide = core_platform::wide_from_str("id", device_id)?;
 
@@ -145,14 +163,12 @@ pub(crate) fn display_metrics_for_device(device_id: &str) -> RuntimeResult<(u32,
     };
     // return conservative defaults when dc open fails
     if hdc == 0 {
-        return Ok((0, 0, 1000));
+        return Ok((0, 0));
     }
 
     // query and release win32 physical metrics
     let width_mm_raw = unsafe { GetDeviceCaps(hdc, HORZSIZE as i32) };
     let height_mm_raw = unsafe { GetDeviceCaps(hdc, VERTSIZE as i32) };
-    let dpi_x = unsafe { GetDeviceCaps(hdc, LOGPIXELSX as i32) };
-
     unsafe {
         DeleteDC(hdc);
     }
@@ -160,14 +176,8 @@ pub(crate) fn display_metrics_for_device(device_id: &str) -> RuntimeResult<(u32,
     // normalize raw metrics into host-state payload
     let width_mm = width_mm_raw.max(0) as u32;
     let height_mm = height_mm_raw.max(0) as u32;
-    let scale_factor_milli = if dpi_x <= 0 {
-        1000
-    } else {
-        (dpi_x as u32).saturating_mul(1000) / 96
-    }
-    .max(1);
 
-    Ok((width_mm, height_mm, scale_factor_milli))
+    Ok((width_mm, height_mm))
 }
 
 /// Enumerate raw monitor rows from the active desktop.

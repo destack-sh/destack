@@ -4,7 +4,8 @@ use super::{
     default_monitor_list_request, default_monitor_open_options, default_window_event_open_options,
     default_window_options, error_code, harness_string, harness_window_position,
     harness_window_size_constraints, harness_window_size_constraints_none, is_not_supported_code,
-    result_or_skip_not_supported, run_display_case_or_return, with_harness_context,
+    result_or_skip_not_supported, run_display_case_or_return, wait_window_visibility,
+    with_harness_context,
 };
 #[cfg(target_os = "linux")]
 use super::{
@@ -269,7 +270,6 @@ fn wayland_capability_ceiling_mask() -> u64 {
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_DRAG_INTERACTION.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_PARENTING.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_MODAL.0
-        | display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_CHROME.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP.0
@@ -671,8 +671,11 @@ pub(super) fn test_display_window_surface_supports_strict_backend_selection() {
             assert!(saw_refresh_or_created);
 
             context.destack_display_window_set_visibility(window, WindowVisibility::Minimized)?;
-            let state = decode_harness_value(context.destack_display_window_state(window)?);
-            assert_eq!(state.visibility, WindowVisibility::Minimized);
+            assert!(wait_window_visibility(
+                &mut context,
+                window,
+                WindowVisibility::Minimized,
+            )?);
 
             context.destack_display_window_event_close(stream)?;
             context.destack_display_window_close(window)?;
@@ -888,8 +891,11 @@ pub(super) fn test_display_window_remaining_surface_calls_follow_backend_contrac
             let maximize_result = context.destack_display_window_maximize(window);
             match maximize_result {
                 Ok(()) => {
-                    let state = decode_harness_value(context.destack_display_window_state(window)?);
-                    assert_eq!(state.visibility, WindowVisibility::Maximized);
+                    assert!(wait_window_visibility(
+                        &mut context,
+                        window,
+                        WindowVisibility::Maximized,
+                    )?);
                 }
                 Err(error) => {
                     if !is_not_supported_code(error_code(&error)) {
@@ -904,8 +910,11 @@ pub(super) fn test_display_window_remaining_surface_calls_follow_backend_contrac
             let minimize_result = context.destack_display_window_minimize(window);
             match minimize_result {
                 Ok(()) => {
-                    let state = decode_harness_value(context.destack_display_window_state(window)?);
-                    assert_eq!(state.visibility, WindowVisibility::Minimized);
+                    assert!(wait_window_visibility(
+                        &mut context,
+                        window,
+                        WindowVisibility::Minimized,
+                    )?);
                 }
                 Err(error) => {
                     if !is_not_supported_code(error_code(&error)) {
@@ -920,11 +929,11 @@ pub(super) fn test_display_window_remaining_surface_calls_follow_backend_contrac
             let restore_result = context.destack_display_window_restore(window);
             match restore_result {
                 Ok(()) => {
-                    let state = decode_harness_value(context.destack_display_window_state(window)?);
-                    assert!(matches!(
-                        state.visibility,
-                        WindowVisibility::Visible | WindowVisibility::Maximized
-                    ));
+                    let restored_visible =
+                        wait_window_visibility(&mut context, window, WindowVisibility::Visible)?;
+                    let restored_maximized =
+                        wait_window_visibility(&mut context, window, WindowVisibility::Maximized)?;
+                    assert!(restored_visible || restored_maximized);
                 }
                 Err(error) => {
                     if !is_not_supported_code(error_code(&error)) {
@@ -1324,7 +1333,7 @@ pub(super) fn test_display_x11_capabilities_match_implemented_contract() {
         assert_ne!(capability_flags & DISPLAY_CAP_ATTENTION_REQUEST, 0);
         assert_ne!(capability_flags & DISPLAY_CAP_WINDOW_DROP_EVENTS, 0);
         assert_eq!(capability_flags & DISPLAY_CAP_MONITOR_HDR_CONTROL, 0);
-        assert_ne!(capability_flags & DISPLAY_CAP_OCCLUSION, 0);
+        assert_eq!(capability_flags & DISPLAY_CAP_OCCLUSION, 0);
         assert_eq!(capability_flags & DISPLAY_CAP_SAFE_AREA, 0);
         assert_eq!(capability_flags & DISPLAY_CAP_THEME, 0);
 
@@ -1585,7 +1594,7 @@ pub(super) fn test_display_wayland_capabilities_match_implemented_contract() {
         assert_eq!(capability_flags & DISPLAY_CAP_WINDOW_TASKBAR_VISIBILITY, 0);
         assert_eq!(capability_flags & DISPLAY_CAP_THEME, 0);
         assert_eq!(capability_flags & DISPLAY_CAP_SAFE_AREA, 0);
-        assert_ne!(capability_flags & DISPLAY_CAP_OCCLUSION, 0);
+        assert_eq!(capability_flags & DISPLAY_CAP_OCCLUSION, 0);
         assert_eq!(capability_flags & DISPLAY_CAP_MONITOR_HDR_CONTROL, 0);
 
         let mut window_options = default_window_options(&mut context, "wayland-capability-check")?;
@@ -2092,9 +2101,9 @@ pub(super) fn test_display_wayland_window_event_filter_accepts_scale_factor_kind
 
 #[cfg(target_os = "windows")]
 #[cfg_attr(test, test)]
-pub(super) fn test_display_win32_with_occlusion_capability_reports_unknown_visible_state() {
+pub(super) fn test_display_win32_visible_state_reports_unknown_occlusion() {
     if run_display_case_or_return(display_case_name!(
-        test_display_win32_with_occlusion_capability_reports_unknown_visible_state
+        test_display_win32_visible_state_reports_unknown_occlusion
     )) {
         return;
     }
@@ -2209,7 +2218,7 @@ pub(super) fn test_display_win32_capabilities_match_implemented_contract() {
             capability_flags & display_platform::DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL.0,
             0
         );
-        assert_ne!(
+        assert_eq!(
             capability_flags & display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0,
             0
         );

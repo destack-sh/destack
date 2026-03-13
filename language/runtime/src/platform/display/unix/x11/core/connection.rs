@@ -69,6 +69,8 @@ pub(crate) struct X11Atoms {
     pub(crate) net_work_area: Atom,
     /// `_NET_CURRENT_DESKTOP` atom.
     pub(crate) net_current_desktop: Atom,
+    /// `RESOURCE_MANAGER` atom.
+    pub(crate) resource_manager: Atom,
     /// `vrr_capable` atom.
     pub(crate) vrr_capable: Atom,
     /// `XdndAware` atom.
@@ -358,6 +360,7 @@ pub(crate) fn connection_state(
         net_wm_icon: intern_atom(&connection, b"_NET_WM_ICON", operation)?,
         net_work_area: intern_atom(&connection, b"_NET_WORKAREA", operation)?,
         net_current_desktop: intern_atom(&connection, b"_NET_CURRENT_DESKTOP", operation)?,
+        resource_manager: intern_atom(&connection, b"RESOURCE_MANAGER", operation)?,
         vrr_capable: intern_atom(&connection, b"vrr_capable", operation)?,
         xdnd_aware: intern_atom(&connection, b"XdndAware", operation)?,
         xdnd_enter: intern_atom(&connection, b"XdndEnter", operation)?,

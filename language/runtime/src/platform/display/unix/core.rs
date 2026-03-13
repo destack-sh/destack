@@ -13,7 +13,7 @@ use crate::platform::display::{
 use crate::runtime::BindingCallContext;
 
 #[cfg(target_os = "linux")]
-const UNIX_BACKEND_PRIORITY: &[DisplayBackend] = &[DisplayBackend::X11, DisplayBackend::Wayland];
+const UNIX_BACKEND_PRIORITY: &[DisplayBackend] = &[DisplayBackend::Wayland, DisplayBackend::X11];
 #[cfg(target_os = "macos")]
 const UNIX_BACKEND_PRIORITY: &[DisplayBackend] = &[DisplayBackend::AppKit];
 #[cfg(target_os = "android")]
@@ -452,6 +452,24 @@ mod tests {
 
         let backend = resolve_default_backend("destack.display.monitor.list")
             .expect("wayland environment should resolve a default backend");
+        assert_eq!(backend, DisplayBackend::Wayland);
+
+        restore.restore();
+    }
+
+    /// Prefer wayland when both wayland and x11 endpoints are configured.
+    #[test]
+    fn test_resolve_default_backend_prefers_wayland_when_both_endpoints_exist() {
+        let _lock = ENVIRONMENT_LOCK.lock().unwrap();
+        let restore = EnvironmentRestore::capture();
+        unsafe {
+            std::env::set_var("DISPLAY", ":0");
+            std::env::set_var("WAYLAND_DISPLAY", "wayland-0");
+            std::env::remove_var("WAYLAND_SOCKET");
+        }
+
+        let backend = resolve_default_backend("destack.display.monitor.list")
+            .expect("configured wayland and x11 endpoints should resolve a default backend");
         assert_eq!(backend, DisplayBackend::Wayland);
 
         restore.restore();

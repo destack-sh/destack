@@ -20,6 +20,8 @@ use crate::platform::display::unix::x11::model::{DisplayDescriptorSnapshot, Moni
 pub(crate) const X11_DEFAULT_BITS_PER_CHANNEL: u16 = 8;
 /// Fallback refresh-rate used when one mode payload omits timing information.
 const X11_DEFAULT_REFRESH_MILLI_HZ: u32 = 60_000;
+/// Conventional desktop DPI used for one scale factor of `1.0`.
+const X11_DEFAULT_DESKTOP_DPI: f64 = 96.0;
 
 /// Return one stable display-id prefix for the active x11-compatible backend.
 fn display_id_prefix() -> &'static str {
@@ -135,6 +137,109 @@ fn builtin_panel_support(name: &str) -> DisplaySupportStatus {
     }
 
     DisplaySupportStatus::Unknown
+}
+
+/// Parse one `Xft.dpi` entry from one X11 resource-manager payload.
+fn xft_dpi_from_resource_manager(value: &str) -> Option<f64> {
+    for line in value.lines() {
+        let line = line.split('!').next().unwrap_or_default().trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        let (key, value) = line.split_once(':')?;
+        if !key.trim().eq_ignore_ascii_case("Xft.dpi") {
+            continue;
+        }
+
+        let dpi = value.trim().parse::<f64>().ok()?;
+        if dpi.is_finite() && dpi > 0.0 {
+            return Some(dpi);
+        }
+    }
+
+    None
+}
+
+/// Convert one DPI value into milli-scale units.
+fn scale_factor_milli_from_dpi(dpi: f64) -> Option<u32> {
+    if !dpi.is_finite() || dpi <= 0.0 {
+        return None;
+    }
+
+    let scale_factor = (dpi / X11_DEFAULT_DESKTOP_DPI) * 1000.0;
+    let scale_factor = scale_factor.round().clamp(1.0, u32::MAX as f64);
+    Some(scale_factor as u32)
+}
+
+/// Read one global X11 desktop scale factor from the resource manager when available.
+pub(crate) fn global_scale_factor_milli(
+    connection_state: &core::X11ConnectionState,
+    operation: &'static str,
+) -> RuntimeResult<Option<u32>> {
+    let reply = connection_state
+        .connection
+        .get_property(
+            false,
+            connection_state.root,
+            connection_state.atoms.resource_manager,
+            AtomEnum::STRING,
+            0,
+            u32::MAX,
+        )
+        .map_err(|error| {
+            core::io_error(operation, format!("get_property request failed: {error}"))
+        })?
+        .reply()
+        .map_err(|error| {
+            core::io_error(operation, format!("get_property reply failed: {error}"))
+        })?;
+    let value = std::str::from_utf8(reply.value.as_slice())
+        .ok()
+        .and_then(xft_dpi_from_resource_manager)
+        .and_then(scale_factor_milli_from_dpi);
+
+    Ok(value)
+}
+
+/// Build one fallback scale factor from physical monitor size when no desktop scale exists.
+fn physical_scale_factor_milli(
+    width_px: u32,
+    height_px: u32,
+    width_mm: u32,
+    height_mm: u32,
+) -> Option<u32> {
+    if width_px == 0 || height_px == 0 || width_mm == 0 || height_mm == 0 {
+        return None;
+    }
+
+    let width_dpi = (width_px as f64 * 25.4) / width_mm as f64;
+    let height_dpi = (height_px as f64 * 25.4) / height_mm as f64;
+    let average_dpi = (width_dpi + height_dpi) / 2.0;
+
+    scale_factor_milli_from_dpi(average_dpi)
+}
+
+/// Resolve one best-effort scale factor for one x11 output.
+fn output_scale_factor_milli(
+    connection_state: &core::X11ConnectionState,
+    width_px: u32,
+    height_px: u32,
+    width_mm: u32,
+    height_mm: u32,
+    operation: &'static str,
+) -> RuntimeResult<u32> {
+    if let Some(scale_factor_milli) = global_scale_factor_milli(connection_state, operation)? {
+        return Ok(scale_factor_milli);
+    }
+
+    if let Some(scale_factor_milli) =
+        physical_scale_factor_milli(width_px, height_px, width_mm, height_mm)
+    {
+        return Ok(scale_factor_milli);
+    }
+
+    Ok(1000)
 }
 
 /// Resolve variable-refresh support from one randr output property when available.
@@ -458,7 +563,14 @@ pub(crate) fn enumerate_randr_output_states(
             work_area_height_px,
             width_mm: output_info.mm_width,
             height_mm: output_info.mm_height,
-            scale_factor_milli: 1000,
+            scale_factor_milli: output_scale_factor_milli(
+                connection_state,
+                width_px,
+                height_px,
+                output_info.mm_width,
+                output_info.mm_height,
+                operation,
+            )?,
             orientation: orientation_from_rotation(crtc_info.rotation),
             builtin_panel,
             variable_refresh_support: variable_refresh_support(connection_state, output),
@@ -484,14 +596,6 @@ pub(crate) fn enumerate_randr_output_states(
             descriptor,
         };
         states.push(state);
-    }
-
-    // assign one fallback primary display when no output reports primary
-    if !states.is_empty()
-        && !states.iter().any(|state| state.descriptor.primary)
-        && let Some(first_state) = states.first_mut()
-    {
-        first_state.descriptor.primary = true;
     }
 
     Ok(states)
@@ -541,7 +645,14 @@ pub(crate) fn enumerate_fallback_monitor_snapshots(
         work_area_height_px: height_px,
         width_mm,
         height_mm,
-        scale_factor_milli: 1000,
+        scale_factor_milli: output_scale_factor_milli(
+            connection_state,
+            width_px,
+            height_px,
+            width_mm,
+            height_mm,
+            "destack.display.monitor.list",
+        )?,
         orientation: DisplayOrientation::Landscape,
         builtin_panel: DisplaySupportStatus::Unknown,
         variable_refresh_support: DisplaySupportStatus::Unknown,
@@ -554,4 +665,31 @@ pub(crate) fn enumerate_fallback_monitor_snapshots(
         desktop_mode: current_mode,
         modes: vec![current_mode],
     }])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        physical_scale_factor_milli, scale_factor_milli_from_dpi, xft_dpi_from_resource_manager,
+    };
+
+    #[test]
+    fn test_x11_resource_manager_parses_xft_dpi() {
+        let value = "\nXcursor.size:\t24\nXft.dpi:\t192\n";
+
+        assert_eq!(xft_dpi_from_resource_manager(value), Some(192.0));
+    }
+
+    #[test]
+    fn test_x11_scale_factor_milli_from_dpi_uses_desktop_baseline() {
+        assert_eq!(scale_factor_milli_from_dpi(96.0), Some(1000));
+        assert_eq!(scale_factor_milli_from_dpi(192.0), Some(2000));
+    }
+
+    #[test]
+    fn test_x11_physical_scale_factor_milli_uses_monitor_dpi() {
+        let scale_factor_milli = physical_scale_factor_milli(3840, 2160, 600, 340);
+
+        assert_eq!(scale_factor_milli, Some(1687));
+    }
 }

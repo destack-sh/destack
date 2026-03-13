@@ -86,7 +86,6 @@ pub(crate) fn backend_descriptor_state(
         | display_platform::DISPLAY_BACKEND_CAP_MONITOR.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_EVENTS.0
         | display_platform::DISPLAY_BACKEND_CAP_MONITOR_EVENTS.0
-        | display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0
         | display_platform::DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN.0
         | display_platform::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_PARENTING.0
