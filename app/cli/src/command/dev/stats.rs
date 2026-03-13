@@ -14,6 +14,15 @@ const MARKERS: &[(&str, &str, char)] = &[
     ("FUGU", "31", '●'), // red
 ];
 
+/// Byte threshold below which estimated token mode still does a full count.
+const TOKEN_ESTIMATE_EXACT_BYTES: usize = 8 * 1024;
+
+/// Minimum number of sampled large files per extension bucket.
+const TOKEN_ESTIMATE_MIN_SAMPLE_FILES: usize = 3;
+
+/// Maximum number of sampled large files per extension bucket.
+const TOKEN_ESTIMATE_MAX_SAMPLE_FILES: usize = 12;
+
 /// Arguments for the stats command.
 #[derive(Args, Debug, Clone)]
 pub struct StatsArgs {
@@ -32,6 +41,10 @@ pub struct StatsArgs {
     /// Hide token counts (faster, lines only).
     #[arg(long)]
     pub no_tokens: bool,
+
+    /// Estimate token counts from sampled content instead of tokenizing full files.
+    #[arg(long, conflicts_with = "no_tokens")]
+    pub estimate_tokens: bool,
 
     /// Show file type breakdown per directory.
     #[arg(long, short = 't')]
@@ -59,6 +72,29 @@ struct Stats {
     markers: Vec<usize>,
     /// Tag counts (discovered dynamically, e.g., #Performance, @Cleanup)
     tags: BTreeMap<String, usize>,
+}
+
+/// Token counting behavior for the stats command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TokenCountMode {
+    /// Do not count tokens.
+    None,
+    /// Tokenize every full file.
+    Full,
+    /// Estimate token counts from sampled content.
+    Estimate,
+}
+
+impl TokenCountMode {
+    /// Return whether token columns should be shown.
+    fn shows_tokens(self) -> bool {
+        !matches!(self, Self::None)
+    }
+
+    /// Return whether token counts are estimated.
+    fn is_estimated(self) -> bool {
+        matches!(self, Self::Estimate)
+    }
 }
 
 impl Stats {
@@ -111,6 +147,17 @@ struct DirNode {
     by_extension: BTreeMap<String, Stats>,
     /// Child directory nodes
     children: BTreeMap<String, DirNode>,
+}
+
+/// File metadata collected during the directory walk.
+#[derive(Debug, Clone)]
+struct FileEntry {
+    /// Path relative to the stats root.
+    relative_path: PathBuf,
+    /// File extension bucket.
+    extension: String,
+    /// Per-file statistics.
+    stats: Stats,
 }
 
 impl DirNode {
@@ -177,8 +224,17 @@ pub fn run(args: &StatsArgs) -> i32 {
         }
     };
 
+    // select token counting mode
+    let token_count_mode = if args.no_tokens {
+        TokenCountMode::None
+    } else if args.estimate_tokens {
+        TokenCountMode::Estimate
+    } else {
+        TokenCountMode::Full
+    };
+
     // initialize tokenizer if needed
-    let tokenizer = if args.no_tokens {
+    let tokenizer = if matches!(token_count_mode, TokenCountMode::None) {
         None
     } else {
         match o200k_base() {
@@ -193,26 +249,23 @@ pub fn run(args: &StatsArgs) -> i32 {
         }
     };
 
-    // build the stats tree
-    let root_name = root
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(".")
-        .to_string();
-    let mut tree = DirNode::new(root_name);
-
     // walk the directory
     let mut ignore_set = destack_source::IgnoreSet::new();
-    walk_directory(&root, &root, &mut tree, &tokenizer, &mut ignore_set);
+    let mut files = Vec::new();
+    walk_directory(&root, &root, &mut files, &mut ignore_set);
 
-    // aggregate stats from children to parents
+    // count tokens once file metadata is known
+    assign_token_counts(&root, &mut files, tokenizer.as_ref(), token_count_mode);
+
+    // build and aggregate the stats tree
+    let mut tree = build_tree(&root, files);
     tree.aggregate();
 
     // determine effective depth
     let max_depth = if args.full { usize::MAX } else { args.depth };
 
     // render the tree
-    let output = render_tree(&tree, max_depth, args.by_type, tokenizer.is_some());
+    let output = render_tree(&tree, max_depth, args.by_type, token_count_mode);
     println!("{output}");
 
     0
@@ -223,14 +276,12 @@ pub fn run(args: &StatsArgs) -> i32 {
 /// # Arguments
 /// * `root` - Root directory path for gitignore resolution
 /// * `dir` - Current directory being processed
-/// * `node` - Directory node to populate with stats
-/// * `tokenizer` - Optional tokenizer for token counting
+/// * `files` - Collected file metadata entries
 /// * `ignore_set` - Gitignore rules for filtering files
 fn walk_directory(
     root: &Path,
     dir: &Path,
-    node: &mut DirNode,
-    tokenizer: &Option<tiktoken_rs::CoreBPE>,
+    files: &mut Vec<FileEntry>,
     ignore_set: &mut destack_source::IgnoreSet,
 ) {
     // load gitignore for this directory
@@ -263,8 +314,7 @@ fn walk_directory(
         }
 
         if file_type.is_dir() {
-            let child_node = node.child(name);
-            walk_directory(root, &path, child_node, tokenizer, ignore_set);
+            walk_directory(root, &path, files, ignore_set);
         } else if file_type.is_file() {
             // get extension
             let extension = path
@@ -288,11 +338,6 @@ fn walk_directory(
             let lines = content.lines().count();
             let analysis = analyze_content(&content, &extension);
             let bytes = content.len();
-            let tokens = tokenizer
-                .as_ref()
-                .map(|t| t.encode_with_special_tokens(&content).len())
-                .unwrap_or(0);
-
             let mut stats = Stats::new();
             stats.files = 1;
             stats.lines = lines;
@@ -300,12 +345,213 @@ fn walk_directory(
             stats.lines_comment = analysis.lines_comment;
             stats.lines_blank = analysis.lines_blank;
             stats.bytes = bytes;
-            stats.tokens = tokens;
             stats.markers = analysis.markers;
             stats.tags = analysis.tags;
-            node.add_file(&extension, stats);
+
+            let relative_path = match path.strip_prefix(root) {
+                Ok(relative_path) => relative_path.to_path_buf(),
+                Err(_) => continue,
+            };
+
+            files.push(FileEntry {
+                relative_path,
+                extension,
+                stats,
+            });
         }
     }
+}
+
+/// Assign token counts to collected file entries.
+fn assign_token_counts(
+    root: &Path,
+    files: &mut [FileEntry],
+    tokenizer: Option<&tiktoken_rs::CoreBPE>,
+    token_count_mode: TokenCountMode,
+) {
+    // skip token counting entirely when disabled
+    if matches!(token_count_mode, TokenCountMode::None) {
+        return;
+    }
+
+    let Some(tokenizer) = tokenizer else {
+        return;
+    };
+
+    // exact tokenization
+    if matches!(token_count_mode, TokenCountMode::Full) {
+        for file in files {
+            file.stats.tokens = tokenize_file(root, &file.relative_path, tokenizer);
+        }
+
+        return;
+    }
+
+    // estimate mode
+    assign_estimated_token_counts(root, files, tokenizer);
+}
+
+/// Assign estimated token counts with per-extension sampling.
+fn assign_estimated_token_counts(
+    root: &Path,
+    files: &mut [FileEntry],
+    tokenizer: &tiktoken_rs::CoreBPE,
+) {
+    let mut extensions: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    for (index, file) in files.iter().enumerate() {
+        extensions
+            .entry(file.extension.clone())
+            .or_default()
+            .push(index);
+    }
+
+    let mut global_sampled_bytes = 0usize;
+    let mut global_sampled_tokens = 0usize;
+
+    // exact small files
+    for file in files.iter_mut() {
+        if file.stats.bytes <= TOKEN_ESTIMATE_EXACT_BYTES {
+            file.stats.tokens = tokenize_file(root, &file.relative_path, tokenizer);
+            global_sampled_bytes += file.stats.bytes;
+            global_sampled_tokens += file.stats.tokens;
+        }
+    }
+
+    // per extension ratios
+    for indices in extensions.values() {
+        let mut sampled_bytes = 0usize;
+        let mut sampled_tokens = 0usize;
+        let mut large_indices = Vec::new();
+
+        // collect bucket-local exact samples first
+        for index in indices {
+            let file = &files[*index];
+
+            if file.stats.bytes <= TOKEN_ESTIMATE_EXACT_BYTES {
+                sampled_bytes += file.stats.bytes;
+                sampled_tokens += file.stats.tokens;
+            } else {
+                large_indices.push(*index);
+            }
+        }
+
+        // sample representative larger files by size
+        let sample_indices = choose_estimate_sample_indices(files, &large_indices);
+        for index in sample_indices {
+            let file = &mut files[index];
+            file.stats.tokens = tokenize_file(root, &file.relative_path, tokenizer);
+            sampled_bytes += file.stats.bytes;
+            sampled_tokens += file.stats.tokens;
+            global_sampled_bytes += file.stats.bytes;
+            global_sampled_tokens += file.stats.tokens;
+        }
+
+        let ratio = token_ratio(sampled_tokens, sampled_bytes)
+            .or_else(|| token_ratio(global_sampled_tokens, global_sampled_bytes));
+
+        let Some(tokens_per_byte) = ratio else {
+            for index in large_indices {
+                let file = &mut files[index];
+                file.stats.tokens = tokenize_file(root, &file.relative_path, tokenizer);
+            }
+
+            continue;
+        };
+
+        for index in large_indices {
+            let file = &mut files[index];
+            if file.stats.tokens > 0 {
+                continue;
+            }
+
+            let estimated_tokens = (tokens_per_byte * file.stats.bytes as f64).round() as usize;
+            file.stats.tokens = estimated_tokens.max(1);
+        }
+    }
+}
+
+/// Return token ratio if there is enough sampled data.
+fn token_ratio(tokens: usize, bytes: usize) -> Option<f64> {
+    if tokens == 0 || bytes == 0 {
+        return None;
+    }
+
+    Some(tokens as f64 / bytes as f64)
+}
+
+/// Choose a representative sample of larger files for one extension bucket.
+fn choose_estimate_sample_indices(files: &[FileEntry], indices: &[usize]) -> Vec<usize> {
+    if indices.is_empty() {
+        return Vec::new();
+    }
+
+    let sample_count = estimate_sample_count(indices.len());
+    if indices.len() <= sample_count {
+        return indices.to_vec();
+    }
+
+    let mut sorted_indices = indices.to_vec();
+    sorted_indices.sort_by_key(|index| files[*index].stats.bytes);
+
+    let last_position = sorted_indices.len() - 1;
+    let mut sampled = Vec::with_capacity(sample_count);
+    for sample_index in 0..sample_count {
+        let position = sample_index * last_position / (sample_count - 1);
+        sampled.push(sorted_indices[position]);
+    }
+
+    sampled.sort_unstable();
+    sampled.dedup();
+    sampled
+}
+
+/// Return the sample count for one extension bucket.
+fn estimate_sample_count(file_count: usize) -> usize {
+    let sample_count = (file_count as f64).sqrt().round() as usize;
+    sample_count.clamp(
+        TOKEN_ESTIMATE_MIN_SAMPLE_FILES,
+        TOKEN_ESTIMATE_MAX_SAMPLE_FILES,
+    )
+}
+
+/// Tokenize one file by path.
+fn tokenize_file(root: &Path, relative_path: &Path, tokenizer: &tiktoken_rs::CoreBPE) -> usize {
+    let path = root.join(relative_path);
+    let content = match std::fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(_) => return 0,
+    };
+
+    tokenizer.encode_with_special_tokens(&content).len()
+}
+
+/// Build the directory tree from collected file entries.
+fn build_tree(root: &Path, files: Vec<FileEntry>) -> DirNode {
+    let root_name = root
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(".")
+        .to_string();
+    let mut tree = DirNode::new(root_name);
+
+    for file in files {
+        let mut node = &mut tree;
+        let mut components = file.relative_path.components().peekable();
+
+        while let Some(component) = components.next() {
+            let component = component.as_os_str().to_string_lossy();
+
+            if components.peek().is_none() {
+                break;
+            }
+
+            node = node.child(&component);
+        }
+
+        node.add_file(&file.extension, file.stats);
+    }
+
+    tree
 }
 
 /// Check if a file extension typically indicates binary content.
@@ -804,8 +1050,14 @@ fn calc_max_dir_width(node: &DirNode, prefix_len: usize, depth: usize, max_depth
 ///
 /// # Returns
 /// Formatted string representation of the tree
-fn render_tree(tree: &DirNode, max_depth: usize, by_type: bool, show_tokens: bool) -> String {
+fn render_tree(
+    tree: &DirNode,
+    max_depth: usize,
+    by_type: bool,
+    token_count_mode: TokenCountMode,
+) -> String {
     let mut output = String::new();
+    let show_tokens = token_count_mode.shows_tokens();
 
     // calculate dynamic column width (minimum 40, add 2 for padding)
     let dir_width = calc_max_dir_width(tree, 0, 0, max_depth).max(40) + 2;
@@ -819,7 +1071,7 @@ fn render_tree(tree: &DirNode, max_depth: usize, by_type: bool, show_tokens: boo
     };
 
     // header
-    output.push_str(&render_header(dir_width, show_tokens));
+    output.push_str(&render_header(dir_width, token_count_mode));
     output.push('\n');
 
     // separator
@@ -835,7 +1087,7 @@ fn render_tree(tree: &DirNode, max_depth: usize, by_type: bool, show_tokens: boo
         0,
         max_depth,
         by_type,
-        show_tokens,
+        token_count_mode,
         dir_width,
     );
 
@@ -844,11 +1096,11 @@ fn render_tree(tree: &DirNode, max_depth: usize, by_type: bool, show_tokens: boo
     output.push('\n');
 
     // totals row
-    output.push_str(&render_totals(&tree.stats, dir_width, show_tokens));
+    output.push_str(&render_totals(&tree.stats, dir_width, token_count_mode));
 
     // summary section with averages
     output.push('\n');
-    output.push_str(&render_summary(&tree.stats, show_tokens));
+    output.push_str(&render_summary(&tree.stats, token_count_mode));
 
     output
 }
@@ -861,10 +1113,21 @@ fn render_tree(tree: &DirNode, max_depth: usize, by_type: bool, show_tokens: boo
 ///
 /// # Returns
 /// Formatted header string
-fn render_header(dir_width: usize, show_tokens: bool) -> String {
+fn render_header(dir_width: usize, token_count_mode: TokenCountMode) -> String {
     let dir_header = bold("Directory");
     let dir_pad = dir_width.saturating_sub(9); // "Directory" is 9 chars
     let padded_dir = format!("{dir_header}{}", " ".repeat(dir_pad));
+    let show_tokens = token_count_mode.shows_tokens();
+    let tokens_header = if token_count_mode.is_estimated() {
+        "Tokens~"
+    } else {
+        "Tokens"
+    };
+    let tl_header = if token_count_mode.is_estimated() {
+        "T/L~"
+    } else {
+        "T/L"
+    };
 
     if show_tokens {
         format!(
@@ -876,10 +1139,10 @@ fn render_header(dir_width: usize, show_tokens: bool) -> String {
             dim(&format!("{:>8}", "Comment")),
             dim(&format!("{:>8}", "Blank")),
             dim(&format!("{:>10}", "Bytes")),
-            dim(&format!("{:>10}", "Tokens")),
+            dim(&format!("{tokens_header:>10}")),
             dim(&format!("{:>5}", "L/F")),
             dim(&format!("{:>5}", "B/L")),
-            dim(&format!("{:>5}", "T/L"))
+            dim(&format!("{tl_header:>5}"))
         )
     } else {
         format!(
@@ -906,10 +1169,11 @@ fn render_header(dir_width: usize, show_tokens: bool) -> String {
 ///
 /// # Returns
 /// Formatted totals string
-fn render_totals(stats: &Stats, dir_width: usize, show_tokens: bool) -> String {
+fn render_totals(stats: &Stats, dir_width: usize, token_count_mode: TokenCountMode) -> String {
     let label = bold("Total");
     let label_pad = dir_width.saturating_sub(5); // "Total" is 5 chars
     let padded_label = format!("{label}{}", " ".repeat(label_pad));
+    let show_tokens = token_count_mode.shows_tokens();
 
     let files = format_number(stats.files);
     let lines = format_number(stats.lines);
@@ -961,8 +1225,9 @@ fn render_totals(stats: &Stats, dir_width: usize, show_tokens: bool) -> String {
 ///
 /// # Returns
 /// Formatted summary string
-fn render_summary(stats: &Stats, show_tokens: bool) -> String {
+fn render_summary(stats: &Stats, token_count_mode: TokenCountMode) -> String {
     let mut output = String::new();
+    let show_tokens = token_count_mode.shows_tokens();
 
     // markers summary
     if stats.markers_total() > 0 {
@@ -1009,6 +1274,15 @@ fn render_summary(stats: &Stats, show_tokens: bool) -> String {
         ));
     }
 
+    // token mode
+    if token_count_mode.is_estimated() {
+        output.push_str(&format!(
+            "{} {}\n",
+            dim("Tokens:"),
+            dim("estimated from sampled content")
+        ));
+    }
+
     // context window comparisons
     if show_tokens && stats.tokens > 0 {
         let tokens = stats.tokens as f64;
@@ -1039,7 +1313,11 @@ fn render_summary(stats: &Stats, show_tokens: bool) -> String {
 
         output.push_str(&format!(
             "{} {}\n",
-            dim("Context:"),
+            dim(if token_count_mode.is_estimated() {
+                "Context~:"
+            } else {
+                "Context:"
+            }),
             comparisons.join(&dim(" · "))
         ));
     }
@@ -1068,9 +1346,10 @@ fn render_node(
     depth: usize,
     max_depth: usize,
     by_type: bool,
-    show_tokens: bool,
+    token_count_mode: TokenCountMode,
     dir_width: usize,
 ) {
+    let show_tokens = token_count_mode.shows_tokens();
     // connector characters
     let connector = if depth == 0 {
         ""
@@ -1144,7 +1423,7 @@ fn render_node(
             is_last,
             depth,
             max_depth,
-            show_tokens,
+            token_count_mode,
             dir_width,
         );
     }
@@ -1178,7 +1457,7 @@ fn render_node(
             depth + 1,
             max_depth,
             by_type,
-            show_tokens,
+            token_count_mode,
             dir_width,
         );
     }
@@ -1203,9 +1482,10 @@ fn render_extension_breakdown(
     is_last: bool,
     depth: usize,
     max_depth: usize,
-    show_tokens: bool,
+    token_count_mode: TokenCountMode,
     dir_width: usize,
 ) {
+    let show_tokens = token_count_mode.shows_tokens();
     // sort extensions by lines (descending)
     let mut extensions: Vec<_> = node.by_extension.iter().collect();
     extensions.sort_by(|a, b| b.1.lines.cmp(&a.1.lines));
