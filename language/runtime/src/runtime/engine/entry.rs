@@ -1,3 +1,29 @@
+use serde::{Deserialize, Serialize};
+
+/// Replayable reference to one runtime entrypoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EntryReference {
+    /// VM entrypoint resolved by fully qualified name.
+    Vm {
+        /// Fully qualified entry name.
+        name: String,
+    },
+    /// Native entrypoint resolved by fully qualified name.
+    Native {
+        /// Fully qualified entry name.
+        name: String,
+    },
+}
+
+impl EntryReference {
+    /// Return the fully qualified entrypoint name.
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Vm { name } | Self::Native { name } => name,
+        }
+    }
+}
+
 /// Shared runtime entry descriptor for all engines.
 #[derive(Debug, Clone)]
 pub enum Entry {
@@ -33,6 +59,14 @@ impl Entry {
     pub fn name(&self) -> &str {
         match self {
             Self::Vm { name } | Self::Native { name, .. } => name,
+        }
+    }
+
+    /// Return the replayable descriptor for this entry.
+    pub fn entry_reference(&self) -> EntryReference {
+        match self {
+            Self::Vm { name } => EntryReference::Vm { name: name.clone() },
+            Self::Native { name, .. } => EntryReference::Native { name: name.clone() },
         }
     }
 }

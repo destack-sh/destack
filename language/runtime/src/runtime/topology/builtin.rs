@@ -2,9 +2,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::platform::ResourceKind;
 use crate::platform::resource::ResourceFacet;
+use crate::runtime::world::LABEL_TOPOLOGY_KIND;
 
-use super::constants::LABEL_TOPOLOGY_KIND;
-use super::topology::{WorldEdgeKindDefinition, WorldEntityKindDefinition};
+use super::{WorldEdgeKindDefinition, WorldEntityKindDefinition};
 
 /// Base fault verbs supported by all entity kinds.
 const BASE_ENTITY_FAULTS: &[&str] = &[

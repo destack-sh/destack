@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::AgentId;
-use crate::runtime::replay::TraceCursor;
+use crate::runtime::trace::TraceCursor;
 use crate::runtime::world::{
     Image, ObservationSubscriptionId, Revision, RevisionId, RuntimeId, Snapshot as WorldSnapshot,
     World,

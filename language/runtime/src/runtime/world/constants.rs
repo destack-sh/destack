@@ -1,6 +1,6 @@
-/// Builtin runtime node kind id.
+/// Builtin runtime entity kind id.
 pub const BUILTIN_RUNTIME_KIND_ID: &str = "runtime.instance";
-/// Builtin agent node kind id.
+/// Builtin agent entity kind id.
 pub const BUILTIN_AGENT_KIND_ID: &str = "runtime.agent";
 /// Builtin runtime-to-agent edge kind id.
 pub const BUILTIN_RUNTIME_OWNS_AGENT_EDGE_KIND_ID: &str = "runtime.instance.owns.agent";

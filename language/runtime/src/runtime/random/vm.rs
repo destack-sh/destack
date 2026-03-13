@@ -101,9 +101,9 @@ pub(crate) fn destack_random_secure_metadata(
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<SecureRandomMetadataVm> {
     // allocate the active backend label for VM payload
-    let backend_name = vm::StringHandle::new(
-        context.intern_string(binding.world().random().secure_backend_name()),
-    );
+    let backend_name = context
+        .string_handle(binding.world().random().secure_backend_name())
+        .map_err(Box::<RuntimeError>::from)?;
     let may_block = binding.world().random().secure_may_block();
 
     // return secure backend metadata for VM callers
@@ -147,7 +147,7 @@ pub(crate) fn destack_random_stream_export(
         .export_stream_state_bytes(RandomStreamId::new(stream.0));
     let state = RandomStreamStateVm {
         version: STREAM_STATE_VERSION,
-        bytes: VmArray::from_bytes(context, &bytes),
+        bytes: VmArray::from_bytes(context, &bytes)?,
     };
 
     Ok(state)

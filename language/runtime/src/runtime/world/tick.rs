@@ -6,7 +6,7 @@ use crate::runtime::time::WorldInstant;
 use crate::runtime::{AgentId, TickOutcome};
 use destack_workspace::TimeMode;
 
-use super::{ObservationEvent, ObservationSchedulerOutcome, RuntimeId, Wake, World};
+use super::{Input, Observation, ObservationSchedulerOutcome, RuntimeId, Wake, World};
 
 impl World {
     /// Advance one virtual world clock to one explicit wall-clock deadline.
@@ -62,17 +62,27 @@ impl World {
 
     /// Execute one world tick across all stored runtimes in stable order.
     pub fn tick(&self) -> RuntimeResult<TickOutcome> {
+        let input = self.resolve_input(Input::Tick)?;
+
+        if self.trace.mode() == destack_workspace::ExecutionMode::Record {
+            self.ingest(input.clone())?;
+        }
+
+        self.tick_inner()
+    }
+
+    /// Execute one world tick without tracing the outer invocation.
+    pub(crate) fn tick_inner(&self) -> RuntimeResult<TickOutcome> {
         let _activity = self.enter_activity()?;
         let mut runtimes = self.runtimes.write();
 
         // runnable work and ingress
         for runtime in runtimes.values_mut() {
             if runtime.tick(self)?.progressed() {
-                self.observation.record(ObservationEvent::Scheduler {
-                    branch_id: self.branch_id,
-                    outcome: ObservationSchedulerOutcome::Progressed,
-                    deadline: None,
-                });
+                self.observe(Observation::scheduler(
+                    ObservationSchedulerOutcome::Progressed,
+                    None,
+                ));
 
                 return Ok(TickOutcome::Progressed);
             }
@@ -91,9 +101,9 @@ impl World {
         };
 
         // record the resolved world time jump
-        let deadline = self.trace.resolve_tick(deadline)?;
+        let deadline = self.trace.resolve_time_advance(deadline)?;
         self.advance_virtual_to(deadline)?;
-        self.trace.record_tick(deadline)?;
+        self.trace.record_time_advance(deadline)?;
 
         // collect due agent timers across runtimes
         let mut agent_timers = Vec::new();
@@ -123,11 +133,10 @@ impl World {
             }
         }
 
-        self.observation.record(ObservationEvent::Scheduler {
-            branch_id: self.branch_id,
-            outcome: ObservationSchedulerOutcome::AdvancedTime,
-            deadline: Some(deadline),
-        });
+        self.observe(Observation::scheduler(
+            ObservationSchedulerOutcome::AdvancedTime,
+            Some(deadline),
+        ));
 
         Ok(TickOutcome::AdvancedTime)
     }
@@ -155,11 +164,10 @@ impl World {
 
         // local runtime progress wins before any virtual time advance
         if runtime.tick(self)?.progressed() {
-            self.observation.record(ObservationEvent::Scheduler {
-                branch_id: self.branch_id,
-                outcome: ObservationSchedulerOutcome::Progressed,
-                deadline: None,
-            });
+            self.observe(Observation::scheduler(
+                ObservationSchedulerOutcome::Progressed,
+                None,
+            ));
 
             return Ok(TickOutcome::Progressed);
         }
@@ -176,9 +184,9 @@ impl World {
         };
 
         // record the resolved world time jump
-        let deadline = self.trace.resolve_tick(deadline)?;
+        let deadline = self.trace.resolve_time_advance(deadline)?;
         self.advance_virtual_to(deadline)?;
-        self.trace.record_tick(deadline)?;
+        self.trace.record_time_advance(deadline)?;
 
         // drain only the target runtime wakes
         let agent_timers = runtime.collect_due_timers(self)?;
@@ -186,11 +194,10 @@ impl World {
         let wakes = self.drain_due(agent_timers);
         runtime.deliver_wakes(self, wakes)?;
 
-        self.observation.record(ObservationEvent::Scheduler {
-            branch_id: self.branch_id,
-            outcome: ObservationSchedulerOutcome::AdvancedTime,
-            deadline: Some(deadline),
-        });
+        self.observe(Observation::scheduler(
+            ObservationSchedulerOutcome::AdvancedTime,
+            Some(deadline),
+        ));
 
         Ok(TickOutcome::AdvancedTime)
     }

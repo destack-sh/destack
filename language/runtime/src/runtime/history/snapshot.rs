@@ -9,10 +9,11 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::ResourceRebindContext;
 use crate::runtime::bindings::BindingReplayPayload;
-use crate::runtime::policy::PolicyState;
+use crate::runtime::policy::{Policy, PolicyState};
 use crate::runtime::random::RandomImage;
 use crate::runtime::time::ClockImage;
-use crate::runtime::topology::Topology;
+use crate::runtime::topology::{RuntimeId, Topology, WorldEdge, WorldEntity};
+use crate::runtime::world::{World, WorldResource, WorldResourceId};
 use crate::runtime::{AgentId, AgentImage, Runtime, RuntimeImage};
 use crate::simulation::Simulation;
 use destack_workspace::{
@@ -21,10 +22,7 @@ use destack_workspace::{
 };
 use postcard::to_allocvec;
 
-use super::{
-    CheckpointId, Lineage, LineageSnapshot, Revision, RevisionId, RuntimeId, World, WorldEdge,
-    WorldEntity, WorldResource, WorldResourceId,
-};
+use super::{CheckpointId, Lineage, LineageSnapshot, Revision, RevisionId};
 
 /// Rebinding context for restoring one world image or snapshot.
 #[derive(Default, Clone)]
@@ -112,6 +110,76 @@ pub struct Image {
 }
 
 impl Image {
+    /// Return the captured world policy specification.
+    pub fn policy(&self) -> &Policy {
+        &self.policy.spec
+    }
+
+    /// Return the captured runtimes keyed by runtime id.
+    pub fn runtimes(&self) -> &BTreeMap<RuntimeId, RuntimeImage> {
+        &self.runtimes
+    }
+
+    /// Return the captured agents keyed by agent id.
+    pub fn agents(&self) -> &BTreeMap<AgentId, AgentImage> {
+        &self.agents
+    }
+
+    /// Return the captured logical world resources keyed by resource id.
+    pub fn resources(&self) -> &BTreeMap<WorldResourceId, WorldResource> {
+        &self.resources
+    }
+
+    /// Return the number of captured runtimes.
+    pub fn runtime_count(&self) -> usize {
+        self.runtimes.len()
+    }
+
+    /// Return the number of captured agents.
+    pub fn agent_count(&self) -> usize {
+        self.agents.len()
+    }
+
+    /// Return the number of captured logical resources.
+    pub fn resource_count(&self) -> usize {
+        self.resources.len()
+    }
+
+    /// Return the number of captured topology entities.
+    pub fn entity_count(&self) -> usize {
+        self.topology.entities().len()
+    }
+
+    /// Return the number of captured topology edges.
+    pub fn edge_count(&self) -> usize {
+        self.topology.edges().len()
+    }
+
+    /// Report whether one runtime exists in this image.
+    pub fn has_runtime(&self, runtime_id: RuntimeId) -> bool {
+        self.runtimes.contains_key(&runtime_id)
+    }
+
+    /// Report whether one agent exists in this image.
+    pub fn has_agent(&self, agent_id: AgentId) -> bool {
+        self.agents.contains_key(&agent_id)
+    }
+
+    /// Report whether one logical resource exists in this image.
+    pub fn has_resource(&self, resource_id: WorldResourceId) -> bool {
+        self.resources.contains_key(&resource_id)
+    }
+
+    /// Report whether one topology entity exists in this image.
+    pub fn has_entity(&self, entity_id: &str) -> bool {
+        self.topology.entities().contains_key(entity_id)
+    }
+
+    /// Report whether one topology edge exists in this image.
+    pub fn has_edge(&self, edge_id: &str) -> bool {
+        self.topology.edges().contains_key(edge_id)
+    }
+
     /// Return one runtime image by id.
     pub fn runtime(&self, runtime_id: RuntimeId) -> RuntimeResult<&RuntimeImage> {
         self.runtimes.get(&runtime_id).ok_or_else(|| {
@@ -371,19 +439,41 @@ impl World {
 
     /// Create one serialized snapshot from one specific revision.
     pub fn snapshot_revision(&self, revision_id: RevisionId) -> RuntimeResult<Snapshot> {
-        let image_id = {
+        let revision = {
             let lineage = self.lineage.read();
-            let revision = lineage.revisions.get(&revision_id).ok_or_else(|| {
-                RuntimeError::RevisionNotFound {
-                    revision_id: revision_id.get(),
-                }
-                .boxed()
-            })?;
-
-            revision.image_id
+            lineage
+                .revisions
+                .get(&revision_id)
+                .cloned()
+                .ok_or_else(|| {
+                    RuntimeError::RevisionNotFound {
+                        revision_id: revision_id.get(),
+                    }
+                    .boxed()
+                })?
         };
 
-        self.snapshot(image_id)
+        {
+            let lineage = self.lineage.read();
+            if lineage.images.contains_key(&revision.image_id) {
+                return self.snapshot(revision.image_id);
+            }
+        }
+
+        let _exclusive_access = self.acquire_exclusive_access()?;
+        let plan = {
+            let lineage = self.lineage.read();
+            lineage.resolve_revision_restore_plan(revision_id)?
+        };
+        let image = self.materialize_revision_image_from_plan(&plan, None)?;
+        let mut lineage_snapshot = self.lineage.read().snapshot();
+        lineage_snapshot.images.insert(revision.image_id, image);
+
+        Ok(Snapshot::new(
+            self.snapshot_config(),
+            revision_id,
+            lineage_snapshot,
+        ))
     }
 
     /// Create one serialized snapshot from one stored checkpoint.
@@ -500,6 +590,7 @@ impl World {
 
         self.clock.restore_snapshot(&image.clock);
         self.random.restore_snapshot(&image.random)?;
+        self.observations.reset();
 
         // runtime and agent state
         let mut agent_images_by_runtime = BTreeMap::new();

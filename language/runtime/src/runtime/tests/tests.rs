@@ -1,8 +1,10 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_heap as heap;
+use destack_core::LocalStringPool;
+use destack_mir::NodeTree;
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
+use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::{Host, HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleState};
@@ -10,7 +12,7 @@ use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineOutcome, EngineOutput,
-    EngineSnapshot, Entry, NativeContinuation,
+    EngineSnapshot, Entry, EntryReference, NativeContinuation,
 };
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
@@ -20,6 +22,7 @@ use crate::runtime::scheduler::{
     Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer, TimerDeadline,
 };
 use crate::runtime::time::{HostClockSource, Nanos};
+use crate::runtime::world::{Branch, CheckpointId, RevisionId, WorldEntityKindDefinition};
 use crate::runtime::{Agent, AgentId, DropCounts, RuntimeId, TickOutcome, World};
 
 /// Scripted host clock source for deterministic host-time runtime tests.
@@ -93,12 +96,33 @@ pub(super) struct TestEngine {
     pub(super) resume_calls: usize,
 }
 
+/// Engine that allocates into the heap when it runs or resumes.
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct AllocatingEngine {
+    /// The number of managed values to allocate into one managed allocation.
+    pub(super) managed_values: usize,
+    /// The number of raw bytes to allocate into one raw allocation.
+    pub(super) raw_bytes: usize,
+}
+
 impl Engine for TestEngine {
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
         _heap: &mut heap::Heap,
         _entry: &Entry,
+        _args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutcome> {
+        Ok(EngineOutcome::Completed {
+            output: void_output(),
+        })
+    }
+
+    /// Run one replayable entrypoint without yielding.
+    fn run_replayable_entry(
+        &mut self,
+        _heap: &mut heap::Heap,
+        _entry: &EntryReference,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
         Ok(EngineOutcome::Completed {
@@ -202,6 +226,144 @@ impl Engine for TestEngine {
     }
 }
 
+impl Engine for AllocatingEngine {
+    /// Run one entrypoint after allocating into the heap.
+    fn run(
+        &mut self,
+        heap: &mut heap::Heap,
+        _entry: &Entry,
+        _args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutcome> {
+        self.allocate(heap)?;
+
+        Ok(EngineOutcome::Completed {
+            output: void_output(),
+        })
+    }
+
+    /// Run one replayable entrypoint after allocating into the heap.
+    fn run_replayable_entry(
+        &mut self,
+        heap: &mut heap::Heap,
+        _entry: &EntryReference,
+        _args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutcome> {
+        self.allocate(heap)?;
+
+        Ok(EngineOutcome::Completed {
+            output: void_output(),
+        })
+    }
+
+    /// Resume one continuation after allocating into the heap.
+    fn resume(
+        &mut self,
+        heap: &mut heap::Heap,
+        _continuation: EngineContinuation,
+        _value: heap::Value,
+    ) -> RuntimeResult<EngineOutcome> {
+        self.allocate(heap)?;
+
+        Ok(EngineOutcome::Completed {
+            output: void_output(),
+        })
+    }
+
+    /// Capture one immutable engine image for tests.
+    fn image(&mut self) -> RuntimeResult<EngineImage> {
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "allocating test engine images are not implemented".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Restore one immutable engine image for tests.
+    fn restore_image(&mut self, _heap: &mut heap::Heap, image: &EngineImage) -> RuntimeResult<()> {
+        let _ = image;
+
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "allocating test engine image restore is not implemented".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Capture one continuation image for tests.
+    fn continuation_image(
+        &mut self,
+        continuation: &EngineContinuation,
+    ) -> RuntimeResult<EngineContinuationImage> {
+        match continuation {
+            EngineContinuation::Native(continuation) => {
+                Ok(EngineContinuationImage::Native(*continuation))
+            }
+            EngineContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+                message: "allocating test engine vm continuation images are not implemented"
+                    .to_string(),
+            }
+            .boxed()),
+        }
+    }
+
+    /// Restore one continuation image for tests.
+    fn restore_continuation_image(
+        &mut self,
+        image: &EngineContinuationImage,
+    ) -> RuntimeResult<EngineContinuation> {
+        match image {
+            EngineContinuationImage::Native(continuation) => {
+                Ok(EngineContinuation::Native(*continuation))
+            }
+            EngineContinuationImage::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+                message: "allocating test engine vm continuation restore is not implemented"
+                    .to_string(),
+            }
+            .boxed()),
+        }
+    }
+
+    /// Capture one serialized engine snapshot for tests.
+    fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "allocating test engine snapshots are not implemented".to_string(),
+        }
+        .boxed())
+    }
+
+    /// Restore one serialized engine snapshot for tests.
+    fn restore_snapshot(
+        &mut self,
+        _heap: &mut heap::Heap,
+        snapshot: &EngineSnapshot,
+    ) -> RuntimeResult<()> {
+        let _ = snapshot;
+
+        Err(crate::diagnostic::RuntimeError::Internal {
+            message: "allocating test engine snapshot restore is not implemented".to_string(),
+        }
+        .boxed())
+    }
+}
+
+impl AllocatingEngine {
+    /// Allocate the configured managed and raw payload into the heap.
+    fn allocate(&self, heap: &mut heap::Heap) -> RuntimeResult<()> {
+        // managed payload
+        if self.managed_values > 0 {
+            let mut values = Vec::with_capacity(self.managed_values);
+            values.resize(self.managed_values, heap::Value::int64(7));
+            let _ = heap.allocate_managed_values(values)?;
+        }
+
+        // raw payload
+        if self.raw_bytes > 0 {
+            let bytes = vec![0xAB; self.raw_bytes];
+            let _ = heap.allocate_raw_bytes(&bytes)?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Test harness for agent scheduling tests.
 #[derive(Debug)]
 pub(super) struct TestRuntime {
@@ -222,6 +384,13 @@ pub(super) struct TestMultiAgentRuntime {
     runtime_id: RuntimeId,
 }
 
+/// Test harness for world-level runtime and lineage tests.
+#[derive(Debug, Clone)]
+pub(super) struct TestWorld {
+    /// Wrapped world under test.
+    world: Arc<World>,
+}
+
 /// Scripted poller for runtime ingress tests.
 #[derive(Debug, Default)]
 pub(super) struct TestPoller {
@@ -233,6 +402,202 @@ impl TestPoller {
     /// Build one scripted poller from explicit events.
     pub(super) fn with_events(events: Vec<PollerEvent>) -> Self {
         Self { events }
+    }
+}
+
+impl TestWorld {
+    /// Create one world with default runtime options.
+    pub(super) fn new() -> Self {
+        Self {
+            world: Arc::new(World::default()),
+        }
+    }
+
+    /// Create one world with explicit runtime options.
+    pub(super) fn with_options(options: &RuntimeOptions) -> Self {
+        let world = World::from_options(options).expect("runtime test world should build");
+
+        Self { world }
+    }
+
+    /// Wrap one existing shared world.
+    pub(super) fn from_world(world: Arc<World>) -> Self {
+        Self { world }
+    }
+
+    /// Borrow the wrapped world.
+    pub(super) fn world(&self) -> Arc<World> {
+        Arc::clone(&self.world)
+    }
+
+    /// Return the active branch metadata for the wrapped world.
+    pub(super) fn branch(&self) -> Branch {
+        self.world.branch()
+    }
+
+    /// Build one empty VM isolate for world tests.
+    pub(super) fn vm_engine() -> vm::Isolate {
+        let tree = NodeTree::new();
+        let strings = LocalStringPool::new().into_immutable();
+
+        vm::Isolate::build(tree, strings).expect("vm engine should build")
+    }
+
+    /// Spawn one runtime with one explicit engine.
+    pub(super) fn spawn_runtime(
+        &self,
+        options: &RuntimeOptions,
+        engine: impl Engine + 'static,
+    ) -> RuntimeId {
+        self.world
+            .spawn_runtime(Vec::new(), options, engine)
+            .expect("runtime should spawn in world")
+    }
+
+    /// Spawn one VM-backed runtime.
+    pub(super) fn spawn_vm_runtime(&self, options: &RuntimeOptions) -> RuntimeId {
+        self.spawn_runtime(options, Self::vm_engine())
+    }
+
+    /// Return the primary agent id for one runtime.
+    pub(super) fn primary_agent_id(&self, runtime_id: RuntimeId) -> AgentId {
+        self.world
+            .with_runtime(runtime_id, |runtime| Ok(runtime.primary_agent_id()))
+            .expect("runtime should exist")
+    }
+
+    /// Allocate one managed heap value in the primary agent VM isolate.
+    pub(super) fn allocate_vm_managed_value(&self, runtime_id: RuntimeId, value: heap::Value) {
+        self.world
+            .with_runtime_mut(runtime_id, |runtime| {
+                let agent_id = runtime.primary_agent_id();
+                let agent = runtime
+                    .agent_mut(agent_id)
+                    .expect("runtime should keep its primary agent");
+                let engine = &mut *agent.engine as &mut dyn std::any::Any;
+                let isolate = engine
+                    .downcast_mut::<vm::Isolate>()
+                    .expect("agent should use a vm engine");
+                let _ = isolate.allocate_single(&mut agent.heap, value);
+
+                Ok(())
+            })
+            .expect("vm heap mutation should succeed");
+    }
+
+    /// Allocate one managed heap value in the primary agent VM isolate.
+    pub(super) fn allocate_vm_heap_allocation(&self, runtime_id: RuntimeId) {
+        self.allocate_vm_managed_value(runtime_id, heap::Value::int32(7));
+    }
+
+    /// Return the managed heap allocation count for the primary agent VM isolate.
+    pub(super) fn vm_heap_allocation_count(&self, runtime_id: RuntimeId) -> usize {
+        self.world
+            .with_runtime_mut(runtime_id, |runtime| {
+                let agent_id = runtime.primary_agent_id();
+                let agent = runtime
+                    .agent_mut(agent_id)
+                    .expect("runtime should keep its primary agent");
+
+                Ok(agent.heap.managed_allocation_count())
+            })
+            .expect("vm heap inspection should succeed")
+    }
+
+    /// Allocate one raw span in the primary agent heap.
+    pub(super) fn allocate_vm_raw_bytes(
+        &self,
+        runtime_id: RuntimeId,
+        bytes: &[u8],
+    ) -> heap::RawPointer {
+        self.world
+            .with_runtime_mut(runtime_id, |runtime| {
+                let agent_id = runtime.primary_agent_id();
+                let agent = runtime
+                    .agent_mut(agent_id)
+                    .expect("runtime should keep its primary agent");
+
+                let pointer = agent
+                    .heap
+                    .allocate_raw_bytes(bytes)
+                    .expect("raw heap allocation should succeed");
+
+                Ok(pointer)
+            })
+            .expect("raw heap allocation should succeed")
+    }
+
+    /// Mutate one raw byte in the primary agent heap.
+    pub(super) fn mutate_vm_raw_byte(
+        &self,
+        runtime_id: RuntimeId,
+        pointer: heap::RawPointer,
+        index: usize,
+        byte: u8,
+    ) {
+        self.world
+            .with_runtime_mut(runtime_id, |runtime| {
+                let agent_id = runtime.primary_agent_id();
+                let agent = runtime
+                    .agent_mut(agent_id)
+                    .expect("runtime should keep its primary agent");
+
+                assert!(agent.heap.set_raw_byte(pointer, index, byte));
+                Ok(())
+            })
+            .expect("raw heap mutation should succeed");
+    }
+
+    /// Capture the primary agent heap image for one runtime.
+    pub(super) fn runtime_heap_image(&self, runtime_id: RuntimeId) -> heap::HeapImage {
+        self.world
+            .with_runtime_mut(runtime_id, |runtime| {
+                let agent_id = runtime.primary_agent_id();
+                let agent = runtime
+                    .agent_mut(agent_id)
+                    .expect("runtime should keep its primary agent");
+
+                agent.heap.image().map_err(|error| {
+                    crate::diagnostic::RuntimeError::Internal {
+                        message: format!("heap capture failed during world test: {error}"),
+                    }
+                    .boxed()
+                })
+            })
+            .expect("heap image capture should succeed")
+    }
+
+    /// Record one simple entity-kind topology mutation.
+    pub(super) fn record_world_entity_kind(&self, suffix: &str) {
+        self.world
+            .define_entity_kind(WorldEntityKindDefinition {
+                kind: format!("app.record.shared.{suffix}").into(),
+                labels: Default::default(),
+                supported_faults: Default::default(),
+            })
+            .expect("entity kind definition should succeed");
+    }
+
+    /// Commit one suspend revision for the wrapped world.
+    pub(super) fn suspend(&self) -> RevisionId {
+        self.world.suspend().expect("world suspend should succeed")
+    }
+
+    /// Create one checkpoint on the wrapped world.
+    pub(super) fn checkpoint(&self, name: &str) -> CheckpointId {
+        self.world
+            .checkpoint(name)
+            .expect("world checkpoint should succeed")
+    }
+
+    /// Fork one child world from one checkpoint.
+    pub(super) fn fork(&self, checkpoint_id: CheckpointId, name: &str) -> Self {
+        let world = self
+            .world
+            .fork(checkpoint_id, name)
+            .expect("world fork should succeed");
+
+        Self::from_world(world)
     }
 }
 
@@ -368,6 +733,19 @@ impl TestRuntime {
             .expect("scheduler options should configure");
     }
 
+    /// Return the exact live heap usage for this test agent.
+    pub(super) fn heap_usage(&self) -> heap::HeapUsage {
+        self.agent.heap.usage()
+    }
+
+    /// Replace the hard heap limits for this test agent.
+    pub(super) fn set_heap_limits(&mut self, limits: heap::HeapLimits) {
+        self.agent
+            .heap
+            .set_limits(limits)
+            .expect("heap limits should configure");
+    }
+
     /// Register one native timer watch.
     pub(super) fn watch_timer_native(&mut self, handle: u64, continuation_id: u64, priority: u8) {
         self.agent
@@ -482,6 +860,12 @@ impl TestRuntime {
         self.agent
             .tick_until_idle(&self.world, &self.host)
             .expect("tick until idle should complete");
+    }
+
+    /// Run one synthetic entrypoint and return the engine output.
+    pub(super) fn run_entrypoint(&mut self) -> RuntimeResult<EngineOutput> {
+        self.agent
+            .run_entrypoint(&self.world, &self.host, &Entry::vm("test.entry"), &[])
     }
 
     /// Run until one task completes.

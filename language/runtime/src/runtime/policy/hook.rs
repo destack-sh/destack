@@ -12,7 +12,7 @@ use crate::platform::{
 use crate::runtime::AgentId;
 use crate::runtime::bindings::{BindingDescriptor, BindingEngine};
 use crate::runtime::world::{
-    ObservationEvent, RuntimeId, World, WorldEntityKind, WorldResource, WorldResourceId,
+    Observation, RuntimeId, World, WorldEntityKind, WorldResource, WorldResourceId,
 };
 use destack_source::matches as glob_matches;
 use destack_workspace::ExecutionMode;
@@ -736,15 +736,14 @@ impl Hooks {
             resource_portability,
         );
         world.create_resource(resource)?;
-        world.observation().record(ObservationEvent::Resource {
-            branch_id: world.branch_id(),
-            agent_id: self.agent_id,
-            resource_id: WorldResourceId::new(self.agent_id, resource_id),
-            is_attach: true,
-            backing: resource_backing,
-            capture: resource_capture,
-            portability: resource_portability,
-        });
+        world.observe(Observation::resource_lifecycle(
+            self.agent_id,
+            WorldResourceId::new(self.agent_id, resource_id),
+            true,
+            resource_backing,
+            resource_capture,
+            resource_portability,
+        ));
 
         self.on_policy_event(
             world,
@@ -769,15 +768,14 @@ impl Hooks {
         let _resource_label = resource_label;
         let world_resource_id = WorldResourceId::new(self.agent_id, resource_id);
         world.destroy_resource(WorldResourceId::new(self.agent_id, resource_id))?;
-        world.observation().record(ObservationEvent::Resource {
-            branch_id: world.branch_id(),
-            agent_id: self.agent_id,
-            resource_id: world_resource_id,
-            is_attach: false,
-            backing: ResourceBacking::Host,
-            capture: ResourceCapture::None,
-            portability: ResourcePortability::Local,
-        });
+        world.observe(Observation::resource_lifecycle(
+            self.agent_id,
+            world_resource_id,
+            false,
+            ResourceBacking::Host,
+            ResourceCapture::None,
+            ResourcePortability::Local,
+        ));
 
         self.on_policy_event(
             world,

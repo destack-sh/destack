@@ -3,11 +3,12 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::replay::TraceSequence;
 use crate::runtime::time::WorldInstant;
+use crate::runtime::trace::TraceSequence;
+use crate::runtime::world::World;
 
 use super::lineage::RevisionBacking;
-use super::{BranchId, ImageId, World};
+use super::{BranchId, ImageId};
 
 /// Revision identifier for one world lineage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

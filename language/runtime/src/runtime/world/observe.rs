@@ -6,12 +6,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{ResourceBacking, ResourceCapture, ResourcePortability};
-use crate::runtime::AgentId;
 use crate::runtime::time::WorldInstant;
+use crate::runtime::trace::TraceSequence;
+use crate::runtime::{AgentId, RuntimeId};
 
-use super::{BranchId, WorldResourceId};
+use super::{Moment, World, WorldResourceId};
 
-/// Stable sequence number for one observation record.
+/// Stable sequence number for one observation entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ObservationSequence(u64);
 
@@ -48,63 +49,192 @@ impl ObservationSubscriptionId {
     }
 }
 
-/// Observation event class kept separate from causal trace.
+/// Observation category for emitted runtime or user facts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ObservationKind {
-    /// Trace-adjacent runtime event.
-    Trace,
-    /// Topology mutation event.
+pub enum ObservationCategory {
+    /// Runtime lifecycle and engine diagnostics.
+    Runtime,
+    /// Topology mutation and graph diagnostics.
     Topology,
-    /// Resource lifecycle event.
+    /// Resource lifecycle and capability diagnostics.
     Resource,
-    /// Scheduler or execution event.
+    /// Scheduler and execution-lane diagnostics.
     Scheduler,
-    /// Diagnostic or policy event.
+    /// General diagnostic and policy notices.
     Diagnostic,
-    /// Profiling event.
-    Profile,
+    /// Telemetry, tracing, and performance instrumentation.
+    Telemetry,
+    /// Domain-level user or library observations.
+    Domain,
+}
+
+/// Scope for one emitted observation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Scope {
+    /// One world-scoped observation.
+    World,
+    /// One runtime-scoped observation.
+    Runtime {
+        /// Runtime identifier for this scope.
+        runtime_id: RuntimeId,
+    },
+    /// One agent-scoped observation.
+    Agent {
+        /// Optional owning runtime identifier when known.
+        runtime_id: Option<RuntimeId>,
+        /// Agent identifier for this scope.
+        agent_id: AgentId,
+    },
+    /// One topology entity-scoped observation.
+    Entity {
+        /// Entity identifier for this scope.
+        entity_id: String,
+    },
+    /// One topology edge-scoped observation.
+    Edge {
+        /// Edge identifier for this scope.
+        edge_id: String,
+    },
+    /// One resource-scoped observation.
+    Resource {
+        /// Agent identifier that owns the resource.
+        agent_id: AgentId,
+        /// Logical world resource identifier.
+        resource_id: WorldResourceId,
+    },
+}
+
+impl Scope {
+    /// Create one world scope.
+    pub const fn world() -> Self {
+        Self::World
+    }
+
+    /// Create one runtime scope.
+    pub const fn runtime(runtime_id: RuntimeId) -> Self {
+        Self::Runtime { runtime_id }
+    }
+
+    /// Create one agent scope.
+    pub const fn agent(runtime_id: Option<RuntimeId>, agent_id: AgentId) -> Self {
+        Self::Agent {
+            runtime_id,
+            agent_id,
+        }
+    }
+
+    /// Create one entity scope.
+    pub fn entity(entity_id: impl Into<String>) -> Self {
+        Self::Entity {
+            entity_id: entity_id.into(),
+        }
+    }
+
+    /// Create one edge scope.
+    pub fn edge(edge_id: impl Into<String>) -> Self {
+        Self::Edge {
+            edge_id: edge_id.into(),
+        }
+    }
+
+    /// Create one resource scope.
+    pub const fn resource(agent_id: AgentId, resource_id: WorldResourceId) -> Self {
+        Self::Resource {
+            agent_id,
+            resource_id,
+        }
+    }
+
+    /// Return the runtime id for this scope when present.
+    pub const fn runtime_id(&self) -> Option<RuntimeId> {
+        match self {
+            Self::Runtime { runtime_id } => Some(*runtime_id),
+            Self::Agent {
+                runtime_id: Some(runtime_id),
+                ..
+            } => Some(*runtime_id),
+            _ => None,
+        }
+    }
+
+    /// Return the agent id for this scope when present.
+    pub const fn agent_id(&self) -> Option<AgentId> {
+        match self {
+            Self::Agent { agent_id, .. } => Some(*agent_id),
+            Self::Resource { agent_id, .. } => Some(*agent_id),
+            _ => None,
+        }
+    }
+
+    /// Return the entity id for this scope when present.
+    pub fn entity_id(&self) -> Option<&str> {
+        match self {
+            Self::Entity { entity_id } => Some(entity_id),
+            _ => None,
+        }
+    }
+
+    /// Return the edge id for this scope when present.
+    pub fn edge_id(&self) -> Option<&str> {
+        match self {
+            Self::Edge { edge_id } => Some(edge_id),
+            _ => None,
+        }
+    }
+
+    /// Return the resource id for this scope when present.
+    pub const fn resource_id(&self) -> Option<WorldResourceId> {
+        match self {
+            Self::Resource { resource_id, .. } => Some(*resource_id),
+            _ => None,
+        }
+    }
 }
 
 /// Filter options for one observation subscription.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ObservationOptions {
-    /// Include trace-adjacent events.
-    pub trace: bool,
-    /// Include topology mutation events.
+    /// Include runtime observations.
+    pub runtime: bool,
+    /// Include topology observations.
     pub topology: bool,
-    /// Include resource lifecycle events.
+    /// Include resource observations.
     pub resource: bool,
-    /// Include scheduler and execution events.
+    /// Include scheduler observations.
     pub scheduler: bool,
-    /// Include diagnostics and policy events.
+    /// Include diagnostic observations.
     pub diagnostic: bool,
-    /// Include profiling events.
-    pub profile: bool,
+    /// Include telemetry observations.
+    pub telemetry: bool,
+    /// Include domain observations.
+    pub domain: bool,
 }
 
 impl Default for ObservationOptions {
     fn default() -> Self {
         Self {
-            trace: true,
+            runtime: true,
             topology: true,
             resource: true,
             scheduler: true,
             diagnostic: true,
-            profile: true,
+            telemetry: true,
+            domain: true,
         }
     }
 }
 
 impl ObservationOptions {
-    /// Return whether this filter allows one observation class.
-    pub const fn allows(self, kind: ObservationKind) -> bool {
-        match kind {
-            ObservationKind::Trace => self.trace,
-            ObservationKind::Topology => self.topology,
-            ObservationKind::Resource => self.resource,
-            ObservationKind::Scheduler => self.scheduler,
-            ObservationKind::Diagnostic => self.diagnostic,
-            ObservationKind::Profile => self.profile,
+    /// Return whether this filter allows one observation category.
+    pub const fn allows(self, category: ObservationCategory) -> bool {
+        match category {
+            ObservationCategory::Runtime => self.runtime,
+            ObservationCategory::Topology => self.topology,
+            ObservationCategory::Resource => self.resource,
+            ObservationCategory::Scheduler => self.scheduler,
+            ObservationCategory::Diagnostic => self.diagnostic,
+            ObservationCategory::Telemetry => self.telemetry,
+            ObservationCategory::Domain => self.domain,
         }
     }
 }
@@ -127,20 +257,16 @@ pub enum ObservationSchedulerOutcome {
     AdvancedTime,
 }
 
-/// High-volume runtime observation event kept separate from causal trace.
+/// Payload data for one emitted observation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ObservationEvent {
-    /// One world control mutation.
-    Control {
-        /// Branch that observed the mutation.
-        branch_id: BranchId,
-        /// Debug summary for the command.
-        summary: String,
+pub enum ObservationData {
+    /// One summary message.
+    Summary {
+        /// Short summary payload.
+        message: String,
     },
-    /// One resource lifecycle event.
-    Resource {
-        /// Branch that observed the event.
-        branch_id: BranchId,
+    /// One resource lifecycle payload.
+    ResourceLifecycle {
         /// Agent that owns the resource.
         agent_id: AgentId,
         /// Logical world resource identifier.
@@ -154,90 +280,363 @@ pub enum ObservationEvent {
         /// Resource portability model.
         portability: ResourcePortability,
     },
-    /// One scheduler progress event.
+    /// One scheduler progress payload.
     Scheduler {
-        /// Branch that observed the scheduler event.
-        branch_id: BranchId,
         /// Scheduler outcome classification.
         outcome: ObservationSchedulerOutcome,
         /// Optional virtual-time deadline reached by the scheduler.
         deadline: Option<WorldInstant>,
     },
+    /// One generic structured field payload.
+    Fields {
+        /// Structured observation fields.
+        fields: BTreeMap<String, String>,
+    },
 }
 
-impl ObservationEvent {
-    /// Return the observation class for this event.
-    pub const fn kind(&self) -> ObservationKind {
-        match self {
-            Self::Control { .. } => ObservationKind::Diagnostic,
-            Self::Resource { .. } => ObservationKind::Resource,
-            Self::Scheduler { .. } => ObservationKind::Scheduler,
+/// One emitted observable fact.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Observation {
+    /// The observation category.
+    pub category: ObservationCategory,
+    /// The observation scope.
+    pub scope: Scope,
+    /// Stable observation name.
+    pub name: String,
+    /// Structured observation tags.
+    pub tags: BTreeMap<String, String>,
+    /// Observation payload data.
+    pub data: ObservationData,
+}
+
+impl Observation {
+    /// Create one observation from explicit parts.
+    pub fn new(
+        category: ObservationCategory,
+        scope: Scope,
+        name: impl Into<String>,
+        data: ObservationData,
+    ) -> Self {
+        Self {
+            category,
+            scope,
+            name: name.into(),
+            tags: BTreeMap::new(),
+            data,
         }
+    }
+
+    /// Create one summary observation.
+    pub fn summary(
+        category: ObservationCategory,
+        scope: Scope,
+        name: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::new(
+            category,
+            scope,
+            name,
+            ObservationData::Summary {
+                message: message.into(),
+            },
+        )
+    }
+
+    /// Create one world-scoped summary observation.
+    pub fn world_summary(
+        category: ObservationCategory,
+        name: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::summary(category, Scope::world(), name, message)
+    }
+
+    /// Create one world-scoped structured-field observation.
+    pub fn world_fields<K, V>(
+        category: ObservationCategory,
+        name: impl Into<String>,
+        fields: impl IntoIterator<Item = (K, V)>,
+    ) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        Self::fields(category, Scope::world(), name, fields)
+    }
+
+    /// Create one runtime-scoped summary observation.
+    pub fn runtime_summary(
+        category: ObservationCategory,
+        runtime_id: RuntimeId,
+        name: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::summary(category, Scope::runtime(runtime_id), name, message)
+    }
+
+    /// Create one runtime-scoped structured-field observation.
+    pub fn runtime_fields<K, V>(
+        category: ObservationCategory,
+        runtime_id: RuntimeId,
+        name: impl Into<String>,
+        fields: impl IntoIterator<Item = (K, V)>,
+    ) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        Self::fields(category, Scope::runtime(runtime_id), name, fields)
+    }
+
+    /// Create one agent-scoped summary observation.
+    pub fn agent_summary(
+        category: ObservationCategory,
+        runtime_id: Option<RuntimeId>,
+        agent_id: AgentId,
+        name: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::summary(category, Scope::agent(runtime_id, agent_id), name, message)
+    }
+
+    /// Create one agent-scoped structured-field observation.
+    pub fn agent_fields<K, V>(
+        category: ObservationCategory,
+        runtime_id: Option<RuntimeId>,
+        agent_id: AgentId,
+        name: impl Into<String>,
+        fields: impl IntoIterator<Item = (K, V)>,
+    ) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        Self::fields(category, Scope::agent(runtime_id, agent_id), name, fields)
+    }
+
+    /// Create one entity-scoped summary observation.
+    pub fn entity_summary(
+        category: ObservationCategory,
+        entity_id: impl Into<String>,
+        name: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::summary(category, Scope::entity(entity_id), name, message)
+    }
+
+    /// Create one entity-scoped structured-field observation.
+    pub fn entity_fields<K, V>(
+        category: ObservationCategory,
+        entity_id: impl Into<String>,
+        name: impl Into<String>,
+        fields: impl IntoIterator<Item = (K, V)>,
+    ) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        Self::fields(category, Scope::entity(entity_id), name, fields)
+    }
+
+    /// Create one edge-scoped summary observation.
+    pub fn edge_summary(
+        category: ObservationCategory,
+        edge_id: impl Into<String>,
+        name: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::summary(category, Scope::edge(edge_id), name, message)
+    }
+
+    /// Create one edge-scoped structured-field observation.
+    pub fn edge_fields<K, V>(
+        category: ObservationCategory,
+        edge_id: impl Into<String>,
+        name: impl Into<String>,
+        fields: impl IntoIterator<Item = (K, V)>,
+    ) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        Self::fields(category, Scope::edge(edge_id), name, fields)
+    }
+
+    /// Create one structured-field observation.
+    pub fn fields<K, V>(
+        category: ObservationCategory,
+        scope: Scope,
+        name: impl Into<String>,
+        fields: impl IntoIterator<Item = (K, V)>,
+    ) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        let fields = fields
+            .into_iter()
+            .map(|(key, value)| (key.into(), value.into()))
+            .collect();
+
+        Self::new(category, scope, name, ObservationData::Fields { fields })
+    }
+
+    /// Create one resource lifecycle observation.
+    pub fn resource_lifecycle(
+        agent_id: AgentId,
+        resource_id: WorldResourceId,
+        is_attach: bool,
+        backing: ResourceBacking,
+        capture: ResourceCapture,
+        portability: ResourcePortability,
+    ) -> Self {
+        let name = if is_attach {
+            "resource.attach"
+        } else {
+            "resource.detach"
+        };
+
+        Self::new(
+            ObservationCategory::Resource,
+            Scope::resource(agent_id, resource_id),
+            name,
+            ObservationData::ResourceLifecycle {
+                agent_id,
+                resource_id,
+                is_attach,
+                backing,
+                capture,
+                portability,
+            },
+        )
+    }
+
+    /// Create one scheduler observation.
+    pub fn scheduler(outcome: ObservationSchedulerOutcome, deadline: Option<WorldInstant>) -> Self {
+        let name = match outcome {
+            ObservationSchedulerOutcome::Progressed => "scheduler.progressed",
+            ObservationSchedulerOutcome::AdvancedTime => "scheduler.advanced_time",
+        };
+
+        Self::new(
+            ObservationCategory::Scheduler,
+            Scope::world(),
+            name,
+            ObservationData::Scheduler { outcome, deadline },
+        )
+    }
+
+    /// Return one copy of this observation with one additional tag.
+    pub fn tagged(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.tags.insert(key.into(), value.into());
+        self
+    }
+
+    /// Return the value for one observation tag when present.
+    pub fn tag(&self, key: &str) -> Option<&str> {
+        self.tags.get(key).map(String::as_str)
     }
 }
 
-/// One recorded observation entry.
+/// One recorded observation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ObservationRecord {
     /// Observation sequence number.
     pub sequence: ObservationSequence,
-    /// Observation event class.
-    pub kind: ObservationKind,
-    /// Observation event payload.
-    pub event: ObservationEvent,
+    /// Execution coordinate where this observation was emitted.
+    pub moment: Moment,
+    /// Emitted observation payload.
+    pub observation: Observation,
 }
 
-/// World-owned observation stream kept separate from causal trace.
+/// World-owned observation log kept separate from causal trace.
 #[derive(Debug, Default)]
-pub struct Observation {
+pub struct ObservationLog {
     /// Next observation sequence number.
     next_sequence: AtomicU64,
     /// Next observation subscription identifier.
     next_subscription_id: AtomicU64,
     /// Recorded observation entries.
-    records: RwLock<Vec<ObservationRecord>>,
+    entries: RwLock<Vec<ObservationRecord>>,
     /// Live observation subscriptions keyed by identifier.
     subscriptions: RwLock<BTreeMap<ObservationSubscriptionId, ObservationSubscription>>,
 }
 
-impl Observation {
-    /// Record one observation event and return its sequence number.
-    pub fn record(&self, event: ObservationEvent) -> ObservationSequence {
+impl ObservationLog {
+    /// Record one observation at one exact execution coordinate.
+    pub fn record_at(&self, moment: Moment, observation: Observation) -> ObservationSequence {
         let sequence = ObservationSequence::new(self.next_sequence.fetch_add(1, Ordering::SeqCst));
-        let kind = event.kind();
-        let mut records = self.records.write();
-        records.push(ObservationRecord {
+        let mut entries = self.entries.write();
+        entries.push(ObservationRecord {
             sequence,
-            kind,
-            event,
+            moment,
+            observation,
         });
 
         sequence
     }
 
-    /// Return every observation record after the optional sequence.
+    /// Return every observation entry after the optional sequence.
     pub fn records_after(&self, after: Option<ObservationSequence>) -> Vec<ObservationRecord> {
         self.records_after_with_options(after, ObservationOptions::default())
     }
 
-    /// Return every filtered observation record after the optional sequence.
+    /// Return every filtered observation entry after the optional sequence.
     pub fn records_after_with_options(
         &self,
         after: Option<ObservationSequence>,
         options: ObservationOptions,
     ) -> Vec<ObservationRecord> {
-        let records = self.records.read();
+        let entries = self.entries.read();
 
         let start_index = match after {
-            Some(after) => records.partition_point(|record| record.sequence <= after),
+            Some(after) => entries.partition_point(|entry| entry.sequence <= after),
             None => 0,
         };
 
-        records[start_index..]
+        entries[start_index..]
             .iter()
-            .filter(|record| options.allows(record.kind))
+            .filter(|entry| options.allows(entry.observation.category))
             .cloned()
             .collect()
+    }
+
+    /// Return every observation entry within one moment range.
+    pub fn records_between(&self, start: Moment, end: Moment) -> Vec<ObservationRecord> {
+        let entries = self.entries.read();
+
+        entries
+            .iter()
+            .filter(|entry| {
+                entry.moment.branch_id == start.branch_id
+                    && entry.moment.sequence.get() > start.sequence.get()
+                    && entry.moment.sequence.get() <= end.sequence.get()
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// Drain every observation entry up to one exact committed sequence.
+    pub fn drain_through(
+        &self,
+        branch_id: super::BranchId,
+        sequence: TraceSequence,
+    ) -> Vec<ObservationRecord> {
+        let mut entries = self.entries.write();
+        let split_index = entries.partition_point(|entry| {
+            entry.moment.branch_id == branch_id && entry.moment.sequence.get() <= sequence.get()
+        });
+
+        entries.drain(..split_index).collect()
+    }
+
+    /// Reset the live observation tail and subscriptions.
+    pub fn reset(&self) {
+        self.next_sequence.store(0, Ordering::SeqCst);
+        self.next_subscription_id.store(0, Ordering::SeqCst);
+        self.entries.write().clear();
+        self.subscriptions.write().clear();
     }
 
     /// Open one live observation subscription.
@@ -271,7 +670,7 @@ impl Observation {
         Ok(())
     }
 
-    /// Read the next batch of observation records from one subscription.
+    /// Read the next batch of observation entries from one subscription.
     pub fn next(
         &self,
         subscription_id: ObservationSubscriptionId,
@@ -289,28 +688,36 @@ impl Observation {
             .boxed());
         };
 
-        let records = self.records.read();
+        let entries = self.entries.read();
         let start_index =
-            records.partition_point(|record| record.sequence < subscription.next_sequence);
+            entries.partition_point(|entry| entry.sequence < subscription.next_sequence);
         let mut batch = Vec::new();
 
         // scan the shared observation log from the subscription cursor
-        for record in &records[start_index..] {
-            if !subscription.options.allows(record.kind) {
+        for entry in &entries[start_index..] {
+            if !subscription.options.allows(entry.observation.category) {
                 continue;
             }
 
-            batch.push(record.clone());
+            batch.push(entry.clone());
             if batch.len() == limit {
                 break;
             }
         }
 
         // advance the subscription cursor after a successful batch
-        if let Some(record) = batch.last() {
-            subscription.next_sequence = record.sequence.next();
+        if let Some(entry) = batch.last() {
+            subscription.next_sequence = entry.sequence.next();
         }
 
         Ok(batch)
+    }
+}
+
+impl World {
+    /// Emit one observation at the current execution coordinate.
+    pub fn observe(&self, observation: Observation) -> ObservationSequence {
+        let moment = self.moment();
+        self.observations.record_at(moment, observation)
     }
 }
