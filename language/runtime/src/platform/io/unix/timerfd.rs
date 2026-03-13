@@ -19,7 +19,11 @@ const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// Return one invalid-handle error for timerfd operations.
 fn invalid_timerfd_handle_error() -> Box<RuntimeError> {
-    core_platform::unknown_handle("handle", "timerfd")
+    RuntimeError::from(PlatformError::invalid_argument_value(
+        "handle",
+        "unknown timerfd handle",
+    ))
+    .boxed()
 }
 
 /// Return one unsupported-flags error.

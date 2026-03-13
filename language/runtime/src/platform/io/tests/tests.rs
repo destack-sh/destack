@@ -5,8 +5,13 @@ use destack_vm as vm;
 #[cfg(windows)]
 use core::ffi::c_void;
 
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::VmAbi;
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::fs::core as core_fs;
 use crate::platform::io::{
     CompletionEvent, CompletionEventVm, CompletionOperation, CompletionOperationKind,
     DescriptorControlCommand, DescriptorControlFlags, DescriptorRequest, DescriptorRequestVm,
@@ -16,9 +21,9 @@ use crate::platform::io::{
 #[cfg(target_os = "linux")]
 use crate::platform::resource::UringHandle;
 use crate::platform::resource::{
-    CompletionHandle, PollHandle, ResourceEntry, ResourceId, ResourceKind,
+    CompletionHandle, DeviceHandle, PollHandle, ResourceEntry, ResourceId, ResourceKind,
 };
-use crate::platform::{PlatformError, VmArray, VmSlice};
+use crate::platform::{PlatformError, VmArray, VmSlice, fs};
 use crate::runtime::{BindingCallContext, NativeSlice};
 use crate::tests::platform::error_code_from_runtime_error;
 pub(crate) use crate::tests::platform::{
@@ -28,6 +33,9 @@ use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.generated.rs"]
 mod harness;
+
+/// Monotonic counter used for unique temporary path names.
+static UNIQUE_TEMP_PATH_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Test harness context used by tests.
 pub(crate) struct IoHarnessContext<'call> {
@@ -95,6 +103,20 @@ impl<'call> IoHarnessContext<'call> {
                 decode_vm_completion_events(vm_context, value)
             }
         }
+    }
+
+    /// Build one byte slice harness value for the active engine mode.
+    pub(crate) fn byte_slice_value(
+        &mut self,
+        values: &[u8],
+    ) -> RuntimeResult<harness::HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        if let Some(vm_context) = self.vm_context_mut() {
+            let value = VmSlice::from_values(vm_context, values)?;
+            return Ok(self.harness_value_vm(value));
+        }
+
+        let value = self.call_context.store_slice(values.to_vec());
+        Ok(self.harness_value(value))
     }
 
     /// Build one completion operation harness value for the active engine mode.
@@ -180,6 +202,20 @@ impl<'call> IoHarnessContext<'call> {
             flags,
         };
         Ok(self.harness_value(request))
+    }
+
+    /// Build one path harness value for the active engine mode.
+    pub(crate) fn os_path_value(
+        &mut self,
+        value: &str,
+    ) -> RuntimeResult<harness::HarnessValue<fs::OsPath, fs::OsPathVm>> {
+        if let Some(vm_context) = self.vm_context_mut() {
+            let value = vm_path_from_utf8(vm_context, value)?;
+            return Ok(self.harness_value_vm(value));
+        }
+
+        let value = core_fs::os_path_from_utf8_string(self.call_context, value.to_string());
+        Ok(self.harness_value(value))
     }
 
     /// Open one completion queue or return None when the backend is unsupported.
@@ -490,6 +526,59 @@ where
     });
 }
 
+/// Build one unique temporary path for one test-specific prefix.
+fn unique_temp_path(prefix: &str) -> PathBuf {
+    let sequence = UNIQUE_TEMP_PATH_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let process_id = std::process::id();
+    std::env::temp_dir().join(format!("destack-io-{prefix}-{process_id}-{sequence}"))
+}
+
+/// Return one well-known null device path for the active host.
+fn host_null_device_path() -> &'static str {
+    #[cfg(unix)]
+    {
+        "/dev/null"
+    }
+
+    #[cfg(windows)]
+    {
+        r"\\.\NUL"
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        "/dev/null"
+    }
+}
+
+/// Encode one UTF-8 path string into VM `OsPath`.
+fn vm_path_from_utf8(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: &str,
+) -> RuntimeResult<fs::OsPathVm> {
+    #[cfg(unix)]
+    {
+        let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes()));
+        let kind = vm::StringHandle::new(context.intern_string("bytes"));
+        Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))
+    }
+
+    #[cfg(windows)]
+    {
+        let utf16_values = value.encode_utf16().collect::<Vec<_>>();
+        let utf16 = fs::PathUtf16Abi::<VmAbi>(VmArray::from_values(context, &utf16_values)?);
+        let kind = vm::StringHandle::new(context.intern_string("utf16"));
+        Ok(fs::OsPathVm::OsPathUtf16(fs::OsPathUtf16Vm { kind, utf16 }))
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes()));
+        let kind = vm::StringHandle::new(context.intern_string("bytes"));
+        Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))
+    }
+}
+
 /// Insert one runtime resource that resolves to one host completion handle.
 fn insert_completion_target_with_host_handle(binding: &BindingCallContext) -> ResourceId {
     #[cfg(unix)]
@@ -522,6 +611,102 @@ fn test_io_completion_open_close_roundtrip() {
         assert_platform_error_code(
             context.destack_io_completion_close(handle),
             PlatformErrorCode::IoNotFound,
+        )?;
+
+        Ok(())
+    });
+}
+
+/// Reject raw device opens for missing paths.
+#[test]
+fn test_io_device_open_rejects_missing_path() {
+    with_harness_context(|mut context| {
+        #[cfg(unix)]
+        let path = unique_temp_path("missing-device")
+            .to_string_lossy()
+            .to_string();
+        #[cfg(windows)]
+        let path = String::from(r"\\.\DestackMissingDevice");
+        #[cfg(not(any(unix, windows)))]
+        let path = unique_temp_path("missing-device")
+            .to_string_lossy()
+            .to_string();
+        let path = context.os_path_value(&path)?;
+
+        assert_platform_error_code(
+            context.destack_io_device_open(path, 0, 0),
+            PlatformErrorCode::IoNotFound,
+        )?;
+
+        Ok(())
+    });
+}
+
+/// Open one well-known null device and preserve raw read or write semantics.
+#[test]
+fn test_io_device_open_read_write_null_device() {
+    with_harness_context(|mut context| {
+        let path = context.os_path_value(host_null_device_path())?;
+        let handle = context.destack_io_device_open(path, libc::O_RDWR as u32, 0)?;
+
+        let bytes = context.byte_slice_value(b"ping")?;
+        let written = context.destack_io_device_write(handle, bytes)?;
+        assert_eq!(written, 4);
+
+        let buffer = context.byte_slice_value(&[0u8; 4])?;
+        let read = context.destack_io_device_read(handle, buffer)?;
+        assert_eq!(read, 0);
+
+        context.destack_io_device_close(handle)?;
+
+        Ok(())
+    });
+}
+
+/// Reject raw device opens for ordinary file paths.
+#[test]
+fn test_io_device_open_rejects_regular_files() {
+    with_harness_context(|mut context| {
+        let path_buf = unique_temp_path("regular-file");
+        std::fs::write(&path_buf, b"io device regular file probe")
+            .map_err(|error| RuntimeError::from(PlatformError::io(error.to_string())).boxed())?;
+        let path_string = path_buf.to_string_lossy().to_string();
+        let path = context.os_path_value(&path_string)?;
+
+        let result = context.destack_io_device_open(path, 0, 0);
+        std::fs::remove_file(&path_buf)
+            .map_err(|error| RuntimeError::from(PlatformError::io(error.to_string())).boxed())?;
+
+        assert_platform_error_code(result, PlatformErrorCode::InvalidArgumentValue)?;
+
+        Ok(())
+    });
+}
+
+/// Reject device operations for unknown handles.
+#[test]
+fn test_io_device_operations_reject_unknown_handle() {
+    with_harness_context(|mut context| {
+        let handle = DeviceHandle(ResourceId(999_999));
+        let buffer = context.byte_slice_value(&[0u8; 4])?;
+        let bytes = context.byte_slice_value(b"ping")?;
+        let request = context.descriptor_request_value(1, &[], 0, 0)?;
+
+        assert_platform_error_code(
+            context.destack_io_device_close(handle),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+        assert_platform_error_code(
+            context.destack_io_device_read(handle, buffer),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+        assert_platform_error_code(
+            context.destack_io_device_write(handle, bytes),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+        assert_platform_error_code(
+            context.destack_io_device_control(handle, request),
+            PlatformErrorCode::InvalidArgumentValue,
         )?;
 
         Ok(())
