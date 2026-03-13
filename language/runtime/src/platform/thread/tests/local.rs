@@ -9,6 +9,9 @@ fn test_thread_local_roundtrip() {
     with_harness_context(|mut context| {
         let key = context.destack_thread_local_create()?;
 
+        let initial_value = context.destack_thread_local_get(key)?;
+        assert_eq!(initial_value, 0);
+
         context.destack_thread_local_set(key, 0xfeed_face_dead_beef)?;
         let value = context.destack_thread_local_get(key)?;
 

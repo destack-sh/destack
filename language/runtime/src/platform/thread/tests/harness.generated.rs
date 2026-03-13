@@ -7,9 +7,10 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::thread::tests::ThreadHarnessContext;
 use crate::platform::thread::{
-    ThreadOptions, ThreadOptionsVm, native as thread_native, vm as thread_vm,
+    ThreadCpuSet, ThreadCpuSetVm, ThreadOptions, ThreadOptionsVm, native as thread_native,
+    vm as thread_vm,
 };
-use crate::platform::{NativeStringRef, PlatformError as HarnessPlatformError, resource};
+use crate::platform::{PlatformError as HarnessPlatformError, resource};
 use destack_vm as vm;
 
 impl<'call> ThreadHarnessContext<'call> {
@@ -184,22 +185,22 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.priority`.
+    /// Requires `thread.sched`.
     ///
     /// # Replay
     /// External, nonrecordable.
     pub(crate) fn destack_thread_get_affinity(
         &mut self,
         handle: resource::ThreadHandle,
-    ) -> RuntimeResult<u64> {
+    ) -> RuntimeResult<HarnessValue<ThreadCpuSet, ThreadCpuSetVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out =
                     thread_vm::destack_thread_get_affinity(self.call_context, context, handle)?;
-                Ok(out)
+                Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                let mut out = std::mem::MaybeUninit::<ThreadCpuSet>::uninit();
                 unsafe {
                     thread_native::destack_thread_get_affinity(
                         self.call_context,
@@ -208,7 +209,7 @@ impl<'call> ThreadHarnessContext<'call> {
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
-                Ok(out)
+                Ok(HarnessValue::Native(out))
             }
         }
     }
@@ -226,7 +227,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.priority`.
+    /// Requires `thread.sched`.
     ///
     /// # Replay
     /// External, nonrecordable.
@@ -268,21 +269,23 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.priority`.
+    /// Requires `thread.sched`.
     ///
     /// # Replay
     /// External, nonrecordable.
     pub(crate) fn destack_thread_set_affinity(
         &mut self,
         handle: resource::ThreadHandle,
-        mask: u64,
+        cpus: HarnessValue<ThreadCpuSet, ThreadCpuSetVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                thread_vm::destack_thread_set_affinity(self.call_context, context, handle, mask)
+                let cpus = cpus.into_vm("cpus")?;
+                thread_vm::destack_thread_set_affinity(self.call_context, context, handle, cpus)
             }
             None => unsafe {
-                thread_native::destack_thread_set_affinity(self.call_context, handle, mask)
+                let cpus = cpus.into_native("cpus")?;
+                thread_native::destack_thread_set_affinity(self.call_context, handle, cpus)
             },
         }
     }
@@ -300,7 +303,7 @@ impl<'call> ThreadHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.priority`.
+    /// Requires `thread.sched`.
     ///
     /// # Replay
     /// External, nonrecordable.
@@ -348,12 +351,12 @@ impl<'call> ThreadHarnessContext<'call> {
 
     /// Join one host thread.
     ///
-    /// Wait for one joinable thread to exit and return its exit code.
-    /// Join behavior follows host thread lifecycle rules.
+    /// Wait for one joinable thread to exit and return its machine-word result.
+    /// Join lifecycle follows host thread rules, but the returned value is runtime-defined.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses pthread_join on Unix and WaitForSingleObject plus exit code on Windows.
+    /// Uses one runtime-managed completion slot on supported hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -366,14 +369,14 @@ impl<'call> ThreadHarnessContext<'call> {
     pub(crate) fn destack_thread_join(
         &mut self,
         handle: resource::ThreadHandle,
-    ) -> RuntimeResult<u32> {
+    ) -> RuntimeResult<u64> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out = thread_vm::destack_thread_join(self.call_context, context, handle)?;
                 Ok(out)
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<u32>::uninit();
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
                 unsafe {
                     thread_native::destack_thread_join(
                         self.call_context,
@@ -389,8 +392,8 @@ impl<'call> ThreadHarnessContext<'call> {
 
     /// Spawn one host thread.
     ///
-    /// Spawn one host thread that enters a runtime-provided entry symbol.
-    /// Entry dispatch and argument passing are runtime ABI contracts.
+    /// Spawn one host thread that enters one runtime-provided thread entry handle.
+    /// Thread entry creation and argument interpretation are runtime ABI contracts.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -406,13 +409,12 @@ impl<'call> ThreadHarnessContext<'call> {
     /// External, nonrecordable.
     pub(crate) fn destack_thread_spawn(
         &mut self,
-        entry: HarnessValue<NativeStringRef, vm::StringHandle>,
+        entry: resource::ThreadEntryHandle,
         argument: u64,
         options: HarnessValue<ThreadOptions, ThreadOptionsVm>,
     ) -> RuntimeResult<resource::ThreadHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let entry = entry.into_vm("entry")?;
                 let options = options.into_vm("options")?;
                 let out = thread_vm::destack_thread_spawn(
                     self.call_context,
@@ -424,7 +426,6 @@ impl<'call> ThreadHarnessContext<'call> {
                 Ok(out)
             }
             None => {
-                let entry = entry.into_native("entry")?;
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::ThreadHandle>::uninit();
                 unsafe {
@@ -536,618 +537,6 @@ impl<'call> ThreadHarnessContext<'call> {
             }
             None => unsafe {
                 thread_native::destack_thread_address_wake_one(self.call_context, address)
-            },
-        }
-    }
-
-    /// Create one thread barrier.
-    ///
-    /// Create one reusable barrier for a fixed participant count.
-    /// Participant-count semantics follow host barrier primitives.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread barriers on Unix and runtime-host barrier emulation on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_barrier_create(
-        &mut self,
-        participants: u32,
-        flags: u32,
-    ) -> RuntimeResult<resource::BarrierHandle> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = thread_vm::destack_thread_barrier_create(
-                    self.call_context,
-                    context,
-                    participants,
-                    flags,
-                )?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<resource::BarrierHandle>::uninit();
-                unsafe {
-                    thread_native::destack_thread_barrier_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        participants,
-                        flags,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Wait for barrier rendezvous.
-    ///
-    /// Block until all participants reach one barrier phase.
-    /// Return value marks whether the caller became phase leader.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread barriers on Unix and runtime-host barrier emulation on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioTimedOut, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_barrier_wait(
-        &mut self,
-        handle: resource::BarrierHandle,
-        timeoutns: u64,
-    ) -> RuntimeResult<bool> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = thread_vm::destack_thread_barrier_wait(
-                    self.call_context,
-                    context,
-                    handle,
-                    timeoutns,
-                )?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<bool>::uninit();
-                unsafe {
-                    thread_native::destack_thread_barrier_wait(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        timeoutns,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Create one condition variable.
-    ///
-    /// Create one condition variable for wait-notify synchronization.
-    /// Condition variable association with mutexes is validated on wait calls.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread condition variables on Unix and condition variable APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_cond_var_create(
-        &mut self,
-        flags: u32,
-    ) -> RuntimeResult<resource::CondVarHandle> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out =
-                    thread_vm::destack_thread_cond_var_create(self.call_context, context, flags)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<resource::CondVarHandle>::uninit();
-                unsafe {
-                    thread_native::destack_thread_cond_var_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        flags,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Notify all condition-variable waiters.
-    ///
-    /// Wake all waiters blocked on a condition variable.
-    /// Wake ordering and runnable scheduling follow host synchronization semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host condition-variable broadcast primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_cond_var_notify_all(
-        &mut self,
-        condvar: resource::CondVarHandle,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                thread_vm::destack_thread_cond_var_notify_all(self.call_context, context, condvar)
-            }
-            None => unsafe {
-                thread_native::destack_thread_cond_var_notify_all(self.call_context, condvar)
-            },
-        }
-    }
-
-    /// Notify one condition-variable waiter.
-    ///
-    /// Wake one waiter blocked on a condition variable.
-    /// Waiter selection order follows host synchronization semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host condition-variable notify primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_cond_var_notify_one(
-        &mut self,
-        condvar: resource::CondVarHandle,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                thread_vm::destack_thread_cond_var_notify_one(self.call_context, context, condvar)
-            }
-            None => unsafe {
-                thread_native::destack_thread_cond_var_notify_one(self.call_context, condvar)
-            },
-        }
-    }
-
-    /// Wait on one condition variable.
-    ///
-    /// Atomically release one mutex and wait for one condition-variable notification.
-    /// Mutex is reacquired before returning from wait according to host semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host condition-variable wait primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_cond_var_wait(
-        &mut self,
-        condvar: resource::CondVarHandle,
-        mutex: resource::MutexHandle,
-        timeoutns: u64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => thread_vm::destack_thread_cond_var_wait(
-                self.call_context,
-                context,
-                condvar,
-                mutex,
-                timeoutns,
-            ),
-            None => unsafe {
-                thread_native::destack_thread_cond_var_wait(
-                    self.call_context,
-                    condvar,
-                    mutex,
-                    timeoutns,
-                )
-            },
-        }
-    }
-
-    /// Create one mutex.
-    ///
-    /// Create one host mutex with runtime-selected attributes.
-    /// Mutex ownership and recursion behavior follow host primitive configuration.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread mutexes on Unix and SRW or critical section primitives on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_mutex_create(
-        &mut self,
-        flags: u32,
-    ) -> RuntimeResult<resource::MutexHandle> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out =
-                    thread_vm::destack_thread_mutex_create(self.call_context, context, flags)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<resource::MutexHandle>::uninit();
-                unsafe {
-                    thread_native::destack_thread_mutex_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        flags,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Lock one mutex.
-    ///
-    /// Acquire one mutex, waiting until ownership is available.
-    /// Wait ordering and fairness follow host synchronization semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host mutex wait primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_mutex_lock(
-        &mut self,
-        handle: resource::MutexHandle,
-        timeoutns: u64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                thread_vm::destack_thread_mutex_lock(self.call_context, context, handle, timeoutns)
-            }
-            None => unsafe {
-                thread_native::destack_thread_mutex_lock(self.call_context, handle, timeoutns)
-            },
-        }
-    }
-
-    /// Unlock one mutex.
-    ///
-    /// Release ownership of one mutex.
-    /// Wakeup behavior for waiters follows host synchronization semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host mutex unlock primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_mutex_unlock(
-        &mut self,
-        handle: resource::MutexHandle,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                thread_vm::destack_thread_mutex_unlock(self.call_context, context, handle)
-            }
-            None => unsafe {
-                thread_native::destack_thread_mutex_unlock(self.call_context, handle)
-            },
-        }
-    }
-
-    /// Create one read-write lock.
-    ///
-    /// Create one read-write lock for shared and exclusive access control.
-    /// Reader and writer preference is host-primitive defined.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread rwlock on Unix and SRW lock abstractions on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_rwlock_create(
-        &mut self,
-        flags: u32,
-    ) -> RuntimeResult<resource::RwLockHandle> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out =
-                    thread_vm::destack_thread_rwlock_create(self.call_context, context, flags)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<resource::RwLockHandle>::uninit();
-                unsafe {
-                    thread_native::destack_thread_rwlock_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        flags,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Lock one read-write lock for read access.
-    ///
-    /// Acquire shared read access for one read-write lock.
-    /// Read acquisition ordering follows host synchronization semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host rwlock read-lock primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_rwlock_read_lock(
-        &mut self,
-        handle: resource::RwLockHandle,
-        timeoutns: u64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => thread_vm::destack_thread_rwlock_read_lock(
-                self.call_context,
-                context,
-                handle,
-                timeoutns,
-            ),
-            None => unsafe {
-                thread_native::destack_thread_rwlock_read_lock(self.call_context, handle, timeoutns)
-            },
-        }
-    }
-
-    /// Unlock one read-write lock.
-    ///
-    /// Release one read or write ownership slot on a read-write lock.
-    /// Wakeup behavior for waiters follows host synchronization semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host rwlock unlock primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_rwlock_unlock(
-        &mut self,
-        handle: resource::RwLockHandle,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                thread_vm::destack_thread_rwlock_unlock(self.call_context, context, handle)
-            }
-            None => unsafe {
-                thread_native::destack_thread_rwlock_unlock(self.call_context, handle)
-            },
-        }
-    }
-
-    /// Lock one read-write lock for write access.
-    ///
-    /// Acquire exclusive write access for one read-write lock.
-    /// Write acquisition ordering follows host synchronization semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host rwlock write-lock primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_rwlock_write_lock(
-        &mut self,
-        handle: resource::RwLockHandle,
-        timeoutns: u64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => thread_vm::destack_thread_rwlock_write_lock(
-                self.call_context,
-                context,
-                handle,
-                timeoutns,
-            ),
-            None => unsafe {
-                thread_native::destack_thread_rwlock_write_lock(
-                    self.call_context,
-                    handle,
-                    timeoutns,
-                )
-            },
-        }
-    }
-
-    /// Create one thread-scoped semaphore.
-    ///
-    /// Create one semaphore for in-process thread synchronization.
-    /// Semaphore bounds and fairness follow host primitive semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses semaphores or equivalent host synchronization primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_semaphore_create(
-        &mut self,
-        initial: u32,
-        maximum: u32,
-        flags: u32,
-    ) -> RuntimeResult<resource::ThreadSemaphoreHandle> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = thread_vm::destack_thread_semaphore_create(
-                    self.call_context,
-                    context,
-                    initial,
-                    maximum,
-                    flags,
-                )?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<resource::ThreadSemaphoreHandle>::uninit();
-                unsafe {
-                    thread_native::destack_thread_semaphore_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        initial,
-                        maximum,
-                        flags,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
-        }
-    }
-
-    /// Post one semaphore count for thread synchronization.
-    ///
-    /// Increment one semaphore by count and wake eligible waiters.
-    /// Wake behavior follows host semaphore primitives.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host semaphore post primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_semaphore_post(
-        &mut self,
-        handle: resource::ThreadSemaphoreHandle,
-        count: u32,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                thread_vm::destack_thread_semaphore_post(self.call_context, context, handle, count)
-            }
-            None => unsafe {
-                thread_native::destack_thread_semaphore_post(self.call_context, handle, count)
-            },
-        }
-    }
-
-    /// Wait one semaphore count for thread synchronization.
-    ///
-    /// Decrement one semaphore count, waiting up to the timeout when needed.
-    /// Wake ordering follows host scheduler behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host semaphore wait primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioTimedOut, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sync`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_thread_semaphore_wait(
-        &mut self,
-        handle: resource::ThreadSemaphoreHandle,
-        timeoutns: u64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => thread_vm::destack_thread_semaphore_wait(
-                self.call_context,
-                context,
-                handle,
-                timeoutns,
-            ),
-            None => unsafe {
-                thread_native::destack_thread_semaphore_wait(self.call_context, handle, timeoutns)
             },
         }
     }
