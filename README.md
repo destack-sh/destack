@@ -33,7 +33,7 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Apps**](app/README.md): First-party applications and programmer tools.
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
 - [**Destack Bridge**](bridge/README.md): Two-way bridges for the Destack universe.
-- [**Destack Platform**](platform/README.md): Destack's own operated stuff (built on the rest).
+- [**Destack Platform**](platform/README.md): First-party site, apps, and services (same as above).
 
 The structure of Destack is more of a "software factory toolkit" than it is "ready-to-wear software": we do provide some apps with a common plugin system - built on top of the shared library and reusable services - but the entire Destack is optimized for programmers building their _own_ software processes in one correct, optimal, integrated system.
 Aspiritionally, Destack is intended as a meta framework for developing and maintaining custom software stacks using [foundational building blocks](https://caseymuratori.com/blog_0016).
@@ -47,7 +47,7 @@ We routinely fail to build trivial software correctly, and even when it works, i
 
 Software is very useful, we have a lot of it, and there is about to be much, much more.
 There are even new exciting possibilities to marry symbolic and probabilistic computation.
-But we believe that the deep opaqueness, inefficiency, and fragmentation of software can only be solved by reimagining the full software process end-to-end; in the limit, that requires unifying the disparate parts that have remained separate purely for historical reasons.
+However, we believe that the deep inscrutability, inefficiency, instability, and fragmentation of software can only be solved by reimagining the full software process end-to-end; in the limit, that requires unifying the disparate parts that have remained separate for historical reasons.
 
 The more we can express in software, the higher order the abstractions we can program.
 In the beginning, software was the digital shadow of "real" systems, but done correctly, software is an enabling technology for new systems that were previously impossible.
