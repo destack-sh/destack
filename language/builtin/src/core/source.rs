@@ -140,6 +140,17 @@ pub const PRELUDE_SOURCE: &BuiltinSource = &CORE_PRELUDE;
 mod tests {
     use super::*;
 
+    fn category_index(path: &str) -> Option<&'static BuiltinSource> {
+        match path {
+            "control" => Some(&CONTROL_INDEX),
+            "intrinsic" => Some(&INTRINSIC_INDEX),
+            "memory" => Some(&MEMORY_INDEX),
+            "operator" => Some(&OPERATOR_INDEX),
+            "reflect" => Some(&REFLECT_INDEX),
+            _ => None,
+        }
+    }
+
     #[test]
     fn test_sources_not_empty() {
         assert!(!CORE_SOURCES.is_empty());
@@ -162,5 +173,47 @@ mod tests {
             OPERATOR_ARITHMETIC.virtual_path(),
             "builtin://core/operator/arithmetic.ds"
         );
+    }
+
+    #[test]
+    fn test_category_indexes_reexport_all_registered_leaf_sources() {
+        for source in CORE_SOURCES {
+            if source.name == "index.ds" || source.name == "prelude.ds" {
+                continue;
+            }
+
+            let index = category_index(source.path)
+                .unwrap_or_else(|| panic!("missing category index for {}", source.virtual_path()));
+            let expected_reexport = format!("\"./{}\"", source.name);
+
+            assert!(
+                index.content.contains(&expected_reexport),
+                "missing category index reexport for {} in {}",
+                source.virtual_path(),
+                index.virtual_path(),
+            );
+        }
+    }
+
+    #[test]
+    fn test_core_index_reexports_all_registered_category_indexes() {
+        let category_indexes = [
+            &CONTROL_INDEX,
+            &INTRINSIC_INDEX,
+            &MEMORY_INDEX,
+            &OPERATOR_INDEX,
+            &REFLECT_INDEX,
+        ];
+
+        for index in category_indexes {
+            let expected_reexport = format!("\"./{}/{}\"", index.path, index.name);
+
+            assert!(
+                CORE_INDEX.content.contains(&expected_reexport),
+                "missing core index reexport for {} in {}",
+                index.virtual_path(),
+                CORE_INDEX.virtual_path(),
+            );
+        }
     }
 }

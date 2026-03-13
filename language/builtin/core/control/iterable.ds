@@ -1,5 +1,5 @@
 /// The global symbol constructor used by well known symbols.
-declare interface SymbolConstructor {
+export declare interface SymbolConstructor {
     /// The default iterator symbol used by for of semantics.
     readonly iterator: unique symbol;
 
@@ -8,7 +8,7 @@ declare interface SymbolConstructor {
 }
 
 /// The global Symbol constructor.
-declare const Symbol: SymbolConstructor;
+export declare const Symbol: SymbolConstructor;
 
 /// The result of producing a value from an iterator.
 export interface IteratorYieldResult<TYield> {
