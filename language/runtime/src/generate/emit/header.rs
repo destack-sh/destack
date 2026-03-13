@@ -50,7 +50,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         ));
         if usage.uses_entropy_replay_kind {
             self.output
-                .push_str("use crate::runtime::replay::EntropyKind;\n");
+                .push_str("use crate::runtime::trace::EntropyKind;\n");
             self.output
                 .push_str("use crate::runtime::random::RandomStreamId;\n");
         }
@@ -133,7 +133,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             self.output
                 .push_str("use crate::runtime::BindingCallContext;\n");
             self.output
-                .push_str("use crate::runtime::replay::TraceError;\n");
+                .push_str("use crate::runtime::trace::TraceError;\n");
         }
         self.output.push_str("use crate::binding;\n\n");
 

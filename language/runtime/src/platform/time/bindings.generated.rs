@@ -17,7 +17,7 @@ use crate::runtime::bindings::{
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::replay::{EntropyKind, TraceError};
+use crate::runtime::trace::{EntropyKind, TraceError};
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
