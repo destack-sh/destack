@@ -884,11 +884,12 @@ pub(crate) fn handle_trap(
             }
 
             let payload = state.get(*payload);
-            let message = match state.interpreter.isolate.string_interner.string_value(
-                state.interpreter.heap.managed(),
-                state.interpreter.heap.raw(),
-                payload,
-            ) {
+            let message = match state
+                .interpreter
+                .isolate
+                .string_interner
+                .string_value(state.interpreter.heap, payload)
+            {
                 Ok(message) => message,
                 Err(error) => return ControlFlow::Error(error),
             };

@@ -270,9 +270,7 @@ impl RawHeap {
         }
 
         // resolve one stable page slot
-        let Some(address) = self.location(pointer) else {
-            return None;
-        };
+        let address = self.location(pointer)?;
         let (target_page, target_offset) = address.position();
         let page = self.pages.get(target_page)?;
 
@@ -290,9 +288,7 @@ impl RawHeap {
         }
 
         // resolve one stable page slot
-        let Some(address) = self.location(pointer) else {
-            return None;
-        };
+        let address = self.location(pointer)?;
         let (target_page, target_offset) = address.position();
         let page = self.pages.get_mut(target_page)?;
 

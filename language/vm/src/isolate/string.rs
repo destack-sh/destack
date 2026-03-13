@@ -273,12 +273,9 @@ impl StringInterner {
             return Err(Error::NullPointerDereference);
         }
 
-        // load the managed string cell
-        let cell = heap
-            .managed_allocation(handle)
-            .ok_or(Error::InvalidManagedReference)?;
-        let length_value = cell
-            .get(StringLayout::LENGTH_BYTES)
+        // load the string header slots from the heap
+        let length_value = heap
+            .managed_slot(handle, StringLayout::LENGTH_BYTES)
             .copied()
             .ok_or(Error::InvalidManagedReference)?;
         let length = length_value.as_uint().ok_or_else(|| Error::TypeMismatch {
@@ -290,8 +287,8 @@ impl StringInterner {
         }
 
         // load the raw payload buffer
-        let data_value = cell
-            .get(StringLayout::DATA)
+        let data_value = heap
+            .managed_slot(handle, StringLayout::DATA)
             .copied()
             .ok_or(Error::InvalidManagedReference)?;
         let data_ptr = data_value

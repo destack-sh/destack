@@ -101,7 +101,7 @@ impl<'a> Validator<'a> {
                 .type_table
                 .layout_table
                 .layouts
-                .get(layout_id.0 as usize)
+                .get(layout_id.index())
             else {
                 return Err(ValidateError::MetadataInvariantViolation {
                     message: "type table references missing layout metadata".to_string(),
