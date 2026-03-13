@@ -1,9 +1,11 @@
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
+use crate::page::RetainedBytes;
+
 use super::meta::ReferenceMeta;
 use super::pointer::{
-    GlobalPointer, LocalPointer, ManagedPointer, POINTER_BASE_MASK, POINTER_SLOT_SHIFT,
+    GlobalPointer, LocalPointer, ManagedReference, POINTER_BASE_MASK, POINTER_SLOT_SHIFT,
     REF_META_MASK, REF_META_SHIFT, RawPointer, STACK_INDEX_MASK, STACK_SLOT_SHIFT, StackPointer,
 };
 use super::tag::ValueTag;
@@ -35,6 +37,8 @@ impl PartialEq for Value {
 
 impl Eq for Value {}
 
+impl RetainedBytes for Value {}
+
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.tag() {
@@ -59,13 +63,13 @@ impl std::fmt::Debug for Value {
                 write!(f, "Char('{char_val}')")
             }
             ValueTag::ManagedReference => {
-                let handle = self.as_managed_pointer().unwrap();
+                let handle = self.as_managed_reference().unwrap();
                 if handle.slot_offset() == 0 {
-                    write!(f, "ManagedReference(ManagedPointer({}))", handle.id())
+                    write!(f, "ManagedReference({})", handle.id())
                 } else {
                     write!(
                         f,
-                        "ManagedReference(ManagedPointer({}), slot {})",
+                        "ManagedReference({}, slot {})",
                         handle.id(),
                         handle.slot_offset()
                     )
@@ -121,8 +125,8 @@ impl std::fmt::Debug for Value {
                 }
             }
             ValueTag::FunctionPointer => write!(f, "FunctionPointer({})", self.data as u32),
-            ValueTag::Aggregate => write!(f, "Aggregate(ManagedPointer({}))", self.data),
-            ValueTag::String => write!(f, "String(ManagedPointer({}))", self.data),
+            ValueTag::Aggregate => write!(f, "Aggregate(ManagedReference({}))", self.data),
+            ValueTag::String => write!(f, "String(ManagedReference({}))", self.data),
         }
     }
 }
@@ -294,7 +298,7 @@ impl Value {
 
     /// Create a managed heap reference value.
     #[inline]
-    pub const fn managed_reference(handle: ManagedPointer) -> Self {
+    pub const fn managed_reference(handle: ManagedReference) -> Self {
         Self {
             data: handle.0,
             meta: Self::make_meta(ValueTag::ManagedReference, 0),
@@ -303,7 +307,7 @@ impl Value {
 
     /// Create a managed heap reference value with explicit metadata.
     #[inline]
-    pub fn managed_reference_with_meta(handle: ManagedPointer, meta: ReferenceMeta) -> Self {
+    pub fn managed_reference_with_meta(handle: ManagedReference, meta: ReferenceMeta) -> Self {
         Self::managed_reference(handle).with_reference_meta(meta)
     }
 
@@ -401,7 +405,7 @@ impl Value {
 
     /// Create an aggregate value.
     #[inline]
-    pub const fn aggregate(handle: ManagedPointer) -> Self {
+    pub const fn aggregate(handle: ManagedReference) -> Self {
         Self {
             data: handle.0,
             meta: Self::make_meta(ValueTag::Aggregate, 0),
@@ -410,7 +414,7 @@ impl Value {
 
     /// Create a string value.
     #[inline]
-    pub const fn string(handle: ManagedPointer) -> Self {
+    pub const fn string(handle: ManagedReference) -> Self {
         Self {
             data: handle.0,
             meta: Self::make_meta(ValueTag::String, 0),
@@ -497,12 +501,12 @@ impl Value {
         self.tag() == ValueTag::Aggregate
     }
 
-    /// Try to get this value as a managed pointer.
+    /// Try to get this value as a managed reference.
     #[inline]
-    pub fn as_managed_pointer(&self) -> Option<ManagedPointer> {
+    pub fn as_managed_reference(&self) -> Option<ManagedReference> {
         match self.tag() {
             ValueTag::ManagedReference | ValueTag::Aggregate | ValueTag::String => {
-                Some(ManagedPointer(self.data))
+                Some(ManagedReference(self.data))
             }
             _ => None,
         }
@@ -605,33 +609,6 @@ impl Value {
             return Some(f32::from_bits(self.data as u32));
         }
         None
-    }
-
-    /// Try to get this value as char.
-    #[inline]
-    pub fn as_char_value(&self) -> Option<char> {
-        if self.tag() == ValueTag::Char {
-            return Some(char::from_u32(self.data as u32).unwrap_or('\u{FFFD}'));
-        }
-        None
-    }
-
-    /// Check if value is void.
-    #[inline]
-    pub fn is_void_value(&self) -> bool {
-        self.is_void()
-    }
-
-    /// Check if value is a managed reference.
-    #[inline]
-    pub fn is_managed_reference_value(&self) -> bool {
-        self.is_managed_reference()
-    }
-
-    /// Check if value is an aggregate.
-    #[inline]
-    pub fn is_aggregate_value(&self) -> bool {
-        self.is_aggregate()
     }
 
     /// Get raw data (for internal use).
