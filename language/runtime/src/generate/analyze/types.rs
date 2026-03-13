@@ -99,6 +99,7 @@ pub(crate) fn binding_type_symbols(program: &Program, profile_id: ProfileId) -> 
 
 /// Format a declaration signature for binding metadata.
 pub(crate) fn format_declared_signature(
+    program: &Program,
     declaration_id: dir::LocalNodeId<Declaration>,
     declaration: &dir::Declaration,
     module: &Module,
@@ -107,9 +108,12 @@ pub(crate) fn format_declared_signature(
     profile_id: ProfileId,
 ) -> String {
     // load the relevant module state for formatting
-    let dir = module.dir(profile_id);
-    let tree = dir.tree.read();
-    let types = dir.types.read();
+    let dir = program
+        .artifacts
+        .dir_snapshot(module.id, profile_id)
+        .unwrap_or_else(|| panic!("missing dir snapshot for module {:?}", module.id));
+    let tree = &dir.tree;
+    let types = &dir.types;
 
     // gather declaration naming and export metadata
     let descriptor = declaration.descriptor();
@@ -160,6 +164,7 @@ pub(crate) fn format_declared_signature(
 
 /// Collect binding parameter metadata for a declaration signature.
 pub(crate) fn collect_binding_params(
+    program: &Program,
     signature: &dir::FunctionSignature,
     module_id: ModuleId,
     tree: &dir::NodeTree,
@@ -185,7 +190,7 @@ pub(crate) fn collect_binding_params(
             };
             let type_text = type_text_for_signature(type_id, tree, types, modules, strings);
             let binding_type = binding_type_from_type_id(
-                type_id, types, modules, strings, profile_id, symbols, domain,
+                program, type_id, types, modules, strings, profile_id, symbols, domain,
             );
             let binding_type = if is_optional {
                 BindingType::Optional(Box::new(binding_type))
@@ -217,6 +222,7 @@ fn parameter_is_optional(
 
 /// Collect binding return metadata for a declaration.
 pub(crate) fn collect_binding_return(
+    program: &Program,
     declaration_id: dir::LocalNodeId<Declaration>,
     signature: &dir::FunctionSignature,
     module_id: ModuleId,
@@ -232,7 +238,7 @@ pub(crate) fn collect_binding_return(
     if let Some(type_id) = return_type_id {
         let is_result = is_result_type_id(type_id, types, symbols);
         let binding_type = binding_type_from_type_id(
-            type_id, types, modules, strings, profile_id, symbols, domain,
+            program, type_id, types, modules, strings, profile_id, symbols, domain,
         );
         return BindingReturn {
             binding_type,
@@ -352,6 +358,7 @@ fn resolve_return_type_text(
 
 /// Map a type id into a binding type for generated wrappers.
 pub(crate) fn binding_type_from_type_id(
+    program: &Program,
     type_id: dir::LocalTypeId,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
@@ -373,6 +380,7 @@ pub(crate) fn binding_type_from_type_id(
                 BindingType::String
             } else if let Some(inner_type_id) = unwrap_optional_union_type(elements, types) {
                 let inner = binding_type_from_type_id(
+                    program,
                     inner_type_id,
                     types,
                     modules,
@@ -396,12 +404,13 @@ pub(crate) fn binding_type_from_type_id(
             type_id, elements, types, modules, strings, profile_id, symbols, domain,
         ),
         dir::Type::Unevaluated(expression_id) => {
-            let module = modules.get(types.module_id);
-            let module = module.read();
-            let dir = module.dir(profile_id);
-            let tree = dir.tree.read();
+            let dir = program
+                .artifacts
+                .dir_snapshot(types.module_id, profile_id)
+                .unwrap_or_else(|| panic!("missing dir snapshot for module {:?}", types.module_id));
+            let tree = &dir.tree;
             let expression_text =
-                format_type_expression(*expression_id, &tree, strings).unwrap_or(type_text.clone());
+                format_type_expression(*expression_id, tree, strings).unwrap_or(type_text.clone());
 
             unsupported_binding_type(
                 expression_text.as_str(),
@@ -415,7 +424,7 @@ pub(crate) fn binding_type_from_type_id(
             if symbols.is_result(*symbol) || symbols.is_async_result(*symbol) {
                 if let Some(inner) = unwrap_first_type_argument(static_arguments.as_ref()) {
                     return binding_type_from_type_id(
-                        inner, types, modules, strings, profile_id, symbols, domain,
+                        program, inner, types, modules, strings, profile_id, symbols, domain,
                     );
                 }
             }
@@ -423,7 +432,7 @@ pub(crate) fn binding_type_from_type_id(
             if let Some(kind) = symbols.slice_kind(*symbol) {
                 if let Some(inner) = unwrap_first_type_argument(static_arguments.as_ref()) {
                     let inner_binding = binding_type_from_type_id(
-                        inner, types, modules, strings, profile_id, symbols, domain,
+                        program, inner, types, modules, strings, profile_id, symbols, domain,
                     );
                     if inner_binding == BindingType::String {
                         return BindingType::StringSlice;
@@ -437,13 +446,13 @@ pub(crate) fn binding_type_from_type_id(
                 }
             }
 
-            binding_type_from_symbol(*symbol, modules, strings, profile_id, symbols)
+            binding_type_from_symbol(program, *symbol, modules, strings, profile_id, symbols)
         }
         dir::Type::Unary { right, .. } | dir::Type::ValueOf { right, .. } => {
-            binding_type_from_type_id(*right, types, modules, strings, profile_id, symbols, domain)
+            binding_type_from_type_id(program, *right, types, modules, strings, profile_id, symbols, domain)
         }
         dir::Type::ReferenceOf { right, .. } => {
-            binding_type_from_type_id(*right, types, modules, strings, profile_id, symbols, domain)
+            binding_type_from_type_id(program, *right, types, modules, strings, profile_id, symbols, domain)
         }
         dir::Type::PointerOf { .. } => unsupported_binding_type(
             type_text.as_str(),
@@ -454,12 +463,12 @@ pub(crate) fn binding_type_from_type_id(
                 unsupported_binding_type(type_text.as_str(), "array element type is missing")
             });
             BindingType::Array(Box::new(binding_type_from_type_id(
-                element, types, modules, strings, profile_id, symbols, domain,
+                program, element, types, modules, strings, profile_id, symbols, domain,
             )))
         }
         dir::Type::ArraySized { element, .. } => {
             BindingType::Array(Box::new(binding_type_from_type_id(
-                *element, types, modules, strings, profile_id, symbols, domain,
+                program, *element, types, modules, strings, profile_id, symbols, domain,
             )))
         }
         _ => unsupported_binding_type(type_text.as_str(), "unsupported type in platform bindings"),
@@ -636,6 +645,7 @@ fn platform_domain_from_uri(uri: &str) -> Option<String> {
 
 /// Resolve a binding type from a global symbol.
 pub(crate) fn binding_type_from_symbol(
+    program: &Program,
     symbol_id: GlobalSymbolId,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -644,16 +654,19 @@ pub(crate) fn binding_type_from_symbol(
 ) -> BindingType {
     let module = modules.get(symbol_id.module_id);
     let module = module.read();
-    let dir = module.dir(profile_id);
-    let tree = dir.tree.read();
-    let types = dir.types.read();
-    let symbol_table = dir.symbols.read();
+    let dir = program
+        .artifacts
+        .dir_snapshot(module.id, profile_id)
+        .unwrap_or_else(|| panic!("missing dir snapshot for module {:?}", module.id));
+    let tree = &dir.tree;
+    let types = &dir.types;
+    let symbol_table = &dir.symbols;
 
     let symbol = symbol_table.get_symbol(symbol_id.local_id);
     if let Some(target_symbol) = symbol.canonical_symbol.or(symbol.target_symbol)
         && target_symbol != symbol_id
     {
-        return binding_type_from_symbol(target_symbol, modules, strings, profile_id, symbols);
+        return binding_type_from_symbol(program, target_symbol, modules, strings, profile_id, symbols);
     }
     if let Some(primary_declaration) = symbol.primary_declaration
         && primary_declaration.local_id.ty == dir::NodeType::DependencyItem
@@ -665,7 +678,7 @@ pub(crate) fn binding_type_from_symbol(
         if let Some(target_symbol) = dependency.target_symbol()
             && target_symbol != symbol_id
         {
-            return binding_type_from_symbol(target_symbol, modules, strings, profile_id, symbols);
+            return binding_type_from_symbol(program, target_symbol, modules, strings, profile_id, symbols);
         }
     }
 
@@ -754,6 +767,7 @@ pub(crate) fn binding_type_from_symbol(
                 }
 
                 binding_type_from_type_id(
+                    program,
                     alias_target,
                     &types,
                     modules,
@@ -763,10 +777,7 @@ pub(crate) fn binding_type_from_symbol(
                     domain.as_str(),
                 )
             } else {
-                unsupported_binding_type(
-                    &name,
-                    "missing lowered type alias target for binding type",
-                )
+                unsupported_binding_type(&name, "missing lowered type alias target for binding type")
             };
 
             // preserve named aliases as newtypes for platform bindings

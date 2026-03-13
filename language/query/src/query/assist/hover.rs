@@ -3,8 +3,8 @@ use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::common::{
-    container_name_for_symbol, doc_text_for_symbol, find_symbol_for_hover_at_offset,
-    get_canonical_symbol, get_dir_node_span,
+    QueryContext, container_name_for_symbol, doc_text_for_symbol, find_symbol_for_hover_at_offset,
+    get_canonical_symbol, get_dir_node_span, program_for_module, query_context,
 };
 use crate::format::{
     format_enum_field_hover, format_hover_markdown, format_local_type, format_local_variable_hover,
@@ -110,7 +110,10 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     // resolve the hovered symbol and profile
     let symbol_at = find_symbol_for_hover_at_offset(session, file, offset)?;
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
-    let profile = session.default_profile_for_module(canonical_id.module_id);
+    let module = session.modules.get(canonical_id.module_id);
+    let module = module.read();
+    let program = program_for_module(session, &module);
+    let profile = program.default_profile_id_for_module(canonical_id.module_id);
 
     // get documentation for this symbol
     let documentation = doc_text_for_symbol(session, canonical_id);
@@ -118,7 +121,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     // try rich signature formatting first (for top level declarations)
     if let Some(formatted) = format_symbol_signature(
         canonical_id,
-        &session.artifacts,
+        &program.artifacts,
         &session.modules,
         &session.strings,
         profile,
@@ -136,9 +139,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     }
 
     // resolve module query context for richer formatting
-    let module = session.modules.get(symbol_at.symbol_id.module_id);
-    let module = module.read();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = query_context(session, &module)?;
 
     // resolve symbol metadata
     let symbols = ctx.symbols();
@@ -169,7 +170,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format member hover with full signature
                 let member = dir_tree.get::<Member>(member_id);
                 format_member_hover(
-                    &session.artifacts,
+                    &ctx.program.artifacts,
                     &session.strings,
                     &session.modules,
                     member,
@@ -188,7 +189,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format enum field hover
                 let field = dir_tree.get::<EnumField>(field_id);
                 format_enum_field_hover(
-                    &session.artifacts,
+                    &ctx.program.artifacts,
                     &session.strings,
                     &session.modules,
                     field,
@@ -206,7 +207,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format parameter hover
                 let param = dir_tree.get::<Parameter>(param_id);
                 format_parameter_hover(
-                    &session.artifacts,
+                    &ctx.program.artifacts,
                     &session.strings,
                     &session.modules,
                     param,
@@ -221,7 +222,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
         NodeType::Pattern => {
             // local variable or destructuring pattern
             format_local_variable_hover(
-                &session.artifacts,
+                &ctx.program.artifacts,
                 name.as_deref(),
                 symbol_at.symbol_id,
                 &symbols,
@@ -252,7 +253,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
 /// Resolve a type string for a hover target when available.
 fn resolve_hover_type_text(
     session: &Session,
-    ctx: &crate::common::QueryContext<'_>,
+    ctx: &QueryContext<'_>,
     symbols: &dir::SymbolTable,
     hover_node_id: dir::LocalNodeIdAny,
     symbol_id: dir::GlobalSymbolId,
@@ -272,7 +273,7 @@ fn resolve_hover_type_text(
     // format the local type for display
     Some(format_local_type(
         type_id,
-        &session.artifacts,
+        &ctx.program.artifacts,
         &types,
         &session.modules,
         &session.strings,
@@ -297,7 +298,7 @@ fn hover_location(session: &Session, span: Span) -> Option<String> {
 
 /// Resolve the visible hover range for a symbol.
 fn hover_range_for_symbol(
-    ctx: &crate::common::QueryContext<'_>,
+    ctx: &QueryContext<'_>,
     node_id: LocalNodeIdAny,
     default_span: Span,
 ) -> Span {

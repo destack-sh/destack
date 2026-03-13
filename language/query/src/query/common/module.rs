@@ -7,6 +7,8 @@ use parking_lot::RwLock;
 
 use destack_workspace::{ExportEntry, Program, Session};
 
+use super::query_context;
+
 /// Information about an exported symbol from a module.
 #[derive(Debug, Clone)]
 pub struct ExportedSymbol {
@@ -36,6 +38,11 @@ pub fn program_for_file(session: &Session, file_id: FileId) -> Arc<Program> {
     session.get_or_create_program(session.cwd.clone())
 }
 
+/// Resolve the program that owns a module.
+pub fn program_for_module(session: &Session, module: &destack_workspace::Module) -> Arc<Program> {
+    program_for_file(session, module.file_id)
+}
+
 /// Resolve the importable module path for a module.
 fn module_path_for_import(module: &destack_workspace::Module) -> Option<String> {
     // prefer a filesystem path when available
@@ -59,7 +66,7 @@ fn resolve_export_symbol_type(session: &Session, symbol_id: GlobalSymbolId) -> O
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = query_context(session, &module)?;
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     Some(symbol.ty)
@@ -78,7 +85,7 @@ pub fn get_module_exports_maybe(
     // get module AST and DIR
     let module = session.modules.get(module_id);
     let module = module.read();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = query_context(session, &module)?;
     let module_path = module_path_for_import(&module);
     let symbols = ctx.symbols();
 

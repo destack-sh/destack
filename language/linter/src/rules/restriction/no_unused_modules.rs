@@ -196,16 +196,18 @@ fn is_declaration_file(file_type: FileType, ctx: &LintProgramDirContext) -> bool
 
 /// Return true when the module has exports in the active profile DIR.
 fn module_has_exports(ctx: &LintProgramDirContext, module_id: ModuleId) -> bool {
-    let module_ref = ctx.program.modules.get(module_id);
-    let module = module_ref.read();
-    let Some(dir) = module.dir_maybe(ctx.profile_id) else {
+    let Some(dir) = ctx
+        .program
+        .artifacts
+        .dir_snapshot(module_id, ctx.profile_id)
+    else {
         return false;
     };
 
     // keep any module with named exports, export assignment, or namespace exports
-    !dir.exported_symbols.read().is_empty()
-        || dir.export_assignment.read().is_some()
-        || !dir.namespace_exports.read().is_empty()
+    !dir.exported_symbols.is_empty()
+        || dir.export_assignment.is_some()
+        || !dir.namespace_exports.is_empty()
 }
 
 /// Return the file name for deterministic sorting.

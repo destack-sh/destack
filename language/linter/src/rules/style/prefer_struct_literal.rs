@@ -102,11 +102,14 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         }
 
         // load the declaration module tree for cross module struct constructors
-        let module_ref = self.ctx.program.modules.get(declaration_id.module_id);
-        let module = module_ref.read();
-        let module_dir = module.dir_maybe(self.ctx.profile_id)?;
-        let tree = module_dir.tree.read();
-        let declaration = tree.get(declaration_id.into_local_typed::<dir::Declaration>());
+        let module_dir = self
+            .ctx
+            .program
+            .artifacts
+            .dir_snapshot(declaration_id.module_id, self.ctx.profile_id)?;
+        let declaration = module_dir
+            .tree
+            .get(declaration_id.into_local_typed::<dir::Declaration>());
         let dir::Declaration::Struct { members, .. } = declaration else {
             return None;
         };
@@ -114,7 +117,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         // collect named fields in declaration order
         let mut field_names = Vec::new();
         for member_id in members {
-            let member = tree.get(*member_id);
+            let member = module_dir.tree.get(*member_id);
             let dir::Member::Field { key, .. } = member else {
                 continue;
             };

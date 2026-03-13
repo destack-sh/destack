@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::common::{
     ParameterData, QueryContext, doc_text_for_node_without_tags, parameter_data_for_symbol,
-    resolve_call_target, span_for_dir_node,
+    query_context, resolve_call_target, span_for_dir_node,
 };
 use crate::format::format_call_signature;
 use destack_workspace::Session;
@@ -213,7 +213,7 @@ fn signature_info_for_symbol(
     // read the symbol's module and query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = query_context(session, &module)?;
 
     // resolve the symbol declaration
     let declaration_ref = {
@@ -269,7 +269,7 @@ fn signature_info_for_symbol(
     let formatted = format_call_signature(
         function_name,
         signature,
-        &session.artifacts,
+        &ctx.program.artifacts,
         ctx.module_id,
         &dir_tree,
         &types,

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::common::{
     QueryContext, clean_expression_text, get_canonical_symbol, get_module_by_file_id,
-    get_symbol_definition_span, is_simple_identifier, line_start_and_indent,
+    get_symbol_definition_span, is_simple_identifier, line_start_and_indent, query_context,
     resolve_extract_expression, resolve_symbol_name, span_contains_span, span_for_dir_node,
     statement_span_for_expression,
 };
@@ -74,7 +74,7 @@ pub fn extract_function(
     // resolve the module and query context
     let module = get_module_by_file_id(session, file)?;
     let module = module.read();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = query_context(session, &module)?;
 
     // resolve source text for edits
     let source_file = session.files.get(file);
@@ -164,7 +164,7 @@ fn extract_expression(
         let ty = types.get_type(type_id);
         format_type_for_inlay_hint(
             ty,
-            &session.artifacts,
+            &ctx.program.artifacts,
             &types,
             &session.modules,
             &session.strings,
@@ -488,7 +488,7 @@ fn collect_output_symbols(
                 let ty = types.get_type(type_id);
                 format_type_for_inlay_hint(
                     ty,
-                    &session.artifacts,
+                    &ctx.program.artifacts,
                     &types,
                     &session.modules,
                     &session.strings,
@@ -690,7 +690,7 @@ fn collect_free_variables(
                 let ty = types.get_type(type_id);
                 format_type_for_inlay_hint(
                     ty,
-                    &session.artifacts,
+                    &ctx.program.artifacts,
                     &types,
                     &session.modules,
                     &session.strings,
@@ -710,7 +710,7 @@ fn symbol_mutability(session: &Session, symbol_id: dir::GlobalSymbolId) -> Optio
     // resolve the mutability for the symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = query_context(session, &module)?;
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     symbol.binding_mutability
@@ -733,7 +733,7 @@ fn symbol_type_text(
         let type_id = ctx.get_node_type(declaration.local_id)?;
         let type_text = format_local_type(
             type_id,
-            &session.artifacts,
+            &ctx.program.artifacts,
             &ctx.types(),
             &session.modules,
             &session.strings,
@@ -748,7 +748,7 @@ fn symbol_type_text(
     // resolve the declaration node for the symbol in its module
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = query_context(session, &module)?;
     let declaration = {
         let symbols = ctx.symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -758,7 +758,7 @@ fn symbol_type_text(
     let type_id = ctx.get_node_type(declaration.local_id)?;
     let type_text = format_local_type(
         type_id,
-        &session.artifacts,
+        &ctx.program.artifacts,
         &ctx.types(),
         &session.modules,
         &session.strings,

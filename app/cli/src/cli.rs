@@ -8,6 +8,8 @@ use crate::{
 };
 
 #[cfg(feature = "dev")]
+use crate::command::dev::{release, resolve, stats, version as dev_version, VersionCommands};
+#[cfg(feature = "dev")]
 use crate::command::DevCommand;
 use crate::command::{
     BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, ConfigArgs, DaemonArgs,
@@ -168,17 +170,13 @@ impl Command {
             Self::Repl(args) => repl::run(&args),
             #[cfg(feature = "dev")]
             Self::Dev(subcommand) => match subcommand {
-                DevCommand::Resolve(args) => crate::command::dev::resolve::run(&args),
-                DevCommand::Stats(args) => crate::command::dev::stats::run(&args),
-                DevCommand::Release(args) => crate::command::dev::release::run(&args),
+                DevCommand::Resolve(args) => resolve::run(&args),
+                DevCommand::Stats(args) => stats::run(&args),
+                DevCommand::Release(args) => release::run(&args),
                 DevCommand::Version(cmd) => match cmd {
-                    crate::command::dev::VersionCommands::Show => {
-                        crate::command::dev::version::show()
-                    }
-                    crate::command::dev::VersionCommands::Check => {
-                        crate::command::dev::version::check()
-                    }
-                    cmd => crate::command::dev::version::bump(&cmd),
+                    VersionCommands::Show => dev_version::show(),
+                    VersionCommands::Check => dev_version::check(),
+                    cmd => dev_version::bump(&cmd),
                 },
             },
         }

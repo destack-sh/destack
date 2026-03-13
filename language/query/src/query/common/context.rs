@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use destack_dir::{self as dir};
 use destack_source::{FileId, ModuleId, ProfileId};
-use destack_workspace::{Module, ModuleAst, ModuleDirData, Session};
+use destack_workspace::{Module, ModuleAst, ModuleDirData, Program, Session};
 
-use super::get_module_by_file_id;
+use super::{get_module_by_file_id, program_for_module};
 
 /// Query context for a module.
 ///
@@ -12,6 +12,8 @@ use super::get_module_by_file_id;
 /// Created via [`query_context`] or [`query_context_with_profile`].
 #[derive(Debug)]
 pub struct QueryContext<'a> {
+    /// The owning program.
+    pub program: Arc<Program>,
     /// The module AST (syntax tree and strings).
     pub ast: &'a ModuleAst,
     /// The module DIR (semantic IR).
@@ -66,29 +68,40 @@ impl<'a> QueryContext<'a> {
 ///
 /// Returns `None` if AST or DIR is not available for the module.
 pub fn query_context<'a>(session: &Session, module: &'a Module) -> Option<QueryContext<'a>> {
-    // resolve default profile
-    let profile = session.default_profile_for_module(module.id);
+    // resolve the owning program and its default profile
+    let program = program_for_module(session, module);
+    let profile = program.default_profile_id_for_module(module.id);
 
     // build query context
-    query_context_with_profile(session, module, profile)
+    query_context_with_program_and_profile(module, program, profile)
 }
 
 /// Get query context for a module with an explicit profile.
 ///
 /// Returns `None` if AST or DIR is not available for the module/profile.
 pub fn query_context_with_profile<'a>(
-    _session: &Session,
+    session: &Session,
     module: &'a Module,
     profile: ProfileId,
 ) -> Option<QueryContext<'a>> {
-    // resolve module ast
-    let ast = module.ast_maybe()?;
+    // resolve the owning program and profile dir snapshot
+    let program = program_for_module(session, module);
+    query_context_with_program_and_profile(module, program, profile)
+}
 
-    // resolve profile and base dirs for selection
-    let dir = _session.artifacts.dir_snapshot(module.id, profile)?;
+/// Get query context for a module with an explicit program and profile.
+fn query_context_with_program_and_profile<'a>(
+    module: &'a Module,
+    program: Arc<Program>,
+    profile: ProfileId,
+) -> Option<QueryContext<'a>> {
+    // resolve module ast and profile dir snapshot
+    let ast = module.ast_maybe()?;
+    let dir = program.artifacts.dir_snapshot(module.id, profile)?;
 
     // build query context
     Some(QueryContext {
+        program,
         ast,
         dir,
         profile_id: profile,

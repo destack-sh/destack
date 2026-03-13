@@ -194,7 +194,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
                     // format a widened display type for literal values
                     let type_str = format_type_for_inlay_hint(
                         ty,
-                        &session.artifacts,
+                        &ctx.program.artifacts,
                         &types,
                         &session.modules,
                         &session.strings,

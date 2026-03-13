@@ -45,11 +45,14 @@ pub fn generate_module(
     let module_ref = program.modules.get(module_id);
     let module = module_ref.read();
     let ast = module.ast();
-    let dir = module.dir(profile);
-    let dir_tree = dir.tree.read();
+    let dir = program
+        .artifacts
+        .dir_snapshot(module_id, profile)
+        .unwrap_or_else(|| panic!("missing committed dir artifact for {module_id:?}"));
+    let dir_tree = &dir.tree;
     let dir_roots = dir.roots.clone();
-    let symbols = dir.symbols.read();
-    let types = dir.types.read();
+    let symbols = &dir.symbols;
+    let types = &dir.types;
 
     // get package path and root_dir for output path resolution
     let package = program.packages.get(module.package_id);

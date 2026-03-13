@@ -273,7 +273,10 @@ impl LintRunner {
         mut performance: Option<&mut LintPerformanceReport>,
     ) -> Vec<LintDiagnostic> {
         let module = module.read();
-        let ast = &module.ast();
+        let ast = program
+            .artifacts
+            .ast(module.id)
+            .expect("lint AST pass requires committed AST artifact");
         let file = program.files.get(module.file_id);
         let mut ctx = LintModuleAstContext::new(
             program,
@@ -333,15 +336,15 @@ impl LintRunner {
     ) -> Vec<LintDiagnostic> {
         // context
         let module = module.read();
-        let ast = &module.ast();
+        let ast = program
+            .artifacts
+            .ast(module.id)
+            .expect("lint DIR pass requires committed AST artifact");
         let file = program.files.get(module.file_id);
-        let dir = module.dir(profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let types = dir.types.read();
-        let namespace_exports = dir.namespace_exports.read();
-        let imported_modules = dir.imported_modules.read();
-        let exported_symbols = dir.exported_symbols.read();
+        let dir = program
+            .artifacts
+            .dir_analyzed(module.id, profile)
+            .expect("lint DIR pass requires committed analyzed DIR artifact");
 
         let mut ctx = LintModuleDirContext::new(
             program,
@@ -349,19 +352,19 @@ impl LintRunner {
             profile,
             file,
             &ast.tree,
-            &tree,
-            &symbols,
-            &types,
+            &dir.tree,
+            &dir.symbols,
+            &dir.types,
             dir.roots.clone(),
             dir.namespace_symbol,
             dir.namespace_scope,
             dir.default_symbol,
-            namespace_exports
+            dir.namespace_exports
                 .iter()
                 .map(|export| export.module_id)
                 .collect(),
-            imported_modules.clone(),
-            exported_symbols.clone(),
+            dir.imported_modules.clone(),
+            dir.exported_symbols.clone(),
             options,
             self.compute_fixes,
         );

@@ -364,13 +364,17 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // inspect member declarations and reject static methods
         if primary_declaration.local_id.ty == dir::NodeType::Member {
-            let module_ref = self.ctx.program.modules.get(primary_declaration.module_id);
-            let module = module_ref.read();
-            let Some(module_dir) = module.dir_maybe(self.ctx.profile_id) else {
+            let Some(module_dir) = self
+                .ctx
+                .program
+                .artifacts
+                .dir_snapshot(primary_declaration.module_id, self.ctx.profile_id)
+            else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
-            let tree = module_dir.tree.read();
-            let member = tree.get(primary_declaration.into_local_typed::<dir::Member>());
+            let member = module_dir
+                .tree
+                .get(primary_declaration.into_local_typed::<dir::Member>());
             let dir::Member::Method { modifiers, .. } = member else {
                 return false;
             };
@@ -383,13 +387,17 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // inspect property declarations for method values
         if primary_declaration.local_id.ty == dir::NodeType::Property {
-            let module_ref = self.ctx.program.modules.get(primary_declaration.module_id);
-            let module = module_ref.read();
-            let Some(module_dir) = module.dir_maybe(self.ctx.profile_id) else {
+            let Some(module_dir) = self
+                .ctx
+                .program
+                .artifacts
+                .dir_snapshot(primary_declaration.module_id, self.ctx.profile_id)
+            else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
-            let tree = module_dir.tree.read();
-            let property = tree.get(primary_declaration.into_local_typed::<dir::Property>());
+            let property = module_dir
+                .tree
+                .get(primary_declaration.into_local_typed::<dir::Property>());
             return matches!(property, dir::Property::Method { .. });
         }
 
@@ -415,13 +423,15 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         }
 
         // load foreign module types for the `this` parameter check
-        let module_ref = self.ctx.program.modules.get(symbol_type_id.module_id);
-        let module = module_ref.read();
-        let Some(module_dir) = module.dir_maybe(self.ctx.profile_id) else {
+        let Some(module_dir) = self
+            .ctx
+            .program
+            .artifacts
+            .dir_snapshot(symbol_type_id.module_id, self.ctx.profile_id)
+        else {
             return false;
         };
-        let types = module_dir.types.read();
-        has_non_void_this_parameter_type(&types, symbol_type_id.type_id)
+        has_non_void_this_parameter_type(&module_dir.types, symbol_type_id.type_id)
     }
 }
 

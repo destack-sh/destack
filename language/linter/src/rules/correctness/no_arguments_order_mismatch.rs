@@ -349,11 +349,11 @@ fn parameter_names_for_symbol(
         return declaration_parameter_names(ctx.tree, declaration_id.local_id);
     }
 
-    let module_ref = ctx.program.modules.get(declaration_id.module_id);
-    let module = module_ref.read();
-    let module_dir = module.dir_maybe(ctx.profile_id)?;
-    let tree = module_dir.tree.read();
-    declaration_parameter_names(&tree, declaration_id.local_id)
+    let module_dir = ctx
+        .program
+        .artifacts
+        .dir_snapshot(declaration_id.module_id, ctx.profile_id)?;
+    declaration_parameter_names(&module_dir.tree, declaration_id.local_id)
 }
 
 /// Return dynamic parameter names for one declaration node id.

@@ -68,8 +68,11 @@ impl LanguageService {
         let module = module.read();
         let module_file_id = module.file_id;
         let module_source_version = module.source_version;
-        let ast_ready = module.ast_maybe().is_some();
-        let dir_ready = module.dir_maybe(profile_id).is_some();
+        let ast_ready = program.artifacts.ast(module_id).is_some();
+        let dir_ready = program
+            .artifacts
+            .dir_snapshot(module_id, profile_id)
+            .is_some();
         let semantic_query_ready = ast_ready && dir_ready;
         let detail = if semantic_query_ready {
             None

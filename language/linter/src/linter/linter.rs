@@ -150,12 +150,17 @@ impl Linter {
         }
 
         // require the AST product
-        if module.ast_maybe().is_none() {
+        if self.program.artifacts.ast(module_id).is_none() {
             return Err(LinterError::MissingAst { module_id });
         }
 
         // require the analyzed DIR product
-        if module.dir_maybe(profile_id).is_none() {
+        if self
+            .program
+            .artifacts
+            .dir_analyzed(module_id, profile_id)
+            .is_none()
+        {
             return Err(LinterError::MissingDir {
                 module_id,
                 profile_id,

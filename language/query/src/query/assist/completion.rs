@@ -14,12 +14,13 @@ use crate::common::{
     build_import_edits_with_mode, doc_text_for_symbol, dynamic_parameter_names,
     ensure_program_export_index, get_canonical_symbol, get_module_by_file_id,
     matches_symbol_space_filter, module_name_from_path, owned_scope_for_symbol,
-    path_component_count, path_distance, program_for_file, resolve_extension_members_for_symbol,
-    resolve_nominal_symbol_from_initializer, resolve_reference_members, resolve_symbol_name,
-    resolve_type_members, score_completion, search_importable_symbols_for_program, visible_symbols,
+    path_component_count, path_distance, program_for_file, query_context,
+    resolve_extension_members_for_symbol, resolve_nominal_symbol_from_initializer,
+    resolve_reference_members, resolve_symbol_name, resolve_type_members, score_completion,
+    search_importable_symbols_for_program, visible_symbols, QueryContext,
 };
 use crate::format::format_local_type;
-use destack_workspace::{Loader, Session};
+use destack_workspace::{ArtifactRegistry, Loader, Session};
 
 use crate::TokenAtCursor;
 
@@ -409,7 +410,7 @@ fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) 
     // read the symbol's module and build query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = query_context(session, &module)?;
 
     // load symbol and type tables
     let symbols = ctx.symbols();
@@ -423,7 +424,7 @@ fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) 
     // format the type using the symbol's module type table
     Some(format_local_type(
         type_id,
-        &session.artifacts,
+        &ctx.program.artifacts,
         &types,
         &session.modules,
         &session.strings,
@@ -433,6 +434,7 @@ fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) 
 /// Build a completion item from a resolved member entry.
 fn completion_for_member(
     session: &Session,
+    artifacts: &ArtifactRegistry,
     member: MemberInfo,
     types: Option<&dir::TypeTable>,
 ) -> Option<Completion> {
@@ -459,7 +461,7 @@ fn completion_for_member(
         if let Some(types) = types {
             let type_text = format_local_type(
                 member_type_id,
-                &session.artifacts,
+                artifacts,
                 types,
                 &session.modules,
                 &session.strings,
@@ -685,7 +687,7 @@ fn collect_visible_names(
     // resolve the module and query context
     let module = get_module_by_file_id(session, file_id)?;
     let module = module.read();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = query_context(session, &module)?;
     let symbols = ctx.symbols();
     let scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
 
@@ -1036,7 +1038,7 @@ fn complete_members(
         return Vec::new();
     };
     let module = module.read();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = query_context(session, &module) else {
         return Vec::new();
     };
     let current_module_id = ctx.module_id;
@@ -1061,7 +1063,9 @@ fn complete_members(
         let members = resolve_type_members(&types, &symbols, type_id, session, current_module_id);
 
         for member in members {
-            let Some(completion) = completion_for_member(session, member, Some(&types)) else {
+            let Some(completion) =
+                completion_for_member(session, &ctx.program.artifacts, member, Some(&types))
+            else {
                 continue;
             };
 
@@ -1077,7 +1081,9 @@ fn complete_members(
     if let Some(symbol_id) = receiver_symbol {
         let members = resolve_reference_members(symbol_id, session, current_module_id);
         for member in members {
-            let Some(completion) = completion_for_member(session, member, None) else {
+            let Some(completion) =
+                completion_for_member(session, &ctx.program.artifacts, member, None)
+            else {
                 continue;
             };
 
@@ -1096,7 +1102,7 @@ fn complete_members(
         } else {
             let symbol_module = session.modules.get(symbol_id.module_id);
             let symbol_module = symbol_module.read();
-            let symbol_ctx = crate::query_context(session, &symbol_module);
+            let symbol_ctx = query_context(session, &symbol_module);
             symbol_ctx.and_then(|symbol_ctx| {
                 resolve_nominal_symbol_from_initializer(session, &symbol_ctx, symbol_id)
             })
@@ -1107,7 +1113,9 @@ fn complete_members(
     if let Some(type_symbol) = type_symbol {
         let members = resolve_reference_members(type_symbol, session, current_module_id);
         for member in members {
-            let Some(completion) = completion_for_member(session, member, None) else {
+            let Some(completion) =
+                completion_for_member(session, &ctx.program.artifacts, member, None)
+            else {
                 continue;
             };
 
@@ -1121,7 +1129,7 @@ fn complete_members(
     if let Some(symbol_id) = receiver_symbol {
         let symbol_module = session.modules.get(symbol_id.module_id);
         let symbol_module = symbol_module.read();
-        let Some(symbol_ctx) = crate::query_context(session, &symbol_module) else {
+        let Some(symbol_ctx) = query_context(session, &symbol_module) else {
             return Vec::new();
         };
         let mut scoped_results = {
@@ -1160,7 +1168,7 @@ fn complete_members(
                             if let Some(type_id) = type_id {
                                 let type_text = format_local_type(
                                     type_id,
-                                    &session.artifacts,
+                                    &ctx.program.artifacts,
                                     &types,
                                     &session.modules,
                                     &session.strings,
@@ -1196,7 +1204,9 @@ fn complete_members(
             .collect();
 
         for member in extension_members {
-            let Some(completion) = completion_for_member(session, member, None) else {
+            let Some(completion) =
+                completion_for_member(session, &ctx.program.artifacts, member, None)
+            else {
                 continue;
             };
 
@@ -1221,7 +1231,7 @@ fn complete_members(
 
 /// Resolve a fallback type name from a receiver DIR node.
 fn ast_type_name_from_receiver_node(
-    ctx: &crate::common::QueryContext<'_>,
+    ctx: &QueryContext<'_>,
     receiver_node: dir::LocalNodeIdAny,
 ) -> Option<String> {
     let dir_tree = ctx.tree();
@@ -1399,7 +1409,7 @@ fn complete_object_literal(
             return results;
         };
         let module = module.read();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = query_context(session, &module) else {
             return results;
         };
         let types = ctx.types();
@@ -1435,7 +1445,7 @@ fn complete_object_literal(
             if let Some(member_type_id) = member.type_id {
                 let type_text = format_local_type(
                     member_type_id,
-                    &session.artifacts,
+                    &ctx.program.artifacts,
                     &types,
                     &session.modules,
                     &session.strings,
@@ -1453,7 +1463,7 @@ fn complete_object_literal(
             return results;
         };
         let module = module.read();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = query_context(session, &module) else {
             return results;
         };
         let symbols = ctx.symbols();
@@ -1499,7 +1509,7 @@ fn complete_types(
         return primitive_type_completions();
     };
     let module = module.read();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = query_context(session, &module) else {
         return primitive_type_completions();
     };
     let symbols = ctx.symbols();
@@ -1524,7 +1534,8 @@ fn complete_types(
             return symbol.ty;
         }
 
-        let Some(dir) = session
+        let Some(dir) = ctx
+            .program
             .artifacts
             .dir_snapshot(canonical_id.module_id, ctx.profile_id)
         else {
@@ -1700,7 +1711,7 @@ fn complete_values(
         return keyword_completions();
     };
     let module = module.read();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = query_context(session, &module) else {
         return keyword_completions();
     };
     let module_id = ctx.module_id;
@@ -1782,7 +1793,7 @@ fn complete_new_expression(
         return Vec::new();
     };
     let module = module.read();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = query_context(session, &module) else {
         return Vec::new();
     };
     let symbols = ctx.symbols();
@@ -1913,7 +1924,7 @@ fn complete_imports(
     // get module AST/DIR
     let module = session.modules.get(module_id);
     let module = module.read();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = query_context(session, &module) else {
         return Vec::new();
     };
     let symbols = ctx.symbols();
