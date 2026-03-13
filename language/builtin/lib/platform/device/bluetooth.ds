@@ -6,6 +6,20 @@ import {
     BluetoothSubscriptionHandle,
 } from "../resource/index.ds";
 
+/// Bluetooth adapter capability descriptor.
+export struct BluetoothAdapterCapabilities {
+    /// Whether the adapter supports Low Energy mode.
+    lowEnergy: boolean;
+    /// Whether the adapter supports Classic Bluetooth mode.
+    classic: boolean;
+    /// Whether the adapter supports central-role operations.
+    central: boolean;
+    /// Whether the adapter supports peripheral-role operations.
+    peripheral: boolean;
+    /// Whether the adapter supports extended advertising when known.
+    extendedAdvertising?: boolean;
+}
+
 /// Bluetooth adapter descriptor.
 export struct BluetoothAdapterDescriptor {
     /// Stable adapter identifier.
@@ -14,8 +28,12 @@ export struct BluetoothAdapterDescriptor {
     name: string;
     /// Whether the adapter is powered.
     powered: boolean;
-    /// Whether the adapter supports Low Energy mode.
-    lowEnergy: boolean;
+    /// Whether the adapter is currently discoverable when known.
+    discoverable?: boolean;
+    /// Whether the adapter is currently scanning or discovering when known.
+    discovering?: boolean;
+    /// Adapter capability descriptor.
+    capabilities: BluetoothAdapterCapabilities;
 }
 
 /// Bluetooth scan mode.
@@ -46,6 +64,14 @@ export enum BluetoothPhy {
     LeCoded = 3,
     /// Host default PHY policy.
     Any = 4,
+}
+
+/// Bluetooth GATT write mode.
+export enum BluetoothGattWriteMode {
+    /// Write with an ATT response.
+    WithResponse = 1,
+    /// Write without an ATT response.
+    WithoutResponse = 2,
 }
 
 /// Bluetooth advertisement manufacturer payload.
@@ -108,6 +134,8 @@ export struct BluetoothDeviceDescriptor {
     connected: boolean;
     /// Whether this advertisement indicates connectable state.
     connectable: boolean;
+    /// Host-reported transport classification when available.
+    transport?: BluetoothTransport;
     /// Advertisement payload.
     advertisement: BluetoothAdvertisementData;
 }
@@ -132,6 +160,28 @@ export struct BluetoothScanFilter {
     secondaryPhy?: BluetoothPhy;
 }
 
+/// GATT characteristic property set.
+export struct BluetoothGattCharacteristicProperties {
+    /// Whether broadcast writes are supported.
+    broadcast: boolean;
+    /// Whether characteristic reads are supported.
+    read: boolean;
+    /// Whether writes without response are supported.
+    writeWithoutResponse: boolean;
+    /// Whether writes with response are supported.
+    write: boolean;
+    /// Whether notifications are supported.
+    notify: boolean;
+    /// Whether indications are supported.
+    indicate: boolean;
+    /// Whether signed writes are supported.
+    authenticatedSignedWrites: boolean;
+    /// Whether reliable writes are supported.
+    reliableWrite: boolean;
+    /// Whether writable auxiliaries are supported.
+    writableAuxiliaries: boolean;
+}
+
 /// GATT value notification event.
 export struct BluetoothGattValueEvent {
     /// Event timestamp in nanoseconds.
@@ -143,6 +193,88 @@ export struct BluetoothGattValueEvent {
     /// Characteristic value bytes.
     value: Slice<uint8>;
 }
+
+/// Shared metadata for Bluetooth scan events.
+export struct BluetoothScanEventMetadata {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this scan stream.
+    sequence: uint64;
+    /// Device descriptor payload for this event.
+    device: BluetoothDeviceDescriptor;
+}
+
+/// Bluetooth scan discovered event.
+export struct BluetoothScanDiscoveredEvent {
+    /// Discriminator for this Bluetooth scan event variant.
+    kind: "discovered";
+    /// Shared event metadata.
+    metadata: BluetoothScanEventMetadata;
+}
+
+/// Bluetooth scan updated event.
+export struct BluetoothScanUpdatedEvent {
+    /// Discriminator for this Bluetooth scan event variant.
+    kind: "updated";
+    /// Shared event metadata.
+    metadata: BluetoothScanEventMetadata;
+}
+
+/// Bluetooth scan lost event.
+export struct BluetoothScanLostEvent {
+    /// Discriminator for this Bluetooth scan event variant.
+    kind: "lost";
+    /// Shared event metadata.
+    metadata: BluetoothScanEventMetadata;
+}
+
+/// Bluetooth scan event payload.
+export newtype BluetoothScanEvent =
+    | BluetoothScanDiscoveredEvent
+    | BluetoothScanUpdatedEvent
+    | BluetoothScanLostEvent;
+
+/// Shared metadata for Bluetooth session events.
+export struct BluetoothSessionEventMetadata {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this session event stream.
+    sequence: uint64;
+}
+
+/// Bluetooth session disconnected payload.
+export struct BluetoothSessionDisconnectedPayload {}
+
+/// Bluetooth session pair-state-changed payload.
+export struct BluetoothSessionPairStateChangedPayload {
+    /// Current pairing state.
+    pairState: BluetoothPairState;
+}
+
+/// Bluetooth session disconnected event.
+export struct BluetoothSessionDisconnectedEvent {
+    /// Discriminator for this Bluetooth session event variant.
+    kind: "disconnected";
+    /// Shared event metadata.
+    metadata: BluetoothSessionEventMetadata;
+    /// Session event payload.
+    payload: BluetoothSessionDisconnectedPayload;
+}
+
+/// Bluetooth session pair-state-changed event.
+export struct BluetoothSessionPairStateChangedEvent {
+    /// Discriminator for this Bluetooth session event variant.
+    kind: "pairStateChanged";
+    /// Shared event metadata.
+    metadata: BluetoothSessionEventMetadata;
+    /// Session event payload.
+    payload: BluetoothSessionPairStateChangedPayload;
+}
+
+/// Bluetooth session event payload.
+export newtype BluetoothSessionEvent =
+    | BluetoothSessionDisconnectedEvent
+    | BluetoothSessionPairStateChangedEvent;
 
 /// GATT service descriptor.
 export struct BluetoothGattServiceDescriptor {
@@ -158,8 +290,8 @@ export struct BluetoothGattCharacteristicDescriptor {
     serviceUuid: string;
     /// Characteristic UUID.
     uuid: string;
-    /// Characteristic property bitmask.
-    properties: uint32;
+    /// Characteristic property set.
+    properties: BluetoothGattCharacteristicProperties;
 }
 
 /// GATT descriptor descriptor.
@@ -230,7 +362,7 @@ declare namespace device {
     })
     export function bluetoothScanOpen(
         adapterId: string,
-        filter: BluetoothScanFilter,
+        filter?: BluetoothScanFilter,
     ): Result<BluetoothScanHandle, PlatformError>;
 
     /// Close Bluetooth scan session.
@@ -320,6 +452,67 @@ declare namespace device {
     })
     export function bluetoothScanTryRead(handle: BluetoothScanHandle): Result<BluetoothDeviceDescriptor, PlatformError>;
 
+    /// Wait for one Bluetooth scan event.
+    ///
+    /// Wait for one typed scan event from one opened scan session.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host Bluetooth scan event queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.scan`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.bluetooth.scan.readEvent", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.bluetooth.scan"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function bluetoothScanReadEvent(
+        handle: BluetoothScanHandle,
+        timeoutNs: uint64,
+    ): Result<BluetoothScanEvent, PlatformError>;
+
+    /// Poll one Bluetooth scan event without blocking.
+    ///
+    /// Poll one typed scan event from one opened scan session without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host nonblocking Bluetooth scan event reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.scan`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.bluetooth.scan.tryReadEvent", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.bluetooth.scan"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function bluetoothScanTryReadEvent(
+        handle: BluetoothScanHandle,
+    ): Result<BluetoothScanEvent, PlatformError>;
+
     /// Open Bluetooth device session.
     ///
     /// Open one device session for link and GATT operations.
@@ -378,6 +571,67 @@ declare namespace device {
         affinity: "any",
     })
     export function bluetoothClose(handle: BluetoothDeviceHandle): Result<void, PlatformError>;
+
+    /// Wait for one Bluetooth session event.
+    ///
+    /// Wait for one typed session event from one opened Bluetooth device session.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host Bluetooth link-state and pairing event queues where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.bluetooth.session.readEvent", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.bluetooth.connect"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function bluetoothSessionReadEvent(
+        handle: BluetoothDeviceHandle,
+        timeoutNs: uint64,
+    ): Result<BluetoothSessionEvent, PlatformError>;
+
+    /// Poll one Bluetooth session event without blocking.
+    ///
+    /// Poll one typed session event from one opened Bluetooth device session without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host nonblocking Bluetooth session event reads where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.bluetooth.session.tryReadEvent", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.bluetooth.connect"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function bluetoothSessionTryReadEvent(
+        handle: BluetoothDeviceHandle,
+    ): Result<BluetoothSessionEvent, PlatformError>;
 
     /// Pair one Bluetooth device.
     ///
@@ -727,7 +981,7 @@ declare namespace device {
 
     /// Write one GATT characteristic value.
     ///
-    /// Write one characteristic value on one connected Bluetooth device session.
+    /// Write one characteristic value on one connected Bluetooth device session with one explicit ATT write mode.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -756,7 +1010,7 @@ declare namespace device {
         serviceUuid: string,
         characteristicUuid: string,
         value: Slice<uint8>,
-        withResponse: boolean,
+        mode: BluetoothGattWriteMode,
         timeoutNs: uint64,
     ): Result<void, PlatformError>;
 

@@ -6,14 +6,32 @@ import { CameraDeviceHandle, CameraStreamHandle } from "../resource/index.ds";
 export struct CameraDeviceDescriptor {
     /// Stable camera endpoint identifier.
     id: string;
+    /// Shared physical-device group identifier when available.
+    groupId?: string;
     /// Host-visible endpoint name.
     name: string;
     /// Host-visible endpoint manufacturer string when available.
     manufacturer?: string;
-    /// Whether the endpoint is front-facing.
-    frontFacing: boolean;
+    /// Host-reported facing mode.
+    facingMode: CameraFacingMode;
     /// Whether the endpoint is depth-capable.
     depthCapable: boolean;
+}
+
+/// Camera facing mode.
+export enum CameraFacingMode {
+    /// Host did not provide a stronger facing-mode classification.
+    Unknown = 1,
+    /// User-facing camera.
+    User = 2,
+    /// Environment-facing camera.
+    Environment = 3,
+    /// Left-facing camera.
+    Left = 4,
+    /// Right-facing camera.
+    Right = 5,
+    /// External or detached camera.
+    External = 6,
 }
 
 /// Camera pixel format.
@@ -28,6 +46,26 @@ export enum CameraPixelFormat {
     Jpeg = 4,
 }
 
+/// Camera pixel-format family.
+export enum CameraPixelFormatFamily {
+    /// Packed RGB-family pixel data.
+    PackedRgb = 1,
+    /// Planar YUV-family pixel data.
+    PlanarYuv = 2,
+    /// Encoded or compressed pixel data.
+    Encoded = 3,
+}
+
+/// Camera pixel-format descriptor.
+export struct CameraPixelFormatDescriptor {
+    /// Specific pixel format selector.
+    format: CameraPixelFormat;
+    /// Higher-level pixel-format family.
+    family: CameraPixelFormatFamily;
+    /// Whether the pixel payload is compressed or encoded.
+    compressed: boolean;
+}
+
 /// Camera stream configuration.
 export struct CameraStreamConfig {
     /// Frame width in pixels.
@@ -36,8 +74,8 @@ export struct CameraStreamConfig {
     height: uint32;
     /// Frame rate in milli-frames-per-second.
     frameRateMilliHz: uint32;
-    /// Pixel format selector.
-    format: CameraPixelFormat;
+    /// Pixel format descriptor.
+    pixelFormat: CameraPixelFormatDescriptor;
 }
 
 /// Camera color space selector.
@@ -130,8 +168,8 @@ export struct CameraFrame {
     width: uint32;
     /// Frame height in pixels.
     height: uint32;
-    /// Frame pixel format.
-    format: CameraPixelFormat;
+    /// Frame pixel-format descriptor.
+    pixelFormat: CameraPixelFormatDescriptor;
     /// Frame color-space metadata.
     colorSpace: CameraColorSpace;
     /// Plane layout descriptors for this frame.
@@ -151,38 +189,64 @@ export struct CameraStreamCapability {
     minimumFrameRateMilliHz: uint32;
     /// Maximum supported frame rate in milli-frames-per-second.
     maximumFrameRateMilliHz: uint32;
-    /// Dynamic-range mode bitmask.
-    dynamicRangeMask: uint32;
-    /// Stabilization-mode bitmask.
-    stabilizationModeMask: uint32;
+    /// Supported dynamic-range modes.
+    dynamicRanges: Slice<CameraDynamicRange>;
+    /// Supported stabilization modes.
+    stabilizationModes: Slice<CameraStabilizationMode>;
 }
 
-/// Camera control selector.
-export enum CameraControl {
-    /// Exposure compensation control.
-    Exposure = 1,
-    /// White-balance control.
-    WhiteBalance = 2,
-    /// Focus-distance control.
-    Focus = 3,
-    /// Digital-zoom ratio control.
-    Zoom = 4,
-}
-
-/// Camera control range descriptor.
-export struct CameraControlRange {
-    /// Control selector.
-    control: CameraControl;
-    /// Minimum normalized control value.
-    minimum: float64;
-    /// Maximum normalized control value.
-    maximum: float64;
-    /// Default normalized control value.
-    defaultValue: float64;
-    /// Step size for discrete controls, zero for continuous controls.
-    step: float64;
-    /// Whether host auto mode is supported for this control.
+/// Camera exposure-compensation range descriptor.
+export struct CameraExposureCompensationRange {
+    /// Minimum supported compensation in EV units.
+    minimumEv: float64;
+    /// Maximum supported compensation in EV units.
+    maximumEv: float64;
+    /// Default compensation in EV units.
+    defaultEv: float64;
+    /// Step size in EV units, zero for continuous controls.
+    stepEv: float64;
+    /// Whether host auto exposure is supported.
     autoSupported: boolean;
+}
+
+/// Camera white-balance range descriptor.
+export struct CameraWhiteBalanceRange {
+    /// Minimum supported white-balance value in kelvin.
+    minimumKelvin: uint32;
+    /// Maximum supported white-balance value in kelvin.
+    maximumKelvin: uint32;
+    /// Default white-balance value in kelvin.
+    defaultKelvin: uint32;
+    /// Step size in kelvin, zero for continuous controls.
+    stepKelvin: uint32;
+    /// Whether host auto white-balance is supported.
+    autoSupported: boolean;
+}
+
+/// Camera focus-distance range descriptor.
+export struct CameraFocusDistanceRange {
+    /// Minimum supported focus distance in diopters.
+    minimumDiopters: float64;
+    /// Maximum supported focus distance in diopters.
+    maximumDiopters: float64;
+    /// Default focus distance in diopters.
+    defaultDiopters: float64;
+    /// Step size in diopters, zero for continuous controls.
+    stepDiopters: float64;
+    /// Whether host auto focus is supported.
+    autoSupported: boolean;
+}
+
+/// Camera zoom-ratio range descriptor.
+export struct CameraZoomRatioRange {
+    /// Minimum supported zoom ratio.
+    minimumRatio: float64;
+    /// Maximum supported zoom ratio.
+    maximumRatio: float64;
+    /// Default zoom ratio.
+    defaultRatio: float64;
+    /// Step size for discrete zoom ratios, zero for continuous controls.
+    stepRatio: float64;
 }
 
 /// Camera bindings.
@@ -501,13 +565,41 @@ declare namespace device {
     })
     export function cameraStreamTryRead(handle: CameraStreamHandle): Result<CameraFrame, PlatformError>;
 
-    /// Set one camera control value.
+    /// Read current camera stream configuration.
     ///
-    /// Apply one normalized camera control value in one running stream.
+    /// Read one active stream-configuration snapshot for one opened camera stream.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend camera control APIs where available.
+    /// Uses backend stream settings and active-format query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.capture`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.config", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.capture"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function cameraStreamConfig(handle: CameraStreamHandle): Result<CameraStreamConfig, PlatformError>;
+
+    /// Set camera exposure compensation.
+    ///
+    /// Apply one exposure-compensation value in EV units on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend exposure-compensation control APIs where available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -517,7 +609,7 @@ declare namespace device {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.device.camera.stream.setControl", {
+    @binding("destack.device.camera.stream.setExposureCompensation", {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.camera.control"],
@@ -527,19 +619,18 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamSetControl(
+    export function cameraStreamSetExposureCompensation(
         handle: CameraStreamHandle,
-        control: CameraControl,
-        value: float64,
+        valueEv: float64,
     ): Result<void, PlatformError>;
 
-    /// Read one camera control value.
+    /// Read camera exposure compensation.
     ///
-    /// Read one normalized camera control value from one running stream.
+    /// Read one exposure-compensation value in EV units from one opened camera stream.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend camera control query APIs where available.
+    /// Uses backend exposure-compensation query APIs where available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -549,7 +640,7 @@ declare namespace device {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.device.camera.stream.getControl", {
+    @binding("destack.device.camera.stream.exposureCompensation", {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.camera.control"],
@@ -559,18 +650,17 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamGetControl(
+    export function cameraStreamExposureCompensation(
         handle: CameraStreamHandle,
-        control: CameraControl,
     ): Result<float64, PlatformError>;
 
-    /// Read one camera control range.
+    /// Read exposure-compensation range.
     ///
-    /// Read one normalized camera control range descriptor for one opened stream.
+    /// Read one exposure-compensation range descriptor for one opened camera stream.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend camera control capability query APIs where available.
+    /// Uses backend exposure-compensation capability query APIs where available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -580,7 +670,7 @@ declare namespace device {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.device.camera.stream.controlRange", {
+    @binding("destack.device.camera.stream.exposureCompensationRange", {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.camera.control"],
@@ -590,10 +680,282 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function cameraStreamControlRange(
+    export function cameraStreamExposureCompensationRange(
         handle: CameraStreamHandle,
-        control: CameraControl,
-    ): Result<CameraControlRange, PlatformError>;
+    ): Result<CameraExposureCompensationRange, PlatformError>;
+
+    /// Set camera white balance.
+    ///
+    /// Apply one white-balance value in kelvin on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend white-balance control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.setWhiteBalanceKelvin", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function cameraStreamSetWhiteBalanceKelvin(
+        handle: CameraStreamHandle,
+        kelvin: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Read camera white balance.
+    ///
+    /// Read one white-balance value in kelvin from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend white-balance query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.whiteBalanceKelvin", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function cameraStreamWhiteBalanceKelvin(
+        handle: CameraStreamHandle,
+    ): Result<uint32, PlatformError>;
+
+    /// Read white-balance range.
+    ///
+    /// Read one white-balance range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend white-balance capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.whiteBalanceRange", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function cameraStreamWhiteBalanceRange(
+        handle: CameraStreamHandle,
+    ): Result<CameraWhiteBalanceRange, PlatformError>;
+
+    /// Set camera focus distance.
+    ///
+    /// Apply one focus-distance value in diopters on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend focus-distance control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.setFocusDistanceDiopters", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function cameraStreamSetFocusDistanceDiopters(
+        handle: CameraStreamHandle,
+        diopters: float64,
+    ): Result<void, PlatformError>;
+
+    /// Read camera focus distance.
+    ///
+    /// Read one focus-distance value in diopters from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend focus-distance query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.focusDistanceDiopters", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function cameraStreamFocusDistanceDiopters(
+        handle: CameraStreamHandle,
+    ): Result<float64, PlatformError>;
+
+    /// Read focus-distance range.
+    ///
+    /// Read one focus-distance range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend focus-distance capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.focusDistanceRange", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function cameraStreamFocusDistanceRange(
+        handle: CameraStreamHandle,
+    ): Result<CameraFocusDistanceRange, PlatformError>;
+
+    /// Set camera zoom ratio.
+    ///
+    /// Apply one digital zoom ratio on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend zoom control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.setZoomRatio", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function cameraStreamSetZoomRatio(
+        handle: CameraStreamHandle,
+        ratio: float64,
+    ): Result<void, PlatformError>;
+
+    /// Read camera zoom ratio.
+    ///
+    /// Read one digital zoom ratio from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend zoom query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.zoomRatio", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function cameraStreamZoomRatio(
+        handle: CameraStreamHandle,
+    ): Result<float64, PlatformError>;
+
+    /// Read zoom-ratio range.
+    ///
+    /// Read one zoom-ratio range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend zoom capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.zoomRatioRange", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function cameraStreamZoomRatioRange(
+        handle: CameraStreamHandle,
+    ): Result<CameraZoomRatioRange, PlatformError>;
 
     /// Set camera exposure mode.
     ///
