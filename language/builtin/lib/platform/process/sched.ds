@@ -1,11 +1,6 @@
 import type { PlatformError } from "../error/index.ds";
+import { ThreadCpuSet } from "../thread/scheduling.ds";
 import { ProcessId } from "./ids.ds";
-
-/// CPU affinity set.
-export struct ProcessCpuSet {
-    /// CPU indices in the affinity set.
-    cpus: uint32[];
-}
 
 /// Process scheduler policy.
 export enum ProcessSchedulerPolicy {
@@ -97,12 +92,14 @@ declare namespace process {
 
     /// Read process CPU affinity.
     ///
-    /// Read the active CPU affinity mask for the target process identifier.
-    /// Returned CPUs reflect host scheduler topology visibility.
+    /// Read the active logical-processor affinity set for the target process identifier.
+    /// Unix targets always report group `0`.
+    /// Windows reports group-local logical processors for the active process affinity.
+    /// Newer Windows hosts use processor-group CPU-set masks when available and otherwise fall back to legacy single-group process affinity.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses sched_getaffinity(2) on Unix and GetProcessAffinityMask on Windows.
+    /// Uses sched_getaffinity(2) on Unix and process affinity APIs on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -122,16 +119,17 @@ declare namespace process {
         blocking: "never",
         affinity: "any",
     })
-    export function getAffinity(pid: ProcessId): Result<ProcessCpuSet, PlatformError>;
+    export function getAffinity(pid: ProcessId): Result<ThreadCpuSet, PlatformError>;
 
     /// Set process CPU affinity.
     ///
-    /// Set the CPU affinity mask for the target process identifier.
-    /// Invalid CPU sets and privilege violations are rejected by the host scheduler.
+    /// Set one logical-processor affinity set for the target process identifier.
+    /// Unix targets require every entry to use group `0`.
+    /// Newer Windows hosts apply processor-group CPU-set masks when available and otherwise fall back to legacy single-group process affinity.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses sched_setaffinity(2) on Unix and SetProcessAffinityMask on Windows.
+    /// Uses sched_setaffinity(2) on Unix and process affinity APIs on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -151,7 +149,7 @@ declare namespace process {
         blocking: "never",
         affinity: "any",
     })
-    export function setAffinity(pid: ProcessId, cpus: ProcessCpuSet): Result<void, PlatformError>;
+    export function setAffinity(pid: ProcessId, cpus: ThreadCpuSet): Result<void, PlatformError>;
 
     /// Read scheduler policy and priority for a process.
     ///

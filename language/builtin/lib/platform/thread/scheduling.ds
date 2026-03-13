@@ -1,6 +1,21 @@
 import type { PlatformError } from "../error/index.ds";
 import { ThreadHandle } from "../resource/index.ds";
 
+/// Logical processor identifier for thread affinity.
+export struct ThreadCpu {
+    /// Processor group on hosts that partition logical processors.
+    /// Unix targets always use `0`.
+    group: uint16;
+    /// Logical processor index within the processor group.
+    cpu: uint16;
+}
+
+/// CPU affinity set for one thread.
+export struct ThreadCpuSet {
+    /// Logical processors in the affinity set.
+    cpus: ThreadCpu[];
+}
+
 /// Thread scheduling bindings.
 declare namespace thread {
     /// Set thread priority.
@@ -61,14 +76,15 @@ declare namespace thread {
     })
     export function getPriority(handle: ThreadHandle): Result<int32, PlatformError>;
 
-    /// Set thread affinity mask.
+    /// Set thread CPU affinity.
     ///
-    /// Bind one thread to a CPU affinity mask.
-    /// Affinity mask semantics are host scheduler-defined.
+    /// Bind one thread to one set of logical processors.
+    /// Unix targets interpret every entry with group `0`.
+    /// Windows maps entries to processor groups and group-local logical processors.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses sched affinity APIs on Unix and SetThreadAffinityMask on Windows.
+    /// Uses pthread affinity APIs on Unix and SetThreadGroupAffinity on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -88,16 +104,20 @@ declare namespace thread {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function setAffinity(handle: ThreadHandle, mask: uint64): Result<void, PlatformError>;
+    export function setAffinity(
+        handle: ThreadHandle,
+        cpus: ThreadCpuSet,
+    ): Result<void, PlatformError>;
 
-    /// Read thread affinity mask.
+    /// Read thread CPU affinity.
     ///
-    /// Read one thread CPU affinity mask.
-    /// Affinity mask width and normalization are host-architecture dependent.
+    /// Read one thread logical-processor affinity set.
+    /// Unix targets always report group `0`.
+    /// Windows reports group-local logical processors for the active thread affinity.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses sched affinity APIs on Unix and GetThreadGroupAffinity on Windows.
+    /// Uses pthread affinity APIs on Unix and GetThreadGroupAffinity on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -117,5 +137,5 @@ declare namespace thread {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function getAffinity(handle: ThreadHandle): Result<uint64, PlatformError>;
+    export function getAffinity(handle: ThreadHandle): Result<ThreadCpuSet, PlatformError>;
 }

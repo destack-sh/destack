@@ -10,7 +10,7 @@ declare namespace thread {
     /// # Platform
     /// Unix and Windows.
     /// Uses futex wait on Linux and WaitOnAddress on Windows.
-    /// Other Unix targets use one runtime-managed process-local wait table.
+    /// Other Unix targets currently return notSupported.
     ///
     /// # Errors
     /// Returns invalidArgument, ioTimedOut, ioWouldBlock, notSupported.
@@ -44,7 +44,7 @@ declare namespace thread {
     /// # Platform
     /// Unix and Windows.
     /// Uses futex wake on Linux and WakeByAddressSingle on Windows.
-    /// Other Unix targets use one runtime-managed process-local wait table.
+    /// Other Unix targets currently return notSupported.
     ///
     /// # Errors
     /// Returns invalidArgument, ioWouldBlock, notSupported.
@@ -74,7 +74,7 @@ declare namespace thread {
     /// # Platform
     /// Unix and Windows.
     /// Uses futex wake on Linux and WakeByAddressAll on Windows.
-    /// Other Unix targets use one runtime-managed process-local wait table.
+    /// Other Unix targets currently return notSupported.
     ///
     /// # Errors
     /// Returns invalidArgument, ioWouldBlock, notSupported.
