@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-use crate::platform::service::CachedServiceHandle;
+use crate::runtime::process::service::CachedServiceHandle;
 
 #[cfg(target_os = "macos")]
 use super::unix::{AppKitDisplayService, AppKitRuntimeState};

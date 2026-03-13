@@ -6,10 +6,10 @@ use objc2_core_graphics::{
 };
 
 use crate::platform::display::unix::appkit::event as appkit_event;
-use crate::platform::service::affinity::{ServiceAffinity, ServiceHostLoop};
-use crate::platform::service::executor::host::HostLoopExecutor;
-use crate::platform::service::global_service;
-use crate::platform::service::registry::global_service_if_initialized;
+use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceHostLoop};
+use crate::runtime::process::service::executor::host::HostLoopExecutor;
+use crate::runtime::process::service::global_service;
+use crate::runtime::process::service::registry::global_service_if_initialized;
 use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
 
 use super::core::warn_callback_error;

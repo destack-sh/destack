@@ -28,11 +28,11 @@ use crate::platform::input::{
     validation as input_validation,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-#[cfg(target_os = "linux")]
-use crate::platform::service::global_service;
 use crate::platform::{NativeArray, PlatformError, resource};
 #[cfg(not(target_os = "linux"))]
 use crate::runtime::BindingCallContext;
+#[cfg(target_os = "linux")]
+use crate::runtime::process::service::global_service;
 #[cfg(target_os = "linux")]
 use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
 

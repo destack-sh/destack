@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
-use crate::platform::service::global_service;
+use crate::runtime::process::service::global_service;
 
 use super::super::executor::host::HostLoopExecutor;
 

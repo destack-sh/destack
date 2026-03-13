@@ -7,3 +7,5 @@ pub(crate) mod unix;
 pub(crate) mod windows;
 
 pub(crate) use registry::{CachedServiceHandle, global_service};
+
+// FUGU #Architecture: cleanup

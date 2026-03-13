@@ -61,8 +61,8 @@ use crate::platform::input::{
     InputScrollEventPayload, InputSensorDescriptor, InputSensorKind, InputSensorSample,
     InputTouchContactPhase, InputTouchContactState, InputTouchState,
 };
-use crate::platform::service::global_service;
 use crate::platform::{PlatformError, core as core_platform};
+use crate::runtime::process::service::global_service;
 use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
 
 /// Prefix for monitor event device identifiers derived from raw device handles.

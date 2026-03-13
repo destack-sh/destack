@@ -1,3 +1,5 @@
+use crate::diagnostic::RuntimeResult;
+
 /// One caller-thread executor for one host-affine platform service.
 #[cfg_attr(
     any(target_os = "ios", target_os = "android", windows),
@@ -19,8 +21,8 @@ impl CallerThreadExecutor {
     pub(crate) fn call<R>(
         &self,
         _operation: &'static str,
-        callback: impl FnOnce() -> crate::diagnostic::RuntimeResult<R>,
-    ) -> crate::diagnostic::RuntimeResult<R> {
+        callback: impl FnOnce() -> RuntimeResult<R>,
+    ) -> RuntimeResult<R> {
         callback()
     }
 }

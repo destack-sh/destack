@@ -111,6 +111,7 @@ impl<T> BoundedQueue<T> {
     }
 
     /// Pop one item, waiting up to one timeout.
+    #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
     pub(crate) fn pop_with_timeout(&self, timeout: Duration) -> Option<T> {
         if let Some(item) = self.try_pop() {
             return Some(item);
@@ -133,6 +134,7 @@ impl<T> BoundedQueue<T> {
     }
 
     /// Pop up to one batch, waiting up to one timeout.
+    #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
     pub(crate) fn pop_batch_with_timeout(&self, max_items: usize, timeout: Duration) -> Vec<T> {
         let batch = self.try_pop_batch(max_items);
         if !batch.is_empty() {
@@ -158,6 +160,7 @@ impl<T> BoundedQueue<T> {
     }
 
     /// Close the queue and wake waiters.
+    #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
     pub(crate) fn close(&self) {
         let mut state = self.state.lock();
         state.is_closed = true;

@@ -8,9 +8,9 @@ use crate::diagnostic::RuntimeError;
 #[cfg(any(target_os = "linux", windows))]
 use crate::diagnostic::RuntimeResult;
 #[cfg(any(target_os = "linux", windows))]
-use crate::platform::service::CachedServiceHandle;
-#[cfg(any(target_os = "linux", windows))]
 use crate::runtime::BindingCallContext;
+#[cfg(any(target_os = "linux", windows))]
+use crate::runtime::process::service::CachedServiceHandle;
 
 #[cfg(target_os = "linux")]
 use super::host::{
