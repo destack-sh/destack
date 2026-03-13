@@ -1,6 +1,7 @@
 use super::abi::HOST_STATUS_NOT_SUPPORTED;
 use super::credentials::AndroidHostCredentialsCallbacks;
 use super::crypto::AndroidHostCryptoCallbacks;
+use super::midi::AndroidHostMidiCallbacks;
 use super::registry::{register_android_bindings, resolve_android_bindings};
 
 /// Android host bindings container for callback-backed lanes.
@@ -11,6 +12,8 @@ pub struct AndroidHostBindings {
     pub credentials: AndroidHostCredentialsCallbacks,
     /// Crypto host callbacks.
     pub crypto: AndroidHostCryptoCallbacks,
+    /// MIDI host callbacks.
+    pub midi: AndroidHostMidiCallbacks,
 }
 
 /// Register one callback table for Android host interop through one C ABI entrypoint.

@@ -15,6 +15,8 @@ mod ffi;
 #[cfg(target_os = "android")]
 mod message;
 #[cfg(any(test, target_os = "android"))]
+mod midi;
+#[cfg(any(test, target_os = "android"))]
 mod registry;
 #[cfg(test)]
 mod tests;
@@ -78,6 +80,27 @@ pub use ffi::{
     destack_host_android_notify_permission_result, destack_host_android_notify_power_mode_changed,
     destack_host_android_notify_thermal_state_changed, destack_host_android_notify_wake,
     destack_host_android_notify_wall_clock_changed,
+};
+#[cfg(any(test, target_os = "android"))]
+pub use midi::{
+    AndroidHostMidiCallbacks, AndroidHostMidiDescribeBackendCallback,
+    AndroidHostMidiEventCloseCallback, AndroidHostMidiEventHeader,
+    AndroidHostMidiEventOpenCallback, AndroidHostMidiEventReadCallback,
+    AndroidHostMidiInputPortCloseCallback, AndroidHostMidiInputPortListCallback,
+    AndroidHostMidiInputPortOpenCallback, AndroidHostMidiInputReadCallback,
+    AndroidHostMidiInputRecordHeader, AndroidHostMidiInputVirtualCreateCallback,
+    AndroidHostMidiOpenedPortHeader, AndroidHostMidiOutputFlushCallback,
+    AndroidHostMidiOutputPortCloseCallback, AndroidHostMidiOutputPortListCallback,
+    AndroidHostMidiOutputPortOpenCallback, AndroidHostMidiOutputRecordHeader,
+    AndroidHostMidiOutputVirtualCreateCallback, AndroidHostMidiOutputWriteCallback,
+    AndroidHostMidiPortDescriptorHeader, destack_host_android_midi_describe_backend,
+    destack_host_android_midi_event_close, destack_host_android_midi_event_open,
+    destack_host_android_midi_event_read, destack_host_android_midi_input_port_close,
+    destack_host_android_midi_input_port_list, destack_host_android_midi_input_port_open,
+    destack_host_android_midi_input_read, destack_host_android_midi_input_virtual_create,
+    destack_host_android_midi_output_flush, destack_host_android_midi_output_port_close,
+    destack_host_android_midi_output_port_list, destack_host_android_midi_output_port_open,
+    destack_host_android_midi_output_virtual_create, destack_host_android_midi_output_write,
 };
 #[cfg(any(test, target_os = "android"))]
 pub(crate) use registry::unregister_android_bindings;

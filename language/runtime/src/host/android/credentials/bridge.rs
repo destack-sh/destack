@@ -1,5 +1,5 @@
-use super::abi::HOST_STATUS_INVALID_ARGUMENT;
-use super::bindings::invoke_android_binding_callback;
+use super::super::abi::HOST_STATUS_INVALID_ARGUMENT;
+use super::super::bindings::invoke_android_binding_callback;
 use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// Host callback for reading one credential payload.

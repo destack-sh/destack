@@ -4,8 +4,8 @@ use crate::host::android::unregister_android_bindings;
 use crate::host::core::registry::HostRegistrationGuard;
 use crate::host::core::{HostQueue, HostQueueRegistry};
 use crate::host::{
-    AndroidHostBindings, AndroidHostCredentialsCallbacks, AndroidHostCryptoCallbacks, Platform,
-    destack_host_android_register_bindings,
+    AndroidHostBindings, AndroidHostCredentialsCallbacks, AndroidHostCryptoCallbacks,
+    AndroidHostMidiCallbacks, Platform, destack_host_android_register_bindings,
 };
 use crate::runtime::world::RuntimeId;
 
@@ -58,6 +58,20 @@ pub(crate) fn register_android_bindings_crypto(
         runtime_id,
         AndroidHostBindings {
             crypto: callbacks,
+            ..AndroidHostBindings::default()
+        },
+    )
+}
+
+/// Register one runtime-scoped Android MIDI callback payload.
+pub(crate) fn register_android_bindings_midi(
+    runtime_id: u64,
+    callbacks: AndroidHostMidiCallbacks,
+) -> u32 {
+    register_android_bindings(
+        runtime_id,
+        AndroidHostBindings {
+            midi: callbacks,
             ..AndroidHostBindings::default()
         },
     )

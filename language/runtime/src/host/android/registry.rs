@@ -78,11 +78,35 @@ pub(crate) fn resolve_android_bindings(runtime_id: u64) -> Result<AndroidHostBin
 }
 
 #[cfg(test)]
-pub(crate) fn android_bindings_contains_runtime_id(runtime_id: u64) -> bool {
-    ANDROID_BINDINGS_REGISTRY.get().is_some_and(|registry| {
-        registry
-            .read()
-            .bindings_by_runtime_id
-            .contains_key(&runtime_id)
-    })
+mod tests {
+    use super::ANDROID_BINDINGS_REGISTRY;
+    use crate::host::android::tests::{
+        callback_test_lock, register_android_bindings, register_android_runtime,
+    };
+    use crate::host::{AndroidHostBindings, HOST_STATUS_OK};
+
+    /// Return whether the shared Android bindings registry still contains one runtime id.
+    fn registry_contains_runtime_id(runtime_id: u64) -> bool {
+        ANDROID_BINDINGS_REGISTRY.get().is_some_and(|registry| {
+            registry
+                .read()
+                .bindings_by_runtime_id
+                .contains_key(&runtime_id)
+        })
+    }
+
+    #[test]
+    fn test_drop_runtime_bridge_unregisters_android_bindings_eagerly() {
+        let _lock = callback_test_lock().lock().unwrap();
+        let (_bridge, registration, runtime_id) = register_android_runtime();
+
+        // register one android bindings payload for this runtime id
+        let status = register_android_bindings(runtime_id, AndroidHostBindings::default());
+        assert_eq!(status, HOST_STATUS_OK);
+        assert!(registry_contains_runtime_id(runtime_id));
+
+        // drop runtime registration and assert eager registry cleanup
+        drop(registration);
+        assert!(!registry_contains_runtime_id(runtime_id));
+    }
 }
