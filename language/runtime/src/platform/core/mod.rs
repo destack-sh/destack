@@ -16,8 +16,10 @@ mod value;
 mod windows;
 
 pub(crate) use abi_generated::*;
-pub(crate) use backend::{aggregate_backend_support, backend_support_error};
-pub(crate) use clock::monotonic_now_ns;
+pub(crate) use backend::{
+    aggregate_backend_support, backend_support_error, backend_support_from_check,
+};
+pub(crate) use clock::{monotonic_now_ns, timeout_deadline};
 pub(crate) use codec::*;
 #[cfg(unix)]
 pub(crate) use convert::duration_from_option_ns;
@@ -51,8 +53,10 @@ pub(crate) use unix::load_dynamic_symbol_named;
 pub(crate) use unix::unix_process_monotonic_nanos;
 #[cfg(target_vendor = "apple")]
 pub(crate) use unix::{apple_host_time_resolution_nanos, apple_process_monotonic_nanos};
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 pub(crate) use unix::{apple_host_time_to_process_nanos, apple_process_nanos_to_host_time};
+#[cfg(target_os = "linux")]
+pub(crate) use unix::{c_string_from_str, string_from_c_str};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use unix::{close_dynamic_library, load_dynamic_symbol, open_dynamic_library};
 #[cfg(unix)]
@@ -65,6 +69,6 @@ pub(crate) use windows::{
     define_com_iunknown_methods, ensure_winsock, error_message, io_error, io_error_with_code,
     last_error_code, last_wsa_error_code, net_error_with_code, pathbuf_from_utf8,
     pathbuf_from_utf16, qpc_hundred_nanos_to_process_nanos, qpc_process_monotonic_nanos,
-    string_from_utf8, string_from_wide, wide_from_str, wide_from_utf8, wide_from_utf16,
-    wide_with_nul,
+    qpc_process_nanos_to_hundred_nanos, string_from_utf8, string_from_wide, wide_from_str,
+    wide_from_utf8, wide_from_utf16, wide_with_nul,
 };

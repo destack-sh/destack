@@ -349,25 +349,6 @@ pub(crate) fn destack_midi_input_virtual_create(
     .boxed())
 }
 
-/// Flush queued outbound MIDI records.
-/// Request immediate flush of queued outbound MIDI records for one opened output endpoint.
-/// # Platform
-/// Unix and Windows.
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-/// # Security
-/// Requires `midi.write`.
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_midi_output_flush(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::MidiOutputPortHandle,
-) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.midi.output.flush")).boxed())
-}
-
 /// Close one opened MIDI output endpoint.
 /// Close one opened MIDI output session and release host resources.
 /// # Platform

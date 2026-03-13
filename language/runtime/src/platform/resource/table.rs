@@ -16,6 +16,7 @@ use tracing::error;
 use super::{
     ResourceAffinity, ResourceBacking, ResourceCapture, ResourceHandle, ResourceId,
     ResourceImageEntry, ResourceKind, ResourcePortability, ResourceProvider, ResourceRebindContext,
+    ResourceRoute,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::bindings::{BindingAffinity, BindingEngine};
@@ -43,6 +44,8 @@ pub struct ResourceEntry {
     pub kind: ResourceKind,
     /// Optional label for diagnostics.
     pub label: Option<String>,
+    /// Optional typed route metadata.
+    pub route: Option<ResourceRoute>,
     /// Backing model for this resource.
     pub backing: ResourceBacking,
     /// Capture model for this resource.
@@ -67,6 +70,7 @@ impl fmt::Debug for ResourceEntry {
         f.debug_struct("ResourceEntry")
             .field("kind", &self.kind)
             .field("label", &self.label)
+            .field("route", &self.route)
             .field("backing", &self.backing)
             .field("capture", &self.capture)
             .field("portability", &self.portability)
@@ -107,6 +111,7 @@ impl ResourceEntry {
         Self {
             kind,
             label: None,
+            route: None,
             backing: ResourceBacking::Host,
             capture: ResourceCapture::None,
             portability: ResourcePortability::Local,
@@ -191,6 +196,12 @@ impl ResourceEntry {
     /// Attach a diagnostic label.
     pub fn with_label(mut self, label: impl Into<String>) -> Self {
         self.label = Some(label.into());
+        self
+    }
+
+    /// Attach one typed route tag.
+    pub fn with_route(mut self, route: ResourceRoute) -> Self {
+        self.route = Some(route);
         self
     }
 
@@ -589,6 +600,7 @@ impl ResourceTable {
             resource_id,
             kind: entry.kind,
             label: entry.label.clone(),
+            route: entry.route,
             backing: entry.backing,
             capture: entry.capture,
             portability: entry.portability,
@@ -688,6 +700,7 @@ impl ResourceTable {
 
             entry.kind = image_entry.kind;
             entry.label = image_entry.label.clone();
+            entry.route = image_entry.route;
             entry.backing = image_entry.backing;
             entry.capture = image_entry.capture;
             entry.portability = image_entry.portability;

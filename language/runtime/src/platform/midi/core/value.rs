@@ -1,4 +1,10 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use std::sync::Arc;
+
+use smallvec::SmallVec;
+
+use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::RuntimeError;
 use crate::platform::VmSlice;
 use crate::platform::core::BackendSupport;
 use crate::platform::midi::{
@@ -216,13 +222,16 @@ impl MidiPortDescriptorValue {
     }
 }
 
+/// MIDI record payload bytes with a small inline fast path.
+pub(crate) type MidiRecordBytes = SmallVec<[u8; 16]>;
+
 /// Inbound MIDI record data before ABI encoding.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct MidiInputRecordValue {
     /// Receive timestamp in runtime monotonic nanoseconds.
     pub received_at_ns: u64,
     /// Source id when the backend reports one.
-    pub source_id: Option<String>,
+    pub source_id: Option<Arc<str>>,
     /// Transport data format.
     pub data_format: MidiDataFormat,
     /// Protocol semantics when known.
@@ -230,7 +239,7 @@ pub(crate) struct MidiInputRecordValue {
     /// Record framing.
     pub framing: MidiRecordFraming,
     /// Record payload bytes.
-    pub data: Vec<u8>,
+    pub data: MidiRecordBytes,
 }
 
 impl MidiInputRecordValue {
@@ -240,12 +249,12 @@ impl MidiInputRecordValue {
             received_at_ns: self.received_at_ns,
             source_id: self
                 .source_id
-                .as_ref()
+                .as_deref()
                 .map(|value| binding.store_string(value)),
             data_format: self.data_format,
             protocol: self.protocol,
             framing: self.framing,
-            data: binding.store_slice(self.data),
+            data: binding.store_slice(self.data.into_vec()),
         }
     }
 
@@ -258,13 +267,8 @@ impl MidiInputRecordValue {
             received_at_ns: self.received_at_ns,
             source_id: self
                 .source_id
-                .as_ref()
-                .map(|value| {
-                    context
-                        .string_handle(value)
-                        .map_err(Box::<RuntimeError>::from)
-                })
-                .transpose()?,
+                .as_deref()
+                .map(|value| vm::StringHandle::new(context.intern_string(value))),
             data_format: self.data_format,
             protocol: self.protocol,
             framing: self.framing,
@@ -285,7 +289,7 @@ pub(crate) struct MidiOutputRecordValue {
     /// Record framing.
     pub framing: MidiRecordFraming,
     /// Record payload bytes.
-    pub data: Vec<u8>,
+    pub data: MidiRecordBytes,
 }
 
 impl MidiOutputRecordValue {
@@ -296,7 +300,7 @@ impl MidiOutputRecordValue {
             data_format: record.data_format,
             protocol: record.protocol,
             framing: record.framing,
-            data: unsafe { record.data.as_slice()? }.to_vec(),
+            data: SmallVec::from_slice(unsafe { record.data.as_slice()? }),
         })
     }
 
@@ -310,7 +314,7 @@ impl MidiOutputRecordValue {
             data_format: record.data_format,
             protocol: record.protocol,
             framing: record.framing,
-            data: record.data.read_bytes(context)?,
+            data: SmallVec::from_vec(record.data.read_bytes(context)?),
         })
     }
 }

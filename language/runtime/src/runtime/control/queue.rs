@@ -133,6 +133,25 @@ impl<T> BoundedQueue<T> {
         state.items.pop_front()
     }
 
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "ios",
+        windows,
+        test
+    ))]
+    /// Pop one item, waiting up to one timeout, or defer to one caller-supplied fallback.
+    pub(crate) fn pop_with_timeout_or_else<E>(
+        &self,
+        timeout: Duration,
+        on_empty: impl FnOnce() -> Result<T, E>,
+    ) -> Result<T, E> {
+        match self.pop_with_timeout(timeout) {
+            Some(item) => Ok(item),
+            None => on_empty(),
+        }
+    }
+
     /// Pop up to one batch, waiting up to one timeout.
     #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
     pub(crate) fn pop_batch_with_timeout(&self, max_items: usize, timeout: Duration) -> Vec<T> {
@@ -159,6 +178,67 @@ impl<T> BoundedQueue<T> {
         state.items.drain(..count).collect()
     }
 
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "ios",
+        windows,
+        test
+    ))]
+    /// Pop up to one batch, waiting up to one timeout, or defer to one caller-supplied fallback.
+    pub(crate) fn pop_batch_with_timeout_or_else<E>(
+        &self,
+        max_items: usize,
+        timeout: Duration,
+        on_empty: impl FnOnce() -> Result<Vec<T>, E>,
+    ) -> Result<Vec<T>, E> {
+        let items = self.pop_batch_with_timeout(max_items, timeout);
+        if !items.is_empty() {
+            return Ok(items);
+        }
+
+        on_empty()
+    }
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "ios",
+        windows,
+        test
+    ))]
+    /// Pop one item immediately or defer to one caller-supplied fallback.
+    pub(crate) fn try_pop_or_else<E>(
+        &self,
+        on_empty: impl FnOnce() -> Result<T, E>,
+    ) -> Result<T, E> {
+        match self.try_pop() {
+            Some(item) => Ok(item),
+            None => on_empty(),
+        }
+    }
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "ios",
+        windows,
+        test
+    ))]
+    /// Pop up to one batch immediately or defer to one caller-supplied fallback.
+    pub(crate) fn try_pop_batch_or_else<E>(
+        &self,
+        max_items: usize,
+        on_empty: impl FnOnce() -> Result<Vec<T>, E>,
+    ) -> Result<Vec<T>, E> {
+        let items = self.try_pop_batch(max_items);
+        if !items.is_empty() {
+            return Ok(items);
+        }
+
+        on_empty()
+    }
+
     /// Close the queue and wake waiters.
     #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
     pub(crate) fn close(&self) {
@@ -175,6 +255,8 @@ impl<T> BoundedQueue<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::BoundedQueue;
 
     /// Count deferred overflow markers until one consumer observes them.
@@ -190,5 +272,52 @@ mod tests {
 
         assert_eq!(overflow_count, 2);
         assert_eq!(overflow_count_after_clear, 0);
+    }
+
+    /// Prefer queued items over one timeout fallback.
+    #[test]
+    fn test_bounded_queue_pop_with_timeout_or_else_returns_one_queued_item() {
+        let queue = BoundedQueue::new(1);
+        queue.push_drop_oldest(7u32);
+
+        let item = queue
+            .pop_with_timeout_or_else(Duration::from_nanos(0), || -> Result<u32, &'static str> {
+                Err("queue should not be empty")
+            })
+            .expect("queued item should be returned");
+
+        assert_eq!(item, 7);
+    }
+
+    /// Run the fallback once the queue stays empty through one timeout.
+    #[test]
+    fn test_bounded_queue_pop_batch_with_timeout_or_else_runs_the_fallback() {
+        let queue = BoundedQueue::<u32>::new(1);
+
+        let error = queue
+            .pop_batch_with_timeout_or_else(
+                4,
+                Duration::from_nanos(0),
+                || -> Result<Vec<u32>, &'static str> { Err("empty") },
+            )
+            .expect_err("empty queue should run the fallback");
+
+        assert_eq!(error, "empty");
+    }
+
+    /// Prefer queued items over one immediate fallback.
+    #[test]
+    fn test_bounded_queue_try_pop_batch_or_else_returns_one_queued_batch() {
+        let queue = BoundedQueue::new(4);
+        queue.push_drop_oldest(3u32);
+        queue.push_drop_oldest(5u32);
+
+        let batch = queue
+            .try_pop_batch_or_else(8, || -> Result<Vec<u32>, &'static str> {
+                Err("queue should not be empty")
+            })
+            .expect("queued batch should be returned");
+
+        assert_eq!(batch, vec![3, 5]);
     }
 }

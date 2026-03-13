@@ -5,6 +5,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::platform::diagnostic::PlatformError;
+use crate::platform::midi::MidiBackend;
 use crate::platform::resource::table::ResourceEntry;
 use crate::platform::resource::{ResourceAffinity, ResourceId, ResourceKind};
 
@@ -37,6 +38,13 @@ pub enum ResourcePortability {
     Portable,
     /// The resource needs external help or rebinding to restore.
     External,
+}
+
+/// Typed route metadata for one resource instance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ResourceRoute {
+    /// Resource is owned by one MIDI backend selector.
+    MidiBackend(MidiBackend),
 }
 
 /// Durable restore payload for one attached resource.
@@ -87,6 +95,8 @@ pub struct ResourceImageEntry {
     pub kind: ResourceKind,
     /// Optional diagnostic label for the resource.
     pub label: Option<String>,
+    /// Optional typed route metadata for the resource.
+    pub route: Option<ResourceRoute>,
     /// Backing model for the resource.
     pub backing: ResourceBacking,
     /// Capture model for the resource.

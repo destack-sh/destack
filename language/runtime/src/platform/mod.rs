@@ -77,5 +77,5 @@ pub use proactor::{
 };
 pub use resource::{
     ResourceBacking, ResourceCapture, ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind,
-    ResourcePortability, ResourceTable,
+    ResourcePortability, ResourceRoute, ResourceTable,
 };
