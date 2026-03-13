@@ -4,14 +4,42 @@ import { UsbDeviceHandle, UsbWatchHandle } from "../resource/index.ds";
 
 /// USB endpoint descriptor.
 export struct UsbEndpointDescriptor {
-    /// Endpoint address.
-    address: uint8;
-    /// Endpoint transfer type code.
-    transferType: uint8;
+    /// Endpoint number.
+    endpointNumber: uint8;
+    /// Endpoint transfer direction.
+    direction: UsbEndpointDirection;
+    /// Endpoint transfer type.
+    transferType: UsbEndpointTransferType;
     /// Endpoint max-packet size in bytes.
     maxPacketSize: uint16;
     /// Endpoint polling interval.
     interval: uint8;
+}
+
+/// USB endpoint selector.
+export struct UsbEndpointSelector {
+    /// Endpoint number.
+    number: uint8;
+    /// Endpoint transfer direction.
+    direction: UsbEndpointDirection;
+}
+
+/// USB endpoint direction.
+export enum UsbEndpointDirection {
+    /// Device-to-host endpoint direction.
+    In = 1,
+    /// Host-to-device endpoint direction.
+    Out = 2,
+}
+
+/// USB endpoint transfer type.
+export enum UsbEndpointTransferType {
+    /// Bulk transfer endpoint.
+    Bulk = 1,
+    /// Interrupt transfer endpoint.
+    Interrupt = 2,
+    /// Isochronous transfer endpoint.
+    Isochronous = 3,
 }
 
 /// USB interface descriptor.
@@ -26,6 +54,8 @@ export struct UsbInterfaceDescriptor {
     subclassCode: uint8;
     /// Interface protocol code.
     protocolCode: uint8;
+    /// Interface string descriptor when available.
+    name?: string;
     /// Endpoints for this interface.
     endpoints: Slice<UsbEndpointDescriptor>;
 }
@@ -52,40 +82,123 @@ export struct UsbDeviceDescriptor {
     serialNumber?: string;
 }
 
+/// USB control transfer type.
+export enum UsbControlTransferType {
+    /// USB standard request type.
+    Standard = 1,
+    /// USB class-specific request type.
+    Class = 2,
+    /// USB vendor-specific request type.
+    Vendor = 3,
+}
+
+/// USB device control-transfer target.
+export struct UsbControlDeviceTarget {
+    /// Discriminator for this control-target variant.
+    kind: "device";
+}
+
+/// USB interface control-transfer target.
+export struct UsbControlInterfaceTarget {
+    /// Discriminator for this control-target variant.
+    kind: "interface";
+    /// Interface number.
+    interfaceNumber: uint8;
+}
+
+/// USB endpoint control-transfer target.
+export struct UsbControlEndpointTarget {
+    /// Discriminator for this control-target variant.
+    kind: "endpoint";
+    /// Endpoint selector.
+    endpoint: UsbEndpointSelector;
+}
+
+/// USB other-recipient control-transfer target.
+export struct UsbControlOtherTarget {
+    /// Discriminator for this control-target variant.
+    kind: "other";
+    /// Raw recipient index value.
+    index: uint16;
+}
+
+/// USB control-transfer target selector.
+export newtype UsbControlTarget =
+    | UsbControlDeviceTarget
+    | UsbControlInterfaceTarget
+    | UsbControlEndpointTarget
+    | UsbControlOtherTarget;
+
 /// USB setup packet for control transfers.
 export struct UsbControlSetup {
-    /// bmRequestType field.
-    requestType: uint8;
+    /// USB control transfer type selector.
+    transferType: UsbControlTransferType;
+    /// USB control transfer target selector.
+    target: UsbControlTarget;
     /// bRequest field.
     request: uint8;
     /// wValue field.
     value: uint16;
-    /// wIndex field.
-    index: uint16;
     /// wLength field.
     length: uint16;
+}
+
+/// USB transfer completion status.
+export enum UsbTransferStatus {
+    /// Transfer completed successfully.
+    Ok = 1,
+    /// Endpoint reported a stall condition.
+    Stall = 2,
+    /// Host detected a babble condition.
+    Babble = 3,
 }
 
 /// USB configuration descriptor.
 export struct UsbConfigurationDescriptor {
     /// Configuration value.
     value: uint8;
-    /// Configuration attributes bitmask.
-    attributes: uint8;
+    /// Configuration string descriptor when available.
+    name?: string;
+    /// Whether this configuration is self-powered.
+    selfPowered: boolean;
+    /// Whether this configuration supports remote wakeup.
+    remoteWakeup: boolean;
     /// Maximum bus power in milliamps.
     maxPowerMilliAmps: uint16;
     /// Interface descriptors for this configuration.
     interfaces: Slice<UsbInterfaceDescriptor>;
 }
 
+/// USB inbound transfer result.
+export struct UsbInTransferResult {
+    /// Transfer completion status.
+    status: UsbTransferStatus;
+    /// Transfer payload bytes.
+    bytes: Slice<uint8>;
+}
+
+/// USB outbound transfer result.
+export struct UsbOutTransferResult {
+    /// Transfer completion status.
+    status: UsbTransferStatus;
+    /// Number of bytes accepted by the host transfer.
+    bytesWritten: uint32;
+}
+
+/// USB isochronous packet result.
+export struct UsbIsochronousPacketResult {
+    /// Packet completion status.
+    status: UsbTransferStatus;
+    /// Packet transfer length in bytes.
+    actualLength: uint32;
+}
+
 /// USB isochronous transfer result.
 export struct UsbIsochronousTransferResult {
     /// Flattened transfer bytes for all packets.
     bytes: Slice<uint8>;
-    /// Per-packet actual transfer lengths.
-    packetActualLengths: Slice<uint32>;
-    /// Per-packet backend status codes.
-    packetStatuses: Slice<int32>;
+    /// Per-packet transfer results.
+    packets: Slice<UsbIsochronousPacketResult>;
 }
 
 /// Shared metadata for all USB hotplug events.
@@ -127,6 +240,38 @@ export struct UsbStringDescriptor {
     product?: string;
     /// Serial-number string value when available.
     serialNumber?: string;
+}
+
+/// USB BOS capability kind.
+export enum UsbBosCapabilityKind {
+    /// Host did not classify the capability.
+    Unknown = 1,
+    /// Wireless USB capability.
+    WirelessUsb = 2,
+    /// USB 2.0 extension capability.
+    Usb20Extension = 3,
+    /// SuperSpeed USB capability.
+    SuperspeedUsb = 4,
+    /// Container identifier capability.
+    ContainerId = 5,
+    /// Platform capability.
+    Platform = 6,
+    /// Billboard capability.
+    Billboard = 7,
+    /// Configuration summary capability.
+    ConfigurationSummary = 8,
+}
+
+/// USB BOS capability descriptor.
+export struct UsbBosCapabilityDescriptor {
+    /// Normalized BOS capability classification.
+    kind: UsbBosCapabilityKind;
+    /// Raw bDevCapabilityType value.
+    capabilityType: uint8;
+    /// Platform capability UUID when applicable.
+    platformUuid?: string;
+    /// Raw capability payload bytes.
+    bytes: Slice<uint8>;
 }
 
 /// USB bindings.
@@ -511,6 +656,36 @@ declare namespace device {
         languageId: uint16,
     ): Result<UsbStringDescriptor, PlatformError>;
 
+    /// List USB BOS capabilities.
+    ///
+    /// Enumerate BOS capability descriptors for one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host BOS or device-capability descriptor query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.enumerate`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.bosCapabilityList", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.enumerate"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function usbBosCapabilityList(
+        handle: UsbDeviceHandle,
+    ): Result<Slice<UsbBosCapabilityDescriptor>, PlatformError>;
+
     /// List USB configurations.
     ///
     /// Enumerate USB configurations and nested interface descriptors for one opened device.
@@ -600,7 +775,7 @@ declare namespace device {
 
     /// Read control-transfer response bytes.
     ///
-    /// Execute one control-transfer read and return response bytes.
+    /// Execute one control-transfer read and return transfer status with response bytes.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -628,11 +803,11 @@ declare namespace device {
         handle: UsbDeviceHandle,
         setup: UsbControlSetup,
         timeoutNs: uint64,
-    ): Result<Slice<uint8>, PlatformError>;
+    ): Result<UsbInTransferResult, PlatformError>;
 
     /// Write control-transfer request bytes.
     ///
-    /// Execute one control-transfer write and return transferred byte count.
+    /// Execute one control-transfer write and return transfer status with transferred byte count.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -661,11 +836,11 @@ declare namespace device {
         setup: UsbControlSetup,
         bytes: Slice<uint8>,
         timeoutNs: uint64,
-    ): Result<uint32, PlatformError>;
+    ): Result<UsbOutTransferResult, PlatformError>;
 
     /// Read bulk endpoint bytes.
     ///
-    /// Read up to `maxBytes` from one bulk IN endpoint.
+    /// Read up to `maxBytes` from one bulk IN endpoint and return transfer status.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -691,14 +866,14 @@ declare namespace device {
     })
     export function usbBulkRead(
         handle: UsbDeviceHandle,
-        endpointAddress: uint8,
+        endpoint: UsbEndpointSelector,
         maxBytes: uint32,
         timeoutNs: uint64,
-    ): Result<Slice<uint8>, PlatformError>;
+    ): Result<UsbInTransferResult, PlatformError>;
 
     /// Write bulk endpoint bytes.
     ///
-    /// Write bytes to one bulk OUT endpoint and return transferred byte count.
+    /// Write bytes to one bulk OUT endpoint and return transfer status with transferred byte count.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -724,14 +899,14 @@ declare namespace device {
     })
     export function usbBulkWrite(
         handle: UsbDeviceHandle,
-        endpointAddress: uint8,
+        endpoint: UsbEndpointSelector,
         bytes: Slice<uint8>,
         timeoutNs: uint64,
-    ): Result<uint32, PlatformError>;
+    ): Result<UsbOutTransferResult, PlatformError>;
 
     /// Read interrupt endpoint bytes.
     ///
-    /// Read up to `maxBytes` from one interrupt IN endpoint.
+    /// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -757,14 +932,14 @@ declare namespace device {
     })
     export function usbInterruptRead(
         handle: UsbDeviceHandle,
-        endpointAddress: uint8,
+        endpoint: UsbEndpointSelector,
         maxBytes: uint32,
         timeoutNs: uint64,
-    ): Result<Slice<uint8>, PlatformError>;
+    ): Result<UsbInTransferResult, PlatformError>;
 
     /// Write interrupt endpoint bytes.
     ///
-    /// Write bytes to one interrupt OUT endpoint and return transferred byte count.
+    /// Write bytes to one interrupt OUT endpoint and return transfer status with transferred byte count.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -790,14 +965,14 @@ declare namespace device {
     })
     export function usbInterruptWrite(
         handle: UsbDeviceHandle,
-        endpointAddress: uint8,
+        endpoint: UsbEndpointSelector,
         bytes: Slice<uint8>,
         timeoutNs: uint64,
-    ): Result<uint32, PlatformError>;
+    ): Result<UsbOutTransferResult, PlatformError>;
 
     /// Read one isochronous transfer.
     ///
-    /// Read one isochronous transfer and return flattened bytes with per-packet status and length metadata.
+    /// Read one isochronous transfer and return flattened bytes with per-packet transfer results.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -823,14 +998,14 @@ declare namespace device {
     })
     export function usbIsochronousRead(
         handle: UsbDeviceHandle,
-        endpointAddress: uint8,
+        endpoint: UsbEndpointSelector,
         packetSizes: Slice<uint32>,
         timeoutNs: uint64,
     ): Result<UsbIsochronousTransferResult, PlatformError>;
 
     /// Write one isochronous transfer.
     ///
-    /// Write one flattened isochronous transfer and return per-packet status and length metadata.
+    /// Write one flattened isochronous transfer and return per-packet transfer results.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -856,7 +1031,7 @@ declare namespace device {
     })
     export function usbIsochronousWrite(
         handle: UsbDeviceHandle,
-        endpointAddress: uint8,
+        endpoint: UsbEndpointSelector,
         bytes: Slice<uint8>,
         packetSizes: Slice<uint32>,
         timeoutNs: uint64,
@@ -890,7 +1065,7 @@ declare namespace device {
     })
     export function usbTransferCancel(
         handle: UsbDeviceHandle,
-        endpointAddress: uint8,
+        endpoint: UsbEndpointSelector,
     ): Result<void, PlatformError>;
 
     /// Cancel all pending transfers on one opened USB device.
@@ -949,7 +1124,7 @@ declare namespace device {
     })
     export function usbClearHalt(
         handle: UsbDeviceHandle,
-        endpointAddress: uint8,
+        endpoint: UsbEndpointSelector,
     ): Result<void, PlatformError>;
 
     /// Reset one USB device.
