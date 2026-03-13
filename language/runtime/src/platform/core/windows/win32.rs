@@ -188,6 +188,15 @@ pub(crate) fn qpc_hundred_nanos_to_process_nanos(counter_hundred_nanos: u64) -> 
     Some(delta_hundred_nanos.saturating_mul(100))
 }
 
+/// Convert one process-relative monotonic timestamp into the QPC 100ns domain.
+pub(crate) fn qpc_process_nanos_to_hundred_nanos(process_nanos: u64) -> Option<u64> {
+    let epoch_ticks = qpc_process_epoch_ticks()?;
+    let epoch_hundred_nanos = qpc_ticks_to_hundred_nanos(epoch_ticks)?;
+    let process_hundred_nanos = process_nanos / 100;
+
+    Some(epoch_hundred_nanos.saturating_add(process_hundred_nanos))
+}
+
 /// Convert a utf-8 byte slice into a nul-terminated wide string.
 pub(crate) fn wide_from_utf8(label: &str, bytes: &[u8]) -> RuntimeResult<Vec<u16>> {
     if bytes.contains(&0) {

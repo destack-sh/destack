@@ -616,6 +616,14 @@ impl PlatformError {
         error
     }
 
+    /// Build an invalid data I/O error.
+    pub fn invalid_data(message: impl Into<String>) -> Self {
+        let mut error = Self::io(message);
+        error.code = PlatformErrorCode::IoInvalidData;
+
+        error
+    }
+
     /// Build an I/O error with context fields.
     pub fn io_with(
         code: Option<PlatformErrorCode>,
