@@ -8,6 +8,7 @@ use destack_dir::{
     SymbolSpace, Type, TypeField, TypeLiteral,
 };
 
+use crate::analyze::DirReadBoundary;
 use crate::{AnalyzeResult, Compiler};
 
 use crate::analyze::common::{ObjectShape, TypeContext};
@@ -22,7 +23,7 @@ impl Compiler {
         exported_symbols: &IndexMap<(SymbolSpace, StaticKey), Export>,
     ) -> AnalyzeResult<()> {
         // pick a stable source node for module imports
-        let module_dir = ctx.module.dir(ctx.profile);
+        let module_dir = ctx.local_dir();
         let module_source_id = module_dir
             .roots
             .first()
@@ -31,12 +32,8 @@ impl Compiler {
             .unwrap_or(module_dir.anchor_node);
 
         // register the module namespace value type
-        let namespace_symbol = ctx
-            .module
-            .dir(ctx.profile)
-            .namespace_symbol
-            .into_global(ctx.module.id);
-        let namespace_exports = ctx.module.dir(ctx.profile).namespace_exports.read().clone();
+        let namespace_symbol = ctx.local_dir().namespace_symbol.into_global(ctx.module.id);
+        let namespace_exports = ctx.local_dir().namespace_exports.read().clone();
         let namespace_ty_id = self.build_namespace_type_from_exports(
             &mut ctx.reborrow(),
             exported_symbols,
@@ -46,9 +43,9 @@ impl Compiler {
         ctx.types.set_value_type(namespace_symbol, namespace_ty_id);
 
         // register module binding namespace value types
-        let binding_exports = ctx.module.dir(ctx.profile).module_binding_exports.read();
-        let bindings = ctx.module.dir(ctx.profile).module_bindings.read();
-        for (binding_any_id, exports) in binding_exports.iter() {
+        let binding_exports = ctx.local_dir().module_binding_exports.read().clone();
+        let bindings = ctx.local_dir().module_bindings.read().clone();
+        for (binding_any_id, exports) in &binding_exports {
             let binding_id = binding_any_id.into_typed::<Declaration>();
             let Declaration::Namespace { descriptor, .. } = ctx.tree.get(binding_id) else {
                 continue;
@@ -186,20 +183,22 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module has interface surface inference
-                self.require_dir_interface(module_id, ctx.profile)?;
-
-                // load the target module exports
-                let target_module = self.program.modules.get(module_id);
-                let target_module = target_module.read();
-                let target_dir = target_module.dir(ctx.profile);
+                let target_dir = self.require_artifact_dir_for_boundary(
+                    module_id,
+                    ctx.profile,
+                    DirReadBoundary::Interface,
+                )?;
 
                 // merge direct exports
-                let exports = target_dir.exported_symbols.read();
-                self.merge_exports_map_into_shape(&mut ctx.reborrow(), &exports, source_id, shape)?;
+                self.merge_exports_map_into_shape(
+                    &mut ctx.reborrow(),
+                    &target_dir.exported_symbols,
+                    source_id,
+                    shape,
+                )?;
 
                 // merge namespace exports
-                let namespace_exports = target_dir.namespace_exports.read();
-                for export in namespace_exports.iter() {
+                for export in target_dir.namespace_exports.iter() {
                     if export.kind != DependencyKind::Value {
                         continue;
                     }
@@ -215,21 +214,26 @@ impl Compiler {
             }
             ModuleTarget::Binding(specifier) => {
                 // load binding exports for the target specifier
-                let dir = ctx.module.dir(ctx.profile);
-                let bindings = dir.module_bindings.read();
-                let binding_exports = dir.module_binding_exports.read();
-                for binding in bindings
-                    .iter()
-                    .filter(|binding| binding.specifier == specifier)
-                {
-                    let Some(exports) = binding_exports.get(&binding.declaration.into_any()) else {
-                        continue;
-                    };
-
+                let binding_entries = {
+                    let dir = ctx.local_dir();
+                    let bindings = dir.module_bindings.read().clone();
+                    let binding_exports = dir.module_binding_exports.read().clone();
+                    bindings
+                        .into_iter()
+                        .filter(|binding| binding.specifier == specifier)
+                        .filter_map(|binding| {
+                            let exports = binding_exports
+                                .get(&binding.declaration.into_any())
+                                .map(|exports| exports.exports.clone())?;
+                            Some((binding, exports))
+                        })
+                        .collect::<Vec<_>>()
+                };
+                for (binding, exports) in binding_entries.iter() {
                     // merge direct exports
                     self.merge_exports_map_into_shape(
                         &mut ctx.reborrow(),
-                        &exports.exports,
+                        exports,
                         source_id,
                         shape,
                     )?;

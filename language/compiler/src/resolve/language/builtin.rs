@@ -42,10 +42,8 @@ impl Compiler {
         export_name: StringId,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir_base();
-        let symbols = dir.symbols.read();
+        let dir = self.artifact_dir_base(module_id)?;
+        let symbols = &dir.symbols;
 
         // collect the first exported symbol for each eligible space
         let mut value_symbol = None;
@@ -152,13 +150,20 @@ impl Compiler {
     }
 
     /// Resolve the language environment for one profile.
-    pub fn resolve_language_environment(&self, profile: ProfileId) -> ResolveResult<()> {
+    pub fn resolve_language_environment(
+        &self,
+        profile: ProfileId,
+    ) -> ResolveResult<LanguageEnvironment> {
         if self.language_environment(profile).is_some() {
-            return Ok(());
+            return Ok(self
+                .language_environment(profile)
+                .unwrap_or_else(|| unreachable!())
+                .as_ref()
+                .clone());
         }
 
         let Some(builtins) = self.program.builtins.as_ref() else {
-            return Ok(());
+            return Ok(LanguageEnvironment::default());
         };
         let _timing = self.timing_scope(tags::RESOLVE_BUILTINS);
 
@@ -188,11 +193,7 @@ impl Compiler {
             symbols.insert(name_id, symbol_id);
         }
 
-        self.program
-            .artifacts
-            .set_language_environment(profile, LanguageEnvironment { items, symbols });
-
-        Ok(())
+        Ok(LanguageEnvironment { items, symbols })
     }
 
     /// Ensure the language environment exists for one profile.

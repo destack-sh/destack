@@ -1,13 +1,16 @@
 use std::mem;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use crate::timing::tags;
-use crate::{BuildKey, BuildRequirementError, Compiler, OptimizeError, OptimizeResult};
+use crate::{
+    BuildKey, BuildProduct, BuildRequirementError, Compiler, OptimizeError, OptimizeResult,
+};
 
 use destack_source::{ModuleId, ModuleVersion, PackageId, ProfileVersion};
 use destack_workspace::{
-    ArtifactKey, DebugMode, Module, OptimizeLevel as WorkspaceOptimizeLevel, OutputFormat,
-    ProfileId, Target, TargetArch, TargetId,
+    ArtifactKey, DebugMode, Module, ModuleMirData, OptimizeLevel as WorkspaceOptimizeLevel,
+    OutputFormat, ProfileId, Target, TargetArch, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -23,7 +26,7 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
-    ) -> OptimizeResult<()> {
+    ) -> OptimizeResult<BuildProduct> {
         let module_stamp = self.module_stamp(module);
         let profile_stamp = self.profile_stamp(profile);
         self.ensure_module_profile_matches::<OptimizeError>(
@@ -44,9 +47,7 @@ impl Compiler {
             module_stamp.version,
             profile_stamp.version,
             &target,
-        )?;
-
-        Ok(())
+        )
     }
 
     /// Ensure optimized MIR exists for one module and target.
@@ -81,7 +82,7 @@ impl Compiler {
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
         target: &TargetId,
-    ) -> OptimizeResult<()> {
+    ) -> OptimizeResult<BuildProduct> {
         // skip stale tasks
         self.ensure_module_profile_matches::<OptimizeError>(
             module,
@@ -99,7 +100,11 @@ impl Compiler {
                 message: "target not found for profile resolution".to_string(),
             })?;
         if resolved_profile != profile {
-            return Ok(());
+            return Err(OptimizeError::InvalidTarget {
+                package: target.package_id,
+                target: target.clone(),
+                message: format!("resolved to profile '{resolved_profile:?}', not '{profile:?}'"),
+            });
         }
 
         // resolve pipeline for this target
@@ -112,22 +117,35 @@ impl Compiler {
         };
         let pipeline = default_pipeline(level, pipeline_target);
 
-        // read module mir
-        let module_ref = self.program.modules.get(module);
-        let module_guard = module_ref.read();
-        let mir = module_guard.mir(target);
-        let mut tree = mir.tree.write();
+        // read committed MIR artifact truth
+        let mir = self
+            .program
+            .artifacts
+            .mir(module, profile, target)
+            .unwrap_or_else(|| unreachable!("missing MIR artifact for target '{target}'"));
+        let mut tree = mir.tree.clone();
         let strings = mir.strings.clone();
-        let profile = mir.profile.clone();
+        let profile_data = mir
+            .profile
+            .as_ref()
+            .map(|profile: &destack_mir::ProfileTable| Arc::new(profile.clone()));
 
         // resolve pipeline options
+        let module_ref = self.program.modules.get(module);
+        let module_guard = module_ref.read();
         let options = self.pipeline_options_for_module(&module_guard, &target_config, level);
 
         // count mir size before optimization
         let before = count_mir_size(&tree);
 
         // run the pipeline
-        let mut context = PipelineContext::new(&strings, options, module, target.clone(), profile);
+        let mut context = PipelineContext::new(
+            &strings,
+            options,
+            module,
+            target.clone(),
+            profile_data.clone(),
+        );
         pipeline.run(&mut tree, &mut context);
 
         // collect accumulated diagnostics from verification passes
@@ -141,6 +159,17 @@ impl Compiler {
         // count mir size after optimization
         let after = count_mir_size(&tree);
 
+        // freeze optimized MIR
+        let payload = ModuleMirData {
+            id: module,
+            version: module_version,
+            target: target.clone(),
+            tree,
+            strings,
+            profile: profile_data
+                .map(|profile: Arc<destack_mir::ProfileTable>| profile.as_ref().clone()),
+        };
+
         // record metrics
         self.stats.record_optimize();
         self.stats.record_optimize_mir(
@@ -151,7 +180,7 @@ impl Compiler {
             after.blocks,
         );
 
-        Ok(())
+        Ok(BuildProduct::Mir(payload))
     }
 
     /// Resolve the optimization level for a target configuration.

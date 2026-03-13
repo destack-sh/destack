@@ -267,21 +267,18 @@ impl Compiler {
                 let decorator_map = self.collect_well_known_decorators(profile_id);
 
                 // load the module and dir tree
-                let module = self.program.modules.get(anchored.module_id());
-                let module = module.read();
-
                 // select the correct dir tree
-                let tree = if let Some(profile_id) = anchored.profile_id {
-                    let Some(dir) = module.dir_maybe(profile_id) else {
-                        return Vec::new();
-                    };
-                    dir.tree.read()
+                let snapshot = if let Some(profile_id) = anchored.profile_id {
+                    self.program
+                        .artifacts
+                        .dir_snapshot(anchored.module_id(), profile_id)
                 } else {
-                    let Some(dir) = module.dir_base_maybe() else {
-                        return Vec::new();
-                    };
-                    dir.tree.read()
+                    self.artifact_dir_base(anchored.module_id())
                 };
+                let Some(snapshot) = snapshot else {
+                    return Vec::new();
+                };
+                let tree = &snapshot.tree;
 
                 // validate the node id
                 let node_id = anchored.local_id();
@@ -305,21 +302,25 @@ impl Compiler {
                 let decorator_map = self.collect_well_known_decorators(profile_id);
 
                 // load the module and mir tree
-                let module = self.program.modules.get(anchored.module_id());
-                let module = module.read();
+                let Some(mir) = self.program.artifacts.mir_snapshot(
+                    anchored.module_id(),
+                    profile_id,
+                    &anchored.target_id,
+                ) else {
+                    return Vec::new();
+                };
 
                 // resolve the source dir node
-                let mir = module.mir(&anchored.target_id);
-                let mir_tree = mir.tree.read();
+                let mir_tree = &mir.tree;
                 let Some(source_id) = mir_tree.get_source(anchored.local_id().id) else {
                     return Vec::new();
                 };
 
                 // load the base dir tree
-                let Some(dir) = module.dir_base_maybe() else {
+                let Some(dir) = self.artifact_dir_base(anchored.module_id()) else {
                     return Vec::new();
                 };
-                let tree = dir.tree.read();
+                let tree = &dir.tree;
                 if !tree.has_node_id(source_id) {
                     return Vec::new();
                 }

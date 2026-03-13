@@ -221,7 +221,7 @@ impl ModuleLowerer<'_> {
             return primary.into_anchored(Some(self.profile));
         }
 
-        let anchor = self.module.dir(self.profile).anchor_node;
+        let anchor = self.anchor_node;
         anchor
             .into_global(self.module_id)
             .into_anchored(Some(self.profile))

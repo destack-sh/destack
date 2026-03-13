@@ -1,10 +1,11 @@
 use destack_dir as dir;
 use destack_dir::GlobalSymbolId;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program, WellKnownIntrinsics};
+use destack_workspace::{ProfileId, WellKnownIntrinsics};
 
+use crate::analyze::DirReadBoundary;
 use crate::lower::{FunctionLowerer, ModuleLowerer};
-use crate::{LowerError, LowerResult};
+use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
 
 impl ModuleLowerer<'_> {
     /// Resolve the intrinsic binding name for a symbol.
@@ -19,7 +20,7 @@ impl ModuleLowerer<'_> {
         resolve_intrinsic_binding_name_id(
             self.module_id,
             self.profile,
-            &self.compiler.program,
+            self.compiler,
             self.symbols,
             self.well_known_intrinsics.as_ref(),
             target_symbol,
@@ -37,7 +38,7 @@ impl FunctionLowerer<'_> {
         resolve_intrinsic_binding_name_id(
             self.env.module_id,
             self.env.profile,
-            self.env.program,
+            self.env.compiler,
             self.env.symbols,
             self.env.well_known_intrinsics,
             target_symbol,
@@ -49,7 +50,7 @@ impl FunctionLowerer<'_> {
 fn resolve_intrinsic_binding_name_id(
     module_id: ModuleId,
     profile: ProfileId,
-    program: &Program,
+    compiler: &Compiler,
     local_symbols: &dir::SymbolTable,
     well_known_intrinsics: Option<&WellKnownIntrinsics>,
     target_symbol: GlobalSymbolId,
@@ -61,7 +62,7 @@ fn resolve_intrinsic_binding_name_id(
 
     // resolve canonical symbol for intrinsic lookup
     let canonical_symbol =
-        resolve_canonical_symbol(module_id, profile, program, local_symbols, target_symbol)?;
+        resolve_canonical_symbol(module_id, profile, compiler, local_symbols, target_symbol)?;
     if let Some(name_id) = well_known_intrinsics.name_for_symbol(canonical_symbol) {
         return Ok(Some(name_id));
     }
@@ -73,7 +74,7 @@ fn resolve_intrinsic_binding_name_id(
 fn resolve_canonical_symbol(
     module_id: ModuleId,
     profile: ProfileId,
-    program: &Program,
+    compiler: &Compiler,
     local_symbols: &dir::SymbolTable,
     symbol_id: GlobalSymbolId,
 ) -> LowerResult<GlobalSymbolId> {
@@ -81,10 +82,21 @@ fn resolve_canonical_symbol(
         let symbol = local_symbols.get_symbol(symbol_id.local_id);
         (symbol.canonical_symbol, symbol.target_symbol)
     } else {
-        let module = program.modules.get(symbol_id.module_id);
-        let module = module.read();
-        let symbols = module.dir(profile).symbols.read();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
+        let snapshot = compiler.require_artifact_dir_for_boundary(
+            symbol_id.module_id,
+            profile,
+            DirReadBoundary::Analyzed,
+        );
+        let snapshot = match snapshot {
+            Ok(snapshot) => snapshot,
+            Err(BuildRequirementError::NotReady { requirement }) => {
+                return Err(LowerError::Yield { requirement });
+            }
+            Err(BuildRequirementError::Failed { requirement }) => {
+                return Err(LowerError::UnsatisfiedRequirement { requirement });
+            }
+        };
+        let symbol = snapshot.symbols.get_symbol(symbol_id.local_id);
         (symbol.canonical_symbol, symbol.target_symbol)
     };
 

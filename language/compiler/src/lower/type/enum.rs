@@ -2,9 +2,10 @@ use destack_dir as dir;
 use destack_dir::{
     AnchoredGlobalNodeId, EnumBackingType, EnumFieldValue, GlobalSymbolId, NodeType,
 };
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::ProfileId;
 
-use crate::{LowerError, LowerResult};
+use crate::analyze::DirReadBoundary;
+use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
 
 use crate::lower::ModuleLowerer;
 
@@ -19,17 +20,28 @@ pub(crate) struct EnumFieldValueDescriptor {
 
 /// Resolve the backing type and value for an enum field symbol.
 pub(crate) fn enum_field_value_for_symbol(
-    program: &Program,
+    compiler: &Compiler,
     profile: ProfileId,
     member_symbol: GlobalSymbolId,
     node: AnchoredGlobalNodeId,
 ) -> LowerResult<Option<EnumFieldValueDescriptor>> {
-    // load the module data for this symbol
-    let module = program.modules.get(member_symbol.module_id);
-    let module = module.read();
-    let dir = module.dir(profile);
-    let symbols = dir.symbols.read();
-    let types = dir.types.read();
+    // load the analyzed dir artifact for this symbol
+    let snapshot = compiler.require_artifact_dir_for_boundary(
+        member_symbol.module_id,
+        profile,
+        DirReadBoundary::Analyzed,
+    );
+    let snapshot = match snapshot {
+        Ok(snapshot) => snapshot,
+        Err(BuildRequirementError::NotReady { requirement }) => {
+            return Err(LowerError::Yield { requirement });
+        }
+        Err(BuildRequirementError::Failed { requirement }) => {
+            return Err(LowerError::UnsatisfiedRequirement { requirement });
+        }
+    };
+    let symbols = &snapshot.symbols;
+    let types = &snapshot.types;
 
     // require the member symbol to be an enum field
     let member_entry = symbols.get_symbol(member_symbol.local_id);

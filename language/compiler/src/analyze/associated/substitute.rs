@@ -966,7 +966,7 @@ impl Compiler {
                     canonical_receiver_symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    DirReadBoundary::Declared,
+                    DirReadBoundary::Interface,
                     |view| {
                         self.query_static_member_symbol(
                             view.module,
@@ -1141,18 +1141,15 @@ impl Compiler {
         }
 
         let remote_alias_target = self
-            .with_module_tree_symbol_view_or_local_at_boundary(
+            .with_module_tree_symbol_type_view_at_boundary(
                 ctx.module,
                 ctx.profile,
                 typed_symbol.module_id,
-                ctx.tree,
-                ctx.symbols,
                 DirReadBoundary::Declared,
                 |view| {
-                    let owner_types = view.module.dir(ctx.profile).types.read();
-                    let remote_target_id = owner_types.get_alias_target_type_id(typed_symbol)?;
-                    let remote_target_ty = owner_types.get_type(remote_target_id).clone();
-                    let remote_snapshot = owner_types.clone();
+                    let remote_target_id = view.types.get_alias_target_type_id(typed_symbol)?;
+                    let remote_target_ty = view.types.get_type(remote_target_id).clone();
+                    let remote_snapshot = view.types.clone();
                     Some((remote_target_ty, remote_snapshot))
                 },
             )

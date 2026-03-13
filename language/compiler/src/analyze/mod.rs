@@ -28,6 +28,7 @@ pub(crate) use common::{
 };
 pub use error::*;
 pub use infer::*;
+pub(crate) use interface::*;
 pub(crate) use module::DirReadBoundary;
 pub use options::*;
 pub(crate) use r#static::{StaticArgumentResolver, StaticSubstitutionEnvironment};

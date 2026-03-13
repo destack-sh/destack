@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
     CanonicalSymbolMode, MaterializationMode, ModuleSymbolView, REWRITER_TAG_STATIC_ARGUMENT,
     TypeContext, TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
 };
+use crate::analyze::{DirReadBoundary, StaticMemberSymbolKind};
 use crate::timing::tags;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
@@ -200,8 +200,14 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
         } else {
             let reference_module = self.compiler.program.modules.get(symbol.module_id);
             let reference_module = reference_module.read();
-            let reference_tree = reference_module.dir(self.profile).tree.read();
-            let reference_symbols = reference_module.dir(self.profile).symbols.read();
+            let reference_snapshot = self.compiler.require_artifact_dir_for_boundary(
+                symbol.module_id,
+                self.profile,
+                DirReadBoundary::Declared,
+            );
+            let Ok(reference_snapshot) = reference_snapshot else {
+                return rewrite_type(self, types, id, ty);
+            };
             let reference_options = self
                 .compiler
                 .analyze_context_options_for_module(reference_module.id);
@@ -209,8 +215,8 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 &reference_module,
                 self.profile,
                 &reference_options,
-                &reference_tree,
-                &reference_symbols,
+                &reference_snapshot.tree,
+                &reference_snapshot.symbols,
                 types,
             );
             self.compiler.materialize_static_arguments_for_reference(

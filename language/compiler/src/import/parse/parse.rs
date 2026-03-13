@@ -4,7 +4,7 @@ use crate::{Compiler, ImportError, ImportResult};
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{CacheKind, File, FileType, LanguageType, ModuleId, ModuleVersion, Span};
-use destack_workspace::{Loader, ModuleAst, ModuleContent, ModuleDir};
+use destack_workspace::{Loader, ModuleAst, ModuleContent};
 
 impl Compiler {
     /// Parse a module (load file and parse into AST).
@@ -289,11 +289,10 @@ impl Compiler {
             }
         })?;
 
-        // create base DIR for data module
+        // create the anchor AST for the data module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut ast = ModuleAst::new(module_id, module_version);
-        let anchor_id = ast.ensure_anchor_expression(file_id);
-        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
+        ast.ensure_anchor_expression(file_id);
 
         // update module content
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -303,8 +302,6 @@ impl Compiler {
             source: content,
             value,
             ast,
-            dir_base: Some(dir_base),
-            dirs: Vec::new(),
         };
         drop(module);
 
@@ -344,11 +341,10 @@ impl Compiler {
         // parse TOML to serde_json::Value
         let value = parse_toml_value(file_id, &content)?;
 
-        // create base DIR for data module
+        // create the anchor AST for the data module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut ast = ModuleAst::new(module_id, module_version);
-        let anchor_id = ast.ensure_anchor_expression(file_id);
-        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
+        ast.ensure_anchor_expression(file_id);
 
         // update module content
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -358,8 +354,6 @@ impl Compiler {
             source: content,
             value,
             ast,
-            dir_base: Some(dir_base),
-            dirs: Vec::new(),
         };
         drop(module);
 
@@ -399,11 +393,10 @@ impl Compiler {
         // parse YAML to serde_json::Value
         let value = parse_yaml_value(file_id, &content)?;
 
-        // create base DIR for data module
+        // create the anchor AST for the data module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut ast = ModuleAst::new(module_id, module_version);
-        let anchor_id = ast.ensure_anchor_expression(file_id);
-        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
+        ast.ensure_anchor_expression(file_id);
 
         // update module content
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -413,8 +406,6 @@ impl Compiler {
             source: content,
             value,
             ast,
-            dir_base: Some(dir_base),
-            dirs: Vec::new(),
         };
         drop(module);
 
@@ -451,22 +442,16 @@ impl Compiler {
             })?
         };
 
-        // create base DIR for text module
+        // create the anchor AST for the text module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut ast = ModuleAst::new(module_id, module_version);
-        let anchor_id = ast.ensure_anchor_expression(file_id);
-        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
+        ast.ensure_anchor_expression(file_id);
 
         // update module content
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut module = module.write();
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
-        module.content = ModuleContent::Text {
-            content,
-            ast,
-            dir_base: Some(dir_base),
-            dirs: Vec::new(),
-        };
+        module.content = ModuleContent::Text { content, ast };
         drop(module);
 
         tracing::trace!(?module_id, "import.module.parse.text");
@@ -497,22 +482,16 @@ impl Compiler {
             }
         })?;
 
-        // create base DIR for binary module
+        // create the anchor AST for the binary module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut ast = ModuleAst::new(module_id, module_version);
-        let anchor_id = ast.ensure_anchor_expression(file_id);
-        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
+        ast.ensure_anchor_expression(file_id);
 
         // update module content
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut module = module.write();
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
-        module.content = ModuleContent::Binary {
-            bytes,
-            ast,
-            dir_base: Some(dir_base),
-            dirs: Vec::new(),
-        };
+        module.content = ModuleContent::Binary { bytes, ast };
         drop(module);
 
         tracing::trace!(?module_id, "import.module.parse.binary");
@@ -549,22 +528,16 @@ impl Compiler {
         // encode as base64 string
         let content = STANDARD.encode(&bytes);
 
-        // create base DIR for text module
+        // create the anchor AST for the text module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut ast = ModuleAst::new(module_id, module_version);
-        let anchor_id = ast.ensure_anchor_expression(file_id);
-        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
+        ast.ensure_anchor_expression(file_id);
 
         // update module content (stored as Text since it produces a string)
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut module = module.write();
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
-        module.content = ModuleContent::Text {
-            content,
-            ast,
-            dir_base: Some(dir_base),
-            dirs: Vec::new(),
-        };
+        module.content = ModuleContent::Text { content, ast };
         drop(module);
 
         tracing::trace!(?module_id, "import.module.parse.base64");

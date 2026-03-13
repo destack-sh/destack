@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir as dir;
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::ProfileId;
+use destack_workspace::{Module, ModuleDir, ProfileId};
 use dir::{Expression, IfCondition, IfKind, LocalNodeId, MatchKind, TypeBinaryOperator};
 
 use crate::elaborate::common::{ElaborateContext, ElaborateState};
@@ -17,34 +16,20 @@ impl Compiler {
     /// - Nominal constructor calls → tagged expressions.
     pub(crate) fn elaborate_module_reify(
         &self,
-        module_id: ModuleId,
+        module: &Module,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        dir: &ModuleDir,
     ) -> ElaborateResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<ElaborateError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
-
         // skip non-code modules
-        if !self.is_code_module(module_id) {
+        if !self.is_code_module(module.id) {
             return Ok(());
         }
-
-        // read the module state
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
 
         // lock the dir tables
         let mut tree = dir.tree.write();
         let mut symbols = dir.symbols.write();
         let mut types = dir.types.write();
-        let ctx = ElaborateContext::new(module_id, &module, profile);
+        let ctx = ElaborateContext::new(module.id, module, profile);
         let mut state = ElaborateState::new(ctx, &mut tree, &mut symbols, &mut types);
 
         // collect member expressions used as call or new callees
@@ -79,7 +64,9 @@ impl Compiler {
                 continue;
             }
 
-            self.reify_expression(&mut state, expression_id, &member_callees)?;
+            if let Err(error) = self.reify_expression(&mut state, expression_id, &member_callees) {
+                return Err(error);
+            }
         }
 
         // normalize return if expressions introduced during reify

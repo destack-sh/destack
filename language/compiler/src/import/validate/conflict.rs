@@ -20,129 +20,132 @@ impl Compiler {
         let mut reported_conflicts = HashSet::new();
 
         // load symbol tables
-        let tree = module.dir_base().tree.read();
-        let symbols = module.dir_base().symbols.read();
+        self.with_active_base_dir(module.id, |dir| {
+            let tree = dir.tree.read();
+            let symbols = dir.symbols.read();
 
-        for scope in symbols.scopes() {
-            // group symbols by name and category to avoid O(n^2) scans
-            let mut buckets: HashMap<StaticKey, HashMap<SymbolCategory, LocalSymbolId>> =
-                HashMap::new();
-            for (key, symbol_id) in symbols.active_named_symbols(scope) {
-                let normalized_key = self.normalize_conflict_key(key);
-                let symbol = symbols.get_symbol(symbol_id);
-                let Some(primary_declaration) = symbol.primary_declaration else {
-                    continue;
-                };
-
-                // detect enum kind mismatches within a single symbol
-                if let Some((node, other_node)) = self.enum_kind_mismatch_nodes(&tree, symbol) {
-                    let error = ImportError::ConflictingBinding {
-                        node: node.into_anchored(None),
-                        other_node: other_node.into_anchored(None),
-                        scope: symbol.scope.0.into_global(module.id),
-                        name: Some(key),
-                        is_local: false,
-                    };
-                    self.error(error);
-                }
-
-                // compare against previously seen symbols with the same name
-                let entry = buckets.entry(normalized_key).or_default();
-                let category = SymbolCategory::from(symbol);
-                for other_symbol_id in entry.values() {
-                    if *other_symbol_id == symbol_id {
-                        continue;
-                    }
-                    let other_symbol = symbols.get_symbol(*other_symbol_id);
-
-                    // check if symbols conflict based on space and merging rules
-                    let import_kind_conflict =
-                        self.is_type_value_import_conflict(&tree, symbol, other_symbol);
-                    if !symbol.space.conflicts_with(other_symbol.space) && !import_kind_conflict {
-                        continue;
-                    }
-
-                    let enum_kind_mismatch =
-                        self.is_const_enum_mismatch(&tree, symbol, other_symbol);
-                    let can_merge = self.can_symbols_merge_declarations(
-                        module.language_type,
-                        symbol,
-                        other_symbol,
-                    ) && !enum_kind_mismatch;
-                    if can_merge {
-                        continue;
-                    }
-
-                    // local conflicts are allowed unless configured otherwise
-                    let is_local_pair =
-                        symbol.kind == SymbolKind::Local && other_symbol.kind == SymbolKind::Local;
-                    let left_binding_category = self.symbol_binding_category(symbol);
-                    let right_binding_category = self.symbol_binding_category(other_symbol);
-                    let is_parameter_pair = left_binding_category == BindingCategory::Parameter
-                        || right_binding_category == BindingCategory::Parameter;
-                    let is_strict_local_conflict =
-                        self.is_strict_local_conflict(symbol, other_symbol);
-                    let is_policy_controlled_conflict =
-                        is_local_pair && !is_parameter_pair && !is_strict_local_conflict;
-
-                    // JS/TS allow duplicate runtime var declarations
-                    if self.allow_runtime_var_redeclaration(module, symbol, other_symbol) {
-                        continue;
-                    }
-
-                    if is_policy_controlled_conflict && !no_redeclare_locals {
-                        continue;
-                    }
-
-                    // error on conflicting bindings
-                    let Some(other_primary_declaration) = other_symbol.primary_declaration else {
+            for scope in symbols.scopes() {
+                // group symbols by name and category to avoid O(n^2) scans
+                let mut buckets: HashMap<StaticKey, HashMap<SymbolCategory, LocalSymbolId>> =
+                    HashMap::new();
+                for (key, symbol_id) in symbols.active_named_symbols(scope) {
+                    let normalized_key = self.normalize_conflict_key(key);
+                    let symbol = symbols.get_symbol(symbol_id);
+                    let Some(primary_declaration) = symbol.primary_declaration else {
                         continue;
                     };
-                    let error = if symbol.export.is_some() && other_symbol.export.is_some() {
-                        ImportError::ConflictingExport {
-                            node: primary_declaration.into_anchored(None),
-                            other_node: other_primary_declaration.into_anchored(None),
-                            module: module.id,
-                            name: Some(key),
-                        }
-                    } else {
-                        ImportError::ConflictingBinding {
-                            node: primary_declaration.into_anchored(None),
-                            other_node: other_primary_declaration.into_anchored(None),
+
+                    // detect enum kind mismatches within a single symbol
+                    if let Some((node, other_node)) = self.enum_kind_mismatch_nodes(&tree, symbol) {
+                        let error = ImportError::ConflictingBinding {
+                            node: node.into_anchored(None),
+                            other_node: other_node.into_anchored(None),
                             scope: symbol.scope.0.into_global(module.id),
                             name: Some(key),
-                            is_local: is_local_pair,
+                            is_local: false,
+                        };
+                        self.error(error);
+                    }
+
+                    // compare against previously seen symbols with the same name
+                    let entry = buckets.entry(normalized_key).or_default();
+                    let category = SymbolCategory::from(symbol);
+                    for other_symbol_id in entry.values() {
+                        if *other_symbol_id == symbol_id {
+                            continue;
                         }
-                    };
-                    self.error(error);
-                    reported_conflicts.insert(Self::conflict_pair(
-                        primary_declaration,
-                        other_primary_declaration,
-                    ));
-                    break;
+                        let other_symbol = symbols.get_symbol(*other_symbol_id);
+
+                        // check if symbols conflict based on space and merging rules
+                        let import_kind_conflict =
+                            self.is_type_value_import_conflict(&tree, symbol, other_symbol);
+                        if !symbol.space.conflicts_with(other_symbol.space) && !import_kind_conflict
+                        {
+                            continue;
+                        }
+
+                        let enum_kind_mismatch =
+                            self.is_const_enum_mismatch(&tree, symbol, other_symbol);
+                        let can_merge = self.can_symbols_merge_declarations(
+                            module.language_type,
+                            symbol,
+                            other_symbol,
+                        ) && !enum_kind_mismatch;
+                        if can_merge {
+                            continue;
+                        }
+
+                        // local conflicts are allowed unless configured otherwise
+                        let is_local_pair = symbol.kind == SymbolKind::Local
+                            && other_symbol.kind == SymbolKind::Local;
+                        let left_binding_category = self.symbol_binding_category(symbol);
+                        let right_binding_category = self.symbol_binding_category(other_symbol);
+                        let is_parameter_pair = left_binding_category == BindingCategory::Parameter
+                            || right_binding_category == BindingCategory::Parameter;
+                        let is_strict_local_conflict =
+                            self.is_strict_local_conflict(symbol, other_symbol);
+                        let is_policy_controlled_conflict =
+                            is_local_pair && !is_parameter_pair && !is_strict_local_conflict;
+
+                        // JS/TS allow duplicate runtime var declarations
+                        if self.allow_runtime_var_redeclaration(module, symbol, other_symbol) {
+                            continue;
+                        }
+
+                        if is_policy_controlled_conflict && !no_redeclare_locals {
+                            continue;
+                        }
+
+                        // error on conflicting bindings
+                        let Some(other_primary_declaration) = other_symbol.primary_declaration
+                        else {
+                            continue;
+                        };
+                        let error = if symbol.export.is_some() && other_symbol.export.is_some() {
+                            ImportError::ConflictingExport {
+                                node: primary_declaration.into_anchored(None),
+                                other_node: other_primary_declaration.into_anchored(None),
+                                module: module.id,
+                                name: Some(key),
+                            }
+                        } else {
+                            ImportError::ConflictingBinding {
+                                node: primary_declaration.into_anchored(None),
+                                other_node: other_primary_declaration.into_anchored(None),
+                                scope: symbol.scope.0.into_global(module.id),
+                                name: Some(key),
+                                is_local: is_local_pair,
+                            }
+                        };
+                        self.error(error);
+                        reported_conflicts.insert(Self::conflict_pair(
+                            primary_declaration,
+                            other_primary_declaration,
+                        ));
+                        break;
+                    }
+                    entry.entry(category).or_insert(symbol_id);
                 }
-                entry.entry(category).or_insert(symbol_id);
             }
-        }
+            // check for local redeclarations
+            if no_redeclare_locals {
+                // validate redeclaration conflicts across switch case scopes
+                self.validate_switch_case_binding_conflicts(
+                    module,
+                    &tree,
+                    &symbols,
+                    &mut reported_conflicts,
+                );
 
-        // check for local redeclarations
-        if no_redeclare_locals {
-            // validate redeclaration conflicts across switch case scopes
-            self.validate_switch_case_binding_conflicts(
-                module,
-                &tree,
-                &symbols,
-                &mut reported_conflicts,
-            );
-
-            // validate conflicts that require ancestor scope checks
-            self.validate_ancestor_binding_conflicts(
-                module,
-                &tree,
-                &symbols,
-                &mut reported_conflicts,
-            );
-        }
+                // validate conflicts that require ancestor scope checks
+                self.validate_ancestor_binding_conflicts(
+                    module,
+                    &tree,
+                    &symbols,
+                    &mut reported_conflicts,
+                );
+            }
+        });
     }
 
     /// Return true when local redeclarations should report conflicts.
@@ -415,7 +418,8 @@ impl Compiler {
         symbols: &SymbolTable,
         reported_conflicts: &mut HashSet<(u32, u32)>,
     ) {
-        let global_augmentation_scope = module.dir_base().global_augmentation_scope;
+        let global_augmentation_scope =
+            self.with_active_base_dir(module.id, |dir| dir.global_augmentation_scope);
 
         for scope in symbols.scopes() {
             for (key, symbol_id) in symbols.active_named_symbols(scope) {

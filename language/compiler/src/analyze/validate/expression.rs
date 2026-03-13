@@ -3165,13 +3165,14 @@ impl Compiler {
         }
 
         // check symbols from dependent modules
-        let target_module = self.program.modules.get(symbol_id.module_id);
-        let target_module = target_module.read();
-        let Some(target_dir) = target_module.dir_maybe(ctx.profile) else {
+        let Some(target_dir) = self
+            .program
+            .artifacts
+            .dir_snapshot(symbol_id.module_id, ctx.profile)
+        else {
             return false;
         };
-        let target_symbols = target_dir.symbols.read();
-        let symbol = target_symbols.get_symbol(symbol_id.local_id);
+        let symbol = target_dir.symbols.get_symbol(symbol_id.local_id);
         symbol.ty == SymbolType::Enum
     }
 

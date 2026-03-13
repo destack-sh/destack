@@ -2,11 +2,13 @@ use std::mem;
 use std::str::FromStr;
 
 use crate::timing::tags;
-use crate::{BuildKey, BuildRequirementError, Compiler, LowerError, LowerResult, ModuleLowerer};
+use crate::{
+    BuildKey, BuildProduct, BuildRequirementError, Compiler, LowerError, LowerResult, ModuleLowerer,
+};
 
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
-    ArtifactKey, ModuleMir, OutputFormat, ProfileId, Target, TargetArch, TargetId,
+    ArtifactKey, ModuleMirData, OutputFormat, ProfileId, Target, TargetArch, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -17,7 +19,7 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
-    ) -> LowerResult<()> {
+    ) -> LowerResult<BuildProduct> {
         let module_version = self.module_version(module);
         let profile_version = self.profile_version(profile);
         self.ensure_module_profile_matches::<LowerError>(
@@ -26,12 +28,13 @@ impl Compiler {
             profile,
             profile_version,
         )?;
-        self.lower_module(module, profile, module_version, profile_version, target)?;
+        let product =
+            self.lower_module(module, profile, module_version, profile_version, target)?;
         if self.is_code_module(module) {
             self.stats.record_lower();
         }
 
-        Ok(())
+        Ok(product)
     }
 
     /// Lower a module.
@@ -42,7 +45,7 @@ impl Compiler {
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
         target_id: TargetId,
-    ) -> LowerResult<()> {
+    ) -> LowerResult<BuildProduct> {
         let resolved_profile = self
             .program
             .profile_id_for_target(module_id, &target_id)
@@ -51,7 +54,12 @@ impl Compiler {
                 message: format!("target '{target_id}' not found for profile resolution"),
             })?;
         if resolved_profile != profile {
-            return Ok(());
+            return Err(LowerError::Internal {
+                module: module_id,
+                message: format!(
+                    "target '{target_id}' resolved to profile '{resolved_profile:?}', not '{profile:?}'"
+                ),
+            });
         }
         let _timing = self.timing_scope(tags::LOWER_MODULE);
 
@@ -71,19 +79,8 @@ impl Compiler {
                 profile,
                 profile_version,
             )?;
-            let module = self.program.modules.get(module_id);
-            let mut module = module.write();
-            self.ensure_module_profile_matches_guard::<LowerError>(
-                &module,
-                module_version,
-                profile,
-                profile_version,
-            )?;
-            let code = module.code_mut();
-            code.mirs.retain(|mir| mir.target != target_id);
-            code.mirs.push(ModuleMir::from_data(entry.payload));
             tracing::trace!(?module_id, ?target_id, "lower.module.cache");
-            return Ok(());
+            return Ok(BuildProduct::Mir(entry.payload));
         }
 
         self.require_dir_elaborated(module_id, profile)?;
@@ -91,7 +88,10 @@ impl Compiler {
         self.require_intrinsic_environment(profile)
             .map_err(LowerError::from)?;
         if !self.is_code_module(module_id) {
-            return Ok(());
+            return Err(LowerError::Internal {
+                module: module_id,
+                message: "attempted to lower MIR for non-code module".to_string(),
+            });
         }
 
         // resolve target configuration
@@ -110,50 +110,32 @@ impl Compiler {
                 })?
         };
 
-        let module = self.program.modules.get(module_id);
-
-        // initialize MIR for this target
-        {
-            self.ensure_module_profile_matches::<LowerError>(
-                module_id,
-                module_version,
-                profile,
-                profile_version,
-            )?;
-            let mut module = module.write();
-            self.ensure_module_profile_matches_guard::<LowerError>(
-                &module,
-                module_version,
-                profile,
-                profile_version,
-            )?;
-            // replace existing MIR for this target, if any
-            let code = module.code_mut();
-            code.mirs.retain(|mir| mir.target != target_id);
-            code.mirs
-                .push(ModuleMir::new(module_id, module_version, target_id.clone()));
-        }
+        // load the patched DIR artifact
+        let dir = self
+            .program
+            .artifacts
+            .dir_patched(module_id, profile)
+            .ok_or_else(|| LowerError::Internal {
+                module: module_id,
+                message: "missing patched DIR artifact for lowering".to_string(),
+            })?;
 
         // lower the module
         let (mir_tree, mir_strings) = {
             let module = self.program.modules.get(module_id);
             let module = module.read();
-            let dir = module.dir(profile);
-            let dir_tree = dir.tree.read();
-            let symbols = dir.symbols.read();
-            let types = dir.types.read();
-            let captures = dir.captures.read();
             let pointer_bytes = self.pointer_bytes_for_target_config(module_id, &target)?;
 
             let mut lowerer = ModuleLowerer::new(
                 self,
                 &module,
                 profile,
-                &dir_tree,
+                &dir.tree,
                 &dir.roots,
-                &symbols,
-                &types,
-                &captures,
+                dir.anchor_node,
+                &dir.symbols,
+                &dir.types,
+                &dir.captures,
                 &target_id,
                 pointer_bytes,
             );
@@ -161,41 +143,23 @@ impl Compiler {
             lowerer.finish()
         };
 
-        // update the module with the new lowered MIR
-        // (#Cleanup: should we mutate the ModuleMir in place..?)
-        self.ensure_module_profile_matches::<LowerError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
-        let module = self.program.modules.get(module_id);
-        let mut module = module.write();
-        self.ensure_module_profile_matches_guard::<LowerError>(
-            &module,
-            module_version,
-            profile,
-            profile_version,
-        )?;
-        let mir = module.mir_mut(&target_id);
-        *mir.tree.write() = mir_tree;
-        mir.strings = mir_strings;
+        let payload = ModuleMirData {
+            id: module_id,
+            version: module_version,
+            target: target_id.clone(),
+            tree: mir_tree,
+            strings: mir_strings,
+            profile: None,
+        };
 
         // write MIR to cache
         if let Some(cache) = cache_handle.as_ref() {
-            self.ensure_module_profile_matches::<LowerError>(
-                module_id,
-                module_version,
-                profile,
-                profile_version,
-            )?;
-            let payload = module.mir(&target_id).to_data();
-            if let Err(error) = cache.write_mir(payload) {
+            if let Err(error) = cache.write_mir(payload.clone()) {
                 tracing::debug!(?module_id, ?target_id, ?error, "lower.module.cache.write");
             }
         }
 
-        Ok(())
+        Ok(BuildProduct::Mir(payload))
     }
 
     /// Ensure MIR exists for one module and target.

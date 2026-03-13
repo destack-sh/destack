@@ -8,7 +8,7 @@ use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 use indexmap::IndexMap;
 
-use crate::{Compiler, ResolveResult};
+use crate::{Compiler, ResolveError, ResolveResult};
 
 /// A static CommonJS assignment value that can back an export target.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -178,11 +178,11 @@ impl Compiler {
         self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
         // load target module state
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
+        let dir = self
+            .require_artifact_dir_prepared(module_id, profile)
+            .map_err(ResolveError::from)?;
+        let tree = &dir.tree;
+        let symbols = &dir.symbols;
 
         // collect static CommonJS assignment state and read the final default value
         let state = self.collect_commonjs_export_state(
@@ -190,8 +190,8 @@ impl Compiler {
             dir.namespace_scope,
             dir.namespace_symbol.into_global(module_id),
             &dir.roots,
-            &tree,
-            &symbols,
+            tree,
+            symbols,
         );
         let Some(value_expression_id) = state.default_value else {
             return Ok(Some(dir.default_symbol.into_global(module_id)));
@@ -199,8 +199,8 @@ impl Compiler {
 
         // resolve the assignment value to a symbol when possible
         let value_symbol = self.resolve_commonjs_assignment_value_symbol(
-            &tree,
-            &symbols,
+            tree,
+            symbols,
             module_id,
             dir.namespace_scope,
             value_expression_id,
@@ -208,7 +208,7 @@ impl Compiler {
 
         // keep unresolved assignment values unresolved
         let value_symbol = if value_symbol.is_none()
-            && self.commonjs_assignment_value_is_unresolved_path(&tree, value_expression_id)
+            && self.commonjs_assignment_value_is_unresolved_path(tree, value_expression_id)
         {
             None
         }

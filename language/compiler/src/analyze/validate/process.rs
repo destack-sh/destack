@@ -1,3 +1,4 @@
+use crate::analyze::DirReadBoundary;
 use crate::analyze::common::TypeContext;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementError, Compiler};
@@ -12,6 +13,14 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
+        // current local build frame already satisfies analyzed reads
+        if self
+            .current_active_dir_frame(module, profile, DirReadBoundary::Analyzed)
+            .is_some()
+        {
+            return Ok(());
+        }
+
         self.require_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
             module,
             profile,
@@ -21,6 +30,7 @@ impl Compiler {
     /// Final pass: run validation checks over committed semantics.
     pub(crate) fn analyze_module_validate(
         &self,
+        dir: &ModuleDir,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
@@ -65,41 +75,12 @@ impl Compiler {
             return Ok(());
         }
 
-        // resolve cache handle
+        // resolve cache handle for the final analyzed artifact write
         let cache_handle =
             self.cache_handle_for_module(module_id, Some(profile), None, CacheKind::DirAnalyzed);
 
-        // try to load analyzed DIR from cache
-        if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_dir_analyzed()
-        {
-            self.ensure_module_profile_matches::<AnalyzeError>(
-                module_id,
-                module_version,
-                profile,
-                profile_version,
-            )?;
-            let dir = ModuleDir::from_data(entry.payload);
-            let module = self.program.modules.get(module_id);
-            let mut module = module.write();
-            self.ensure_module_profile_matches_guard::<AnalyzeError>(
-                &module,
-                module_version,
-                profile,
-                profile_version,
-            )?;
-            module.set_dir(profile, dir);
-            self.update_module_signature(module_id, profile, module_version, profile_version)?;
-            tracing::trace!(?module_id, ?profile, "analyze.module.cache");
-            return Ok(());
-        }
-
-        // ensure analyze dependencies are ready
-        // the analyzed-dir producer runs infer through validate as one sequence
-
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir(profile);
         let mut should_return_after_validation = false;
         {
             let tree = dir.tree.read();

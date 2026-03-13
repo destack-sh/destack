@@ -1,5 +1,6 @@
 use super::*;
 use crate::analyze::common::DirReadBoundary;
+use destack_dir::GlobalSymbolId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParallelValueKind {
@@ -761,7 +762,7 @@ export interface RetryPolicy {
 }
 "#,
     );
-    test.add_file(
+    test.add_module(
         "owner.ds",
         r#"
 import { RetryPolicy } from "./contract";
@@ -1525,7 +1526,7 @@ export interface Left<T> {
 export type LeftLane = Right<string>.Lane;
 "#,
     );
-    test.add_file(
+    test.add_module(
         "b.ds",
         r#"
 import type { Left } from "./a";
@@ -1732,7 +1733,6 @@ let value = text;
 /// Reject incompatible assignment from typeof static method calls.
 #[test]
 fn test_analyze_reports_unassignable_type_for_typeof_static_method_result() {
-    // arrange a class constructor alias and incompatible assignment
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "main.ds",
@@ -1748,7 +1748,6 @@ let badNext: string = ctor.next(1);
 "#,
     );
 
-    // run analyze and require unassignable diagnostic
     test.analyze_module(module_id);
     test.compile();
     test.check_has_diagnostic("EA101");

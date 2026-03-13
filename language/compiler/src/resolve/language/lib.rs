@@ -9,26 +9,30 @@ use destack_workspace::{
 };
 use indexmap::IndexMap;
 
+use crate::analyze::DirReadBoundary;
 use crate::timing::tags;
-use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
+use crate::{
+    BuildRequirementCollector, Compiler, ResolveError, ResolveModuleContext, ResolveResult,
+};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve the lib environment for one profile.
-    pub fn resolve_lib_environment(&self, profile_id: ProfileId) -> ResolveResult<()> {
+    pub fn resolve_lib_environment(&self, profile_id: ProfileId) -> ResolveResult<LibEnvironment> {
         if self.lib_environment(profile_id).is_some() {
-            return Ok(());
+            return Ok(self
+                .lib_environment(profile_id)
+                .unwrap_or_else(|| unreachable!())
+                .as_ref()
+                .clone());
         }
 
         if !self.options.load_libs {
-            self.program
-                .artifacts
-                .set_lib_environment(profile_id, LibEnvironment::default());
-            return Ok(());
+            return Ok(LibEnvironment::default());
         }
 
         let Some(builtins) = self.program.builtins.as_ref() else {
-            return Ok(());
+            return Ok(LibEnvironment::default());
         };
         let _timing = self.timing_scope(tags::RESOLVE_LIBS);
 
@@ -63,6 +67,20 @@ impl Compiler {
             return Err(ResolveError::Yield { requirement });
         }
 
+        // require declared lib surfaces before building the environment
+        let mut collector = BuildRequirementCollector::new();
+        for &module_id in &lib_modules {
+            if let Err(error) = self.require_dir_declared(module_id, profile_id)
+                && let Some(error) = collector.try_collect::<(), _>(Err(error))
+            {
+                let requirement = error.into_requirement();
+                return Err(ResolveError::UnsatisfiedRequirement { requirement });
+            }
+        }
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(ResolveError::Yield { requirement });
+        }
+
         // build global symbol cache for lib modules
         let global_cache = {
             let _timing = self.timing_scope(tags::RESOLVE_LIBS_GLOBAL_CACHE);
@@ -91,19 +109,14 @@ impl Compiler {
             WellKnownSymbols::build(&self.program.strings, &declared_symbols)
         };
 
-        self.program.artifacts.set_lib_environment(
-            profile_id,
-            LibEnvironment {
-                modules: lib_modules,
-                ambient_modules,
-                declared_symbols,
-                symbols,
-                symbol_sources,
-                well_known_symbols,
-            },
-        );
-
-        Ok(())
+        Ok(LibEnvironment {
+            modules: lib_modules,
+            ambient_modules,
+            declared_symbols,
+            symbols,
+            symbol_sources,
+            well_known_symbols,
+        })
     }
 
     /// Collect selected builtin lib modules from profile input state.
@@ -225,9 +238,86 @@ impl Compiler {
                 // load the module
                 let module = self.program.modules.get(module_id);
                 let module = module.read();
-                let dir = module.dir(profile_id);
-                let exports = dir.exported_symbols.read();
-                let tree = dir.tree.read();
+                let module = ResolveModuleContext::from_module(&module);
+                let dir = self
+                    .require_artifact_dir_for_boundary(
+                        module_id,
+                        profile_id,
+                        DirReadBoundary::Declared,
+                    )
+                    .map_err(ResolveError::from)
+                    .unwrap_or_else(|_| unreachable!());
+                let symbols = &dir.symbols;
+                let exports = &dir.exported_symbols;
+                let tree = &dir.tree;
+
+                // resolve declared namespace scope entries first
+                if group.ty.is_none() || group.value.is_none() {
+                    let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+                    for (scope_key, symbol_id) in symbols.active_named_symbols(namespace_scope) {
+                        if scope_key != key {
+                            continue;
+                        }
+
+                        let symbol = symbols.get_symbol(symbol_id);
+                        let target_id = symbol_id.into_global(module_id);
+                        match symbol.space {
+                            SymbolSpace::Type => {
+                                if group.ty.is_none() {
+                                    group.ty = Some(target_id);
+                                }
+                            }
+                            SymbolSpace::Value => {
+                                if group.value.is_none() {
+                                    group.value = Some(target_id);
+                                }
+                            }
+                            SymbolSpace::TypeValue => {
+                                if group.ty.is_none() {
+                                    group.ty = Some(target_id);
+                                }
+                                if group.value.is_none() {
+                                    group.value = Some(target_id);
+                                }
+                            }
+                            SymbolSpace::Label => {}
+                        }
+                    }
+                }
+
+                // resolve declared global augmentation entries next
+                if group.ty.is_none() || group.value.is_none() {
+                    let global_scope = symbols.get_scope_by_id(dir.global_augmentation_scope);
+                    for (scope_key, symbol_id) in symbols.active_named_symbols(global_scope) {
+                        if scope_key != key {
+                            continue;
+                        }
+
+                        let symbol = symbols.get_symbol(symbol_id);
+                        let target_id = symbol_id.into_global(module_id);
+                        match symbol.space {
+                            SymbolSpace::Type => {
+                                if group.ty.is_none() {
+                                    group.ty = Some(target_id);
+                                }
+                            }
+                            SymbolSpace::Value => {
+                                if group.value.is_none() {
+                                    group.value = Some(target_id);
+                                }
+                            }
+                            SymbolSpace::TypeValue => {
+                                if group.ty.is_none() {
+                                    group.ty = Some(target_id);
+                                }
+                                if group.value.is_none() {
+                                    group.value = Some(target_id);
+                                }
+                            }
+                            SymbolSpace::Label => {}
+                        }
+                    }
+                }
 
                 // resolve type-space symbol if not yet found
                 if group.ty.is_none()
@@ -311,11 +401,12 @@ impl Compiler {
 
         // then, supplement from module scopes and exports
         for &module_id in lib_modules {
-            let module = self.program.modules.get(module_id);
-            let module = module.read();
-            let dir = module.dir(profile_id);
-            let symbols_table = dir.symbols.read();
-            let exports = dir.exported_symbols.read();
+            let dir = self
+                .require_artifact_dir_resolved(module_id, profile_id)
+                .map_err(ResolveError::from)
+                .unwrap_or_else(|_| unreachable!());
+            let symbols_table = &dir.symbols;
+            let exports = &dir.exported_symbols;
 
             // collect namespace scope declarations directly
             let namespace_scope = symbols_table.get_scope_by_id(dir.namespace_scope);
@@ -458,11 +549,12 @@ impl Compiler {
 
         // supplement merge sources from module scopes and exports
         for &module_id in lib_modules {
-            let module = self.program.modules.get(module_id);
-            let module = module.read();
-            let dir = module.dir(profile_id);
-            let symbols_table = dir.symbols.read();
-            let exports = dir.exported_symbols.read();
+            let dir = self
+                .require_artifact_dir_resolved(module_id, profile_id)
+                .map_err(ResolveError::from)
+                .unwrap_or_else(|_| unreachable!());
+            let symbols_table = &dir.symbols;
+            let exports = &dir.exported_symbols;
 
             // collect namespace scope declarations directly
             let namespace_scope = symbols_table.get_scope_by_id(dir.namespace_scope);

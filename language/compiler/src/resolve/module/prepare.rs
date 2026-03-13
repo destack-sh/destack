@@ -1,9 +1,9 @@
 use crate::timing::tags;
-use crate::{Compiler, ResolveError, ResolveResult};
+use crate::{BuildProduct, Compiler, ResolveError, ResolveResult};
 use destack_dir::{DependencyItem, Export, GlobalSymbolId, LocalSymbolId};
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
-    ImportMeta, ImportMetaTarget, ModuleContent, ModuleDir, ProfileId, TargetEnv, TargetVendor,
+    ImportMeta, ImportMetaTarget, ModuleDir, ProfileId, TargetEnv, TargetVendor,
 };
 
 impl Compiler {
@@ -14,7 +14,7 @@ impl Compiler {
         profile_id: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-    ) -> ResolveResult<()> {
+    ) -> ResolveResult<BuildProduct> {
         // skip stale tasks
         self.ensure_module_profile_matches::<ResolveError>(
             module_id,
@@ -40,7 +40,7 @@ impl Compiler {
         let cache_handle =
             self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirResolved);
 
-        // load the module and skip when the profile dir already exists
+        // load the module
         self.ensure_module_profile_matches::<ResolveError>(
             module_id,
             module_version,
@@ -48,40 +48,28 @@ impl Compiler {
             profile_version,
         )?;
         let module = self.program.modules.get(module_id);
-        let mut module = module.write();
+        let module = module.write();
         self.ensure_module_profile_matches_guard::<ResolveError>(
             &module,
             module_version,
             profile_id,
             profile_version,
         )?;
-        if module
-            .code()
-            .dirs
-            .iter()
-            .any(|dir| dir.profile_id == Some(profile_id))
-        {
-            return Ok(());
-        }
-
         // try to load profile DIR from cache
         if let Some(cache) = cache_handle.as_ref()
             && let Ok(Some(entry)) = cache.read_dir_resolved()
         {
-            self.ensure_module_profile_matches::<ResolveError>(
-                module_id,
-                module_version,
-                profile_id,
-                profile_version,
-            )?;
-            let dir = ModuleDir::from_data(entry.payload);
-            module.code_mut().dirs.push(dir);
             tracing::trace!(?module_id, ?profile_id, "resolve.module.prepare.cache");
-            return Ok(());
+            return Ok(BuildProduct::Dir(entry.payload));
         }
 
         // load the base dir and profile
-        let base = module.dir_base();
+        let base = self
+            .artifact_dir_base(module_id)
+            .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
+        // FUGU #Architecture: slice 3 still rebuilds one transient base DIR
+        // until slice 4 replaces whole-ModuleDir base builders with narrower inputs
+        let base = self.transient_dir_builder_from_artifact(base);
         let profile = self.program.profile(profile_id);
         let path = module.path.clone();
         let dir = module
@@ -127,20 +115,17 @@ impl Compiler {
             env: profile.env.clone(),
         };
 
-        // create the profile dir and attach import meta
-        let mut dir = ModuleDir::from_base(base, profile_id);
+        // create the transient profile dir and attach import meta
+        let mut dir = ModuleDir::from_base(&base, profile_id);
         dir.import_meta = Some(import_meta);
-        module.code_mut().dirs.push(dir);
 
         // apply static if decorators before exports are built
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_STATIC_IF);
-            let dir = module.dir_mut(profile_id);
-            self.apply_static_if_decorators(module_id, profile_id, dir)?;
+            self.apply_static_if_decorators(module_id, profile_id, &mut dir)?;
         }
 
         // build export table from bound declarations
-        let dir = module.dir(profile_id);
         let tree = dir.tree.read();
         let mut symbols = dir.symbols.write();
         let dependency_items_by_scope = self.dependency_items_by_scope(&tree);
@@ -151,7 +136,7 @@ impl Compiler {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_EXPORTS);
             self.build_module_exports(
                 &module,
-                dir,
+                &dir,
                 &tree,
                 &mut symbols,
                 &dependency_items_by_scope,
@@ -163,7 +148,7 @@ impl Compiler {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_BINDING_EXPORTS);
             self.build_module_binding_exports(
                 &module,
-                dir,
+                &dir,
                 &tree,
                 &mut symbols,
                 &dependency_items_by_scope,
@@ -172,11 +157,16 @@ impl Compiler {
             );
         }
 
+        drop(symbols);
+        drop(tree);
+
+        // freeze the prepared workspace
+        let payload = dir.to_data();
+
         // write profile DIR to cache
         if let Some(cache) = cache_handle.as_ref() {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_CACHE_WRITE);
-            let payload = module.dir(profile_id).to_data();
-            if let Err(error) = cache.write_dir_resolved(payload) {
+            if let Err(error) = cache.write_dir_resolved(payload.clone()) {
                 tracing::debug!(
                     ?module_id,
                     ?profile_id,
@@ -186,7 +176,7 @@ impl Compiler {
             }
         }
 
-        Ok(())
+        Ok(BuildProduct::Dir(payload))
     }
 
     /// Update the symbol id stored in a dependency item.
@@ -320,7 +310,7 @@ impl Compiler {
         profile_id: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-    ) -> ResolveResult<()> {
+    ) -> ResolveResult<BuildProduct> {
         // resolve cache handle
         let cache_handle =
             self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirResolved);
@@ -334,7 +324,7 @@ impl Compiler {
             profile_id,
             profile_version,
         )?;
-        let mut module = module.write();
+        let module = module.write();
         self.ensure_module_profile_matches_guard::<ResolveError>(
             &module,
             module_version,
@@ -342,39 +332,24 @@ impl Compiler {
             profile_version,
         )?;
 
-        // skip if profile DIR already exists
-        if module.dir_maybe(profile_id).is_some() {
-            return Ok(());
-        }
-
         // try to load profile DIR from cache
         if let Some(cache) = cache_handle.as_ref()
             && let Ok(Some(entry)) = cache.read_dir_resolved()
         {
-            self.ensure_module_profile_matches::<ResolveError>(
-                module_id,
-                module_version,
-                profile_id,
-                profile_version,
-            )?;
-            let dir = ModuleDir::from_data(entry.payload);
-            match &mut module.content {
-                ModuleContent::Data { dirs, .. } => dirs.push(dir),
-                ModuleContent::Text { dirs, .. } => dirs.push(dir),
-                ModuleContent::Binary { dirs, .. } => dirs.push(dir),
-                ModuleContent::Code(_) | ModuleContent::Unloaded => {}
-            }
             tracing::trace!(?module_id, ?profile_id, "resolve.module.prepare.cache");
-            return Ok(());
+            return Ok(BuildProduct::Dir(entry.payload));
         }
 
         // get base DIR (must exist for parsed data modules)
-        let base = module
-            .dir_base_maybe()
-            .expect("data module missing base DIR");
+        let base = self
+            .artifact_dir_base(module_id)
+            .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
+        // FUGU #Architecture: slice 3 still rebuilds one transient base DIR
+        // until slice 4 replaces whole-ModuleDir base builders with narrower inputs
+        let base = self.transient_dir_builder_from_artifact(base);
 
         // create profile DIR from base
-        let dir = ModuleDir::from_base(base, profile_id);
+        let dir = ModuleDir::from_base(&base, profile_id);
 
         // populate default export in exported_symbols
         let default_key_id = self.program.strings.intern("default");
@@ -390,22 +365,15 @@ impl Compiler {
             default_export,
         );
 
-        // add DIR to module
-        match &mut module.content {
-            ModuleContent::Data { dirs, .. } => dirs.push(dir),
-            ModuleContent::Text { dirs, .. } => dirs.push(dir),
-            ModuleContent::Binary { dirs, .. } => dirs.push(dir),
-            _ => {}
-        }
+        let payload = dir.to_data();
 
         // write profile DIR to cache
         if let Some(cache) = cache_handle.as_ref() {
-            let payload = module.dir(profile_id).to_data();
-            if let Err(error) = cache.write_dir_resolved(payload) {
+            if let Err(error) = cache.write_dir_resolved(payload.clone()) {
                 tracing::debug!(?module_id, ?profile_id, ?error, "resolve.data.cache.write");
             }
         }
 
-        Ok(())
+        Ok(BuildProduct::Dir(payload))
     }
 }

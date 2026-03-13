@@ -1,8 +1,7 @@
-use destack_dir::Expression;
-use destack_source::{ModuleId, ModuleVersion};
-
 use crate::timing::tags;
 use crate::{Compiler, ImportError, ImportResult};
+use destack_dir::Expression;
+use destack_source::{ModuleId, ModuleVersion};
 
 impl Compiler {
     /// Desugar module syntactically: transforms that don't need type information:
@@ -22,14 +21,14 @@ impl Compiler {
             return Ok(());
         }
 
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let mut tree = module.dir_base().tree.write();
+        self.with_active_base_dir(module_id, |dir| {
+            let mut tree = dir.tree.write();
 
-        // desugar expressions
-        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            self.desugar_expression(expression_id, &mut tree);
-        }
+            // desugar expressions
+            for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+                self.desugar_expression(expression_id, &mut tree);
+            }
+        });
         Ok(())
     }
 }

@@ -56,9 +56,11 @@ impl DiagnosticAnchor {
 
                 // look in profile-specific DIR if we have a profile
                 if let Some(profile_id) = anchored.profile_id
-                    && let Some(dir) = module.dir_maybe(profile_id)
+                    && let Some(dir) = program
+                        .artifacts
+                        .dir_snapshot(anchored.module_id(), profile_id)
                 {
-                    let tree = dir.tree.read();
+                    let tree = &dir.tree;
                     if tree.has_node_id(local_id) {
                         let source_id = tree.get_source(local_id);
                         let span = ast.tree.get_span_by_id(source_id);
@@ -67,8 +69,8 @@ impl DiagnosticAnchor {
                 }
 
                 // fall back to base DIR
-                let dir = module.dir_base_maybe()?;
-                let tree = dir.tree.read();
+                let dir = program.artifacts.dir_base(anchored.module_id())?;
+                let tree = &dir.tree;
                 if !tree.has_node_id(local_id) {
                     return None;
                 }
@@ -81,15 +83,20 @@ impl DiagnosticAnchor {
                 let module = program.modules.get(anchored.module_id());
                 let module = module.read();
                 let ast = module.ast_maybe()?;
-                let mir = module.mir(&anchored.target_id);
-                let mir_tree = mir.tree.read();
+                let profile_id = program.default_profile_id_for_module(anchored.module_id());
+                let mir = program.artifacts.mir_snapshot(
+                    anchored.module_id(),
+                    profile_id,
+                    &anchored.target_id,
+                )?;
+                let mir_tree = &mir.tree;
 
                 // get source DIR node from MIR
                 let dir_node_id = mir_tree.get_source(anchored.local_id().id)?;
 
                 // look up span from base DIR
-                let dir = module.dir_base_maybe()?;
-                let tree = dir.tree.read();
+                let dir = program.artifacts.dir_base(anchored.module_id())?;
+                let tree = &dir.tree;
                 if !tree.has_node_id(dir_node_id) {
                     return None;
                 }

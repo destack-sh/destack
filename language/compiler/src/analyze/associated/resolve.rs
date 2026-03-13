@@ -5,13 +5,14 @@ use crate::analyze::common::{
     TreeSymbolView, TypeContext, TypeRewriteCache, TypeView, TypeWalkContext, TypeWalkKey,
     rewrite_type_with_cache,
 };
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, ResolveResult};
 use destack_core::StringId;
 use destack_dir::{
     Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, Member, NodeTree, NodeType, StaticArgument, StaticExpression, StaticKey,
     SymbolTable, SymbolType, Type, TypeRewriter, TypeRewriterOptions, TypeTable,
 };
+use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 /// Rewrite associated alias references inside projected member types.
@@ -995,7 +996,7 @@ impl Compiler {
                 lookup_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                DirReadBoundary::Interface,
                 |view| {
                     self.query_static_member_symbol(
                         view.module,
@@ -1013,6 +1014,7 @@ impl Compiler {
         };
 
         // prefer one member-kind class when the owner has ambiguous same-name members
+        let mut preserve_concrete_symbol = false;
         if let Some(preferred_kind) = preferred_kind
             && let Some(preferred_symbol) = self.query_direct_member_symbol_for_key_and_kind(
                 &*ctx,
@@ -1022,16 +1024,20 @@ impl Compiler {
             )?
         {
             projected_symbol = preferred_symbol;
+            preserve_concrete_symbol = true;
         }
 
-        let projected_symbol = self.canonical_symbol_id(
-            ctx.module_symbol_view(),
-            projected_symbol,
-            CanonicalSymbolMode::FollowAliases,
-        );
-        let projected_symbol = self
-            .declaration_symbol_id(ctx.module_symbol_view(), projected_symbol)
-            .unwrap_or(projected_symbol);
+        let projected_symbol = if preserve_concrete_symbol {
+            projected_symbol
+        } else {
+            let projected_symbol = self.canonical_symbol_id(
+                ctx.module_symbol_view(),
+                projected_symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
+            self.declaration_symbol_id(ctx.module_symbol_view(), projected_symbol)
+                .unwrap_or(projected_symbol)
+        };
 
         Ok(Some(AssociatedProjectionSelection {
             target_symbol: projected_symbol,
@@ -1155,65 +1161,164 @@ impl Compiler {
             .declaration_symbol_id(ctx.module_symbol_view(), owner_symbol)
             .unwrap_or(owner_symbol);
 
-        self.with_module_tree_symbol_view_or_local_at_boundary(
-            ctx.module,
-            ctx.profile,
-            owner_symbol.module_id,
-            ctx.tree,
-            ctx.symbols,
+        let symbol = self
+            .query_declared_direct_member_symbol_for_name_and_kind(
+                ctx.module.id,
+                ctx.profile,
+                owner_symbol.module_id,
+                owner_symbol,
+                member_name,
+                preferred_kind,
+                ctx.tree,
+                ctx.symbols,
+            )
+            .map_err(AnalyzeError::from)?;
+        if symbol.is_some() {
+            return Ok(symbol);
+        }
+
+        let symbol = self.query_extension_direct_member_symbol_for_name_and_kind(
+            ctx,
+            owner_symbol,
+            member_name,
+            preferred_kind,
+        )?;
+
+        Ok(symbol)
+    }
+
+    /// Query one direct declared member symbol from one immutable declared view.
+    fn query_declared_direct_member_symbol_in_view(
+        &self,
+        view: TreeSymbolView<'_>,
+        owner_symbol: GlobalSymbolId,
+        member_name: StringId,
+        preferred_kind: StaticMemberSymbolKind,
+    ) -> Option<GlobalSymbolId> {
+        let symbol_entry = view.symbols.get_symbol(owner_symbol.local_id);
+        let mut declaration_ids = Vec::new();
+        if let Some(primary_declaration) = symbol_entry.primary_declaration {
+            declaration_ids.push(primary_declaration);
+        }
+        if let Some(secondary_declarations) = symbol_entry.secondary_declarations.as_deref() {
+            declaration_ids.extend(secondary_declarations.iter().copied());
+        }
+
+        for declaration_id in declaration_ids {
+            if declaration_id.local_id.ty != NodeType::Declaration {
+                continue;
+            }
+            let declaration_id = declaration_id.local_id.into_typed::<Declaration>();
+            let declaration = view.tree.get(declaration_id);
+            let members = match declaration {
+                Declaration::Class { members, .. }
+                | Declaration::Struct { members, .. }
+                | Declaration::Interface { members, .. }
+                | Declaration::Enum { members, .. }
+                | Declaration::Extension { members, .. } => members.as_slice(),
+                _ => continue,
+            };
+
+            for member_id in members {
+                let member = view.tree.get(*member_id);
+                let (name, symbol, kind) = match member {
+                    Member::Type { name, symbol, .. } => (
+                        *name,
+                        self.typed_global_symbol_id(view.module.id, view.symbols, *symbol),
+                        StaticMemberSymbolKind::AssociatedType,
+                    ),
+                    Member::ComptimeConst { name, symbol, .. } => (
+                        *name,
+                        self.typed_global_symbol_id(view.module.id, view.symbols, *symbol),
+                        StaticMemberSymbolKind::AssociatedComptimeConst,
+                    ),
+                    _ => continue,
+                };
+
+                if name == member_name && kind == preferred_kind {
+                    return Some(symbol);
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Query one direct declared member symbol by name and static-member kind.
+    fn query_declared_direct_member_symbol_for_name_and_kind(
+        &self,
+        current_module_id: ModuleId,
+        profile_id: ProfileId,
+        owner_module_id: ModuleId,
+        owner_symbol: GlobalSymbolId,
+        member_name: StringId,
+        preferred_kind: StaticMemberSymbolKind,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> ResolveResult<Option<GlobalSymbolId>> {
+        let module = self.program.modules.get(current_module_id);
+        let module = module.read();
+
+        Ok(self.with_module_tree_symbol_view_or_local_at_boundary(
+            &module,
+            profile_id,
+            owner_module_id,
+            tree,
+            symbols,
             DirReadBoundary::Declared,
             |view| {
-                let symbol_entry = view.symbols.get_symbol(owner_symbol.local_id);
-                let mut declaration_ids = Vec::new();
-                if let Some(primary_declaration) = symbol_entry.primary_declaration {
-                    declaration_ids.push(primary_declaration);
-                }
-                if let Some(secondary_declarations) = symbol_entry.secondary_declarations.as_deref()
-                {
-                    declaration_ids.extend(secondary_declarations.iter().copied());
-                }
-
-                for declaration_id in declaration_ids {
-                    if declaration_id.local_id.ty != NodeType::Declaration {
-                        continue;
-                    }
-                    let declaration_id = declaration_id.local_id.into_typed::<Declaration>();
-                    let declaration = view.tree.get(declaration_id);
-                    let members = match declaration {
-                        Declaration::Class { members, .. }
-                        | Declaration::Struct { members, .. }
-                        | Declaration::Interface { members, .. }
-                        | Declaration::Enum { members, .. }
-                        | Declaration::Extension { members, .. } => members.as_slice(),
-                        _ => continue,
-                    };
-
-                    for member_id in members {
-                        let member = view.tree.get(*member_id);
-                        let (name, symbol, kind) = match member {
-                            Member::Type { name, symbol, .. } => (
-                                *name,
-                                symbol.into_global(view.module.id),
-                                StaticMemberSymbolKind::AssociatedType,
-                            ),
-                            Member::ComptimeConst { name, symbol, .. } => (
-                                *name,
-                                symbol.into_global(view.module.id),
-                                StaticMemberSymbolKind::AssociatedComptimeConst,
-                            ),
-                            _ => continue,
-                        };
-
-                        if name == member_name && kind == preferred_kind {
-                            return Some(symbol);
-                        }
-                    }
-                }
-
-                None
+                self.query_declared_direct_member_symbol_in_view(
+                    view,
+                    owner_symbol,
+                    member_name,
+                    preferred_kind,
+                )
             },
-        )
-        .map_err(AnalyzeError::from)
+        )?)
+    }
+
+    /// Query one direct extension member symbol by name and static-member kind.
+    fn query_extension_direct_member_symbol_for_name_and_kind(
+        &self,
+        ctx: &TypeContext<'_>,
+        owner_symbol: GlobalSymbolId,
+        member_name: StringId,
+        preferred_kind: StaticMemberSymbolKind,
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        let extension_symbols =
+            self.visible_extension_symbols_for_target(ctx.symbol_type_view(), owner_symbol)?;
+        for extension_symbol in extension_symbols {
+            let Some(extension) =
+                self.extension_for_symbol_in_module(ctx.module_type_view(), extension_symbol)?
+            else {
+                continue;
+            };
+            if !self.is_extension_visible(ctx.module, ctx.profile, &extension)? {
+                continue;
+            }
+
+            let symbol = self
+                .with_module_tree_symbol_view_at_boundary(
+                    ctx.module,
+                    ctx.profile,
+                    extension_symbol.module_id,
+                    DirReadBoundary::Declared,
+                    |view| {
+                        self.query_declared_direct_member_symbol_in_view(
+                            view,
+                            extension_symbol,
+                            member_name,
+                            preferred_kind,
+                        )
+                    },
+                )
+                .map_err(AnalyzeError::from)?;
+            if symbol.is_some() {
+                return Ok(symbol);
+            }
+        }
+
+        Ok(None)
     }
 
     /// Resolve one associated member symbol for a concrete receiver and static member key.

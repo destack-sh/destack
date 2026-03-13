@@ -386,7 +386,7 @@ impl CacheRegistry {
             CacheKind::DirBase => "dir-base",
             CacheKind::DirResolved => "dir-resolved",
             CacheKind::DirAnalyzed => "dir-analyzed",
-            CacheKind::DirExecuted => "dir-executed",
+            CacheKind::DirPatched => "dir-patched",
             CacheKind::Mir => "mir",
         };
 

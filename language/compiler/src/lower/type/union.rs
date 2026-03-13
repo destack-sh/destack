@@ -862,10 +862,20 @@ impl TypeLowerer {
         strings: &StringPool,
     ) -> std::cmp::Ordering {
         // build qualified names for unique symbols
-        let left_name =
-            format_unique_symbol_qualified_name(left, &self.modules, &self.packages, strings);
-        let right_name =
-            format_unique_symbol_qualified_name(right, &self.modules, &self.packages, strings);
+        let left_name = format_unique_symbol_qualified_name(
+            left,
+            &self.artifacts,
+            &self.modules,
+            &self.packages,
+            strings,
+        );
+        let right_name = format_unique_symbol_qualified_name(
+            right,
+            &self.artifacts,
+            &self.modules,
+            &self.packages,
+            strings,
+        );
 
         // prefer qualified ordering with a stable fallback
         match (left_name, right_name) {

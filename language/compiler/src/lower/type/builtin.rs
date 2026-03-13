@@ -4,9 +4,10 @@ use destack_dir::{
 };
 use destack_mir as mir;
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{ModuleDirData, ProfileId};
+use std::sync::Arc;
 
-use crate::analyze::TreeSymbolTypeView;
+use crate::analyze::{DirReadBoundary, TreeSymbolTypeView};
 use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
@@ -38,6 +39,30 @@ impl<'a> BuiltinTypeLayouts<'a> {
             builder,
             type_lowerer,
         }
+    }
+
+    /// Read one committed analyzed DIR snapshot for a module.
+    fn require_analyzed_dir_data(&self, module_id: ModuleId) -> LowerResult<Arc<ModuleDirData>> {
+        let snapshot = self.compiler.require_artifact_dir_for_boundary(
+            module_id,
+            self.profile,
+            DirReadBoundary::Analyzed,
+        );
+
+        match snapshot {
+            Ok(snapshot) => Ok(snapshot),
+            Err(BuildRequirementError::NotReady { requirement }) => {
+                Err(LowerError::Yield { requirement })
+            }
+            Err(BuildRequirementError::Failed { requirement }) => {
+                Err(LowerError::UnsatisfiedRequirement { requirement })
+            }
+        }
+    }
+
+    /// Read one committed analyzed DIR snapshot for a module when available.
+    fn artifact_dir_data_if_present(&self, module_id: ModuleId) -> Option<Arc<ModuleDirData>> {
+        self.compiler.program.artifacts.dir_snapshot(module_id, self.profile)
     }
 
     /// Return the builtin String type for lowering.
@@ -170,6 +195,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
         let mut field_lowerer = TypeLowerer::new(
             self.builder,
             pointer_bytes,
+            self.compiler.program.artifacts.clone(),
             self.compiler.program.modules.clone(),
             self.compiler.program.packages.clone(),
             vector_symbol,
@@ -230,13 +256,11 @@ impl<'a> BuiltinTypeLayouts<'a> {
         // require analysis for the module
         self.require_analyzed_module(symbol.module_id)?;
 
-        // load module state
-        let module = self.compiler.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let dir = module.dir(self.profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let types = dir.types.read();
+        // load the analyzed dir artifact
+        let dir = self.require_analyzed_dir_data(symbol.module_id)?;
+        let tree = &dir.tree;
+        let symbols = &dir.symbols;
+        let types = &dir.types;
 
         // resolve struct members for the symbol
         let Some(members) = self.struct_members_for_symbol(symbol, &symbols, &tree) else {
@@ -245,7 +269,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
         // compute field inputs for the struct layout
         let field_inputs =
-            self.struct_field_inputs(&tree, &symbols, &types, &members, module.id, anchor)?;
+            self.struct_field_inputs(tree, symbols, types, &members, symbol.module_id, anchor)?;
 
         // install the computed layout
         if field_inputs.is_empty() {
@@ -268,11 +292,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
         symbol: dir::GlobalSymbolId,
     ) {
         // resolve the module symbol name
-        let module = self.compiler.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let dir = module.dir(self.profile);
-        let symbols = dir.symbols.read();
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let Some(dir) = self.artifact_dir_data_if_present(symbol.module_id) else {
+            return;
+        };
+        let symbol_entry = dir.symbols.get_symbol(symbol.local_id);
 
         // resolve the symbol key
         let Some(key) = symbol_entry.key else {

@@ -45,13 +45,14 @@ fn is_type_assignable(
     compiler: &Compiler,
     module: &Module,
     profile: ProfileId,
+    dir: &ModuleDir,
     symbols: &SymbolTable,
     target_id: LocalTypeId,
     source_id: LocalTypeId,
     types: &mut TypeTable,
     options: &AnalyzeOptions,
 ) -> Assignability {
-    let tree = module.dir(profile).tree.read();
+    let tree = dir.tree.read();
     let mut ctx = TypeContext::new(module, profile, options, &tree, symbols, types);
     compiler.is_type_assignable(&mut ctx, target_id, source_id)
 }
@@ -67,10 +68,10 @@ fn test_analyze_assignability_same_primitive() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id_for_root();
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
@@ -86,6 +87,7 @@ fn test_analyze_assignability_same_primitive() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             number_ty,
             number_ty,
@@ -119,10 +121,10 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     // resolve symbol ids
@@ -157,6 +159,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             array_buffer_like_ty,
             array_buffer_ty,
@@ -178,10 +181,10 @@ fn test_analyze_assignability_different_primitives() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
@@ -204,6 +207,7 @@ fn test_analyze_assignability_different_primitives() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             number_ty,
             string_ty,
@@ -225,10 +229,10 @@ fn test_analyze_assignability_literal_to_primitive() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
@@ -251,6 +255,7 @@ fn test_analyze_assignability_literal_to_primitive() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             number_ty,
             literal_ty,
@@ -272,10 +277,10 @@ fn test_analyze_assignability_any() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let any_ty = insert_test_type(
@@ -298,6 +303,7 @@ fn test_analyze_assignability_any() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             any_ty,
             number_ty,
@@ -319,10 +325,10 @@ fn test_analyze_assignability_never_source() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let never_ty = insert_test_type(
@@ -345,6 +351,7 @@ fn test_analyze_assignability_never_source() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             number_ty,
             never_ty,
@@ -366,10 +373,10 @@ fn test_analyze_assignability_never_target() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let never_ty = insert_test_type(
@@ -392,6 +399,7 @@ fn test_analyze_assignability_never_target() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             never_ty,
             number_ty,
@@ -413,10 +421,10 @@ fn test_analyze_assignability_tuple() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
@@ -447,6 +455,7 @@ fn test_analyze_assignability_tuple() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             tuple_ty,
             tuple_ty,
@@ -468,10 +477,10 @@ fn test_analyze_assignability_tuple_different_length() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
@@ -510,6 +519,7 @@ fn test_analyze_assignability_tuple_different_length() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             tuple_short,
             tuple_long,
@@ -531,10 +541,10 @@ fn test_analyze_assignability_array() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
@@ -558,6 +568,7 @@ fn test_analyze_assignability_array() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             array_ty,
             array_ty,
@@ -579,10 +590,10 @@ fn test_analyze_assignability_tuple_to_array() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
@@ -614,6 +625,7 @@ fn test_analyze_assignability_tuple_to_array() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             array_ty,
             tuple_ty,
@@ -635,10 +647,10 @@ fn test_analyze_assignability_object_structural() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
@@ -705,6 +717,7 @@ fn test_analyze_assignability_object_structural() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             obj_small,
             obj_large,
@@ -720,6 +733,7 @@ fn test_analyze_assignability_object_structural() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             obj_large,
             obj_small,
@@ -741,10 +755,10 @@ fn test_analyze_assignability_object_optional_field() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
@@ -794,6 +808,7 @@ fn test_analyze_assignability_object_optional_field() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             required_obj,
             optional_obj,
@@ -807,6 +822,7 @@ fn test_analyze_assignability_object_optional_field() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             optional_obj,
             required_obj,
@@ -828,10 +844,10 @@ fn test_analyze_assignability_object_call_signatures() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
@@ -897,6 +913,7 @@ fn test_analyze_assignability_object_call_signatures() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_obj,
             source_obj,
@@ -910,6 +927,7 @@ fn test_analyze_assignability_object_call_signatures() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_obj,
             missing_call,
@@ -931,10 +949,10 @@ fn test_analyze_assignability_function_param_count() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
@@ -994,6 +1012,7 @@ fn test_analyze_assignability_function_param_count() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_fn,
             source_fn_fewer,
@@ -1007,6 +1026,7 @@ fn test_analyze_assignability_function_param_count() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_fn,
             source_fn_more,
@@ -1028,10 +1048,10 @@ fn test_analyze_assignability_function_this_parameter() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
@@ -1127,6 +1147,7 @@ fn test_analyze_assignability_function_this_parameter() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_fn,
             source_fn_wider_this,
@@ -1140,6 +1161,7 @@ fn test_analyze_assignability_function_this_parameter() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             source_fn_wider_this,
             source_fn_narrow_this,
@@ -1161,10 +1183,10 @@ fn test_analyze_assignability_object_index_signatures() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
@@ -1257,6 +1279,7 @@ fn test_analyze_assignability_object_index_signatures() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_obj,
             source_obj,
@@ -1270,6 +1293,7 @@ fn test_analyze_assignability_object_index_signatures() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_obj,
             missing_index,
@@ -1283,6 +1307,7 @@ fn test_analyze_assignability_object_index_signatures() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_obj,
             compatible_fields,
@@ -1296,6 +1321,7 @@ fn test_analyze_assignability_object_index_signatures() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_obj,
             incompatible_fields,
@@ -1317,10 +1343,10 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
@@ -1397,6 +1423,7 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_number,
             source_string,
@@ -1410,6 +1437,7 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_string,
             source_number,
@@ -1431,10 +1459,10 @@ fn test_analyze_assignability_object_numeric_key_field_match() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
@@ -1485,6 +1513,7 @@ fn test_analyze_assignability_object_numeric_key_field_match() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_obj,
             source_obj,
@@ -1506,10 +1535,10 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
@@ -1589,6 +1618,7 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_obj,
             source_optional_number,
@@ -1602,6 +1632,7 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             target_obj,
             source_optional_undefined,
@@ -1623,10 +1654,10 @@ fn test_analyze_assignability_union_target() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
@@ -1656,6 +1687,7 @@ fn test_analyze_assignability_union_target() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             union_ty,
             number_ty,
@@ -1945,10 +1977,10 @@ fn test_analyze_assignability_literal_to_int() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let int_ty = insert_test_type(
@@ -1971,6 +2003,7 @@ fn test_analyze_assignability_literal_to_int() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             int_ty,
             literal_ty,
@@ -1992,10 +2025,10 @@ fn test_analyze_assignability_literal_to_float() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let float_ty = insert_test_type(
@@ -2019,6 +2052,7 @@ fn test_analyze_assignability_literal_to_float() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             float_ty,
             literal_ty,
@@ -2040,10 +2074,10 @@ fn test_analyze_assignability_int_out_of_range() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let int8_ty = insert_test_type(
@@ -2066,6 +2100,7 @@ fn test_analyze_assignability_int_out_of_range() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             int8_ty,
             literal_ty,
@@ -2087,10 +2122,10 @@ fn test_analyze_numeric_widening_int() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let int8_ty = insert_test_type(
@@ -2114,6 +2149,7 @@ fn test_analyze_numeric_widening_int() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             int16_ty,
             int8_ty,
@@ -2128,6 +2164,7 @@ fn test_analyze_numeric_widening_int() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             int8_ty,
             int16_ty,
@@ -2149,10 +2186,10 @@ fn test_analyze_numeric_widening_signed_to_unsigned_not_allowed() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let int8_ty = insert_test_type(
@@ -2175,6 +2212,7 @@ fn test_analyze_numeric_widening_signed_to_unsigned_not_allowed() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             uint8_ty,
             int8_ty,
@@ -2204,9 +2242,8 @@ class Labrador extends Dog { color: string = "" }
     let dog_id = test.resolve_to_symbol("test.ds", "Dog").unwrap();
     let labrador_id = test.resolve_to_symbol("test.ds", "Labrador").unwrap();
 
-    let module = test.module("test.ds");
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let dir = test.artifact_dir(module_id, test.default_profile_id(module_id));
+    let types = dir.types.read();
 
     // labrador extends dog
     let labrador_lineage = types
@@ -2251,9 +2288,8 @@ save(): void {}
     let saveable_id = test.resolve_to_symbol("test.ds", "Saveable").unwrap();
     let document_id = test.resolve_to_symbol("test.ds", "Document").unwrap();
 
-    let module = test.module("test.ds");
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let dir = test.artifact_dir(module_id, test.default_profile_id(module_id));
+    let types = dir.types.read();
     let doc_lineage = types
         .get_lineage_for_symbol(document_id)
         .expect("Document should have lineage");
@@ -2276,6 +2312,132 @@ save(): void {}
     );
 }
 
+/// Alias references preserve nominal interface conformance.
+#[test]
+fn test_analyze_assignability_nominal_interface_alias_reference() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+newtype interface Add<T> {
+add(other: T): T;
+}
+
+type AddVec2 = Add<Vec2>;
+
+struct Vec2 {
+x: int32;
+y: int32;
+}
+
+extension for Vec2 implements Add<Vec2> {
+add(other: Vec2): Vec2 {
+return Vec2 {
+x: this.x + other.x,
+y: this.y + other.y,
+};
+}
+}
+"#,
+    );
+    test.analyze_module(module_id);
+    test.compile_check_clean();
+
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let profile = test.default_profile_id(module_id);
+    let dir = test.artifact_dir(module_id, profile);
+    let tree = dir.tree.read();
+    let symbols = dir.symbols.read();
+    let mut types = dir.types.write();
+    let source_id = test_source_id(&dir);
+    let options = test.compiler.analyze_context_options_for_module(module.id);
+
+    let add_vec2_name = test.program.strings.intern("AddVec2");
+    let vec2_name = test.program.strings.intern("Vec2");
+    let add_vec2_symbol = expect_symbol_by_name(&symbols, add_vec2_name, SymbolType::TypeAlias);
+    let vec2_symbol = expect_symbol_by_name(&symbols, vec2_name, SymbolType::Struct);
+
+    let target_ty = insert_test_type(
+        &mut types,
+        source_id,
+        Type::Reference {
+            symbol: add_vec2_symbol,
+            static_arguments: None,
+        },
+    );
+    let source_ty = insert_test_type(
+        &mut types,
+        source_id,
+        Type::Reference {
+            symbol: vec2_symbol,
+            static_arguments: None,
+        },
+    );
+
+    // capture the prepared alias surface
+    let prepared_target_ty = {
+        let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+        test.compiler
+            .prepare_assignability_type(&mut ctx, target_ty)
+    };
+    let prepared_source_ty = {
+        let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+        test.compiler
+            .prepare_assignability_type(&mut ctx, source_ty)
+    };
+    let alias_target_ty = types
+        .get_alias_target_type_id(add_vec2_symbol)
+        .map(|type_id| format!("{:?}", types.get_type(type_id)))
+        .unwrap_or_else(|| "<missing>".to_string());
+    let alias_instance_ty = types
+        .get_instance_type_id(add_vec2_symbol)
+        .map(|type_id| format!("{:?}", types.get_type(type_id)))
+        .unwrap_or_else(|| "<missing>".to_string());
+
+    assert_eq!(
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &dir,
+            &symbols,
+            target_ty,
+            source_ty,
+            &mut types,
+            &options,
+        ),
+        Assignability::Assignable,
+        "prepared_target_ty={:?} prepared_source_ty={:?} raw_target_ty={:?} raw_source_ty={:?} add_vec2_symbol={:?} alias_target_ty={alias_target_ty} alias_instance_ty={alias_instance_ty} declared_alias_target={:?} interface_alias_target={:?} analyzed_alias_target={:?}",
+        types.get_type(prepared_target_ty),
+        types.get_type(prepared_source_ty),
+        types.get_type(target_ty),
+        types.get_type(source_ty),
+        add_vec2_symbol,
+        test.program
+            .artifacts
+            .dir_declared(module_id, profile)
+            .and_then(|dir| dir
+                .types
+                .get_alias_target_type_id(add_vec2_symbol)
+                .map(|id| format!("{:?}", dir.types.get_type(id)))),
+        test.program
+            .artifacts
+            .dir_interface(module_id, profile)
+            .and_then(|dir| dir
+                .types
+                .get_alias_target_type_id(add_vec2_symbol)
+                .map(|id| format!("{:?}", dir.types.get_type(id)))),
+        test.program
+            .artifacts
+            .dir_analyzed(module_id, profile)
+            .and_then(|dir| dir
+                .types
+                .get_alias_target_type_id(add_vec2_symbol)
+                .map(|id| format!("{:?}", dir.types.get_type(id)))),
+    );
+}
+
 /// Object is assignable to object.
 #[test]
 fn test_analyze_assignability_object_to_object() {
@@ -2287,10 +2449,10 @@ fn test_analyze_assignability_object_to_object() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
@@ -2306,6 +2468,7 @@ fn test_analyze_assignability_object_to_object() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             object_ty,
             object_ty,
@@ -2327,10 +2490,10 @@ fn test_analyze_assignability_object_literal_to_object() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
@@ -2370,6 +2533,7 @@ fn test_analyze_assignability_object_literal_to_object() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             object_ty,
             object_literal_ty,
@@ -2391,10 +2555,10 @@ fn test_analyze_assignability_array_to_object() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
@@ -2427,6 +2591,7 @@ fn test_analyze_assignability_array_to_object() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             object_ty,
             array_ty,
@@ -2448,10 +2613,10 @@ fn test_analyze_assignability_function_to_object() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
@@ -2488,6 +2653,7 @@ fn test_analyze_assignability_function_to_object() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             object_ty,
             function_ty,
@@ -2509,10 +2675,10 @@ fn test_analyze_assignability_primitive_not_to_object() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
@@ -2536,6 +2702,7 @@ fn test_analyze_assignability_primitive_not_to_object() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             object_ty,
             number_ty,
@@ -2557,10 +2724,10 @@ fn test_analyze_assignability_null_not_to_object() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
@@ -2584,6 +2751,7 @@ fn test_analyze_assignability_null_not_to_object() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             object_ty,
             null_ty,
@@ -2605,10 +2773,10 @@ fn test_analyze_assignability_undefined_not_to_object() {
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
-    let source_id = test_source_id(dir);
+    let source_id = test_source_id(&dir);
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
@@ -2632,6 +2800,7 @@ fn test_analyze_assignability_undefined_not_to_object() {
             &test.compiler,
             &module,
             profile,
+            &dir,
             &symbols,
             object_ty,
             undefined_ty,

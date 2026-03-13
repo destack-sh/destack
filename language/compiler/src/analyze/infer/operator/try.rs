@@ -304,7 +304,7 @@ impl Compiler {
                 expression_id,
                 error_ty_id,
                 state,
-            );
+            )?;
         }
 
         // warn when Try error types are non Error
@@ -894,7 +894,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         error_ty_id: LocalTypeId,
         state: &mut InferState,
-    ) {
+    ) -> AnalyzeResult<()> {
         // require a return type in the current function
         let Some(return_ty_id) = state.return_type else {
             self.error(AnalyzeError::MissingTryReturnType {
@@ -902,7 +902,7 @@ impl Compiler {
                     .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
-            return;
+            return Ok(());
         };
 
         // require a Try return type
@@ -913,22 +913,16 @@ impl Compiler {
                     .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
-            return;
+            return Ok(());
         }
 
         // resolve value and error types from the return type
-        let value_and_error_types = match self.try_value_and_error_types_from_receiver(
+        let value_and_error_types = self.try_value_and_error_types_from_receiver(
             &mut ctx.reborrow(),
             expression_id.into_any(),
             return_ty_id,
             &return_ty,
-        ) {
-            Ok(value_and_error_types) => value_and_error_types,
-            Err(error) => {
-                self.error(error);
-                return;
-            }
-        };
+        )?;
 
         let Some((value_ty_id, return_error_ty_id)) = value_and_error_types else {
             self.error(AnalyzeError::InvalidTryBranch {
@@ -936,23 +930,17 @@ impl Compiler {
                     .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
-            return;
+            return Ok(());
         };
 
         // resolve the return type branch signature
-        let branch = match self.resolve_try_branch_member(
+        let branch = self.resolve_try_branch_member(
             &mut ctx.reborrow(),
             expression_id,
             expression_id,
             return_ty_id,
             &return_ty,
-        ) {
-            Ok(branch) => branch,
-            Err(error) => {
-                self.error(error);
-                return;
-            }
-        };
+        )?;
 
         // reject missing branch members on the return type
         if !branch.resolved.has_member {
@@ -961,30 +949,24 @@ impl Compiler {
                     .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
-            return;
+            return Ok(());
         }
 
         // validate the branch return type against the return value and error types
-        let is_valid = match self.check_try_branch_return_type_assignable(
+        let is_valid = self.check_try_branch_return_type_assignable(
             &mut ctx.reborrow(),
             expression_id,
             &branch.resolved,
             value_ty_id,
             return_error_ty_id,
-        ) {
-            Ok(is_valid) => is_valid,
-            Err(error) => {
-                self.error(error);
-                return;
-            }
-        };
+        )?;
         if !is_valid {
             self.error(AnalyzeError::InvalidTryBranch {
                 node: expression_id
                     .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
-            return;
+            return Ok(());
         }
 
         // relate propagated error to the return error type
@@ -1003,8 +985,14 @@ impl Compiler {
             UnassignableRelationFailureMode::ReportAndContinue,
         );
         if let Err(error) = assignability_check {
+            if matches!(error, AnalyzeError::Yield { .. }) {
+                return Err(error);
+            }
+
             self.error(error);
         }
+
+        Ok(())
     }
 
     /// Warn when Try error types do not implement Error.

@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 use crate::{AnalyzeError, AnalyzeResult, BuildRequirementError, Compiler};
 use destack_source::ModuleId;
@@ -15,8 +16,8 @@ pub(crate) struct InterfaceComponentPlan {
 }
 
 /// Canonical interface component index for one graph snapshot.
-#[derive(Debug, Default)]
-struct InterfaceComponentGraphIndex {
+#[derive(Debug, Default, Clone)]
+pub(crate) struct InterfaceComponentGraphIndex {
     /// Component id for each module.
     module_to_component: FxHashMap<ModuleId, usize>,
     /// Modules in each component.
@@ -95,7 +96,7 @@ impl Compiler {
             return module_id;
         };
 
-        let index = self.interface_component_graph_index(&graph);
+        let index = self.interface_component_graph_index(profile, &graph);
         index
             .component_anchor_for_module(module_id)
             .unwrap_or(module_id)
@@ -119,7 +120,7 @@ impl Compiler {
             })?;
 
         // collect strongly connected modules and component dependencies
-        let index = self.interface_component_graph_index(&graph);
+        let index = self.interface_component_graph_index(profile, &graph);
         let component_modules = index
             .component_modules_for_module(module_id)
             .map(ToOwned::to_owned)
@@ -147,7 +148,7 @@ impl Compiler {
             return left_module_id == right_module_id;
         };
 
-        let index = self.interface_component_graph_index(&graph);
+        let index = self.interface_component_graph_index(profile, &graph);
         let left_component_id = index.component_id_for_module(left_module_id);
         let right_component_id = index.component_id_for_module(right_module_id);
         match (left_component_id, right_component_id) {
@@ -159,17 +160,25 @@ impl Compiler {
     }
 
     /// Build a canonical interface component index for one graph snapshot.
-    fn interface_component_graph_index(&self, graph: &ModuleGraph) -> InterfaceComponentGraphIndex {
+    fn interface_component_graph_index(
+        &self,
+        profile: ProfileId,
+        graph: &ModuleGraph,
+    ) -> Arc<InterfaceComponentGraphIndex> {
+        if let Some(index) = self.interface_component_indexes.get(&profile) {
+            return index.value().clone();
+        }
+
         // collect all modules that participate in this graph snapshot
         let modules = self.interface_graph_module_domain(graph);
         if modules.is_empty() {
-            return InterfaceComponentGraphIndex::default();
+            return Arc::new(InterfaceComponentGraphIndex::default());
         }
 
         // compute strongly connected components once for this module domain
         let components = self.interface_graph_scc(graph, &modules);
         if components.is_empty() {
-            return InterfaceComponentGraphIndex::default();
+            return Arc::new(InterfaceComponentGraphIndex::default());
         }
 
         // schedule components in deterministic topological order
@@ -221,12 +230,16 @@ impl Compiler {
             component_dependency_anchors.push(dependency_anchors);
         }
 
-        InterfaceComponentGraphIndex {
+        let index = Arc::new(InterfaceComponentGraphIndex {
             module_to_component,
             component_modules: ordered_components,
             component_anchors,
             component_dependency_anchors,
-        }
+        });
+
+        self.interface_component_indexes
+            .insert(profile, index.clone());
+        index
     }
 
     /// Collect one deterministic module domain from the graph snapshot.

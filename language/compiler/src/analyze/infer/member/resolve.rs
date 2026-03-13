@@ -165,6 +165,16 @@ impl Compiler {
             (None, None) => None,
         };
 
+        // fall back to declaration-backed local member types when instance surfaces
+        // have not materialized a value type yet
+        if member_ty_id.is_none() && member_symbol.module_id == ctx.module.id {
+            member_ty_id = self.local_member_type_for_symbol(
+                &mut ctx.reborrow(),
+                expression_id,
+                member_symbol,
+            )?;
+        }
+
         // import remote member types when local ctx have no value type yet
         if member_ty_id.is_none() && member_symbol.module_id != ctx.module.id {
             let member_kind = self.query_static_member_symbol_kind_for_symbol(
@@ -191,6 +201,42 @@ impl Compiler {
         }
 
         Ok(member_ty_id)
+    }
+
+    /// Resolve one declaration-backed local member type when no value type is available yet.
+    fn local_member_type_for_symbol(
+        &self,
+        ctx: &mut InferContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        member_symbol: GlobalSymbolId,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        let symbol_entry = ctx.symbols.get_symbol(member_symbol.local_id);
+        let primary_declaration = symbol_entry.primary_declaration;
+
+        if let Some(primary_declaration) = primary_declaration
+            && let Some(signature_ty_id) =
+                ctx.types.get_signature_type_for_node(primary_declaration)
+        {
+            return Ok(Some(signature_ty_id));
+        }
+
+        if let Some(primary_declaration) = primary_declaration
+            && let Some(declared_ty_id) = ctx.types.get_declared_type_id(primary_declaration)
+        {
+            return Ok(Some(declared_ty_id));
+        }
+
+        let member_kind =
+            self.query_static_member_symbol_kind_for_symbol(ctx.tree_symbol_view(), member_symbol)?;
+        if member_kind == Some(StaticMemberSymbolKind::AssociatedComptimeConst) {
+            return self.query_associated_member_type_for_symbol(
+                &mut ctx.reborrow(),
+                expression_id,
+                member_symbol,
+            );
+        }
+
+        Ok(None)
     }
 
     /// Normalize one member symbol to a declaration-backed symbol for declare reads.
@@ -297,17 +343,16 @@ impl Compiler {
         }
 
         let remote_import = self
-            .with_module_tree_symbol_view_at_boundary(
+            .with_module_tree_symbol_type_view_at_boundary(
                 ctx.module,
                 ctx.profile,
                 member_symbol.module_id,
-                DirReadBoundary::Declared,
+                DirReadBoundary::Analyzed,
                 |view| -> AnalyzeResult<Option<(GlobalSymbolId, Type, TypeTable)>> {
-                    let remote_types = view.module.dir(ctx.profile).types.read();
-                    let mut remote_snapshot = remote_types.clone();
+                    let mut remote_snapshot = view.types.clone();
                     let remote_symbol_entry = view.symbols.get_symbol(member_symbol.local_id);
                     let resolved_symbol = GlobalSymbolId::new(
-                        view.module.id,
+                        member_symbol.module_id,
                         member_symbol.local_id.with_type(remote_symbol_entry.ty),
                     );
 
@@ -337,11 +382,14 @@ impl Compiler {
                                 member_type.into_global_any(primary_declaration.module_id),
                             );
                             if remote_type_id.is_none() {
-                                let remote_options =
-                                    self.analyze_context_options_for_module(view.module.id);
+                                let remote_options = self
+                                    .analyze_context_options_for_module(member_symbol.module_id);
+                                let remote_module =
+                                    self.program.modules.get(member_symbol.module_id);
+                                let remote_module = remote_module.read();
                                 let mut view = ctx
                                     .type_context_reborrow_for_module_with_options_and_types(
-                                        view.module,
+                                        &remote_module,
                                         &remote_options,
                                         view.tree,
                                         view.symbols,
@@ -1047,23 +1095,24 @@ impl Compiler {
         }
 
         let resolved = self
-            .with_module_tree_symbol_view_at_boundary(
+            .with_module_tree_symbol_type_view_at_boundary(
                 module,
                 lookup.profile,
                 symbol.module_id,
                 DirReadBoundary::Declared,
                 |view| {
-                    let owner_types = view.module.dir(lookup.profile).types.read();
                     let owner_symbol_entry = view.symbols.get_symbol(symbol.local_id);
-                    let allow_merge = view.module.language_type.supports_declaration_merging()
+                    let remote_module = self.program.modules.get(symbol.module_id);
+                    let remote_module = remote_module.read();
+                    let allow_merge = remote_module.language_type.supports_declaration_merging()
                         || owner_symbol_entry.origin.is_global_augmentation()
-                        || self.module_is_ambient_lib(view.module);
+                        || self.module_is_ambient_lib(&remote_module);
                     let owner_lookup = MemberLookupModuleContext::new(
-                        view.module.id,
+                        symbol.module_id,
                         lookup.profile,
                         view.tree,
                         view.symbols,
-                        &owner_types,
+                        view.types,
                     );
                     self.resolve_member_symbol_in_module(
                         module,
@@ -1072,7 +1121,7 @@ impl Compiler {
                         member_key,
                         lookup_mode,
                         allow_merge,
-                        self.module_is_ambient_lib(view.module),
+                        self.module_is_ambient_lib(&remote_module),
                         visited,
                     )
                 },
@@ -1171,7 +1220,8 @@ impl Compiler {
         }
 
         // step 3: check inherited members
-        if let Some(lineage) = lookup.types.get_lineage_for_symbol(symbol).cloned() {
+        let lineage = lookup.types.get_lineage_for_symbol(symbol).cloned();
+        if let Some(lineage) = lineage {
             // follow extends first
             if let Some(extends) = lineage.extends
                 && let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
@@ -1225,7 +1275,7 @@ impl Compiler {
             else {
                 continue;
             };
-            if !self.is_extension_visible(module, lookup.profile, &extension) {
+            if !self.is_extension_visible(module, lookup.profile, &extension)? {
                 continue;
             }
 
@@ -1263,19 +1313,18 @@ impl Compiler {
             ));
         }
 
-        self.with_module_tree_symbol_view_at_boundary(
+        self.with_module_tree_symbol_type_view_at_boundary(
             module,
             lookup.profile,
             extension_symbol.module_id,
             DirReadBoundary::Declared,
             |view| {
-                let owner_types = view.module.dir(lookup.profile).types.read();
                 let owner_lookup = MemberLookupModuleContext::new(
-                    view.module.id,
+                    extension_symbol.module_id,
                     lookup.profile,
                     view.tree,
                     view.symbols,
-                    &owner_types,
+                    view.types,
                 );
                 self.find_member_symbol_in_declaration(
                     &owner_lookup,

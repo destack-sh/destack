@@ -97,9 +97,9 @@ impl CacheHandle<'_> {
         self.read_dir_with_kind(CacheKind::DirAnalyzed)
     }
 
-    /// Read an executed DIR cache entry if available.
-    pub fn read_dir_executed(&self) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
-        self.read_dir_with_kind(CacheKind::DirExecuted)
+    /// Read a patched DIR cache entry if available.
+    pub fn read_dir_patched(&self) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
+        self.read_dir_with_kind(CacheKind::DirPatched)
     }
 
     /// Read a MIR cache entry if available.
@@ -164,9 +164,9 @@ impl CacheHandle<'_> {
         self.write_dir_with_kind(CacheKind::DirAnalyzed, payload)
     }
 
-    /// Write an executed DIR cache entry if enabled.
-    pub fn write_dir_executed(&self, payload: ModuleDirData) -> Result<(), CacheError> {
-        self.write_dir_with_kind(CacheKind::DirExecuted, payload)
+    /// Write a patched DIR cache entry if enabled.
+    pub fn write_dir_patched(&self, payload: ModuleDirData) -> Result<(), CacheError> {
+        self.write_dir_with_kind(CacheKind::DirPatched, payload)
     }
 
     /// Write a MIR cache entry if enabled.
@@ -246,7 +246,7 @@ impl CacheHandle<'_> {
             CacheKind::DirBase
             | CacheKind::DirResolved
             | CacheKind::DirAnalyzed
-            | CacheKind::DirExecuted => match source {
+            | CacheKind::DirPatched => match source {
                 CacheReadSource::Memory => self.stats.record_cache_dir_hit_memory(),
                 CacheReadSource::Disk => self.stats.record_cache_dir_hit_disk(),
             },

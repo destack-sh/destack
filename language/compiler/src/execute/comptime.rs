@@ -1,8 +1,10 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use destack_ast::StringId;
 use destack_dir::AnchoredGlobalNodeId;
-use destack_workspace::{CheckFailurePolicy, Module, ProfileId, TargetId};
+use destack_source::ModuleId;
+use destack_workspace::{CheckFailurePolicy, Module, ModuleDirData, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::{
@@ -14,6 +16,23 @@ use crate::{Compiler, ExecuteError, ExecuteResult, LowerError, ModuleLowerer};
 
 #[allow(dead_code)]
 impl Compiler {
+    /// Require the elaborated DIR artifact for one module and profile.
+    pub(crate) fn require_dir_elaborated_data(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> ExecuteResult<Arc<ModuleDirData>> {
+        self.require_artifact_dir_elaborated(module_id, profile)
+            .map_err(|error| match error {
+                crate::BuildRequirementError::NotReady { requirement } => {
+                    ExecuteError::Yield { requirement }
+                }
+                crate::BuildRequirementError::Failed { requirement } => {
+                    ExecuteError::UnsatisfiedRequirement { requirement }
+                }
+            })
+    }
+
     /// Lower a module to MIR for comptime execution.
     pub(crate) fn lower_comptime_module(
         &self,
@@ -23,14 +42,16 @@ impl Compiler {
     ) -> ExecuteResult<(mir::NodeTree, destack_core::StringPool)> {
         // snapshot dir inputs for lowering
         let module_guard = module.read();
-        let dir = module_guard.dir(profile);
         let module_id = module_guard.id;
+        let dir = self.require_dir_elaborated_data(module_id, profile)?;
+
         // FUGU #Performance: avoid cloning whole node dir tree for comptime
-        let dir_tree = dir.tree.read().clone();
+        let dir_tree = dir.tree.clone();
         let dir_roots = dir.roots.clone();
-        let symbols = dir.symbols.read().clone();
-        let types = dir.types.read().clone();
-        let captures = dir.captures.read().clone();
+        let anchor_node = dir.anchor_node;
+        let symbols = dir.symbols.clone();
+        let types = dir.types.clone();
+        let captures = dir.captures.clone();
 
         // build the module lowerer
         let pointer_bytes = self
@@ -46,6 +67,7 @@ impl Compiler {
             profile,
             &dir_tree,
             &dir_roots,
+            anchor_node,
             &symbols,
             &types,
             &captures,
@@ -110,14 +132,9 @@ struct ComptimeLowerer<'a> {
     module: &'a Module,
     /// The profile used to resolve module context.
     profile: ProfileId,
+    /// The elaborated DIR snapshot for the module.
+    dir: Arc<ModuleDirData>,
     /// DIR tree for the module.
-    dir_tree: parking_lot::RwLockReadGuard<'a, dir::NodeTree>,
-    /// Symbol table for the module.
-    symbols: parking_lot::RwLockReadGuard<'a, dir::SymbolTable>,
-    /// Type table for the module.
-    types: parking_lot::RwLockReadGuard<'a, dir::TypeTable>,
-    /// Capture table for the module.
-    captures: parking_lot::RwLockReadGuard<'a, dir::CaptureTable>,
     /// MIR builder for the comptime module.
     builder: mir::ModuleBuilder,
     /// Type lowerer for comptime MIR.
@@ -138,11 +155,7 @@ impl<'a> ComptimeLowerer<'a> {
     /// Create a comptime lowerer for a module.
     fn new(compiler: &'a Compiler, module: &'a Module, profile: ProfileId) -> ExecuteResult<Self> {
         // snapshot dir inputs
-        let dir = module.dir(profile);
-        let dir_tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let types = dir.types.read();
-        let captures = dir.captures.read();
+        let dir = compiler.require_dir_elaborated_data(module.id, profile)?;
 
         // initialize the mir builder
         let mut builder = mir::ModuleBuilder::unchecked();
@@ -175,6 +188,7 @@ impl<'a> ComptimeLowerer<'a> {
         let type_lowerer = TypeLowerer::new(
             &mut builder,
             pointer_bytes,
+            compiler.program.artifacts.clone(),
             compiler.program.modules.clone(),
             compiler.program.packages.clone(),
             vector_symbol,
@@ -184,10 +198,7 @@ impl<'a> ComptimeLowerer<'a> {
             compiler,
             module,
             profile,
-            dir_tree,
-            symbols,
-            types,
-            captures,
+            dir,
             builder,
             type_lowerer,
             string_literal_globals: HashMap::new(),
@@ -266,10 +277,11 @@ impl<'a> ComptimeLowerer<'a> {
             module_id: self.module.id,
             profile: self.profile,
             program: &self.compiler.program,
-            dir_tree: &self.dir_tree,
-            symbols: &self.symbols,
-            types: &self.types,
-            captures: &self.captures,
+            compiler: self.compiler,
+            dir_tree: &self.dir.tree,
+            symbols: &self.dir.symbols,
+            types: &self.dir.types,
+            captures: &self.dir.captures,
             strings: &self.compiler.program.strings,
             well_known_intrinsics: well_known_intrinsics.as_ref(),
             functions_by_instance: &functions_by_instance,
@@ -330,7 +342,7 @@ impl<'a> ComptimeLowerer<'a> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> ExecuteResult<()> {
         // gather literal strings referenced by the expression
-        let literals = collect_expression_string_literals(&self.dir_tree, expression_id);
+        let literals = collect_expression_string_literals(&self.dir.tree, expression_id);
         if literals.is_empty() {
             return Ok(());
         }
@@ -378,9 +390,9 @@ impl<'a> ComptimeLowerer<'a> {
     ) -> ExecuteResult<mir::LocalNodeId<mir::Type>> {
         // resolve the dir return type
         let return_type_id = dir_type_id_for_expression(
-            &self.dir_tree,
-            &self.symbols,
-            &self.types,
+            &self.dir.tree,
+            &self.dir.symbols,
+            &self.dir.types,
             self.module.id,
             expression_id,
         )
@@ -397,7 +409,7 @@ impl<'a> ComptimeLowerer<'a> {
         let return_type = self
             .type_lowerer
             .lower_type(
-                &self.types,
+                &self.dir.types,
                 return_type_id,
                 self.module.id,
                 anchor,

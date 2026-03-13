@@ -195,25 +195,22 @@ impl Compiler {
         global_symbol: GlobalSymbolId,
         kind: RemoteMergeShapeKind,
     ) -> AnalyzeResult<Option<ObjectShape>> {
-        let remote_shape_type = self.with_module_tree_symbol_view_at_boundary(
+        let remote_shape_type = self.with_module_tree_symbol_type_view_at_boundary(
             ctx.module,
             ctx.profile,
             global_symbol.module_id,
             DirReadBoundary::Declared,
             |view| {
-                let remote_dir = view.module.dir(ctx.profile);
-                let remote_types = remote_dir.types.read();
-
                 // pick the remote shape source type
                 let remote_type_id = match kind {
                     RemoteMergeShapeKind::Instance => {
-                        remote_types.get_instance_type_id(global_symbol)?
+                        view.types.get_instance_type_id(global_symbol)?
                     }
-                    RemoteMergeShapeKind::Value => remote_types.get_value_type_id(global_symbol)?,
+                    RemoteMergeShapeKind::Value => view.types.get_value_type_id(global_symbol)?,
                 };
 
-                let remote_type = remote_types.get_type(remote_type_id).clone();
-                let remote_snapshot = remote_types.clone();
+                let remote_type = view.types.get_type(remote_type_id).clone();
+                let remote_snapshot = view.types.clone();
                 Some((remote_type, remote_snapshot))
             },
         )?;

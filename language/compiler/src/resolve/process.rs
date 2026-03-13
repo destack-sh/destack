@@ -1,26 +1,93 @@
-use crate::{BuildKey, BuildRequirementError, Compiler, ResolveError, ResolveResult};
+use crate::{
+    BuildKey, BuildProduct, BuildRequirement, BuildRequirementError, BuildRequirementSet, Compiler,
+    DiagnosticAnchor, DirReadBoundary, ResolveError, ResolveModuleContext, ResolveResult,
+};
 
 use destack_builtin::BuiltinLibKind;
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, ModuleSource, ProfileId};
+use std::sync::Arc;
+
+use destack_workspace::{ArtifactKey, ModuleDirData, ModuleSource, ProfileId};
 
 impl Compiler {
-    /// Build the language environment for one profile.
-    pub fn process_language_environment(&self, profile: ProfileId) -> ResolveResult<()> {
-        self.resolve_language_environment(profile)?;
+    /// Build one failed requirement set for one missing committed resolve artifact.
+    fn missing_resolve_artifact_requirement(&self, key: ArtifactKey) -> BuildRequirementSet {
+        let module = match &key {
+            ArtifactKey::DirPrepared { module, .. } | ArtifactKey::DirResolved { module, .. } => {
+                Some(*module)
+            }
+            _ => None,
+        };
+        let anchor = module
+            .map(DiagnosticAnchor::from)
+            .unwrap_or(DiagnosticAnchor::Global);
+        let build_key = BuildKey::Artifact(key);
+        let dependency = self.build_dependency_for_key(&build_key);
+        let requirement = BuildRequirement::new(anchor, build_key, dependency);
 
-        Ok(())
+        BuildRequirementSet::one(requirement)
+    }
+
+    /// Read one committed prepared DIR snapshot.
+    pub(crate) fn require_artifact_dir_prepared(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<ModuleDirData>, BuildRequirementError> {
+        self.require_dir_prepared(module, profile)?;
+
+        let Some(snapshot) = self.program.artifacts.dir_prepared(module, profile) else {
+            return Err(BuildRequirementError::Failed {
+                requirement: self.missing_resolve_artifact_requirement(ArtifactKey::DirPrepared {
+                    module,
+                    profile,
+                }),
+            });
+        };
+
+        Ok(snapshot)
+    }
+
+    /// Read one committed resolved DIR snapshot.
+    pub(crate) fn require_artifact_dir_resolved(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<ModuleDirData>, BuildRequirementError> {
+        self.require_dir_resolved(module, profile)?;
+
+        let Some(snapshot) = self.program.artifacts.dir_resolved(module, profile) else {
+            return Err(BuildRequirementError::Failed {
+                requirement: self.missing_resolve_artifact_requirement(ArtifactKey::DirResolved {
+                    module,
+                    profile,
+                }),
+            });
+        };
+
+        Ok(snapshot)
+    }
+
+    /// Build the language environment for one profile.
+    pub fn process_language_environment(&self, profile: ProfileId) -> ResolveResult<BuildProduct> {
+        let environment = self.resolve_language_environment(profile)?;
+
+        Ok(BuildProduct::LanguageEnvironment(environment))
     }
 
     /// Build the lib environment for one profile.
-    pub fn process_lib_environment(&self, profile: ProfileId) -> ResolveResult<()> {
-        self.resolve_lib_environment(profile)?;
+    pub fn process_lib_environment(&self, profile: ProfileId) -> ResolveResult<BuildProduct> {
+        let environment = self.resolve_lib_environment(profile)?;
 
-        Ok(())
+        Ok(BuildProduct::LibEnvironment(environment))
     }
 
     /// Build prepared DIR for one module.
-    pub fn process_dir_prepared(&self, module: ModuleId, profile: ProfileId) -> ResolveResult<()> {
+    pub fn process_dir_prepared(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> ResolveResult<BuildProduct> {
         let module_id = module;
         let module_version = self.module_version(module);
         let profile_version = self.profile_version(profile);
@@ -30,13 +97,15 @@ impl Compiler {
             profile,
             profile_version,
         )?;
-        self.resolve_module_prepare(module_id, profile, module_version, profile_version)?;
-
-        Ok(())
+        self.resolve_module_prepare(module_id, profile, module_version, profile_version)
     }
 
     /// Build resolved DIR for one module.
-    pub fn process_dir_resolved(&self, module: ModuleId, profile: ProfileId) -> ResolveResult<()> {
+    pub fn process_dir_resolved(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> ResolveResult<BuildProduct> {
         let module_id = module;
         let module_version = self.module_version(module);
         let profile_version = self.profile_version(profile);
@@ -49,8 +118,13 @@ impl Compiler {
         self.require_dir_prepared(module_id, profile)
             .map_err(ResolveError::from)?;
 
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = {
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            ResolveModuleContext::from_module(&module)
+        };
+        let dir = self.require_artifact_dir_prepared(module_id, profile)?;
+        let is_code_module = self.is_code_module(module_id);
 
         // builtin language and lib modules bootstrap the shared environments themselves
         if !matches!(
@@ -61,13 +135,30 @@ impl Compiler {
                 .map_err(ResolveError::from)?;
         }
 
-        self.resolve_module_direct(module_id, profile, module_version, profile_version)?;
-        self.resolve_module_canonical(module_id, profile, module_version, profile_version)?;
-        if self.is_code_module(module_id) {
+        let (_, dir) = self.with_shared_transient_artifact_dir(
+            module_id,
+            profile,
+            DirReadBoundary::Declared,
+            dir,
+            |dir| -> ResolveResult<()> {
+                self.resolve_module_direct(&module, profile, dir.as_ref())?;
+                self.resolve_module_canonical(&module, profile, dir.as_ref())?;
+                self.update_module_graph_from_dir(
+                    module_id,
+                    profile,
+                    module_version,
+                    dir.as_ref(),
+                )?;
+
+                Ok(())
+            },
+        )?;
+
+        if is_code_module {
             self.stats.record_resolve();
         }
 
-        Ok(())
+        Ok(BuildProduct::Dir(dir.to_data()))
     }
 
     /// Ensure prepared DIR exists for a module.

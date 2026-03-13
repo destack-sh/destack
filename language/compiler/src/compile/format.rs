@@ -16,7 +16,9 @@ use destack_mir as mir;
 use destack_source::{FileType, ModuleId, ModuleStamp, PackageId, PackageStamp, ProfileStamp, Uri};
 use destack_workspace::{ModuleGraphStamp, ProfileId, Program, TargetId};
 
-use destack_query::format::{format_global_type, format_symbol_name};
+use destack_query::format::{format_global_type, format_symbol_name, format_type};
+
+use super::frame::current_active_dir;
 
 /// Trait for formatting types in diagnostic messages. Should not fail.
 pub trait DiagnosticFormat {
@@ -27,20 +29,41 @@ pub trait DiagnosticFormat {
 impl DiagnosticFormat for GlobalTypeId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
         let profile = program.default_profile_id_for_module(self.module_id);
-        let module = program.modules.get(self.module_id);
-        let module = module.read();
-        let profile = if module.dir_maybe(profile).is_some() {
+        if let Some(dir) = current_active_dir(self.module_id, profile) {
+            let types = dir.types.read();
+            let ty = types.get_type(self.local_id);
+
+            return format_type(
+                ty,
+                &program.artifacts,
+                &types,
+                &program.modules,
+                &program.strings,
+            );
+        }
+
+        let profile = if program
+            .artifacts
+            .dir_snapshot(self.module_id, profile)
+            .is_some()
+        {
             profile
         } else {
-            // #Cleanup: fall back to any available profile in diagnostic format?
-            module
-                .code()
-                .dirs
-                .iter()
-                .find_map(|dir| dir.profile_id)
+            // use any published profile when the default profile has no artifact yet
+            program
+                .artifacts
+                .profile_ids_for_module(self.module_id)
+                .into_iter()
+                .next()
                 .unwrap_or(profile)
         };
-        format_global_type(*self, &program.modules, &program.strings, profile)
+        format_global_type(
+            *self,
+            &program.artifacts,
+            &program.modules,
+            &program.strings,
+            profile,
+        )
     }
 }
 
@@ -173,7 +196,7 @@ impl DiagnosticFormat for mir::AnchoredGlobalNodeId {
 
 impl DiagnosticFormat for GlobalSymbolId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
-        format_symbol_name(*self, &program.modules, &program.strings)
+        format_symbol_name(*self, &program.artifacts, &program.strings)
     }
 }
 

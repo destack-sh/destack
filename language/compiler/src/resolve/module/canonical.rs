@@ -1,36 +1,21 @@
 use crate::timing::tags;
-use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::ProfileId;
+use crate::{
+    BuildRequirementCollector, Compiler, ResolveError, ResolveModuleContext, ResolveResult,
+};
+use destack_workspace::{ModuleDir, ProfileId};
 
 impl Compiler {
     /// Compute canonical_symbol for all symbols (phase 2).
     pub(crate) fn resolve_module_canonical(
         &self,
-        module_id: ModuleId,
+        module: &ResolveModuleContext,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        dir: &ModuleDir,
     ) -> ResolveResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<ResolveError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
         let _timing = self.timing_scope(tags::RESOLVE_MODULE_CANONICAL);
-
-        self.require_dir_prepared(module_id, profile)?;
-        if !self.is_code_module(module_id) {
-            self.update_module_graph(module_id, profile, module_version, profile_version)?;
+        if !self.is_code_module(module.id) {
             return Ok(());
         }
-
-        // load module data for canonical resolution
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
 
@@ -45,7 +30,7 @@ impl Compiler {
                     && symbol.primary_declaration.is_some()
                 {
                     Some((
-                        id.into_global(module_id),
+                        id.into_global(module.id),
                         symbol
                             .primary_declaration
                             .expect("checked primary declaration"),
@@ -60,23 +45,19 @@ impl Compiler {
         if symbols_to_resolve.is_empty() {
             drop(symbols);
             drop(tree);
-            drop(module);
-            self.update_module_graph(module_id, profile, module_version, profile_version)?;
             return Ok(());
         }
 
         // drop locks before resolving canonical symbols (may need to access other modules)
         drop(symbols);
         drop(tree);
-        drop(module);
-
         // resolve canonical symbols
         // (this may yield for cross module resolution)
         let mut collector = BuildRequirementCollector::new();
         for (symbol_id, node) in symbols_to_resolve {
             self.collect(
                 &mut collector,
-                self.resolve_canonical_symbol(node, symbol_id, profile),
+                self.resolve_canonical_symbol(module, dir, node, symbol_id, profile),
             );
         }
 
@@ -85,7 +66,6 @@ impl Compiler {
             return Err(ResolveError::Yield { requirement });
         }
 
-        self.update_module_graph(module_id, profile, module_version, profile_version)?;
         Ok(())
     }
 }

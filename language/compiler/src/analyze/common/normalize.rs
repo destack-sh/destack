@@ -130,10 +130,15 @@ impl Compiler {
         let mut normalized_candidates = candidates
             .into_iter()
             .map(|candidate| {
-                let candidate_module = self.program.modules.get(candidate.module_id);
-                let candidate_module = candidate_module.read();
-                let candidate_symbols = candidate_module.dir_base().symbols.read();
-                let candidate_entry = candidate_symbols.get_symbol(candidate.local_id);
+                let candidate_dir =
+                    self.artifact_dir_base(candidate.module_id)
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "missing committed base dir artifact for {:?}",
+                                candidate.module_id
+                            )
+                        });
+                let candidate_entry = candidate_dir.symbols.get_symbol(candidate.local_id);
                 GlobalSymbolId::new(
                     candidate.module_id,
                     candidate.local_id.with_type(candidate_entry.ty),

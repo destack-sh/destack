@@ -208,6 +208,25 @@ impl Compiler {
         }
     }
 
+    /// Read one record-like object surface from a reference type.
+    pub(super) fn record_like_object_parts_for_reference(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&[StaticArgument]>,
+    ) -> Option<RecordLikeObjectParts> {
+        let instance_id = self.specialized_instance_type_for_reference(
+            &mut ctx.reborrow(),
+            source_id,
+            symbol,
+            static_arguments,
+        )?;
+        let instance = ctx.types.get_type(instance_id);
+
+        self.record_like_source_object_parts(instance, ctx.types)
+    }
+
     /// Check function assignability from callable object signatures.
     pub(super) fn is_function_assignable_from_object(
         &self,

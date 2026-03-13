@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_ast::{StringId, StringPool};
 use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
-use destack_workspace::{ModuleRegistry, PackageRegistry};
+use destack_workspace::{ArtifactRegistry, ModuleRegistry, PackageRegistry};
 use {destack_dir as dir, destack_mir as mir};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutPolicy};
@@ -27,6 +27,8 @@ pub(crate) enum TypeCacheEntry {
 /// Lowers DIR types into MIR types with a shared cache.
 #[derive(Debug)]
 pub(crate) struct TypeLowerer {
+    /// Access to committed artifact snapshots for qualified names.
+    pub(super) artifacts: Arc<ArtifactRegistry>,
     /// Access to module metadata for qualified names.
     pub(super) modules: Arc<ModuleRegistry>,
     /// Access to package metadata for qualified names.
@@ -77,6 +79,7 @@ impl TypeLowerer {
     pub(crate) fn new(
         builder: &mut mir::ModuleBuilder,
         pointer_bytes: u8,
+        artifacts: Arc<ArtifactRegistry>,
         modules: Arc<ModuleRegistry>,
         packages: Arc<PackageRegistry>,
         vector_symbol: Option<dir::GlobalSymbolId>,
@@ -93,6 +96,7 @@ impl TypeLowerer {
         );
 
         Self {
+            artifacts,
             modules,
             packages,
             vector_symbol,
@@ -406,13 +410,13 @@ impl TypeLowerer {
             dir::Type::Intersection { elements } => {
                 self.lower_intersection_type(types, elements, module_id, node, builder)?
             }
-            _ => self
-                .try_lower_type(dir_type, builder)
-                .ok_or(LowerError::UnsupportedType {
+            _ => self.try_lower_type(dir_type, builder).ok_or_else(|| {
+                LowerError::UnsupportedType {
                     node,
                     ty: type_id.into_global(module_id),
                     message: "unsupported type".to_string(),
-                })?,
+                }
+            })?,
         };
         self.type_cache
             .insert(type_id, TypeCacheEntry::Ready(mir_type));

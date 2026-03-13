@@ -1,9 +1,12 @@
+use std::collections::HashSet;
+
 use crate::analyze::common::{InferContext, TypeContext};
 use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferState};
 use destack_dir::{
     Constraint, Declaration, Declarator, Export, Expression, GlobalNodeIdAny, GlobalSymbolId,
     InferOrigin, InferScope, InferTable, LocalNodeId, LocalTypeId, Mutability, NodeTree, NodeType,
-    StaticKey, SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable,
+    StaticKey, SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable, TypeVisitor,
+    TypeVisitorOptions, walk_type,
 };
 use destack_source::ModuleId;
 use indexmap::IndexMap;
@@ -30,6 +33,50 @@ struct InterfaceDeclarationInference {
     declaration_id: LocalNodeId<Declaration>,
 }
 
+/// Collect unevaluated type ids reachable from one value type.
+struct InterfaceUnevaluatedTypeCollector {
+    /// The visited type ids.
+    visited: HashSet<LocalTypeId>,
+    /// The reachable unevaluated type ids.
+    unevaluated: Vec<LocalTypeId>,
+    /// The visitor options.
+    options: TypeVisitorOptions,
+}
+
+impl InterfaceUnevaluatedTypeCollector {
+    /// Create an empty collector.
+    fn new() -> Self {
+        Self {
+            visited: HashSet::new(),
+            unevaluated: Vec::new(),
+            options: TypeVisitorOptions::default(),
+        }
+    }
+}
+
+impl TypeVisitor for InterfaceUnevaluatedTypeCollector {
+    fn options(&self) -> &TypeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
+        if !self.visited.insert(id) {
+            return;
+        }
+
+        if matches!(types.get_type(id), Type::Unevaluated(_)) {
+            self.unevaluated.push(id);
+        }
+
+        let ty = types.get_type(id);
+        self.visit_type(types, id, ty);
+    }
+
+    fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
+        walk_type(self, types, id, ty);
+    }
+}
+
 impl Compiler {
     /// Infer interface value types using local information only.
     pub(crate) fn infer_interface_value_types(
@@ -48,7 +95,7 @@ impl Compiler {
                 };
 
                 if let Some(value_ty_id) =
-                    self.known_interface_value_type_id(ctx.types, value_symbol)
+                    self.known_interface_value_type_id(&mut ctx.reborrow(), value_symbol)?
                 {
                     self.publish_interface_value_type(
                         export_symbol,
@@ -78,7 +125,7 @@ impl Compiler {
             }
 
             // ensure interface snapshots never publish value exports without one value type
-            self.ensure_interface_value_types_for_exports(&mut ctx.reborrow(), exported_symbols);
+            self.ensure_interface_value_types_for_exports(&mut ctx.reborrow(), exported_symbols)?;
 
             return Ok(());
         }
@@ -114,7 +161,9 @@ impl Compiler {
             }
 
             // reuse known value types when already available
-            if let Some(value_ty_id) = self.known_interface_value_type_id(ctx.types, value_symbol) {
+            if let Some(value_ty_id) =
+                self.known_interface_value_type_id(&mut ctx.reborrow(), value_symbol)?
+            {
                 self.publish_interface_value_type(
                     export_symbol,
                     value_symbol,
@@ -191,15 +240,29 @@ impl Compiler {
         }
 
         // infer interface declarations and initializers with one shared ctx context
-        let mut ctx = InferContext::new(
-            ctx.module,
-            ctx.profile,
-            &base_ctx.options,
-            ctx.tree,
-            ctx.symbols,
-            ctx.types,
-            &mut infer,
-        );
+        let dir = ctx.dir;
+        let mut ctx = if let Some(dir) = dir {
+            InferContext::with_dir(
+                ctx.module,
+                ctx.profile,
+                &base_ctx.options,
+                dir,
+                ctx.tree,
+                ctx.symbols,
+                ctx.types,
+                &mut infer,
+            )
+        } else {
+            InferContext::new(
+                ctx.module,
+                ctx.profile,
+                &base_ctx.options,
+                ctx.tree,
+                ctx.symbols,
+                ctx.types,
+                &mut infer,
+            )
+        };
 
         // infer unannotated exported function declarations
         for export in &export_declarations {
@@ -262,7 +325,7 @@ impl Compiler {
         self.ensure_interface_value_types_for_exports(
             &mut ctx.type_context_reborrow(),
             exported_symbols,
-        );
+        )?;
 
         Ok(())
     }
@@ -272,7 +335,7 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
-    ) {
+    ) -> AnalyzeResult<()> {
         for export in exports.values() {
             let Some((export_symbol, value_symbol)) =
                 self.interface_value_symbol_for_export(ctx.symbols, ctx.module.id, export)
@@ -309,6 +372,8 @@ impl Compiler {
                 ctx.types,
             );
         }
+
+        Ok(())
     }
 
     /// Publish one interface value type for both export and local value symbols.
@@ -339,7 +404,7 @@ impl Compiler {
             .filter(|declaration| declaration.module_id == ctx.module.id)
             .map(|declaration| declaration.local_id)
             .or_else(|| export.item.map(|item| item.into_any()))
-            .unwrap_or(ctx.module.dir(ctx.profile).anchor_node);
+            .unwrap_or(ctx.local_anchor_node());
 
         ctx.types.insert_type_from_any(
             Type::TypeLiteral {
@@ -414,12 +479,18 @@ impl Compiler {
     /// Return a known value type id for an exported symbol.
     fn known_interface_value_type_id(
         &self,
-        types: &TypeTable,
+        ctx: &mut TypeContext<'_>,
         value_symbol: GlobalSymbolId,
-    ) -> Option<LocalTypeId> {
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
         // reuse known value types when already available
-        let value_ty_id = types.get_value_type_id(value_symbol)?;
-        let value_ty = types.get_type(value_ty_id);
+        let value_ty_id = ctx.types.get_value_type_id(value_symbol);
+        let Some(value_ty_id) = value_ty_id else {
+            return Ok(None);
+        };
+
+        let value_ty_id =
+            self.materialize_interface_value_type(&mut ctx.reborrow(), value_ty_id)?;
+        let value_ty = ctx.types.get_type(value_ty_id);
         let is_unknown = matches!(
             value_ty,
             Type::TypeLiteral {
@@ -427,10 +498,32 @@ impl Compiler {
             } | Type::InferVar { .. }
         );
         if is_unknown {
-            return None;
+            return Ok(None);
         }
 
-        Some(value_ty_id)
+        Ok(Some(value_ty_id))
+    }
+
+    /// Materialize reachable unevaluated type ids before publishing one interface value type.
+    fn materialize_interface_value_type(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        value_type_id: LocalTypeId,
+    ) -> AnalyzeResult<LocalTypeId> {
+        loop {
+            let mut collector = InterfaceUnevaluatedTypeCollector::new();
+            collector.visit_type_id(ctx.types, value_type_id);
+
+            let Some(unevaluated_id) = collector.unevaluated.into_iter().next() else {
+                return Ok(value_type_id);
+            };
+
+            self.resolve_declared_type(&mut ctx.reborrow(), unevaluated_id)?;
+
+            if matches!(ctx.types.get_type(unevaluated_id), Type::Unevaluated(_)) {
+                return Ok(value_type_id);
+            }
+        }
     }
 
     /// Resolve and evaluate the declared value type for an export.

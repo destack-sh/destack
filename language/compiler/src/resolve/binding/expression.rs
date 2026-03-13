@@ -4,9 +4,9 @@ use destack_dir::{
 
 use crate::resolve::binding::cache::{ResolveExpressionCache, ResolvePathCacheKey};
 use crate::resolve::dependency::loader::LoaderAttribute;
-use crate::{Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, ResolveError, ResolveModuleContext, ResolveResult};
 
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{ModuleDir, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -61,7 +61,7 @@ impl Compiler {
     /// Resolve an Expression.
     pub(crate) fn resolve_expression(
         &self,
-        module: &Module,
+        module: &ResolveModuleContext,
         dir: &ModuleDir,
         profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
@@ -76,6 +76,8 @@ impl Compiler {
             scope
         };
         let expression = tree.get(expression_id);
+        let module_handle = self.program.modules.get(module.id);
+        let module_handle = module_handle.read();
 
         let expression: Expression = match expression {
             Expression::UnresolvedImport {
@@ -100,7 +102,7 @@ impl Compiler {
                             }
                         };
                     let Some(remote_target) = self.resolve_import_maybe(
-                        module,
+                        &module_handle,
                         dir,
                         profile,
                         expression_id.into_global_any(module.id),
@@ -145,7 +147,7 @@ impl Compiler {
                         }
                     };
                 let Some(remote_target) = self.resolve_import_maybe(
-                    module,
+                    &module_handle,
                     dir,
                     profile,
                     expression_id.into_global_any(module.id),
@@ -197,6 +199,7 @@ impl Compiler {
                     } else {
                         let resolved = self.resolve_absolute_path(
                             module,
+                            dir,
                             expression_id,
                             expression_id.into_global_any(module.id),
                             profile,
@@ -219,6 +222,7 @@ impl Compiler {
                 } else {
                     self.resolve_absolute_path(
                         module,
+                        dir,
                         expression_id,
                         expression_id.into_global_any(module.id),
                         profile,

@@ -264,8 +264,8 @@ impl CacheRegistry {
         )
     }
 
-    /// Read an executed DIR cache entry if available.
-    pub fn read_dir_executed_cache(
+    /// Read a patched DIR cache entry if available.
+    pub fn read_dir_patched_cache(
         &self,
         cache_store: &dyn CacheStore,
         options: &CacheOptions,
@@ -278,7 +278,7 @@ impl CacheRegistry {
             options,
             context,
             module_id,
-            CacheKind::DirExecuted,
+            CacheKind::DirPatched,
         )?;
 
         // map cache outcome to response
@@ -288,8 +288,8 @@ impl CacheRegistry {
         }
     }
 
-    /// Write an executed DIR cache entry.
-    pub fn write_dir_executed_cache(
+    /// Write a patched DIR cache entry.
+    pub fn write_dir_patched_cache(
         &self,
         cache_store: &dyn CacheStore,
         options: &CacheOptions,
@@ -302,7 +302,7 @@ impl CacheRegistry {
             options,
             context,
             module_id,
-            CacheKind::DirExecuted,
+            CacheKind::DirPatched,
             payload,
         )
     }

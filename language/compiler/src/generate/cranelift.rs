@@ -124,11 +124,16 @@ impl Compiler {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let target_id = TargetId::new(module.package_id, target_name);
-        let mir_tree = module.mir(&target_id).tree.read();
+        let mir = self
+            .program
+            .artifacts
+            .mir_snapshot(module_id, profile, &target_id)
+            .expect("code generation requires MIR artifact");
+        let mir_tree = &mir.tree;
 
         let dir_node_id = mir_tree.get_source(mir_node.id)?;
-        let dir_tree = module.dir(profile).tree.read();
-        let dir_node_type = dir_tree.get_node_type(dir_node_id);
+        let dir = self.program.artifacts.dir_patched(module_id, profile)?;
+        let dir_node_type = dir.tree.get_node_type(dir_node_id);
 
         let node = LocalNodeIdAny {
             id: dir_node_id,

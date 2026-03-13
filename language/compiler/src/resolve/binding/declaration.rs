@@ -4,16 +4,16 @@ use destack_dir::{
     walk_expression,
 };
 
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{ModuleDir, ProfileId};
 
 use crate::resolve::binding::cache::ResolveExpressionCache;
-use crate::{Compiler, ResolveResult};
+use crate::{Compiler, ResolveModuleContext, ResolveResult};
 
 impl Compiler {
     /// Resolve a Declaration node (updates target_symbol if applicable).
     pub(crate) fn resolve_declaration(
         &self,
-        module: &Module,
+        module: &ResolveModuleContext,
         dir: &ModuleDir,
         profile: ProfileId,
         declaration_id: LocalNodeId<Declaration>,

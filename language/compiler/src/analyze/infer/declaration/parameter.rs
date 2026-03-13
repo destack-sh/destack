@@ -232,7 +232,7 @@ impl Compiler {
             let source_id = symbol_entry
                 .primary_declaration
                 .map(|declaration| declaration.local_id)
-                .unwrap_or(ctx.module.dir(ctx.profile).anchor_node);
+                .unwrap_or(ctx.local_anchor_node());
             let artifact_constraint_type_id = if let Some(primary_declaration) =
                 symbol_entry.primary_declaration
                 && let Some(declared_type_id) = ctx.types.get_declared_type_id(primary_declaration)
@@ -355,22 +355,29 @@ impl Compiler {
             }
 
             let Some((parameters, next)) = self
-                .with_module_tree_symbol_view_at_boundary(
+                .with_module_tree_symbol_type_view_at_boundary(
                     ctx.module,
                     ctx.profile,
                     current.module_id,
                     DirReadBoundary::Declared,
                     |view| {
-                        let owner_types = view.module.dir(ctx.profile).types.read();
+                        let owner_module = self.program.modules.get(current.module_id);
+                        let owner_module = owner_module.read();
                         if let Some(cached) =
-                            owner_types.query_artifact_static_parameter_symbols(current)
+                            view.types.query_artifact_static_parameter_symbols(current)
                         {
                             return (Some(cached), None);
                         }
 
-                        if let Some(parameters) =
-                            self.collect_static_parameter_symbols_in_module(view, current)
-                        {
+                        if let Some(parameters) = self.collect_static_parameter_symbols_in_module(
+                            TreeSymbolView::new(
+                                &owner_module,
+                                ctx.profile,
+                                view.tree,
+                                view.symbols,
+                            ),
+                            current,
+                        ) {
                             return (Some(parameters), None);
                         }
 
@@ -709,8 +716,14 @@ impl Compiler {
             // import the declared type for remote parameters when possible
             // remote modules are read-only here: do not force declaration evaluation
             let remote_declared = {
-                let remote_dir = ctx.module.dir(ctx.profile);
-                let remote_types = remote_dir.types.read();
+                let remote_dir = self
+                    .require_artifact_dir_for_boundary(
+                        primary_declaration.module_id,
+                        ctx.profile,
+                        DirReadBoundary::Declared,
+                    )
+                    .ok()?;
+                let remote_types = &remote_dir.types;
                 remote_types.get_declared_type_id(primary_declaration).map(
                     |remote_declared_type_id| {
                         if matches!(

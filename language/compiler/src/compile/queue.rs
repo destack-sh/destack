@@ -142,13 +142,15 @@ impl TaskQueue {
 
     /// Update the outcome of a task.
     pub(super) fn set_last_outcome(&self, task_id: TaskId, outcome: TaskOutcome) {
+        if !matches!(outcome, TaskOutcome::Yield { .. }) {
+            return;
+        }
+
         let mut tasks = self.tasks.lock();
         if let Some(handle) = tasks.handles.get_mut(task_id.0 as usize) {
             // for Yield outcomes, only set if task is still Yielded
             // (prevents race with concurrent requeue via wake_waiters)
-            if matches!(outcome, TaskOutcome::Yield { .. })
-                && !matches!(handle.status, TaskStatus::Yielded { .. })
-            {
+            if !matches!(handle.status, TaskStatus::Yielded { .. }) {
                 return;
             }
             handle.last_outcome = Some(outcome);

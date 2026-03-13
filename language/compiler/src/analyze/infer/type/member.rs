@@ -107,6 +107,28 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
+                // prefer the specialized instance surface for instantiated references
+                if static_arguments
+                    .as_ref()
+                    .is_some_and(|arguments| !arguments.is_empty())
+                    && let Some(instance_id) = self.specialized_instance_type_for_reference(
+                        &mut ctx.reborrow(),
+                        node_id,
+                        *symbol,
+                        static_arguments.as_deref(),
+                    )
+                {
+                    let instance_ty = ctx.types.get_type(instance_id).clone();
+                    return self.infer_member_of_type(
+                        &mut ctx.reborrow(),
+                        node_id,
+                        &instance_ty,
+                        member_key,
+                        lookup_mode,
+                        visited,
+                    );
+                }
+
                 if static_arguments.is_some() && matches!(symbol.ty(), SymbolType::TypeAlias) {
                     let mut normalize_visited = Vec::new();
                     if let Some(expanded_id) = self.normalize_type_alias_reference_with_arguments(
@@ -710,9 +732,15 @@ impl Compiler {
             else {
                 continue;
             };
-            if !self.is_extension_visible(ctx.module, ctx.profile, &extension) {
+            if !matches!(
+                self.is_extension_visible(ctx.module, ctx.profile, &extension),
+                Ok(true)
+            ) {
                 continue;
             }
+
+            // materialize the extension instance type before reading its surface
+            self.resolve_instance_type_for_symbol(&mut ctx.reborrow(), node_id, extension_symbol)?;
 
             // ensure the extension instance type is available
             if let Some(ty_id) =
@@ -822,9 +850,27 @@ impl Compiler {
             let Some(extension) = extension else {
                 continue;
             };
-            if !self.is_extension_visible(ctx.module, ctx.profile, &extension) {
+            if !matches!(
+                self.is_extension_visible(ctx.module, ctx.profile, &extension),
+                Ok(true)
+            ) {
                 continue;
             }
+
+            // materialize the extension instance type before reading its surface
+            match self.resolve_instance_type_for_symbol(
+                &mut ctx.reborrow(),
+                node_id,
+                extension_symbol,
+            ) {
+                Ok(_) => {}
+                Err(AnalyzeError::Yield { .. }) => return None,
+                Err(error) => {
+                    self.error(error);
+                    return None;
+                }
+            }
+
             if let Some(ty_id) =
                 self.apparent_instance_type(&mut ctx.reborrow(), node_id, extension_symbol)
             {
@@ -880,25 +926,27 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         extension: &Extension,
-    ) -> bool {
+    ) -> AnalyzeResult<bool> {
         match extension.kind {
-            ExtensionKind::Inherent => true,
+            ExtensionKind::Inherent => Ok(true),
             ExtensionKind::Local => {
                 if extension.symbol.module_id == module.id {
-                    return true;
+                    return Ok(true);
                 }
 
-                module
-                    .dir(profile)
+                let dir = self
+                    .require_artifact_dir_resolved(module.id, profile)
+                    .map_err(AnalyzeError::from)?;
+
+                Ok(dir
                     .imported_modules
-                    .read()
                     .values()
                     .flat_map(|resolution| [resolution.value, resolution.ty])
                     .any(|target| {
                         matches!(target, Some(ModuleTarget::Module(module_id)) if module_id == extension.symbol.module_id)
-                    })
+                    }))
             }
-            ExtensionKind::Nominal => true,
+            ExtensionKind::Nominal => Ok(true),
         }
     }
 }

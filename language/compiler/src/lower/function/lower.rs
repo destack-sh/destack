@@ -1,12 +1,14 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use destack_core::{StringId, StringPool};
 use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program, WellKnownIntrinsics};
+use destack_workspace::{ModuleDirData, ProfileId, Program, WellKnownIntrinsics};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::analyze::DirReadBoundary;
+use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
 
 use super::constructor::ConstructorState;
 use super::policy::RuntimeCheckConfig;
@@ -25,6 +27,8 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) profile: ProfileId,
     /// Provide access to program metadata for remote symbol lookup.
     pub(crate) program: &'a Program,
+    /// Provide access to compiler helpers for artifact-backed reads.
+    pub(crate) compiler: &'a Compiler,
     /// Provide access to the DIR tree for expression lookup.
     pub(crate) dir_tree: &'a dir::NodeTree,
     /// Provide access to symbol metadata for type resolution.
@@ -185,6 +189,40 @@ impl<'a> FunctionLowerer<'a> {
     /// Create a new function lowerer with the given builder.
     pub(crate) fn new(env: FunctionEnv<'a>, state: FunctionState<'a>) -> Self {
         Self { env, state }
+    }
+
+    /// Read one committed DIR snapshot for a module when available.
+    pub(crate) fn artifact_dir_data_if_present(
+        &self,
+        module_id: ModuleId,
+    ) -> Option<Arc<ModuleDirData>> {
+        self.env
+            .compiler
+            .program
+            .artifacts
+            .dir_snapshot(module_id, self.env.profile)
+    }
+
+    /// Read one committed analyzed DIR snapshot for a module.
+    pub(crate) fn require_analyzed_dir_data(
+        &self,
+        module_id: ModuleId,
+    ) -> LowerResult<Arc<ModuleDirData>> {
+        let snapshot = self.env.compiler.require_artifact_dir_for_boundary(
+            module_id,
+            self.env.profile,
+            DirReadBoundary::Analyzed,
+        );
+
+        match snapshot {
+            Ok(snapshot) => Ok(snapshot),
+            Err(BuildRequirementError::NotReady { requirement }) => {
+                Err(LowerError::Yield { requirement })
+            }
+            Err(BuildRequirementError::Failed { requirement }) => {
+                Err(LowerError::UnsatisfiedRequirement { requirement })
+            }
+        }
     }
 
     /// Return the lowered function id for a symbol-backed instance.

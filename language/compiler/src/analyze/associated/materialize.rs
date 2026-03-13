@@ -92,17 +92,13 @@ impl Compiler {
             Some(StaticMemberSymbolKind::AssociatedComptimeConst)
         ) {
             let mut visited_symbols = HashSet::new();
-            let static_value = match self.resolve_static_constant_reference_for_mode(
+            let static_value = self.resolve_static_constant_reference_for_mode(
                 &mut ctx.reborrow(),
                 target_symbol,
                 Some(&substitutions),
                 &mut visited_symbols,
                 StaticConstantResolutionMode::InstantiatedDeclare,
-            ) {
-                Ok(value) => value,
-                Err(AnalyzeError::Yield { .. }) => None,
-                Err(error) => return Err(error),
-            };
+            )?;
             if let Some(static_value) = static_value
                 && let Some(value_type_id) = self.static_expression_type_id_for_substitution(
                     source_id,

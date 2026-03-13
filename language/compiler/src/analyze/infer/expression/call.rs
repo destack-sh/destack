@@ -4,7 +4,7 @@ use super::SignatureResolutionMode;
 use super::member::{MemberLookupMode, MemberLookupModuleContext, MemberResolution};
 use crate::analyze::StaticSubstitutionEnvironment;
 use crate::analyze::common::{
-    CanonicalSymbolMode, DirReadBoundary, InferContext, TreeSymbolView, TypeView,
+    CanonicalSymbolMode, DirReadBoundary, InferContext, ModuleContext, TreeSymbolView, TypeView,
 };
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::timing::tags;
@@ -1174,6 +1174,12 @@ impl Compiler {
             member_key,
             lookup_mode,
             &mut member_type_visited,
+        )?;
+        let member_ty_id = self.resolve_member_type_for_symbol(
+            &mut ctx.reborrow(),
+            receiver_expression_id,
+            member_symbol,
+            member_ty_id,
         )?;
 
         // apply static substitutions before call-signature resolution
@@ -3538,7 +3544,7 @@ impl Compiler {
             parameters_for_call.push(parameter.clone());
         }
         let assigned_for_call = self.assign_static_argument_values(
-            &mut ctx.type_context_reborrow(),
+            ModuleContext::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols, ctx.options),
             node_id,
             &argument_values,
             &parameters_for_call,
@@ -3627,8 +3633,11 @@ impl Compiler {
                 .and_then(|mapping| mapping.get(&static_parameter.symbol))
                 .cloned()
             {
+                let call_site =
+                    ModuleContext::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols, ctx.options);
                 self.resolve_static_argument(
                     &mut ctx.type_context_reborrow(),
+                    call_site,
                     static_parameter,
                     Some(expected_argument),
                     true,
@@ -3638,8 +3647,11 @@ impl Compiler {
             };
 
             // resolve one concrete static argument value for this slot
+            let call_site =
+                ModuleContext::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols, ctx.options);
             let resolved_assigned_argument = self.resolve_static_argument(
                 &mut ctx.type_context_reborrow(),
+                call_site,
                 static_parameter,
                 assigned_argument,
                 true,

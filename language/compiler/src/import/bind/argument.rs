@@ -476,9 +476,7 @@ type Wrapper<T = Foo> = T;
         test.check_clean();
 
         // load bound tree
-        let module = test.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir_base();
+        let dir = test.dir_base(module_id);
         let tree = dir.tree.read();
 
         // select the root expression

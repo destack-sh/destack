@@ -103,29 +103,40 @@ impl Compiler {
             }
 
             let read_boundary = match read_domain {
-                RemoteValueTypeReadDomain::Surface => DirReadBoundary::Declared,
+                // surface inference may use provisional declared commitments for the
+                // current module, but cross-module reads should still respect published
+                // interface state unless the current build already owns an active
+                // interface frame for that remote module
+                RemoteValueTypeReadDomain::Surface => {
+                    if candidate_symbol.module_id == ctx.module.id {
+                        DirReadBoundary::Declared
+                    } else {
+                        DirReadBoundary::Interface
+                    }
+                }
                 RemoteValueTypeReadDomain::Interface => DirReadBoundary::Interface,
             };
 
             let lookup = self
-                .with_module_tree_symbol_view_at_boundary(
+                .with_module_tree_symbol_type_view_at_boundary(
                     ctx.module,
                     ctx.profile,
                     candidate_symbol.module_id,
                     read_boundary,
                     |view| -> AnalyzeResult<RemoteValueTypeLookupResult> {
-                        let remote_types = view.module.dir(ctx.profile).types.read();
-                        self.query_remote_symbol_value_type_in_snapshot(
+                        let remote_module = self.program.modules.get(candidate_symbol.module_id);
+                        let remote_module = remote_module.read();
+                        self.query_remote_symbol_value_type_from_artifact(
                             ctx.profile,
                             node_id,
                             error_node,
                             candidate_symbol,
                             read_domain,
                             RemoteModuleSnapshot {
-                                remote_module: view.module,
+                                remote_module: &remote_module,
                                 remote_tree: view.tree,
                                 remote_symbols: view.symbols,
-                                remote_types: &remote_types,
+                                remote_types: view.types,
                             },
                             ctx.types,
                         )
@@ -157,7 +168,7 @@ impl Compiler {
     }
 
     /// Query one remote value type in one remote module snapshot.
-    fn query_remote_symbol_value_type_in_snapshot(
+    fn query_remote_symbol_value_type_from_artifact(
         &self,
         profile: ProfileId,
         node_id: LocalNodeIdAny,
@@ -462,8 +473,14 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         target_symbol: GlobalSymbolId,
     ) -> bool {
-        let dir = view.module.dir(view.profile);
-        let exported_symbols = dir.exported_symbols.read();
+        let Ok(dir) = self.require_artifact_dir_for_boundary(
+            view.module.id,
+            view.profile,
+            DirReadBoundary::Interface,
+        ) else {
+            return false;
+        };
+        let exported_symbols = &dir.exported_symbols;
         for export in exported_symbols.values() {
             let Some((export_symbol, value_symbol)) =
                 self.interface_value_symbol_for_export(view.symbols, view.module.id, export)
@@ -479,7 +496,7 @@ impl Compiler {
             }
         }
 
-        let binding_exports = dir.module_binding_exports.read();
+        let binding_exports = &dir.module_binding_exports;
         for binding in binding_exports.values() {
             for export in binding.exports.values() {
                 let Some((export_symbol, value_symbol)) =

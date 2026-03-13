@@ -11,26 +11,27 @@ impl Compiler {
         module: &Module,
         ast: &ModuleAst,
     ) -> Vec<LocalNodeId<Expression>> {
-        let dir = module.dir_base();
-        let mut tree = dir.tree.write();
-        let mut symbols = dir.symbols.write();
-        let mut types = dir.types.write();
-        let scope = (dir.namespace_scope, LocalScopeMark::end());
-        ast.roots
-            .iter()
-            .map(|expression| {
-                self.bind_expression(
-                    module,
-                    ast,
-                    scope,
-                    *expression,
-                    None,
-                    &mut tree,
-                    &mut symbols,
-                    &mut types,
-                    SymbolSpaceOrder::ValueThenType,
-                )
-            })
-            .collect()
+        self.with_active_base_dir(module.id, |dir| {
+            let mut tree = dir.tree.write();
+            let mut symbols = dir.symbols.write();
+            let mut types = dir.types.write();
+            let scope = (dir.namespace_scope, LocalScopeMark::end());
+            ast.roots
+                .iter()
+                .map(|expression| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        *expression,
+                        None,
+                        &mut tree,
+                        &mut symbols,
+                        &mut types,
+                        SymbolSpaceOrder::ValueThenType,
+                    )
+                })
+                .collect()
+        })
     }
 }

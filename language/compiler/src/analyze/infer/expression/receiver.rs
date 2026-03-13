@@ -90,6 +90,8 @@ impl Compiler {
         receiver_ty_id: Option<LocalTypeId>,
     ) -> MemberReceiverContext {
         let receiver_id = self.unwrap_parenthesized_expression(receiver_id, ctx.tree);
+        // nominal receiver classification should follow the expression form,
+        // not the eventual runtime instance type
         let nominal_symbol = self.query_nominal_value_symbol_for_expression(ctx, receiver_id);
         let has_static_arguments = ctx
             .tree
@@ -102,7 +104,11 @@ impl Compiler {
         ) || receiver_ty_id.is_some_and(|receiver_ty_id| {
             self.type_contains_this(receiver_ty_id, ctx.types, &mut HashSet::new())
         });
-        let lookup_mode = if nominal_symbol.is_some() {
+
+        // instance-bound receivers like `this` and `super` should not be reclassified as static
+        let lookup_mode = if has_this_receiver {
+            MemberLookupMode::Instance
+        } else if nominal_symbol.is_some() {
             // nominal values only expose static members
             MemberLookupMode::Value
         } else {
@@ -126,6 +132,15 @@ impl Compiler {
     ) -> Option<GlobalSymbolId> {
         // resolve the direct reference symbol for the receiver
         let symbol = self.resolve_direct_receiver_symbol_for_expression(ctx, receiver_id)?;
+        self.query_nominal_value_symbol_for_symbol(ctx, symbol)
+    }
+
+    /// Resolve one nominal value symbol from an explicit symbol candidate.
+    fn query_nominal_value_symbol_for_symbol(
+        &self,
+        ctx: &TypeContext<'_>,
+        symbol: GlobalSymbolId,
+    ) -> Option<GlobalSymbolId> {
         let symbol = self
             .declaration_symbol_id(ctx.module_symbol_view(), symbol)
             .unwrap_or(symbol);

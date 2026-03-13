@@ -1,74 +1,18 @@
+use indexmap::IndexMap;
+
 use crate::{BuildRequirementCollector, Compiler, ExecuteError, ExecuteResult};
 
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ComptimeOutput, ModuleComptime, ModuleDir, ProfileId, TrustPolicy};
+use destack_workspace::{ComptimeOutput, ModuleDirData, ProfileId, TrustPolicy};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
 use vm::Heap;
 use {destack_dir as dir, destack_vm as vm};
 
+/// In-flight comptime results for one module build.
+type ComptimeResults = IndexMap<dir::LocalNodeIdAny, Option<ComptimeOutput>>;
+
 impl Compiler {
-    /// Prepare comptime state for a module within a profile.
-    pub(crate) fn execute_module_prepare(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
-    ) -> ExecuteResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<ExecuteError>(
-            module_id,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
-
-        // ensure DIR exists
-        self.require_dir_elaborated(module_id, profile_id)?;
-        if !self.is_code_module(module_id) {
-            return Ok(());
-        }
-
-        let module = self.program.modules.get(module_id);
-        let mut module = module.write();
-        self.ensure_module_profile_matches_guard::<ExecuteError>(
-            &module,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
-
-        // initialize or refresh module comptime entry
-        let code = module.code_mut();
-        match code
-            .comptimes
-            .iter_mut()
-            .find(|entry| entry.profile_id == profile_id)
-        {
-            Some(entry) => {
-                if entry.module_version != module_version
-                    || entry.profile_version != profile_version
-                {
-                    entry.module_version = module_version;
-                    entry.profile_version = profile_version;
-                    entry.results.clear();
-                }
-            }
-            None => {
-                code.comptimes.push(ModuleComptime {
-                    module_id,
-                    profile_id,
-                    module_version,
-                    profile_version,
-                    results: indexmap::IndexMap::new(),
-                });
-            }
-        }
-
-        Ok(())
-    }
-
     /// Execute comptime code for a module within a profile.
     pub(crate) fn execute_module_patch(
         &self,
@@ -76,7 +20,7 @@ impl Compiler {
         profile_id: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-    ) -> ExecuteResult<()> {
+    ) -> Result<ModuleDirData, ExecuteError> {
         // skip stale tasks
         self.ensure_module_profile_matches::<ExecuteError>(
             module_id,
@@ -87,11 +31,11 @@ impl Compiler {
 
         // resolve cache handle
         let cache_handle =
-            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirExecuted);
+            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirPatched);
 
         // try to load executed DIR from cache
         if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_dir_executed()
+            && let Ok(Some(entry)) = cache.read_dir_patched()
         {
             self.ensure_module_profile_matches::<ExecuteError>(
                 module_id,
@@ -99,45 +43,35 @@ impl Compiler {
                 profile_id,
                 profile_version,
             )?;
-            let dir = ModuleDir::from_data(entry.payload);
-            let module = self.program.modules.get(module_id);
-            let mut module = module.write();
-            self.ensure_module_profile_matches_guard::<ExecuteError>(
-                &module,
-                module_version,
-                profile_id,
-                profile_version,
-            )?;
-            module.set_dir(profile_id, dir);
+            let payload = entry.payload;
             tracing::trace!(?module_id, ?profile_id, "execute.module.cache");
-            return Ok(());
+            return Ok(payload);
         }
 
-        // initialize module comptime state
-        self.execute_module_prepare(module_id, profile_id, module_version, profile_version)?;
+        // skip modules without executable comptime state
         if !self.is_code_module(module_id) {
-            return Ok(());
+            return Ok(self
+                .require_dir_elaborated_data(module_id, profile_id)?
+                .as_ref()
+                .clone());
         }
 
         // collect comptime expressions in this module
         let comptime_nodes: Vec<dir::LocalNodeIdAny> = {
-            let module = self.program.modules.get(module_id);
-            let module = module.read();
-            let dir = module.dir(profile_id);
-            let tree = dir.tree.read();
-            tree.iter_nodes_of_type::<dir::Expression>()
-                .filter_map(|(id, expression)| {
-                    if matches!(expression, dir::Expression::Comptime { .. }) {
-                        Some(id.into())
-                    } else {
-                        None
-                    }
-                })
-                .collect()
+            let dir = self.require_dir_elaborated_data(module_id, profile_id)?;
+            let tree = &dir.tree;
+            let mut nodes = Vec::new();
+            for (expression_id, expression) in tree.iter_nodes_of_type::<dir::Expression>() {
+                if matches!(expression, dir::Expression::Comptime { .. }) {
+                    nodes.push(expression_id.into_any());
+                }
+            }
+            nodes
         };
 
         // execute each comptime expression
         let mut collector = BuildRequirementCollector::new();
+        let mut results = ComptimeResults::new();
         for expression_id in &comptime_nodes {
             self.collect(
                 &mut collector,
@@ -147,6 +81,7 @@ impl Compiler {
                     module_version,
                     profile_version,
                     expression_id.into_global(module_id),
+                    &mut results,
                 ),
             );
         }
@@ -155,43 +90,33 @@ impl Compiler {
         }
 
         // gather execute results for this module
-        let patches = {
-            let module = self.program.modules.get(module_id);
-            let module = module.read();
-            let Some(comptime) = module.comptime_maybe(profile_id) else {
-                return Ok(());
-            };
-            comptime
-                .results
-                .iter()
-                .filter_map(|(expression_id, result)| {
-                    if comptime_nodes.contains(expression_id) {
-                        Some(ComptimePatch {
-                            expression_id: *expression_id,
-                            result: result.clone(),
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>()
-        };
+        let patches = results
+            .iter()
+            .filter_map(|(expression_id, result)| {
+                if comptime_nodes.contains(expression_id) {
+                    Some(ComptimePatch {
+                        expression_id: *expression_id,
+                        result: result.clone(),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
 
-        // patch comptime results into DIR
-        if !patches.is_empty() {
-            self.ensure_module_profile_matches::<ExecuteError>(
-                module_id,
-                module_version,
-                profile_id,
-                profile_version,
-            )?;
-            let module = self.program.modules.get(module_id);
-            let module = module.read();
-            let dir = module.dir(profile_id);
-            let mut tree = dir.tree.write();
-            for patch in patches {
-                self.apply_comptime_patch(module_id, profile_id, &mut tree, patch);
-            }
+        // patch comptime results into one transient DIR snapshot
+        self.ensure_module_profile_matches::<ExecuteError>(
+            module_id,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
+        let mut payload = self
+            .require_dir_elaborated_data(module_id, profile_id)?
+            .as_ref()
+            .clone();
+        for patch in patches {
+            self.apply_comptime_patch(module_id, profile_id, &mut payload.tree, patch);
         }
 
         // write executed DIR to cache
@@ -202,10 +127,7 @@ impl Compiler {
                 profile_id,
                 profile_version,
             )?;
-            let module = self.program.modules.get(module_id);
-            let module = module.read();
-            let payload = module.dir(profile_id).to_data();
-            if let Err(error) = cache.write_dir_executed(payload) {
+            if let Err(error) = cache.write_dir_patched(payload.clone()) {
                 tracing::debug!(
                     ?module_id,
                     ?profile_id,
@@ -215,7 +137,7 @@ impl Compiler {
             }
         }
 
-        Ok(())
+        Ok(payload)
     }
 
     /// Execute comptime code for a single expression.
@@ -226,6 +148,7 @@ impl Compiler {
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
         expression: dir::GlobalNodeIdAny,
+        results: &mut ComptimeResults,
     ) -> ExecuteResult<()> {
         // skip stale tasks
         self.ensure_module_profile_matches::<ExecuteError>(
@@ -248,26 +171,33 @@ impl Compiler {
                 node: expression.into_anchored(Some(profile_id)),
             })?;
 
-        // initialize module comptime state
-        self.execute_module_prepare(module_id, profile_id, module_version, profile_version)?;
+        // skip modules without executable comptime state
         if !self.is_code_module(module_id) {
             return Ok(());
         }
+
+        // reuse already computed outputs for this build
+        if results.contains_key(&expression.local_id) {
+            return Ok(());
+        }
+
+        // reserve the slot before recursing through nested comptime dependencies
+        results.insert(expression.local_id, None);
 
         // run comptime evaluation for this expression
         let result = {
             // get the comptime expression
             let module = self.program.modules.get(module_id);
             let module = module.read();
-            let dir = module.dir(profile_id);
-            let tree = dir.tree.read();
+            let dir = self.require_dir_elaborated_data(module_id, profile_id)?;
+            let tree = &dir.tree;
             let expression = tree.get(expression_id);
             let dir::Expression::Comptime { body } = expression else {
                 return Ok(());
             };
 
             // ensure nested comptime expressions are executed first
-            let dependencies = collect_comptime_dependencies(&tree, *body);
+            let dependencies = collect_comptime_dependencies(tree, *body);
             for dependency in dependencies {
                 // execute each nested comptime dependency first
                 let dependency_id = dependency.into_global(module_id);
@@ -277,6 +207,7 @@ impl Compiler {
                     module_version,
                     profile_version,
                     dependency_id,
+                    results,
                 )?;
             }
 
@@ -333,16 +264,7 @@ impl Compiler {
         };
 
         // store the output for later patching
-        let module = self.program.modules.get(module_id);
-        let mut module = module.write();
-        self.ensure_module_profile_matches_guard::<ExecuteError>(
-            &module,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
-        let entry = module.comptime_mut(profile_id);
-        entry.results.insert(expression.local_id, result);
+        results.insert(expression.local_id, result);
 
         Ok(())
     }

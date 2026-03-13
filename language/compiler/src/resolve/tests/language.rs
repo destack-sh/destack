@@ -11,9 +11,8 @@ fn test_resolve_language_symbol() {
 
     let profile = test.default_profile_id_for_root();
     let symbol_id = test.compiler.language_symbol(profile, LanguageSymbol::Add);
-    let module = test.program.modules.get(symbol_id.module_id);
-    let module = module.read();
-    let symbols = module.dir_base().symbols.read();
+    let dir = test.dir_base(symbol_id.module_id);
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_id.into_local());
     assert_string!(test.program, symbol.name().unwrap(), "Add");
 }

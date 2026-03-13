@@ -59,14 +59,27 @@ impl Compiler {
 
         let _timing = self.timing_scope(tags::ANALYZE_INFER_ASSIGN_CHECK);
 
-        let mut ctx = AssignContext::new(
-            ctx.module,
-            ctx.profile,
-            ctx.tree,
-            ctx.symbols,
-            ctx.types,
-            ctx.options,
-        );
+        let dir = ctx.dir;
+        let mut ctx = if let Some(dir) = dir {
+            AssignContext::with_dir(
+                ctx.module,
+                ctx.profile,
+                dir,
+                ctx.tree,
+                ctx.symbols,
+                ctx.types,
+                ctx.options,
+            )
+        } else {
+            AssignContext::new(
+                ctx.module,
+                ctx.profile,
+                ctx.tree,
+                ctx.symbols,
+                ctx.types,
+                ctx.options,
+            )
+        };
 
         // normalize and resolve apparent types for assignability
         let target_id = self.normalize_apparent_type(
@@ -1297,6 +1310,7 @@ impl Compiler {
             (
                 Type::Reference {
                     symbol: target_symbol,
+                    static_arguments: target_static_arguments,
                     ..
                 },
                 Type::Object {
@@ -1310,37 +1324,32 @@ impl Compiler {
                     return None;
                 }
 
-                let Some(target_instance_id) = self.require_instance_type(
+                let Some((
+                    target_fields,
+                    target_call_signatures,
+                    target_construct_signatures,
+                    target_index_signatures,
+                )) = self.record_like_object_parts_for_reference(
                     &mut ctx.type_context_reborrow(),
                     target_source_id,
                     *target_symbol,
-                ) else {
+                    target_static_arguments.as_deref(),
+                )
+                else {
                     return Some(Assignability::NotAssignable);
                 };
-
-                let target_instance = ctx.types.get_type(target_instance_id).clone();
-                if let Type::Object {
-                    fields: target_fields,
-                    call_signatures: target_call_signatures,
-                    construct_signatures: target_construct_signatures,
-                    index_signatures: target_index_signatures,
-                } = target_instance
-                {
-                    let mut relation_ctx = ctx.reborrow();
-                    return Some(self.is_object_type_assignable(
-                        &mut relation_ctx,
-                        &target_fields,
-                        &target_call_signatures,
-                        &target_construct_signatures,
-                        &target_index_signatures,
-                        source_fields,
-                        source_call_signatures,
-                        source_construct_signatures,
-                        source_index_signatures,
-                    ));
-                }
-
-                Some(Assignability::NotAssignable)
+                let mut relation_ctx = ctx.reborrow();
+                Some(self.is_object_type_assignable(
+                    &mut relation_ctx,
+                    &target_fields,
+                    &target_call_signatures,
+                    &target_construct_signatures,
+                    &target_index_signatures,
+                    source_fields,
+                    source_call_signatures,
+                    source_construct_signatures,
+                    source_index_signatures,
+                ))
             }
 
             // object target: allow interface sources with structural shape
@@ -1353,6 +1362,7 @@ impl Compiler {
                 },
                 Type::Reference {
                     symbol: source_symbol,
+                    static_arguments: source_static_arguments,
                     ..
                 },
             ) => {
@@ -1360,43 +1370,39 @@ impl Compiler {
                     return None;
                 }
 
-                let Some(source_instance_id) = self.require_instance_type(
+                let Some((
+                    source_fields,
+                    source_call_signatures,
+                    source_construct_signatures,
+                    source_index_signatures,
+                )) = self.record_like_object_parts_for_reference(
                     &mut ctx.type_context_reborrow(),
                     source_source_id,
                     *source_symbol,
-                ) else {
+                    source_static_arguments.as_deref(),
+                )
+                else {
                     return Some(Assignability::NotAssignable);
                 };
-
-                let source_instance = ctx.types.get_type(source_instance_id).clone();
-                if let Type::Object {
-                    fields: source_fields,
-                    call_signatures: source_call_signatures,
-                    construct_signatures: source_construct_signatures,
-                    index_signatures: source_index_signatures,
-                } = source_instance
-                {
-                    let mut relation_ctx = ctx.reborrow();
-                    return Some(self.is_object_type_assignable(
-                        &mut relation_ctx,
-                        target_fields,
-                        target_call_signatures,
-                        target_construct_signatures,
-                        target_index_signatures,
-                        &source_fields,
-                        &source_call_signatures,
-                        &source_construct_signatures,
-                        &source_index_signatures,
-                    ));
-                }
-
-                Some(Assignability::NotAssignable)
+                let mut relation_ctx = ctx.reborrow();
+                Some(self.is_object_type_assignable(
+                    &mut relation_ctx,
+                    target_fields,
+                    target_call_signatures,
+                    target_construct_signatures,
+                    target_index_signatures,
+                    &source_fields,
+                    &source_call_signatures,
+                    &source_construct_signatures,
+                    &source_index_signatures,
+                ))
             }
 
             // interface target: allow function values to satisfy call signatures
             (
                 Type::Reference {
                     symbol: target_symbol,
+                    static_arguments: target_static_arguments,
                     ..
                 },
                 Type::Function {
@@ -1410,36 +1416,31 @@ impl Compiler {
                     return None;
                 }
 
-                let Some(target_instance_id) = self.require_instance_type(
+                let Some((
+                    target_fields,
+                    target_call_signatures,
+                    target_construct_signatures,
+                    target_index_signatures,
+                )) = self.record_like_object_parts_for_reference(
                     &mut ctx.type_context_reborrow(),
                     target_source_id,
                     *target_symbol,
-                ) else {
+                    target_static_arguments.as_deref(),
+                )
+                else {
                     return Some(Assignability::NotAssignable);
                 };
-
-                let target_instance = ctx.types.get_type(target_instance_id).clone();
-                if let Type::Object {
-                    fields: target_fields,
-                    call_signatures: target_call_signatures,
-                    construct_signatures: target_construct_signatures,
-                    index_signatures: target_index_signatures,
-                } = target_instance
-                {
-                    let mut relation_ctx = ctx.reborrow();
-                    return Some(self.is_object_assignable_from_function(
-                        &mut relation_ctx,
-                        &target_fields,
-                        &target_call_signatures,
-                        &target_construct_signatures,
-                        &target_index_signatures,
-                        source_params,
-                        source_this,
-                        source_return,
-                    ));
-                }
-
-                Some(Assignability::NotAssignable)
+                let mut relation_ctx = ctx.reborrow();
+                Some(self.is_object_assignable_from_function(
+                    &mut relation_ctx,
+                    &target_fields,
+                    &target_call_signatures,
+                    &target_construct_signatures,
+                    &target_index_signatures,
+                    source_params,
+                    source_this,
+                    source_return,
+                ))
             }
 
             // function target: accept callable interface sources
@@ -1452,6 +1453,7 @@ impl Compiler {
                 },
                 Type::Reference {
                     symbol: source_symbol,
+                    static_arguments: source_static_arguments,
                     ..
                 },
             ) => {
@@ -1459,33 +1461,30 @@ impl Compiler {
                     return None;
                 }
 
-                let Some(source_instance_id) = self.require_instance_type(
+                let Some((
+                    _source_fields,
+                    source_call_signatures,
+                    _source_construct_signatures,
+                    _source_index_signatures,
+                )) = self.record_like_object_parts_for_reference(
                     &mut ctx.type_context_reborrow(),
                     source_source_id,
                     *source_symbol,
-                ) else {
+                    source_static_arguments.as_deref(),
+                )
+                else {
                     return Some(Assignability::NotAssignable);
                 };
-
-                let source_instance = ctx.types.get_type(source_instance_id).clone();
-                if let Type::Object {
-                    call_signatures: source_call_signatures,
-                    ..
-                } = source_instance
-                {
-                    let assignment_anchor = ctx.types.get_type_source(target_id);
-                    let mut relation_ctx = ctx.reborrow();
-                    return Some(self.is_function_assignable_from_object(
-                        &mut relation_ctx,
-                        assignment_anchor,
-                        target_params,
-                        target_this,
-                        target_return,
-                        &source_call_signatures,
-                    ));
-                }
-
-                Some(Assignability::NotAssignable)
+                let assignment_anchor = ctx.types.get_type_source(target_id);
+                let mut relation_ctx = ctx.reborrow();
+                Some(self.is_function_assignable_from_object(
+                    &mut relation_ctx,
+                    assignment_anchor,
+                    target_params,
+                    target_this,
+                    target_return,
+                    &source_call_signatures,
+                ))
             }
 
             _ => None,

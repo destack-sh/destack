@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// The artifact boundary required for one cross-module analyze read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum DirReadBoundary {
     /// The declared module surface.
     Declared,
@@ -20,6 +20,11 @@ pub(crate) enum DirReadBoundary {
 }
 
 impl Compiler {
+    /// Read one committed base DIR snapshot when available.
+    pub(crate) fn artifact_dir_base(&self, module_id: ModuleId) -> Option<Arc<ModuleDirData>> {
+        self.program.artifacts.dir_base(module_id)
+    }
+
     /// Build one failed requirement set for one missing committed artifact.
     fn missing_artifact_requirement(&self, key: ArtifactKey) -> BuildRequirementSet {
         let anchor = match &key {
@@ -74,12 +79,32 @@ impl Compiler {
         Ok(snapshot)
     }
 
+    /// Read one committed elaborated DIR snapshot.
+    pub(crate) fn require_artifact_dir_elaborated(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<ModuleDirData>, BuildRequirementError> {
+        self.require_dir_elaborated(module_id, profile)?;
+
+        let Some(snapshot) = self.program.artifacts.dir_elaborated(module_id, profile) else {
+            return Err(BuildRequirementError::Failed {
+                requirement: self.missing_artifact_requirement(ArtifactKey::DirElaborated {
+                    module: module_id,
+                    profile,
+                }),
+            });
+        };
+
+        Ok(snapshot)
+    }
+
     /// Read one committed base DIR snapshot.
     pub(crate) fn require_artifact_dir_base(
         &self,
         module_id: ModuleId,
     ) -> Result<Arc<ModuleDirData>, BuildRequirementError> {
-        let Some(snapshot) = self.program.artifacts.dir_base(module_id) else {
+        let Some(snapshot) = self.artifact_dir_base(module_id) else {
             return Err(BuildRequirementError::Failed {
                 requirement: self
                     .missing_artifact_requirement(ArtifactKey::DirBase { module: module_id }),
@@ -112,6 +137,14 @@ impl Compiler {
         profile: ProfileId,
         boundary: DirReadBoundary,
     ) -> Result<(), BuildRequirementError> {
+        // current-build active frames already satisfy local in-flight reads
+        if self
+            .current_active_dir_frame(module_id, profile, boundary)
+            .is_some()
+        {
+            return Ok(());
+        }
+
         // gate reads by artifact boundary
         match boundary {
             DirReadBoundary::Declared => self.require_dir_declared(module_id, profile),
