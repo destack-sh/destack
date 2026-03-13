@@ -10,12 +10,10 @@ use crate::platform::{core as core_platform, memory as memory_platform};
 
 /// Operation tag for reserve bindings.
 pub(crate) const RESERVE_OPERATION: &str = "destack.memory.map.reserve";
-/// Operation tag for numa-bind bindings.
-pub(crate) const NUMA_BIND_OPERATION: &str = "destack.memory.map.numaBind";
+/// Operation tag for allocate bindings.
+pub(crate) const ALLOCATE_OPERATION: &str = "destack.memory.map.allocate";
 /// Operation tag for remap bindings.
 pub(crate) const REMAP_OPERATION: &str = "destack.memory.protect.remap";
-/// Operation tag for huge-page advise bindings.
-pub(crate) const HUGE_PAGE_OPERATION: &str = "destack.memory.advise.hugePage";
 
 /// Supported reserve flag mask.
 pub(crate) const RESERVE_FLAG_MASK: u32 = memory_platform::MEMORY_RESERVE_TOP_DOWN.0
@@ -80,6 +78,27 @@ pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<u
 
     if flags.0 & RESERVE_NO_RESERVE_FLAG != 0 {
         return Err(core_platform::not_supported(RESERVE_OPERATION));
+    }
+
+    // map supported top-down behavior to windows flags
+    let mut native_flags = 0;
+    if flags.0 & RESERVE_TOP_DOWN_FLAG != 0 {
+        native_flags |= WINDOWS_MEM_TOP_DOWN;
+    }
+
+    Ok(native_flags)
+}
+
+/// Decode one allocate-flag payload for windows backends.
+pub(crate) fn decode_allocate_flags(flags: MemoryReserveFlags) -> RuntimeResult<u32> {
+    // reject unknown reserve bits
+    if flags.0 & !RESERVE_FLAG_MASK != 0 {
+        return Err(core_platform::unsupported_flags("flags", flags.0));
+    }
+
+    // reserve without backing does not apply to committed allocations
+    if flags.0 & RESERVE_NO_RESERVE_FLAG != 0 {
+        return Err(core_platform::not_supported(ALLOCATE_OPERATION));
     }
 
     // map supported top-down behavior to windows flags

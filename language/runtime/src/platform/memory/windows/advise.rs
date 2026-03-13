@@ -9,7 +9,7 @@ use crate::platform::core as core_platform;
 use crate::platform::memory::{MemoryAdvice, core as memory_core};
 use crate::runtime::BindingCallContext;
 
-use super::core::{HUGE_PAGE_OPERATION, page_size};
+use super::core::page_size;
 
 /// Operation tag for generic memory-advise support.
 const ADVISE_OPERATION: &str = "destack.memory.advise";
@@ -105,16 +105,4 @@ pub(crate) unsafe fn destack_memory_discard(
     discard_status_result(status, DISCARD_OPERATION)?;
 
     Ok(())
-}
-
-/// Toggle huge-page preference for one range.
-pub(crate) unsafe fn destack_memory_huge_page(
-    _binding: &BindingCallContext,
-    address: u64,
-    length: u64,
-    enabled: bool,
-) -> RuntimeResult<()> {
-    // mark huge-page advice as unsupported on windows
-    let _ = (address, length, enabled);
-    Err(core_platform::not_supported(HUGE_PAGE_OPERATION))
 }

@@ -151,7 +151,7 @@ pub(crate) unsafe fn destack_memory_remap(
         return Err(core_platform::not_supported(REMAP_OPERATION));
     }
 
-    // allocate destination range with the same protection policy
+    // allocate a writable destination range before restoring source protection
     let target_protection = if memory_info.Protect == 0 {
         PAGE_READWRITE
     } else {
@@ -162,7 +162,7 @@ pub(crate) unsafe fn destack_memory_remap(
             std::ptr::null_mut(),
             new_length,
             MEM_RESERVE | MEM_COMMIT,
-            target_protection,
+            PAGE_READWRITE,
         )
     };
     if new_pointer.is_null() {
@@ -178,6 +178,25 @@ pub(crate) unsafe fn destack_memory_remap(
                 new_pointer as *mut u8,
                 bytes_to_copy,
             );
+        }
+    }
+
+    // restore the destination protection after copying bytes
+    if target_protection != PAGE_READWRITE {
+        let mut old_protection = 0u32;
+        let protected = unsafe {
+            VirtualProtect(
+                new_pointer,
+                new_length,
+                target_protection,
+                &mut old_protection,
+            )
+        };
+        if protected == 0 {
+            unsafe {
+                VirtualFree(new_pointer, 0, MEM_RELEASE);
+            }
+            return Err(core_platform::io_error("VirtualProtect"));
         }
     }
 
