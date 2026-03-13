@@ -29,13 +29,13 @@ use crate::platform::net::{
 };
 #[cfg(target_os = "linux")]
 use crate::platform::net::{PACKET_BACKEND_CAP_FANOUT, PACKET_BACKEND_CAP_RING};
-use crate::platform::net::{
-    PacketBackend, PacketBackendCapabilityFlags, PacketBackendDescriptor,
-    PacketBackendSelectionPolicy, PacketCaptureOptions,
-};
+use crate::platform::net::{PacketBackend, PacketBackendCapabilityFlags, PacketBackendDescriptor};
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+use crate::platform::net::{PacketBackendSelectionPolicy, PacketCaptureOptions};
 use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Return the effective host packet backend for this runtime.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 pub(super) fn current_packet_backend(binding: &BindingCallContext) -> Option<PacketBackend> {
     #[cfg(target_os = "linux")]
     {
@@ -51,12 +51,12 @@ pub(super) fn current_packet_backend(binding: &BindingCallContext) -> Option<Pac
 
     #[cfg(target_os = "windows")]
     {
-        return match binding.agent().options.platform.windows.net_packet_backend {
+        match binding.agent().options.platform.windows.net_packet_backend {
             PlatformWindowsPacketBackend::RawSocket => Some(PacketBackend::WinRawSocket),
             PlatformWindowsPacketBackend::Disabled | PlatformWindowsPacketBackend::HostBackend => {
                 None
             }
-        };
+        }
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
@@ -67,6 +67,7 @@ pub(super) fn current_packet_backend(binding: &BindingCallContext) -> Option<Pac
 }
 
 /// Return whether one packet backend is currently available on this runtime.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 pub(super) fn packet_backend_available(
     binding: &BindingCallContext,
     backend: PacketBackend,
@@ -75,6 +76,7 @@ pub(super) fn packet_backend_available(
 }
 
 /// Validate shared packet-capture options before backend dispatch.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 fn validate_packet_capture_options(options: PacketCaptureOptions) -> RuntimeResult<()> {
     // require one non-zero snap length
     if options.snap_length == 0 {
@@ -89,6 +91,7 @@ fn validate_packet_capture_options(options: PacketCaptureOptions) -> RuntimeResu
 }
 
 /// Validate one packet-open backend request against the active host backend.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 pub(super) fn select_packet_backend_for_open(
     binding: &BindingCallContext,
     options: PacketCaptureOptions,

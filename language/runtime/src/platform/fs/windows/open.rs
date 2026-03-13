@@ -123,13 +123,13 @@ pub(crate) unsafe fn destack_fs_open_bytes(
     }
 
     // enforce directory only semantics for plain path opens
-    if flags.0 & O_DIRECTORY != 0 {
-        if let Err(error) = require_directory_handle(handle) {
-            unsafe {
-                CloseHandle(handle);
-            }
-            return Err(error);
+    if flags.0 & O_DIRECTORY != 0
+        && let Err(error) = require_directory_handle(handle)
+    {
+        unsafe {
+            CloseHandle(handle);
         }
+        return Err(error);
     }
 
     // disable handle inheritance
@@ -217,13 +217,13 @@ pub(crate) unsafe fn destack_fs_open_utf16(
     }
 
     // enforce directory only semantics for plain path opens
-    if flags.0 & O_DIRECTORY != 0 {
-        if let Err(error) = require_directory_handle(handle) {
-            unsafe {
-                CloseHandle(handle);
-            }
-            return Err(error);
+    if flags.0 & O_DIRECTORY != 0
+        && let Err(error) = require_directory_handle(handle)
+    {
+        unsafe {
+            CloseHandle(handle);
         }
+        return Err(error);
     }
 
     // disable handle inheritance

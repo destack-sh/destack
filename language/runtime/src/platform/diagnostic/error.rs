@@ -8,6 +8,13 @@ use libc::{
 };
 #[cfg(unix)]
 use libc::{EAFNOSUPPORT, EAI_AGAIN, EAI_FAIL, EAI_NONAME, ESHUTDOWN};
+#[cfg(windows)]
+use windows_sys::Win32::Networking::WinSock::{
+    WSAEADDRINUSE, WSAEADDRNOTAVAIL, WSAEAFNOSUPPORT, WSAEALREADY, WSAECONNABORTED,
+    WSAECONNREFUSED, WSAECONNRESET, WSAEHOSTUNREACH, WSAEINPROGRESS, WSAEISCONN, WSAEMSGSIZE,
+    WSAENETUNREACH, WSAENOBUFS, WSAENOTCONN, WSAENOTSOCK, WSAEPROTONOSUPPORT, WSAESHUTDOWN,
+    WSAETIMEDOUT, WSAEWOULDBLOCK,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -767,6 +774,10 @@ pub fn io_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
 
 /// Map an errno value to a network error code when possible.
 pub fn net_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
+    if errno == EWOULDBLOCK || errno == EAGAIN {
+        return Some(PlatformErrorCode::IoWouldBlock);
+    }
+
     match errno {
         ECONNREFUSED => Some(PlatformErrorCode::NetConnectionRefused),
         ETIMEDOUT => Some(PlatformErrorCode::NetTimedOut),
@@ -790,6 +801,32 @@ pub fn net_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
         EAFNOSUPPORT => Some(PlatformErrorCode::NetUnsupportedFamily),
         #[cfg(unix)]
         EAI_NONAME | EAI_FAIL | EAI_AGAIN => Some(PlatformErrorCode::NetDnsFailed),
+        _ => None,
+    }
+}
+
+/// Map one Winsock error value to a network or I/O error code when possible.
+#[cfg(windows)]
+pub fn net_error_code_from_winsock(code: i32) -> Option<PlatformErrorCode> {
+    match code {
+        WSAEWOULDBLOCK => Some(PlatformErrorCode::IoWouldBlock),
+        WSAECONNREFUSED => Some(PlatformErrorCode::NetConnectionRefused),
+        WSAETIMEDOUT => Some(PlatformErrorCode::NetTimedOut),
+        WSAECONNRESET => Some(PlatformErrorCode::NetConnectionReset),
+        WSAEADDRINUSE => Some(PlatformErrorCode::NetAddressInUse),
+        WSAEADDRNOTAVAIL => Some(PlatformErrorCode::NetAddressNotAvailable),
+        WSAENETUNREACH => Some(PlatformErrorCode::NetNetworkUnreachable),
+        WSAEHOSTUNREACH => Some(PlatformErrorCode::NetHostUnreachable),
+        WSAECONNABORTED => Some(PlatformErrorCode::NetConnectionAborted),
+        WSAENOTCONN => Some(PlatformErrorCode::NetNotConnected),
+        WSAEISCONN => Some(PlatformErrorCode::NetAlreadyConnected),
+        WSAEMSGSIZE => Some(PlatformErrorCode::NetMessageTooLarge),
+        WSAENOTSOCK => Some(PlatformErrorCode::NetNotSocket),
+        WSAEPROTONOSUPPORT => Some(PlatformErrorCode::NetUnsupportedProtocol),
+        WSAENOBUFS => Some(PlatformErrorCode::NetNoBufferSpace),
+        WSAEINPROGRESS | WSAEALREADY => Some(PlatformErrorCode::NetInProgress),
+        WSAESHUTDOWN => Some(PlatformErrorCode::NetShutdown),
+        WSAEAFNOSUPPORT => Some(PlatformErrorCode::NetUnsupportedFamily),
         _ => None,
     }
 }

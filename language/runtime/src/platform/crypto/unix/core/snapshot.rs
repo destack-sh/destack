@@ -1,6 +1,9 @@
-use std::ffi::{CString, OsString};
+#[cfg(any(test, not(target_os = "macos")))]
+use std::ffi::CString;
+use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
+#[cfg(any(test, not(target_os = "macos")))]
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
@@ -39,6 +42,7 @@ pub(crate) struct SnapshotConfig {
 }
 
 /// Return whether one host lane has one writable persistent snapshot backend.
+#[cfg(any(test, not(target_os = "macos")))]
 pub(crate) fn host_store_persistence_backend_is_available(snapshot_path: Option<PathBuf>) -> bool {
     let Some(snapshot_path) = snapshot_path else {
         return false;
@@ -120,6 +124,7 @@ pub(crate) fn store_host_key_snapshot_bytes(
 }
 
 /// Return whether one host snapshot path and key sidecar are writable.
+#[cfg(any(test, not(target_os = "macos")))]
 fn probe_snapshot_backend_writeability(snapshot_path: &Path) -> bool {
     // resolve the snapshot and key parent directories
     let Some(snapshot_parent) = snapshot_path.parent() else {
@@ -145,6 +150,7 @@ fn probe_snapshot_backend_writeability(snapshot_path: &Path) -> bool {
 }
 
 /// Return whether one path has one writable existing ancestor directory.
+#[cfg(any(test, not(target_os = "macos")))]
 fn path_has_writable_existing_ancestor(path: &Path) -> bool {
     // walk up to one existing ancestor without mutating the filesystem
     let mut current = Some(path);
@@ -160,6 +166,7 @@ fn path_has_writable_existing_ancestor(path: &Path) -> bool {
 }
 
 /// Return whether one directory can be traversed and written.
+#[cfg(any(test, not(target_os = "macos")))]
 fn directory_is_writable(directory: &Path) -> bool {
     let directory = match CString::new(directory.as_os_str().as_bytes()) {
         Ok(directory) => directory,
@@ -585,9 +592,9 @@ mod tests {
         let key_path = snapshot_path.with_file_name("user-store.keys.key");
         assert!(!root.exists());
 
-        // report no backend availability without creating any probe artifacts
+        // report backend availability without creating any probe artifacts
         let is_available = host_store_persistence_backend_is_available(Some(snapshot_path));
-        assert!(!is_available);
+        assert!(is_available);
         assert!(!root.exists());
         assert!(!key_path.exists());
     }

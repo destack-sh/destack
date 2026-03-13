@@ -15,6 +15,8 @@ use crate::platform::random::{
     RandomStream, destack_random_stream_next_u64, destack_random_stream_next_u64_from,
 };
 #[cfg(test)]
+use crate::platform::resource::SocketHandle;
+#[cfg(test)]
 use crate::platform::resource::{ListenerHandle, ResourceKind};
 use crate::runtime::{
     Agent, BindingCallContext, World, enter_binding_call_context, enter_current_agent_context,
@@ -267,6 +269,50 @@ impl TestRuntime {
         }
     }
 
+    /// Return whether one socket handle is in nonblocking mode.
+    #[cfg(unix)]
+    #[cfg(test)]
+    pub(crate) fn socket_is_nonblocking(&self, handle: SocketHandle) -> bool {
+        let fd = self
+            .agent
+            .resources
+            .with_entry(handle.0, |entry| {
+                if entry.kind != ResourceKind::Socket {
+                    return None;
+                }
+                entry.fd()
+            })
+            .flatten()
+            .expect("socket handle must be valid");
+
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+        assert!(flags >= 0, "fcntl(F_GETFL) failed");
+
+        (flags & libc::O_NONBLOCK) != 0
+    }
+
+    /// Return whether one socket handle is close-on-exec.
+    #[cfg(unix)]
+    #[cfg(test)]
+    pub(crate) fn socket_is_close_on_exec(&self, handle: SocketHandle) -> bool {
+        let fd = self
+            .agent
+            .resources
+            .with_entry(handle.0, |entry| {
+                if entry.kind != ResourceKind::Socket {
+                    return None;
+                }
+                entry.fd()
+            })
+            .flatten()
+            .expect("socket handle must be valid");
+
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+        assert!(flags >= 0, "fcntl(F_GETFD) failed");
+
+        (flags & libc::FD_CLOEXEC) != 0
+    }
+
     /// Read the port assigned to a listener handle.
     #[cfg(windows)]
     pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
@@ -303,5 +349,31 @@ impl TestRuntime {
             }
             _ => panic!("unsupported listener address family"),
         }
+    }
+
+    /// Return whether one socket handle is close-on-exec or non-inheritable.
+    #[cfg(windows)]
+    #[cfg(test)]
+    pub(crate) fn socket_is_close_on_exec(&self, handle: SocketHandle) -> bool {
+        use windows_sys::Win32::Foundation::{GetHandleInformation, HANDLE_FLAG_INHERIT};
+        use windows_sys::Win32::Networking::WinSock::SOCKET;
+
+        let socket = self
+            .agent
+            .resources
+            .with_entry(handle.0, |entry| {
+                if entry.kind != ResourceKind::Socket {
+                    return None;
+                }
+                entry.socket()
+            })
+            .flatten()
+            .expect("socket handle must be valid") as SOCKET;
+
+        let mut flags = 0u32;
+        let rc = unsafe { GetHandleInformation(socket as isize, &mut flags) };
+        assert_ne!(rc, 0, "GetHandleInformation failed");
+
+        (flags & HANDLE_FLAG_INHERIT) == 0
     }
 }
