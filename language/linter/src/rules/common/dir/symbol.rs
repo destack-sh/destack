@@ -172,11 +172,10 @@ pub fn symbol_for(
         return Some(local_symbols.get_symbol(symbol_id.local_id).clone());
     }
 
-    let module_ref = program.modules.get(symbol_id.module_id);
-    let module = module_ref.read();
-    let dir = module.dir_maybe(profile_id)?;
-    let symbols = dir.symbols.read();
-    Some(symbols.get_symbol(symbol_id.local_id).clone())
+    let dir = program
+        .artifacts
+        .dir_snapshot(symbol_id.module_id, profile_id)?;
+    Some(dir.symbols.get_symbol(symbol_id.local_id).clone())
 }
 
 /// Resolve the canonical target symbol when available.
@@ -440,11 +439,10 @@ pub fn symbol_value_type_id_for(
         });
     }
 
-    let module_ref = program.modules.get(symbol_id.module_id);
-    let module = module_ref.read();
-    let dir = module.dir_maybe(profile_id)?;
-    let types = dir.types.read();
-    let type_id = types.get_value_type_id(symbol_id)?;
+    let dir = program
+        .artifacts
+        .dir_snapshot(symbol_id.module_id, profile_id)?;
+    let type_id = dir.types.get_value_type_id(symbol_id)?;
     Some(SymbolValueTypeId {
         module_id: symbol_id.module_id,
         type_id,
@@ -474,11 +472,10 @@ pub fn symbol_value_type_map_for<T>(
         return Some(map(local_types, symbol_type_id.type_id));
     }
 
-    let module_ref = program.modules.get(symbol_type_id.module_id);
-    let module = module_ref.read();
-    let dir = module.dir_maybe(profile_id)?;
-    let types = dir.types.read();
-    Some(map(&types, symbol_type_id.type_id))
+    let dir = program
+        .artifacts
+        .dir_snapshot(symbol_type_id.module_id, profile_id)?;
+    Some(map(&dir.types, symbol_type_id.type_id))
 }
 
 /// Return true when one local symbol is merged with a class declaration in this module.

@@ -155,14 +155,15 @@ fn source_expression_matches_target_type(
     }
 
     // read source module types to validate `any as any` cross module
-    let module_ref = ctx.program.modules.get(source_value_type_id.module_id);
-    let module = module_ref.read();
-    let Some(module_dir) = module.dir_maybe(ctx.profile_id) else {
+    let Some(module_dir) = ctx
+        .program
+        .artifacts
+        .dir_snapshot(source_value_type_id.module_id, ctx.profile_id)
+    else {
         return false;
     };
-    let types = module_dir.types.read();
-    let source_type_id = unwrap_value_type_id(&types, source_value_type_id.type_id);
-    is_any_type(&types, source_type_id)
+    let source_type_id = unwrap_value_type_id(&module_dir.types, source_value_type_id.type_id);
+    is_any_type(&module_dir.types, source_type_id)
 }
 
 /// Return true when the target expression is an explicit `any` type literal.

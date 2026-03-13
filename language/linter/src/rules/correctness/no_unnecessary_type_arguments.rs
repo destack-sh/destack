@@ -172,17 +172,18 @@ fn static_parameter_defaults_for_symbol(
     }
 
     // fall back to loading declaration defaults from the owning module
-    let module_ref = ctx.program.modules.get(declaration_id.module_id);
-    let module = module_ref.read();
-    let module_dir = module.dir_maybe(ctx.profile_id)?;
-    let tree = module_dir.tree.read();
-    let static_parameters = static_parameters_for_declaration(&tree, declaration_id.local_id)?;
+    let module_dir = ctx
+        .program
+        .artifacts
+        .dir_snapshot(declaration_id.module_id, ctx.profile_id)?;
+    let static_parameters =
+        static_parameters_for_declaration(&module_dir.tree, declaration_id.local_id)?;
     Some(
         static_parameters
             .into_iter()
             .map(|parameter_id| StaticParameterDefault {
                 module_id: declaration_id.module_id,
-                default_expression: parameter_default_expression(&tree, parameter_id),
+                default_expression: parameter_default_expression(&module_dir.tree, parameter_id),
             })
             .collect(),
     )
@@ -327,11 +328,11 @@ fn expression_ast_signature_for_module(
     // load the referenced module when the expression comes from another module
     let module_ref = ctx.program.modules.get(module_id);
     let module = module_ref.read();
-    let module_dir = module.dir_maybe(ctx.profile_id)?;
-    let source_id = {
-        let tree = module_dir.tree.read();
-        tree.get_source(expression_id.id)
-    };
+    let module_dir = ctx
+        .program
+        .artifacts
+        .dir_snapshot(module_id, ctx.profile_id)?;
+    let source_id = module_dir.tree.get_source(expression_id.id);
     let ast = module.ast_maybe()?;
     if ast.tree.get_node_type(source_id) != ast::NodeType::Expression {
         return None;

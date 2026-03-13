@@ -125,10 +125,13 @@ pub(crate) fn collect_platform_bindings(
         // load module metadata
         let module = program.modules.get(*module_id);
         let module = module.read();
-        let dir = module.dir(profile_id);
-        let tree = dir.tree.read();
-        let types = dir.types.read();
-        let symbols = dir.symbols.read();
+        let dir = program
+            .artifacts
+            .dir_snapshot(module.id, profile_id)
+            .unwrap_or_else(|| panic!("missing dir snapshot for module {:?}", module.id));
+        let tree = &dir.tree;
+        let types = &dir.types;
+        let symbols = &dir.symbols;
         let mut seen_declarations = HashSet::new();
 
         // scan expressions for binding declarations
@@ -180,6 +183,7 @@ pub(crate) fn collect_platform_bindings(
 
             // format the canonical signature for the declaration
             let signature_text = format_declared_signature(
+                program,
                 declaration_id,
                 declaration,
                 &module,
@@ -195,6 +199,7 @@ pub(crate) fn collect_platform_bindings(
                 .unwrap_or_else(|| "global".to_string());
 
             let params = collect_binding_params(
+                program,
                 signature,
                 module.id,
                 &tree,
@@ -206,6 +211,7 @@ pub(crate) fn collect_platform_bindings(
                 &domain,
             );
             let return_binding = collect_binding_return(
+                program,
                 declaration_id,
                 signature,
                 module.id,
@@ -264,9 +270,12 @@ pub(crate) fn collect_platform_constants(
             continue;
         };
 
-        let dir = module.dir(profile_id);
-        let tree = dir.tree.read();
-        let types = dir.types.read();
+        let dir = program
+            .artifacts
+            .dir_snapshot(module.id, profile_id)
+            .unwrap_or_else(|| panic!("missing dir snapshot for module {:?}", module.id));
+        let tree = &dir.tree;
+        let types = &dir.types;
         let mut known_values: BTreeMap<String, i128> = BTreeMap::new();
 
         for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
@@ -299,6 +308,7 @@ pub(crate) fn collect_platform_constants(
                     panic!("failed to resolve type for exported const {constant_name}");
                 };
                 let binding_type = binding_type_from_type_id(
+                    program,
                     type_id,
                     &types,
                     &program.modules,
@@ -364,8 +374,11 @@ pub(crate) fn collect_platform_types(
         let module = program.modules.get(*module_id);
         let module = module.read();
 
-        let dir = module.dir(profile_id);
-        let tree = dir.tree.read();
+        let dir = program
+            .artifacts
+            .dir_snapshot(module.id, profile_id)
+            .unwrap_or_else(|| panic!("missing dir snapshot for module {:?}", module.id));
+        let tree = &dir.tree;
 
         // collect exported type-like declarations
         for (_declaration_id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
@@ -381,6 +394,7 @@ pub(crate) fn collect_platform_types(
                 | Declaration::Enum { .. } => {
                     let symbol_id = declaration.symbol().into_global(module.id);
                     binding_type_from_symbol(
+                        program,
                         symbol_id,
                         &program.modules,
                         strings,

@@ -357,12 +357,12 @@ fn create_isolate(
     target_id: &TargetId,
     options: IsolateOptions,
 ) -> super::CommandResult<Isolate> {
-    let module = program.modules.get(module_id);
-    let module = module.read();
-    let mir = module
-        .mir_maybe(target_id)
+    let profile_id = program.default_profile_id_for_module(module_id);
+    let mir = program
+        .artifacts
+        .mir_snapshot(module_id, profile_id, target_id)
         .ok_or_else(|| format!("missing MIR for target {target_id:?} (run requires lowering)"))?;
-    let tree = mir.tree.read().clone();
+    let tree = mir.tree.clone();
     let strings = mir.strings.clone().into_immutable();
 
     Ok(Isolate::build_with_options(tree, strings, options).map_err(|error| error.to_string())?)

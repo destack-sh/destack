@@ -1,6 +1,6 @@
 use destack_ast as ast;
 use destack_dir::{self as dir, WellKnownSymbol};
-use destack_workspace::{LintSeverity, Module, ProfileId};
+use destack_workspace::{LintSeverity, Module};
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
@@ -152,8 +152,7 @@ fn catch_callback_unknown_fix(
     ctx: &LintModuleDirContext<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<LintFix> {
-    let type_expression_id =
-        ast_parameter_type_expression_id(ctx.module, ctx.profile_id, parameter_id)?;
+    let type_expression_id = ast_parameter_type_expression_id(ctx.module, ctx.tree, parameter_id)?;
     if !ast_type_expression_is_explicit_any(ctx.ast, type_expression_id) {
         return None;
     }
@@ -232,7 +231,6 @@ fn catch_callback_uses_any_parameter(
     if let Some(parameter_id) = callback_parameter_id {
         return parameter_uses_explicit_any(
             ctx.module,
-            ctx.profile_id,
             ctx.tree,
             ctx.types,
             ctx.module_id(),
@@ -306,23 +304,24 @@ fn callback_declaration_uses_any_parameter(
 ) -> bool {
     let module = ctx.program.modules.get(declaration_id.module_id);
     let module = module.read();
-    let Some(module_dir) = module.dir_maybe(ctx.profile_id) else {
-        return false;
-    };
-
-    let tree = module_dir.tree.read();
-    let Some(parameter_id) =
-        first_callback_parameter_in_declaration(&tree, declaration_id.local_id)
+    let Some(module_dir) = ctx
+        .program
+        .artifacts
+        .dir_snapshot(declaration_id.module_id, ctx.profile_id)
     else {
         return false;
     };
 
-    let types = module_dir.types.read();
+    let Some(parameter_id) =
+        first_callback_parameter_in_declaration(&module_dir.tree, declaration_id.local_id)
+    else {
+        return false;
+    };
+
     parameter_uses_explicit_any(
         &module,
-        ctx.profile_id,
-        &tree,
-        &types,
+        &module_dir.tree,
+        &module_dir.types,
         declaration_id.module_id,
         parameter_id,
     )
@@ -368,14 +367,13 @@ fn first_callback_parameter(
 /// Return true when one callback parameter is typed as explicit `any`.
 fn parameter_uses_explicit_any(
     module: &Module,
-    profile_id: ProfileId,
     tree: &dir::NodeTree,
     types: &dir::TypeTable,
     module_id: destack_source::ModuleId,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> bool {
     // source declared `any` should be detected directly from AST structure
-    if parameter_declares_explicit_any_in_ast(module, profile_id, parameter_id) {
+    if parameter_declares_explicit_any_in_ast(module, tree, parameter_id) {
         return true;
     }
 
@@ -397,11 +395,10 @@ fn parameter_uses_explicit_any(
 /// Return true when one parameter declaration is explicitly `any` in source AST.
 fn parameter_declares_explicit_any_in_ast(
     module: &Module,
-    profile_id: ProfileId,
+    tree: &dir::NodeTree,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> bool {
-    let Some(type_expression_id) =
-        ast_parameter_type_expression_id(module, profile_id, parameter_id)
+    let Some(type_expression_id) = ast_parameter_type_expression_id(module, tree, parameter_id)
     else {
         return false;
     };
@@ -413,16 +410,11 @@ fn parameter_declares_explicit_any_in_ast(
 /// Resolve the AST type expression for one DIR parameter.
 fn ast_parameter_type_expression_id(
     module: &Module,
-    profile_id: ProfileId,
+    tree: &dir::NodeTree,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let module_dir = module.dir_maybe(profile_id)?;
-    let source_id = {
-        let tree = module_dir.tree.read();
-        tree.get_source(parameter_id.id)
-    };
-
     let ast = module.ast_maybe()?;
+    let source_id = tree.get_source(parameter_id.id);
     if ast.tree.get_node_type(source_id) != ast::NodeType::Parameter {
         return None;
     }
