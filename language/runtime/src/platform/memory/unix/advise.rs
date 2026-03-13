@@ -3,8 +3,6 @@ use crate::platform::core as core_platform;
 use crate::platform::memory::MemoryAdvice;
 use crate::runtime::BindingCallContext;
 
-#[cfg(not(target_os = "linux"))]
-use super::core::HUGE_PAGE_OPERATION;
 use super::core::{page_size, validated_range};
 
 /// Apply memory access advice.
@@ -53,41 +51,4 @@ pub(crate) unsafe fn destack_memory_discard(
     }
 
     Ok(())
-}
-
-/// Toggle huge-page preference for one range.
-pub(crate) unsafe fn destack_memory_huge_page(
-    _binding: &BindingCallContext,
-    address: u64,
-    length: u64,
-    enabled: bool,
-) -> RuntimeResult<()> {
-    // validate range for huge-page preference toggle
-    let page_size = page_size()?;
-    let (pointer, length) = validated_range(address, length, page_size)?;
-
-    #[cfg(target_os = "linux")]
-    {
-        // map enable state to linux huge-page advisory constants
-        let advice = if enabled {
-            libc::MADV_HUGEPAGE
-        } else {
-            libc::MADV_NOHUGEPAGE
-        };
-
-        // apply huge-page preference hint
-        let status = unsafe { libc::madvise(pointer, length, advice) };
-        if status != 0 {
-            return Err(core_platform::io_error("madvise", None));
-        }
-
-        Ok(())
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    {
-        // mark huge-page hinting as unsupported on this backend
-        let _ = (pointer, length, enabled);
-        Err(core_platform::not_supported(HUGE_PAGE_OPERATION))
-    }
 }

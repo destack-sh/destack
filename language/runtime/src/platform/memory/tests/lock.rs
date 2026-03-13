@@ -21,15 +21,11 @@ fn test_memory_lock_unlock_or_expected_error() {
             &[
                 PlatformErrorCode::IoPermissionDenied,
                 PlatformErrorCode::IoWouldBlock,
-                PlatformErrorCode::NotSupported,
             ],
         )?;
 
         if locked.is_some() {
-            let _ = assert_ok_or_expected_error(
-                context.destack_memory_unlock(mapping.address, mapping.length),
-                &[PlatformErrorCode::NotSupported],
-            )?;
+            context.destack_memory_unlock(mapping.address, mapping.length)?;
         }
 
         context.destack_memory_release(mapping.address, mapping.length)?;

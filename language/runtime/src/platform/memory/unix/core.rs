@@ -4,15 +4,11 @@ use crate::platform::{core as core_platform, memory as memory_platform};
 
 /// Operation tag for reserve bindings.
 pub(crate) const RESERVE_OPERATION: &str = "destack.memory.map.reserve";
-/// Operation tag for numa-bind bindings.
-#[cfg(not(target_os = "linux"))]
-pub(crate) const NUMA_BIND_OPERATION: &str = "destack.memory.map.numaBind";
+/// Operation tag for allocate bindings.
+pub(crate) const ALLOCATE_OPERATION: &str = "destack.memory.map.allocate";
 /// Operation tag for remap bindings.
 #[cfg(not(target_os = "linux"))]
 pub(crate) const REMAP_OPERATION: &str = "destack.memory.protect.remap";
-/// Operation tag for huge-page advise bindings.
-#[cfg(not(target_os = "linux"))]
-pub(crate) const HUGE_PAGE_OPERATION: &str = "destack.memory.advise.hugePage";
 
 /// Supported reserve flag mask.
 pub(crate) const RESERVE_FLAG_MASK: u32 = memory_platform::MEMORY_RESERVE_TOP_DOWN.0
@@ -56,8 +52,8 @@ pub(crate) fn unix_protection(protection: MemoryProtection) -> RuntimeResult<i32
     Ok(native)
 }
 
-/// Decode and validate one reserve flag payload for unix backends.
-pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<i32> {
+/// Decode one allocate flag payload for unix backends.
+pub(crate) fn decode_allocate_flags(flags: MemoryReserveFlags) -> RuntimeResult<i32> {
     // reject unknown reserve bits
     if flags.0 & !RESERVE_FLAG_MASK != 0 {
         return Err(core_platform::unsupported_flags("flags", flags.0));
@@ -65,7 +61,7 @@ pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<i
 
     // reject top-down request where unix backends do not expose stable semantics
     if flags.0 & RESERVE_TOP_DOWN_FLAG != 0 {
-        return Err(core_platform::not_supported(RESERVE_OPERATION));
+        return Err(core_platform::not_supported(ALLOCATE_OPERATION));
     }
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -81,7 +77,7 @@ pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<i
 
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
         {
-            return Err(core_platform::not_supported(RESERVE_OPERATION));
+            return Err(core_platform::not_supported(ALLOCATE_OPERATION));
         }
     }
 
@@ -94,11 +90,21 @@ pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<i
 
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
         {
-            return Err(core_platform::not_supported(RESERVE_OPERATION));
+            return Err(core_platform::not_supported(ALLOCATE_OPERATION));
         }
     }
 
     Ok(native_flags)
+}
+
+/// Decode and validate one reserve flag payload for unix backends.
+pub(crate) fn decode_reserve_flags(flags: MemoryReserveFlags) -> RuntimeResult<i32> {
+    // reject reserve-only flags that cannot be honored without an allocation
+    if flags.0 & RESERVE_LARGE_PAGES_FLAG != 0 {
+        return Err(core_platform::not_supported(RESERVE_OPERATION));
+    }
+
+    decode_allocate_flags(flags)
 }
 
 /// Decode and validate one remap flag payload.

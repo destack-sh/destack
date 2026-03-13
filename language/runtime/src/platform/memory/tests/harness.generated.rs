@@ -8,7 +8,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError as HarnessPlatformError;
 use crate::platform::memory::tests::MemoryHarnessContext;
 use crate::platform::memory::{
-    MemoryAdvice, MemoryNumaPolicy, MemoryProtection, MemoryRange, MemoryRangeVm, MemoryRemapFlags,
+    MemoryAdvice, MemoryProtection, MemoryRange, MemoryRangeVm, MemoryRemapFlags,
     MemoryReserveFlags, ProtectedMemoryRange, ProtectedMemoryRangeVm, native as memory_native,
     vm as memory_vm,
 };
@@ -97,43 +97,6 @@ impl<'call> MemoryHarnessContext<'call> {
             }
             None => unsafe {
                 memory_native::destack_memory_discard(self.call_context, address, length)
-            },
-        }
-    }
-
-    /// Toggle huge-page preference for one range.
-    ///
-    /// Enable or disable huge-page preference for one memory range.
-    /// Huge-page allocation remains host-policy and availability dependent.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses huge-page advice flags on Unix and large-page APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.huge.page`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_memory_huge_page(
-        &mut self,
-        address: u64,
-        length: u64,
-        enabled: bool,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => memory_vm::destack_memory_huge_page(
-                self.call_context,
-                context,
-                address,
-                length,
-                enabled,
-            ),
-            None => unsafe {
-                memory_native::destack_memory_huge_page(self.call_context, address, length, enabled)
             },
         }
     }
@@ -263,51 +226,6 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Bind one range to a NUMA policy.
-    ///
-    /// Apply NUMA placement policy for one virtual memory range.
-    /// Node masks and policy modes are interpreted by host NUMA APIs.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mbind or set_mempolicy on Linux and VirtualAllocExNuma-style APIs on Windows where supported.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.numa`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_memory_numa_bind(
-        &mut self,
-        address: u64,
-        length: u64,
-        policy: MemoryNumaPolicy,
-        nodemask: u64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => memory_vm::destack_memory_numa_bind(
-                self.call_context,
-                context,
-                address,
-                length,
-                policy,
-                nodemask,
-            ),
-            None => unsafe {
-                memory_native::destack_memory_numa_bind(
-                    self.call_context,
-                    address,
-                    length,
-                    policy,
-                    nodemask,
-                )
-            },
-        }
-    }
-
     /// Release one reserved range.
     ///
     /// Release one virtual memory reservation back to the host allocator.
@@ -382,6 +300,60 @@ impl<'call> MemoryHarnessContext<'call> {
                         out.as_mut_ptr(),
                         length,
                         addresshint,
+                        flags,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Allocate one mapped range.
+    ///
+    /// Reserve and commit one virtual memory range in a single host operation.
+    /// Allocation-time policy flags such as large pages are applied here when supported.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses mmap allocation paths on Unix and VirtualAlloc reserve-plus-commit on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `memory.map`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_memory_allocate(
+        &mut self,
+        length: u64,
+        addresshint: u64,
+        protection: MemoryProtection,
+        flags: MemoryReserveFlags,
+    ) -> RuntimeResult<HarnessValue<ProtectedMemoryRange, ProtectedMemoryRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = memory_vm::destack_memory_allocate(
+                    self.call_context,
+                    context,
+                    length,
+                    addresshint,
+                    protection,
+                    flags,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<ProtectedMemoryRange>::uninit();
+                unsafe {
+                    memory_native::destack_memory_allocate(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        length,
+                        addresshint,
+                        protection,
                         flags,
                     )?;
                 }

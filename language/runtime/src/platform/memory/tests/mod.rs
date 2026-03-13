@@ -1,8 +1,6 @@
 #[cfg(any(unix, windows))]
 mod advise;
 #[cfg(any(unix, windows))]
-mod basic;
-#[cfg(any(unix, windows))]
 mod lock;
 #[cfg(any(unix, windows))]
 mod map;
