@@ -7,8 +7,11 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiEventMetadataValue, MidiEventValue, MidiPortDescriptorValue,
-    push_event_with_overflow_policy, take_event_overflow_error,
+    MidiEventValue, MidiPortDescriptorValue, collect_live_event_sessions, direction_mask_includes,
+    event_poll_interval, event_queue_capacity, event_snapshot_list_flags,
+    push_backend_disconnected_event as push_backend_disconnected_midi_event,
+    refresh_snapshot_event_subscription, remove_midi_event_resource, require_queued_event,
+    require_queued_event_batch, snapshot_key, try_pop_queued_event, try_pop_queued_event_batch,
 };
 use crate::platform::midi::{
     MidiEventDeliveryMode, MidiEventSource, MidiEventSubscriptionFlags,
@@ -16,26 +19,17 @@ use crate::platform::midi::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
+use crate::runtime::core::queue::BoundedQueue;
 
-use super::backend::resolve_backend;
 use super::core::{
-    AlsaEventDeliveryKind, AlsaEventSession, AlsaTopologyState, BoundedQueue, SnapshotKey,
-    binding_timestamp_now, direction_mask_includes, endpoint_direction_name, event_poll_interval,
-    event_queue_capacity, event_snapshot_list_flags, insert_event_resource,
+    AlsaEventDeliveryKind, AlsaEventSession, AlsaTopologyState, SnapshotKey, insert_event_resource,
 };
 use super::descriptor::filtered_descriptors;
-use super::resource::{event_resource, remove_event_resource};
+use super::resource::event_resource;
 use super::service::{
     AlsaNativeEventRegistry, AlsaService, alsa_service, register_native_event_session,
     unregister_native_event_session,
 };
-
-/// Return one stable snapshot key for one direction and descriptor id.
-fn snapshot_key(direction: MidiPortDirection, id: &str) -> SnapshotKey {
-    let direction_name = endpoint_direction_name(direction);
-
-    format!("{direction_name}:{id}")
-}
 
 /// Build one current snapshot for one event subscription.
 fn event_snapshot(
@@ -72,83 +66,15 @@ fn refresh_event_subscription(
     source: MidiEventSource,
 ) -> RuntimeResult<()> {
     let next_snapshot = event_snapshot(service, session.flags, session.direction_mask);
-
-    // additions and changes
-    for (key, (direction, descriptor)) in &next_snapshot {
-        match session.snapshot.get(key) {
-            None => {
-                let metadata = MidiEventMetadataValue {
-                    timestamp_ns: binding_timestamp_now(),
-                    sequence: session.next_sequence,
-                    dropped_count: session.queue.dropped_count(),
-                    source,
-                    backend: session.backend,
-                };
-                session.next_sequence = session.next_sequence.saturating_add(1);
-
-                push_event_with_overflow_policy(
-                    &session.queue,
-                    MidiEventValue::PortAdded {
-                        metadata,
-                        direction: *direction,
-                        descriptor: descriptor.clone(),
-                    },
-                    session.overflow_policy,
-                )?;
-            }
-            Some((_, previous)) if previous != descriptor => {
-                let metadata = MidiEventMetadataValue {
-                    timestamp_ns: binding_timestamp_now(),
-                    sequence: session.next_sequence,
-                    dropped_count: session.queue.dropped_count(),
-                    source,
-                    backend: session.backend,
-                };
-                session.next_sequence = session.next_sequence.saturating_add(1);
-
-                push_event_with_overflow_policy(
-                    &session.queue,
-                    MidiEventValue::PortChanged {
-                        metadata,
-                        direction: *direction,
-                        descriptor: descriptor.clone(),
-                    },
-                    session.overflow_policy,
-                )?;
-            }
-            Some(_) => {}
-        }
-    }
-
-    // removals
-    for (key, (direction, descriptor)) in &session.snapshot {
-        if next_snapshot.contains_key(key) {
-            continue;
-        }
-
-        let metadata = MidiEventMetadataValue {
-            timestamp_ns: binding_timestamp_now(),
-            sequence: session.next_sequence,
-            dropped_count: session.queue.dropped_count(),
-            source,
-            backend: session.backend,
-        };
-        session.next_sequence = session.next_sequence.saturating_add(1);
-
-        push_event_with_overflow_policy(
-            &session.queue,
-            MidiEventValue::PortRemoved {
-                metadata,
-                direction: *direction,
-                id: descriptor.id.clone(),
-                group_id: descriptor.group_id.clone(),
-            },
-            session.overflow_policy,
-        )?;
-    }
-
-    session.snapshot = next_snapshot;
-    Ok(())
+    refresh_snapshot_event_subscription(
+        &session.queue,
+        session.backend,
+        session.overflow_policy,
+        &mut session.next_sequence,
+        &mut session.snapshot,
+        next_snapshot,
+        source,
+    )
 }
 
 /// Refresh one event subscription from synthetic polling.
@@ -165,19 +91,13 @@ fn queue_backend_disconnected_event(
     source: MidiEventSource,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let metadata = MidiEventMetadataValue {
-        timestamp_ns: binding_timestamp_now(),
-        sequence: session.next_sequence,
-        dropped_count: session.queue.dropped_count(),
-        source,
-        backend: session.backend,
-    };
-    session.next_sequence = session.next_sequence.saturating_add(1);
-
-    push_event_with_overflow_policy(
+    push_backend_disconnected_midi_event(
         &session.queue,
-        MidiEventValue::BackendDisconnected { metadata, flags },
+        session.backend,
         session.overflow_policy,
+        &mut session.next_sequence,
+        source,
+        flags,
     )
 }
 
@@ -186,10 +106,7 @@ fn try_pop_session_event(
     session: &AlsaEventSession,
     operation: &'static str,
 ) -> RuntimeResult<Option<MidiEventValue>> {
-    // deferred overflow
-    take_event_overflow_error(&session.queue, operation)?;
-
-    Ok(session.queue.try_pop())
+    try_pop_queued_event(&session.queue, operation)
 }
 
 /// Pop one queued event batch after honoring deferred overflow errors.
@@ -198,10 +115,7 @@ fn try_pop_session_event_batch(
     max_events: usize,
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
-    // deferred overflow
-    take_event_overflow_error(&session.queue, operation)?;
-
-    Ok(session.queue.try_pop_batch(max_events))
+    try_pop_queued_event_batch(&session.queue, max_events, operation)
 }
 
 /// Collect all live native event subscriptions from one registry.
@@ -209,22 +123,8 @@ fn collect_native_event_sessions(
     registry: &Arc<Mutex<AlsaNativeEventRegistry>>,
 ) -> Vec<Arc<Mutex<AlsaEventSession>>> {
     let mut registry = registry.lock();
-    let mut sessions = Vec::with_capacity(registry.sessions.len());
-    let mut stale_ids = Vec::new();
 
-    for (registration_id, session) in &registry.sessions {
-        if let Some(session) = session.upgrade() {
-            sessions.push(session);
-        } else {
-            stale_ids.push(*registration_id);
-        }
-    }
-
-    for registration_id in stale_ids {
-        registry.sessions.remove(&registration_id);
-    }
-
-    sessions
+    collect_live_event_sessions(&mut registry.sessions)
 }
 
 /// Refresh all native event subscriptions from one backend topology mutation.
@@ -233,7 +133,13 @@ pub(super) fn refresh_native_event_sessions(
     registry: &Arc<Mutex<AlsaNativeEventRegistry>>,
     source: MidiEventSource,
 ) {
+    let sessions = collect_native_event_sessions(registry);
     let Ok(service) = alsa_service("destack.midi.event.refresh") else {
+        for session in sessions {
+            let mut session = session.lock();
+            let _ = queue_backend_disconnected_event(&mut session, source, 0);
+        }
+
         return;
     };
 
@@ -246,10 +152,11 @@ pub(super) fn refresh_native_event_sessions(
         };
     }
 
-    let sessions = collect_native_event_sessions(registry);
     for session in sessions {
         let mut session = session.lock();
-        let _ = refresh_event_subscription(&service, &mut session, source);
+        if refresh_event_subscription(&service, &mut session, source).is_err() {
+            let _ = queue_backend_disconnected_event(&mut session, source, 0);
+        }
     }
 }
 
@@ -271,17 +178,6 @@ pub(crate) fn midi_event_open(
     binding: &BindingCallContext,
     options: MidiEventSubscriptionOptions,
 ) -> RuntimeResult<resource::MidiEventHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
-    let backend = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.event.open",
-    )?;
     if options.direction_mask.0 == 0 {
         return Err(core_platform::invalid_argument(
             "directionMask",
@@ -302,7 +198,7 @@ pub(crate) fn midi_event_open(
     };
 
     let session = Arc::new(Mutex::new(AlsaEventSession {
-        backend,
+        backend: crate::platform::midi::MidiBackend::Alsa,
         direction_mask: options.direction_mask,
         flags: options.flags,
         overflow_policy: options.overflow_policy,
@@ -334,7 +230,7 @@ pub(crate) fn midi_event_close(
         unregister_native_event_session(&session.delivery_kind);
     }
 
-    remove_event_resource(binding, handle, "destack.midi.event.close")
+    remove_midi_event_resource(binding, handle.0, "destack.midi.event.close", "midi event")
 }
 
 /// Read one ALSA sequencer event.
@@ -353,9 +249,7 @@ pub(crate) fn midi_event_read(
             .platform_state
             .midi
             .alsa_service("destack.midi.event.read")?;
-        let deadline = Instant::now()
-            .checked_add(Duration::from_nanos(timeout_ns))
-            .unwrap_or_else(Instant::now);
+        let deadline = core_platform::timeout_deadline(timeout_ns);
 
         loop {
             refresh_poll_event_subscription(&service, &mut session)?;
@@ -364,7 +258,7 @@ pub(crate) fn midi_event_read(
                 return Ok(event);
             }
 
-            if Instant::now() >= deadline {
+            if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
                 return Err(core_platform::io_would_block(
                     "destack.midi.event.read",
                     "no queued MIDI topology event is available",
@@ -377,9 +271,7 @@ pub(crate) fn midi_event_read(
 
     drop(session);
 
-    let deadline = Instant::now()
-        .checked_add(Duration::from_nanos(timeout_ns))
-        .unwrap_or_else(Instant::now);
+    let deadline = core_platform::timeout_deadline(timeout_ns);
 
     loop {
         let session = event_resource(binding, handle, "destack.midi.event.read")?;
@@ -388,7 +280,7 @@ pub(crate) fn midi_event_read(
             return Ok(event);
         }
 
-        if Instant::now() >= deadline {
+        if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
             return Err(core_platform::io_would_block(
                 "destack.midi.event.read",
                 "no queued MIDI topology event is available",
@@ -416,9 +308,7 @@ pub(crate) fn midi_event_read_batch(
             .platform_state
             .midi
             .alsa_service("destack.midi.event.readBatch")?;
-        let deadline = Instant::now()
-            .checked_add(Duration::from_nanos(timeout_ns))
-            .unwrap_or_else(Instant::now);
+        let deadline = core_platform::timeout_deadline(timeout_ns);
 
         loop {
             refresh_poll_event_subscription(&service, &mut session)?;
@@ -432,7 +322,7 @@ pub(crate) fn midi_event_read_batch(
                 return Ok(events);
             }
 
-            if Instant::now() >= deadline {
+            if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
                 return Err(core_platform::io_would_block(
                     "destack.midi.event.readBatch",
                     "no queued MIDI topology events are available",
@@ -445,9 +335,7 @@ pub(crate) fn midi_event_read_batch(
 
     drop(session);
 
-    let deadline = Instant::now()
-        .checked_add(Duration::from_nanos(timeout_ns))
-        .unwrap_or_else(Instant::now);
+    let deadline = core_platform::timeout_deadline(timeout_ns);
 
     loop {
         let session = event_resource(binding, handle, "destack.midi.event.readBatch")?;
@@ -461,7 +349,7 @@ pub(crate) fn midi_event_read_batch(
             return Ok(events);
         }
 
-        if Instant::now() >= deadline {
+        if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
             return Err(core_platform::io_would_block(
                 "destack.midi.event.readBatch",
                 "no queued MIDI topology events are available",
@@ -490,12 +378,11 @@ pub(crate) fn midi_event_try_read(
         refresh_poll_event_subscription(&service, &mut session)?;
     }
 
-    try_pop_session_event(&session, "destack.midi.event.tryRead")?.ok_or_else(|| {
-        core_platform::io_would_block(
-            "destack.midi.event.tryRead",
-            "no queued MIDI topology event is available",
-        )
-    })
+    require_queued_event(
+        try_pop_session_event(&session, "destack.midi.event.tryRead")?,
+        "destack.midi.event.tryRead",
+        "no queued MIDI topology event is available",
+    )
 }
 
 /// Poll one ALSA sequencer event batch without blocking.
@@ -522,12 +409,59 @@ pub(crate) fn midi_event_try_read_batch(
         max_events as usize,
         "destack.midi.event.tryReadBatch",
     )?;
-    if events.is_empty() {
-        return Err(core_platform::io_would_block(
-            "destack.midi.event.tryReadBatch",
-            "no queued MIDI topology events are available",
-        ));
-    }
+    require_queued_event_batch(
+        events,
+        "destack.midi.event.tryReadBatch",
+        "no queued MIDI topology events are available",
+    )
+}
 
-    Ok(events)
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use super::queue_backend_disconnected_event;
+    use crate::platform::midi::core::MidiEventValue;
+    use crate::platform::midi::{
+        MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED, MIDI_PORT_DIRECTION_FLAG_INPUT, MidiBackend,
+        MidiEventOverflowPolicy, MidiEventSource, MidiEventSubscriptionFlags,
+        MidiPortDirectionFlags,
+    };
+    use crate::runtime::core::queue::BoundedQueue;
+
+    use super::super::core::{AlsaEventDeliveryKind, AlsaEventSession};
+
+    /// Queue one backend-disconnected event with the active backend metadata.
+    #[test]
+    fn test_queue_backend_disconnected_event_pushes_backend_event() {
+        let queue = Arc::new(BoundedQueue::new(4));
+        let mut session = AlsaEventSession {
+            backend: MidiBackend::Alsa,
+            direction_mask: MidiPortDirectionFlags(MIDI_PORT_DIRECTION_FLAG_INPUT.0),
+            flags: MidiEventSubscriptionFlags(MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED.0),
+            overflow_policy: MidiEventOverflowPolicy::DropOldest,
+            poll_interval: Duration::from_millis(1),
+            delivery_kind: AlsaEventDeliveryKind::Poll,
+            queue: queue.clone(),
+            next_sequence: 1,
+            snapshot: BTreeMap::new(),
+        };
+
+        queue_backend_disconnected_event(&mut session, MidiEventSource::Native, 9)
+            .expect("backend disconnected event should queue successfully");
+
+        let event = queue
+            .try_pop()
+            .expect("event queue should contain one event");
+        match event {
+            MidiEventValue::BackendDisconnected { metadata, flags } => {
+                assert_eq!(metadata.backend, MidiBackend::Alsa);
+                assert_eq!(metadata.source, MidiEventSource::Native);
+                assert_eq!(flags, 9);
+            }
+            other => panic!("expected backendDisconnected event, got {other:?}"),
+        }
+    }
 }

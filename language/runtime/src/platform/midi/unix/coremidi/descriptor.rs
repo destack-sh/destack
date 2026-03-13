@@ -5,10 +5,11 @@ use core_foundation_sys::string::CFStringRef;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
-use crate::platform::midi::core::MidiPortDescriptorValue;
+use crate::platform::midi::core::{
+    MidiPortDescriptorValue, endpoint_direction_name, filter_port_descriptors,
+};
 use crate::platform::midi::{
-    MIDI_DATA_FORMAT_FLAG_MIDI1_BYTES, MIDI_DATA_FORMAT_FLAG_UMP,
-    MIDI_PORT_LIST_INCLUDE_DISCONNECTED, MIDI_PORT_LIST_INCLUDE_VIRTUAL, MIDI_PROTOCOL_FLAG_MIDI1,
+    MIDI_DATA_FORMAT_FLAG_MIDI1_BYTES, MIDI_DATA_FORMAT_FLAG_UMP, MIDI_PROTOCOL_FLAG_MIDI1,
     MIDI_PROTOCOL_FLAG_MIDI2, MidiBackend, MidiDataFormat, MidiDataFormatFlags, MidiPortDirection,
     MidiPortListFlags, MidiProtocol, MidiProtocolFlags,
 };
@@ -21,10 +22,7 @@ use super::abi::{
     kMIDIPropertyDriverVersion, kMIDIPropertyManufacturer, kMIDIPropertyModel, kMIDIPropertyName,
     kMIDIPropertyOffline, kMIDIPropertyProtocolID, kMIDIPropertyUniqueID, release_cf,
 };
-use super::core::{
-    CoreMidiEndpointOverride, data_format_flag, endpoint_direction_name, exact_transport_support,
-    protocol_flag,
-};
+use super::core::{CoreMidiEndpointOverride, exact_transport_support};
 use super::service::CoreMidiService;
 
 /// Read one integer property from one CoreMIDI object.
@@ -254,14 +252,7 @@ pub(super) fn filtered_descriptors(
     direction: MidiPortDirection,
     flags: MidiPortListFlags,
 ) -> Vec<MidiPortDescriptorValue> {
-    let include_virtual = flags.0 & MIDI_PORT_LIST_INCLUDE_VIRTUAL.0 != 0;
-    let include_disconnected = flags.0 & MIDI_PORT_LIST_INCLUDE_DISCONNECTED.0 != 0;
-
-    enumerate_endpoint_descriptors(service, direction)
-        .into_iter()
-        .filter(|descriptor| include_virtual || !descriptor.is_virtual)
-        .filter(|descriptor| include_disconnected || descriptor.is_connected)
-        .collect()
+    filter_port_descriptors(enumerate_endpoint_descriptors(service, direction), flags)
 }
 
 /// Resolve one endpoint object by stable runtime id.
@@ -307,32 +298,4 @@ pub(super) fn resolve_endpoint(
         operation,
         format!("midi endpoint {id} not found"),
     ))
-}
-
-/// Reject one requested transport shape that the descriptor does not advertise.
-pub(super) fn validate_endpoint_transport_request(
-    operation: &'static str,
-    descriptor: &MidiPortDescriptorValue,
-    data_format: MidiDataFormat,
-    protocol: Option<MidiProtocol>,
-) -> RuntimeResult<()> {
-    let data_format_flag = data_format_flag(data_format);
-    if descriptor.supported_data_formats.0 & data_format_flag.0 == 0 {
-        return Err(core_platform::invalid_argument(
-            "dataFormat",
-            format!("{operation}: requested data format is not supported by the endpoint"),
-        ));
-    }
-
-    if let Some(protocol) = protocol {
-        let protocol_flag = protocol_flag(protocol);
-        if descriptor.supported_protocols.0 & protocol_flag.0 == 0 {
-            return Err(core_platform::invalid_argument(
-                "protocol",
-                format!("{operation}: requested protocol is not supported by the endpoint"),
-            ));
-        }
-    }
-
-    Ok(())
 }

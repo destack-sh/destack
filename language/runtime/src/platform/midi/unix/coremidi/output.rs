@@ -4,7 +4,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
     MidiOutputRecordValue, MidiPortDescriptorValue, remove_labeled_resource,
-    validate_output_record_payload, validate_record_shape,
+    resolve_descriptor_open_transport, validate_output_record_payload, validate_record_shape,
 };
 use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiOutputPortOpenOptions, MidiPortDirection,
@@ -14,11 +14,11 @@ use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 
 use super::abi::{
-    MIDIEventList, MIDIEventListAdd, MIDIEventListInit, MIDIFlushOutput,
-    MIDIObjectSetIntegerProperty, MIDIObjectSetStringProperty, MIDIOutputPortCreate,
-    MIDIPacketList, MIDIPacketListAdd, MIDIPacketListInit, MIDIReceived, MIDIReceivedEventList,
-    MIDISend, MIDISendEventList, MIDISourceCreate, MIDISourceCreateWithProtocol, create_cf_string,
-    kMIDIPropertyDriverVersion, kMIDIPropertyManufacturer, kMIDIPropertyModel, release_cf,
+    MIDIEventList, MIDIEventListAdd, MIDIEventListInit, MIDIObjectSetIntegerProperty,
+    MIDIObjectSetStringProperty, MIDIOutputPortCreate, MIDIPacketList, MIDIPacketListAdd,
+    MIDIPacketListInit, MIDIReceived, MIDIReceivedEventList, MIDISend, MIDISendEventList,
+    MIDISourceCreate, MIDISourceCreateWithProtocol, create_cf_string, kMIDIPropertyDriverVersion,
+    kMIDIPropertyManufacturer, kMIDIPropertyModel, release_cf,
 };
 use super::backend::resolve_backend;
 use super::core::{
@@ -28,7 +28,6 @@ use super::core::{
 };
 use super::descriptor::{
     endpoint_descriptor, filtered_descriptors, register_endpoint_override, resolve_endpoint,
-    validate_endpoint_transport_request,
 };
 use super::event::refresh_native_event_sessions;
 use super::resource::output_resource;
@@ -132,12 +131,6 @@ pub(crate) fn midi_output_port_open(
     id: &str,
     options: MidiOutputPortOpenOptions,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
     let _ = resolve_backend(
         options.backend,
         options.backend_policy,
@@ -149,29 +142,19 @@ pub(crate) fn midi_output_port_open(
         .midi
         .core_midi_service("destack.midi.output.port.open")?;
 
-    validate_record_shape(
-        "destack.midi.output.port.open",
-        options.data_format.unwrap_or(MidiDataFormat::Midi1Bytes),
-        options.protocol,
-    )?;
-
     let (endpoint, descriptor) = resolve_endpoint(
         &service,
         MidiPortDirection::Output,
         id,
         "destack.midi.output.port.open",
     )?;
-    let data_format = options
-        .data_format
-        .or(descriptor.default_data_format)
-        .unwrap_or(MidiDataFormat::Midi1Bytes);
-    let protocol = options.protocol.or(descriptor.default_protocol);
-
-    validate_endpoint_transport_request(
+    let (data_format, protocol) = resolve_descriptor_open_transport(
         "destack.midi.output.port.open",
         &descriptor,
-        data_format,
-        protocol,
+        options.data_format,
+        options.protocol,
+        MidiDataFormat::Midi1Bytes,
+        None,
     )?;
 
     let Some(name) = create_cf_string("Destack MIDI Output") else {
@@ -344,41 +327,11 @@ pub(crate) fn midi_output_write(
     Ok(records.len() as u32)
 }
 
-/// Flush one CoreMIDI output session.
-pub(crate) fn midi_output_flush(
-    binding: &BindingCallContext,
-    handle: resource::MidiOutputPortHandle,
-) -> RuntimeResult<()> {
-    let session = output_resource(binding, handle, "destack.midi.output.flush")?;
-
-    match &session.kind {
-        CoreMidiOutputSessionKind::Destination { destination, .. } => {
-            let status = unsafe { MIDIFlushOutput(*destination) };
-            if status != 0 {
-                return Err(core_midi_status_error(
-                    "destack.midi.output.flush",
-                    "MIDIFlushOutput",
-                    status,
-                ));
-            }
-        }
-        CoreMidiOutputSessionKind::VirtualSource { .. } => {}
-    }
-
-    Ok(())
-}
-
 /// Create one CoreMIDI virtual output session.
 pub(crate) fn midi_output_virtual_create(
     binding: &BindingCallContext,
     options: MidiVirtualOutputCreateOptions,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
     let name = native_string(options.name)?;
     let manufacturer = native_optional_string(options.manufacturer)?;
     let model = native_optional_string(options.model)?;

@@ -13,10 +13,14 @@ export enum MidiBackend {
     JackMidi = 2,
     /// CoreMIDI backend.
     CoreMIDI = 3,
+    /// Windows MIDI Services backend.
+    WindowsMidi = 4,
     /// WinMM MIDI backend.
-    WinMM = 4,
+    WinMM = 5,
     /// WinRT MIDI backend.
-    WinRT = 5,
+    WinRT = 6,
+    /// Android MIDI backend.
+    AndroidMidi = 7,
     /// Null backend for tests and simulation.
     Null = 255,
 }
@@ -78,7 +82,7 @@ declare namespace midi {
     /// Enumerate backend selectors, support state, and backend-level feature flags.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioInvalidData, notSupported.
@@ -92,7 +96,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.port"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",

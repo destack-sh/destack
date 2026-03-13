@@ -1,10 +1,13 @@
 use std::sync::Arc;
-use std::time::Duration;
+
+use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiInputRecordValue, MidiPortDescriptorValue, remove_labeled_resource, validate_record_shape,
+    MidiInputRecordValue, MidiPortDescriptorValue, input_queue_capacity, read_queued_batch,
+    read_queued_item, remove_labeled_resource, resolve_descriptor_open_transport,
+    surface_terminal_error, try_read_queued_batch, try_read_queued_item,
 };
 use crate::platform::midi::{
     MidiDataFormat, MidiInputPortOpenOptions, MidiPortDirection, MidiPortListOptions,
@@ -12,23 +15,17 @@ use crate::platform::midi::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
+use crate::runtime::core::queue::BoundedQueue;
 
-use super::backend::resolve_backend;
-use super::core::{BoundedQueue, WinRtInputSession, input_queue_capacity, insert_input_resource};
-use super::descriptor::{
-    filtered_descriptors, resolve_endpoint, validate_endpoint_transport_request,
-};
+use super::core::{WinRtInputSession, insert_input_resource};
+use super::descriptor::{filtered_descriptors, resolve_endpoint};
 use super::resource::input_resource;
+
 /// List WinRT input ports.
 pub(crate) fn midi_input_port_list(
     binding: &BindingCallContext,
     options: MidiPortListOptions,
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
-    let _ = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.input.port.list",
-    )?;
     let service = binding
         .agent()
         .platform_state
@@ -48,28 +45,11 @@ pub(crate) fn midi_input_port_open(
     id: &str,
     options: MidiInputPortOpenOptions,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
-    let _ = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.input.port.open",
-    )?;
     let service = binding
         .agent()
         .platform_state
         .midi
         .winrt_service("destack.midi.input.port.open")?;
-
-    validate_record_shape(
-        "destack.midi.input.port.open",
-        options.data_format.unwrap_or(MidiDataFormat::Midi1Bytes),
-        options.protocol,
-    )?;
 
     let endpoint = resolve_endpoint(
         &service,
@@ -78,27 +58,25 @@ pub(crate) fn midi_input_port_open(
         "destack.midi.input.port.open",
     )?;
     let descriptor = endpoint.descriptor.clone();
-    let data_format = options
-        .data_format
-        .or(descriptor.default_data_format)
-        .unwrap_or(MidiDataFormat::Midi1Bytes);
-    let protocol = options.protocol.or(descriptor.default_protocol);
-
-    validate_endpoint_transport_request(
+    let (_data_format, _protocol) = resolve_descriptor_open_transport(
         "destack.midi.input.port.open",
         &descriptor,
-        data_format,
-        protocol,
+        options.data_format,
+        options.protocol,
+        MidiDataFormat::Midi1Bytes,
+        None,
     )?;
 
     // callback queue
     let queue = Arc::new(BoundedQueue::new(input_queue_capacity(
         options.queue_capacity,
     )));
+    let terminal_error = Arc::new(Mutex::new(None));
     let host_session_id = service.open_input_session(
         endpoint.backend_id,
         descriptor.clone(),
         queue.clone(),
+        terminal_error.clone(),
         "destack.midi.input.port.open",
     )?;
 
@@ -107,6 +85,7 @@ pub(crate) fn midi_input_port_open(
         descriptor,
         host_session_id,
         queue,
+        terminal_error,
     });
 
     Ok(insert_input_resource(binding, session))
@@ -144,15 +123,20 @@ pub(crate) fn midi_input_read(
     timeout_ns: u64,
 ) -> RuntimeResult<MidiInputRecordValue> {
     let session = input_resource(binding, handle, "destack.midi.input.read")?;
-    let timeout = Duration::from_nanos(timeout_ns);
 
-    match session.queue.pop_with_timeout(timeout) {
-        Some(record) => Ok(record),
-        None => Err(core_platform::io_would_block(
-            "destack.midi.input.read",
-            "midi input queue is empty",
-        )),
-    }
+    read_queued_item(
+        &session.queue,
+        timeout_ns,
+        "destack.midi.input.read",
+        "midi input queue is empty",
+        || {
+            surface_terminal_error(
+                "destack.midi.input.read",
+                &session.terminal_error,
+                |message| message.clone(),
+            )
+        },
+    )
 }
 
 /// Wait for one batch of WinRT input records.
@@ -163,19 +147,21 @@ pub(crate) fn midi_input_read_batch(
     timeout_ns: u64,
 ) -> RuntimeResult<Vec<MidiInputRecordValue>> {
     let session = input_resource(binding, handle, "destack.midi.input.readBatch")?;
-    let batch = session.queue.pop_batch_with_timeout(
-        max_records.max(1) as usize,
-        Duration::from_nanos(timeout_ns),
-    );
 
-    if batch.is_empty() {
-        return Err(core_platform::io_would_block(
-            "destack.midi.input.readBatch",
-            "midi input queue is empty",
-        ));
-    }
-
-    Ok(batch)
+    read_queued_batch(
+        &session.queue,
+        max_records as usize,
+        timeout_ns,
+        "destack.midi.input.readBatch",
+        "midi input queue is empty",
+        || {
+            surface_terminal_error(
+                "destack.midi.input.readBatch",
+                &session.terminal_error,
+                |message| message.clone(),
+            )
+        },
+    )
 }
 
 /// Poll one WinRT input record.
@@ -185,13 +171,18 @@ pub(crate) fn midi_input_try_read(
 ) -> RuntimeResult<MidiInputRecordValue> {
     let session = input_resource(binding, handle, "destack.midi.input.tryRead")?;
 
-    match session.queue.try_pop() {
-        Some(record) => Ok(record),
-        None => Err(core_platform::io_would_block(
-            "destack.midi.input.tryRead",
-            "midi input queue is empty",
-        )),
-    }
+    try_read_queued_item(
+        &session.queue,
+        "destack.midi.input.tryRead",
+        "midi input queue is empty",
+        || {
+            surface_terminal_error(
+                "destack.midi.input.tryRead",
+                &session.terminal_error,
+                |message| message.clone(),
+            )
+        },
+    )
 }
 
 /// Poll one batch of WinRT input records.
@@ -201,29 +192,27 @@ pub(crate) fn midi_input_try_read_batch(
     max_records: u32,
 ) -> RuntimeResult<Vec<MidiInputRecordValue>> {
     let session = input_resource(binding, handle, "destack.midi.input.tryReadBatch")?;
-    let batch = session.queue.try_pop_batch(max_records.max(1) as usize);
 
-    if batch.is_empty() {
-        return Err(core_platform::io_would_block(
-            "destack.midi.input.tryReadBatch",
-            "midi input queue is empty",
-        ));
-    }
-
-    Ok(batch)
+    try_read_queued_batch(
+        &session.queue,
+        max_records as usize,
+        "destack.midi.input.tryReadBatch",
+        "midi input queue is empty",
+        || {
+            surface_terminal_error(
+                "destack.midi.input.tryReadBatch",
+                &session.terminal_error,
+                |message| message.clone(),
+            )
+        },
+    )
 }
 
 /// Reject virtual input creation on WinRT.
 pub(crate) fn midi_input_virtual_create(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     _options: MidiVirtualInputCreateOptions,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
     Err(core_platform::not_supported(
         "destack.midi.input.virtual.create",
     ))

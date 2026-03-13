@@ -133,7 +133,6 @@ impl RuntimeGenerator {
         profile_id: ProfileId,
         platform_modules: &[destack_source::ModuleId],
     ) {
-        // build the profile stamp for analysis tasks
         // resolve builtin symbols for the target profile
         let builtins_outcome = self.compiler.run_task(Task::new(BuildKey::Artifact(
             ArtifactKey::LanguageEnvironment {
@@ -152,11 +151,6 @@ impl RuntimeGenerator {
 
         // analyze module declarations sequentially
         for module_id in platform_modules {
-            let module_uri = {
-                let module = self.program.modules.get(*module_id);
-                let module = module.read();
-                module.uri.to_string()
-            };
             let outcome =
                 self.compiler
                     .run_task(Task::new(BuildKey::Artifact(ArtifactKey::DirDeclared {

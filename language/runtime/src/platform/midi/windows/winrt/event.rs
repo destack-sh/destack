@@ -7,34 +7,30 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiEventMetadataValue, MidiEventValue, MidiPortDescriptorValue,
-    push_event_with_overflow_policy, remove_labeled_resource, take_event_overflow_error,
+    MidiEventValue, MidiPortDescriptorValue, collect_live_event_sessions,
+    descriptor_matches_list_flags, direction_mask_includes, event_poll_interval,
+    event_queue_capacity, event_snapshot_list_flags,
+    push_backend_disconnected_event as push_backend_disconnected_midi_event, read_queued_event,
+    read_queued_event_batch, refresh_snapshot_event_subscription, remove_labeled_resource,
+    require_queued_event, require_queued_event_batch, snapshot_key, try_pop_queued_event,
+    try_pop_queued_event_batch,
 };
 use crate::platform::midi::{
-    MIDI_PORT_LIST_INCLUDE_DISCONNECTED, MidiEventDeliveryMode, MidiEventSource,
-    MidiEventSubscriptionFlags, MidiEventSubscriptionOptions, MidiPortDirection,
-    MidiPortDirectionFlags,
+    MidiBackend, MidiEventDeliveryMode, MidiEventSource, MidiEventSubscriptionFlags,
+    MidiEventSubscriptionOptions, MidiPortDirection, MidiPortDirectionFlags,
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
+use crate::runtime::core::queue::BoundedQueue;
 
-use super::backend::resolve_backend;
 use super::core::{
-    BoundedQueue, SnapshotKey, WinRtEventDeliveryKind, WinRtEventSession, WinRtTopologyState,
-    binding_timestamp_now, direction_mask_includes, endpoint_direction_name, event_poll_interval,
-    event_queue_capacity, event_snapshot_list_flags, insert_event_resource,
+    SnapshotKey, WinRtEventDeliveryKind, WinRtEventSession, WinRtTopologyState,
+    insert_event_resource,
 };
 use super::resource::event_resource;
 use super::service::{
     WinRtNativeEventRegistry, register_native_event_session, unregister_native_event_session,
 };
-
-/// Return one stable snapshot key for one direction and descriptor id.
-fn snapshot_key(direction: MidiPortDirection, id: &str) -> SnapshotKey {
-    let direction_name = endpoint_direction_name(direction);
-
-    format!("{direction_name}:{id}")
-}
 
 /// Build one current snapshot for one event subscription.
 fn event_snapshot(
@@ -51,9 +47,7 @@ fn event_snapshot(
             .inputs
             .values()
             .map(|row| row.descriptor.clone())
-            .filter(|descriptor| {
-                list_flags.0 & MIDI_PORT_LIST_INCLUDE_DISCONNECTED.0 != 0 || descriptor.is_connected
-            })
+            .filter(|descriptor| descriptor_matches_list_flags(descriptor, list_flags))
         {
             let key = snapshot_key(MidiPortDirection::Input, &descriptor.id);
             snapshot.insert(key, (MidiPortDirection::Input, descriptor));
@@ -65,9 +59,7 @@ fn event_snapshot(
             .outputs
             .values()
             .map(|row| row.descriptor.clone())
-            .filter(|descriptor| {
-                list_flags.0 & MIDI_PORT_LIST_INCLUDE_DISCONNECTED.0 != 0 || descriptor.is_connected
-            })
+            .filter(|descriptor| descriptor_matches_list_flags(descriptor, list_flags))
         {
             let key = snapshot_key(MidiPortDirection::Output, &descriptor.id);
             snapshot.insert(key, (MidiPortDirection::Output, descriptor));
@@ -84,81 +76,15 @@ fn refresh_event_subscription(
     source: MidiEventSource,
 ) -> RuntimeResult<()> {
     let next_snapshot = event_snapshot(topology, session.flags, session.direction_mask);
-
-    for (key, (direction, descriptor)) in &next_snapshot {
-        match session.snapshot.get(key) {
-            None => {
-                let metadata = MidiEventMetadataValue {
-                    timestamp_ns: binding_timestamp_now(),
-                    sequence: session.next_sequence,
-                    dropped_count: session.queue.dropped_count(),
-                    source,
-                    backend: session.backend,
-                };
-                session.next_sequence = session.next_sequence.saturating_add(1);
-
-                push_event_with_overflow_policy(
-                    &session.queue,
-                    MidiEventValue::PortAdded {
-                        metadata,
-                        direction: *direction,
-                        descriptor: descriptor.clone(),
-                    },
-                    session.overflow_policy,
-                )?;
-            }
-            Some((_, previous)) if previous != descriptor => {
-                let metadata = MidiEventMetadataValue {
-                    timestamp_ns: binding_timestamp_now(),
-                    sequence: session.next_sequence,
-                    dropped_count: session.queue.dropped_count(),
-                    source,
-                    backend: session.backend,
-                };
-                session.next_sequence = session.next_sequence.saturating_add(1);
-
-                push_event_with_overflow_policy(
-                    &session.queue,
-                    MidiEventValue::PortChanged {
-                        metadata,
-                        direction: *direction,
-                        descriptor: descriptor.clone(),
-                    },
-                    session.overflow_policy,
-                )?;
-            }
-            Some(_) => {}
-        }
-    }
-
-    for (key, (direction, descriptor)) in &session.snapshot {
-        if next_snapshot.contains_key(key) {
-            continue;
-        }
-
-        let metadata = MidiEventMetadataValue {
-            timestamp_ns: binding_timestamp_now(),
-            sequence: session.next_sequence,
-            dropped_count: session.queue.dropped_count(),
-            source,
-            backend: session.backend,
-        };
-        session.next_sequence = session.next_sequence.saturating_add(1);
-
-        push_event_with_overflow_policy(
-            &session.queue,
-            MidiEventValue::PortRemoved {
-                metadata,
-                direction: *direction,
-                id: descriptor.id.clone(),
-                group_id: descriptor.group_id.clone(),
-            },
-            session.overflow_policy,
-        )?;
-    }
-
-    session.snapshot = next_snapshot;
-    Ok(())
+    refresh_snapshot_event_subscription(
+        &session.queue,
+        session.backend,
+        session.overflow_policy,
+        &mut session.next_sequence,
+        &mut session.snapshot,
+        next_snapshot,
+        source,
+    )
 }
 
 /// Refresh one event subscription from synthetic polling.
@@ -175,19 +101,13 @@ fn queue_backend_disconnected_event(
     source: MidiEventSource,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let metadata = MidiEventMetadataValue {
-        timestamp_ns: binding_timestamp_now(),
-        sequence: session.next_sequence,
-        dropped_count: session.queue.dropped_count(),
-        source,
-        backend: session.backend,
-    };
-    session.next_sequence = session.next_sequence.saturating_add(1);
-
-    push_event_with_overflow_policy(
+    push_backend_disconnected_midi_event(
         &session.queue,
-        MidiEventValue::BackendDisconnected { metadata, flags },
+        session.backend,
         session.overflow_policy,
+        &mut session.next_sequence,
+        source,
+        flags,
     )
 }
 
@@ -196,10 +116,7 @@ fn try_pop_session_event(
     session: &WinRtEventSession,
     operation: &'static str,
 ) -> RuntimeResult<Option<MidiEventValue>> {
-    // surface deferred native overflow before returning more events
-    take_event_overflow_error(&session.queue, operation)?;
-
-    Ok(session.queue.try_pop())
+    try_pop_queued_event(&session.queue, operation)
 }
 
 /// Pop one queued event batch after honoring deferred overflow errors.
@@ -208,35 +125,16 @@ fn try_pop_session_event_batch(
     max_events: usize,
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
-    // surface deferred native overflow before returning more events
-    take_event_overflow_error(&session.queue, operation)?;
-
-    Ok(session.queue.try_pop_batch(max_events))
+    try_pop_queued_event_batch(&session.queue, max_events, operation)
 }
 
 /// Collect all live native event subscriptions from one registry.
 fn collect_native_event_sessions(
     registry: &Arc<Mutex<WinRtNativeEventRegistry>>,
 ) -> Vec<Arc<Mutex<WinRtEventSession>>> {
-    {
-        let mut registry = registry.lock();
-        let mut sessions = Vec::with_capacity(registry.sessions.len());
-        let mut stale_ids = Vec::new();
+    let mut registry = registry.lock();
 
-        for (registration_id, session) in &registry.sessions {
-            if let Some(session) = session.upgrade() {
-                sessions.push(session);
-            } else {
-                stale_ids.push(*registration_id);
-            }
-        }
-
-        for registration_id in stale_ids {
-            registry.sessions.remove(&registration_id);
-        }
-
-        sessions
-    }
+    collect_live_event_sessions(&mut registry.sessions)
 }
 
 /// Refresh all native event subscriptions from one backend topology mutation.
@@ -249,7 +147,9 @@ pub(super) fn refresh_native_event_sessions(
 
     for session in sessions {
         let mut session = session.lock();
-        let _ = refresh_event_subscription(topology, &mut session, source);
+        if refresh_event_subscription(topology, &mut session, source).is_err() {
+            let _ = queue_backend_disconnected_event(&mut session, source, 0);
+        }
     }
 }
 
@@ -272,17 +172,6 @@ pub(crate) fn midi_event_open(
     binding: &BindingCallContext,
     options: MidiEventSubscriptionOptions,
 ) -> RuntimeResult<resource::MidiEventHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
-    let backend = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.event.open",
-    )?;
     if options.direction_mask.0 == 0 {
         return Err(core_platform::invalid_argument(
             "directionMask",
@@ -303,7 +192,7 @@ pub(crate) fn midi_event_open(
     };
 
     let session = Arc::new(Mutex::new(WinRtEventSession {
-        backend,
+        backend: MidiBackend::WinRT,
         direction_mask: options.direction_mask,
         flags: options.flags,
         overflow_policy: options.overflow_policy,
@@ -345,7 +234,6 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
 
-    use super::super::core::{BoundedQueue, WinRtEventDeliveryKind, WinRtEventSession};
     use super::queue_backend_disconnected_event;
     use crate::platform::midi::core::MidiEventValue;
     use crate::platform::midi::{
@@ -353,6 +241,9 @@ mod tests {
         MidiEventOverflowPolicy, MidiEventSource, MidiEventSubscriptionFlags,
         MidiPortDirectionFlags,
     };
+    use crate::runtime::core::queue::BoundedQueue;
+
+    use super::super::core::{WinRtEventDeliveryKind, WinRtEventSession};
 
     /// Queue one backend-disconnected event with the active backend metadata.
     #[test]
@@ -409,18 +300,15 @@ pub(crate) fn midi_event_read(
 
     if is_native {
         let session = session.lock();
-        take_event_overflow_error(&session.queue, "destack.midi.event.read")?;
-
-        return match session.queue.pop_with_timeout(timeout) {
-            Some(event) => Ok(event),
-            None => Err(core_platform::io_would_block(
-                "destack.midi.event.read",
-                "midi event queue is empty",
-            )),
-        };
+        return read_queued_event(
+            &session.queue,
+            timeout.as_nanos() as u64,
+            "destack.midi.event.read",
+            "midi event queue is empty",
+        );
     }
 
-    let deadline = Instant::now() + timeout;
+    let deadline = core_platform::timeout_deadline(timeout_ns);
 
     loop {
         // return any queued event before polling again
@@ -443,7 +331,7 @@ pub(crate) fn midi_event_read(
 
         // stop once the caller timeout expires
         let now = Instant::now();
-        if now >= deadline {
+        if deadline.is_some_and(|deadline| now >= deadline) {
             return Err(core_platform::io_would_block(
                 "destack.midi.event.read",
                 "midi event queue is empty",
@@ -453,7 +341,12 @@ pub(crate) fn midi_event_read(
         // otherwise sleep for the requested poll cadence
         let sleep_duration = {
             let session = session.lock();
-            session.poll_interval.min(deadline - now)
+            match deadline {
+                Some(deadline) => session
+                    .poll_interval
+                    .min(deadline.saturating_duration_since(now)),
+                None => session.poll_interval,
+            }
         };
         std::thread::sleep(sleep_duration);
     }
@@ -482,21 +375,16 @@ pub(crate) fn midi_event_read_batch(
 
     if is_native {
         let session = session.lock();
-        take_event_overflow_error(&session.queue, "destack.midi.event.readBatch")?;
-        let batch = session
-            .queue
-            .pop_batch_with_timeout(max_events.max(1) as usize, timeout);
-        if batch.is_empty() {
-            return Err(core_platform::io_would_block(
-                "destack.midi.event.readBatch",
-                "midi event queue is empty",
-            ));
-        }
-
-        return Ok(batch);
+        return read_queued_event_batch(
+            &session.queue,
+            max_events.max(1) as usize,
+            timeout.as_nanos() as u64,
+            "destack.midi.event.readBatch",
+            "midi event queue is empty",
+        );
     }
 
-    let deadline = Instant::now() + timeout;
+    let deadline = core_platform::timeout_deadline(timeout_ns);
 
     loop {
         // return any queued batch before polling again
@@ -528,7 +416,7 @@ pub(crate) fn midi_event_read_batch(
 
         // stop once the caller timeout expires
         let now = Instant::now();
-        if now >= deadline {
+        if deadline.is_some_and(|deadline| now >= deadline) {
             return Err(core_platform::io_would_block(
                 "destack.midi.event.readBatch",
                 "midi event queue is empty",
@@ -538,7 +426,12 @@ pub(crate) fn midi_event_read_batch(
         // otherwise sleep for the requested poll cadence
         let sleep_duration = {
             let session = session.lock();
-            session.poll_interval.min(deadline - now)
+            match deadline {
+                Some(deadline) => session
+                    .poll_interval
+                    .min(deadline.saturating_duration_since(now)),
+                None => session.poll_interval,
+            }
         };
         std::thread::sleep(sleep_duration);
     }
@@ -562,13 +455,11 @@ pub(crate) fn midi_event_try_read(
         refresh_poll_event_subscription(&service.topology, &mut session)?;
     }
 
-    match try_pop_session_event(&session, "destack.midi.event.tryRead")? {
-        Some(event) => Ok(event),
-        None => Err(core_platform::io_would_block(
-            "destack.midi.event.tryRead",
-            "midi event queue is empty",
-        )),
-    }
+    require_queued_event(
+        try_pop_session_event(&session, "destack.midi.event.tryRead")?,
+        "destack.midi.event.tryRead",
+        "midi event queue is empty",
+    )
 }
 
 /// Poll one WinRT event batch.
@@ -596,12 +487,9 @@ pub(crate) fn midi_event_try_read_batch(
         "destack.midi.event.tryReadBatch",
     )?;
 
-    if batch.is_empty() {
-        return Err(core_platform::io_would_block(
-            "destack.midi.event.tryReadBatch",
-            "midi event queue is empty",
-        ));
-    }
-
-    Ok(batch)
+    require_queued_event_batch(
+        batch,
+        "destack.midi.event.tryReadBatch",
+        "midi event queue is empty",
+    )
 }

@@ -10,6 +10,13 @@ pub(super) const SND_SEQ_QUEUE_DIRECT: c_uchar = 253;
 
 /// Route one event to all current subscribers.
 pub(super) const SND_SEQ_ADDRESS_SUBSCRIBERS: c_uchar = 254;
+/// Use one realtime timestamp payload.
+pub(super) const SND_SEQ_TIME_STAMP_REAL: c_uchar = 1 << 0;
+/// Use one relative timestamp payload.
+pub(super) const SND_SEQ_TIME_MODE_REL: c_uchar = 1 << 1;
+
+/// Start one ALSA queue.
+pub(super) const SND_SEQ_EVENT_START: c_int = 30;
 
 /// The ALSA system client id.
 pub(super) const SND_SEQ_CLIENT_SYSTEM: c_int = 0;
@@ -48,6 +55,12 @@ pub(super) struct snd_seq_client_info_t {
 /// One opaque ALSA port-info payload.
 #[repr(C)]
 pub(super) struct snd_seq_port_info_t {
+    _opaque: [u8; 0],
+}
+
+/// One opaque ALSA port-subscribe payload.
+#[repr(C)]
+pub(super) struct snd_seq_port_subscribe_t {
     _opaque: [u8; 0],
 }
 
@@ -173,6 +186,12 @@ pub(super) struct AlsaApi {
         unsafe extern "C" fn(*mut snd_seq_t, *const c_char, c_uint, c_uint) -> c_int,
     /// `snd_seq_delete_simple_port`
     pub(super) snd_seq_delete_simple_port: unsafe extern "C" fn(*mut snd_seq_t, c_int) -> c_int,
+    /// `snd_seq_get_port_info`
+    pub(super) snd_seq_get_port_info:
+        unsafe extern "C" fn(*mut snd_seq_t, c_int, *mut snd_seq_port_info_t) -> c_int,
+    /// `snd_seq_set_port_info`
+    pub(super) snd_seq_set_port_info:
+        unsafe extern "C" fn(*mut snd_seq_t, c_int, *mut snd_seq_port_info_t) -> c_int,
     /// `snd_seq_connect_from`
     pub(super) snd_seq_connect_from:
         unsafe extern "C" fn(*mut snd_seq_t, c_int, c_int, c_int) -> c_int,
@@ -193,8 +212,19 @@ pub(super) struct AlsaApi {
     /// `snd_seq_event_output_direct`
     pub(super) snd_seq_event_output_direct:
         unsafe extern "C" fn(*mut snd_seq_t, *mut snd_seq_event_t) -> c_int,
+    /// `snd_seq_event_output`
+    pub(super) snd_seq_event_output:
+        unsafe extern "C" fn(*mut snd_seq_t, *mut snd_seq_event_t) -> c_int,
     /// `snd_seq_drain_output`
     pub(super) snd_seq_drain_output: unsafe extern "C" fn(*mut snd_seq_t) -> c_int,
+    /// `snd_seq_alloc_named_queue`
+    pub(super) snd_seq_alloc_named_queue:
+        unsafe extern "C" fn(*mut snd_seq_t, *const c_char) -> c_int,
+    /// `snd_seq_free_queue`
+    pub(super) snd_seq_free_queue: unsafe extern "C" fn(*mut snd_seq_t, c_int) -> c_int,
+    /// `snd_seq_control_queue`
+    pub(super) snd_seq_control_queue:
+        unsafe extern "C" fn(*mut snd_seq_t, c_int, c_int, c_int, *mut snd_seq_event_t) -> c_int,
     /// `snd_seq_event_length`
     pub(super) snd_seq_event_length: unsafe extern "C" fn(*mut snd_seq_event_t) -> c_long,
     /// `snd_seq_client_info_malloc`
@@ -238,12 +268,47 @@ pub(super) struct AlsaApi {
     /// `snd_seq_port_info_get_type`
     pub(super) snd_seq_port_info_get_type:
         unsafe extern "C" fn(*const snd_seq_port_info_t) -> c_uint,
+    /// `snd_seq_port_info_set_timestamping`
+    pub(super) snd_seq_port_info_set_timestamping:
+        unsafe extern "C" fn(*mut snd_seq_port_info_t, c_int),
+    /// `snd_seq_port_info_set_timestamp_real`
+    pub(super) snd_seq_port_info_set_timestamp_real:
+        unsafe extern "C" fn(*mut snd_seq_port_info_t, c_int),
+    /// `snd_seq_port_info_set_timestamp_queue`
+    pub(super) snd_seq_port_info_set_timestamp_queue:
+        unsafe extern "C" fn(*mut snd_seq_port_info_t, c_int),
     /// `snd_seq_poll_descriptors_count`
     pub(super) snd_seq_poll_descriptors_count:
         unsafe extern "C" fn(*mut snd_seq_t, c_short) -> c_int,
     /// `snd_seq_poll_descriptors`
     pub(super) snd_seq_poll_descriptors:
         unsafe extern "C" fn(*mut snd_seq_t, *mut pollfd, c_uint, c_short) -> c_int,
+    /// `snd_seq_port_subscribe_malloc`
+    pub(super) snd_seq_port_subscribe_malloc:
+        unsafe extern "C" fn(*mut *mut snd_seq_port_subscribe_t) -> c_int,
+    /// `snd_seq_port_subscribe_free`
+    pub(super) snd_seq_port_subscribe_free: unsafe extern "C" fn(*mut snd_seq_port_subscribe_t),
+    /// `snd_seq_port_subscribe_set_sender`
+    pub(super) snd_seq_port_subscribe_set_sender:
+        unsafe extern "C" fn(*mut snd_seq_port_subscribe_t, *const snd_seq_addr_t),
+    /// `snd_seq_port_subscribe_set_dest`
+    pub(super) snd_seq_port_subscribe_set_dest:
+        unsafe extern "C" fn(*mut snd_seq_port_subscribe_t, *const snd_seq_addr_t),
+    /// `snd_seq_port_subscribe_set_queue`
+    pub(super) snd_seq_port_subscribe_set_queue:
+        unsafe extern "C" fn(*mut snd_seq_port_subscribe_t, c_int),
+    /// `snd_seq_port_subscribe_set_time_update`
+    pub(super) snd_seq_port_subscribe_set_time_update:
+        unsafe extern "C" fn(*mut snd_seq_port_subscribe_t, c_int),
+    /// `snd_seq_port_subscribe_set_time_real`
+    pub(super) snd_seq_port_subscribe_set_time_real:
+        unsafe extern "C" fn(*mut snd_seq_port_subscribe_t, c_int),
+    /// `snd_seq_subscribe_port`
+    pub(super) snd_seq_subscribe_port:
+        unsafe extern "C" fn(*mut snd_seq_t, *mut snd_seq_port_subscribe_t) -> c_int,
+    /// `snd_seq_unsubscribe_port`
+    pub(super) snd_seq_unsubscribe_port:
+        unsafe extern "C" fn(*mut snd_seq_t, *mut snd_seq_port_subscribe_t) -> c_int,
     /// `snd_midi_event_new`
     pub(super) snd_midi_event_new: unsafe extern "C" fn(c_int, *mut *mut snd_midi_event_t) -> c_int,
     /// `snd_midi_event_free`

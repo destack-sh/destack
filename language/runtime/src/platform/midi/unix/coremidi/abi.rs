@@ -146,7 +146,7 @@ pub(super) struct MIDIObjectPropertyChangeNotification {
 pub(super) type MIDIReadProc =
     unsafe extern "C" fn(*const MIDIPacketList, *mut c_void, *mut c_void);
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 #[link(name = "CoreMIDI", kind = "framework")]
 unsafe extern "C" {
     /// Property key for endpoint name.
@@ -321,9 +321,6 @@ unsafe extern "C" {
         destination: MIDIEndpointRef,
         packet_list: *const MIDIPacketList,
     ) -> OSStatus;
-
-    /// Flush scheduled output for one destination or all destinations.
-    pub(super) fn MIDIFlushOutput(destination: MIDIEndpointRef) -> OSStatus;
 
     /// Deliver one UMP event list from one virtual source.
     pub(super) fn MIDIReceivedEventList(

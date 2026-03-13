@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core::{self as core_platform};
-use crate::platform::midi::core::MidiPortDescriptorValue;
+use crate::platform::midi::core::{
+    MidiPortDescriptorValue, filter_direction_descriptor_rows, resolve_direction_descriptor_row,
+};
 use crate::platform::midi::{
-    MIDI_PORT_LIST_INCLUDE_DISCONNECTED, MidiBackend, MidiDataFormat, MidiPortDirection,
-    MidiPortListFlags, MidiProtocol,
+    MidiBackend, MidiDataFormat, MidiPortDirection, MidiPortListFlags, MidiProtocol,
 };
 
 use super::core::{
@@ -52,17 +52,13 @@ pub(super) fn filtered_descriptors(
     direction: MidiPortDirection,
     flags: MidiPortListFlags,
 ) -> Vec<MidiPortDescriptorValue> {
-    let include_disconnected = flags.0 & MIDI_PORT_LIST_INCLUDE_DISCONNECTED.0 != 0;
-
-    let rows = match direction {
-        MidiPortDirection::Input => input_descriptors(service),
-        MidiPortDirection::Output => output_descriptors(service),
-    };
-
-    rows.into_iter()
-        .map(|row| row.descriptor)
-        .filter(|descriptor| include_disconnected || descriptor.is_connected)
-        .collect()
+    filter_direction_descriptor_rows(
+        direction,
+        || input_descriptors(service),
+        || output_descriptors(service),
+        flags,
+        |row| row.descriptor,
+    )
 }
 
 /// Resolve one cached endpoint row by stable runtime id.
@@ -72,43 +68,14 @@ pub(super) fn resolve_endpoint(
     id: &str,
     operation: &'static str,
 ) -> RuntimeResult<AlsaEndpointInfo> {
-    let rows = match direction {
-        MidiPortDirection::Input => input_descriptors(service),
-        MidiPortDirection::Output => output_descriptors(service),
-    };
-
-    rows.into_iter()
-        .find(|row| row.descriptor.id == id)
-        .ok_or_else(|| {
-            core_platform::io_not_found(operation, format!("midi endpoint {id} not found"))
-        })
-}
-
-/// Reject one requested transport shape that the descriptor does not advertise.
-pub(super) fn validate_endpoint_transport_request(
-    operation: &'static str,
-    descriptor: &MidiPortDescriptorValue,
-    data_format: MidiDataFormat,
-    protocol: Option<MidiProtocol>,
-) -> RuntimeResult<()> {
-    let supported_data_format = descriptor.default_data_format == Some(data_format);
-    if !supported_data_format {
-        return Err(core_platform::invalid_argument(
-            "dataFormat",
-            format!("{operation}: requested data format is not supported by the endpoint"),
-        ));
-    }
-
-    if let Some(protocol) = protocol
-        && descriptor.default_protocol != Some(protocol)
-    {
-        return Err(core_platform::invalid_argument(
-            "protocol",
-            format!("{operation}: requested protocol is not supported by the endpoint"),
-        ));
-    }
-
-    Ok(())
+    resolve_direction_descriptor_row(
+        direction,
+        || input_descriptors(service),
+        || output_descriptors(service),
+        id,
+        operation,
+        |row| &row.descriptor,
+    )
 }
 
 /// Build one opened-session descriptor for one virtual input destination.

@@ -240,8 +240,10 @@ fn decode_destack_midi_event_open_args(
             1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
-            4u8 => MidiBackend::WinMM,
-            5u8 => MidiBackend::WinRT,
+            4u8 => MidiBackend::WindowsMidi,
+            5u8 => MidiBackend::WinMM,
+            6u8 => MidiBackend::WinRT,
+            7u8 => MidiBackend::AndroidMidi,
             255u8 => MidiBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -1105,8 +1107,10 @@ fn decode_destack_midi_input_port_list_args(
             1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
-            4u8 => MidiBackend::WinMM,
-            5u8 => MidiBackend::WinRT,
+            4u8 => MidiBackend::WindowsMidi,
+            5u8 => MidiBackend::WinMM,
+            6u8 => MidiBackend::WinRT,
+            7u8 => MidiBackend::AndroidMidi,
             255u8 => MidiBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -1182,8 +1186,10 @@ fn decode_destack_midi_input_port_open_args(
             1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
-            4u8 => MidiBackend::WinMM,
-            5u8 => MidiBackend::WinRT,
+            4u8 => MidiBackend::WindowsMidi,
+            5u8 => MidiBackend::WinMM,
+            6u8 => MidiBackend::WinRT,
+            7u8 => MidiBackend::AndroidMidi,
             255u8 => MidiBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -1433,8 +1439,10 @@ fn decode_destack_midi_input_virtual_create_args(
             1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
-            4u8 => MidiBackend::WinMM,
-            5u8 => MidiBackend::WinRT,
+            4u8 => MidiBackend::WindowsMidi,
+            5u8 => MidiBackend::WinMM,
+            6u8 => MidiBackend::WinRT,
+            7u8 => MidiBackend::AndroidMidi,
             255u8 => MidiBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -1527,29 +1535,6 @@ fn encode_destack_midi_input_virtual_create_result(
     result: RuntimeResult<resource::MidiInputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::uint(value.0.0, 64))
-}
-
-/// Decode arguments for destack.midi.output.flush.
-#[inline]
-fn decode_destack_midi_output_flush_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::MidiOutputPortHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "MidiOutputPortHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "MidiOutputPortHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::MidiOutputPortHandle(handle_inner);
-    Ok((handle,))
-}
-
-/// Encode the result for destack.midi.output.flush.
-#[inline]
-fn encode_destack_midi_output_flush_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.midi.output.port.close.
@@ -1677,8 +1662,10 @@ fn decode_destack_midi_output_port_list_args(
             1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
-            4u8 => MidiBackend::WinMM,
-            5u8 => MidiBackend::WinRT,
+            4u8 => MidiBackend::WindowsMidi,
+            5u8 => MidiBackend::WinMM,
+            6u8 => MidiBackend::WinRT,
+            7u8 => MidiBackend::AndroidMidi,
             255u8 => MidiBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -1754,8 +1741,10 @@ fn decode_destack_midi_output_port_open_args(
             1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
-            4u8 => MidiBackend::WinMM,
-            5u8 => MidiBackend::WinRT,
+            4u8 => MidiBackend::WindowsMidi,
+            5u8 => MidiBackend::WinMM,
+            6u8 => MidiBackend::WinRT,
+            7u8 => MidiBackend::AndroidMidi,
             255u8 => MidiBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -1864,8 +1853,10 @@ fn decode_destack_midi_output_virtual_create_args(
             1u8 => MidiBackend::Alsa,
             2u8 => MidiBackend::JackMidi,
             3u8 => MidiBackend::CoreMIDI,
-            4u8 => MidiBackend::WinMM,
-            5u8 => MidiBackend::WinRT,
+            4u8 => MidiBackend::WindowsMidi,
+            5u8 => MidiBackend::WinMM,
+            6u8 => MidiBackend::WinRT,
+            7u8 => MidiBackend::AndroidMidi,
             255u8 => MidiBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -2097,13 +2088,6 @@ struct MidiInputTryReadBatchReplayRecord {
 struct MidiInputVirtualCreateReplayRecord {
     /// Replay result payload.
     pub result: Result<resource::MidiInputPortHandle, TraceError>,
-}
-
-/// Replay payload for destack.midi.output.flush.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MidiOutputFlushReplayRecord {
-    /// Replay result payload.
-    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.midi.output.port.close.
@@ -2428,34 +2412,6 @@ pub(crate) const MIDI_INPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescripto
     .with_namespace("midi")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.midi.output.flush.
-pub(crate) const MIDI_OUTPUT_FLUSH: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.midi.output.flush",
-        "export function outputFlush(handle: MidiOutputPortHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["midi.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("midi")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
 /// Binding descriptor for destack.midi.output.port.close.
 pub(crate) const MIDI_OUTPUT_PORT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.midi.output.port.close",
@@ -2623,11 +2579,6 @@ pub(crate) const MIDI_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             MIDI_INPUT_VIRTUAL_CREATE,
             "destack.midi.input.virtual.create",
             destack_midi_input_virtual_create as *const (),
-        ),
-        NativeBinding::new(
-            MIDI_OUTPUT_FLUSH,
-            "destack.midi.output.flush",
-            destack_midi_output_flush as *const (),
         ),
         NativeBinding::new(
             MIDI_OUTPUT_PORT_CLOSE,
@@ -6242,54 +6193,6 @@ fn destack_midi_input_virtual_create_replay(
 }
 
 #[inline]
-fn destack_midi_output_flush_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    handle: resource::MidiOutputPortHandle,
-) -> RuntimeResult<()> {
-    let _ = &handle;
-
-    binding.trace().run_binding_without_context(
-        MIDI_OUTPUT_FLUSH,
-        binding.replay_payload_for(MIDI_OUTPUT_FLUSH)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_midi_output_flush(binding, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_midi_output_flush(binding, handle)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = MidiOutputFlushReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    MidiOutputFlushReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
 fn destack_midi_output_port_close_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
@@ -7218,19 +7121,6 @@ pub(crate) unsafe extern "C" fn destack_midi_input_virtual_create(
     })
 }
 
-#[unsafe(export_name = "destack.midi.output.flush")]
-pub(crate) unsafe extern "C" fn destack_midi_output_flush(
-    handle: resource::MidiOutputPortHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = &handle;
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(MIDI_OUTPUT_FLUSH)?;
-        destack_midi_output_flush_replay(context, world, handle)
-    })
-}
-
 #[unsafe(export_name = "destack.midi.output.port.close")]
 pub(crate) unsafe extern "C" fn destack_midi_output_port_close(
     handle: resource::MidiOutputPortHandle,
@@ -7380,8 +7270,10 @@ fn destack_midi_backend_list_vm_replay(
                             1u8 => MidiBackend::Alsa,
                             2u8 => MidiBackend::JackMidi,
                             3u8 => MidiBackend::CoreMIDI,
-                            4u8 => MidiBackend::WinMM,
-                            5u8 => MidiBackend::WinRT,
+                            4u8 => MidiBackend::WindowsMidi,
+                            5u8 => MidiBackend::WinMM,
+                            6u8 => MidiBackend::WinRT,
+                            7u8 => MidiBackend::AndroidMidi,
                             255u8 => MidiBackend::Null,
                             _ => {
                                 return Err(RuntimeError::from(
@@ -10554,8 +10446,10 @@ fn destack_midi_input_port_list_vm_replay(
                             1u8 => MidiBackend::Alsa,
                             2u8 => MidiBackend::JackMidi,
                             3u8 => MidiBackend::CoreMIDI,
-                            4u8 => MidiBackend::WinMM,
-                            5u8 => MidiBackend::WinRT,
+                            4u8 => MidiBackend::WindowsMidi,
+                            5u8 => MidiBackend::WinMM,
+                            6u8 => MidiBackend::WinRT,
+                            7u8 => MidiBackend::AndroidMidi,
                             255u8 => MidiBackend::Null,
                             _ => {
                                 return Err(RuntimeError::from(
@@ -11808,56 +11702,6 @@ fn destack_midi_input_virtual_create_vm_replay(
 }
 
 #[inline]
-fn destack_midi_output_flush_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::MidiOutputPortHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        MIDI_OUTPUT_FLUSH,
-        binding.replay_payload_for(MIDI_OUTPUT_FLUSH)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_midi_output_flush(binding, context, handle),
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_midi_output_flush(binding, context, handle)
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = MidiOutputFlushReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    MidiOutputFlushReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_midi_output_flush_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
 fn destack_midi_output_port_close_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -12219,8 +12063,10 @@ fn destack_midi_output_port_list_vm_replay(
                             1u8 => MidiBackend::Alsa,
                             2u8 => MidiBackend::JackMidi,
                             3u8 => MidiBackend::CoreMIDI,
-                            4u8 => MidiBackend::WinMM,
-                            5u8 => MidiBackend::WinRT,
+                            4u8 => MidiBackend::WindowsMidi,
+                            5u8 => MidiBackend::WinMM,
+                            6u8 => MidiBackend::WinRT,
+                            7u8 => MidiBackend::AndroidMidi,
                             255u8 => MidiBackend::Null,
                             _ => {
                                 return Err(RuntimeError::from(
@@ -13119,25 +12965,6 @@ pub(crate) fn register_midi_vm_bindings(registry: &mut BindingRegistry, isolate:
                     let (world, _binding_hook_guard) =
                         binding.on_before_binding_resolve_world(MIDI_INPUT_VIRTUAL_CREATE)?;
                     destack_midi_input_virtual_create_vm_replay(binding, context, world, options)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            MIDI_OUTPUT_FLUSH,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle,) = decode_destack_midi_output_flush_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(MIDI_OUTPUT_FLUSH)?;
-                    destack_midi_output_flush_vm_replay(binding, context, world, handle)
                 })
                 .map_err(Into::into)
             }
