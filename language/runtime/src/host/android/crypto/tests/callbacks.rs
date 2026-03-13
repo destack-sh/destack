@@ -1,8 +1,8 @@
-use super::super::abi::{
+use crate::host::android::abi::{
     HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_NOT_FOUND,
     HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
 };
-use super::super::crypto::{
+use crate::host::android::crypto::{
     AndroidHostCryptoCallbacks, destack_host_android_crypto_compute_hardware_mac,
     destack_host_android_crypto_decrypt_hardware_key,
     destack_host_android_crypto_decrypt_hardware_secret_key,
@@ -19,7 +19,7 @@ use super::super::crypto::{
     destack_host_android_crypto_supports_hardware_key_pair,
     destack_host_android_crypto_supports_hardware_secret_key,
 };
-use super::super::tests::{
+use crate::host::android::tests::{
     callback_test_lock, register_android_bindings_crypto, register_android_runtime,
 };
 use crate::runtime::{NativeSlice, NativeStringRef};

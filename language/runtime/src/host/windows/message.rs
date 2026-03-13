@@ -2,7 +2,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, MSG, PM_REMOVE, PeekMessageW, TranslateMessage, WM_QUIT,
 };
 
-use crate::platform::service::windows::{
+use crate::runtime::process::service::windows::{
     WINDOWS_HOST_LOOP_SERVICE_MESSAGE_ID, process_windows_loop_callbacks,
 };
 

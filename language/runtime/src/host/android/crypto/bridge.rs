@@ -1,5 +1,5 @@
-use super::abi::{HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK};
-use super::bindings::{invoke_android_binding_callback, resolve_android_binding_callback};
+use super::super::abi::{HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK};
+use super::super::bindings::{invoke_android_binding_callback, resolve_android_binding_callback};
 use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// Host key algorithm code for rsa.

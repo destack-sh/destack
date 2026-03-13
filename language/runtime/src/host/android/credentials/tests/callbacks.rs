@@ -1,13 +1,13 @@
-use super::super::abi::{
+use crate::host::android::abi::{
     HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
     HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
 };
-use super::super::credentials::{
+use crate::host::android::credentials::{
     AndroidHostCredentialsCallbacks, destack_host_android_credentials_authenticate,
     destack_host_android_credentials_contains, destack_host_android_credentials_delete,
     destack_host_android_credentials_read, destack_host_android_credentials_write,
 };
-use super::super::tests::{
+use crate::host::android::tests::{
     callback_test_lock, register_android_bindings_credentials, register_android_runtime,
 };
 use crate::runtime::{NativeSlice, NativeStringRef};

@@ -1,4 +1,4 @@
-use super::{
+use super::super::callback::{
     AndroidActivityLifecycle, android_notify_activity_lifecycle,
     android_notify_interruption_changed, android_notify_memory_pressure_changed,
     android_notify_permission_result, android_notify_power_mode_changed,
