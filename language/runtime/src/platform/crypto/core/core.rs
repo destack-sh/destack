@@ -47,7 +47,7 @@ pub(super) fn supported_hardware_backed_pair_usage_mask(
             _ => 0,
         };
 
-        return CryptoKeyUsageMask(usage_mask);
+        CryptoKeyUsageMask(usage_mask)
     }
 
     #[cfg(target_os = "android")]
@@ -69,7 +69,7 @@ pub(super) fn supported_hardware_backed_pair_usage_mask(
             _ => 0,
         };
 
-        return CryptoKeyUsageMask(usage_mask);
+        CryptoKeyUsageMask(usage_mask)
     }
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -90,7 +90,7 @@ pub(super) fn supported_hardware_backed_pair_usage_mask(
     {
         let _ = (kind, algorithm);
 
-        return CryptoKeyUsageMask(0);
+        CryptoKeyUsageMask(0)
     }
 
     #[cfg(not(any(unix, windows)))]

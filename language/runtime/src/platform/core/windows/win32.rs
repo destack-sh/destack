@@ -14,6 +14,7 @@ use windows_sys::Win32::System::Performance::{QueryPerformanceCounter, QueryPerf
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
+use crate::platform::diagnostic::net_error_code_from_winsock;
 
 /// Decoded WaitForSingleObject status category.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,7 +73,7 @@ pub(crate) fn net_error(syscall: &str) -> Box<RuntimeError> {
 pub(crate) fn net_error_with_code(syscall: &str, code: i32) -> Box<RuntimeError> {
     let message = error_message(syscall, code);
     RuntimeError::from(PlatformError::net_with(
-        None,
+        net_error_code_from_winsock(code),
         None,
         Some(code),
         Some(syscall.to_string()),
