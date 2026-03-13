@@ -7,9 +7,9 @@ use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 use parking_lot::RwLock;
 
 use crate::{
-    ArtifactRegistry, Builtins, CacheStore, DiskCacheStore, DsConfig, FormatterOptions,
-    LinterOptions, ModuleRegistry, OutputRegistry, PackageRegistry, ProfileId, ProfileKey, Program,
-    SessionOptions, TsConfigRegistry, Workspace, resolve_workspace_cache_root,
+    Builtins, CacheStore, DiskCacheStore, DsConfig, FormatterOptions, LinterOptions,
+    ModuleRegistry, PackageRegistry, ProfileKey, Program, SessionOptions,
+    TsConfigRegistry, Workspace, resolve_workspace_cache_root,
 };
 
 /// A session is the persistent state for a workspace.
@@ -38,19 +38,21 @@ pub struct Session {
     pub tsconfigs: Arc<TsConfigRegistry>,
     /// The combined string pool.
     pub strings: Arc<StringPool>,
-    /// The semantic artifact registry.
-    pub artifacts: Arc<ArtifactRegistry>,
-    /// The output registry.
-    pub outputs: Arc<OutputRegistry>,
     /// Compiled builtins (always loaded).
     pub builtins: Arc<Builtins>,
 }
 
 impl Session {
-    /// Create a new session with builtins loaded.
-    pub fn new(cwd: PathBuf) -> Self {
-        let options = SessionOptions::default();
-        let files = Arc::new(FileRegistry::new());
+    /// Create the shared input registries and builtin catalog for one session.
+    fn bootstrap_state(
+        files: Arc<FileRegistry>,
+    ) -> (
+        Arc<ModuleRegistry>,
+        Arc<PackageRegistry>,
+        Arc<TsConfigRegistry>,
+        Arc<StringPool>,
+        Arc<Builtins>,
+    ) {
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
         let builtins = Arc::new(Builtins::embedded(
@@ -58,6 +60,21 @@ impl Session {
             modules.clone(),
             packages.clone(),
         ));
+
+        (
+            modules,
+            packages,
+            Arc::new(TsConfigRegistry::new()),
+            Arc::new(StringPool::new()),
+            builtins,
+        )
+    }
+
+    /// Create a new session with builtins loaded.
+    pub fn new(cwd: PathBuf) -> Self {
+        let options = SessionOptions::default();
+        let files = Arc::new(FileRegistry::new());
+        let (modules, packages, tsconfigs, strings, builtins) = Self::bootstrap_state(files.clone());
 
         Self {
             workspace: RwLock::new(Workspace::single_package(cwd.clone())),
@@ -71,10 +88,8 @@ impl Session {
             packages,
             modules,
             builtins,
-            strings: Arc::new(StringPool::new()),
-            artifacts: Arc::new(ArtifactRegistry::new()),
-            outputs: Arc::new(OutputRegistry::new()),
-            tsconfigs: Arc::new(TsConfigRegistry::new()),
+            strings,
+            tsconfigs,
         }
     }
 
@@ -84,13 +99,7 @@ impl Session {
         let options = SessionOptions::default();
 
         let files = Arc::new(FileRegistry::new());
-        let modules = Arc::new(ModuleRegistry::new());
-        let packages = Arc::new(PackageRegistry::new());
-        let builtins = Arc::new(Builtins::embedded(
-            files.clone(),
-            modules.clone(),
-            packages.clone(),
-        ));
+        let (modules, packages, tsconfigs, strings, builtins) = Self::bootstrap_state(files.clone());
 
         Self {
             workspace: RwLock::new((*workspace).clone()),
@@ -103,10 +112,8 @@ impl Session {
             programs: DashMap::new(),
             packages,
             modules,
-            tsconfigs: Arc::new(TsConfigRegistry::new()),
-            strings: Arc::new(StringPool::new()),
-            artifacts: Arc::new(ArtifactRegistry::new()),
-            outputs: Arc::new(OutputRegistry::new()),
+            tsconfigs,
+            strings,
             builtins,
         }
     }
@@ -206,8 +213,6 @@ impl Session {
             self.packages.clone(),
             self.tsconfigs.clone(),
             self.strings.clone(),
-            self.artifacts.clone(),
-            self.outputs.clone(),
             Some(self.builtins.clone()),
         ));
         self.programs.insert(root.clone(), program.clone());
@@ -265,18 +270,6 @@ impl Session {
 
         // fallback: create/get a program for the cwd
         self.get_or_create_program(self.cwd.clone())
-    }
-
-    /// Get the default profile for a module.
-    pub fn default_profile_for_module(&self, module_id: ModuleId) -> ProfileId {
-        let module = self.modules.get(module_id);
-        let module = module.read();
-        let program = module
-            .path
-            .as_ref()
-            .map(|path| self.find_program_for_path(path))
-            .unwrap_or_else(|| self.get_or_create_program(self.cwd.clone()));
-        program.default_profile_id_for_module(module_id)
     }
 }
 

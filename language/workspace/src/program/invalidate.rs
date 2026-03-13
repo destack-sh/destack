@@ -338,10 +338,6 @@ impl Program {
                 ModuleContent::Code(code) => {
                     // clear code scoped caches
                     code.ast = None;
-                    code.dir_base = None;
-                    code.dirs.clear();
-                    code.comptimes.clear();
-                    code.mirs.clear();
                 }
                 ModuleContent::Data { .. }
                 | ModuleContent::Text { .. }
@@ -407,6 +403,9 @@ impl Program {
         // drop module graphs for affected profiles
         for profile_id in &profile_ids {
             self.drop_module_graph(*profile_id);
+            self.artifacts.remove_language_environment(*profile_id);
+            self.artifacts.remove_intrinsic_environment(*profile_id);
+            self.artifacts.remove_lib_environment(*profile_id);
         }
 
         // drop cached signatures for affected profiles
@@ -448,64 +447,13 @@ impl Program {
         }
 
         // clear matching profile data
-        let module = self.modules.get(module_id);
-        let mut module = module.write();
-        match &mut module.content {
-            ModuleContent::Code(code) => {
-                // clear profile dirs and comptime caches
-                code.dirs
-                    .retain(|dir| dir.profile_id.is_none_or(|id| !profiles.contains(&id)));
-                code.comptimes
-                    .retain(|entry| !profiles.contains(&entry.profile_id));
-
-                // clear mir caches for affected profiles
-                code.mirs.clear();
-            }
-            ModuleContent::Data { dirs, .. }
-            | ModuleContent::Text { dirs, .. }
-            | ModuleContent::Binary { dirs, .. } => {
-                // clear profile dirs for non code modules
-                dirs.retain(|dir| dir.profile_id.is_none_or(|id| !profiles.contains(&id)));
-            }
-            ModuleContent::Unloaded => {}
-        }
+        self.artifacts.remove_module_profiles(module_id, profiles);
     }
 
     /// Collect profile ids referenced by a module.
     fn collect_module_profiles(&self, module_id: ModuleId) -> HashSet<ProfileId> {
-        // collect profiles from module data
-        let module = self.modules.get(module_id);
-        let module = module.read();
-        let mut profiles = HashSet::new();
-        match &module.content {
-            ModuleContent::Code(code) => {
-                // collect profile ids from dirs
-                for dir in &code.dirs {
-                    if let Some(profile_id) = dir.profile_id {
-                        profiles.insert(profile_id);
-                    }
-                }
-
-                // collect profile ids from comptime entries
-                for comptime in &code.comptimes {
-                    profiles.insert(comptime.profile_id);
-                }
-            }
-            ModuleContent::Data { dirs, .. }
-            | ModuleContent::Text { dirs, .. }
-            | ModuleContent::Binary { dirs, .. } => {
-                // collect profile ids from non code dirs
-                for dir in dirs {
-                    if let Some(profile_id) = dir.profile_id {
-                        profiles.insert(profile_id);
-                    }
-                }
-            }
-            ModuleContent::Unloaded => {}
-        }
-
-        // release the module lock before reading signatures
-        drop(module);
+        // collect profiles from published artifacts
+        let mut profiles = self.artifacts.profile_ids_for_module(module_id);
 
         // collect profiles from cached signatures
         for entry in self.index.module_signatures.iter() {
@@ -533,50 +481,8 @@ impl Program {
             return HashSet::new();
         }
 
-        // collect modules with profile scoped data
-        let mut modules = HashSet::new();
-        for module in self.modules.iter() {
-            let module = module.read();
-            let mut matches_profile = false;
-            match &module.content {
-                ModuleContent::Code(code) => {
-                    // check dirs for matching profiles
-                    if code
-                        .dirs
-                        .iter()
-                        .any(|dir| dir.profile_id.is_some_and(|id| profiles.contains(&id)))
-                    {
-                        matches_profile = true;
-                    }
-
-                    // check comptime entries for matching profiles
-                    if !matches_profile
-                        && code
-                            .comptimes
-                            .iter()
-                            .any(|entry| profiles.contains(&entry.profile_id))
-                    {
-                        matches_profile = true;
-                    }
-                }
-                ModuleContent::Data { dirs, .. }
-                | ModuleContent::Text { dirs, .. }
-                | ModuleContent::Binary { dirs, .. } => {
-                    // check dirs for matching profiles
-                    if dirs
-                        .iter()
-                        .any(|dir| dir.profile_id.is_some_and(|id| profiles.contains(&id)))
-                    {
-                        matches_profile = true;
-                    }
-                }
-                ModuleContent::Unloaded => {}
-            }
-
-            if matches_profile {
-                modules.insert(module.id);
-            }
-        }
+        // collect modules with published profile scoped data
+        let modules = self.artifacts.module_ids_for_profiles(profiles);
 
         modules
     }
@@ -904,10 +810,18 @@ mod tests {
         attach_profile_dir(&program, module_b_id, profile_id);
 
         // ensure profile data exists before invalidation
-        let module_a = program.modules.get(module_a_id);
-        let module_b = program.modules.get(module_b_id);
-        assert!(module_a.read().dir_maybe(profile_id).is_some());
-        assert!(module_b.read().dir_maybe(profile_id).is_some());
+        assert!(
+            program
+                .artifacts
+                .dir_snapshot(module_a_id, profile_id)
+                .is_some()
+        );
+        assert!(
+            program
+                .artifacts
+                .dir_snapshot(module_b_id, profile_id)
+                .is_some()
+        );
 
         // invalidate the dsconfig file and expect shared profile data to drop
         program
@@ -915,10 +829,18 @@ mod tests {
             .unwrap_or_else(|error| panic!("failed to invalidate dsconfig: {error}"));
 
         // check that the profile data is cleared
-        let module_a = program.modules.get(module_a_id);
-        let module_b = program.modules.get(module_b_id);
-        assert!(module_a.read().dir_maybe(profile_id).is_none());
-        assert!(module_b.read().dir_maybe(profile_id).is_none());
+        assert!(
+            program
+                .artifacts
+                .dir_snapshot(module_a_id, profile_id)
+                .is_none()
+        );
+        assert!(
+            program
+                .artifacts
+                .dir_snapshot(module_b_id, profile_id)
+                .is_none()
+        );
     }
 
     /// Refresh module semantics when package manifest module type changes.
@@ -1184,6 +1106,8 @@ mod tests {
         };
         let mut dir = ModuleDir::new_base(module_id, module.version, anchor_id.id);
         dir.profile_id = Some(profile_id);
-        module.code_mut().dirs.push(dir);
+        program
+            .artifacts
+            .set_dir_analyzed(module_id, profile_id, dir.to_data());
     }
 }

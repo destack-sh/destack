@@ -7,10 +7,7 @@ use parking_lot::RwLock;
 use destack_builtin::BuiltinLibKind;
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
-use crate::{
-    Loader, ModuleAst, ModuleComptime, ModuleDir, ModuleMir, ModuleTarget, ProfileId, SourceType,
-    TargetId, TsConfigId,
-};
+use crate::{Loader, ModuleAst, ModuleTarget, SourceType, TsConfigId};
 
 /// The source/origin of a module.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -137,26 +134,18 @@ pub enum ModuleType {
     Binary,
 }
 
-/// Code-specific module data (AST, DIR, MIR).
+/// Code-specific module data.
 #[derive(Debug, Default)]
 pub struct ModuleCode {
-    /// The AST-level module data (syntactic). None until Import phase completes.
+    /// The AST-level module data.
     pub ast: Option<ModuleAst>,
-    /// The base DIR-level module data (bind-only, profile-independent).
-    pub dir_base: Option<ModuleDir>,
-    /// The DIR-level module data per profile (semantic, profile-dependent).
-    pub dirs: Vec<ModuleDir>,
-    /// Comptime results per profile.
-    pub comptimes: Vec<ModuleComptime>,
-    /// The MIR-level module data (target-specific). One per target, populated by Lower phase.
-    pub mirs: Vec<ModuleMir>,
 }
 
 /// The content of a module.
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum ModuleContent {
-    /// Code module with AST, DIR, MIR.
+    /// Code module with AST-level source state.
     Code(ModuleCode),
     /// Data module (JSON, TOML, YAML) with parsed value.
     Data {
@@ -164,30 +153,18 @@ pub enum ModuleContent {
         value: serde_json::Value,
         /// The AST anchor for diagnostics.
         ast: ModuleAst,
-        /// Base DIR for the data module (profile-independent).
-        dir_base: Option<ModuleDir>,
-        /// Profile-specific DIRs for the data module.
-        dirs: Vec<ModuleDir>,
     },
     /// Text module (plain string content).
     Text {
         content: String,
         /// The AST anchor for diagnostics.
         ast: ModuleAst,
-        /// Base DIR for the text module (profile-independent).
-        dir_base: Option<ModuleDir>,
-        /// Profile-specific DIRs for the text module.
-        dirs: Vec<ModuleDir>,
     },
     /// Binary module (raw bytes).
     Binary {
         bytes: Vec<u8>,
         /// The AST anchor for diagnostics.
         ast: ModuleAst,
-        /// Base DIR for the binary module (profile-independent).
-        dir_base: Option<ModuleDir>,
-        /// Profile-specific DIRs for the binary module.
-        dirs: Vec<ModuleDir>,
     },
     /// Content not yet loaded.
     Unloaded,
@@ -301,13 +278,7 @@ impl Module {
             loader,
             source,
             module_type: ModuleType::Code,
-            content: ModuleContent::Code(ModuleCode {
-                ast: Some(ast),
-                dir_base: None,
-                dirs: Vec::new(),
-                comptimes: Vec::new(),
-                mirs: Vec::new(),
-            }),
+            content: ModuleContent::Code(ModuleCode { ast: Some(ast) }),
         }
     }
 
@@ -383,6 +354,18 @@ impl Module {
         }
     }
 
+    /// Get the AST mutably if it exists.
+    #[inline]
+    pub fn ast_maybe_mut(&mut self) -> Option<&mut ModuleAst> {
+        match &mut self.content {
+            ModuleContent::Code(code) => code.ast.as_mut(),
+            ModuleContent::Data { ast, .. } => Some(ast),
+            ModuleContent::Text { ast, .. } => Some(ast),
+            ModuleContent::Binary { ast, .. } => Some(ast),
+            _ => None,
+        }
+    }
+
     /// Insert or replace the AST.
     ///
     /// # Panics
@@ -397,217 +380,6 @@ impl Module {
                 panic!("cannot set AST on unloaded module");
             }
         }
-    }
-
-    /// Get the base DIR.
-    ///
-    /// # Panics
-    /// Panics if called before Bind/Parse phase completes.
-    #[inline]
-    pub fn dir_base(&self) -> &ModuleDir {
-        self.dir_base_maybe().expect("no base DIR on module")
-    }
-
-    /// Get the base DIR mutably.
-    ///
-    /// # Panics
-    /// Panics if called before Bind/Parse phase completes.
-    #[inline]
-    pub fn dir_base_mut(&mut self) -> &mut ModuleDir {
-        self.dir_base_maybe_mut().expect("no base DIR on module")
-    }
-
-    /// Get the base DIR mutably if it exists.
-    #[inline]
-    pub fn dir_base_maybe_mut(&mut self) -> Option<&mut ModuleDir> {
-        match &mut self.content {
-            ModuleContent::Code(code) => code.dir_base.as_mut(),
-            ModuleContent::Data { dir_base, .. } => dir_base.as_mut(),
-            ModuleContent::Text { dir_base, .. } => dir_base.as_mut(),
-            ModuleContent::Binary { dir_base, .. } => dir_base.as_mut(),
-            ModuleContent::Unloaded => None,
-        }
-    }
-
-    /// Get the base DIR if it exists.
-    #[inline]
-    pub fn dir_base_maybe(&self) -> Option<&ModuleDir> {
-        match &self.content {
-            ModuleContent::Code(code) => code.dir_base.as_ref(),
-            ModuleContent::Data { dir_base, .. } => dir_base.as_ref(),
-            ModuleContent::Text { dir_base, .. } => dir_base.as_ref(),
-            ModuleContent::Binary { dir_base, .. } => dir_base.as_ref(),
-            ModuleContent::Unloaded => None,
-        }
-    }
-
-    /// Insert or replace the base DIR.
-    ///
-    /// # Panics
-    /// Panics if the module content is unloaded.
-    pub fn set_dir_base(&mut self, dir: ModuleDir) {
-        match &mut self.content {
-            ModuleContent::Code(code) => code.dir_base = Some(dir),
-            ModuleContent::Data { dir_base, .. } => *dir_base = Some(dir),
-            ModuleContent::Text { dir_base, .. } => *dir_base = Some(dir),
-            ModuleContent::Binary { dir_base, .. } => *dir_base = Some(dir),
-            ModuleContent::Unloaded => {
-                panic!("cannot set base dir on unloaded module");
-            }
-        }
-    }
-
-    /// Get the DIR for a profile.
-    ///
-    /// # Panics
-    /// Panics if called before Resolve phase completes for the profile.
-    #[inline]
-    pub fn dir(&self, profile: ProfileId) -> &ModuleDir {
-        self.dir_maybe(profile)
-            .unwrap_or_else(|| panic!("no DIR for profile {profile:?}"))
-    }
-
-    /// Get the DIR for a profile mutably.
-    ///
-    /// # Panics
-    /// Panics if called before Resolve phase completes for the profile.
-    #[inline]
-    pub fn dir_mut(&mut self, profile: ProfileId) -> &mut ModuleDir {
-        self.dir_maybe_mut(profile)
-            .unwrap_or_else(|| panic!("no DIR for profile {profile:?}"))
-    }
-
-    /// Get the DIR for a profile if it exists.
-    #[inline]
-    pub fn dir_maybe(&self, profile: ProfileId) -> Option<&ModuleDir> {
-        let dirs = match &self.content {
-            ModuleContent::Code(code) => &code.dirs,
-            ModuleContent::Data { dirs, .. } => dirs,
-            ModuleContent::Text { dirs, .. } => dirs,
-            ModuleContent::Binary { dirs, .. } => dirs,
-            ModuleContent::Unloaded => return None,
-        };
-        dirs.iter().find(|dir| dir.profile_id == Some(profile))
-    }
-
-    /// Get the DIR for a profile mutably if it exists.
-    #[inline]
-    pub fn dir_maybe_mut(&mut self, profile: ProfileId) -> Option<&mut ModuleDir> {
-        let dirs = match &mut self.content {
-            ModuleContent::Code(code) => &mut code.dirs,
-            ModuleContent::Data { dirs, .. } => dirs,
-            ModuleContent::Text { dirs, .. } => dirs,
-            ModuleContent::Binary { dirs, .. } => dirs,
-            ModuleContent::Unloaded => return None,
-        };
-        dirs.iter_mut().find(|dir| dir.profile_id == Some(profile))
-    }
-
-    /// Insert or replace the DIR for a profile.
-    ///
-    /// # Panics
-    /// Panics if the module content is unloaded.
-    pub fn set_dir(&mut self, profile: ProfileId, dir: ModuleDir) {
-        // select the profile dir list for this module content
-        let dirs = match &mut self.content {
-            ModuleContent::Code(code) => &mut code.dirs,
-            ModuleContent::Data { dirs, .. } => dirs,
-            ModuleContent::Text { dirs, .. } => dirs,
-            ModuleContent::Binary { dirs, .. } => dirs,
-            ModuleContent::Unloaded => {
-                panic!("cannot set profile dir on unloaded module");
-            }
-        };
-
-        // replace or insert the profile dir
-        if let Some(existing) = dirs.iter_mut().find(|dir| dir.profile_id == Some(profile)) {
-            *existing = dir;
-        } else {
-            dirs.push(dir);
-        }
-    }
-
-    /// Get the comptime results for a profile.
-    ///
-    /// # Panics
-    /// Panics if called before Execute phase completes for the profile or if not a code module.
-    #[inline]
-    pub fn comptime(&self, profile: ProfileId) -> &ModuleComptime {
-        self.code()
-            .comptimes
-            .iter()
-            .find(|comptime| comptime.profile_id == profile)
-            .unwrap_or_else(|| panic!("no comptime results for profile {profile:?}"))
-    }
-
-    /// Get the comptime results for a profile mutably.
-    ///
-    /// # Panics
-    /// Panics if called before Execute phase completes for the profile or if not a code module.
-    #[inline]
-    pub fn comptime_mut(&mut self, profile: ProfileId) -> &mut ModuleComptime {
-        self.code_mut()
-            .comptimes
-            .iter_mut()
-            .find(|comptime| comptime.profile_id == profile)
-            .unwrap_or_else(|| panic!("no comptime results for profile {profile:?}"))
-    }
-
-    /// Get the comptime results for a profile if they exist.
-    #[inline]
-    pub fn comptime_maybe(&self, profile: ProfileId) -> Option<&ModuleComptime> {
-        match &self.content {
-            ModuleContent::Code(code) => code
-                .comptimes
-                .iter()
-                .find(|comptime| comptime.profile_id == profile),
-            _ => None,
-        }
-    }
-
-    /// Get the MIR for a target if it exists.
-    #[inline]
-    pub fn mir_maybe(&self, target: &TargetId) -> Option<&ModuleMir> {
-        match &self.content {
-            ModuleContent::Code(code) => code.mirs.iter().find(|mir| &mir.target == target),
-            _ => None,
-        }
-    }
-
-    /// Get the MIR for a target.
-    ///
-    /// # Panics
-    /// Panics if called before Lower phase completes or if not a code module.
-    #[inline]
-    pub fn mir(&self, target: &TargetId) -> &ModuleMir {
-        self.code()
-            .mirs
-            .iter()
-            .find(|mir| &mir.target == target)
-            .unwrap_or_else(|| panic!("no MIR for target {target:?}"))
-    }
-
-    /// Get the MIR for a target mutably.
-    ///
-    /// # Panics
-    /// Panics if called before Lower phase completes or if not a code module.
-    #[inline]
-    pub fn mir_mut(&mut self, target: &TargetId) -> &mut ModuleMir {
-        self.code_mut()
-            .mirs
-            .iter_mut()
-            .find(|mir| &mir.target == target)
-            .unwrap_or_else(|| panic!("no MIR for target {target:?}"))
-    }
-
-    /// Insert or replace the MIR for one target.
-    ///
-    /// # Panics
-    /// Panics if this is not a code module.
-    pub fn set_mir(&mut self, mir: ModuleMir) {
-        let code = self.code_mut();
-        code.mirs.retain(|existing| existing.target != mir.target);
-        code.mirs.push(mir);
     }
 }
 

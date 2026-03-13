@@ -18,8 +18,8 @@ pub enum CacheKind {
     DirResolved,
     /// DIR cache payload after analysis.
     DirAnalyzed,
-    /// DIR cache payload after comptime execution.
-    DirExecuted,
+    /// DIR cache payload after comptime patching.
+    DirPatched,
     /// MIR cache payload.
     Mir,
 }
@@ -29,7 +29,7 @@ impl CacheKind {
     pub fn requires_profile(self) -> bool {
         matches!(
             self,
-            Self::DirResolved | Self::DirAnalyzed | Self::DirExecuted | Self::Mir
+            Self::DirResolved | Self::DirAnalyzed | Self::DirPatched | Self::Mir
         )
     }
 }

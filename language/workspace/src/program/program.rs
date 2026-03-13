@@ -210,8 +210,6 @@ impl Program {
         packages: Arc<PackageRegistry>,
         tsconfigs: Arc<TsConfigRegistry>,
         strings: Arc<StringPool>,
-        artifacts: Arc<ArtifactRegistry>,
-        outputs: Arc<OutputRegistry>,
         builtins: Option<Arc<Builtins>>,
     ) -> Self {
         let diagnostics = DiagnosticCollector::new();
@@ -219,6 +217,8 @@ impl Program {
         let index = Arc::new(ProgramIndex::new());
         let workspace_index = RwLock::new(None);
         let diagnostic_store = DiagnosticStore::new();
+        let artifacts = Arc::new(ArtifactRegistry::new());
+        let outputs = Arc::new(OutputRegistry::new());
 
         // create and insert the root package and module
         let (root_module_id, fallback_file_id) =

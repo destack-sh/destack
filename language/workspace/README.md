@@ -3,29 +3,6 @@
 The workspace crate owns most of the shared Destack language toolchain state.
 We don't define (much) logic here, it's mostly about defining the containers and registries that make compiler, daemon, tests, and language tools work.
 
-## State
-
-The workspace crate exists to make one ownership split explicit:
-
-- input state lives on long-lived containers such as `Workspace`, `Program`, `Package`, and `Module`
-- derived semantic compiler products live in `ArtifactRegistry`
-- generated and linked outputs live in `OutputRegistry`
-
-Scheduling should still see one unified build graph.
-The right execution key space is:
-
-- `BuildKey::Artifact(ArtifactKey)`
-- `BuildKey::Output(OutputKey)`
-
-This distinction is the backbone of the incremental model.
-
-`Module` owns input state only.
-That includes things like identity, source linkage, source metadata, and versioned input-side facts.
-It does not own current DIR, analyzed state, comptime state, MIR state, or any other derived semantic phase state.
-
-`Program` is the semantic world.
-It owns the registries, profiles, diagnostics, and the set of packages and modules that participate in one coherent compilation world.
-
 ## Configuration
 
 The `config/` module defines unified toolchain configuration.
