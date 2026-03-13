@@ -2,15 +2,13 @@
 
 use std::sync::Arc;
 
-use destack_core::LocalStringPool;
-use destack_mir::NodeTree;
+use destack_heap as heap;
 use destack_workspace::{
     ExecutionMode, RandomMode, RuntimeAccess, RuntimeIdentitySelector, RuntimeOptions,
     RuntimeSelector, RuntimeWorld, TimeMode,
 };
-use {destack_heap as heap, destack_vm as vm};
 
-use super::tests::TestEngine;
+use super::tests::{AllocatingEngine, TestEngine, TestRuntime, TestWorld};
 use crate::host::Host;
 use crate::platform::{ResourceEntry, ResourceId, ResourceKind};
 use crate::runtime::bindings::BindingDescriptor;
@@ -23,58 +21,52 @@ use crate::runtime::poller::{
 };
 use crate::runtime::scheduler::Runnable;
 use crate::runtime::time::WorldInstant;
+use crate::runtime::trace::{Trace, TraceRecord, TraceSequence};
 use crate::runtime::{
-    Agent, BindingCallContext, BranchId, ObservationEvent, ObservationKind, ObservationOptions,
-    ObservationSchedulerOutcome, World, WorldEdge, WorldEdgeKindDefinition, WorldEntity,
-    WorldEntityKindDefinition,
+    Agent, AgentId, BindingCallContext, BranchId, Input, Observation, ObservationCategory,
+    ObservationData, ObservationOptions, ObservationSchedulerOutcome, Scope, World, WorldEdge,
+    WorldEdgeKindDefinition, WorldEntity, WorldEntityKindDefinition, WorldResourceId,
 };
 
-/// Build one empty VM engine for checkpoint tests.
-fn vm_engine() -> vm::Isolate {
-    let tree = NodeTree::new();
-    let strings = LocalStringPool::new().into_immutable();
-
-    vm::Isolate::build(tree, strings).expect("vm engine should build")
+/// Build runtime options with record mode enabled.
+fn record_options() -> RuntimeOptions {
+    RuntimeOptions {
+        execution: ExecutionMode::Record,
+        ..RuntimeOptions::default()
+    }
 }
 
-/// Allocate one managed heap cell in the primary agent VM engine.
-fn allocate_vm_heap_cell(world: &Arc<World>, runtime_id: crate::runtime::RuntimeId) {
-    // mutate the primary agent engine directly
-    world
-        .with_runtime_mut(runtime_id, |runtime| {
-            let agent_id = runtime.primary_agent_id();
-            let agent = runtime
-                .agent_mut(agent_id)
-                .expect("runtime should keep its primary agent");
-            let engine = &mut *agent.engine as &mut dyn std::any::Any;
-            let isolate = engine
-                .downcast_mut::<vm::Isolate>()
-                .expect("agent should use a vm engine");
-            let _ = isolate.allocate_single(&mut agent.heap, heap::Value::int32(7));
+/// Ensures hard heap limits fail after one allocating entrypoint.
+#[test]
+fn test_runtime_heap_limits_fail_after_allocating_entrypoint() {
+    let mut runtime = TestRuntime::with_options_and_engine(
+        &RuntimeOptions::default(),
+        AllocatingEngine {
+            managed_values: 512,
+            raw_bytes: 0,
+        },
+    );
 
-            Ok(())
-        })
-        .expect("vm heap mutation should succeed");
-}
+    // set one hard limit just above bootstrap usage so the entrypoint allocation trips it
+    let baseline_usage = runtime.heap_usage();
+    let max_managed_bytes = baseline_usage.managed.retained_bytes + 8 * 1024;
+    let max_total_bytes = baseline_usage.retained_bytes() + 1024 * 1024;
+    runtime.set_heap_limits(heap::HeapLimits {
+        max_bytes: Some(max_total_bytes),
+        max_managed_bytes: Some(max_managed_bytes),
+        max_raw_bytes: None,
+    });
 
-/// Return the managed heap cell count for the primary agent VM engine.
-fn vm_heap_cell_count(world: &Arc<World>, runtime_id: crate::runtime::RuntimeId) -> usize {
-    // inspect the primary agent engine directly
-    world
-        .with_runtime_mut(runtime_id, |runtime| {
-            let agent_id = runtime.primary_agent_id();
-            let agent = runtime
-                .agent_mut(agent_id)
-                .expect("runtime should keep its primary agent");
-            let engine = &mut *agent.engine as &mut dyn std::any::Any;
-            let isolate = engine
-                .downcast_mut::<vm::Isolate>()
-                .expect("agent should use a vm engine");
-            let _ = isolate;
+    // one allocating step should trip the configured hard limit
+    let error = runtime
+        .run_entrypoint()
+        .expect_err("allocating entrypoint should exceed the hard heap limit");
+    let error = error.as_ref();
 
-            Ok(agent.heap.managed().cell_count())
-        })
-        .expect("vm heap inspection should succeed")
+    assert!(matches!(
+        error,
+        crate::diagnostic::RuntimeError::HeapLimitExceeded { scope, .. } if scope == "managed"
+    ));
 }
 
 /// Ensures new worlds start on one real root branch.
@@ -128,14 +120,13 @@ fn test_world_checkpoint_and_fork_empty_world() {
 fn test_world_rewind_restores_vm_runtime_state() {
     // build one vm-backed runtime
     let options = RuntimeOptions::default();
-    let world = Arc::new(World::default());
-    let runtime_id = world
-        .spawn_runtime(Vec::new(), &options, vm_engine())
-        .expect("runtime should spawn in world");
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
 
     // create one baseline managed allocation before the checkpoint
-    allocate_vm_heap_cell(&world, runtime_id);
-    assert_eq!(vm_heap_cell_count(&world, runtime_id), 1);
+    test.allocate_vm_heap_allocation(runtime_id);
+    assert_eq!(test.vm_heap_allocation_count(runtime_id), 1);
 
     // capture one checkpoint at the baseline state
     let checkpoint_id = world
@@ -144,11 +135,11 @@ fn test_world_rewind_restores_vm_runtime_state() {
 
     // mutate both world topology and vm heap after the checkpoint
     world
-        .spawn_runtime(Vec::new(), &options, vm_engine())
+        .spawn_runtime(Vec::new(), &options, TestWorld::vm_engine())
         .expect("second runtime should spawn in world");
-    allocate_vm_heap_cell(&world, runtime_id);
+    test.allocate_vm_heap_allocation(runtime_id);
     assert_eq!(world.runtime_ids().len(), 2);
-    assert_eq!(vm_heap_cell_count(&world, runtime_id), 2);
+    assert_eq!(test.vm_heap_allocation_count(runtime_id), 2);
 
     // rewind back to the captured point
     world
@@ -157,7 +148,94 @@ fn test_world_rewind_restores_vm_runtime_state() {
 
     // the world and vm heap should both return to the checkpoint state
     assert_eq!(world.runtime_ids(), vec![runtime_id]);
-    assert_eq!(vm_heap_cell_count(&world, runtime_id), 1);
+    assert_eq!(test.vm_heap_allocation_count(runtime_id), 1);
+}
+
+/// Rewinds one sparse suspend revision from the nearest materialized image.
+#[test]
+fn test_world_rewind_sparse_suspend_revision_replays_suffix() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+
+    let runtime_a = test.spawn_vm_runtime(&options);
+    let checkpoint_id = world
+        .checkpoint("baseline")
+        .expect("checkpoint should succeed");
+
+    let runtime_b = test.spawn_vm_runtime(&options);
+    let suspended_revision_id = world.suspend().expect("suspend should succeed");
+
+    let sparse_error = world
+        .revision_backing(suspended_revision_id)
+        .expect_err("suspended revision should not keep one exact image");
+    assert!(
+        sparse_error.to_string().contains("missing image"),
+        "unexpected sparse revision error: {sparse_error}"
+    );
+
+    world
+        .spawn_runtime(Vec::new(), &options, TestWorld::vm_engine())
+        .expect("third runtime should spawn in world");
+
+    world
+        .rewind_revision(suspended_revision_id)
+        .expect("rewind should replay from the baseline image");
+
+    assert_eq!(world.runtime_ids(), vec![runtime_a, runtime_b]);
+
+    let checkpoint = world
+        .checkpoint_info(checkpoint_id)
+        .expect("checkpoint metadata should exist");
+    assert_eq!(checkpoint.name, "baseline");
+}
+
+/// Forks one sparse suspend revision from the nearest materialized image.
+#[test]
+fn test_world_fork_sparse_suspend_revision_replays_suffix() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+
+    let runtime_a = test.spawn_vm_runtime(&options);
+    let _baseline = world
+        .checkpoint("baseline")
+        .expect("checkpoint should succeed");
+
+    let runtime_b = test.spawn_vm_runtime(&options);
+    let suspended_revision_id = world.suspend().expect("suspend should succeed");
+
+    let child = world
+        .fork_revision(suspended_revision_id, "child")
+        .expect("fork should replay from the baseline image");
+
+    assert_eq!(world.runtime_ids(), vec![runtime_a, runtime_b]);
+    assert_eq!(child.runtime_ids(), vec![runtime_a, runtime_b]);
+}
+
+/// Snapshots one sparse suspend revision by materializing its image on demand.
+#[test]
+fn test_world_snapshot_sparse_suspend_revision_materializes_on_demand() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+
+    let runtime_a = test.spawn_vm_runtime(&options);
+    let _baseline = world
+        .checkpoint("baseline")
+        .expect("checkpoint should succeed");
+
+    let runtime_b = test.spawn_vm_runtime(&options);
+    let suspended_revision_id = world.suspend().expect("suspend should succeed");
+
+    let snapshot = world
+        .snapshot_revision(suspended_revision_id)
+        .expect("snapshot should materialize the sparse revision image");
+    let image = snapshot.image().expect("snapshot should include one image");
+
+    assert_eq!(snapshot.revision_id, suspended_revision_id);
+    assert!(image.runtimes.contains_key(&runtime_a));
+    assert!(image.runtimes.contains_key(&runtime_b));
 }
 
 /// Ensures attached resources remain an explicit checkpoint barrier.
@@ -165,10 +243,9 @@ fn test_world_rewind_restores_vm_runtime_state() {
 fn test_world_checkpoint_rejects_attached_resources() {
     // build one runtime and attach one resource to its primary agent
     let options = RuntimeOptions::default();
-    let world = Arc::new(World::default());
-    let runtime_id = world
-        .spawn_runtime(Vec::new(), &options, vm_engine())
-        .expect("runtime should spawn in world");
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
 
     world
         .with_runtime_mut(runtime_id, |runtime| {
@@ -200,10 +277,9 @@ fn test_world_checkpoint_rejects_attached_resources() {
 #[test]
 fn test_world_observe_records_control_and_resource_events() {
     let options = RuntimeOptions::default();
-    let world = Arc::new(World::default());
-    let runtime_id = world
-        .spawn_runtime(Vec::new(), &options, vm_engine())
-        .expect("runtime should spawn in world");
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
 
     world
         .with_runtime_mut(runtime_id, |runtime| {
@@ -221,18 +297,18 @@ fn test_world_observe_records_control_and_resource_events() {
         })
         .expect("resource lifecycle should succeed");
 
-    let records = world.observation().records_after(None);
+    let records = world.observations().records_after(None);
     assert!(
         records
             .iter()
-            .any(|record| matches!(record.event, ObservationEvent::Control { .. })),
+            .any(|record| record.observation.name == "world.control"),
         "expected one control observation event"
     );
     assert!(
         records.iter().any(|record| {
             matches!(
-                record.event,
-                ObservationEvent::Resource {
+                record.observation.data,
+                ObservationData::ResourceLifecycle {
                     is_attach: true,
                     ..
                 }
@@ -243,8 +319,8 @@ fn test_world_observe_records_control_and_resource_events() {
     assert!(
         records.iter().any(|record| {
             matches!(
-                record.event,
-                ObservationEvent::Resource {
+                record.observation.data,
+                ObservationData::ResourceLifecycle {
                     is_attach: false,
                     ..
                 }
@@ -255,13 +331,13 @@ fn test_world_observe_records_control_and_resource_events() {
     assert!(
         records
             .iter()
-            .any(|record| record.kind == ObservationKind::Diagnostic),
+            .any(|record| record.observation.category == ObservationCategory::Diagnostic),
         "expected one diagnostic observation kind"
     );
     assert!(
         records
             .iter()
-            .filter(|record| record.kind == ObservationKind::Resource)
+            .filter(|record| record.observation.category == ObservationCategory::Resource)
             .count()
             >= 2,
         "expected resource observation kinds for resource lifecycle"
@@ -272,18 +348,18 @@ fn test_world_observe_records_control_and_resource_events() {
 #[test]
 fn test_world_observe_subscriptions_filter_live_events() {
     let options = RuntimeOptions::default();
-    let world = Arc::new(World::default());
-    let runtime_id = world
-        .spawn_runtime(Vec::new(), &options, vm_engine())
-        .expect("runtime should spawn in world");
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
 
-    let subscription = world.observation().open(ObservationOptions {
-        trace: false,
+    let subscription = world.observations().open(ObservationOptions {
+        runtime: false,
         topology: false,
         resource: true,
         scheduler: false,
         diagnostic: false,
-        profile: false,
+        telemetry: false,
+        domain: false,
     });
 
     // emit one filtered-out diagnostic observation
@@ -309,25 +385,25 @@ fn test_world_observe_subscriptions_filter_live_events() {
         .expect("resource lifecycle should succeed");
 
     let records = world
-        .observation()
+        .observations()
         .next(subscription, 16)
         .expect("observe subscription should read");
     assert_eq!(records.len(), 2, "expected attach and detach observations");
     assert!(
         records
             .iter()
-            .all(|record| record.kind == ObservationKind::Resource),
+            .all(|record| record.observation.category == ObservationCategory::Resource),
         "expected only resource observations through the filter"
     );
 
     let records = world
-        .observation()
+        .observations()
         .next(subscription, 16)
         .expect("observe subscription should advance");
     assert!(records.is_empty(), "subscription cursor should advance");
 
     world
-        .observation()
+        .observations()
         .close(subscription)
         .expect("observe subscription should close");
 }
@@ -339,13 +415,14 @@ fn test_world_observe_subscriptions_report_scheduler_progress() {
     options.time.mode = TimeMode::Virtual;
 
     let world = World::from_options(&options).expect("world should construct");
-    let subscription = world.observation().open(ObservationOptions {
-        trace: false,
+    let subscription = world.observations().open(ObservationOptions {
+        runtime: false,
         topology: false,
         resource: false,
         scheduler: true,
         diagnostic: false,
-        profile: false,
+        telemetry: false,
+        domain: false,
     });
 
     // schedule one simulated deadline so the world must advance time
@@ -357,14 +434,14 @@ fn test_world_observe_subscriptions_report_scheduler_progress() {
     assert_eq!(outcome, crate::runtime::TickOutcome::AdvancedTime);
 
     let records = world
-        .observation()
+        .observations()
         .next(subscription, 16)
         .expect("observe subscription should read");
     assert_eq!(records.len(), 1, "expected one scheduler observation");
     assert!(
         matches!(
-            records.first().map(|record| &record.event),
-            Some(ObservationEvent::Scheduler {
+            records.first().map(|record| &record.observation.data),
+            Some(ObservationData::Scheduler {
                 outcome: ObservationSchedulerOutcome::AdvancedTime,
                 deadline: Some(deadline),
                 ..
@@ -379,12 +456,11 @@ fn test_world_observe_subscriptions_report_scheduler_progress() {
 fn test_world_fork_isolates_vm_runtime_state() {
     // build one vm-backed runtime and capture a baseline checkpoint
     let options = RuntimeOptions::default();
-    let world = Arc::new(World::default());
-    let runtime_id = world
-        .spawn_runtime(Vec::new(), &options, vm_engine())
-        .expect("runtime should spawn in world");
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
 
-    allocate_vm_heap_cell(&world, runtime_id);
+    test.allocate_vm_heap_allocation(runtime_id);
     let checkpoint_id = world
         .checkpoint("baseline")
         .expect("checkpoint should succeed");
@@ -395,17 +471,638 @@ fn test_world_fork_isolates_vm_runtime_state() {
         .expect("fork should succeed");
 
     // parent and child should start from the same captured heap state
-    assert_eq!(vm_heap_cell_count(&world, runtime_id), 1);
-    assert_eq!(vm_heap_cell_count(&child, runtime_id), 1);
+    assert_eq!(test.vm_heap_allocation_count(runtime_id), 1);
+    assert_eq!(
+        TestWorld::from_world(child.clone()).vm_heap_allocation_count(runtime_id),
+        1
+    );
 
     // mutate parent and child independently after the fork
-    allocate_vm_heap_cell(&world, runtime_id);
-    allocate_vm_heap_cell(&world, runtime_id);
-    allocate_vm_heap_cell(&child, runtime_id);
+    test.allocate_vm_heap_allocation(runtime_id);
+    test.allocate_vm_heap_allocation(runtime_id);
+    TestWorld::from_world(child.clone()).allocate_vm_heap_allocation(runtime_id);
 
     // both worlds should diverge without affecting each other
-    assert_eq!(vm_heap_cell_count(&world, runtime_id), 3);
-    assert_eq!(vm_heap_cell_count(&child, runtime_id), 2);
+    assert_eq!(test.vm_heap_allocation_count(runtime_id), 3);
+    assert_eq!(
+        TestWorld::from_world(child).vm_heap_allocation_count(runtime_id),
+        2
+    );
+}
+
+/// Ensures forked worlds share immutable heap leaves before either side mutates.
+#[test]
+fn test_world_fork_shares_heap_leaves_before_mutation() {
+    let options = RuntimeOptions::default();
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
+
+    test.allocate_vm_heap_allocation(runtime_id);
+    let _ = test.allocate_vm_raw_bytes(runtime_id, &[1, 2, 3]);
+    let checkpoint_id = world
+        .checkpoint("shared-heap")
+        .expect("checkpoint should succeed");
+
+    let child = world
+        .fork(checkpoint_id, "child")
+        .expect("fork should succeed");
+
+    let parent_heap = test.runtime_heap_image(runtime_id);
+    let child_heap = TestWorld::from_world(child).runtime_heap_image(runtime_id);
+
+    assert!(
+        parent_heap
+            .managed_page(0)
+            .unwrap()
+            .shares_storage_with(child_heap.managed_page(0).unwrap())
+    );
+    assert!(parent_heap.raw_span_shares_with(&child_heap, 0));
+}
+
+/// Ensures child heap mutation detaches only the touched leaf after fork.
+#[test]
+fn test_world_fork_detaches_only_touched_heap_leaf() {
+    let options = RuntimeOptions::default();
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
+
+    let first = test.allocate_vm_raw_bytes(runtime_id, &[1, 2, 3]);
+    let _second = test.allocate_vm_raw_bytes(runtime_id, &[4, 5, 6]);
+    let checkpoint_id = world
+        .checkpoint("shared-raw")
+        .expect("checkpoint should succeed");
+    let child = world
+        .fork(checkpoint_id, "child")
+        .expect("fork should succeed");
+
+    let child_test = TestWorld::from_world(child.clone());
+    let baseline = child_test.runtime_heap_image(runtime_id);
+    child_test.mutate_vm_raw_byte(runtime_id, first, 1, 9);
+    let mutated = child_test.runtime_heap_image(runtime_id);
+    let parent = test.runtime_heap_image(runtime_id);
+
+    assert!(!baseline.raw_span_shares_with(&mutated, 0));
+    assert!(baseline.raw_span_shares_with(&mutated, 1));
+    assert!(baseline.raw_span_shares_with(&parent, 0));
+}
+
+/// Ensures rewind restores live heaps from the checkpoint image leaves.
+#[test]
+fn test_world_rewind_restores_checkpoint_heap_leaves() {
+    let options = RuntimeOptions::default();
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
+
+    test.allocate_vm_heap_allocation(runtime_id);
+    let _ = test.allocate_vm_raw_bytes(runtime_id, &[0xCA, 0xFE, 0xBA, 0xBE]);
+    let checkpoint_id = world
+        .checkpoint("rewind-shared")
+        .expect("checkpoint should succeed");
+    let checkpoint = world
+        .checkpoint_info(checkpoint_id)
+        .expect("checkpoint metadata should exist");
+    let revision = world
+        .revision_info(checkpoint.revision_id)
+        .expect("checkpoint revision should exist");
+    let image = world
+        .image_info(revision.image_id)
+        .expect("checkpoint image should exist");
+    let agent_id = test.primary_agent_id(runtime_id);
+
+    test.allocate_vm_heap_allocation(runtime_id);
+    test.mutate_vm_raw_byte(runtime_id, heap::RawPointer::new(1), 0, 0xFF);
+
+    world
+        .rewind(checkpoint_id)
+        .expect("rewind should restore the checkpoint");
+
+    let restored_heap = test.runtime_heap_image(runtime_id);
+    let stored_heap = &image
+        .agent(agent_id)
+        .expect("agent image should exist")
+        .heap_image;
+
+    assert!(
+        restored_heap
+            .managed_page(0)
+            .unwrap()
+            .shares_storage_with(stored_heap.managed_page(0).unwrap())
+    );
+    assert!(restored_heap.raw_span_shares_with(stored_heap, 0));
+}
+
+/// Ensures one committed branch moment can restore intermediate state from trace.
+#[test]
+fn test_world_restore_moment_replays_to_intermediate_sequence() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+
+    test.record_world_entity_kind("a");
+    let _checkpoint_a = world
+        .checkpoint("moment-a")
+        .expect("checkpoint should succeed");
+
+    test.record_world_entity_kind("b");
+    let moment = world.moment();
+
+    test.record_world_entity_kind("c");
+    let _checkpoint_b = world
+        .checkpoint("moment-b")
+        .expect("checkpoint should succeed");
+
+    let entity_kinds = world.entity_kinds();
+    assert!(entity_kinds.contains_key("app.record.shared.a"));
+    assert!(entity_kinds.contains_key("app.record.shared.b"));
+    assert!(entity_kinds.contains_key("app.record.shared.c"));
+
+    // the live branch trace should replay all three topology commands directly
+    let replay_trace = Trace::from_log(ExecutionMode::Replay, world.trace().log().clone());
+    replay_trace
+        .seek_sequence(TraceSequence::new(0))
+        .expect("replay trace should seek to the root boundary");
+    let _ = replay_trace
+        .next_input()
+        .expect("replay trace should include input a");
+    let _ = replay_trace
+        .next_input()
+        .expect("replay trace should include input b");
+    let _ = replay_trace
+        .next_input()
+        .expect("replay trace should include input c");
+
+    world
+        .restore_moment(moment)
+        .expect("moment restore should replay to the target sequence");
+
+    let entity_kinds = world.entity_kinds();
+    assert!(entity_kinds.contains_key("app.record.shared.a"));
+    assert!(entity_kinds.contains_key("app.record.shared.b"));
+    assert!(!entity_kinds.contains_key("app.record.shared.c"));
+}
+
+/// Ensures world event queries project both trace and observation data at moments.
+#[test]
+fn test_world_events_between_projects_trace_and_observation() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+
+    let start = world.moment();
+    test.record_world_entity_kind("event");
+    let end = world.moment();
+
+    let events = world
+        .events()
+        .between(start, end)
+        .expect("event query should succeed");
+    let events = events.as_slice();
+
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0].moment, end);
+    assert!(events[0].is_input());
+    assert_eq!(events[0].name(), Some("topology.define_entity_kind"));
+    assert_eq!(events[1].moment, end);
+    assert!(events[1].is_observation());
+
+    let Some(Input::Mutation(_)) = events[0].input() else {
+        panic!("first projected event should be one world mutation input");
+    };
+    let Some(observation) = events[1].observation() else {
+        panic!("second projected event should be one control observation");
+    };
+    assert_eq!(observation.name, "world.control");
+
+    let trace_events = world
+        .events()
+        .between(start, end)
+        .expect("event query should succeed")
+        .inputs()
+        .name("topology.define_entity_kind");
+
+    assert_eq!(trace_events.len(), 1);
+}
+
+/// Ensures event selectors match structured observation names, scopes, and tags.
+#[test]
+fn test_world_events_between_filter_structured_observations() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
+
+    let before = world.moment();
+    let _ = world.observe(
+        Observation::summary(
+            ObservationCategory::Domain,
+            Scope::runtime(runtime_id),
+            "ui.click",
+            "save button clicked",
+        )
+        .tagged("screen", "checkout")
+        .tagged("element", "save-button"),
+    );
+    let moment = world.moment();
+    assert_eq!(before, moment);
+
+    let events = world
+        .events()
+        .up_to(moment)
+        .expect("event query should succeed");
+
+    let events = events
+        .observations()
+        .name("ui.click")
+        .category(ObservationCategory::Domain)
+        .runtime(runtime_id)
+        .tagged("screen", "checkout");
+
+    assert_eq!(events.len(), 1);
+    assert_eq!(
+        events.first().and_then(|event| event.name()),
+        Some("ui.click")
+    );
+}
+
+/// Ensures world transition queries derive adjacent state transitions from trace.
+#[test]
+fn test_world_transitions_between_project_trace_steps() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+
+    let start = world.moment();
+    test.record_world_entity_kind("transition");
+    let end = world.moment();
+
+    let transitions = world
+        .transitions()
+        .between(start, end)
+        .expect("transition query should succeed");
+    let transitions = transitions.as_slice();
+
+    assert_eq!(transitions.len(), 1);
+    assert_eq!(transitions[0].before, start);
+    assert_eq!(transitions[0].after, end);
+    assert!(transitions[0].is_input());
+
+    let TraceRecord::Input(Input::Mutation(_)) = world
+        .transition_record(&transitions[0])
+        .expect("transition cause should resolve")
+    else {
+        panic!("transition cause should be one world mutation input");
+    };
+}
+
+/// Ensures lineage event queries surface committed observations across branches.
+#[test]
+fn test_lineage_events_on_project_committed_trace_and_observation() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+
+    test.record_world_entity_kind("lineage");
+    let _ = test.suspend();
+
+    let branch = test.branch();
+    let events = world
+        .lineage()
+        .events()
+        .branch(branch.id)
+        .expect("lineage event query should succeed");
+    let events = events.as_slice();
+
+    assert_eq!(events.len(), 2);
+    assert!(events[0].is_input());
+    assert_eq!(events[0].name(), Some("topology.define_entity_kind"));
+    assert!(events[1].is_observation());
+
+    let Some(Input::Mutation(_)) = events[0].input() else {
+        panic!("first lineage event should be one committed world mutation");
+    };
+    let Some(observation) = events[1].observation() else {
+        panic!("second lineage event should be one committed observation");
+    };
+    assert_eq!(observation.name, "world.control");
+}
+
+/// Ensures committed event selectors match structured observation metadata.
+#[test]
+fn test_lineage_events_on_filter_structured_observations() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
+
+    let _ = world.observe(
+        Observation::summary(
+            ObservationCategory::Domain,
+            Scope::runtime(runtime_id),
+            "db.role.changed",
+            "storage promoted to log",
+        )
+        .tagged("cluster", "main"),
+    );
+    let _ = test.suspend();
+
+    let events = world
+        .lineage()
+        .events()
+        .branch(test.branch().id)
+        .expect("lineage event query should succeed")
+        .observations()
+        .name("db.role.changed")
+        .category(ObservationCategory::Domain)
+        .runtime(runtime_id)
+        .tagged("cluster", "main");
+
+    assert_eq!(events.len(), 1);
+}
+
+/// Ensures lineage queries only see committed child-branch history.
+#[test]
+fn test_lineage_events_on_child_branch_exclude_live_tail_until_commit() {
+    let options = record_options();
+    let parent = TestWorld::with_options(&options);
+    let checkpoint_id = parent.checkpoint("fork-base");
+    let child = parent.fork(checkpoint_id, "child");
+    let child_world = child.world();
+    let child_branch = child.branch();
+
+    child.record_world_entity_kind("child-live");
+
+    let committed_events = child_world
+        .lineage()
+        .events_on(child_branch.id)
+        .expect("committed lineage query should succeed");
+    assert!(
+        committed_events
+            .as_slice()
+            .iter()
+            .all(|event| event.moment.sequence.get() == 0),
+        "child committed lineage should still end at the fork point"
+    );
+
+    let live_end = child_world.moment();
+    let live_events = child_world
+        .events_between(
+            child_world
+                .lineage()
+                .branch_head_moment(child_branch.id)
+                .expect("child branch head moment should exist"),
+            live_end,
+        )
+        .expect("live branch query should include uncommitted tail");
+    assert!(
+        live_events.as_slice().iter().any(|event| event
+            .observation()
+            .is_some_and(|observation| observation.name == "world.control")),
+        "live branch query should include the uncommitted observation"
+    );
+
+    let _ = child.suspend();
+
+    let committed_events = child_world
+        .lineage()
+        .events_on(child_branch.id)
+        .expect("committed lineage query should succeed after suspend");
+    assert!(
+        committed_events.as_slice().iter().any(|event| event
+            .observation()
+            .is_some_and(|observation| observation.name == "world.control")),
+        "committed lineage should include the child observation after commit"
+    );
+}
+
+/// Ensures lineage transition queries derive committed branch-local steps.
+#[test]
+fn test_lineage_transitions_on_project_committed_steps() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+
+    test.record_world_entity_kind("transition-lineage");
+    let _ = test.suspend();
+
+    let transitions = world
+        .lineage()
+        .transitions()
+        .branch(test.branch().id)
+        .expect("lineage transition query should succeed");
+    let transitions = transitions.as_slice();
+
+    assert_eq!(transitions.len(), 1);
+    assert!(transitions[0].is_input());
+    let TraceRecord::Input(Input::Mutation(_)) = world
+        .lineage()
+        .transition_record(&transitions[0])
+        .expect("committed transition cause should resolve")
+    else {
+        panic!("committed lineage transition should be caused by one world mutation");
+    };
+}
+
+/// Ensures lineage descendant queries include forked child branches.
+#[test]
+fn test_lineage_descendants_of_includes_child_branch() {
+    let options = record_options();
+    let parent = TestWorld::with_options(&options);
+    let checkpoint_id = parent.checkpoint("fork-base");
+    let child = parent.fork(checkpoint_id, "child");
+    let parent_world = parent.world();
+
+    let descendants = parent_world
+        .lineage()
+        .descendants_of(parent.branch().id)
+        .expect("descendant query should succeed");
+
+    assert!(
+        descendants
+            .as_slice()
+            .iter()
+            .any(|branch| branch.id == parent.branch().id),
+        "descendants should include the ancestor branch itself"
+    );
+    assert!(
+        descendants
+            .as_slice()
+            .iter()
+            .any(|branch| branch.id == child.branch().id),
+        "descendants should include the child branch"
+    );
+}
+
+/// Ensures lineage descendant event queries aggregate committed child history.
+#[test]
+fn test_lineage_events_on_descendants_of_include_child_history() {
+    let options = record_options();
+    let parent = TestWorld::with_options(&options);
+    parent.record_world_entity_kind("parent");
+    let _ = parent.suspend();
+
+    let checkpoint_id = parent.checkpoint("fork-base");
+    let child = parent.fork(checkpoint_id, "child");
+    child.record_world_entity_kind("child");
+    let _ = child.suspend();
+
+    let events = parent
+        .world()
+        .lineage()
+        .events_descendants_of(parent.branch().id)
+        .expect("descendant event query should succeed");
+
+    let input_count = events
+        .inputs()
+        .filter(|event| matches!(event.input(), Some(Input::Mutation(_))))
+        .len();
+
+    assert!(
+        input_count >= 2,
+        "descendant event query should include committed parent and child mutations"
+    );
+}
+
+/// Ensures lineage divergence queries report the fork point between parent and child.
+#[test]
+fn test_lineage_divergence_moment_reports_fork_point() {
+    let options = record_options();
+    let parent = TestWorld::with_options(&options);
+    parent.record_world_entity_kind("parent");
+    let fork_revision_id = parent.suspend();
+    let fork_moment = parent
+        .world()
+        .revision_moment(fork_revision_id)
+        .expect("fork revision should resolve to one moment");
+
+    let checkpoint_id = parent.checkpoint("fork-base");
+    let child = parent.fork(checkpoint_id, "child");
+
+    let divergence = parent
+        .world()
+        .lineage()
+        .divergence(parent.branch().id, child.branch().id)
+        .expect("divergence query should succeed");
+
+    assert_eq!(divergence.base.sequence, fork_moment.sequence);
+}
+
+/// Ensures lineage views expose exact committed world state at one moment.
+#[test]
+fn test_lineage_view_materializes_committed_state_at_moment() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+
+    // one mutation before the target moment
+    test.record_world_entity_kind("before-target");
+    let revision_id = test.suspend();
+    let moment = world
+        .revision_moment(revision_id)
+        .expect("revision should resolve to one committed moment");
+
+    // one later mutation after the target moment
+    test.record_world_entity_kind("after-target");
+    let _ = test.suspend();
+
+    let view = world
+        .lineage()
+        .view(moment)
+        .expect("lineage view should materialize one committed image");
+
+    assert!(
+        view.entity_kind("app.record.shared.before-target")
+            .is_some()
+    );
+    assert!(view.entity_kind("app.record.shared.after-target").is_none());
+}
+
+/// Ensures lineage views expose direct policy, runtime, and count accessors.
+#[test]
+fn test_lineage_view_exposes_policy_runtime_and_count_accessors() {
+    let options = record_options();
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
+
+    let revision_id = test.suspend();
+    let moment = world
+        .revision_moment(revision_id)
+        .expect("revision should resolve to one committed moment");
+
+    let view = world
+        .lineage()
+        .view(moment)
+        .expect("lineage view should materialize one committed image");
+    // policy and runtime access
+    assert_eq!(view.policy(), &world.policy());
+    assert_eq!(view.runtime_count(), 1);
+    assert_eq!(view.runtimes().len(), 1);
+    assert!(view.has_runtime(runtime_id));
+    assert!(view.runtime(runtime_id).is_ok());
+
+    // empty collections and negative lookups
+    assert_eq!(view.resource_count(), 0);
+    assert_eq!(view.resources().len(), 0);
+    assert!(!view.has_resource(WorldResourceId::new(AgentId(u64::MAX), ResourceId(999))));
+    assert!(!view.has_entity("missing.entity"));
+    assert!(!view.has_edge("missing.edge"));
+}
+
+/// Ensures forked worlds share the same immutable trace head before divergence.
+#[test]
+fn test_world_fork_shares_trace_head_before_mutation() {
+    let options = RuntimeOptions {
+        execution: ExecutionMode::Record,
+        ..RuntimeOptions::default()
+    };
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+
+    test.record_world_entity_kind("baseline");
+    let checkpoint_id = world
+        .checkpoint("trace-shared")
+        .expect("checkpoint should succeed");
+    let child = world
+        .fork(checkpoint_id, "child")
+        .expect("fork should succeed");
+
+    let parent_trace = world.trace().capture_image();
+    let child_trace = child.trace().capture_image();
+
+    assert!(parent_trace.shares_log_head_with(&child_trace));
+    assert_eq!(
+        parent_trace.next_sequence.get(),
+        child_trace.next_sequence.get()
+    );
+}
+
+/// Ensures child trace mutation extends the shared fork prefix instead of replacing it.
+#[test]
+fn test_world_fork_child_trace_extends_shared_prefix() {
+    let options = RuntimeOptions {
+        execution: ExecutionMode::Record,
+        ..RuntimeOptions::default()
+    };
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+
+    test.record_world_entity_kind("baseline");
+    let checkpoint_id = world
+        .checkpoint("trace-prefix")
+        .expect("checkpoint should succeed");
+    let child = world
+        .fork(checkpoint_id, "child")
+        .expect("fork should succeed");
+
+    let parent_trace = world.trace().capture_image();
+    TestWorld::from_world(child.clone()).record_world_entity_kind("child-extra");
+    let child_trace = child.trace().capture_image();
+
+    assert!(child_trace.extends_log_head_of(&parent_trace));
+    assert!(!child_trace.shares_log_head_with(&parent_trace));
 }
 
 /// Ensures serialized world snapshots preserve lineage metadata and restore state.
@@ -413,12 +1110,11 @@ fn test_world_fork_isolates_vm_runtime_state() {
 fn test_world_snapshot_roundtrip_restores_lineage_and_state() {
     // build one vm-backed runtime and capture one checkpoint
     let options = RuntimeOptions::default();
-    let world = Arc::new(World::default());
-    let runtime_id = world
-        .spawn_runtime(Vec::new(), &options, vm_engine())
-        .expect("runtime should spawn in world");
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
 
-    allocate_vm_heap_cell(&world, runtime_id);
+    test.allocate_vm_heap_allocation(runtime_id);
     let checkpoint_id = world
         .checkpoint("baseline")
         .expect("checkpoint should succeed");
@@ -436,12 +1132,12 @@ fn test_world_snapshot_roundtrip_restores_lineage_and_state() {
     let snapshot = crate::runtime::Snapshot::decode(&bytes).expect("snapshot should decode");
 
     // mutate the world after the snapshot
-    allocate_vm_heap_cell(&world, runtime_id);
+    test.allocate_vm_heap_allocation(runtime_id);
     world
-        .spawn_runtime(Vec::new(), &options, vm_engine())
+        .spawn_runtime(Vec::new(), &options, TestWorld::vm_engine())
         .expect("second runtime should spawn in world");
     assert_eq!(world.runtime_ids().len(), 2);
-    assert_eq!(vm_heap_cell_count(&world, runtime_id), 2);
+    assert_eq!(test.vm_heap_allocation_count(runtime_id), 2);
 
     // restore from the serialized snapshot
     world
@@ -450,16 +1146,17 @@ fn test_world_snapshot_roundtrip_restores_lineage_and_state() {
 
     // the snapshot should restore both runtime state and lineage metadata
     assert_eq!(world.runtime_ids(), vec![runtime_id]);
-    assert_eq!(vm_heap_cell_count(&world, runtime_id), 1);
+    assert_eq!(test.vm_heap_allocation_count(runtime_id), 1);
     assert_eq!(world.checkpoint_ids(), vec![checkpoint_id]);
     assert_eq!(world.revision_id(), checkpoint.revision_id);
 
     // rebuilding one fresh world from the same snapshot should preserve the same lineage
     let restored_world =
         World::from_snapshot(&snapshot, None).expect("snapshot should rebuild world");
+    let restored_test = TestWorld::from_world(Arc::clone(&restored_world));
     assert_eq!(restored_world.branch_id(), world.branch_id());
     assert_eq!(restored_world.runtime_ids(), vec![runtime_id]);
-    assert_eq!(vm_heap_cell_count(&restored_world, runtime_id), 1);
+    assert_eq!(restored_test.vm_heap_allocation_count(runtime_id), 1);
     assert_eq!(restored_world.checkpoint_ids(), vec![checkpoint_id]);
     assert_eq!(restored_world.revision_id(), checkpoint.revision_id);
 }
@@ -469,10 +1166,9 @@ fn test_world_snapshot_roundtrip_restores_lineage_and_state() {
 fn test_world_hibernate_snapshot_roundtrip_preserves_pending_state() {
     // build one runtime with pending ingress but no suspended continuations
     let options = RuntimeOptions::default();
-    let world = Arc::new(World::default());
-    let runtime_id = world
-        .spawn_runtime(Vec::new(), &options, vm_engine())
-        .expect("runtime should spawn in world");
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
     world
         .with_runtime_mut(runtime_id, |runtime| {
             let agent_id = runtime.primary_agent_id();
@@ -519,13 +1215,10 @@ fn test_world_hibernate_snapshot_roundtrip_preserves_pending_state() {
 fn test_world_spawn_runtime_tracks_identity() {
     // create one shared world and two runtimes
     let options = RuntimeOptions::default();
-    let world = Arc::new(World::default());
-    let runtime_a = world
-        .spawn_runtime(Vec::new(), &options, TestEngine::default())
-        .expect("runtime should spawn in world");
-    let runtime_b = world
-        .spawn_runtime(Vec::new(), &options, TestEngine::default())
-        .expect("runtime should spawn in world");
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_a = test.spawn_vm_runtime(&options);
+    let runtime_b = test.spawn_vm_runtime(&options);
 
     // both runtimes should keep unique identities in one shared world
     assert_ne!(runtime_a, runtime_b);
@@ -553,7 +1246,7 @@ fn test_world_shared_commands_affect_detached_agents() {
     )
     .expect("agent should construct in world");
 
-    // install one rule through one world command
+    // install one rule through one world mutation
     world
         .install_rule(Rule {
             id: RuleId("test.shared.world.command".to_string()),
@@ -567,7 +1260,7 @@ fn test_world_shared_commands_affect_detached_agents() {
             },
             trigger: None,
         })
-        .expect("world command should apply");
+        .expect("world mutation should apply");
 
     // both agents should observe the same world policy view
     assert_eq!(world.policy().rules.len(), 1);
@@ -578,10 +1271,9 @@ fn test_world_shared_commands_affect_detached_agents() {
 fn test_world_spawn_runtime_registers_identity() {
     // create one shared world and one runtime in that world
     let options = RuntimeOptions::default();
-    let world = Arc::new(World::default());
-    let runtime_id = world
-        .spawn_runtime(Vec::new(), &options, TestEngine::default())
-        .expect("runtime should spawn in world");
+    let test = TestWorld::new();
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
 
     // one runtime registration should appear in world topology
     assert_eq!(world.runtime_ids(), vec![runtime_id]);
@@ -769,7 +1461,7 @@ fn test_agent_world_control_agent_selector() {
     assert_eq!(agent_b.hooks.unapplied_policy_decision_count(), 0);
 }
 
-/// Ensures one policy command can install one deny rule.
+/// Ensures one policy mutation can install one deny rule.
 #[test]
 fn test_world_apply_policy_command_updates_rules() {
     // create one agent in one shared world
@@ -785,7 +1477,7 @@ fn test_world_apply_policy_command_updates_rules() {
     let host = Host::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.program.policy", "()");
 
-    // install one deny rule through one world command
+    // install one deny rule through one world mutation
     world
         .install_rule(Rule {
             id: RuleId("test.runtime.program.policy".to_string()),
@@ -799,7 +1491,7 @@ fn test_world_apply_policy_command_updates_rules() {
             },
             trigger: None,
         })
-        .expect("policy command should apply");
+        .expect("policy mutation should apply");
 
     // the installed rule should deny matching calls
     let call_context = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
@@ -883,7 +1575,7 @@ fn test_world_topology_command_failure_does_not_revert_prior_commands() {
         labels: std::collections::BTreeMap::new(),
     });
 
-    // the failing command should not mutate topology, prior command stays committed
+    // the failing mutation should not mutate topology, prior mutation stays committed
     let entity_kinds = world.entity_kinds();
     let entities = world.entities();
     assert!(result.is_err());
@@ -971,7 +1663,7 @@ fn test_world_remove_agent_cleans_topology() {
     assert!(after_result.is_err());
 }
 
-/// Ensures failed world commands do not append replay events.
+/// Ensures failed world mutations do not append replay events.
 #[test]
 fn test_world_apply_record_failure_does_not_append_replay_events() {
     // create one record-mode world
@@ -1010,10 +1702,9 @@ fn test_world_apply_record_failure_does_not_append_replay_events() {
 fn test_runtime_spawn_agent_aligns_world_scoped_options() {
     // create one runtime with one shared world
     let options = RuntimeOptions::default();
-    let world = World::from_options(&options).expect("world should construct");
-    let runtime_id = world
-        .spawn_runtime(Vec::new(), &options, TestEngine::default())
-        .expect("runtime builds");
+    let test = TestWorld::with_options(&options);
+    let world = test.world();
+    let runtime_id = test.spawn_vm_runtime(&options);
 
     // request one conflicting option set for spawn
     let spawn_options = RuntimeOptions {
@@ -1035,7 +1726,7 @@ fn test_runtime_spawn_agent_aligns_world_scoped_options() {
     world
         .with_runtime_mut(runtime_id, |runtime| {
             let spawned_agent_id = runtime
-                .spawn_agent_with_options(&world, &spawn_options, Box::new(TestEngine::default()))
+                .spawn_agent_with_options(&world, &spawn_options, Box::new(TestWorld::vm_engine()))
                 .expect("spawn should succeed");
             let spawned_agent = runtime
                 .agent(spawned_agent_id)

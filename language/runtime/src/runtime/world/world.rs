@@ -9,21 +9,21 @@ use crate::platform::PlatformError;
 use crate::runtime::bindings::BindingReplayPayload;
 use crate::runtime::policy::{Policy, PolicyState};
 use crate::runtime::random::{Random, RandomStreamId};
-use crate::runtime::replay::{Trace, TraceHeader};
 use crate::runtime::time::{Clock, HostClockSource, Nanos};
+use crate::runtime::trace::{Outcome, Trace, TraceHeader, TraceSequence};
 use crate::runtime::{AgentId, Runtime};
 use crate::simulation::Simulation;
 use destack_workspace::{ExecutionMode, RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode};
 
 use super::lineage::{Lineage, ROOT_BRANCH_ID, ROOT_IMAGE_ID};
 use super::topology::Topology;
-pub use super::topology::{
+pub(crate) use super::topology::{
     RuntimeId, WorldEdge, WorldEdgeId, WorldEdgeKind, WorldEdgeKindDefinition, WorldEntity,
     WorldEntityId, WorldEntityKind, WorldEntityKindDefinition,
 };
 use super::{
-    AccessState, BranchId, INITIAL_AGENT_ID, INITIAL_RUNTIME_ID, Image, Observation, WorldResource,
-    WorldResourceId,
+    AccessState, BranchId, INITIAL_AGENT_ID, INITIAL_RUNTIME_ID, Image, Input, ObservationLog,
+    WorldResource, WorldResourceId,
 };
 
 /// Number of bytes in a megabyte for replay chunk sizing.
@@ -33,40 +33,40 @@ const BYTES_PER_MB: u64 = 1024 * 1024;
 #[derive(Debug)]
 pub struct World {
     /// Active branch identifier for this live world instance.
-    pub(super) branch_id: BranchId,
+    pub(crate) branch_id: BranchId,
     /// Live runtimes owned by this world.
-    pub(super) runtimes: RwLock<BTreeMap<RuntimeId, Box<Runtime>>>,
+    pub(crate) runtimes: RwLock<BTreeMap<RuntimeId, Box<Runtime>>>,
     /// Shared simulation state for all agents using this world.
-    pub(super) simulation: RwLock<Simulation>,
+    pub(crate) simulation: RwLock<Simulation>,
 
     /// Effective world time mode after execution-mode resolution.
-    pub(super) time_mode: TimeMode,
+    pub(crate) time_mode: TimeMode,
     /// Effective world random mode after execution-mode resolution.
-    pub(super) random_mode: RandomMode,
+    pub(crate) random_mode: RandomMode,
     /// Shared world clock.
-    pub(super) clock: Clock,
+    pub(crate) clock: Clock,
     /// Shared world randomness state.
-    pub(super) random: Random,
-    /// Trace controller for deterministic world event history.
-    pub(super) trace: Trace,
-    /// High-volume observation stream kept separate from causal trace.
-    pub(super) observation: Observation,
+    pub(crate) random: Random,
+    /// Trace of world events.
+    pub(crate) trace: Trace,
+    /// Emitted observation log (separate from causal trace).
+    pub(crate) observations: ObservationLog,
     /// Active policy state.
-    pub(super) policy: RwLock<PolicyState>,
-    /// One global mutation gate for replayable world control changes.
-    pub(super) mutation_lock: Mutex<()>,
+    pub(crate) policy: RwLock<PolicyState>,
+    /// One global mutation gate for replayable world-state changes.
+    pub(crate) mutation_lock: Mutex<()>,
     /// The next runtime id to allocate.
-    pub(super) next_runtime_id: AtomicU64,
+    pub(crate) next_runtime_id: AtomicU64,
     /// The next agent id to allocate.
-    pub(super) next_agent_id: AtomicU64,
+    pub(crate) next_agent_id: AtomicU64,
     /// World-owned lineage and durable restore metadata.
-    pub(super) lineage: Arc<RwLock<Lineage>>,
+    pub(crate) lineage: Arc<RwLock<Lineage>>,
     /// World-owned shared and exclusive access coordinator state.
-    pub(super) access_state: RwLock<AccessState>,
+    pub(crate) access_state: RwLock<AccessState>,
     /// Topology registry for world metadata.
-    pub(super) topology: RwLock<Topology>,
+    pub(crate) topology: RwLock<Topology>,
     /// Logical resource records keyed by world resource identifier.
-    pub(super) resources: RwLock<BTreeMap<WorldResourceId, WorldResource>>,
+    pub(crate) resources: RwLock<BTreeMap<WorldResourceId, WorldResource>>,
 }
 
 #[allow(clippy::arc_with_non_send_sync)]
@@ -164,7 +164,7 @@ impl World {
             clock,
             random,
             trace,
-            observation: Observation::default(),
+            observations: ObservationLog::default(),
             policy: RwLock::new(PolicyState::new(policy)),
             mutation_lock: Mutex::new(()),
             next_runtime_id: AtomicU64::new(INITIAL_RUNTIME_ID),
@@ -279,9 +279,9 @@ impl World {
         self.random_mode
     }
 
-    /// Return the high-volume observation stream for this world.
-    pub fn observation(&self) -> &Observation {
-        &self.observation
+    /// Return the emitted observation log for this world.
+    pub fn observations(&self) -> &ObservationLog {
+        &self.observations
     }
 
     /// Return the current world wall time.
@@ -367,6 +367,31 @@ impl World {
     /// Borrow the shared trace controller.
     pub fn trace(&self) -> &Trace {
         &self.trace
+    }
+
+    /// Ingest one authoritative input at the world boundary.
+    pub fn ingest(&self, input: Input) -> RuntimeResult<()> {
+        self.trace.record_input(input)
+    }
+
+    /// Accept one authoritative external outcome at the world boundary.
+    pub fn accept(&self, outcome: Outcome) -> RuntimeResult<()> {
+        self.trace.record_outcome(outcome)
+    }
+
+    /// Append one authoritative history anchor at the world boundary.
+    pub fn anchor(&self, label: impl Into<String>) -> RuntimeResult<TraceSequence> {
+        self.trace.record_anchor(label.into())
+    }
+
+    /// Append one explicit history label to the active trace.
+    pub fn label(&self, label: impl Into<String>) -> RuntimeResult<TraceSequence> {
+        self.anchor(label)
+    }
+
+    /// Resolve one input against the replay boundary.
+    pub(crate) fn resolve_input(&self, input: Input) -> RuntimeResult<Input> {
+        self.trace.resolve_input(input)
     }
 }
 

@@ -1,44 +1,16 @@
-use std::collections::BTreeMap;
-
 use crate::runtime::AgentId;
 use crate::runtime::policy::{Policy, Rule, RuleId};
 use serde::{Deserialize, Serialize};
 
 use super::resource::{WorldResource, WorldResourceId};
 use super::topology::{
-    RuntimeId, WorldEdge, WorldEdgeId, WorldEdgeKindDefinition, WorldEntity, WorldEntityId,
+    WorldEdge, WorldEdgeId, WorldEdgeKindDefinition, WorldEntity, WorldEntityId,
     WorldEntityKindDefinition,
 };
 
-/// World mutation command payload.
+/// One explicit structural world-state mutation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum WorldCommand {
-    /// Create one runtime and its primary agent.
-    CreateRuntime {
-        /// Runtime identifier to create.
-        runtime_id: RuntimeId,
-        /// Runtime name for selector matching.
-        runtime_name: String,
-        /// Runtime labels for selector matching.
-        runtime_labels: BTreeMap<String, String>,
-        /// Primary agent identifier to create.
-        primary_agent_id: AgentId,
-        /// Primary agent name for selector matching.
-        primary_agent_name: String,
-        /// Primary agent labels for selector matching.
-        primary_agent_labels: BTreeMap<String, String>,
-    },
-    /// Create one agent in one existing runtime.
-    CreateAgent {
-        /// Runtime identifier that owns this agent.
-        runtime_id: RuntimeId,
-        /// Agent identifier to create.
-        agent_id: AgentId,
-        /// Agent name for selector matching.
-        agent_name: String,
-        /// Agent labels for selector matching.
-        agent_labels: BTreeMap<String, String>,
-    },
+pub enum Mutation {
     /// Remove one agent from the world.
     RemoveAgent {
         /// Agent identifier to remove.
@@ -116,4 +88,27 @@ pub(crate) enum WorldCommand {
         /// Stable edge identifier.
         edge_id: WorldEdgeId,
     },
+}
+
+impl Mutation {
+    /// Return the stable mutation name.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::RemoveAgent { .. } => "agent.remove",
+            Self::CreateResource { .. } => "resource.create",
+            Self::DestroyResource { .. } => "resource.destroy",
+            Self::SetPolicy { .. } => "policy.set",
+            Self::InstallRule { .. } => "rule.install",
+            Self::RemoveRule { .. } => "rule.remove",
+            Self::EnableRule { .. } => "rule.enable",
+            Self::DisableRule { .. } => "rule.disable",
+            Self::ReplaceRule { .. } => "rule.replace",
+            Self::DefineEntityKind { .. } => "topology.define_entity_kind",
+            Self::DefineEdgeKind { .. } => "topology.define_edge_kind",
+            Self::UpsertEntity { .. } => "topology.upsert_entity",
+            Self::RemoveEntity { .. } => "topology.remove_entity",
+            Self::UpsertEdge { .. } => "topology.upsert_edge",
+            Self::RemoveEdge { .. } => "topology.remove_edge",
+        }
+    }
 }

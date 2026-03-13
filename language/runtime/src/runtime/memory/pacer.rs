@@ -1,4 +1,4 @@
-use destack_workspace::GcOptions;
+use destack_workspace::HeapOptions;
 
 const DEFAULT_MIN_HEAP_BYTES: u64 = 8 * 1024 * 1024;
 const DEFAULT_TRIGGER_RATIO_PERCENT: u64 = 75;
@@ -16,18 +16,18 @@ pub struct GcPacer {
 
 impl GcPacer {
     /// Update pacing targets from options and live heap size.
-    pub fn update(&mut self, options: &GcOptions, live_bytes: u64) {
+    pub fn update(&mut self, options: &HeapOptions, live_bytes: u64) {
         // derive the minimum heap floor
-        let min_heap_bytes = options.heap_initial_bytes.unwrap_or(DEFAULT_MIN_HEAP_BYTES);
+        let min_heap_bytes = options.initial_bytes.unwrap_or(DEFAULT_MIN_HEAP_BYTES);
 
         // derive the next heap goal from configured growth
-        let growth_percent = u64::from(options.heap_growth_percent);
+        let growth_percent = u64::from(options.growth_percent);
         let growth = live_bytes.saturating_mul(growth_percent);
         let growth = growth / 100;
         let mut goal = live_bytes.saturating_add(growth).max(min_heap_bytes);
 
         // clamp to optional soft cap
-        if let Some(max) = options.heap_soft_limit_bytes {
+        if let Some(max) = options.soft_limit_bytes {
             goal = goal.min(max);
         }
 

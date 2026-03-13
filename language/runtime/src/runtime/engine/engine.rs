@@ -6,6 +6,7 @@ use super::{
     EngineContinuation, EngineContinuationImage, EngineImage, EngineSnapshot, EngineStats, Entry,
 };
 use crate::diagnostic::RuntimeResult;
+use crate::runtime::engine::EntryReference;
 
 /// Engine output produced when execution completes.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -39,6 +40,14 @@ pub trait Engine: Any {
         &mut self,
         heap: &mut heap::Heap,
         entry: &Entry,
+        args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutcome>;
+
+    /// Run one replayable entrypoint descriptor.
+    fn run_replayable_entry(
+        &mut self,
+        heap: &mut heap::Heap,
+        entry: &EntryReference,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome>;
 

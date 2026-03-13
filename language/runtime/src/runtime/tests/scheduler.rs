@@ -10,7 +10,7 @@ use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineOutcome, EngineOutput,
-    EngineSnapshot, Entry, NativeContinuation,
+    EngineSnapshot, Entry, EntryReference, NativeContinuation,
 };
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
@@ -41,6 +41,23 @@ impl Engine for CompleteEngine {
         &mut self,
         _heap: &mut heap::Heap,
         _entry: &Entry,
+        _args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutcome> {
+        Ok(EngineOutcome::Completed {
+            output: EngineOutput {
+                value: heap::Value::VOID,
+                stats: Default::default(),
+                heap_cells: 0,
+                raw_heap_cells: 0,
+            },
+        })
+    }
+
+    /// Run one replayable entrypoint without yielding.
+    fn run_replayable_entry(
+        &mut self,
+        _heap: &mut heap::Heap,
+        _entry: &EntryReference,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
         Ok(EngineOutcome::Completed {

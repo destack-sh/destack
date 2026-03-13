@@ -4,7 +4,7 @@ use {destack_heap as heap, destack_vm as vm};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineContinuationImage, EngineImage, EngineOutcome, EngineOutput,
-    EngineSnapshot, EngineStats, Entry,
+    EngineSnapshot, EngineStats, Entry, EntryReference,
 };
 
 /// VM engine implementation for one agent.
@@ -20,6 +20,28 @@ impl Engine for Isolate {
             return Err(RuntimeError::EngineEntryMismatch {
                 engine: "vm".to_string(),
                 entry: entry.name().to_string(),
+            }
+            .boxed());
+        };
+        let outcome = self
+            .run_function_by_name_yielding(heap, name, args)
+            .map_err(Box::<RuntimeError>::from)?;
+        Ok(map_vm_outcome(outcome))
+    }
+
+    /// Run one replayable VM entrypoint by name.
+    fn run_replayable_entry(
+        &mut self,
+        heap: &mut heap::Heap,
+        entry: &EntryReference,
+        args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutcome> {
+        let EntryReference::Vm { name } = entry else {
+            return Err(RuntimeError::EngineEntryMismatch {
+                engine: "vm".to_string(),
+                entry: match entry {
+                    EntryReference::Vm { name } | EntryReference::Native { name } => name.clone(),
+                },
             }
             .boxed());
         };
