@@ -8,28 +8,26 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessCpuSetValue, ProcessCpuSetVm, ProcessFdAction,
-    ProcessFdActionClose, ProcessFdActionCloseVm, ProcessFdActionDup2, ProcessFdActionDup2Vm,
-    ProcessFdActionOpen, ProcessFdActionOpenVm, ProcessFdActionVm, ProcessFdFlags,
-    ProcessFdSignalFlags, ProcessGroupIds, ProcessGroupIdsVm, ProcessId, ProcessLimit,
-    ProcessLimitResource, ProcessLimitVm, ProcessNamespaceKind, ProcessSchedulerConfig,
-    ProcessSchedulerConfigVm, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessSpawnOptionsVm,
-    ProcessStdio, ProcessStdioDescriptor, ProcessStdioDescriptorVm, ProcessStdioFile,
-    ProcessStdioFileVm, ProcessStdioInherit, ProcessStdioInheritVm, ProcessStdioNull,
-    ProcessStdioNullVm, ProcessStdioPipe, ProcessStdioPipeVm, ProcessStdioVm, ProcessUnshareFlags,
-    ProcessUserIds, ProcessUserIdsVm, ProcessWaitContinuedStatus, ProcessWaitContinuedStatusValue,
-    ProcessWaitContinuedStatusVm, ProcessWaitExitedStatus, ProcessWaitExitedStatusValue,
-    ProcessWaitExitedStatusVm, ProcessWaitFlags, ProcessWaitRunningStatus,
-    ProcessWaitRunningStatusValue, ProcessWaitRunningStatusVm, ProcessWaitSignaledStatus,
-    ProcessWaitSignaledStatusValue, ProcessWaitSignaledStatusVm, ProcessWaitStatus,
-    ProcessWaitStatusValue, ProcessWaitStatusVm, ProcessWaitStoppedStatus,
-    ProcessWaitStoppedStatusValue, ProcessWaitStoppedStatusVm, ProcesscpusetReplayRecord,
+    ExecAtFlags, GroupId, ProcessFdAction, ProcessFdActionClose, ProcessFdActionCloseVm,
+    ProcessFdActionDup2, ProcessFdActionDup2Vm, ProcessFdActionOpen, ProcessFdActionOpenVm,
+    ProcessFdActionVm, ProcessFdFlags, ProcessFdSignalFlags, ProcessGroupIds, ProcessGroupIdsVm,
+    ProcessId, ProcessLimit, ProcessLimitResource, ProcessLimitVm, ProcessNamespaceKind,
+    ProcessSchedulerConfig, ProcessSchedulerConfigVm, ProcessSchedulerPolicy, ProcessSpawnOptions,
+    ProcessSpawnOptionsVm, ProcessStdio, ProcessStdioDescriptor, ProcessStdioDescriptorVm,
+    ProcessStdioFile, ProcessStdioFileVm, ProcessStdioInherit, ProcessStdioInheritVm,
+    ProcessStdioNull, ProcessStdioNullVm, ProcessStdioPipe, ProcessStdioPipeVm, ProcessStdioVm,
+    ProcessUnshareFlags, ProcessUserIds, ProcessUserIdsVm, ProcessWaitContinuedStatus,
+    ProcessWaitContinuedStatusValue, ProcessWaitContinuedStatusVm, ProcessWaitExitedStatus,
+    ProcessWaitExitedStatusValue, ProcessWaitExitedStatusVm, ProcessWaitFlags,
+    ProcessWaitRunningStatus, ProcessWaitRunningStatusValue, ProcessWaitRunningStatusVm,
+    ProcessWaitSignaledStatus, ProcessWaitSignaledStatusValue, ProcessWaitSignaledStatusVm,
+    ProcessWaitStatus, ProcessWaitStatusValue, ProcessWaitStatusVm, ProcessWaitStoppedStatus,
+    ProcessWaitStoppedStatusValue, ProcessWaitStoppedStatusVm,
     ProcesswaitcontinuedstatusReplayRecord, ProcesswaitexitedstatusReplayRecord,
     ProcesswaitrunningstatusReplayRecord, ProcesswaitsignaledstatusReplayRecord,
     ProcesswaitstatusReplayRecord, ProcesswaitstoppedstatusReplayRecord, Signal, SignalEvent,
     SignalEventVm, SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
 };
-use crate::platform::thread::ThreadCpu;
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, RuntimeStatus,
     VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
@@ -38,7 +36,7 @@ use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::trace::TraceError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -52,6 +50,7 @@ use crate::platform::process::simulation::{
 use crate::platform::process::{native as platform_native, vm as platform_vm};
 use crate::platform::{
     fs as platform_fs, fs, process as platform_process, resource as platform_resource, resource,
+    thread as platform_thread, thread,
 };
 
 /// Read a positional argument value.
@@ -211,7 +210,7 @@ fn encode_destack_process_args_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.process.cwd.chdir.
@@ -240,32 +239,24 @@ fn encode_destack_process_cwd_get_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<fs::OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         fs::OsPathVm::OsPathBytes(value) => {
             let tag_value = vm::Value::uint(1243901586u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = value.bytes.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         fs::OsPathVm::OsPathUtf16(value) => {
             let tag_value = vm::Value::uint(2271740357u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = value.utf16.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -347,7 +338,7 @@ fn encode_destack_process_env_get_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.process.env.set.
@@ -627,78 +618,55 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
             let tag_value = vm::Value::uint(2147747583u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
             let tag_value = vm::Value::uint(4060872876u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.exit_code as i64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::int(value.exit_code as i64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
             let tag_value = vm::Value::uint(2787154895u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
             let tag_value = vm::Value::uint(2483179112u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::uint(value.signal.0 as u64, 32);
+                let field_3 = vm::Value::bool(value.core_dumped);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
             let tag_value = vm::Value::uint(116212971u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::uint(value.signal.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -724,78 +692,55 @@ fn encode_destack_process_fd_process_fd_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
             let tag_value = vm::Value::uint(2147747583u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
             let tag_value = vm::Value::uint(4060872876u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.exit_code as i64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::int(value.exit_code as i64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
             let tag_value = vm::Value::uint(2787154895u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
             let tag_value = vm::Value::uint(2483179112u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::uint(value.signal.0 as u64, 32);
+                let field_3 = vm::Value::bool(value.core_dumped);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
             let tag_value = vm::Value::uint(116212971u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::uint(value.signal.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -864,12 +809,10 @@ fn encode_destack_process_fd_signal_fd_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -916,12 +859,10 @@ fn encode_destack_process_fd_signal_fd_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -972,12 +913,10 @@ fn encode_destack_process_group_cgroup_get_limit_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessLimitVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.soft, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.hard, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.soft, 64);
+        let field_1 = vm::Value::uint(value.hard, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -1154,13 +1093,11 @@ fn encode_destack_process_ids_group_ids_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessGroupIdsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.real.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.effective.0 as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.saved.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.real.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.effective.0 as u64, 32);
+        let field_2 = vm::Value::uint(value.saved.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -1170,7 +1107,7 @@ fn encode_destack_process_ids_groups_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<GroupId>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.process.ids.pid.
@@ -1408,13 +1345,11 @@ fn encode_destack_process_ids_user_ids_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessUserIdsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.real.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.effective.0 as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.saved.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.real.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.effective.0 as u64, 32);
+        let field_2 = vm::Value::uint(value.saved.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -1444,8 +1379,8 @@ fn decode_destack_process_isolation_install_syscall_filter_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<u8>, SyscallFilterFlags)> {
-    let program_value = arg_value(args, 0, "program", "uint8[]")?;
-    let program = decode_array::<u8>(context, program_value, "program", "uint8[]")?;
+    let program_value = arg_value(args, 0, "program", "Array<uint8>")?;
+    let program = decode_array::<u8>(context, program_value, "program", "Array<uint8>")?;
     let flags_value = arg_value(args, 1, "flags", "SyscallFilterFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "SyscallFilterFlags")?;
     let flags = SyscallFilterFlags(flags_inner);
@@ -1511,16 +1446,16 @@ fn decode_destack_process_isolation_setns_args(
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
     let namespace_value = arg_value(args, 1, "namespace", "ProcessNamespaceKind")?;
-    let namespace_raw = decode_uint8(namespace_value, "namespace_raw", "ProcessNamespaceKind")?;
+    let namespace_raw = decode_int32(namespace_value, "namespace_raw", "ProcessNamespaceKind")?;
     let namespace = match namespace_raw {
-        1u8 => ProcessNamespaceKind::Mount,
-        2u8 => ProcessNamespaceKind::User,
-        3u8 => ProcessNamespaceKind::Pid,
-        4u8 => ProcessNamespaceKind::Network,
-        5u8 => ProcessNamespaceKind::Ipc,
-        6u8 => ProcessNamespaceKind::Uts,
-        7u8 => ProcessNamespaceKind::Cgroup,
-        8u8 => ProcessNamespaceKind::Time,
+        1i32 => ProcessNamespaceKind::Mount,
+        2i32 => ProcessNamespaceKind::User,
+        3i32 => ProcessNamespaceKind::Pid,
+        4i32 => ProcessNamespaceKind::Network,
+        5i32 => ProcessNamespaceKind::Ipc,
+        6i32 => ProcessNamespaceKind::Uts,
+        7i32 => ProcessNamespaceKind::Cgroup,
+        8i32 => ProcessNamespaceKind::Time,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "namespace",
@@ -1580,12 +1515,10 @@ fn encode_destack_process_limits_get_limit_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessLimitVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.soft, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.hard, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.soft, 64);
+        let field_1 = vm::Value::uint(value.hard, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -1652,13 +1585,11 @@ fn decode_destack_process_sched_get_affinity_args(
 #[inline]
 fn encode_destack_process_sched_get_affinity_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<ProcessCpuSetVm>,
+    result: RuntimeResult<thread::ThreadCpuSetVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = value.cpus.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = value.cpus.to_value(context);
+        context.allocate_aggregate(vec![field_0])
     })
 }
 
@@ -1701,13 +1632,11 @@ fn encode_destack_process_sched_get_scheduler_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessSchedulerConfigVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.policy as u8 as u64, 8));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.priority as i64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.policy as i32 as i64, 32);
+        let field_1 = vm::Value::int(value.priority as i64, 32);
+        let field_2 = vm::Value::uint(value.flags as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -1716,7 +1645,7 @@ fn encode_destack_process_sched_get_scheduler_result(
 fn decode_destack_process_sched_set_affinity_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(ProcessId, ProcessCpuSetVm)> {
+) -> RuntimeResult<(ProcessId, thread::ThreadCpuSetVm)> {
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
@@ -1739,8 +1668,9 @@ fn decode_destack_process_sched_set_affinity_args(
             ))
             .boxed());
         }
-        let cpus_cpus = decode_array::<ThreadCpu>(context, slots[0], "cpus_cpus", "cpus")?;
-        ProcessCpuSetVm { cpus: cpus_cpus }
+        let cpus_cpus =
+            decode_array::<thread::ThreadCpuVm>(context, slots[0], "cpus_cpus", "cpus")?;
+        thread::ThreadCpuSetVm { cpus: cpus_cpus }
     };
     Ok((pid, cpus))
 }
@@ -1805,14 +1735,14 @@ fn decode_destack_process_sched_set_scheduler_args(
             ))
             .boxed());
         }
-        let config_policy_raw = decode_uint8(slots[0], "config_policy_raw", "policy")?;
+        let config_policy_raw = decode_int32(slots[0], "config_policy_raw", "policy")?;
         let config_policy = match config_policy_raw {
-            1u8 => ProcessSchedulerPolicy::Other,
-            2u8 => ProcessSchedulerPolicy::Fifo,
-            3u8 => ProcessSchedulerPolicy::RoundRobin,
-            4u8 => ProcessSchedulerPolicy::Batch,
-            5u8 => ProcessSchedulerPolicy::Idle,
-            6u8 => ProcessSchedulerPolicy::Deadline,
+            1i32 => ProcessSchedulerPolicy::Other,
+            2i32 => ProcessSchedulerPolicy::Fifo,
+            3i32 => ProcessSchedulerPolicy::RoundRobin,
+            4i32 => ProcessSchedulerPolicy::Batch,
+            5i32 => ProcessSchedulerPolicy::Idle,
+            6i32 => ProcessSchedulerPolicy::Deadline,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_policy",
@@ -1934,7 +1864,7 @@ fn encode_destack_process_signals_signal_mask_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<Signal>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.process.signals.signalMaskUpdate.
@@ -1944,11 +1874,11 @@ fn decode_destack_process_signals_signal_mask_update_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(SignalMaskHow, VmSlice<Signal>)> {
     let how_value = arg_value(args, 0, "how", "SignalMaskHow")?;
-    let how_raw = decode_uint8(how_value, "how_raw", "SignalMaskHow")?;
+    let how_raw = decode_int32(how_value, "how_raw", "SignalMaskHow")?;
     let how = match how_raw {
-        0u8 => SignalMaskHow::Set,
-        1u8 => SignalMaskHow::Block,
-        2u8 => SignalMaskHow::Unblock,
+        0i32 => SignalMaskHow::Set,
+        1i32 => SignalMaskHow::Block,
+        2i32 => SignalMaskHow::Unblock,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "how",
@@ -1990,12 +1920,10 @@ fn encode_destack_process_signals_signal_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -2039,12 +1967,10 @@ fn encode_destack_process_signals_signal_try_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -2065,12 +1991,10 @@ fn encode_destack_process_signals_signal_try_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -2113,12 +2037,10 @@ fn encode_destack_process_signals_signal_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.signal.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -2310,78 +2232,55 @@ fn encode_destack_process_wait_handle_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
             let tag_value = vm::Value::uint(2147747583u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
             let tag_value = vm::Value::uint(4060872876u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.exit_code as i64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::int(value.exit_code as i64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
             let tag_value = vm::Value::uint(2787154895u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
             let tag_value = vm::Value::uint(2483179112u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::uint(value.signal.0 as u64, 32);
+                let field_3 = vm::Value::bool(value.core_dumped);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
             let tag_value = vm::Value::uint(116212971u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::uint(value.signal.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -2407,78 +2306,55 @@ fn encode_destack_process_wait_pid_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
             let tag_value = vm::Value::uint(2147747583u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
             let tag_value = vm::Value::uint(4060872876u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.exit_code as i64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::int(value.exit_code as i64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
             let tag_value = vm::Value::uint(2787154895u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
             let tag_value = vm::Value::uint(2483179112u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::uint(value.signal.0 as u64, 32);
+                let field_3 = vm::Value::bool(value.core_dumped);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
             let tag_value = vm::Value::uint(116212971u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::uint(value.signal.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -2502,78 +2378,55 @@ fn encode_destack_process_wait_try_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
             let tag_value = vm::Value::uint(2147747583u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
             let tag_value = vm::Value::uint(4060872876u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.exit_code as i64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::int(value.exit_code as i64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
             let tag_value = vm::Value::uint(2787154895u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
             let tag_value = vm::Value::uint(2483179112u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::uint(value.signal.0 as u64, 32);
+                let field_3 = vm::Value::bool(value.core_dumped);
+                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
             let tag_value = vm::Value::uint(116212971u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = vm::Value::uint(value.pid.0 as u64, 32);
+                let field_2 = vm::Value::uint(value.signal.0 as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -2890,7 +2743,7 @@ struct ProcessLimitsSetLimitReplayRecord {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessSchedGetAffinityReplayRecord {
     /// Replay result payload.
-    pub result: Result<ProcesscpusetReplayRecord, TraceError>,
+    pub result: Result<thread::ThreadcpusetReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.process.sched.getPriority.
@@ -4184,7 +4037,7 @@ pub(crate) const PROCESS_ISOLATION_CHROOT: BindingDescriptor =
 /// Binding descriptor for destack.process.isolation.installSyscallFilter.
 pub(crate) const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.isolation.installSyscallFilter",
-    "export function installSyscallFilter(program: uint8[], flags: SyscallFilterFlags): Result<void, PlatformError>",
+    "export function installSyscallFilter(program: Array<uint8>, flags: SyscallFilterFlags): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["security.filter"],
@@ -7993,7 +7846,7 @@ fn destack_process_limits_set_limit_replay(
 fn destack_process_sched_get_affinity_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
-    out: *mut ProcessCpuSet,
+    out: *mut thread::ThreadCpuSet,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
     let _ = &pid;
@@ -8011,15 +7864,20 @@ fn destack_process_sched_get_affinity_replay(
         },
         |result| {
             if let Ok(()) = result {
-                let result_value: ProcessCpuSet = unsafe { out.read() };
+                let result_value: thread::ThreadCpuSet = unsafe { out.read() };
                 let mut result_recorded_cpus = Vec::new();
                 for result_recorded_cpus_item in
                     unsafe { result_value.cpus.as_slice()? }.iter().cloned()
                 {
-                    let result_recorded_cpus_item_recorded = result_recorded_cpus_item;
+                    let result_recorded_cpus_item_recorded_group = result_recorded_cpus_item.group;
+                    let result_recorded_cpus_item_recorded_cpu = result_recorded_cpus_item.cpu;
+                    let result_recorded_cpus_item_recorded = thread::ThreadCpu {
+                        group: result_recorded_cpus_item_recorded_group,
+                        cpu: result_recorded_cpus_item_recorded_cpu,
+                    };
                     result_recorded_cpus.push(result_recorded_cpus_item_recorded);
                 }
-                let result_recorded = ProcesscpusetReplayRecord {
+                let result_recorded = thread::ThreadcpusetReplayRecord {
                     cpus: result_recorded_cpus,
                 };
                 let payload = ProcessSchedGetAffinityReplayRecord {
@@ -8044,11 +7902,16 @@ fn destack_process_sched_get_affinity_replay(
                 Ok(value) => {
                     let mut value_native_cpus_values = Vec::new();
                     for value_native_cpus_item in value.cpus.iter().cloned() {
-                        let value_native_cpus_decoded = value_native_cpus_item;
+                        let value_native_cpus_decoded_group = value_native_cpus_item.group;
+                        let value_native_cpus_decoded_cpu = value_native_cpus_item.cpu;
+                        let value_native_cpus_decoded = thread::ThreadCpu {
+                            group: value_native_cpus_decoded_group,
+                            cpu: value_native_cpus_decoded_cpu,
+                        };
                         value_native_cpus_values.push(value_native_cpus_decoded);
                     }
                     let value_native_cpus = binding.store_array(value_native_cpus_values);
-                    let value_native = ProcessCpuSet {
+                    let value_native = thread::ThreadCpuSet {
                         cpus: value_native_cpus,
                     };
                     unsafe { out.write(value_native) };
@@ -8186,7 +8049,7 @@ fn destack_process_sched_set_affinity_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
     pid: ProcessId,
-    cpus: ProcessCpuSet,
+    cpus: thread::ThreadCpuSet,
 ) -> RuntimeResult<()> {
     let _ = (&pid, &cpus);
 
@@ -10775,7 +10638,7 @@ pub(crate) unsafe extern "C" fn destack_process_limits_set_limit(
 
 #[unsafe(export_name = "destack.process.sched.getAffinity")]
 pub(crate) unsafe extern "C" fn destack_process_sched_get_affinity(
-    out: *mut ProcessCpuSet,
+    out: *mut thread::ThreadCpuSet,
     pid: ProcessId,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -10827,7 +10690,7 @@ pub(crate) unsafe extern "C" fn destack_process_sched_get_scheduler(
 #[unsafe(export_name = "destack.process.sched.setAffinity")]
 pub(crate) unsafe extern "C" fn destack_process_sched_set_affinity(
     pid: ProcessId,
-    cpus: ProcessCpuSet,
+    cpus: thread::ThreadCpuSet,
 ) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&pid, &cpus);
@@ -11259,9 +11122,10 @@ fn destack_process_args_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
-                        let vm_result_item_value = context
-                            .string_handle(vm_result_item.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_value =
+                            context.intern_string(vm_result_item.as_str());
+                        let vm_result_item_value =
+                            vm::StringHandle::new(vm_result_item_value_value);
                         vm_result_values.push(vm_result_item_value);
                     }
                     let vm_result = VmSlice::from_values(context, &vm_result_values)?;
@@ -11419,11 +11283,12 @@ fn destack_process_cwd_get_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         fs::OspathReplayRecord::OsPathBytes(value) => {
-                            let vm_result_os_path_bytes_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_os_path_bytes_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_bytes_kind =
+                                vm::StringHandle::new(vm_result_os_path_bytes_kind_value);
                             let vm_result_os_path_bytes_bytes_inner =
-                                VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                             let vm_result_os_path_bytes_bytes =
                                 platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
                                     vm_result_os_path_bytes_bytes_inner,
@@ -11435,9 +11300,10 @@ fn destack_process_cwd_get_vm_replay(
                             fs::OsPathVm::OsPathBytes(vm_result_os_path_bytes)
                         }
                         fs::OspathReplayRecord::OsPathUtf16(value) => {
-                            let vm_result_os_path_utf16_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_os_path_utf16_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_utf16_kind =
+                                vm::StringHandle::new(vm_result_os_path_utf16_kind_value);
                             let mut vm_result_os_path_utf16_utf16_inner_values =
                                 Vec::with_capacity(value.utf16.len());
                             for vm_result_os_path_utf16_utf16_inner_item in
@@ -11623,9 +11489,8 @@ fn destack_process_env_get_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = context
-                        .string_handle(value.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_value = context.intern_string(value.as_str());
+                    let vm_result = vm::StringHandle::new(vm_result_value);
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -11681,7 +11546,7 @@ fn destack_process_env_get_bytes_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -12362,9 +12227,12 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         ProcesswaitstatusReplayRecord::ProcessWaitContinuedStatus(value) => {
-                            let vm_result_process_wait_continued_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_continued_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_continued_status_kind =
+                                vm::StringHandle::new(
+                                    vm_result_process_wait_continued_status_kind_value,
+                                );
                             let vm_result_process_wait_continued_status_pid = value.pid;
                             let vm_result_process_wait_continued_status =
                                 ProcessWaitContinuedStatusVm {
@@ -12376,9 +12244,11 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitExitedStatus(value) => {
-                            let vm_result_process_wait_exited_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_exited_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_exited_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_exited_status_kind_value,
+                            );
                             let vm_result_process_wait_exited_status_pid = value.pid;
                             let vm_result_process_wait_exited_status_exit_code = value.exit_code;
                             let vm_result_process_wait_exited_status = ProcessWaitExitedStatusVm {
@@ -12391,9 +12261,11 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitRunningStatus(value) => {
-                            let vm_result_process_wait_running_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_running_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_running_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_running_status_kind_value,
+                            );
                             let vm_result_process_wait_running_status_pid = value.pid;
                             let vm_result_process_wait_running_status =
                                 ProcessWaitRunningStatusVm {
@@ -12405,9 +12277,11 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitSignaledStatus(value) => {
-                            let vm_result_process_wait_signaled_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_signaled_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_signaled_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_signaled_status_kind_value,
+                            );
                             let vm_result_process_wait_signaled_status_pid = value.pid;
                             let vm_result_process_wait_signaled_status_signal = value.signal;
                             let vm_result_process_wait_signaled_status_core_dumped =
@@ -12424,9 +12298,11 @@ fn destack_process_fd_process_fd_try_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitStoppedStatus(value) => {
-                            let vm_result_process_wait_stopped_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_stopped_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_stopped_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_stopped_status_kind_value,
+                            );
                             let vm_result_process_wait_stopped_status_pid = value.pid;
                             let vm_result_process_wait_stopped_status_signal = value.signal;
                             let vm_result_process_wait_stopped_status =
@@ -12604,9 +12480,12 @@ fn destack_process_fd_process_fd_wait_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         ProcesswaitstatusReplayRecord::ProcessWaitContinuedStatus(value) => {
-                            let vm_result_process_wait_continued_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_continued_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_continued_status_kind =
+                                vm::StringHandle::new(
+                                    vm_result_process_wait_continued_status_kind_value,
+                                );
                             let vm_result_process_wait_continued_status_pid = value.pid;
                             let vm_result_process_wait_continued_status =
                                 ProcessWaitContinuedStatusVm {
@@ -12618,9 +12497,11 @@ fn destack_process_fd_process_fd_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitExitedStatus(value) => {
-                            let vm_result_process_wait_exited_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_exited_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_exited_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_exited_status_kind_value,
+                            );
                             let vm_result_process_wait_exited_status_pid = value.pid;
                             let vm_result_process_wait_exited_status_exit_code = value.exit_code;
                             let vm_result_process_wait_exited_status = ProcessWaitExitedStatusVm {
@@ -12633,9 +12514,11 @@ fn destack_process_fd_process_fd_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitRunningStatus(value) => {
-                            let vm_result_process_wait_running_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_running_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_running_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_running_status_kind_value,
+                            );
                             let vm_result_process_wait_running_status_pid = value.pid;
                             let vm_result_process_wait_running_status =
                                 ProcessWaitRunningStatusVm {
@@ -12647,9 +12530,11 @@ fn destack_process_fd_process_fd_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitSignaledStatus(value) => {
-                            let vm_result_process_wait_signaled_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_signaled_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_signaled_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_signaled_status_kind_value,
+                            );
                             let vm_result_process_wait_signaled_status_pid = value.pid;
                             let vm_result_process_wait_signaled_status_signal = value.signal;
                             let vm_result_process_wait_signaled_status_core_dumped =
@@ -12666,9 +12551,11 @@ fn destack_process_fd_process_fd_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitStoppedStatus(value) => {
-                            let vm_result_process_wait_stopped_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_stopped_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_stopped_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_stopped_status_kind_value,
+                            );
                             let vm_result_process_wait_stopped_status_pid = value.pid;
                             let vm_result_process_wait_stopped_status_signal = value.signal;
                             let vm_result_process_wait_stopped_status =
@@ -14155,19 +14042,46 @@ fn destack_process_sched_get_affinity_vm_replay(
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
-                let result_value: ProcessCpuSetVm = value.clone();
+                let result_value: thread::ThreadCpuSetVm = value.clone();
                 let result_recorded_cpus_raw = result_value.cpus.raw_values(context)?;
                 let mut result_recorded_cpus = Vec::with_capacity(result_recorded_cpus_raw.len());
                 for result_recorded_cpus_item_value in result_recorded_cpus_raw {
-                    let result_recorded_cpus_item =
-                        <ThreadCpu as VmAggregateCodec>::decode_with_context(
-                            context,
-                            result_recorded_cpus_item_value,
-                        )?;
-                    let result_recorded_cpus_item_recorded = result_recorded_cpus_item;
+                    let result_recorded_cpus_item = {
+                        if result_recorded_cpus_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_cpus_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_cpus_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 2 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_cpus_item",
+                                "expected 2 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_cpus_item_group =
+                            decode_uint16(slots[0], "result_recorded_cpus_item_group", "group")?;
+                        let result_recorded_cpus_item_cpu =
+                            decode_uint16(slots[1], "result_recorded_cpus_item_cpu", "cpu")?;
+                        thread::ThreadCpuVm {
+                            group: result_recorded_cpus_item_group,
+                            cpu: result_recorded_cpus_item_cpu,
+                        }
+                    };
+                    let result_recorded_cpus_item_recorded_group = result_recorded_cpus_item.group;
+                    let result_recorded_cpus_item_recorded_cpu = result_recorded_cpus_item.cpu;
+                    let result_recorded_cpus_item_recorded = thread::ThreadCpu {
+                        group: result_recorded_cpus_item_recorded_group,
+                        cpu: result_recorded_cpus_item_recorded_cpu,
+                    };
                     result_recorded_cpus.push(result_recorded_cpus_item_recorded);
                 }
-                let result_recorded = ProcesscpusetReplayRecord {
+                let result_recorded = thread::ThreadcpusetReplayRecord {
                     cpus: result_recorded_cpus,
                 };
                 let payload = ProcessSchedGetAffinityReplayRecord {
@@ -14193,11 +14107,16 @@ fn destack_process_sched_get_affinity_vm_replay(
                 Ok(value) => {
                     let mut vm_result_cpus_values = Vec::with_capacity(value.cpus.len());
                     for vm_result_cpus_item in value.cpus.iter().cloned() {
-                        let vm_result_cpus_item_value = vm_result_cpus_item;
+                        let vm_result_cpus_item_value_group = vm_result_cpus_item.group;
+                        let vm_result_cpus_item_value_cpu = vm_result_cpus_item.cpu;
+                        let vm_result_cpus_item_value = thread::ThreadCpu {
+                            group: vm_result_cpus_item_value_group,
+                            cpu: vm_result_cpus_item_value_cpu,
+                        };
                         vm_result_cpus_values.push(vm_result_cpus_item_value);
                     }
                     let vm_result_cpus = VmArray::from_values(context, &vm_result_cpus_values)?;
-                    let vm_result = ProcessCpuSetVm {
+                    let vm_result = thread::ThreadCpuSetVm {
                         cpus: vm_result_cpus,
                     };
                     Ok(vm_result)
@@ -14338,7 +14257,7 @@ fn destack_process_sched_set_affinity_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     pid: ProcessId,
-    cpus: ProcessCpuSetVm,
+    cpus: thread::ThreadCpuSetVm,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
         PROCESS_SCHED_SET_AFFINITY,
@@ -15595,9 +15514,12 @@ fn destack_process_wait_handle_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         ProcesswaitstatusReplayRecord::ProcessWaitContinuedStatus(value) => {
-                            let vm_result_process_wait_continued_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_continued_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_continued_status_kind =
+                                vm::StringHandle::new(
+                                    vm_result_process_wait_continued_status_kind_value,
+                                );
                             let vm_result_process_wait_continued_status_pid = value.pid;
                             let vm_result_process_wait_continued_status =
                                 ProcessWaitContinuedStatusVm {
@@ -15609,9 +15531,11 @@ fn destack_process_wait_handle_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitExitedStatus(value) => {
-                            let vm_result_process_wait_exited_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_exited_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_exited_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_exited_status_kind_value,
+                            );
                             let vm_result_process_wait_exited_status_pid = value.pid;
                             let vm_result_process_wait_exited_status_exit_code = value.exit_code;
                             let vm_result_process_wait_exited_status = ProcessWaitExitedStatusVm {
@@ -15624,9 +15548,11 @@ fn destack_process_wait_handle_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitRunningStatus(value) => {
-                            let vm_result_process_wait_running_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_running_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_running_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_running_status_kind_value,
+                            );
                             let vm_result_process_wait_running_status_pid = value.pid;
                             let vm_result_process_wait_running_status =
                                 ProcessWaitRunningStatusVm {
@@ -15638,9 +15564,11 @@ fn destack_process_wait_handle_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitSignaledStatus(value) => {
-                            let vm_result_process_wait_signaled_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_signaled_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_signaled_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_signaled_status_kind_value,
+                            );
                             let vm_result_process_wait_signaled_status_pid = value.pid;
                             let vm_result_process_wait_signaled_status_signal = value.signal;
                             let vm_result_process_wait_signaled_status_core_dumped =
@@ -15657,9 +15585,11 @@ fn destack_process_wait_handle_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitStoppedStatus(value) => {
-                            let vm_result_process_wait_stopped_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_stopped_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_stopped_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_stopped_status_kind_value,
+                            );
                             let vm_result_process_wait_stopped_status_pid = value.pid;
                             let vm_result_process_wait_stopped_status_signal = value.signal;
                             let vm_result_process_wait_stopped_status =
@@ -15837,9 +15767,12 @@ fn destack_process_wait_pid_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         ProcesswaitstatusReplayRecord::ProcessWaitContinuedStatus(value) => {
-                            let vm_result_process_wait_continued_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_continued_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_continued_status_kind =
+                                vm::StringHandle::new(
+                                    vm_result_process_wait_continued_status_kind_value,
+                                );
                             let vm_result_process_wait_continued_status_pid = value.pid;
                             let vm_result_process_wait_continued_status =
                                 ProcessWaitContinuedStatusVm {
@@ -15851,9 +15784,11 @@ fn destack_process_wait_pid_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitExitedStatus(value) => {
-                            let vm_result_process_wait_exited_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_exited_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_exited_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_exited_status_kind_value,
+                            );
                             let vm_result_process_wait_exited_status_pid = value.pid;
                             let vm_result_process_wait_exited_status_exit_code = value.exit_code;
                             let vm_result_process_wait_exited_status = ProcessWaitExitedStatusVm {
@@ -15866,9 +15801,11 @@ fn destack_process_wait_pid_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitRunningStatus(value) => {
-                            let vm_result_process_wait_running_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_running_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_running_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_running_status_kind_value,
+                            );
                             let vm_result_process_wait_running_status_pid = value.pid;
                             let vm_result_process_wait_running_status =
                                 ProcessWaitRunningStatusVm {
@@ -15880,9 +15817,11 @@ fn destack_process_wait_pid_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitSignaledStatus(value) => {
-                            let vm_result_process_wait_signaled_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_signaled_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_signaled_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_signaled_status_kind_value,
+                            );
                             let vm_result_process_wait_signaled_status_pid = value.pid;
                             let vm_result_process_wait_signaled_status_signal = value.signal;
                             let vm_result_process_wait_signaled_status_core_dumped =
@@ -15899,9 +15838,11 @@ fn destack_process_wait_pid_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitStoppedStatus(value) => {
-                            let vm_result_process_wait_stopped_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_stopped_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_stopped_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_stopped_status_kind_value,
+                            );
                             let vm_result_process_wait_stopped_status_pid = value.pid;
                             let vm_result_process_wait_stopped_status_signal = value.signal;
                             let vm_result_process_wait_stopped_status =
@@ -16076,9 +16017,12 @@ fn destack_process_wait_try_wait_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         ProcesswaitstatusReplayRecord::ProcessWaitContinuedStatus(value) => {
-                            let vm_result_process_wait_continued_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_continued_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_continued_status_kind =
+                                vm::StringHandle::new(
+                                    vm_result_process_wait_continued_status_kind_value,
+                                );
                             let vm_result_process_wait_continued_status_pid = value.pid;
                             let vm_result_process_wait_continued_status =
                                 ProcessWaitContinuedStatusVm {
@@ -16090,9 +16034,11 @@ fn destack_process_wait_try_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitExitedStatus(value) => {
-                            let vm_result_process_wait_exited_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_exited_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_exited_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_exited_status_kind_value,
+                            );
                             let vm_result_process_wait_exited_status_pid = value.pid;
                             let vm_result_process_wait_exited_status_exit_code = value.exit_code;
                             let vm_result_process_wait_exited_status = ProcessWaitExitedStatusVm {
@@ -16105,9 +16051,11 @@ fn destack_process_wait_try_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitRunningStatus(value) => {
-                            let vm_result_process_wait_running_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_running_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_running_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_running_status_kind_value,
+                            );
                             let vm_result_process_wait_running_status_pid = value.pid;
                             let vm_result_process_wait_running_status =
                                 ProcessWaitRunningStatusVm {
@@ -16119,9 +16067,11 @@ fn destack_process_wait_try_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitSignaledStatus(value) => {
-                            let vm_result_process_wait_signaled_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_signaled_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_signaled_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_signaled_status_kind_value,
+                            );
                             let vm_result_process_wait_signaled_status_pid = value.pid;
                             let vm_result_process_wait_signaled_status_signal = value.signal;
                             let vm_result_process_wait_signaled_status_core_dumped =
@@ -16138,9 +16088,11 @@ fn destack_process_wait_try_wait_vm_replay(
                             )
                         }
                         ProcesswaitstatusReplayRecord::ProcessWaitStoppedStatus(value) => {
-                            let vm_result_process_wait_stopped_status_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_process_wait_stopped_status_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_process_wait_stopped_status_kind = vm::StringHandle::new(
+                                vm_result_process_wait_stopped_status_kind_value,
+                            );
                             let vm_result_process_wait_stopped_status_pid = value.pid;
                             let vm_result_process_wait_stopped_status_signal = value.signal;
                             let vm_result_process_wait_stopped_status =

@@ -175,7 +175,7 @@ impl VmAbiCodec for MemoryReserveFlags {
 }
 
 /// ABI enum for MemoryAdvice.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MemoryAdvice {
     /// Normal.
@@ -192,13 +192,13 @@ pub enum MemoryAdvice {
 
 impl VmValueCodec for MemoryAdvice {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Normal,
-            1u8 => Self::Sequential,
-            2u8 => Self::Random,
-            3u8 => Self::WillNeed,
-            4u8 => Self::DontNeed,
+            0i32 => Self::Normal,
+            1i32 => Self::Sequential,
+            2i32 => Self::Random,
+            3i32 => Self::WillNeed,
+            4i32 => Self::DontNeed,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -211,7 +211,7 @@ impl VmValueCodec for MemoryAdvice {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -232,6 +232,80 @@ impl NativeAbiCodec for MemoryAdvice {
 
 impl VmAbiCodec for MemoryAdvice {
     type Value = MemoryAdviceValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for MemoryNumaPolicy.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MemoryNumaPolicy {
+    /// Default.
+    Default = 0,
+    /// Bind.
+    Bind = 1,
+    /// Interleave.
+    Interleave = 2,
+    /// Preferred.
+    Preferred = 3,
+    /// Local.
+    Local = 4,
+}
+
+impl VmValueCodec for MemoryNumaPolicy {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0i32 => Self::Default,
+            1i32 => Self::Bind,
+            2i32 => Self::Interleave,
+            3i32 => Self::Preferred,
+            4i32 => Self::Local,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MemoryNumaPolicy value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+/// Value type for MemoryNumaPolicy.
+pub type MemoryNumaPolicyValue = MemoryNumaPolicy;
+
+impl NativeAbiCodec for MemoryNumaPolicy {
+    type Value = MemoryNumaPolicyValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for MemoryNumaPolicy {
+    type Value = MemoryNumaPolicyValue;
 
     fn into_value(
         self,
@@ -298,9 +372,7 @@ impl VmAggregateCodec for MemoryRange {
             <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -387,9 +459,7 @@ impl VmAggregateCodec for ProtectedMemoryRange {
             <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

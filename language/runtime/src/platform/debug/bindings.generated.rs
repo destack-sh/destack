@@ -19,7 +19,7 @@ use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
 };
-use crate::runtime::trace::TraceError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -48,6 +48,26 @@ fn arg_value(
     Ok(value)
 }
 
+/// Decode a signed integer argument with an explicit width.
+#[allow(dead_code)]
+fn decode_int(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+    bits: u8,
+) -> RuntimeResult<i64> {
+    let (raw, width) = value.as_int_with_width().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })?;
+    if width != bits {
+        return Err(
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+        );
+    }
+
+    Ok(raw)
+}
+
 /// Decode an unsigned integer argument with an explicit width.
 #[allow(dead_code)]
 fn decode_uint(
@@ -66,6 +86,16 @@ fn decode_uint(
     }
 
     Ok(raw)
+}
+
+/// Decode an i32 argument.
+#[allow(dead_code)]
+fn decode_int32(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<i32> {
+    Ok(decode_int(value, name, expected, 32)? as i32)
 }
 
 /// Decode a u8 argument.
@@ -179,12 +209,10 @@ fn encode_destack_debug_inspector_endpoint_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InspectorEndpointVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.url.value());
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.process_id as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = value.url.value();
+        let field_1 = vm::Value::uint(value.process_id as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -251,7 +279,7 @@ fn encode_destack_debug_profile_snapshot_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.debug.profile.start.
@@ -261,11 +289,11 @@ fn decode_destack_debug_profile_start_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(ProfileKind,)> {
     let kind_value = arg_value(args, 0, "kind", "ProfileKind")?;
-    let kind_raw = decode_uint8(kind_value, "kind_raw", "ProfileKind")?;
+    let kind_raw = decode_int32(kind_value, "kind_raw", "ProfileKind")?;
     let kind = match kind_raw {
-        1u8 => ProfileKind::Cpu,
-        2u8 => ProfileKind::Heap,
-        3u8 => ProfileKind::Event,
+        1i32 => ProfileKind::Cpu,
+        2i32 => ProfileKind::Heap,
+        3i32 => ProfileKind::Event,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "kind",
@@ -339,12 +367,12 @@ fn decode_destack_debug_trace_start_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(TraceLevel, vm::StringHandle)> {
     let level_value = arg_value(args, 0, "level", "TraceLevel")?;
-    let level_raw = decode_uint8(level_value, "level_raw", "TraceLevel")?;
+    let level_raw = decode_int32(level_value, "level_raw", "TraceLevel")?;
     let level = match level_raw {
-        1u8 => TraceLevel::Error,
-        2u8 => TraceLevel::Warn,
-        3u8 => TraceLevel::Info,
-        4u8 => TraceLevel::Debug,
+        1i32 => TraceLevel::Error,
+        2i32 => TraceLevel::Warn,
+        3i32 => TraceLevel::Info,
+        4i32 => TraceLevel::Debug,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "level",
@@ -582,33 +610,18 @@ pub(crate) const DEBUG_INSPECTOR_STOP: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.debug.profile.snapshot.
-pub(crate) const DEBUG_PROFILE_SNAPSHOT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.debug.profile.snapshot",
-        "export function profileSnapshot(handle: ProfileHandle): Result<uint8[], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["debug.profile"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
+pub(crate) const DEBUG_PROFILE_SNAPSHOT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.debug.profile.snapshot",
+    "export function profileSnapshot(handle: ProfileHandle): Result<Array<uint8>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["debug.profile"],
+    BindingScope::Runtime,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
     .with_namespace("debug")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.profile.start.
 pub(crate) const DEBUG_PROFILE_START: BindingDescriptor =
@@ -1567,9 +1580,8 @@ fn destack_debug_inspector_endpoint_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_url = context
-                        .string_handle(value.url.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_url_value = context.intern_string(value.url.as_str());
+                    let vm_result_url = vm::StringHandle::new(vm_result_url_value);
                     let vm_result_process_id = value.process_id;
                     let vm_result = InspectorEndpointVm {
                         url: vm_result_url,
@@ -1715,7 +1727,7 @@ fn destack_debug_profile_snapshot_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

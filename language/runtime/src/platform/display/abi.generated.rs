@@ -539,7 +539,7 @@ impl VmAbiCodec for WindowHandle {
 }
 
 /// ABI enum for BackendSupport.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BackendSupport {
     /// Available.
@@ -554,12 +554,12 @@ pub enum BackendSupport {
 
 impl VmValueCodec for BackendSupport {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Available,
-            1u8 => Self::UnsupportedTarget,
-            2u8 => Self::DisabledByBuild,
-            3u8 => Self::HostUnavailable,
+            0i32 => Self::Available,
+            1i32 => Self::UnsupportedTarget,
+            2i32 => Self::DisabledByBuild,
+            3i32 => Self::HostUnavailable,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -572,7 +572,7 @@ impl VmValueCodec for BackendSupport {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -610,7 +610,7 @@ impl VmAbiCodec for BackendSupport {
 }
 
 /// ABI enum for DisplayBackend.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DisplayBackend {
     /// Auto.
@@ -633,16 +633,16 @@ pub enum DisplayBackend {
 
 impl VmValueCodec for DisplayBackend {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Auto,
-            1u8 => Self::Wayland,
-            2u8 => Self::X11,
-            3u8 => Self::Win32,
-            4u8 => Self::AppKit,
-            5u8 => Self::UIKit,
-            6u8 => Self::Android,
-            255u8 => Self::Null,
+            0i32 => Self::Auto,
+            1i32 => Self::Wayland,
+            2i32 => Self::X11,
+            3i32 => Self::Win32,
+            4i32 => Self::AppKit,
+            5i32 => Self::UIKit,
+            6i32 => Self::Android,
+            255i32 => Self::Null,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -655,7 +655,7 @@ impl VmValueCodec for DisplayBackend {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -693,7 +693,7 @@ impl VmAbiCodec for DisplayBackend {
 }
 
 /// ABI enum for DisplayBackendSelectionPolicy.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DisplayBackendSelectionPolicy {
     /// Strict.
@@ -704,10 +704,10 @@ pub enum DisplayBackendSelectionPolicy {
 
 impl VmValueCodec for DisplayBackendSelectionPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Strict,
-            2u8 => Self::AllowFallback,
+            1i32 => Self::Strict,
+            2i32 => Self::AllowFallback,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -720,7 +720,7 @@ impl VmValueCodec for DisplayBackendSelectionPolicy {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -758,7 +758,7 @@ impl VmAbiCodec for DisplayBackendSelectionPolicy {
 }
 
 /// ABI enum for DisplayColorSpace.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DisplayColorSpace {
     /// Unknown.
@@ -777,14 +777,14 @@ pub enum DisplayColorSpace {
 
 impl VmValueCodec for DisplayColorSpace {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Srgb,
-            2u8 => Self::DisplayP3,
-            3u8 => Self::Bt2020,
-            4u8 => Self::ScRgb,
-            5u8 => Self::Hdr10,
+            0i32 => Self::Unknown,
+            1i32 => Self::Srgb,
+            2i32 => Self::DisplayP3,
+            3i32 => Self::Bt2020,
+            4i32 => Self::ScRgb,
+            5i32 => Self::Hdr10,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -797,7 +797,7 @@ impl VmValueCodec for DisplayColorSpace {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -835,7 +835,7 @@ impl VmAbiCodec for DisplayColorSpace {
 }
 
 /// ABI enum for DisplayEventOverflowPolicy.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DisplayEventOverflowPolicy {
     /// DropOldest.
@@ -848,11 +848,11 @@ pub enum DisplayEventOverflowPolicy {
 
 impl VmValueCodec for DisplayEventOverflowPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::DropOldest,
-            2u8 => Self::DropNewest,
-            3u8 => Self::Error,
+            1i32 => Self::DropOldest,
+            2i32 => Self::DropNewest,
+            3i32 => Self::Error,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -865,7 +865,7 @@ impl VmValueCodec for DisplayEventOverflowPolicy {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -903,7 +903,7 @@ impl VmAbiCodec for DisplayEventOverflowPolicy {
 }
 
 /// ABI enum for DisplayHdrMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DisplayHdrMode {
     /// Unknown.
@@ -918,12 +918,12 @@ pub enum DisplayHdrMode {
 
 impl VmValueCodec for DisplayHdrMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::System,
-            2u8 => Self::Sdr,
-            3u8 => Self::Hdr,
+            0i32 => Self::Unknown,
+            1i32 => Self::System,
+            2i32 => Self::Sdr,
+            3i32 => Self::Hdr,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -936,7 +936,7 @@ impl VmValueCodec for DisplayHdrMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -974,7 +974,7 @@ impl VmAbiCodec for DisplayHdrMode {
 }
 
 /// ABI enum for DisplayOrientation.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DisplayOrientation {
     /// Unknown.
@@ -991,13 +991,13 @@ pub enum DisplayOrientation {
 
 impl VmValueCodec for DisplayOrientation {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Landscape,
-            2u8 => Self::Portrait,
-            3u8 => Self::LandscapeFlipped,
-            4u8 => Self::PortraitFlipped,
+            0i32 => Self::Unknown,
+            1i32 => Self::Landscape,
+            2i32 => Self::Portrait,
+            3i32 => Self::LandscapeFlipped,
+            4i32 => Self::PortraitFlipped,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1010,7 +1010,7 @@ impl VmValueCodec for DisplayOrientation {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1048,7 +1048,7 @@ impl VmAbiCodec for DisplayOrientation {
 }
 
 /// ABI enum for DisplaySupportStatus.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DisplaySupportStatus {
     /// Unknown.
@@ -1061,11 +1061,11 @@ pub enum DisplaySupportStatus {
 
 impl VmValueCodec for DisplaySupportStatus {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Unsupported,
-            2u8 => Self::Supported,
+            0i32 => Self::Unknown,
+            1i32 => Self::Unsupported,
+            2i32 => Self::Supported,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1078,7 +1078,7 @@ impl VmValueCodec for DisplaySupportStatus {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1116,7 +1116,7 @@ impl VmAbiCodec for DisplaySupportStatus {
 }
 
 /// ABI enum for WindowAttentionLevel.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WindowAttentionLevel {
     /// Informational.
@@ -1127,10 +1127,10 @@ pub enum WindowAttentionLevel {
 
 impl VmValueCodec for WindowAttentionLevel {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Informational,
-            2u8 => Self::Critical,
+            1i32 => Self::Informational,
+            2i32 => Self::Critical,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1143,7 +1143,7 @@ impl VmValueCodec for WindowAttentionLevel {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1181,7 +1181,7 @@ impl VmAbiCodec for WindowAttentionLevel {
 }
 
 /// ABI enum for WindowChromeKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WindowChromeKind {
     /// Standard.
@@ -1194,11 +1194,11 @@ pub enum WindowChromeKind {
 
 impl VmValueCodec for WindowChromeKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Standard,
-            2u8 => Self::Tool,
-            3u8 => Self::Popup,
+            1i32 => Self::Standard,
+            2i32 => Self::Tool,
+            3i32 => Self::Popup,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1211,7 +1211,7 @@ impl VmValueCodec for WindowChromeKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1249,7 +1249,7 @@ impl VmAbiCodec for WindowChromeKind {
 }
 
 /// ABI enum for WindowCursorIcon.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WindowCursorIcon {
     /// Default.
@@ -1312,36 +1312,36 @@ pub enum WindowCursorIcon {
 
 impl VmValueCodec for WindowCursorIcon {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Default,
-            2u8 => Self::Text,
-            3u8 => Self::Crosshair,
-            4u8 => Self::Pointer,
-            5u8 => Self::Help,
-            6u8 => Self::Wait,
-            7u8 => Self::Progress,
-            8u8 => Self::Move,
-            9u8 => Self::NotAllowed,
-            10u8 => Self::Grab,
-            11u8 => Self::Grabbing,
-            12u8 => Self::EResize,
-            13u8 => Self::NResize,
-            14u8 => Self::NeResize,
-            15u8 => Self::NwResize,
-            16u8 => Self::SResize,
-            17u8 => Self::SeResize,
-            18u8 => Self::SwResize,
-            19u8 => Self::WResize,
-            20u8 => Self::EwResize,
-            21u8 => Self::NsResize,
-            22u8 => Self::NeswResize,
-            23u8 => Self::NwseResize,
-            24u8 => Self::ColResize,
-            25u8 => Self::RowResize,
-            26u8 => Self::AllScroll,
-            27u8 => Self::ZoomIn,
-            28u8 => Self::ZoomOut,
+            1i32 => Self::Default,
+            2i32 => Self::Text,
+            3i32 => Self::Crosshair,
+            4i32 => Self::Pointer,
+            5i32 => Self::Help,
+            6i32 => Self::Wait,
+            7i32 => Self::Progress,
+            8i32 => Self::Move,
+            9i32 => Self::NotAllowed,
+            10i32 => Self::Grab,
+            11i32 => Self::Grabbing,
+            12i32 => Self::EResize,
+            13i32 => Self::NResize,
+            14i32 => Self::NeResize,
+            15i32 => Self::NwResize,
+            16i32 => Self::SResize,
+            17i32 => Self::SeResize,
+            18i32 => Self::SwResize,
+            19i32 => Self::WResize,
+            20i32 => Self::EwResize,
+            21i32 => Self::NsResize,
+            22i32 => Self::NeswResize,
+            23i32 => Self::NwseResize,
+            24i32 => Self::ColResize,
+            25i32 => Self::RowResize,
+            26i32 => Self::AllScroll,
+            27i32 => Self::ZoomIn,
+            28i32 => Self::ZoomOut,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1354,7 +1354,7 @@ impl VmValueCodec for WindowCursorIcon {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1392,7 +1392,7 @@ impl VmAbiCodec for WindowCursorIcon {
 }
 
 /// ABI enum for WindowCursorMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WindowCursorMode {
     /// Normal.
@@ -1407,12 +1407,12 @@ pub enum WindowCursorMode {
 
 impl VmValueCodec for WindowCursorMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Normal,
-            2u8 => Self::Hidden,
-            3u8 => Self::Locked,
-            4u8 => Self::Confined,
+            1i32 => Self::Normal,
+            2i32 => Self::Hidden,
+            3i32 => Self::Locked,
+            4i32 => Self::Confined,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1425,7 +1425,7 @@ impl VmValueCodec for WindowCursorMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1463,7 +1463,7 @@ impl VmAbiCodec for WindowCursorMode {
 }
 
 /// ABI enum for WindowIconPixelFormat.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WindowIconPixelFormat {
     /// Rgba8.
@@ -1474,10 +1474,10 @@ pub enum WindowIconPixelFormat {
 
 impl VmValueCodec for WindowIconPixelFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Rgba8,
-            2u8 => Self::Bgra8,
+            1i32 => Self::Rgba8,
+            2i32 => Self::Bgra8,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1490,7 +1490,7 @@ impl VmValueCodec for WindowIconPixelFormat {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1528,7 +1528,7 @@ impl VmAbiCodec for WindowIconPixelFormat {
 }
 
 /// ABI enum for WindowOcclusionState.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WindowOcclusionState {
     /// Unknown.
@@ -1541,11 +1541,11 @@ pub enum WindowOcclusionState {
 
 impl VmValueCodec for WindowOcclusionState {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Unoccluded,
-            2u8 => Self::Occluded,
+            0i32 => Self::Unknown,
+            1i32 => Self::Unoccluded,
+            2i32 => Self::Occluded,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1558,7 +1558,7 @@ impl VmValueCodec for WindowOcclusionState {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1596,7 +1596,7 @@ impl VmAbiCodec for WindowOcclusionState {
 }
 
 /// ABI enum for WindowResizeEdge.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WindowResizeEdge {
     /// North.
@@ -1619,16 +1619,16 @@ pub enum WindowResizeEdge {
 
 impl VmValueCodec for WindowResizeEdge {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::North,
-            2u8 => Self::South,
-            3u8 => Self::East,
-            4u8 => Self::West,
-            5u8 => Self::NorthEast,
-            6u8 => Self::NorthWest,
-            7u8 => Self::SouthEast,
-            8u8 => Self::SouthWest,
+            1i32 => Self::North,
+            2i32 => Self::South,
+            3i32 => Self::East,
+            4i32 => Self::West,
+            5i32 => Self::NorthEast,
+            6i32 => Self::NorthWest,
+            7i32 => Self::SouthEast,
+            8i32 => Self::SouthWest,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1641,7 +1641,7 @@ impl VmValueCodec for WindowResizeEdge {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1679,7 +1679,7 @@ impl VmAbiCodec for WindowResizeEdge {
 }
 
 /// ABI enum for WindowRole.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WindowRole {
     /// Toplevel.
@@ -1692,11 +1692,11 @@ pub enum WindowRole {
 
 impl VmValueCodec for WindowRole {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Toplevel,
-            2u8 => Self::Popup,
-            3u8 => Self::Overlay,
+            1i32 => Self::Toplevel,
+            2i32 => Self::Popup,
+            3i32 => Self::Overlay,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1709,7 +1709,7 @@ impl VmValueCodec for WindowRole {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1747,7 +1747,7 @@ impl VmAbiCodec for WindowRole {
 }
 
 /// ABI enum for WindowTheme.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WindowTheme {
     /// Unknown.
@@ -1764,13 +1764,13 @@ pub enum WindowTheme {
 
 impl VmValueCodec for WindowTheme {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Light,
-            2u8 => Self::Dark,
-            3u8 => Self::HighContrastLight,
-            4u8 => Self::HighContrastDark,
+            0i32 => Self::Unknown,
+            1i32 => Self::Light,
+            2i32 => Self::Dark,
+            3i32 => Self::HighContrastLight,
+            4i32 => Self::HighContrastDark,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1783,7 +1783,7 @@ impl VmValueCodec for WindowTheme {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1821,7 +1821,7 @@ impl VmAbiCodec for WindowTheme {
 }
 
 /// ABI enum for WindowVisibility.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WindowVisibility {
     /// Hidden.
@@ -1836,12 +1836,12 @@ pub enum WindowVisibility {
 
 impl VmValueCodec for WindowVisibility {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Hidden,
-            2u8 => Self::Visible,
-            3u8 => Self::Minimized,
-            4u8 => Self::Maximized,
+            1i32 => Self::Hidden,
+            2i32 => Self::Visible,
+            3i32 => Self::Minimized,
+            4i32 => Self::Maximized,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1854,7 +1854,7 @@ impl VmValueCodec for WindowVisibility {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2034,9 +2034,7 @@ impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2267,9 +2265,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2867,9 +2863,7 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3576,9 +3570,7 @@ impl VmAggregateCodec for WindowModeOptionsAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3782,9 +3774,7 @@ impl VmAggregateCodec for DisplayAddedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3926,9 +3916,7 @@ impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4077,9 +4065,7 @@ impl VmAggregateCodec for DisplayBackendDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4226,9 +4212,7 @@ impl VmAggregateCodec for DisplayColorState {
             )?,
             <Option<u16> as VmAggregateCodec>::encode_with_context(self.bits_per_channel, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4443,9 +4427,7 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4753,9 +4735,7 @@ impl VmAggregateCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4925,9 +4905,7 @@ impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5067,9 +5045,7 @@ impl VmAggregateCodec for DisplayEventQueueOptions {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5184,9 +5160,7 @@ impl VmAggregateCodec for DisplayGammaRampAbi<VmAbi> {
             <VmSlice<u16> as VmAggregateCodec>::encode_with_context(self.green, context)?,
             <VmSlice<u16> as VmAggregateCodec>::encode_with_context(self.blue, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5313,9 +5287,7 @@ impl VmAggregateCodec for DisplayMode {
             <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.bit_depth, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5440,9 +5412,7 @@ impl VmAggregateCodec for DisplayModeChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5580,9 +5550,7 @@ impl VmAggregateCodec for DisplayModeChangedPayload {
             )?,
             <DisplayModeVm as VmAggregateCodec>::encode_with_context(self.current, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5700,9 +5668,7 @@ impl VmAggregateCodec for DisplayMonitorEventFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5871,9 +5837,7 @@ impl VmAggregateCodec for DisplayMonitorEventMetadataAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6056,9 +6020,7 @@ impl VmAggregateCodec for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6206,9 +6168,7 @@ impl VmAggregateCodec for DisplayMonitorListRequest {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6303,9 +6263,7 @@ impl VmAggregateCodec for DisplayMonitorOpenOptions {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6429,9 +6387,7 @@ impl VmAggregateCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6584,9 +6540,7 @@ impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6750,9 +6704,7 @@ impl VmAggregateCodec for DisplayRemovedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6904,9 +6856,7 @@ impl VmAggregateCodec for DisplayRemovedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7045,9 +6995,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7175,9 +7123,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7282,9 +7228,7 @@ impl VmAggregateCodec for WindowAspectRatio {
             <u32 as VmAggregateCodec>::encode_with_context(self.numerator, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.denominator, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7407,9 +7351,7 @@ impl VmAggregateCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7542,9 +7484,7 @@ impl VmAggregateCodec for WindowAspectRatioPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7659,9 +7599,7 @@ impl VmAggregateCodec for WindowBorderlessModeOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7812,9 +7750,7 @@ impl VmAggregateCodec for WindowChromeChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7935,9 +7871,7 @@ impl VmAggregateCodec for WindowChromePayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8050,9 +7984,7 @@ impl VmAggregateCodec for WindowCloseRequestedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8185,9 +8117,7 @@ impl VmAggregateCodec for WindowCreatedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8428,9 +8358,7 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8706,9 +8634,7 @@ impl VmAggregateCodec for WindowDestroyedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8850,9 +8776,7 @@ impl VmAggregateCodec for WindowDisplayChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8977,9 +8901,7 @@ impl VmAggregateCodec for WindowDisplayPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9092,9 +9014,7 @@ impl VmAggregateCodec for WindowDropCancelledEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9227,9 +9147,7 @@ impl VmAggregateCodec for WindowDropCompletedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9362,9 +9280,7 @@ impl VmAggregateCodec for WindowDropFilePayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9506,9 +9422,7 @@ impl VmAggregateCodec for WindowDropHoverLeavePayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9658,9 +9572,7 @@ impl VmAggregateCodec for WindowDropHoverPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9799,9 +9711,7 @@ impl VmAggregateCodec for WindowDropStartedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9934,9 +9844,7 @@ impl VmAggregateCodec for WindowDropTextPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10061,9 +9969,7 @@ impl VmAggregateCodec for WindowEventFilter {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10171,9 +10077,7 @@ impl VmAggregateCodec for WindowEventMetadata {
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10287,9 +10191,7 @@ impl VmAggregateCodec for WindowEventOpenOptions {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10411,9 +10313,7 @@ impl VmAggregateCodec for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10575,9 +10475,7 @@ impl VmAggregateCodec for WindowFileDroppedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10729,9 +10627,7 @@ impl VmAggregateCodec for WindowFileHoverLeftEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10890,9 +10786,7 @@ impl VmAggregateCodec for WindowFileHoveredEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11039,9 +10933,7 @@ impl VmAggregateCodec for WindowFocusChangedEventAbi<VmAbi> {
             )?,
             <WindowFocusPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11156,9 +11048,7 @@ impl VmAggregateCodec for WindowFocusPayload {
             <bool as VmAggregateCodec>::encode_with_context(self.previous_focused, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.current_focused, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11281,9 +11171,7 @@ impl VmAggregateCodec for WindowIconImageAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.pixels, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11432,9 +11320,7 @@ impl VmAggregateCodec for WindowIconSetAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11538,9 +11424,7 @@ impl VmAggregateCodec for WindowLogicalSize {
             <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11659,9 +11543,7 @@ impl VmAggregateCodec for WindowModalChangedEventAbi<VmAbi> {
             )?,
             <WindowModalPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11776,9 +11658,7 @@ impl VmAggregateCodec for WindowModalPayload {
             <bool as VmAggregateCodec>::encode_with_context(self.previous_modal, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.current_modal, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11897,9 +11777,7 @@ impl VmAggregateCodec for WindowModeChangedEventAbi<VmAbi> {
             )?,
             <WindowModePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12041,9 +11919,7 @@ impl VmAggregateCodec for WindowModePayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12207,9 +12083,7 @@ impl VmAggregateCodec for WindowMousePassthroughChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12341,9 +12215,7 @@ impl VmAggregateCodec for WindowMousePassthroughPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12465,9 +12337,7 @@ impl VmAggregateCodec for WindowOcclusionChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12590,9 +12460,7 @@ impl VmAggregateCodec for WindowOcclusionPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12714,9 +12582,7 @@ impl VmAggregateCodec for WindowOpacityChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12831,9 +12697,7 @@ impl VmAggregateCodec for WindowOpacityPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.previous_opacity, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.current_opacity, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13109,9 +12973,7 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13479,9 +13341,7 @@ impl VmAggregateCodec for WindowParentChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13606,9 +13466,7 @@ impl VmAggregateCodec for WindowParentPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13695,9 +13553,7 @@ impl VmAggregateCodec for WindowPhysicalSize {
             <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13784,9 +13640,7 @@ impl VmAggregateCodec for WindowPosition {
             <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13908,9 +13762,7 @@ impl VmAggregateCodec for WindowPositionChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14033,9 +13885,7 @@ impl VmAggregateCodec for WindowPositionPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14148,9 +13998,7 @@ impl VmAggregateCodec for WindowRefreshRequestedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14292,9 +14140,7 @@ impl VmAggregateCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14419,9 +14265,7 @@ impl VmAggregateCodec for WindowSafeAreaInsets {
             <u32 as VmAggregateCodec>::encode_with_context(self.right_px, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.bottom_px, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14520,9 +14364,7 @@ impl VmAggregateCodec for WindowSafeAreaPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14645,9 +14487,7 @@ impl VmAggregateCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14776,9 +14616,7 @@ impl VmAggregateCodec for WindowScaleFactorPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14897,9 +14735,7 @@ impl VmAggregateCodec for WindowSizeChangedEventAbi<VmAbi> {
             )?,
             <WindowSizePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -15020,9 +14856,7 @@ impl VmAggregateCodec for WindowSizeConstraints {
                 self.max, context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -15135,9 +14969,7 @@ impl VmAggregateCodec for WindowSizePayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -15370,9 +15202,7 @@ impl VmAggregateCodec for WindowState {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -15496,9 +15326,7 @@ impl VmAggregateCodec for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -15627,9 +15455,7 @@ impl VmAggregateCodec for WindowTaskbarVisibilityPayload {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.current_taskbar_visible, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -15751,9 +15577,7 @@ impl VmAggregateCodec for WindowTextDroppedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -15900,9 +15724,7 @@ impl VmAggregateCodec for WindowThemeChangedEventAbi<VmAbi> {
             )?,
             <WindowThemePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -16017,9 +15839,7 @@ impl VmAggregateCodec for WindowThemePayload {
             <WindowTheme as VmAggregateCodec>::encode_with_context(self.previous_theme, context)?,
             <WindowTheme as VmAggregateCodec>::encode_with_context(self.current_theme, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -16141,9 +15961,7 @@ impl VmAggregateCodec for WindowTransientChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -16270,9 +16088,7 @@ impl VmAggregateCodec for WindowTransientPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -16395,9 +16211,7 @@ impl VmAggregateCodec for WindowVisibilityChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -16523,9 +16337,7 @@ impl VmAggregateCodec for WindowVisibilityPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -16627,9 +16439,7 @@ impl VmAggregateCodec for WindowWindowedModeOptionsAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.kind, context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

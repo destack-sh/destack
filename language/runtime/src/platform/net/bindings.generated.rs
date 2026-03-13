@@ -39,7 +39,7 @@ use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::trace::TraceError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -225,13 +225,11 @@ fn encode_destack_net_address_local_address_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketAddressVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.family as u64, 16));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.family as u64, 16);
+        let field_1 = vm::Value::uint(value.length as u64, 32);
+        let field_2 = value.bytes.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -254,13 +252,11 @@ fn encode_destack_net_address_peer_address_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketAddressVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.family as u64, 16));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.family as u64, 16);
+        let field_1 = vm::Value::uint(value.length as u64, 32);
+        let field_2 = value.bytes.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -310,7 +306,7 @@ fn encode_destack_net_interface_list_interfaces_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<NetInterfaceVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.net.listener.accept.
@@ -500,12 +496,10 @@ fn encode_destack_net_options_get_linger_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LingerVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.enabled));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.seconds as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::bool(value.enabled);
+        let field_1 = vm::Value::uint(value.seconds as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -651,7 +645,7 @@ fn encode_destack_net_options_get_sock_opt_raw_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.net.options.getTimestamping.
@@ -673,7 +667,7 @@ fn encode_destack_net_options_get_timestamping_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketTimestampingMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.map(|value| vm::Value::int(value as i32 as i64, 32))
 }
 
 /// Decode arguments for destack.net.options.getTos.
@@ -984,11 +978,11 @@ fn decode_destack_net_options_set_timestamping_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let mode_value = arg_value(args, 1, "mode", "SocketTimestampingMode")?;
-    let mode_raw = decode_uint8(mode_value, "mode_raw", "SocketTimestampingMode")?;
+    let mode_raw = decode_int32(mode_value, "mode_raw", "SocketTimestampingMode")?;
     let mode = match mode_raw {
-        0u8 => SocketTimestampingMode::Off,
-        1u8 => SocketTimestampingMode::Software,
-        2u8 => SocketTimestampingMode::Hardware,
+        0i32 => SocketTimestampingMode::Off,
+        1i32 => SocketTimestampingMode::Software,
+        2i32 => SocketTimestampingMode::Hardware,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "mode",
@@ -1087,7 +1081,7 @@ fn encode_destack_net_raw_packet_backend_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<PacketBackendDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.net.raw.packetClearFanout.
@@ -1181,13 +1175,13 @@ fn decode_destack_net_raw_packet_open_args(
             ))
             .boxed());
         }
-        let options_backend_raw = decode_uint8(slots[0], "options_backend_raw", "backend")?;
+        let options_backend_raw = decode_int32(slots[0], "options_backend_raw", "backend")?;
         let options_backend = match options_backend_raw {
-            0u8 => PacketBackend::Auto,
-            1u8 => PacketBackend::AfPacket,
-            2u8 => PacketBackend::Bpf,
-            3u8 => PacketBackend::WinRawSocket,
-            255u8 => PacketBackend::Null,
+            0i32 => PacketBackend::Auto,
+            1i32 => PacketBackend::AfPacket,
+            2i32 => PacketBackend::Bpf,
+            3i32 => PacketBackend::WinRawSocket,
+            255i32 => PacketBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_backend",
@@ -1197,10 +1191,10 @@ fn decode_destack_net_raw_packet_open_args(
             }
         };
         let options_backend_policy_raw =
-            decode_uint8(slots[1], "options_backend_policy_raw", "backendPolicy")?;
+            decode_int32(slots[1], "options_backend_policy_raw", "backendPolicy")?;
         let options_backend_policy = match options_backend_policy_raw {
-            1u8 => PacketBackendSelectionPolicy::Strict,
-            2u8 => PacketBackendSelectionPolicy::AllowFallback,
+            1i32 => PacketBackendSelectionPolicy::Strict,
+            2i32 => PacketBackendSelectionPolicy::AllowFallback,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_backend_policy",
@@ -1261,17 +1255,13 @@ fn encode_destack_net_raw_packet_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PacketCaptureRecordVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
-        let field_1: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.interface_index as u64, 32));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.timestamp_clock as u8 as u64, 8));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.truncated));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.bytes, 64);
+        let field_1 = vm::Value::uint(value.interface_index as u64, 32);
+        let field_2 = vm::Value::int(value.timestamp_clock as i32 as i64, 32);
+        let field_3 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_4 = vm::Value::bool(value.truncated);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
@@ -1334,14 +1324,14 @@ fn decode_destack_net_raw_packet_set_fanout_args(
             .boxed());
         }
         let options_group_id = decode_uint16(slots[0], "options_group_id", "groupId")?;
-        let options_mode_raw = decode_uint8(slots[1], "options_mode_raw", "mode")?;
+        let options_mode_raw = decode_int32(slots[1], "options_mode_raw", "mode")?;
         let options_mode = match options_mode_raw {
-            0u8 => PacketFanoutMode::Hash,
-            1u8 => PacketFanoutMode::LoadBalance,
-            2u8 => PacketFanoutMode::Cpu,
-            3u8 => PacketFanoutMode::RoundRobin,
-            4u8 => PacketFanoutMode::Rollover,
-            5u8 => PacketFanoutMode::QueueMap,
+            0i32 => PacketFanoutMode::Hash,
+            1i32 => PacketFanoutMode::LoadBalance,
+            2i32 => PacketFanoutMode::Cpu,
+            3i32 => PacketFanoutMode::RoundRobin,
+            4i32 => PacketFanoutMode::Rollover,
+            5i32 => PacketFanoutMode::QueueMap,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_mode",
@@ -1464,11 +1454,11 @@ fn decode_destack_net_raw_packet_set_timestamp_mode_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let mode_value = arg_value(args, 1, "mode", "PacketTimestampMode")?;
-    let mode_raw = decode_uint8(mode_value, "mode_raw", "PacketTimestampMode")?;
+    let mode_raw = decode_int32(mode_value, "mode_raw", "PacketTimestampMode")?;
     let mode = match mode_raw {
-        0u8 => PacketTimestampMode::Disabled,
-        1u8 => PacketTimestampMode::Software,
-        2u8 => PacketTimestampMode::Hardware,
+        0i32 => PacketTimestampMode::Disabled,
+        1i32 => PacketTimestampMode::Software,
+        2i32 => PacketTimestampMode::Hardware,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "mode",
@@ -1563,14 +1553,11 @@ fn encode_destack_net_raw_packet_stats_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PacketCaptureStatsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.received_packets, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dropped_packets, 64));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.interface_dropped_packets, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.received_packets, 64);
+        let field_1 = vm::Value::uint(value.dropped_packets, 64);
+        let field_2 = vm::Value::uint(value.interface_dropped_packets, 64);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -1605,11 +1592,11 @@ fn decode_destack_net_raw_socket_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketFamily, i32)> {
     let family_value = arg_value(args, 0, "family", "SocketFamily")?;
-    let family_raw = decode_uint8(family_value, "family_raw", "SocketFamily")?;
+    let family_raw = decode_int32(family_value, "family_raw", "SocketFamily")?;
     let family = match family_raw {
-        0u8 => SocketFamily::Unspecified,
-        4u8 => SocketFamily::IPv4,
-        6u8 => SocketFamily::IPv6,
+        0i32 => SocketFamily::Unspecified,
+        4i32 => SocketFamily::IPv4,
+        6i32 => SocketFamily::IPv6,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "family",
@@ -1669,11 +1656,11 @@ fn decode_destack_net_resolve_lookup_args(
             let query_service_inner = decode_string(slots[1], "query_service_inner", "service")?;
             Some(query_service_inner)
         };
-        let query_family_raw = decode_uint8(slots[2], "query_family_raw", "family")?;
+        let query_family_raw = decode_int32(slots[2], "query_family_raw", "family")?;
         let query_family = match query_family_raw {
-            0u8 => SocketFamily::Unspecified,
-            4u8 => SocketFamily::IPv4,
-            6u8 => SocketFamily::IPv6,
+            0i32 => SocketFamily::Unspecified,
+            4i32 => SocketFamily::IPv4,
+            6i32 => SocketFamily::IPv6,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "query_family",
@@ -1700,7 +1687,7 @@ fn encode_destack_net_resolve_lookup_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<SocketAddressVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.net.resolve.reverseLookup.
@@ -1749,7 +1736,7 @@ fn encode_destack_net_resolve_reverse_lookup_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<ReverseLookupNameVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.net.reuse.getReuseAddr.
@@ -1869,11 +1856,11 @@ fn decode_destack_net_route_route_add_args(
             ))
             .boxed());
         }
-        let route_family_raw = decode_uint8(slots[0], "route_family_raw", "family")?;
+        let route_family_raw = decode_int32(slots[0], "route_family_raw", "family")?;
         let route_family = match route_family_raw {
-            0u8 => SocketFamily::Unspecified,
-            4u8 => SocketFamily::IPv4,
-            6u8 => SocketFamily::IPv6,
+            0i32 => SocketFamily::Unspecified,
+            4i32 => SocketFamily::IPv4,
+            6i32 => SocketFamily::IPv6,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "route_family",
@@ -1944,13 +1931,13 @@ fn decode_destack_net_route_route_add_args(
         let route_interface_index =
             decode_uint32(slots[4], "route_interface_index", "interfaceIndex")?;
         let route_metric = decode_uint32(slots[5], "route_metric", "metric")?;
-        let route_kind_raw = decode_uint8(slots[6], "route_kind_raw", "kind")?;
+        let route_kind_raw = decode_int32(slots[6], "route_kind_raw", "kind")?;
         let route_kind = match route_kind_raw {
-            1u8 => RouteKind::Unicast,
-            2u8 => RouteKind::Local,
-            3u8 => RouteKind::Broadcast,
-            4u8 => RouteKind::Multicast,
-            5u8 => RouteKind::Blackhole,
+            1i32 => RouteKind::Unicast,
+            2i32 => RouteKind::Local,
+            3i32 => RouteKind::Broadcast,
+            4i32 => RouteKind::Multicast,
+            5i32 => RouteKind::Blackhole,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "route_kind",
@@ -2006,11 +1993,11 @@ fn decode_destack_net_route_route_delete_args(
             ))
             .boxed());
         }
-        let route_family_raw = decode_uint8(slots[0], "route_family_raw", "family")?;
+        let route_family_raw = decode_int32(slots[0], "route_family_raw", "family")?;
         let route_family = match route_family_raw {
-            0u8 => SocketFamily::Unspecified,
-            4u8 => SocketFamily::IPv4,
-            6u8 => SocketFamily::IPv6,
+            0i32 => SocketFamily::Unspecified,
+            4i32 => SocketFamily::IPv4,
+            6i32 => SocketFamily::IPv6,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "route_family",
@@ -2081,13 +2068,13 @@ fn decode_destack_net_route_route_delete_args(
         let route_interface_index =
             decode_uint32(slots[4], "route_interface_index", "interfaceIndex")?;
         let route_metric = decode_uint32(slots[5], "route_metric", "metric")?;
-        let route_kind_raw = decode_uint8(slots[6], "route_kind_raw", "kind")?;
+        let route_kind_raw = decode_int32(slots[6], "route_kind_raw", "kind")?;
         let route_kind = match route_kind_raw {
-            1u8 => RouteKind::Unicast,
-            2u8 => RouteKind::Local,
-            3u8 => RouteKind::Broadcast,
-            4u8 => RouteKind::Multicast,
-            5u8 => RouteKind::Blackhole,
+            1i32 => RouteKind::Unicast,
+            2i32 => RouteKind::Local,
+            3i32 => RouteKind::Broadcast,
+            4i32 => RouteKind::Multicast,
+            5i32 => RouteKind::Blackhole,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "route_kind",
@@ -2125,11 +2112,11 @@ fn decode_destack_net_route_route_list_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketFamily,)> {
     let family_value = arg_value(args, 0, "family", "SocketFamily")?;
-    let family_raw = decode_uint8(family_value, "family_raw", "SocketFamily")?;
+    let family_raw = decode_int32(family_value, "family_raw", "SocketFamily")?;
     let family = match family_raw {
-        0u8 => SocketFamily::Unspecified,
-        4u8 => SocketFamily::IPv4,
-        6u8 => SocketFamily::IPv6,
+        0i32 => SocketFamily::Unspecified,
+        4i32 => SocketFamily::IPv4,
+        6i32 => SocketFamily::IPv6,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "family",
@@ -2147,7 +2134,7 @@ fn encode_destack_net_route_route_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<RouteEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.net.socket.close.
@@ -2229,11 +2216,11 @@ fn decode_destack_net_socket_open_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketFamily, SocketType, SocketProtocol)> {
     let family_value = arg_value(args, 0, "family", "SocketFamily")?;
-    let family_raw = decode_uint8(family_value, "family_raw", "SocketFamily")?;
+    let family_raw = decode_int32(family_value, "family_raw", "SocketFamily")?;
     let family = match family_raw {
-        0u8 => SocketFamily::Unspecified,
-        4u8 => SocketFamily::IPv4,
-        6u8 => SocketFamily::IPv6,
+        0i32 => SocketFamily::Unspecified,
+        4i32 => SocketFamily::IPv4,
+        6i32 => SocketFamily::IPv6,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "family",
@@ -2267,11 +2254,11 @@ fn decode_destack_net_socket_open_pair_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketFamily, SocketType, SocketProtocol)> {
     let family_value = arg_value(args, 0, "family", "SocketFamily")?;
-    let family_raw = decode_uint8(family_value, "family_raw", "SocketFamily")?;
+    let family_raw = decode_int32(family_value, "family_raw", "SocketFamily")?;
     let family = match family_raw {
-        0u8 => SocketFamily::Unspecified,
-        4u8 => SocketFamily::IPv4,
-        6u8 => SocketFamily::IPv6,
+        0i32 => SocketFamily::Unspecified,
+        4i32 => SocketFamily::IPv4,
+        6i32 => SocketFamily::IPv6,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "family",
@@ -2295,12 +2282,10 @@ fn encode_destack_net_socket_open_pair_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketPairVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.first.0.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.second.0.0, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.first.0.0, 64);
+        let field_1 = vm::Value::uint(value.second.0.0, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -2377,22 +2362,16 @@ fn encode_destack_net_socket_recv_from_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketRecvFromVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
-        let field_1: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.address.family as u64, 16));
-            let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.address.length as u64, 32));
-            let field_2: RuntimeResult<vm::Value> = value.address.bytes.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.bytes, 64);
+        let field_1 = {
+            let field_0 = vm::Value::uint(value.address.family as u64, 16);
+            let field_1 = vm::Value::uint(value.address.length as u64, 32);
+            let field_2 = value.address.bytes.to_value(context);
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
         };
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+        let field_2 = vm::Value::uint(value.recv_flags.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -2434,7 +2413,7 @@ fn encode_destack_net_socket_recv_mmsg_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<SocketRecvMessageVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.net.socket.recvMsg.
@@ -2481,42 +2460,34 @@ fn encode_destack_net_socket_recv_msg_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketRecvMessageVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
-        let field_1: RuntimeResult<vm::Value> = match value.address {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.bytes, 64);
+        let field_1 = match value.address {
             Some(value) => {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.family as u64, 16));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.length as u64, 32));
-                let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
+                let field_0 = vm::Value::uint(value.family as u64, 16);
+                let field_1 = vm::Value::uint(value.length as u64, 32);
+                let field_2 = value.bytes.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
             }
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.payload_truncated));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.control_truncated));
-        let field_5: RuntimeResult<vm::Value> = value.control.0.to_value(context);
-        let field_6: RuntimeResult<vm::Value> = value.fds.to_value(context);
-        let field_7: RuntimeResult<vm::Value> = match value.credentials {
+        let field_2 = vm::Value::uint(value.recv_flags.0 as u64, 32);
+        let field_3 = vm::Value::bool(value.payload_truncated);
+        let field_4 = vm::Value::bool(value.control_truncated);
+        let field_5 = value.control.0.to_value(context);
+        let field_6 = value.fds.to_value(context);
+        let field_7 = match value.credentials {
             Some(value) => {
-                let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid as u64, 32));
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.uid as u64, 32));
-                let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.gid as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
+                let field_0 = vm::Value::uint(value.pid as u64, 32);
+                let field_1 = vm::Value::uint(value.uid as u64, 32);
+                let field_2 = vm::Value::uint(value.gid as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
             }
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
     })
 }
 
@@ -2793,11 +2764,11 @@ fn decode_destack_net_socket_shutdown_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let how_value = arg_value(args, 1, "how", "SocketShutdown")?;
-    let how_raw = decode_uint8(how_value, "how_raw", "SocketShutdown")?;
+    let how_raw = decode_int32(how_value, "how_raw", "SocketShutdown")?;
     let how = match how_raw {
-        0u8 => SocketShutdown::Read,
-        1u8 => SocketShutdown::Write,
-        2u8 => SocketShutdown::ReadWrite,
+        0i32 => SocketShutdown::Read,
+        1i32 => SocketShutdown::Write,
+        2i32 => SocketShutdown::ReadWrite,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "how",
@@ -2886,15 +2857,12 @@ fn encode_destack_net_tcp_get_keep_alive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<KeepAliveConfigVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.enabled));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.idle_seconds as u64, 32));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.interval_seconds as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.probe_count as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::bool(value.enabled);
+        let field_1 = vm::Value::uint(value.idle_seconds as u64, 32);
+        let field_2 = vm::Value::uint(value.interval_seconds as u64, 32);
+        let field_3 = vm::Value::uint(value.probe_count as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -3517,22 +3485,16 @@ fn encode_destack_net_udp_recv_from_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UdpReceiveVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.address.family as u64, 16));
-            let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.address.length as u64, 32));
-            let field_2: RuntimeResult<vm::Value> = value.address.bytes.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = {
+            let field_0 = vm::Value::uint(value.address.family as u64, 16);
+            let field_1 = vm::Value::uint(value.address.length as u64, 32);
+            let field_2 = value.address.bytes.to_value(context);
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
         };
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+        let field_1 = vm::Value::uint(value.bytes, 64);
+        let field_2 = vm::Value::uint(value.recv_flags.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -3699,11 +3661,11 @@ fn decode_destack_net_udp_socket_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketFamily,)> {
     let family_value = arg_value(args, 0, "family", "SocketFamily")?;
-    let family_raw = decode_uint8(family_value, "family_raw", "SocketFamily")?;
+    let family_raw = decode_int32(family_value, "family_raw", "SocketFamily")?;
     let family = match family_raw {
-        0u8 => SocketFamily::Unspecified,
-        4u8 => SocketFamily::IPv4,
-        6u8 => SocketFamily::IPv6,
+        0i32 => SocketFamily::Unspecified,
+        4i32 => SocketFamily::IPv4,
+        6i32 => SocketFamily::IPv6,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "family",
@@ -3829,12 +3791,10 @@ fn encode_destack_net_uds_uds_socket_pair_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketPairVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.first.0.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.second.0.0, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.first.0.0, 64);
+        let field_1 = vm::Value::uint(value.second.0.0, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -4675,7 +4635,7 @@ pub(crate) const NET_INTERFACE_INTERFACE_NAME: BindingDescriptor =
 pub(crate) const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.interface.listInterfaces",
-        "export function listInterfaces(): Result<NetInterface[], PlatformError>",
+        "export function listInterfaces(): Result<Array<NetInterface>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.interface"],
@@ -5528,7 +5488,7 @@ pub(crate) const NET_RAW_SOCKET: BindingDescriptor = BindingDescriptor::external
 pub(crate) const NET_RESOLVE_LOOKUP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.resolve.lookup",
-        "export function resolve(query: ResolveQuery): Result<SocketAddress[], PlatformError>",
+        "export function resolve(query: ResolveQuery): Result<Array<SocketAddress>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.dns"],
@@ -5555,7 +5515,7 @@ pub(crate) const NET_RESOLVE_LOOKUP: BindingDescriptor =
 /// Binding descriptor for destack.net.resolve.reverseLookup.
 pub(crate) const NET_RESOLVE_REVERSE_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.resolve.reverseLookup",
-    "export function reverseLookup(address: SocketAddress, flags: ReverseLookupFlags): Result<ReverseLookupName[], PlatformError>",
+    "export function reverseLookup(address: SocketAddress, flags: ReverseLookupFlags): Result<Array<ReverseLookupName>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.dns"],
@@ -5709,7 +5669,7 @@ pub(crate) const NET_ROUTE_ROUTE_DELETE: BindingDescriptor =
 pub(crate) const NET_ROUTE_ROUTE_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.route.routeList",
-        "export function routeList(family: SocketFamily): Result<RouteEntry[], PlatformError>",
+        "export function routeList(family: SocketFamily): Result<Array<RouteEntry>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.route.read"],
@@ -5848,7 +5808,7 @@ pub(crate) const NET_SOCKET_RECV_FROM: BindingDescriptor = BindingDescriptor::ex
 /// Binding descriptor for destack.net.socket.recvMmsg.
 pub(crate) const NET_SOCKET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.recvMmsg",
-    "export function recvMmsg(handle: SocketHandle, requests: Slice<SocketRecvBatchRequest>, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<SocketRecvMessage[], PlatformError>",
+    "export function recvMmsg(handle: SocketHandle, requests: Slice<SocketRecvBatchRequest>, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<Array<SocketRecvMessage>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.udp"],
@@ -15054,7 +15014,7 @@ fn destack_net_address_local_address_vm_replay(
                 Ok(value) => {
                     let vm_result_family = value.family;
                     let vm_result_length = value.length;
-                    let vm_result_bytes = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                    let vm_result_bytes = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                     let vm_result = SocketAddressVm {
                         family: vm_result_family,
                         length: vm_result_length,
@@ -15122,7 +15082,7 @@ fn destack_net_address_peer_address_vm_replay(
                 Ok(value) => {
                     let vm_result_family = value.family;
                     let vm_result_length = value.length;
-                    let vm_result_bytes = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                    let vm_result_bytes = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                     let vm_result = SocketAddressVm {
                         family: vm_result_family,
                         length: vm_result_length,
@@ -15240,9 +15200,8 @@ fn destack_net_interface_interface_name_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = context
-                        .string_handle(value.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_value = context.intern_string(value.as_str());
+                    let vm_result = vm::StringHandle::new(vm_result_value);
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -15444,16 +15403,15 @@ fn destack_net_interface_list_interfaces_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_name = context
-                            .string_handle(vm_result_item.name.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_name_value =
+                            context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name =
+                            vm::StringHandle::new(vm_result_item_value_name_value);
                         let vm_result_item_value_index = vm_result_item.index;
                         let vm_result_item_value_flags = vm_result_item.flags;
                         let vm_result_item_value_mtu = vm_result_item.mtu;
-                        let vm_result_item_value_mac_address = VmArray::<u8>::from_bytes(
-                            context,
-                            vm_result_item.mac_address.as_ref(),
-                        )?;
+                        let vm_result_item_value_mac_address =
+                            VmArray::<u8>::from_bytes(context, vm_result_item.mac_address.as_ref());
                         let mut vm_result_item_value_addresses_values =
                             Vec::with_capacity(vm_result_item.addresses.len());
                         for vm_result_item_value_addresses_item in
@@ -15467,7 +15425,7 @@ fn destack_net_interface_list_interfaces_vm_replay(
                                 VmArray::<u8>::from_bytes(
                                     context,
                                     vm_result_item_value_addresses_item.bytes.as_ref(),
-                                )?;
+                                );
                             let vm_result_item_value_addresses_item_value = SocketAddressVm {
                                 family: vm_result_item_value_addresses_item_value_family,
                                 length: vm_result_item_value_addresses_item_value_length,
@@ -16158,7 +16116,7 @@ fn destack_net_options_get_sock_opt_raw_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -17075,13 +17033,13 @@ fn destack_net_raw_packet_backend_list_vm_replay(
                             .boxed());
                         }
                         let result_recorded_item_backend_raw =
-                            decode_uint8(slots[0], "result_recorded_item_backend_raw", "backend")?;
+                            decode_int32(slots[0], "result_recorded_item_backend_raw", "backend")?;
                         let result_recorded_item_backend = match result_recorded_item_backend_raw {
-                            0u8 => PacketBackend::Auto,
-                            1u8 => PacketBackend::AfPacket,
-                            2u8 => PacketBackend::Bpf,
-                            3u8 => PacketBackend::WinRawSocket,
-                            255u8 => PacketBackend::Null,
+                            0i32 => PacketBackend::Auto,
+                            1i32 => PacketBackend::AfPacket,
+                            2i32 => PacketBackend::Bpf,
+                            3i32 => PacketBackend::WinRawSocket,
+                            255i32 => PacketBackend::Null,
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
@@ -17158,9 +17116,10 @@ fn destack_net_raw_packet_backend_list_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value_backend = vm_result_item.backend;
-                        let vm_result_item_value_name = context
-                            .string_handle(vm_result_item.name.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_name_value =
+                            context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name =
+                            vm::StringHandle::new(vm_result_item_value_name_value);
                         let vm_result_item_value_available = vm_result_item.available;
                         let vm_result_item_value_priority = vm_result_item.priority;
                         let vm_result_item_value_capability_flags = vm_result_item.capability_flags;
@@ -18082,7 +18041,7 @@ fn destack_net_resolve_lookup_vm_replay(
                         let vm_result_item_value_family = vm_result_item.family;
                         let vm_result_item_value_length = vm_result_item.length;
                         let vm_result_item_value_bytes =
-                            VmArray::<u8>::from_bytes(context, vm_result_item.bytes.as_ref())?;
+                            VmArray::<u8>::from_bytes(context, vm_result_item.bytes.as_ref());
                         let vm_result_item_value = SocketAddressVm {
                             family: vm_result_item_value_family,
                             length: vm_result_item_value_length,
@@ -18198,12 +18157,14 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_host = context
-                            .string_handle(vm_result_item.host.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_service = context
-                            .string_handle(vm_result_item.service.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_host_value =
+                            context.intern_string(vm_result_item.host.as_str());
+                        let vm_result_item_value_host =
+                            vm::StringHandle::new(vm_result_item_value_host_value);
+                        let vm_result_item_value_service_value =
+                            context.intern_string(vm_result_item.service.as_str());
+                        let vm_result_item_value_service =
+                            vm::StringHandle::new(vm_result_item_value_service_value);
                         let vm_result_item_value = ReverseLookupNameVm {
                             host: vm_result_item_value_host,
                             service: vm_result_item_value_service,
@@ -18578,11 +18539,11 @@ fn destack_net_route_route_list_vm_replay(
                             .boxed());
                         }
                         let result_recorded_item_family_raw =
-                            decode_uint8(slots[0], "result_recorded_item_family_raw", "family")?;
+                            decode_int32(slots[0], "result_recorded_item_family_raw", "family")?;
                         let result_recorded_item_family = match result_recorded_item_family_raw {
-                            0u8 => SocketFamily::Unspecified,
-                            4u8 => SocketFamily::IPv4,
-                            6u8 => SocketFamily::IPv6,
+                            0i32 => SocketFamily::Unspecified,
+                            4i32 => SocketFamily::IPv4,
+                            6i32 => SocketFamily::IPv6,
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
@@ -18694,13 +18655,13 @@ fn destack_net_route_route_list_vm_replay(
                         let result_recorded_item_metric =
                             decode_uint32(slots[5], "result_recorded_item_metric", "metric")?;
                         let result_recorded_item_kind_raw =
-                            decode_uint8(slots[6], "result_recorded_item_kind_raw", "kind")?;
+                            decode_int32(slots[6], "result_recorded_item_kind_raw", "kind")?;
                         let result_recorded_item_kind = match result_recorded_item_kind_raw {
-                            1u8 => RouteKind::Unicast,
-                            2u8 => RouteKind::Local,
-                            3u8 => RouteKind::Broadcast,
-                            4u8 => RouteKind::Multicast,
-                            5u8 => RouteKind::Blackhole,
+                            1i32 => RouteKind::Unicast,
+                            2i32 => RouteKind::Local,
+                            3i32 => RouteKind::Broadcast,
+                            4i32 => RouteKind::Multicast,
+                            5i32 => RouteKind::Blackhole,
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
@@ -18792,7 +18753,7 @@ fn destack_net_route_route_list_vm_replay(
                         let vm_result_item_value_destination_bytes = VmArray::<u8>::from_bytes(
                             context,
                             vm_result_item.destination.bytes.as_ref(),
-                        )?;
+                        );
                         let vm_result_item_value_destination = SocketAddressVm {
                             family: vm_result_item_value_destination_family,
                             length: vm_result_item_value_destination_length,
@@ -18804,7 +18765,7 @@ fn destack_net_route_route_list_vm_replay(
                         let vm_result_item_value_gateway_bytes = VmArray::<u8>::from_bytes(
                             context,
                             vm_result_item.gateway.bytes.as_ref(),
-                        )?;
+                        );
                         let vm_result_item_value_gateway = SocketAddressVm {
                             family: vm_result_item_value_gateway_family,
                             length: vm_result_item_value_gateway_length,
@@ -19240,7 +19201,7 @@ fn destack_net_socket_recv_from_vm_replay(
                     let vm_result_address_family = value.address.family;
                     let vm_result_address_length = value.address.length;
                     let vm_result_address_bytes =
-                        VmArray::<u8>::from_bytes(context, value.address.bytes.as_ref())?;
+                        VmArray::<u8>::from_bytes(context, value.address.bytes.as_ref());
                     let vm_result_address = SocketAddressVm {
                         family: vm_result_address_family,
                         length: vm_result_address_length,
@@ -19571,7 +19532,7 @@ fn destack_net_socket_recv_mmsg_vm_replay(
                                 let vm_result_item_value_address_inner_family = value.family;
                                 let vm_result_item_value_address_inner_length = value.length;
                                 let vm_result_item_value_address_inner_bytes =
-                                    VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                    VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                                 let vm_result_item_value_address_inner = SocketAddressVm {
                                     family: vm_result_item_value_address_inner_family,
                                     length: vm_result_item_value_address_inner_length,
@@ -19587,7 +19548,7 @@ fn destack_net_socket_recv_mmsg_vm_replay(
                         let vm_result_item_value_control_truncated =
                             vm_result_item.control_truncated;
                         let vm_result_item_value_control_inner =
-                            VmArray::<u8>::from_bytes(context, vm_result_item.control.as_ref())?;
+                            VmArray::<u8>::from_bytes(context, vm_result_item.control.as_ref());
                         let vm_result_item_value_control =
                             platform_net::SocketControlBufferAbi::<platform_abi::VmAbi>(
                                 vm_result_item_value_control_inner,
@@ -19763,7 +19724,7 @@ fn destack_net_socket_recv_msg_vm_replay(
                         let vm_result_address_inner_family = value.family;
                         let vm_result_address_inner_length = value.length;
                         let vm_result_address_inner_bytes =
-                            VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                            VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                         let vm_result_address_inner = SocketAddressVm {
                             family: vm_result_address_inner_family,
                             length: vm_result_address_inner_length,
@@ -19777,7 +19738,7 @@ fn destack_net_socket_recv_msg_vm_replay(
                     let vm_result_payload_truncated = value.payload_truncated;
                     let vm_result_control_truncated = value.control_truncated;
                     let vm_result_control_inner =
-                        VmArray::<u8>::from_bytes(context, value.control.as_ref())?;
+                        VmArray::<u8>::from_bytes(context, value.control.as_ref());
                     let vm_result_control = platform_net::SocketControlBufferAbi::<
                         platform_abi::VmAbi,
                     >(vm_result_control_inner);
@@ -20599,9 +20560,8 @@ fn destack_net_udp_get_multicast_interface_v4_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = context
-                        .string_handle(value.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_value = context.intern_string(value.as_str());
+                    let vm_result = vm::StringHandle::new(vm_result_value);
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -21315,7 +21275,7 @@ fn destack_net_udp_recv_from_vm_replay(
                     let vm_result_address_family = value.address.family;
                     let vm_result_address_length = value.address.length;
                     let vm_result_address_bytes =
-                        VmArray::<u8>::from_bytes(context, value.address.bytes.as_ref())?;
+                        VmArray::<u8>::from_bytes(context, value.address.bytes.as_ref());
                     let vm_result_address = SocketAddressVm {
                         family: vm_result_address_family,
                         length: vm_result_address_length,

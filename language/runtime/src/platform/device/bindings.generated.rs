@@ -67,7 +67,7 @@ use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::trace::TraceError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -262,7 +262,7 @@ fn encode_destack_device_bluetooth_adapter_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothAdapterDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.characteristicList.
@@ -287,7 +287,7 @@ fn encode_destack_device_bluetooth_gatt_characteristic_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothGattCharacteristicDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.descriptorList.
@@ -319,7 +319,7 @@ fn encode_destack_device_bluetooth_gatt_descriptor_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothGattDescriptorDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.mtu.
@@ -377,7 +377,7 @@ fn encode_destack_device_bluetooth_gatt_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.readDescriptor.
@@ -421,7 +421,7 @@ fn encode_destack_device_bluetooth_gatt_read_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.readEvent.
@@ -449,14 +449,12 @@ fn encode_destack_device_bluetooth_gatt_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothGattValueEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(value.service_uuid.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(value.characteristic_uuid.value());
-        let field_3: RuntimeResult<vm::Value> = value.value.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = value.service_uuid.value();
+        let field_2 = value.characteristic_uuid.value();
+        let field_3 = value.value.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -507,7 +505,7 @@ fn encode_destack_device_bluetooth_gatt_service_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothGattServiceDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.subscribe.
@@ -565,14 +563,12 @@ fn encode_destack_device_bluetooth_gatt_try_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothGattValueEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(value.service_uuid.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(value.characteristic_uuid.value());
-        let field_3: RuntimeResult<vm::Value> = value.value.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = value.service_uuid.value();
+        let field_2 = value.characteristic_uuid.value();
+        let field_3 = value.value.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -784,11 +780,11 @@ fn decode_destack_device_bluetooth_scan_open_args(
             None
         } else {
             let filter_transport_inner_raw =
-                decode_uint8(slots[4], "filter_transport_inner_raw", "transport")?;
+                decode_int32(slots[4], "filter_transport_inner_raw", "transport")?;
             let filter_transport_inner = match filter_transport_inner_raw {
-                1u8 => BluetoothTransport::LowEnergy,
-                2u8 => BluetoothTransport::Classic,
-                3u8 => BluetoothTransport::Dual,
+                1i32 => BluetoothTransport::LowEnergy,
+                2i32 => BluetoothTransport::Classic,
+                3i32 => BluetoothTransport::Dual,
                 _ => {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                         "filter_transport_inner",
@@ -803,10 +799,10 @@ fn decode_destack_device_bluetooth_scan_open_args(
             None
         } else {
             let filter_scan_mode_inner_raw =
-                decode_uint8(slots[5], "filter_scan_mode_inner_raw", "scanMode")?;
+                decode_int32(slots[5], "filter_scan_mode_inner_raw", "scanMode")?;
             let filter_scan_mode_inner = match filter_scan_mode_inner_raw {
-                1u8 => BluetoothScanMode::Passive,
-                2u8 => BluetoothScanMode::Active,
+                1i32 => BluetoothScanMode::Passive,
+                2i32 => BluetoothScanMode::Active,
                 _ => {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                         "filter_scan_mode_inner",
@@ -821,12 +817,12 @@ fn decode_destack_device_bluetooth_scan_open_args(
             None
         } else {
             let filter_primary_phy_inner_raw =
-                decode_uint8(slots[6], "filter_primary_phy_inner_raw", "primaryPhy")?;
+                decode_int32(slots[6], "filter_primary_phy_inner_raw", "primaryPhy")?;
             let filter_primary_phy_inner = match filter_primary_phy_inner_raw {
-                1u8 => BluetoothPhy::Le1M,
-                2u8 => BluetoothPhy::Le2M,
-                3u8 => BluetoothPhy::LeCoded,
-                4u8 => BluetoothPhy::Any,
+                1i32 => BluetoothPhy::Le1M,
+                2i32 => BluetoothPhy::Le2M,
+                3i32 => BluetoothPhy::LeCoded,
+                4i32 => BluetoothPhy::Any,
                 _ => {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                         "filter_primary_phy_inner",
@@ -841,12 +837,12 @@ fn decode_destack_device_bluetooth_scan_open_args(
             None
         } else {
             let filter_secondary_phy_inner_raw =
-                decode_uint8(slots[7], "filter_secondary_phy_inner_raw", "secondaryPhy")?;
+                decode_int32(slots[7], "filter_secondary_phy_inner_raw", "secondaryPhy")?;
             let filter_secondary_phy_inner = match filter_secondary_phy_inner_raw {
-                1u8 => BluetoothPhy::Le1M,
-                2u8 => BluetoothPhy::Le2M,
-                3u8 => BluetoothPhy::LeCoded,
-                4u8 => BluetoothPhy::Any,
+                1i32 => BluetoothPhy::Le1M,
+                2i32 => BluetoothPhy::Le2M,
+                3i32 => BluetoothPhy::LeCoded,
+                4i32 => BluetoothPhy::Any,
                 _ => {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                         "filter_secondary_phy_inner",
@@ -902,47 +898,38 @@ fn encode_destack_device_bluetooth_scan_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothDeviceDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_1: RuntimeResult<vm::Value> = Ok(value.address.value());
-        let field_2: RuntimeResult<vm::Value> = match value.name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = value.id.value();
+        let field_1 = value.address.value();
+        let field_2 = match value.name {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = match value.rssi {
-            Some(value) => Ok(vm::Value::int(value as i64, 32)),
-            None => Ok(vm::Value::VOID),
+        let field_3 = match value.rssi {
+            Some(value) => vm::Value::int(value as i64, 32),
+            None => vm::Value::VOID,
         };
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.paired));
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.pair_state as u8 as u64, 8));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connected));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connectable));
-        let field_8: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = match value.advertisement.local_name {
-                Some(value) => Ok(value.value()),
-                None => Ok(vm::Value::VOID),
+        let field_4 = vm::Value::bool(value.paired);
+        let field_5 = vm::Value::int(value.pair_state as i32 as i64, 32);
+        let field_6 = vm::Value::bool(value.connected);
+        let field_7 = vm::Value::bool(value.connectable);
+        let field_8 = {
+            let field_0 = match value.advertisement.local_name {
+                Some(value) => value.value(),
+                None => vm::Value::VOID,
             };
-            let field_1: RuntimeResult<vm::Value> = match value.advertisement.tx_power {
-                Some(value) => Ok(vm::Value::int(value as i64, 16)),
-                None => Ok(vm::Value::VOID),
+            let field_1 = match value.advertisement.tx_power {
+                Some(value) => vm::Value::int(value as i64, 16),
+                None => vm::Value::VOID,
             };
-            let field_2: RuntimeResult<vm::Value> =
-                value.advertisement.service_uuids.to_value(context);
-            let field_3: RuntimeResult<vm::Value> =
-                value.advertisement.manufacturer_data.to_value(context);
-            let field_4: RuntimeResult<vm::Value> =
-                value.advertisement.service_data.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
+            let field_2 = value.advertisement.service_uuids.to_value(context);
+            let field_3 = value.advertisement.manufacturer_data.to_value(context);
+            let field_4 = value.advertisement.service_data.to_value(context);
+            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
         };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+        ])
     })
 }
 
@@ -966,47 +953,38 @@ fn encode_destack_device_bluetooth_scan_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothDeviceDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_1: RuntimeResult<vm::Value> = Ok(value.address.value());
-        let field_2: RuntimeResult<vm::Value> = match value.name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = value.id.value();
+        let field_1 = value.address.value();
+        let field_2 = match value.name {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = match value.rssi {
-            Some(value) => Ok(vm::Value::int(value as i64, 32)),
-            None => Ok(vm::Value::VOID),
+        let field_3 = match value.rssi {
+            Some(value) => vm::Value::int(value as i64, 32),
+            None => vm::Value::VOID,
         };
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.paired));
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.pair_state as u8 as u64, 8));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connected));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connectable));
-        let field_8: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = match value.advertisement.local_name {
-                Some(value) => Ok(value.value()),
-                None => Ok(vm::Value::VOID),
+        let field_4 = vm::Value::bool(value.paired);
+        let field_5 = vm::Value::int(value.pair_state as i32 as i64, 32);
+        let field_6 = vm::Value::bool(value.connected);
+        let field_7 = vm::Value::bool(value.connectable);
+        let field_8 = {
+            let field_0 = match value.advertisement.local_name {
+                Some(value) => value.value(),
+                None => vm::Value::VOID,
             };
-            let field_1: RuntimeResult<vm::Value> = match value.advertisement.tx_power {
-                Some(value) => Ok(vm::Value::int(value as i64, 16)),
-                None => Ok(vm::Value::VOID),
+            let field_1 = match value.advertisement.tx_power {
+                Some(value) => vm::Value::int(value as i64, 16),
+                None => vm::Value::VOID,
             };
-            let field_2: RuntimeResult<vm::Value> =
-                value.advertisement.service_uuids.to_value(context);
-            let field_3: RuntimeResult<vm::Value> =
-                value.advertisement.manufacturer_data.to_value(context);
-            let field_4: RuntimeResult<vm::Value> =
-                value.advertisement.service_data.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
+            let field_2 = value.advertisement.service_uuids.to_value(context);
+            let field_3 = value.advertisement.manufacturer_data.to_value(context);
+            let field_4 = value.advertisement.service_data.to_value(context);
+            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
         };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+        ])
     })
 }
 
@@ -1156,7 +1134,7 @@ fn encode_destack_device_camera_device_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CameraDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.camera.device.open.
@@ -1199,7 +1177,7 @@ fn encode_destack_device_camera_device_stream_capability_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CameraStreamCapabilityVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.camera.device.streamConfigList.
@@ -1222,7 +1200,7 @@ fn encode_destack_device_camera_device_stream_config_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CameraStreamConfigVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.camera.stream.close.
@@ -1260,12 +1238,12 @@ fn decode_destack_device_camera_stream_control_range_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CameraStreamHandle(handle_inner);
     let control_value = arg_value(args, 1, "control", "CameraControl")?;
-    let control_raw = decode_uint8(control_value, "control_raw", "CameraControl")?;
+    let control_raw = decode_int32(control_value, "control_raw", "CameraControl")?;
     let control = match control_raw {
-        1u8 => CameraControl::Exposure,
-        2u8 => CameraControl::WhiteBalance,
-        3u8 => CameraControl::Focus,
-        4u8 => CameraControl::Zoom,
+        1i32 => CameraControl::Exposure,
+        2i32 => CameraControl::WhiteBalance,
+        3i32 => CameraControl::Focus,
+        4i32 => CameraControl::Zoom,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "control",
@@ -1283,18 +1261,14 @@ fn encode_destack_device_camera_stream_control_range_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraControlRangeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.control as u8 as u64, 8));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default_value));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.auto_supported));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.control as i32 as i64, 32);
+        let field_1 = vm::Value::float64(value.minimum);
+        let field_2 = vm::Value::float64(value.maximum);
+        let field_3 = vm::Value::float64(value.default_value);
+        let field_4 = vm::Value::float64(value.step);
+        let field_5 = vm::Value::bool(value.auto_supported);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
     })
 }
 
@@ -1318,7 +1292,7 @@ fn encode_destack_device_camera_stream_exposure_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraExposureMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.map(|value| vm::Value::int(value as i32 as i64, 32))
 }
 
 /// Decode arguments for destack.device.camera.stream.getControl.
@@ -1333,12 +1307,12 @@ fn decode_destack_device_camera_stream_get_control_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CameraStreamHandle(handle_inner);
     let control_value = arg_value(args, 1, "control", "CameraControl")?;
-    let control_raw = decode_uint8(control_value, "control_raw", "CameraControl")?;
+    let control_raw = decode_int32(control_value, "control_raw", "CameraControl")?;
     let control = match control_raw {
-        1u8 => CameraControl::Exposure,
-        2u8 => CameraControl::WhiteBalance,
-        3u8 => CameraControl::Focus,
-        4u8 => CameraControl::Zoom,
+        1i32 => CameraControl::Exposure,
+        2i32 => CameraControl::WhiteBalance,
+        3i32 => CameraControl::Focus,
+        4i32 => CameraControl::Zoom,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "control",
@@ -1393,12 +1367,12 @@ fn decode_destack_device_camera_stream_open_args(
         let config_height = decode_uint32(slots[1], "config_height", "height")?;
         let config_frame_rate_milli_hz =
             decode_uint32(slots[2], "config_frame_rate_milli_hz", "frameRateMilliHz")?;
-        let config_format_raw = decode_uint8(slots[3], "config_format_raw", "format")?;
+        let config_format_raw = decode_int32(slots[3], "config_format_raw", "format")?;
         let config_format = match config_format_raw {
-            1u8 => CameraPixelFormat::Bgra8,
-            2u8 => CameraPixelFormat::Rgba8,
-            3u8 => CameraPixelFormat::Yuv420,
-            4u8 => CameraPixelFormat::Jpeg,
+            1i32 => CameraPixelFormat::Bgra8,
+            2i32 => CameraPixelFormat::Rgba8,
+            3i32 => CameraPixelFormat::Yuv420,
+            4i32 => CameraPixelFormat::Jpeg,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_format",
@@ -1448,47 +1422,41 @@ fn encode_destack_device_camera_stream_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraFrameVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u8 as u64, 8));
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.color_space as u8 as u64, 8));
-        let field_6: RuntimeResult<vm::Value> = value.planes.to_value(context);
-        let field_7: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = match value.metadata.exposure_time_ns {
-                Some(value) => Ok(vm::Value::uint(value, 64)),
-                None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = vm::Value::uint(value.sequence, 64);
+        let field_2 = vm::Value::uint(value.width as u64, 32);
+        let field_3 = vm::Value::uint(value.height as u64, 32);
+        let field_4 = vm::Value::int(value.format as i32 as i64, 32);
+        let field_5 = vm::Value::int(value.color_space as i32 as i64, 32);
+        let field_6 = value.planes.to_value(context);
+        let field_7 = {
+            let field_0 = match value.metadata.exposure_time_ns {
+                Some(value) => vm::Value::uint(value, 64),
+                None => vm::Value::VOID,
             };
-            let field_1: RuntimeResult<vm::Value> = match value.metadata.sensor_iso {
-                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
-                None => Ok(vm::Value::VOID),
+            let field_1 = match value.metadata.sensor_iso {
+                Some(value) => vm::Value::uint(value as u64, 32),
+                None => vm::Value::VOID,
             };
-            let field_2: RuntimeResult<vm::Value> = match value.metadata.white_balance_kelvin {
-                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
-                None => Ok(vm::Value::VOID),
+            let field_2 = match value.metadata.white_balance_kelvin {
+                Some(value) => vm::Value::uint(value as u64, 32),
+                None => vm::Value::VOID,
             };
-            let field_3: RuntimeResult<vm::Value> = match value.metadata.focus_distance_diopters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
+            let field_3 = match value.metadata.focus_distance_diopters {
+                Some(value) => vm::Value::float64(value),
+                None => vm::Value::VOID,
             };
-            let field_4: RuntimeResult<vm::Value> = match value.metadata.zoom_ratio {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
+            let field_4 = match value.metadata.zoom_ratio {
+                Some(value) => vm::Value::float64(value),
+                None => vm::Value::VOID,
             };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
+            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
         };
-        let field_8: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        let field_8 = value.bytes.to_value(context);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+        ])
     })
 }
 
@@ -1504,12 +1472,12 @@ fn decode_destack_device_camera_stream_set_control_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CameraStreamHandle(handle_inner);
     let control_value = arg_value(args, 1, "control", "CameraControl")?;
-    let control_raw = decode_uint8(control_value, "control_raw", "CameraControl")?;
+    let control_raw = decode_int32(control_value, "control_raw", "CameraControl")?;
     let control = match control_raw {
-        1u8 => CameraControl::Exposure,
-        2u8 => CameraControl::WhiteBalance,
-        3u8 => CameraControl::Focus,
-        4u8 => CameraControl::Zoom,
+        1i32 => CameraControl::Exposure,
+        2i32 => CameraControl::WhiteBalance,
+        3i32 => CameraControl::Focus,
+        4i32 => CameraControl::Zoom,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "control",
@@ -1544,11 +1512,11 @@ fn decode_destack_device_camera_stream_set_exposure_mode_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CameraStreamHandle(handle_inner);
     let mode_value = arg_value(args, 1, "mode", "CameraExposureMode")?;
-    let mode_raw = decode_uint8(mode_value, "mode_raw", "CameraExposureMode")?;
+    let mode_raw = decode_int32(mode_value, "mode_raw", "CameraExposureMode")?;
     let mode = match mode_raw {
-        1u8 => CameraExposureMode::Auto,
-        2u8 => CameraExposureMode::ContinuousAuto,
-        3u8 => CameraExposureMode::Manual,
+        1i32 => CameraExposureMode::Auto,
+        2i32 => CameraExposureMode::ContinuousAuto,
+        3i32 => CameraExposureMode::Manual,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "mode",
@@ -1581,11 +1549,11 @@ fn decode_destack_device_camera_stream_set_stabilization_mode_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CameraStreamHandle(handle_inner);
     let mode_value = arg_value(args, 1, "mode", "CameraStabilizationMode")?;
-    let mode_raw = decode_uint8(mode_value, "mode_raw", "CameraStabilizationMode")?;
+    let mode_raw = decode_int32(mode_value, "mode_raw", "CameraStabilizationMode")?;
     let mode = match mode_raw {
-        1u8 => CameraStabilizationMode::Off,
-        2u8 => CameraStabilizationMode::Standard,
-        3u8 => CameraStabilizationMode::HighQuality,
+        1i32 => CameraStabilizationMode::Off,
+        2i32 => CameraStabilizationMode::Standard,
+        3i32 => CameraStabilizationMode::HighQuality,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "mode",
@@ -1618,11 +1586,11 @@ fn decode_destack_device_camera_stream_set_torch_mode_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CameraStreamHandle(handle_inner);
     let mode_value = arg_value(args, 1, "mode", "CameraTorchMode")?;
-    let mode_raw = decode_uint8(mode_value, "mode_raw", "CameraTorchMode")?;
+    let mode_raw = decode_int32(mode_value, "mode_raw", "CameraTorchMode")?;
     let mode = match mode_raw {
-        1u8 => CameraTorchMode::Off,
-        2u8 => CameraTorchMode::On,
-        3u8 => CameraTorchMode::Auto,
+        1i32 => CameraTorchMode::Off,
+        2i32 => CameraTorchMode::On,
+        3i32 => CameraTorchMode::Auto,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "mode",
@@ -1663,7 +1631,7 @@ fn encode_destack_device_camera_stream_stabilization_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraStabilizationMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.map(|value| vm::Value::int(value as i32 as i64, 32))
 }
 
 /// Decode arguments for destack.device.camera.stream.start.
@@ -1732,7 +1700,7 @@ fn encode_destack_device_camera_stream_torch_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraTorchMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.map(|value| vm::Value::int(value as i32 as i64, 32))
 }
 
 /// Decode arguments for destack.device.camera.stream.tryRead.
@@ -1755,47 +1723,41 @@ fn encode_destack_device_camera_stream_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraFrameVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u8 as u64, 8));
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.color_space as u8 as u64, 8));
-        let field_6: RuntimeResult<vm::Value> = value.planes.to_value(context);
-        let field_7: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = match value.metadata.exposure_time_ns {
-                Some(value) => Ok(vm::Value::uint(value, 64)),
-                None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = vm::Value::uint(value.sequence, 64);
+        let field_2 = vm::Value::uint(value.width as u64, 32);
+        let field_3 = vm::Value::uint(value.height as u64, 32);
+        let field_4 = vm::Value::int(value.format as i32 as i64, 32);
+        let field_5 = vm::Value::int(value.color_space as i32 as i64, 32);
+        let field_6 = value.planes.to_value(context);
+        let field_7 = {
+            let field_0 = match value.metadata.exposure_time_ns {
+                Some(value) => vm::Value::uint(value, 64),
+                None => vm::Value::VOID,
             };
-            let field_1: RuntimeResult<vm::Value> = match value.metadata.sensor_iso {
-                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
-                None => Ok(vm::Value::VOID),
+            let field_1 = match value.metadata.sensor_iso {
+                Some(value) => vm::Value::uint(value as u64, 32),
+                None => vm::Value::VOID,
             };
-            let field_2: RuntimeResult<vm::Value> = match value.metadata.white_balance_kelvin {
-                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
-                None => Ok(vm::Value::VOID),
+            let field_2 = match value.metadata.white_balance_kelvin {
+                Some(value) => vm::Value::uint(value as u64, 32),
+                None => vm::Value::VOID,
             };
-            let field_3: RuntimeResult<vm::Value> = match value.metadata.focus_distance_diopters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
+            let field_3 = match value.metadata.focus_distance_diopters {
+                Some(value) => vm::Value::float64(value),
+                None => vm::Value::VOID,
             };
-            let field_4: RuntimeResult<vm::Value> = match value.metadata.zoom_ratio {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
+            let field_4 = match value.metadata.zoom_ratio {
+                Some(value) => vm::Value::float64(value),
+                None => vm::Value::VOID,
             };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
+            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
         };
-        let field_8: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        let field_8 = value.bytes.to_value(context);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+        ])
     })
 }
 
@@ -1852,11 +1814,11 @@ fn decode_destack_device_serial_configure_args(
         }
         let config_baud_rate = decode_uint32(slots[0], "config_baud_rate", "baudRate")?;
         let config_data_bits = decode_uint8(slots[1], "config_data_bits", "dataBits")?;
-        let config_parity_raw = decode_uint8(slots[2], "config_parity_raw", "parity")?;
+        let config_parity_raw = decode_int32(slots[2], "config_parity_raw", "parity")?;
         let config_parity = match config_parity_raw {
-            1u8 => SerialParity::None,
-            2u8 => SerialParity::Odd,
-            3u8 => SerialParity::Even,
+            1i32 => SerialParity::None,
+            2i32 => SerialParity::Odd,
+            3i32 => SerialParity::Even,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_parity",
@@ -1865,10 +1827,10 @@ fn decode_destack_device_serial_configure_args(
                 .boxed());
             }
         };
-        let config_stop_bits_raw = decode_uint8(slots[3], "config_stop_bits_raw", "stopBits")?;
+        let config_stop_bits_raw = decode_int32(slots[3], "config_stop_bits_raw", "stopBits")?;
         let config_stop_bits = match config_stop_bits_raw {
-            1u8 => SerialStopBits::One,
-            2u8 => SerialStopBits::Two,
+            1i32 => SerialStopBits::One,
+            2i32 => SerialStopBits::Two,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_stop_bits",
@@ -1878,11 +1840,11 @@ fn decode_destack_device_serial_configure_args(
             }
         };
         let config_flow_control_raw =
-            decode_uint8(slots[4], "config_flow_control_raw", "flowControl")?;
+            decode_int32(slots[4], "config_flow_control_raw", "flowControl")?;
         let config_flow_control = match config_flow_control_raw {
-            1u8 => SerialFlowControl::None,
-            2u8 => SerialFlowControl::RtsCts,
-            3u8 => SerialFlowControl::XonXoff,
+            1i32 => SerialFlowControl::None,
+            2i32 => SerialFlowControl::RtsCts,
+            3i32 => SerialFlowControl::XonXoff,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_flow_control",
@@ -1989,7 +1951,7 @@ fn encode_destack_device_serial_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<SerialPortDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.serial.open.
@@ -2021,11 +1983,11 @@ fn decode_destack_device_serial_open_args(
         }
         let config_baud_rate = decode_uint32(slots[0], "config_baud_rate", "baudRate")?;
         let config_data_bits = decode_uint8(slots[1], "config_data_bits", "dataBits")?;
-        let config_parity_raw = decode_uint8(slots[2], "config_parity_raw", "parity")?;
+        let config_parity_raw = decode_int32(slots[2], "config_parity_raw", "parity")?;
         let config_parity = match config_parity_raw {
-            1u8 => SerialParity::None,
-            2u8 => SerialParity::Odd,
-            3u8 => SerialParity::Even,
+            1i32 => SerialParity::None,
+            2i32 => SerialParity::Odd,
+            3i32 => SerialParity::Even,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_parity",
@@ -2034,10 +1996,10 @@ fn decode_destack_device_serial_open_args(
                 .boxed());
             }
         };
-        let config_stop_bits_raw = decode_uint8(slots[3], "config_stop_bits_raw", "stopBits")?;
+        let config_stop_bits_raw = decode_int32(slots[3], "config_stop_bits_raw", "stopBits")?;
         let config_stop_bits = match config_stop_bits_raw {
-            1u8 => SerialStopBits::One,
-            2u8 => SerialStopBits::Two,
+            1i32 => SerialStopBits::One,
+            2i32 => SerialStopBits::Two,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_stop_bits",
@@ -2047,11 +2009,11 @@ fn decode_destack_device_serial_open_args(
             }
         };
         let config_flow_control_raw =
-            decode_uint8(slots[4], "config_flow_control_raw", "flowControl")?;
+            decode_int32(slots[4], "config_flow_control_raw", "flowControl")?;
         let config_flow_control = match config_flow_control_raw {
-            1u8 => SerialFlowControl::None,
-            2u8 => SerialFlowControl::RtsCts,
-            3u8 => SerialFlowControl::XonXoff,
+            1i32 => SerialFlowControl::None,
+            2i32 => SerialFlowControl::RtsCts,
+            3i32 => SerialFlowControl::XonXoff,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_flow_control",
@@ -2109,7 +2071,7 @@ fn encode_destack_device_serial_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.serial.readEvent.
@@ -2133,120 +2095,75 @@ fn encode_destack_device_serial_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SerialEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         SerialEventVm::SerialErrorEvent(value) => {
             let tag_value = vm::Value::uint(410067109u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.code as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.detail as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_2 = {
+                    let field_0 = vm::Value::int(value.payload.code as i64, 32);
+                    let field_1 = vm::Value::int(value.payload.detail as i64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         SerialEventVm::SerialReadReadyEvent(value) => {
             let tag_value = vm::Value::uint(1237782817u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.available_bytes as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.available_bytes as u64, 32);
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         SerialEventVm::SerialSignalsChangedEvent(value) => {
             let tag_value = vm::Value::uint(3387895374u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.signal_bits as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.signal_bits as u64, 32);
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         SerialEventVm::SerialWriteReadyEvent(value) => {
             let tag_value = vm::Value::uint(2674919946u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.writable_bytes as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.writable_bytes as u64, 32);
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -2342,120 +2259,75 @@ fn encode_destack_device_serial_try_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SerialEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         SerialEventVm::SerialErrorEvent(value) => {
             let tag_value = vm::Value::uint(410067109u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.code as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.detail as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_2 = {
+                    let field_0 = vm::Value::int(value.payload.code as i64, 32);
+                    let field_1 = vm::Value::int(value.payload.detail as i64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         SerialEventVm::SerialReadReadyEvent(value) => {
             let tag_value = vm::Value::uint(1237782817u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.available_bytes as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.available_bytes as u64, 32);
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         SerialEventVm::SerialSignalsChangedEvent(value) => {
             let tag_value = vm::Value::uint(3387895374u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.signal_bits as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.signal_bits as u64, 32);
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         SerialEventVm::SerialWriteReadyEvent(value) => {
             let tag_value = vm::Value::uint(2674919946u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.writable_bytes as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.writable_bytes as u64, 32);
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -2481,7 +2353,7 @@ fn encode_destack_device_serial_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.serial.write.
@@ -2535,7 +2407,7 @@ fn encode_destack_device_usb_bulk_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.usb.bulkWrite.
@@ -2682,7 +2554,7 @@ fn encode_destack_device_usb_configuration_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<UsbConfigurationDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.usb.configurationSet.
@@ -2762,7 +2634,7 @@ fn encode_destack_device_usb_control_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.usb.controlWrite.
@@ -2852,31 +2724,28 @@ fn encode_destack_device_usb_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbDeviceDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.vendor_id as u64, 16));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.product_id as u64, 16));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.class_code as u64, 8));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.subclass_code as u64, 8));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.protocol_code as u64, 8));
-        let field_6: RuntimeResult<vm::Value> = match value.manufacturer {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = value.id.value();
+        let field_1 = vm::Value::uint(value.vendor_id as u64, 16);
+        let field_2 = vm::Value::uint(value.product_id as u64, 16);
+        let field_3 = vm::Value::uint(value.class_code as u64, 8);
+        let field_4 = vm::Value::uint(value.subclass_code as u64, 8);
+        let field_5 = vm::Value::uint(value.protocol_code as u64, 8);
+        let field_6 = match value.manufacturer {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_7: RuntimeResult<vm::Value> = match value.product {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+        let field_7 = match value.product {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_8: RuntimeResult<vm::Value> = match value.serial_number {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+        let field_8 = match value.serial_number {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+        ])
     })
 }
 
@@ -2905,7 +2774,7 @@ fn encode_destack_device_usb_interrupt_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.usb.interruptWrite.
@@ -2967,13 +2836,11 @@ fn encode_destack_device_usb_isochronous_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbIsochronousTransferResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        let field_1: RuntimeResult<vm::Value> = value.packet_actual_lengths.to_value(context);
-        let field_2: RuntimeResult<vm::Value> = value.packet_statuses.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = value.bytes.to_value(context);
+        let field_1 = value.packet_actual_lengths.to_value(context);
+        let field_2 = value.packet_statuses.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -3022,13 +2889,11 @@ fn encode_destack_device_usb_isochronous_write_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbIsochronousTransferResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        let field_1: RuntimeResult<vm::Value> = value.packet_actual_lengths.to_value(context);
-        let field_2: RuntimeResult<vm::Value> = value.packet_statuses.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = value.bytes.to_value(context);
+        let field_1 = value.packet_actual_lengths.to_value(context);
+        let field_2 = value.packet_statuses.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -3110,7 +2975,7 @@ fn encode_destack_device_usb_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<UsbDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.usb.open.
@@ -3226,23 +3091,21 @@ fn encode_destack_device_usb_string_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbStringDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.language_id as u64, 16));
-        let field_1: RuntimeResult<vm::Value> = match value.manufacturer {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.language_id as u64, 16);
+        let field_1 = match value.manufacturer {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_2: RuntimeResult<vm::Value> = match value.product {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+        let field_2 = match value.product {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = match value.serial_number {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+        let field_3 = match value.serial_number {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -3265,7 +3128,7 @@ fn encode_destack_device_usb_string_language_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u16>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.device.usb.transferCancel.
@@ -3366,126 +3229,84 @@ fn encode_destack_device_usb_watch_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbHotplugEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         UsbHotplugEventVm::UsbHotplugAttachedEvent(value) => {
             let tag_value = vm::Value::uint(1449914010u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
-                        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.subclass_code as u64,
-                            8,
-                        ));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.protocol_code as u64,
-                            8,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.metadata.device.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.metadata.device.product
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = {
+                        let field_0 = value.metadata.device.id.value();
+                        let field_1 = vm::Value::uint(value.metadata.device.vendor_id as u64, 16);
+                        let field_2 = vm::Value::uint(value.metadata.device.product_id as u64, 16);
+                        let field_3 = vm::Value::uint(value.metadata.device.class_code as u64, 8);
+                        let field_4 =
+                            vm::Value::uint(value.metadata.device.subclass_code as u64, 8);
+                        let field_5 =
+                            vm::Value::uint(value.metadata.device.protocol_code as u64, 8);
+                        let field_6 = match value.metadata.device.manufacturer {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
                         };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.serial_number {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let field_7 = match value.metadata.device.product {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
+                        };
+                        let field_8 = match value.metadata.device.serial_number {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
+                        };
+                        context.allocate_aggregate(vec![
+                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+                            field_8,
+                        ])
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         UsbHotplugEventVm::UsbHotplugDetachedEvent(value) => {
             let tag_value = vm::Value::uint(755050223u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
-                        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.subclass_code as u64,
-                            8,
-                        ));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.protocol_code as u64,
-                            8,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.metadata.device.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.metadata.device.product
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = {
+                        let field_0 = value.metadata.device.id.value();
+                        let field_1 = vm::Value::uint(value.metadata.device.vendor_id as u64, 16);
+                        let field_2 = vm::Value::uint(value.metadata.device.product_id as u64, 16);
+                        let field_3 = vm::Value::uint(value.metadata.device.class_code as u64, 8);
+                        let field_4 =
+                            vm::Value::uint(value.metadata.device.subclass_code as u64, 8);
+                        let field_5 =
+                            vm::Value::uint(value.metadata.device.protocol_code as u64, 8);
+                        let field_6 = match value.metadata.device.manufacturer {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
                         };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.serial_number {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let field_7 = match value.metadata.device.product {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
+                        };
+                        let field_8 = match value.metadata.device.serial_number {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
+                        };
+                        context.allocate_aggregate(vec![
+                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+                            field_8,
+                        ])
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -3509,126 +3330,84 @@ fn encode_destack_device_usb_watch_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbHotplugEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         UsbHotplugEventVm::UsbHotplugAttachedEvent(value) => {
             let tag_value = vm::Value::uint(1449914010u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
-                        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.subclass_code as u64,
-                            8,
-                        ));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.protocol_code as u64,
-                            8,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.metadata.device.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.metadata.device.product
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = {
+                        let field_0 = value.metadata.device.id.value();
+                        let field_1 = vm::Value::uint(value.metadata.device.vendor_id as u64, 16);
+                        let field_2 = vm::Value::uint(value.metadata.device.product_id as u64, 16);
+                        let field_3 = vm::Value::uint(value.metadata.device.class_code as u64, 8);
+                        let field_4 =
+                            vm::Value::uint(value.metadata.device.subclass_code as u64, 8);
+                        let field_5 =
+                            vm::Value::uint(value.metadata.device.protocol_code as u64, 8);
+                        let field_6 = match value.metadata.device.manufacturer {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
                         };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.serial_number {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let field_7 = match value.metadata.device.product {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
+                        };
+                        let field_8 = match value.metadata.device.serial_number {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
+                        };
+                        context.allocate_aggregate(vec![
+                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+                            field_8,
+                        ])
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         UsbHotplugEventVm::UsbHotplugDetachedEvent(value) => {
             let tag_value = vm::Value::uint(755050223u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
-                        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.subclass_code as u64,
-                            8,
-                        ));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.protocol_code as u64,
-                            8,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.metadata.device.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.metadata.device.product
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = {
+                        let field_0 = value.metadata.device.id.value();
+                        let field_1 = vm::Value::uint(value.metadata.device.vendor_id as u64, 16);
+                        let field_2 = vm::Value::uint(value.metadata.device.product_id as u64, 16);
+                        let field_3 = vm::Value::uint(value.metadata.device.class_code as u64, 8);
+                        let field_4 =
+                            vm::Value::uint(value.metadata.device.subclass_code as u64, 8);
+                        let field_5 =
+                            vm::Value::uint(value.metadata.device.protocol_code as u64, 8);
+                        let field_6 = match value.metadata.device.manufacturer {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
                         };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.serial_number {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let field_7 = match value.metadata.device.product {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
+                        };
+                        let field_8 = match value.metadata.device.serial_number {
+                            Some(value) => value.value(),
+                            None => vm::Value::VOID,
+                        };
+                        context.allocate_aggregate(vec![
+                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+                            field_8,
+                        ])
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -14925,12 +14704,14 @@ fn destack_device_bluetooth_adapter_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_id = context
-                            .string_handle(vm_result_item.id.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_name = context
-                            .string_handle(vm_result_item.name.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_id_value =
+                            context.intern_string(vm_result_item.id.as_str());
+                        let vm_result_item_value_id =
+                            vm::StringHandle::new(vm_result_item_value_id_value);
+                        let vm_result_item_value_name_value =
+                            context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name =
+                            vm::StringHandle::new(vm_result_item_value_name_value);
                         let vm_result_item_value_powered = vm_result_item.powered;
                         let vm_result_item_value_low_energy = vm_result_item.low_energy;
                         let vm_result_item_value = BluetoothAdapterDescriptorVm {
@@ -15069,12 +14850,14 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_service_uuid = context
-                            .string_handle(vm_result_item.service_uuid.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_uuid = context
-                            .string_handle(vm_result_item.uuid.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_service_uuid_value =
+                            context.intern_string(vm_result_item.service_uuid.as_str());
+                        let vm_result_item_value_service_uuid =
+                            vm::StringHandle::new(vm_result_item_value_service_uuid_value);
+                        let vm_result_item_value_uuid_value =
+                            context.intern_string(vm_result_item.uuid.as_str());
+                        let vm_result_item_value_uuid =
+                            vm::StringHandle::new(vm_result_item_value_uuid_value);
                         let vm_result_item_value_properties = vm_result_item.properties;
                         let vm_result_item_value = BluetoothGattCharacteristicDescriptorVm {
                             service_uuid: vm_result_item_value_service_uuid,
@@ -15221,15 +15004,18 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_service_uuid = context
-                            .string_handle(vm_result_item.service_uuid.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_characteristic_uuid = context
-                            .string_handle(vm_result_item.characteristic_uuid.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_uuid = context
-                            .string_handle(vm_result_item.uuid.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_service_uuid_value =
+                            context.intern_string(vm_result_item.service_uuid.as_str());
+                        let vm_result_item_value_service_uuid =
+                            vm::StringHandle::new(vm_result_item_value_service_uuid_value);
+                        let vm_result_item_value_characteristic_uuid_value =
+                            context.intern_string(vm_result_item.characteristic_uuid.as_str());
+                        let vm_result_item_value_characteristic_uuid =
+                            vm::StringHandle::new(vm_result_item_value_characteristic_uuid_value);
+                        let vm_result_item_value_uuid_value =
+                            context.intern_string(vm_result_item.uuid.as_str());
+                        let vm_result_item_value_uuid =
+                            vm::StringHandle::new(vm_result_item_value_uuid_value);
                         let vm_result_item_value = BluetoothGattDescriptorDescriptorVm {
                             service_uuid: vm_result_item_value_service_uuid,
                             characteristic_uuid: vm_result_item_value_characteristic_uuid,
@@ -15362,7 +15148,7 @@ fn destack_device_bluetooth_gatt_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -15436,7 +15222,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -15515,13 +15301,15 @@ fn destack_device_bluetooth_gatt_read_event_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result_service_uuid = context
-                        .string_handle(value.service_uuid.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_characteristic_uuid = context
-                        .string_handle(value.characteristic_uuid.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_value = VmSlice::<u8>::from_bytes(context, value.value.as_ref())?;
+                    let vm_result_service_uuid_value =
+                        context.intern_string(value.service_uuid.as_str());
+                    let vm_result_service_uuid =
+                        vm::StringHandle::new(vm_result_service_uuid_value);
+                    let vm_result_characteristic_uuid_value =
+                        context.intern_string(value.characteristic_uuid.as_str());
+                    let vm_result_characteristic_uuid =
+                        vm::StringHandle::new(vm_result_characteristic_uuid_value);
+                    let vm_result_value = VmSlice::<u8>::from_bytes(context, value.value.as_ref());
                     let vm_result = BluetoothGattValueEventVm {
                         timestamp_ns: vm_result_timestamp_ns,
                         service_uuid: vm_result_service_uuid,
@@ -15690,9 +15478,10 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_uuid = context
-                            .string_handle(vm_result_item.uuid.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_uuid_value =
+                            context.intern_string(vm_result_item.uuid.as_str());
+                        let vm_result_item_value_uuid =
+                            vm::StringHandle::new(vm_result_item_value_uuid_value);
                         let vm_result_item_value_primary = vm_result_item.primary;
                         let vm_result_item_value = BluetoothGattServiceDescriptorVm {
                             uuid: vm_result_item_value_uuid,
@@ -15846,13 +15635,15 @@ fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result_service_uuid = context
-                        .string_handle(value.service_uuid.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_characteristic_uuid = context
-                        .string_handle(value.characteristic_uuid.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_value = VmSlice::<u8>::from_bytes(context, value.value.as_ref())?;
+                    let vm_result_service_uuid_value =
+                        context.intern_string(value.service_uuid.as_str());
+                    let vm_result_service_uuid =
+                        vm::StringHandle::new(vm_result_service_uuid_value);
+                    let vm_result_characteristic_uuid_value =
+                        context.intern_string(value.characteristic_uuid.as_str());
+                    let vm_result_characteristic_uuid =
+                        vm::StringHandle::new(vm_result_characteristic_uuid_value);
+                    let vm_result_value = VmSlice::<u8>::from_bytes(context, value.value.as_ref());
                     let vm_result = BluetoothGattValueEventVm {
                         timestamp_ns: vm_result_timestamp_ns,
                         service_uuid: vm_result_service_uuid,
@@ -16342,10 +16133,13 @@ fn destack_device_bluetooth_scan_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_id = context.string_handle(value.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_address = context.string_handle(value.address.as_str()).map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_id_value = context.intern_string(value.id.as_str());
+                    let vm_result_id = vm::StringHandle::new(vm_result_id_value);
+                    let vm_result_address_value = context.intern_string(value.address.as_str());
+                    let vm_result_address = vm::StringHandle::new(vm_result_address_value);
                     let vm_result_name = if let Some(value) = value.name {
-                        let vm_result_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_name_inner_value = context.intern_string(value.as_str());
+                        let vm_result_name_inner = vm::StringHandle::new(vm_result_name_inner_value);
                         Some(vm_result_name_inner)
                     } else {
                         None
@@ -16361,7 +16155,8 @@ fn destack_device_bluetooth_scan_read_vm_replay(
                     let vm_result_connected = value.connected;
                     let vm_result_connectable = value.connectable;
                     let vm_result_advertisement_local_name = if let Some(value) = value.advertisement.local_name {
-                        let vm_result_advertisement_local_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_advertisement_local_name_inner_value = context.intern_string(value.as_str());
+                        let vm_result_advertisement_local_name_inner = vm::StringHandle::new(vm_result_advertisement_local_name_inner_value);
                         Some(vm_result_advertisement_local_name_inner)
                     } else {
                         None
@@ -16374,14 +16169,15 @@ fn destack_device_bluetooth_scan_read_vm_replay(
                     };
                     let mut vm_result_advertisement_service_uuids_values = Vec::with_capacity(value.advertisement.service_uuids.len());
                     for vm_result_advertisement_service_uuids_item in value.advertisement.service_uuids.iter() {
-                        let vm_result_advertisement_service_uuids_item_value = context.string_handle(vm_result_advertisement_service_uuids_item.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_advertisement_service_uuids_item_value_value = context.intern_string(vm_result_advertisement_service_uuids_item.as_str());
+                        let vm_result_advertisement_service_uuids_item_value = vm::StringHandle::new(vm_result_advertisement_service_uuids_item_value_value);
                         vm_result_advertisement_service_uuids_values.push(vm_result_advertisement_service_uuids_item_value);
                     }
                     let vm_result_advertisement_service_uuids = VmArray::from_values(context, &vm_result_advertisement_service_uuids_values)?;
                     let mut vm_result_advertisement_manufacturer_data_values = Vec::with_capacity(value.advertisement.manufacturer_data.len());
                     for vm_result_advertisement_manufacturer_data_item in value.advertisement.manufacturer_data.iter().cloned() {
                         let vm_result_advertisement_manufacturer_data_item_value_company_id = vm_result_advertisement_manufacturer_data_item.company_id;
-                        let vm_result_advertisement_manufacturer_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_advertisement_manufacturer_data_item.data.as_ref())?;
+                        let vm_result_advertisement_manufacturer_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_advertisement_manufacturer_data_item.data.as_ref());
                         let vm_result_advertisement_manufacturer_data_item_value = BluetoothAdvertisementManufacturerDataVm {
                             company_id: vm_result_advertisement_manufacturer_data_item_value_company_id,
                             data: vm_result_advertisement_manufacturer_data_item_value_data,
@@ -16391,8 +16187,9 @@ fn destack_device_bluetooth_scan_read_vm_replay(
                     let vm_result_advertisement_manufacturer_data = VmArray::from_values(context, &vm_result_advertisement_manufacturer_data_values)?;
                     let mut vm_result_advertisement_service_data_values = Vec::with_capacity(value.advertisement.service_data.len());
                     for vm_result_advertisement_service_data_item in value.advertisement.service_data.iter().cloned() {
-                        let vm_result_advertisement_service_data_item_value_service_uuid = context.string_handle(vm_result_advertisement_service_data_item.service_uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_advertisement_service_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_advertisement_service_data_item.data.as_ref())?;
+                        let vm_result_advertisement_service_data_item_value_service_uuid_value = context.intern_string(vm_result_advertisement_service_data_item.service_uuid.as_str());
+                        let vm_result_advertisement_service_data_item_value_service_uuid = vm::StringHandle::new(vm_result_advertisement_service_data_item_value_service_uuid_value);
+                        let vm_result_advertisement_service_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_advertisement_service_data_item.data.as_ref());
                         let vm_result_advertisement_service_data_item_value = BluetoothAdvertisementServiceDataVm {
                             service_uuid: vm_result_advertisement_service_data_item_value_service_uuid,
                             data: vm_result_advertisement_service_data_item_value_data,
@@ -16589,10 +16386,13 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_id = context.string_handle(value.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_address = context.string_handle(value.address.as_str()).map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_id_value = context.intern_string(value.id.as_str());
+                    let vm_result_id = vm::StringHandle::new(vm_result_id_value);
+                    let vm_result_address_value = context.intern_string(value.address.as_str());
+                    let vm_result_address = vm::StringHandle::new(vm_result_address_value);
                     let vm_result_name = if let Some(value) = value.name {
-                        let vm_result_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_name_inner_value = context.intern_string(value.as_str());
+                        let vm_result_name_inner = vm::StringHandle::new(vm_result_name_inner_value);
                         Some(vm_result_name_inner)
                     } else {
                         None
@@ -16608,7 +16408,8 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
                     let vm_result_connected = value.connected;
                     let vm_result_connectable = value.connectable;
                     let vm_result_advertisement_local_name = if let Some(value) = value.advertisement.local_name {
-                        let vm_result_advertisement_local_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_advertisement_local_name_inner_value = context.intern_string(value.as_str());
+                        let vm_result_advertisement_local_name_inner = vm::StringHandle::new(vm_result_advertisement_local_name_inner_value);
                         Some(vm_result_advertisement_local_name_inner)
                     } else {
                         None
@@ -16621,14 +16422,15 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
                     };
                     let mut vm_result_advertisement_service_uuids_values = Vec::with_capacity(value.advertisement.service_uuids.len());
                     for vm_result_advertisement_service_uuids_item in value.advertisement.service_uuids.iter() {
-                        let vm_result_advertisement_service_uuids_item_value = context.string_handle(vm_result_advertisement_service_uuids_item.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_advertisement_service_uuids_item_value_value = context.intern_string(vm_result_advertisement_service_uuids_item.as_str());
+                        let vm_result_advertisement_service_uuids_item_value = vm::StringHandle::new(vm_result_advertisement_service_uuids_item_value_value);
                         vm_result_advertisement_service_uuids_values.push(vm_result_advertisement_service_uuids_item_value);
                     }
                     let vm_result_advertisement_service_uuids = VmArray::from_values(context, &vm_result_advertisement_service_uuids_values)?;
                     let mut vm_result_advertisement_manufacturer_data_values = Vec::with_capacity(value.advertisement.manufacturer_data.len());
                     for vm_result_advertisement_manufacturer_data_item in value.advertisement.manufacturer_data.iter().cloned() {
                         let vm_result_advertisement_manufacturer_data_item_value_company_id = vm_result_advertisement_manufacturer_data_item.company_id;
-                        let vm_result_advertisement_manufacturer_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_advertisement_manufacturer_data_item.data.as_ref())?;
+                        let vm_result_advertisement_manufacturer_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_advertisement_manufacturer_data_item.data.as_ref());
                         let vm_result_advertisement_manufacturer_data_item_value = BluetoothAdvertisementManufacturerDataVm {
                             company_id: vm_result_advertisement_manufacturer_data_item_value_company_id,
                             data: vm_result_advertisement_manufacturer_data_item_value_data,
@@ -16638,8 +16440,9 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
                     let vm_result_advertisement_manufacturer_data = VmArray::from_values(context, &vm_result_advertisement_manufacturer_data_values)?;
                     let mut vm_result_advertisement_service_data_values = Vec::with_capacity(value.advertisement.service_data.len());
                     for vm_result_advertisement_service_data_item in value.advertisement.service_data.iter().cloned() {
-                        let vm_result_advertisement_service_data_item_value_service_uuid = context.string_handle(vm_result_advertisement_service_data_item.service_uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_advertisement_service_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_advertisement_service_data_item.data.as_ref())?;
+                        let vm_result_advertisement_service_data_item_value_service_uuid_value = context.intern_string(vm_result_advertisement_service_data_item.service_uuid.as_str());
+                        let vm_result_advertisement_service_data_item_value_service_uuid = vm::StringHandle::new(vm_result_advertisement_service_data_item_value_service_uuid_value);
+                        let vm_result_advertisement_service_data_item_value_data = VmSlice::<u8>::from_bytes(context, vm_result_advertisement_service_data_item.data.as_ref());
                         let vm_result_advertisement_service_data_item_value = BluetoothAdvertisementServiceDataVm {
                             service_uuid: vm_result_advertisement_service_data_item_value_service_uuid,
                             data: vm_result_advertisement_service_data_item_value_data,
@@ -17029,17 +16832,21 @@ fn destack_device_camera_device_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_id = context
-                            .string_handle(vm_result_item.id.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_name = context
-                            .string_handle(vm_result_item.name.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_id_value =
+                            context.intern_string(vm_result_item.id.as_str());
+                        let vm_result_item_value_id =
+                            vm::StringHandle::new(vm_result_item_value_id_value);
+                        let vm_result_item_value_name_value =
+                            context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name =
+                            vm::StringHandle::new(vm_result_item_value_name_value);
                         let vm_result_item_value_manufacturer =
                             if let Some(value) = vm_result_item.manufacturer {
-                                let vm_result_item_value_manufacturer_inner = context
-                                    .string_handle(value.as_str())
-                                    .map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_manufacturer_inner_value =
+                                    context.intern_string(value.as_str());
+                                let vm_result_item_value_manufacturer_inner = vm::StringHandle::new(
+                                    vm_result_item_value_manufacturer_inner_value,
+                                );
                                 Some(vm_result_item_value_manufacturer_inner)
                             } else {
                                 None
@@ -17205,17 +17012,17 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                                 "result_recorded_item_config_frame_rate_milli_hz",
                                 "frameRateMilliHz",
                             )?;
-                            let result_recorded_item_config_format_raw = decode_uint8(
+                            let result_recorded_item_config_format_raw = decode_int32(
                                 slots[3],
                                 "result_recorded_item_config_format_raw",
                                 "format",
                             )?;
                             let result_recorded_item_config_format =
                                 match result_recorded_item_config_format_raw {
-                                    1u8 => CameraPixelFormat::Bgra8,
-                                    2u8 => CameraPixelFormat::Rgba8,
-                                    3u8 => CameraPixelFormat::Yuv420,
-                                    4u8 => CameraPixelFormat::Jpeg,
+                                    1i32 => CameraPixelFormat::Bgra8,
+                                    2i32 => CameraPixelFormat::Rgba8,
+                                    3i32 => CameraPixelFormat::Yuv420,
+                                    4i32 => CameraPixelFormat::Jpeg,
                                     _ => {
                                         return Err(RuntimeError::from(
                                             PlatformError::invalid_argument_value(
@@ -17420,12 +17227,12 @@ fn destack_device_camera_device_stream_config_list_vm_replay(
                             "frameRateMilliHz",
                         )?;
                         let result_recorded_item_format_raw =
-                            decode_uint8(slots[3], "result_recorded_item_format_raw", "format")?;
+                            decode_int32(slots[3], "result_recorded_item_format_raw", "format")?;
                         let result_recorded_item_format = match result_recorded_item_format_raw {
-                            1u8 => CameraPixelFormat::Bgra8,
-                            2u8 => CameraPixelFormat::Rgba8,
-                            3u8 => CameraPixelFormat::Yuv420,
-                            4u8 => CameraPixelFormat::Jpeg,
+                            1i32 => CameraPixelFormat::Bgra8,
+                            2i32 => CameraPixelFormat::Rgba8,
+                            3i32 => CameraPixelFormat::Yuv420,
+                            4i32 => CameraPixelFormat::Jpeg,
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
@@ -18051,7 +17858,7 @@ fn destack_device_camera_stream_read_vm_replay(
                         focus_distance_diopters: vm_result_metadata_focus_distance_diopters,
                         zoom_ratio: vm_result_metadata_zoom_ratio,
                     };
-                    let vm_result_bytes = VmSlice::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                    let vm_result_bytes = VmSlice::<u8>::from_bytes(context, value.bytes.as_ref());
                     let vm_result = CameraFrameVm {
                         timestamp_ns: vm_result_timestamp_ns,
                         sequence: vm_result_sequence,
@@ -18761,7 +18568,7 @@ fn destack_device_camera_stream_try_read_vm_replay(
                         focus_distance_diopters: vm_result_metadata_focus_distance_diopters,
                         zoom_ratio: vm_result_metadata_zoom_ratio,
                     };
-                    let vm_result_bytes = VmSlice::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                    let vm_result_bytes = VmSlice::<u8>::from_bytes(context, value.bytes.as_ref());
                     let vm_result = CameraFrameVm {
                         timestamp_ns: vm_result_timestamp_ns,
                         sequence: vm_result_sequence,
@@ -19190,12 +18997,15 @@ fn destack_device_serial_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_name = context.string_handle(vm_result_item.name.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_id_value = context.intern_string(vm_result_item.id.as_str());
+                        let vm_result_item_value_id = vm::StringHandle::new(vm_result_item_value_id_value);
+                        let vm_result_item_value_name_value = context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name = vm::StringHandle::new(vm_result_item_value_name_value);
                         let vm_result_item_value_path = match vm_result_item.path {
                             fs::OspathReplayRecord::OsPathBytes(value) => {
-                                let vm_result_item_value_path_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                let vm_result_item_value_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_item_value_path_os_path_bytes_kind_value);
+                                let vm_result_item_value_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                                 let vm_result_item_value_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_item_value_path_os_path_bytes_bytes_inner);
                                 let vm_result_item_value_path_os_path_bytes = fs::OsPathBytesVm {
                                     kind: vm_result_item_value_path_os_path_bytes_kind,
@@ -19204,7 +19014,8 @@ fn destack_device_serial_list_vm_replay(
                                 fs::OsPathVm::OsPathBytes(vm_result_item_value_path_os_path_bytes)
                             }
                             fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                let vm_result_item_value_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_item_value_path_os_path_utf16_kind_value);
                                 let mut vm_result_item_value_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                 for vm_result_item_value_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                     let vm_result_item_value_path_os_path_utf16_utf16_inner_item_value = vm_result_item_value_path_os_path_utf16_utf16_inner_item;
@@ -19357,7 +19168,7 @@ fn destack_device_serial_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -19507,7 +19318,8 @@ fn destack_device_serial_read_event_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         SerialeventReplayRecord::SerialErrorEvent(value) => {
-                            let vm_result_serial_error_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_error_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_serial_error_event_kind = vm::StringHandle::new(vm_result_serial_error_event_kind_value);
                             let vm_result_serial_error_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_serial_error_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_serial_error_event_metadata = SerialEventMetadata {
@@ -19528,7 +19340,8 @@ fn destack_device_serial_read_event_vm_replay(
                             SerialEventVm::SerialErrorEvent(vm_result_serial_error_event)
                         }
                         SerialeventReplayRecord::SerialReadReadyEvent(value) => {
-                            let vm_result_serial_read_ready_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_read_ready_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_serial_read_ready_event_kind = vm::StringHandle::new(vm_result_serial_read_ready_event_kind_value);
                             let vm_result_serial_read_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_serial_read_ready_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_serial_read_ready_event_metadata = SerialEventMetadata {
@@ -19547,7 +19360,8 @@ fn destack_device_serial_read_event_vm_replay(
                             SerialEventVm::SerialReadReadyEvent(vm_result_serial_read_ready_event)
                         }
                         SerialeventReplayRecord::SerialSignalsChangedEvent(value) => {
-                            let vm_result_serial_signals_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_signals_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_serial_signals_changed_event_kind = vm::StringHandle::new(vm_result_serial_signals_changed_event_kind_value);
                             let vm_result_serial_signals_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_serial_signals_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_serial_signals_changed_event_metadata = SerialEventMetadata {
@@ -19566,7 +19380,8 @@ fn destack_device_serial_read_event_vm_replay(
                             SerialEventVm::SerialSignalsChangedEvent(vm_result_serial_signals_changed_event)
                         }
                         SerialeventReplayRecord::SerialWriteReadyEvent(value) => {
-                            let vm_result_serial_write_ready_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_write_ready_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_serial_write_ready_event_kind = vm::StringHandle::new(vm_result_serial_write_ready_event_kind_value);
                             let vm_result_serial_write_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_serial_write_ready_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_serial_write_ready_event_metadata = SerialEventMetadata {
@@ -19898,7 +19713,8 @@ fn destack_device_serial_try_event_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         SerialeventReplayRecord::SerialErrorEvent(value) => {
-                            let vm_result_serial_error_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_error_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_serial_error_event_kind = vm::StringHandle::new(vm_result_serial_error_event_kind_value);
                             let vm_result_serial_error_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_serial_error_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_serial_error_event_metadata = SerialEventMetadata {
@@ -19919,7 +19735,8 @@ fn destack_device_serial_try_event_vm_replay(
                             SerialEventVm::SerialErrorEvent(vm_result_serial_error_event)
                         }
                         SerialeventReplayRecord::SerialReadReadyEvent(value) => {
-                            let vm_result_serial_read_ready_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_read_ready_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_serial_read_ready_event_kind = vm::StringHandle::new(vm_result_serial_read_ready_event_kind_value);
                             let vm_result_serial_read_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_serial_read_ready_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_serial_read_ready_event_metadata = SerialEventMetadata {
@@ -19938,7 +19755,8 @@ fn destack_device_serial_try_event_vm_replay(
                             SerialEventVm::SerialReadReadyEvent(vm_result_serial_read_ready_event)
                         }
                         SerialeventReplayRecord::SerialSignalsChangedEvent(value) => {
-                            let vm_result_serial_signals_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_signals_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_serial_signals_changed_event_kind = vm::StringHandle::new(vm_result_serial_signals_changed_event_kind_value);
                             let vm_result_serial_signals_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_serial_signals_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_serial_signals_changed_event_metadata = SerialEventMetadata {
@@ -19957,7 +19775,8 @@ fn destack_device_serial_try_event_vm_replay(
                             SerialEventVm::SerialSignalsChangedEvent(vm_result_serial_signals_changed_event)
                         }
                         SerialeventReplayRecord::SerialWriteReadyEvent(value) => {
-                            let vm_result_serial_write_ready_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_write_ready_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_serial_write_ready_event_kind = vm::StringHandle::new(vm_result_serial_write_ready_event_kind_value);
                             let vm_result_serial_write_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_serial_write_ready_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_serial_write_ready_event_metadata = SerialEventMetadata {
@@ -20032,7 +19851,7 @@ fn destack_device_serial_try_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -20159,7 +19978,7 @@ fn destack_device_usb_bulk_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -20770,7 +20589,7 @@ fn destack_device_usb_control_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -20950,34 +20769,35 @@ fn destack_device_usb_descriptor_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_id = context
-                        .string_handle(value.id.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_id_value = context.intern_string(value.id.as_str());
+                    let vm_result_id = vm::StringHandle::new(vm_result_id_value);
                     let vm_result_vendor_id = value.vendor_id;
                     let vm_result_product_id = value.product_id;
                     let vm_result_class_code = value.class_code;
                     let vm_result_subclass_code = value.subclass_code;
                     let vm_result_protocol_code = value.protocol_code;
                     let vm_result_manufacturer = if let Some(value) = value.manufacturer {
-                        let vm_result_manufacturer_inner = context
-                            .string_handle(value.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_manufacturer_inner_value =
+                            context.intern_string(value.as_str());
+                        let vm_result_manufacturer_inner =
+                            vm::StringHandle::new(vm_result_manufacturer_inner_value);
                         Some(vm_result_manufacturer_inner)
                     } else {
                         None
                     };
                     let vm_result_product = if let Some(value) = value.product {
-                        let vm_result_product_inner = context
-                            .string_handle(value.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_product_inner_value = context.intern_string(value.as_str());
+                        let vm_result_product_inner =
+                            vm::StringHandle::new(vm_result_product_inner_value);
                         Some(vm_result_product_inner)
                     } else {
                         None
                     };
                     let vm_result_serial_number = if let Some(value) = value.serial_number {
-                        let vm_result_serial_number_inner = context
-                            .string_handle(value.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_serial_number_inner_value =
+                            context.intern_string(value.as_str());
+                        let vm_result_serial_number_inner =
+                            vm::StringHandle::new(vm_result_serial_number_inner_value);
                         Some(vm_result_serial_number_inner)
                     } else {
                         None
@@ -21061,7 +20881,7 @@ fn destack_device_usb_interrupt_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -21240,7 +21060,7 @@ fn destack_device_usb_isochronous_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_bytes = VmSlice::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                    let vm_result_bytes = VmSlice::<u8>::from_bytes(context, value.bytes.as_ref());
                     let mut vm_result_packet_actual_lengths_values =
                         Vec::with_capacity(value.packet_actual_lengths.len());
                     for vm_result_packet_actual_lengths_item in
@@ -21378,7 +21198,7 @@ fn destack_device_usb_isochronous_write_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_bytes = VmSlice::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                    let vm_result_bytes = VmSlice::<u8>::from_bytes(context, value.bytes.as_ref());
                     let mut vm_result_packet_actual_lengths_values =
                         Vec::with_capacity(value.packet_actual_lengths.len());
                     for vm_result_packet_actual_lengths_item in
@@ -21676,9 +21496,10 @@ fn destack_device_usb_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_id = context
-                            .string_handle(vm_result_item.id.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_id_value =
+                            context.intern_string(vm_result_item.id.as_str());
+                        let vm_result_item_value_id =
+                            vm::StringHandle::new(vm_result_item_value_id_value);
                         let vm_result_item_value_vendor_id = vm_result_item.vendor_id;
                         let vm_result_item_value_product_id = vm_result_item.product_id;
                         let vm_result_item_value_class_code = vm_result_item.class_code;
@@ -21686,31 +21507,37 @@ fn destack_device_usb_list_vm_replay(
                         let vm_result_item_value_protocol_code = vm_result_item.protocol_code;
                         let vm_result_item_value_manufacturer =
                             if let Some(value) = vm_result_item.manufacturer {
-                                let vm_result_item_value_manufacturer_inner = context
-                                    .string_handle(value.as_str())
-                                    .map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_manufacturer_inner_value =
+                                    context.intern_string(value.as_str());
+                                let vm_result_item_value_manufacturer_inner = vm::StringHandle::new(
+                                    vm_result_item_value_manufacturer_inner_value,
+                                );
                                 Some(vm_result_item_value_manufacturer_inner)
                             } else {
                                 None
                             };
                         let vm_result_item_value_product =
                             if let Some(value) = vm_result_item.product {
-                                let vm_result_item_value_product_inner = context
-                                    .string_handle(value.as_str())
-                                    .map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_product_inner_value =
+                                    context.intern_string(value.as_str());
+                                let vm_result_item_value_product_inner =
+                                    vm::StringHandle::new(vm_result_item_value_product_inner_value);
                                 Some(vm_result_item_value_product_inner)
                             } else {
                                 None
                             };
-                        let vm_result_item_value_serial_number =
-                            if let Some(value) = vm_result_item.serial_number {
-                                let vm_result_item_value_serial_number_inner = context
-                                    .string_handle(value.as_str())
-                                    .map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_item_value_serial_number_inner)
-                            } else {
-                                None
-                            };
+                        let vm_result_item_value_serial_number = if let Some(value) =
+                            vm_result_item.serial_number
+                        {
+                            let vm_result_item_value_serial_number_inner_value =
+                                context.intern_string(value.as_str());
+                            let vm_result_item_value_serial_number_inner = vm::StringHandle::new(
+                                vm_result_item_value_serial_number_inner_value,
+                            );
+                            Some(vm_result_item_value_serial_number_inner)
+                        } else {
+                            None
+                        };
                         let vm_result_item_value = UsbDeviceDescriptorVm {
                             id: vm_result_item_value_id,
                             vendor_id: vm_result_item_value_vendor_id,
@@ -22004,25 +21831,27 @@ fn destack_device_usb_string_descriptor_vm_replay(
                 Ok(value) => {
                     let vm_result_language_id = value.language_id;
                     let vm_result_manufacturer = if let Some(value) = value.manufacturer {
-                        let vm_result_manufacturer_inner = context
-                            .string_handle(value.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_manufacturer_inner_value =
+                            context.intern_string(value.as_str());
+                        let vm_result_manufacturer_inner =
+                            vm::StringHandle::new(vm_result_manufacturer_inner_value);
                         Some(vm_result_manufacturer_inner)
                     } else {
                         None
                     };
                     let vm_result_product = if let Some(value) = value.product {
-                        let vm_result_product_inner = context
-                            .string_handle(value.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_product_inner_value = context.intern_string(value.as_str());
+                        let vm_result_product_inner =
+                            vm::StringHandle::new(vm_result_product_inner_value);
                         Some(vm_result_product_inner)
                     } else {
                         None
                     };
                     let vm_result_serial_number = if let Some(value) = value.serial_number {
-                        let vm_result_serial_number_inner = context
-                            .string_handle(value.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_serial_number_inner_value =
+                            context.intern_string(value.as_str());
+                        let vm_result_serial_number_inner =
+                            vm::StringHandle::new(vm_result_serial_number_inner_value);
                         Some(vm_result_serial_number_inner)
                     } else {
                         None
@@ -22397,29 +22226,34 @@ fn destack_device_usb_watch_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         UsbhotplugeventReplayRecord::UsbHotplugAttachedEvent(value) => {
-                            let vm_result_usb_hotplug_attached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_usb_hotplug_attached_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_usb_hotplug_attached_event_kind = vm::StringHandle::new(vm_result_usb_hotplug_attached_event_kind_value);
                             let vm_result_usb_hotplug_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_usb_hotplug_attached_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_usb_hotplug_attached_event_metadata_device_id = context.string_handle(value.metadata.device.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_usb_hotplug_attached_event_metadata_device_id_value = context.intern_string(value.metadata.device.id.as_str());
+                            let vm_result_usb_hotplug_attached_event_metadata_device_id = vm::StringHandle::new(vm_result_usb_hotplug_attached_event_metadata_device_id_value);
                             let vm_result_usb_hotplug_attached_event_metadata_device_vendor_id = value.metadata.device.vendor_id;
                             let vm_result_usb_hotplug_attached_event_metadata_device_product_id = value.metadata.device.product_id;
                             let vm_result_usb_hotplug_attached_event_metadata_device_class_code = value.metadata.device.class_code;
                             let vm_result_usb_hotplug_attached_event_metadata_device_subclass_code = value.metadata.device.subclass_code;
                             let vm_result_usb_hotplug_attached_event_metadata_device_protocol_code = value.metadata.device.protocol_code;
                             let vm_result_usb_hotplug_attached_event_metadata_device_manufacturer = if let Some(value) = value.metadata.device.manufacturer {
-                                let vm_result_usb_hotplug_attached_event_metadata_device_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_attached_event_metadata_device_manufacturer_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_attached_event_metadata_device_manufacturer_inner = vm::StringHandle::new(vm_result_usb_hotplug_attached_event_metadata_device_manufacturer_inner_value);
                                 Some(vm_result_usb_hotplug_attached_event_metadata_device_manufacturer_inner)
                             } else {
                                 None
                             };
                             let vm_result_usb_hotplug_attached_event_metadata_device_product = if let Some(value) = value.metadata.device.product {
-                                let vm_result_usb_hotplug_attached_event_metadata_device_product_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_attached_event_metadata_device_product_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_attached_event_metadata_device_product_inner = vm::StringHandle::new(vm_result_usb_hotplug_attached_event_metadata_device_product_inner_value);
                                 Some(vm_result_usb_hotplug_attached_event_metadata_device_product_inner)
                             } else {
                                 None
                             };
                             let vm_result_usb_hotplug_attached_event_metadata_device_serial_number = if let Some(value) = value.metadata.device.serial_number {
-                                let vm_result_usb_hotplug_attached_event_metadata_device_serial_number_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_attached_event_metadata_device_serial_number_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_attached_event_metadata_device_serial_number_inner = vm::StringHandle::new(vm_result_usb_hotplug_attached_event_metadata_device_serial_number_inner_value);
                                 Some(vm_result_usb_hotplug_attached_event_metadata_device_serial_number_inner)
                             } else {
                                 None
@@ -22447,29 +22281,34 @@ fn destack_device_usb_watch_read_vm_replay(
                             UsbHotplugEventVm::UsbHotplugAttachedEvent(vm_result_usb_hotplug_attached_event)
                         }
                         UsbhotplugeventReplayRecord::UsbHotplugDetachedEvent(value) => {
-                            let vm_result_usb_hotplug_detached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_usb_hotplug_detached_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_usb_hotplug_detached_event_kind = vm::StringHandle::new(vm_result_usb_hotplug_detached_event_kind_value);
                             let vm_result_usb_hotplug_detached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_usb_hotplug_detached_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_usb_hotplug_detached_event_metadata_device_id = context.string_handle(value.metadata.device.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_usb_hotplug_detached_event_metadata_device_id_value = context.intern_string(value.metadata.device.id.as_str());
+                            let vm_result_usb_hotplug_detached_event_metadata_device_id = vm::StringHandle::new(vm_result_usb_hotplug_detached_event_metadata_device_id_value);
                             let vm_result_usb_hotplug_detached_event_metadata_device_vendor_id = value.metadata.device.vendor_id;
                             let vm_result_usb_hotplug_detached_event_metadata_device_product_id = value.metadata.device.product_id;
                             let vm_result_usb_hotplug_detached_event_metadata_device_class_code = value.metadata.device.class_code;
                             let vm_result_usb_hotplug_detached_event_metadata_device_subclass_code = value.metadata.device.subclass_code;
                             let vm_result_usb_hotplug_detached_event_metadata_device_protocol_code = value.metadata.device.protocol_code;
                             let vm_result_usb_hotplug_detached_event_metadata_device_manufacturer = if let Some(value) = value.metadata.device.manufacturer {
-                                let vm_result_usb_hotplug_detached_event_metadata_device_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_detached_event_metadata_device_manufacturer_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_detached_event_metadata_device_manufacturer_inner = vm::StringHandle::new(vm_result_usb_hotplug_detached_event_metadata_device_manufacturer_inner_value);
                                 Some(vm_result_usb_hotplug_detached_event_metadata_device_manufacturer_inner)
                             } else {
                                 None
                             };
                             let vm_result_usb_hotplug_detached_event_metadata_device_product = if let Some(value) = value.metadata.device.product {
-                                let vm_result_usb_hotplug_detached_event_metadata_device_product_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_detached_event_metadata_device_product_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_detached_event_metadata_device_product_inner = vm::StringHandle::new(vm_result_usb_hotplug_detached_event_metadata_device_product_inner_value);
                                 Some(vm_result_usb_hotplug_detached_event_metadata_device_product_inner)
                             } else {
                                 None
                             };
                             let vm_result_usb_hotplug_detached_event_metadata_device_serial_number = if let Some(value) = value.metadata.device.serial_number {
-                                let vm_result_usb_hotplug_detached_event_metadata_device_serial_number_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_detached_event_metadata_device_serial_number_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_detached_event_metadata_device_serial_number_inner = vm::StringHandle::new(vm_result_usb_hotplug_detached_event_metadata_device_serial_number_inner_value);
                                 Some(vm_result_usb_hotplug_detached_event_metadata_device_serial_number_inner)
                             } else {
                                 None
@@ -22685,29 +22524,34 @@ fn destack_device_usb_watch_try_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         UsbhotplugeventReplayRecord::UsbHotplugAttachedEvent(value) => {
-                            let vm_result_usb_hotplug_attached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_usb_hotplug_attached_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_usb_hotplug_attached_event_kind = vm::StringHandle::new(vm_result_usb_hotplug_attached_event_kind_value);
                             let vm_result_usb_hotplug_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_usb_hotplug_attached_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_usb_hotplug_attached_event_metadata_device_id = context.string_handle(value.metadata.device.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_usb_hotplug_attached_event_metadata_device_id_value = context.intern_string(value.metadata.device.id.as_str());
+                            let vm_result_usb_hotplug_attached_event_metadata_device_id = vm::StringHandle::new(vm_result_usb_hotplug_attached_event_metadata_device_id_value);
                             let vm_result_usb_hotplug_attached_event_metadata_device_vendor_id = value.metadata.device.vendor_id;
                             let vm_result_usb_hotplug_attached_event_metadata_device_product_id = value.metadata.device.product_id;
                             let vm_result_usb_hotplug_attached_event_metadata_device_class_code = value.metadata.device.class_code;
                             let vm_result_usb_hotplug_attached_event_metadata_device_subclass_code = value.metadata.device.subclass_code;
                             let vm_result_usb_hotplug_attached_event_metadata_device_protocol_code = value.metadata.device.protocol_code;
                             let vm_result_usb_hotplug_attached_event_metadata_device_manufacturer = if let Some(value) = value.metadata.device.manufacturer {
-                                let vm_result_usb_hotplug_attached_event_metadata_device_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_attached_event_metadata_device_manufacturer_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_attached_event_metadata_device_manufacturer_inner = vm::StringHandle::new(vm_result_usb_hotplug_attached_event_metadata_device_manufacturer_inner_value);
                                 Some(vm_result_usb_hotplug_attached_event_metadata_device_manufacturer_inner)
                             } else {
                                 None
                             };
                             let vm_result_usb_hotplug_attached_event_metadata_device_product = if let Some(value) = value.metadata.device.product {
-                                let vm_result_usb_hotplug_attached_event_metadata_device_product_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_attached_event_metadata_device_product_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_attached_event_metadata_device_product_inner = vm::StringHandle::new(vm_result_usb_hotplug_attached_event_metadata_device_product_inner_value);
                                 Some(vm_result_usb_hotplug_attached_event_metadata_device_product_inner)
                             } else {
                                 None
                             };
                             let vm_result_usb_hotplug_attached_event_metadata_device_serial_number = if let Some(value) = value.metadata.device.serial_number {
-                                let vm_result_usb_hotplug_attached_event_metadata_device_serial_number_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_attached_event_metadata_device_serial_number_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_attached_event_metadata_device_serial_number_inner = vm::StringHandle::new(vm_result_usb_hotplug_attached_event_metadata_device_serial_number_inner_value);
                                 Some(vm_result_usb_hotplug_attached_event_metadata_device_serial_number_inner)
                             } else {
                                 None
@@ -22735,29 +22579,34 @@ fn destack_device_usb_watch_try_read_vm_replay(
                             UsbHotplugEventVm::UsbHotplugAttachedEvent(vm_result_usb_hotplug_attached_event)
                         }
                         UsbhotplugeventReplayRecord::UsbHotplugDetachedEvent(value) => {
-                            let vm_result_usb_hotplug_detached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_usb_hotplug_detached_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_usb_hotplug_detached_event_kind = vm::StringHandle::new(vm_result_usb_hotplug_detached_event_kind_value);
                             let vm_result_usb_hotplug_detached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_usb_hotplug_detached_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_usb_hotplug_detached_event_metadata_device_id = context.string_handle(value.metadata.device.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_usb_hotplug_detached_event_metadata_device_id_value = context.intern_string(value.metadata.device.id.as_str());
+                            let vm_result_usb_hotplug_detached_event_metadata_device_id = vm::StringHandle::new(vm_result_usb_hotplug_detached_event_metadata_device_id_value);
                             let vm_result_usb_hotplug_detached_event_metadata_device_vendor_id = value.metadata.device.vendor_id;
                             let vm_result_usb_hotplug_detached_event_metadata_device_product_id = value.metadata.device.product_id;
                             let vm_result_usb_hotplug_detached_event_metadata_device_class_code = value.metadata.device.class_code;
                             let vm_result_usb_hotplug_detached_event_metadata_device_subclass_code = value.metadata.device.subclass_code;
                             let vm_result_usb_hotplug_detached_event_metadata_device_protocol_code = value.metadata.device.protocol_code;
                             let vm_result_usb_hotplug_detached_event_metadata_device_manufacturer = if let Some(value) = value.metadata.device.manufacturer {
-                                let vm_result_usb_hotplug_detached_event_metadata_device_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_detached_event_metadata_device_manufacturer_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_detached_event_metadata_device_manufacturer_inner = vm::StringHandle::new(vm_result_usb_hotplug_detached_event_metadata_device_manufacturer_inner_value);
                                 Some(vm_result_usb_hotplug_detached_event_metadata_device_manufacturer_inner)
                             } else {
                                 None
                             };
                             let vm_result_usb_hotplug_detached_event_metadata_device_product = if let Some(value) = value.metadata.device.product {
-                                let vm_result_usb_hotplug_detached_event_metadata_device_product_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_detached_event_metadata_device_product_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_detached_event_metadata_device_product_inner = vm::StringHandle::new(vm_result_usb_hotplug_detached_event_metadata_device_product_inner_value);
                                 Some(vm_result_usb_hotplug_detached_event_metadata_device_product_inner)
                             } else {
                                 None
                             };
                             let vm_result_usb_hotplug_detached_event_metadata_device_serial_number = if let Some(value) = value.metadata.device.serial_number {
-                                let vm_result_usb_hotplug_detached_event_metadata_device_serial_number_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_usb_hotplug_detached_event_metadata_device_serial_number_inner_value = context.intern_string(value.as_str());
+                                let vm_result_usb_hotplug_detached_event_metadata_device_serial_number_inner = vm::StringHandle::new(vm_result_usb_hotplug_detached_event_metadata_device_serial_number_inner_value);
                                 Some(vm_result_usb_hotplug_detached_event_metadata_device_serial_number_inner)
                             } else {
                                 None

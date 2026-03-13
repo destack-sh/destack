@@ -11,7 +11,7 @@ use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
     PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
     VmValueCodec, fs, fs as platform_fs, process as platform_process, resource,
-    resource as platform_resource, thread as platform_thread,
+    resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -1069,7 +1069,7 @@ impl VmAbiCodec for UserId {
 }
 
 /// ABI enum for ProcessNamespaceKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProcessNamespaceKind {
     /// Mount.
@@ -1092,16 +1092,16 @@ pub enum ProcessNamespaceKind {
 
 impl VmValueCodec for ProcessNamespaceKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Mount,
-            2u8 => Self::User,
-            3u8 => Self::Pid,
-            4u8 => Self::Network,
-            5u8 => Self::Ipc,
-            6u8 => Self::Uts,
-            7u8 => Self::Cgroup,
-            8u8 => Self::Time,
+            1i32 => Self::Mount,
+            2i32 => Self::User,
+            3i32 => Self::Pid,
+            4i32 => Self::Network,
+            5i32 => Self::Ipc,
+            6i32 => Self::Uts,
+            7i32 => Self::Cgroup,
+            8i32 => Self::Time,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1114,7 +1114,7 @@ impl VmValueCodec for ProcessNamespaceKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1152,7 +1152,7 @@ impl VmAbiCodec for ProcessNamespaceKind {
 }
 
 /// ABI enum for ProcessSchedulerPolicy.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProcessSchedulerPolicy {
     /// Other.
@@ -1171,14 +1171,14 @@ pub enum ProcessSchedulerPolicy {
 
 impl VmValueCodec for ProcessSchedulerPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Other,
-            2u8 => Self::Fifo,
-            3u8 => Self::RoundRobin,
-            4u8 => Self::Batch,
-            5u8 => Self::Idle,
-            6u8 => Self::Deadline,
+            1i32 => Self::Other,
+            2i32 => Self::Fifo,
+            3i32 => Self::RoundRobin,
+            4i32 => Self::Batch,
+            5i32 => Self::Idle,
+            6i32 => Self::Deadline,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1191,7 +1191,7 @@ impl VmValueCodec for ProcessSchedulerPolicy {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1229,7 +1229,7 @@ impl VmAbiCodec for ProcessSchedulerPolicy {
 }
 
 /// ABI enum for SignalMaskHow.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SignalMaskHow {
     /// Set.
@@ -1242,11 +1242,11 @@ pub enum SignalMaskHow {
 
 impl VmValueCodec for SignalMaskHow {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Set,
-            1u8 => Self::Block,
-            2u8 => Self::Unblock,
+            0i32 => Self::Set,
+            1i32 => Self::Block,
+            2i32 => Self::Unblock,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1259,7 +1259,7 @@ impl VmValueCodec for SignalMaskHow {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1386,9 +1386,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1576,9 +1574,7 @@ impl VmAggregateCodec for ProcessFdActionAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1802,9 +1798,7 @@ impl VmAggregateCodec for ProcessStdioAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2068,9 +2062,7 @@ impl VmAggregateCodec for ProcessWaitStatusAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2298,9 +2290,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2428,9 +2418,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2484,10 +2472,6 @@ impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
         })
     }
 }
-
-pub type ProcessCpuSet = platform_thread::ThreadCpuSet;
-pub type ProcessCpuSetVm = platform_thread::ThreadCpuSetVm;
-pub type ProcessCpuSetValue = platform_thread::ThreadCpuSetValue;
 
 /// ABI struct for ProcessFdActionClose.
 #[repr(C)]
@@ -2561,9 +2545,7 @@ impl VmAggregateCodec for ProcessFdActionCloseAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.descriptor, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2695,9 +2677,7 @@ impl VmAggregateCodec for ProcessFdActionDup2Abi<VmAbi> {
             <i32 as VmAggregateCodec>::encode_with_context(self.source, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.target, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2848,9 +2828,7 @@ impl VmAggregateCodec for ProcessFdActionOpenAbi<VmAbi> {
             <fs::OpenFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
             <fs::FileMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2979,9 +2957,7 @@ impl VmAggregateCodec for ProcessGroupIds {
             <GroupId as VmAggregateCodec>::encode_with_context(self.effective, context)?,
             <GroupId as VmAggregateCodec>::encode_with_context(self.saved, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3068,9 +3044,7 @@ impl VmAggregateCodec for ProcessLimit {
             <u64 as VmAggregateCodec>::encode_with_context(self.soft, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.hard, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3166,9 +3140,7 @@ impl VmAggregateCodec for ProcessSchedulerConfig {
             <i32 as VmAggregateCodec>::encode_with_context(self.priority, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3288,9 +3260,7 @@ impl VmAggregateCodec for ProcessSpawnOptionsAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.reset_signals, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.new_process_group, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3434,9 +3404,7 @@ impl VmAggregateCodec for ProcessStdioDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.descriptor, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3564,9 +3532,7 @@ impl VmAggregateCodec for ProcessStdioFileAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <resource::FileHandle as VmAggregateCodec>::encode_with_context(self.file, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3686,9 +3652,7 @@ impl VmAggregateCodec for ProcessStdioInheritAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.kind, context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3802,9 +3766,7 @@ impl VmAggregateCodec for ProcessStdioNullAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.kind, context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3926,9 +3888,7 @@ impl VmAggregateCodec for ProcessStdioPipeAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <resource::PipeHandle as VmAggregateCodec>::encode_with_context(self.pipe, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4038,9 +3998,7 @@ impl VmAggregateCodec for ProcessUserIds {
             <UserId as VmAggregateCodec>::encode_with_context(self.effective, context)?,
             <UserId as VmAggregateCodec>::encode_with_context(self.saved, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4149,9 +4107,7 @@ impl VmAggregateCodec for ProcessWaitContinuedStatusAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <ProcessId as VmAggregateCodec>::encode_with_context(self.pid, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4283,9 +4239,7 @@ impl VmAggregateCodec for ProcessWaitExitedStatusAbi<VmAbi> {
             <ProcessId as VmAggregateCodec>::encode_with_context(self.pid, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.exit_code, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4418,9 +4372,7 @@ impl VmAggregateCodec for ProcessWaitRunningStatusAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <ProcessId as VmAggregateCodec>::encode_with_context(self.pid, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4557,9 +4509,7 @@ impl VmAggregateCodec for ProcessWaitSignaledStatusAbi<VmAbi> {
             <Signal as VmAggregateCodec>::encode_with_context(self.signal, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.core_dumped, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4703,9 +4653,7 @@ impl VmAggregateCodec for ProcessWaitStoppedStatusAbi<VmAbi> {
             <ProcessId as VmAggregateCodec>::encode_with_context(self.pid, context)?,
             <Signal as VmAggregateCodec>::encode_with_context(self.signal, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4816,9 +4764,7 @@ impl VmAggregateCodec for SignalEvent {
             <Signal as VmAggregateCodec>::encode_with_context(self.signal, context)?,
             <ProcessId as VmAggregateCodec>::encode_with_context(self.pid, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4871,13 +4817,6 @@ pub struct Ospathutf16ReplayRecord {
     pub kind: String,
     /// UTF-16 payload.
     pub utf16: Vec<u16>,
-}
-
-/// Replay struct for ProcessCpuSet.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcesscpusetReplayRecord {
-    /// Logical processors in the affinity set.
-    pub cpus: Vec<platform_thread::ThreadCpuValue>,
 }
 
 /// Replay struct for ProcessFdActionClose.

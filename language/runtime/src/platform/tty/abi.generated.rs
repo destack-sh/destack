@@ -176,7 +176,7 @@ impl VmAbiCodec for TtyHandle {
 }
 
 /// ABI enum for TtyTermiosFlowAction.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TtyTermiosFlowAction {
     /// SuspendOutput.
@@ -191,12 +191,12 @@ pub enum TtyTermiosFlowAction {
 
 impl VmValueCodec for TtyTermiosFlowAction {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::SuspendOutput,
-            2u8 => Self::ResumeOutput,
-            3u8 => Self::SuspendInput,
-            4u8 => Self::ResumeInput,
+            1i32 => Self::SuspendOutput,
+            2i32 => Self::ResumeOutput,
+            3i32 => Self::SuspendInput,
+            4i32 => Self::ResumeInput,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -209,7 +209,7 @@ impl VmValueCodec for TtyTermiosFlowAction {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -247,7 +247,7 @@ impl VmAbiCodec for TtyTermiosFlowAction {
 }
 
 /// ABI enum for TtyTermiosQueue.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TtyTermiosQueue {
     /// Input.
@@ -260,11 +260,11 @@ pub enum TtyTermiosQueue {
 
 impl VmValueCodec for TtyTermiosQueue {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Input,
-            2u8 => Self::Output,
-            3u8 => Self::InputAndOutput,
+            1i32 => Self::Input,
+            2i32 => Self::Output,
+            3i32 => Self::InputAndOutput,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -277,7 +277,7 @@ impl VmValueCodec for TtyTermiosQueue {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -315,7 +315,7 @@ impl VmAbiCodec for TtyTermiosQueue {
 }
 
 /// ABI enum for TtyTermiosSetAction.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TtyTermiosSetAction {
     /// Now.
@@ -328,11 +328,11 @@ pub enum TtyTermiosSetAction {
 
 impl VmValueCodec for TtyTermiosSetAction {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Now,
-            2u8 => Self::Drain,
-            3u8 => Self::Flush,
+            1i32 => Self::Now,
+            2i32 => Self::Drain,
+            3i32 => Self::Flush,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -345,7 +345,7 @@ impl VmValueCodec for TtyTermiosSetAction {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -436,9 +436,7 @@ impl VmAggregateCodec for PtyPair {
             )?,
             <resource::TtyHandle as VmAggregateCodec>::encode_with_context(self.worker, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -535,9 +533,7 @@ impl VmAggregateCodec for TtyMode {
             <u64 as VmAggregateCodec>::encode_with_context(self.control_flags, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.local_flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -633,9 +629,7 @@ impl VmAggregateCodec for TtySize {
             <u32 as VmAggregateCodec>::encode_with_context(self.x_pixels, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.y_pixels, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -775,9 +769,7 @@ impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.input_speed_code, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.output_speed_code, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

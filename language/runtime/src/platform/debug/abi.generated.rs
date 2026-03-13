@@ -17,7 +17,7 @@ use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// ABI enum for ProfileKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProfileKind {
     /// Cpu.
@@ -30,11 +30,11 @@ pub enum ProfileKind {
 
 impl VmValueCodec for ProfileKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Cpu,
-            2u8 => Self::Heap,
-            3u8 => Self::Event,
+            1i32 => Self::Cpu,
+            2i32 => Self::Heap,
+            3i32 => Self::Event,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -47,7 +47,7 @@ impl VmValueCodec for ProfileKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -85,7 +85,7 @@ impl VmAbiCodec for ProfileKind {
 }
 
 /// ABI enum for TraceLevel.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TraceLevel {
     /// Error.
@@ -100,12 +100,12 @@ pub enum TraceLevel {
 
 impl VmValueCodec for TraceLevel {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Error,
-            2u8 => Self::Warn,
-            3u8 => Self::Info,
-            4u8 => Self::Debug,
+            1i32 => Self::Error,
+            2i32 => Self::Warn,
+            3i32 => Self::Info,
+            4i32 => Self::Debug,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -118,7 +118,7 @@ impl VmValueCodec for TraceLevel {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -227,9 +227,7 @@ impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.url, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.process_id, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

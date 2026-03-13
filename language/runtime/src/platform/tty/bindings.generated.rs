@@ -19,7 +19,7 @@ use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::trace::TraceError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -63,6 +63,26 @@ fn decode_bool(
     })
 }
 
+/// Decode a signed integer argument with an explicit width.
+#[allow(dead_code)]
+fn decode_int(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+    bits: u8,
+) -> RuntimeResult<i64> {
+    let (raw, width) = value.as_int_with_width().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })?;
+    if width != bits {
+        return Err(
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+        );
+    }
+
+    Ok(raw)
+}
+
 /// Decode an unsigned integer argument with an explicit width.
 #[allow(dead_code)]
 fn decode_uint(
@@ -81,6 +101,16 @@ fn decode_uint(
     }
 
     Ok(raw)
+}
+
+/// Decode an i32 argument.
+#[allow(dead_code)]
+fn decode_int32(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<i32> {
+    Ok(decode_int(value, name, expected, 32)? as i32)
 }
 
 /// Decode a u8 argument.
@@ -258,14 +288,12 @@ fn encode_destack_tty_mode_get_mode_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TtyModeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.input_flags, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.output_flags, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.control_flags, 64));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.local_flags, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.input_flags, 64);
+        let field_1 = vm::Value::uint(value.output_flags, 64);
+        let field_2 = vm::Value::uint(value.control_flags, 64);
+        let field_3 = vm::Value::uint(value.local_flags, 64);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -387,12 +415,10 @@ fn encode_destack_tty_pty_open_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PtyPairVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.controller.0.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.worker.0.0, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.controller.0.0, 64);
+        let field_1 = vm::Value::uint(value.worker.0.0, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -415,14 +441,12 @@ fn encode_destack_tty_size_get_size_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TtySizeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.rows as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.columns as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.x_pixels as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.y_pixels as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.rows as u64, 32);
+        let field_1 = vm::Value::uint(value.columns as u64, 32);
+        let field_2 = vm::Value::uint(value.x_pixels as u64, 32);
+        let field_3 = vm::Value::uint(value.y_pixels as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -510,12 +534,12 @@ fn decode_destack_tty_termios_flow_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::TtyHandle(handle_inner);
     let action_value = arg_value(args, 1, "action", "TtyTermiosFlowAction")?;
-    let action_raw = decode_uint8(action_value, "action_raw", "TtyTermiosFlowAction")?;
+    let action_raw = decode_int32(action_value, "action_raw", "TtyTermiosFlowAction")?;
     let action = match action_raw {
-        1u8 => TtyTermiosFlowAction::SuspendOutput,
-        2u8 => TtyTermiosFlowAction::ResumeOutput,
-        3u8 => TtyTermiosFlowAction::SuspendInput,
-        4u8 => TtyTermiosFlowAction::ResumeInput,
+        1i32 => TtyTermiosFlowAction::SuspendOutput,
+        2i32 => TtyTermiosFlowAction::ResumeOutput,
+        3i32 => TtyTermiosFlowAction::SuspendInput,
+        4i32 => TtyTermiosFlowAction::ResumeInput,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "action",
@@ -547,11 +571,11 @@ fn decode_destack_tty_termios_flush_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::TtyHandle(handle_inner);
     let queue_value = arg_value(args, 1, "queue", "TtyTermiosQueue")?;
-    let queue_raw = decode_uint8(queue_value, "queue_raw", "TtyTermiosQueue")?;
+    let queue_raw = decode_int32(queue_value, "queue_raw", "TtyTermiosQueue")?;
     let queue = match queue_raw {
-        1u8 => TtyTermiosQueue::Input,
-        2u8 => TtyTermiosQueue::Output,
-        3u8 => TtyTermiosQueue::InputAndOutput,
+        1i32 => TtyTermiosQueue::Input,
+        2i32 => TtyTermiosQueue::Output,
+        3i32 => TtyTermiosQueue::InputAndOutput,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "queue",
@@ -591,19 +615,17 @@ fn encode_destack_tty_termios_get_attributes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TtyTermiosAttributesVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.input_flags, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.output_flags, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.control_flags, 64));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.local_flags, 64));
-        let field_4: RuntimeResult<vm::Value> = value.control_characters.to_value(context);
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.input_speed_code, 64));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.output_speed_code, 64));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.input_flags, 64);
+        let field_1 = vm::Value::uint(value.output_flags, 64);
+        let field_2 = vm::Value::uint(value.control_flags, 64);
+        let field_3 = vm::Value::uint(value.local_flags, 64);
+        let field_4 = value.control_characters.to_value(context);
+        let field_5 = vm::Value::uint(value.input_speed_code, 64);
+        let field_6 = vm::Value::uint(value.output_speed_code, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
     })
 }
 
@@ -715,11 +737,11 @@ fn decode_destack_tty_termios_set_attributes_args(
         }
     };
     let action_value = arg_value(args, 2, "action", "TtyTermiosSetAction")?;
-    let action_raw = decode_uint8(action_value, "action_raw", "TtyTermiosSetAction")?;
+    let action_raw = decode_int32(action_value, "action_raw", "TtyTermiosSetAction")?;
     let action = match action_raw {
-        1u8 => TtyTermiosSetAction::Now,
-        2u8 => TtyTermiosSetAction::Drain,
-        3u8 => TtyTermiosSetAction::Flush,
+        1i32 => TtyTermiosSetAction::Now,
+        2i32 => TtyTermiosSetAction::Drain,
+        3i32 => TtyTermiosSetAction::Flush,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "action",
@@ -4079,7 +4101,7 @@ fn destack_tty_termios_get_attributes_vm_replay(
                     let vm_result_control_flags = value.control_flags;
                     let vm_result_local_flags = value.local_flags;
                     let vm_result_control_characters =
-                        VmSlice::<u8>::from_bytes(context, value.control_characters.as_ref())?;
+                        VmSlice::<u8>::from_bytes(context, value.control_characters.as_ref());
                     let vm_result_input_speed_code = value.input_speed_code;
                     let vm_result_output_speed_code = value.output_speed_code;
                     let vm_result = TtyTermiosAttributesVm {

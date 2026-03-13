@@ -15,7 +15,7 @@ use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// ABI enum for BackendSupport.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BackendSupport {
     /// Available.
@@ -30,12 +30,12 @@ pub enum BackendSupport {
 
 impl VmValueCodec for BackendSupport {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Available,
-            1u8 => Self::UnsupportedTarget,
-            2u8 => Self::DisabledByBuild,
-            3u8 => Self::HostUnavailable,
+            0i32 => Self::Available,
+            1i32 => Self::UnsupportedTarget,
+            2i32 => Self::DisabledByBuild,
+            3i32 => Self::HostUnavailable,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -48,7 +48,7 @@ impl VmValueCodec for BackendSupport {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 

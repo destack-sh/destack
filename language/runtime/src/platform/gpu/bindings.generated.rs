@@ -65,7 +65,7 @@ use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::trace::TraceError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -283,7 +283,7 @@ fn encode_destack_gpu_adapter_features_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<GpuFeatureId>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.gpu.adapter.formatCapabilities.
@@ -307,19 +307,14 @@ fn encode_destack_gpu_adapter_format_capabilities_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuAdapterFormatCapabilitiesVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.usage_mask, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.renderable));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.blendable));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.multisample));
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.sample_count_mask as u64, 32));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.format as u64, 32);
+        let field_1 = vm::Value::uint(value.usage_mask, 64);
+        let field_2 = vm::Value::bool(value.renderable);
+        let field_3 = vm::Value::bool(value.blendable);
+        let field_4 = vm::Value::bool(value.multisample);
+        let field_5 = vm::Value::uint(value.sample_count_mask as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
     })
 }
 
@@ -367,162 +362,82 @@ fn encode_destack_gpu_adapter_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuAdapterInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_1: RuntimeResult<vm::Value> = Ok(value.name.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(value.vendor.value());
-        let field_3: RuntimeResult<vm::Value> = Ok(value.driver.value());
-        let field_4: RuntimeResult<vm::Value> = Ok(value.driver_version.value());
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.backend as u8 as u64, 8));
-        let field_6: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.adapter_type as u8 as u64, 8));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.vendor_id as u64, 32));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.device_id as u64, 32));
-        let field_9: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.subgroup_min_size as u64, 32));
-        let field_10: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.subgroup_max_size as u64, 32));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_fallback));
-        let field_12: RuntimeResult<vm::Value> = value.features.to_value(context);
-        let field_13: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.limits.max_bind_groups as u64, 32));
-            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_bindings_per_bind_group as u64,
-                32,
-            ));
-            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_push_constant_bytes as u64,
-                32,
-            ));
-            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_texture_dimension1_d as u64,
-                32,
-            ));
-            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_texture_dimension2_d as u64,
-                32,
-            ));
-            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_texture_dimension3_d as u64,
-                32,
-            ));
-            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_texture_array_layers as u64,
-                32,
-            ));
-            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_color_attachments as u64,
-                32,
-            ));
-            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+    result.map(|value| {
+        let field_0 = value.id.value();
+        let field_1 = value.name.value();
+        let field_2 = value.vendor.value();
+        let field_3 = value.driver.value();
+        let field_4 = value.driver_version.value();
+        let field_5 = vm::Value::int(value.backend as i32 as i64, 32);
+        let field_6 = vm::Value::int(value.adapter_type as i32 as i64, 32);
+        let field_7 = vm::Value::uint(value.vendor_id as u64, 32);
+        let field_8 = vm::Value::uint(value.device_id as u64, 32);
+        let field_9 = vm::Value::uint(value.subgroup_min_size as u64, 32);
+        let field_10 = vm::Value::uint(value.subgroup_max_size as u64, 32);
+        let field_11 = vm::Value::bool(value.is_fallback);
+        let field_12 = value.features.to_value(context);
+        let field_13 = {
+            let field_0 = vm::Value::uint(value.limits.max_bind_groups as u64, 32);
+            let field_1 = vm::Value::uint(value.limits.max_bindings_per_bind_group as u64, 32);
+            let field_2 = vm::Value::uint(value.limits.max_push_constant_bytes as u64, 32);
+            let field_3 = vm::Value::uint(value.limits.max_texture_dimension1_d as u64, 32);
+            let field_4 = vm::Value::uint(value.limits.max_texture_dimension2_d as u64, 32);
+            let field_5 = vm::Value::uint(value.limits.max_texture_dimension3_d as u64, 32);
+            let field_6 = vm::Value::uint(value.limits.max_texture_array_layers as u64, 32);
+            let field_7 = vm::Value::uint(value.limits.max_color_attachments as u64, 32);
+            let field_8 = vm::Value::uint(
                 value.limits.max_color_attachment_bytes_per_sample as u64,
                 32,
-            ));
-            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_sampled_textures_per_stage as u64,
-                32,
-            ));
-            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_samplers_per_stage as u64,
-                32,
-            ));
-            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_storage_buffers_per_stage as u64,
-                32,
-            ));
-            let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_storage_textures_per_stage as u64,
-                32,
-            ));
-            let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_uniform_buffers_per_stage as u64,
-                32,
-            ));
-            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_9 = vm::Value::uint(value.limits.max_sampled_textures_per_stage as u64, 32);
+            let field_10 = vm::Value::uint(value.limits.max_samplers_per_stage as u64, 32);
+            let field_11 = vm::Value::uint(value.limits.max_storage_buffers_per_stage as u64, 32);
+            let field_12 = vm::Value::uint(value.limits.max_storage_textures_per_stage as u64, 32);
+            let field_13 = vm::Value::uint(value.limits.max_uniform_buffers_per_stage as u64, 32);
+            let field_14 = vm::Value::uint(
                 value.limits.max_dynamic_uniform_buffers_per_pipeline_layout as u64,
                 32,
-            ));
-            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_15 = vm::Value::uint(
                 value.limits.max_dynamic_storage_buffers_per_pipeline_layout as u64,
                 32,
-            ));
-            let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_uniform_buffer_binding_size,
-                64,
-            ));
-            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_storage_buffer_binding_size,
-                64,
-            ));
-            let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.min_storage_buffer_offset_alignment as u64,
-                32,
-            ));
-            let field_19: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.min_uniform_buffer_offset_alignment as u64,
-                32,
-            ));
-            let field_20: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.limits.max_vertex_buffers as u64, 32));
-            let field_21: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_vertex_attributes as u64,
-                32,
-            ));
-            let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_vertex_buffer_array_stride as u64,
-                32,
-            ));
-            let field_23: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.limits.max_buffer_size, 64));
-            let field_24: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_inter_stage_shader_components as u64,
-                32,
-            ));
-            let field_25: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_inter_stage_shader_variables as u64,
-                32,
-            ));
-            let field_26: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_compute_workgroup_storage_size as u64,
-                32,
-            ));
-            let field_27: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_16 = vm::Value::uint(value.limits.max_uniform_buffer_binding_size, 64);
+            let field_17 = vm::Value::uint(value.limits.max_storage_buffer_binding_size, 64);
+            let field_18 =
+                vm::Value::uint(value.limits.min_storage_buffer_offset_alignment as u64, 32);
+            let field_19 =
+                vm::Value::uint(value.limits.min_uniform_buffer_offset_alignment as u64, 32);
+            let field_20 = vm::Value::uint(value.limits.max_vertex_buffers as u64, 32);
+            let field_21 = vm::Value::uint(value.limits.max_vertex_attributes as u64, 32);
+            let field_22 = vm::Value::uint(value.limits.max_vertex_buffer_array_stride as u64, 32);
+            let field_23 = vm::Value::uint(value.limits.max_buffer_size, 64);
+            let field_24 =
+                vm::Value::uint(value.limits.max_inter_stage_shader_components as u64, 32);
+            let field_25 =
+                vm::Value::uint(value.limits.max_inter_stage_shader_variables as u64, 32);
+            let field_26 =
+                vm::Value::uint(value.limits.max_compute_workgroup_storage_size as u64, 32);
+            let field_27 = vm::Value::uint(
                 value.limits.max_compute_invocations_per_workgroup as u64,
                 32,
-            ));
-            let field_28: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_compute_workgroup_size_x as u64,
-                32,
-            ));
-            let field_29: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_compute_workgroup_size_y as u64,
-                32,
-            ));
-            let field_30: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_compute_workgroup_size_z as u64,
-                32,
-            ));
-            let field_31: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.limits.max_compute_workgroups_per_dimension as u64,
-                32,
-            ));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                    field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
-                    field_22?, field_23?, field_24?, field_25?, field_26?, field_27?, field_28?,
-                    field_29?, field_30?, field_31?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
-        };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?,
+            );
+            let field_28 = vm::Value::uint(value.limits.max_compute_workgroup_size_x as u64, 32);
+            let field_29 = vm::Value::uint(value.limits.max_compute_workgroup_size_y as u64, 32);
+            let field_30 = vm::Value::uint(value.limits.max_compute_workgroup_size_z as u64, 32);
+            let field_31 =
+                vm::Value::uint(value.limits.max_compute_workgroups_per_dimension as u64, 32);
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+                field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+                field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
+                field_25, field_26, field_27, field_28, field_29, field_30, field_31,
             ])
-            .map_err(Box::<RuntimeError>::from)
+        };
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13,
+        ])
     })
 }
 
@@ -545,117 +460,51 @@ fn encode_destack_gpu_adapter_limits_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuAdapterLimitsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_bind_groups as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_bindings_per_bind_group as u64,
-            32,
-        ));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_push_constant_bytes as u64, 32));
-        let field_3: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_texture_dimension1_d as u64, 32));
-        let field_4: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_texture_dimension2_d as u64, 32));
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_texture_dimension3_d as u64, 32));
-        let field_6: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_texture_array_layers as u64, 32));
-        let field_7: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_color_attachments as u64, 32));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_color_attachment_bytes_per_sample as u64,
-            32,
-        ));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_sampled_textures_per_stage as u64,
-            32,
-        ));
-        let field_10: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_samplers_per_stage as u64, 32));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_storage_buffers_per_stage as u64,
-            32,
-        ));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_storage_textures_per_stage as u64,
-            32,
-        ));
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_uniform_buffers_per_stage as u64,
-            32,
-        ));
-        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.max_bind_groups as u64, 32);
+        let field_1 = vm::Value::uint(value.max_bindings_per_bind_group as u64, 32);
+        let field_2 = vm::Value::uint(value.max_push_constant_bytes as u64, 32);
+        let field_3 = vm::Value::uint(value.max_texture_dimension1_d as u64, 32);
+        let field_4 = vm::Value::uint(value.max_texture_dimension2_d as u64, 32);
+        let field_5 = vm::Value::uint(value.max_texture_dimension3_d as u64, 32);
+        let field_6 = vm::Value::uint(value.max_texture_array_layers as u64, 32);
+        let field_7 = vm::Value::uint(value.max_color_attachments as u64, 32);
+        let field_8 = vm::Value::uint(value.max_color_attachment_bytes_per_sample as u64, 32);
+        let field_9 = vm::Value::uint(value.max_sampled_textures_per_stage as u64, 32);
+        let field_10 = vm::Value::uint(value.max_samplers_per_stage as u64, 32);
+        let field_11 = vm::Value::uint(value.max_storage_buffers_per_stage as u64, 32);
+        let field_12 = vm::Value::uint(value.max_storage_textures_per_stage as u64, 32);
+        let field_13 = vm::Value::uint(value.max_uniform_buffers_per_stage as u64, 32);
+        let field_14 = vm::Value::uint(
             value.max_dynamic_uniform_buffers_per_pipeline_layout as u64,
             32,
-        ));
-        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+        );
+        let field_15 = vm::Value::uint(
             value.max_dynamic_storage_buffers_per_pipeline_layout as u64,
             32,
-        ));
-        let field_16: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_uniform_buffer_binding_size, 64));
-        let field_17: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_storage_buffer_binding_size, 64));
-        let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.min_storage_buffer_offset_alignment as u64,
-            32,
-        ));
-        let field_19: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.min_uniform_buffer_offset_alignment as u64,
-            32,
-        ));
-        let field_20: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_vertex_buffers as u64, 32));
-        let field_21: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_vertex_attributes as u64, 32));
-        let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_vertex_buffer_array_stride as u64,
-            32,
-        ));
-        let field_23: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.max_buffer_size, 64));
-        let field_24: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_inter_stage_shader_components as u64,
-            32,
-        ));
-        let field_25: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_inter_stage_shader_variables as u64,
-            32,
-        ));
-        let field_26: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_workgroup_storage_size as u64,
-            32,
-        ));
-        let field_27: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_invocations_per_workgroup as u64,
-            32,
-        ));
-        let field_28: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_workgroup_size_x as u64,
-            32,
-        ));
-        let field_29: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_workgroup_size_y as u64,
-            32,
-        ));
-        let field_30: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_workgroup_size_z as u64,
-            32,
-        ));
-        let field_31: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_workgroups_per_dimension as u64,
-            32,
-        ));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
-                field_22?, field_23?, field_24?, field_25?, field_26?, field_27?, field_28?,
-                field_29?, field_30?, field_31?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        );
+        let field_16 = vm::Value::uint(value.max_uniform_buffer_binding_size, 64);
+        let field_17 = vm::Value::uint(value.max_storage_buffer_binding_size, 64);
+        let field_18 = vm::Value::uint(value.min_storage_buffer_offset_alignment as u64, 32);
+        let field_19 = vm::Value::uint(value.min_uniform_buffer_offset_alignment as u64, 32);
+        let field_20 = vm::Value::uint(value.max_vertex_buffers as u64, 32);
+        let field_21 = vm::Value::uint(value.max_vertex_attributes as u64, 32);
+        let field_22 = vm::Value::uint(value.max_vertex_buffer_array_stride as u64, 32);
+        let field_23 = vm::Value::uint(value.max_buffer_size, 64);
+        let field_24 = vm::Value::uint(value.max_inter_stage_shader_components as u64, 32);
+        let field_25 = vm::Value::uint(value.max_inter_stage_shader_variables as u64, 32);
+        let field_26 = vm::Value::uint(value.max_compute_workgroup_storage_size as u64, 32);
+        let field_27 = vm::Value::uint(value.max_compute_invocations_per_workgroup as u64, 32);
+        let field_28 = vm::Value::uint(value.max_compute_workgroup_size_x as u64, 32);
+        let field_29 = vm::Value::uint(value.max_compute_workgroup_size_y as u64, 32);
+        let field_30 = vm::Value::uint(value.max_compute_workgroup_size_z as u64, 32);
+        let field_31 = vm::Value::uint(value.max_compute_workgroups_per_dimension as u64, 32);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
+            field_25, field_26, field_27, field_28, field_29, field_30, field_31,
+        ])
     })
 }
 
@@ -684,16 +533,16 @@ fn decode_destack_gpu_adapter_list_args(
             ))
             .boxed());
         }
-        let request_backend_raw = decode_uint8(slots[0], "request_backend_raw", "backend")?;
+        let request_backend_raw = decode_int32(slots[0], "request_backend_raw", "backend")?;
         let request_backend = match request_backend_raw {
-            0u8 => GpuBackend::Auto,
-            1u8 => GpuBackend::Vulkan,
-            2u8 => GpuBackend::Metal,
-            3u8 => GpuBackend::D3D12,
-            4u8 => GpuBackend::OpenGL,
-            5u8 => GpuBackend::OpenGles,
-            6u8 => GpuBackend::WebGpu,
-            255u8 => GpuBackend::Null,
+            0i32 => GpuBackend::Auto,
+            1i32 => GpuBackend::Vulkan,
+            2i32 => GpuBackend::Metal,
+            3i32 => GpuBackend::D3D12,
+            4i32 => GpuBackend::OpenGL,
+            5i32 => GpuBackend::OpenGles,
+            6i32 => GpuBackend::WebGpu,
+            255i32 => GpuBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "request_backend",
@@ -703,11 +552,11 @@ fn decode_destack_gpu_adapter_list_args(
             }
         };
         let request_power_preference_raw =
-            decode_uint8(slots[1], "request_power_preference_raw", "powerPreference")?;
+            decode_int32(slots[1], "request_power_preference_raw", "powerPreference")?;
         let request_power_preference = match request_power_preference_raw {
-            0u8 => GpuPowerPreference::None,
-            1u8 => GpuPowerPreference::LowPower,
-            2u8 => GpuPowerPreference::HighPerformance,
+            0i32 => GpuPowerPreference::None,
+            1i32 => GpuPowerPreference::LowPower,
+            2i32 => GpuPowerPreference::HighPerformance,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "request_power_preference",
@@ -753,7 +602,7 @@ fn encode_destack_gpu_adapter_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<GpuAdapterInfoVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.gpu.adapter.open.
@@ -3085,11 +2934,11 @@ fn decode_destack_gpu_command_render_bundle_set_index_buffer_args(
     let buffer_inner = resource::ResourceId(buffer_inner_inner);
     let buffer = resource::GpuBufferHandle(buffer_inner);
     let format_value = arg_value(args, 2, "format", "GpuIndexFormat")?;
-    let format_raw = decode_uint8(format_value, "format_raw", "GpuIndexFormat")?;
+    let format_raw = decode_int32(format_value, "format_raw", "GpuIndexFormat")?;
     let format = match format_raw {
-        0u8 => GpuIndexFormat::Undefined,
-        1u8 => GpuIndexFormat::Uint16,
-        2u8 => GpuIndexFormat::Uint32,
+        0i32 => GpuIndexFormat::Undefined,
+        1i32 => GpuIndexFormat::Uint16,
+        2i32 => GpuIndexFormat::Uint32,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "format",
@@ -3256,16 +3105,16 @@ fn decode_destack_gpu_command_render_pass_begin_args(
                     resource::ResourceId(options_depth_stencil_inner_view_inner_inner);
                 let options_depth_stencil_inner_view =
                     resource::GpuTextureViewHandle(options_depth_stencil_inner_view_inner);
-                let options_depth_stencil_inner_depth_load_op_raw = decode_uint8(
+                let options_depth_stencil_inner_depth_load_op_raw = decode_int32(
                     slots[1],
                     "options_depth_stencil_inner_depth_load_op_raw",
                     "depthLoadOp",
                 )?;
                 let options_depth_stencil_inner_depth_load_op =
                     match options_depth_stencil_inner_depth_load_op_raw {
-                        0u8 => GpuLoadOp::Undefined,
-                        1u8 => GpuLoadOp::Load,
-                        2u8 => GpuLoadOp::Clear,
+                        0i32 => GpuLoadOp::Undefined,
+                        1i32 => GpuLoadOp::Load,
+                        2i32 => GpuLoadOp::Clear,
                         _ => {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "options_depth_stencil_inner_depth_load_op",
@@ -3274,16 +3123,16 @@ fn decode_destack_gpu_command_render_pass_begin_args(
                             .boxed());
                         }
                     };
-                let options_depth_stencil_inner_depth_store_op_raw = decode_uint8(
+                let options_depth_stencil_inner_depth_store_op_raw = decode_int32(
                     slots[2],
                     "options_depth_stencil_inner_depth_store_op_raw",
                     "depthStoreOp",
                 )?;
                 let options_depth_stencil_inner_depth_store_op =
                     match options_depth_stencil_inner_depth_store_op_raw {
-                        0u8 => GpuStoreOp::Undefined,
-                        1u8 => GpuStoreOp::Store,
-                        2u8 => GpuStoreOp::Discard,
+                        0i32 => GpuStoreOp::Undefined,
+                        1i32 => GpuStoreOp::Store,
+                        2i32 => GpuStoreOp::Discard,
                         _ => {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "options_depth_stencil_inner_depth_store_op",
@@ -3302,16 +3151,16 @@ fn decode_destack_gpu_command_render_pass_begin_args(
                     "options_depth_stencil_inner_depth_read_only",
                     "depthReadOnly",
                 )?;
-                let options_depth_stencil_inner_stencil_load_op_raw = decode_uint8(
+                let options_depth_stencil_inner_stencil_load_op_raw = decode_int32(
                     slots[5],
                     "options_depth_stencil_inner_stencil_load_op_raw",
                     "stencilLoadOp",
                 )?;
                 let options_depth_stencil_inner_stencil_load_op =
                     match options_depth_stencil_inner_stencil_load_op_raw {
-                        0u8 => GpuLoadOp::Undefined,
-                        1u8 => GpuLoadOp::Load,
-                        2u8 => GpuLoadOp::Clear,
+                        0i32 => GpuLoadOp::Undefined,
+                        1i32 => GpuLoadOp::Load,
+                        2i32 => GpuLoadOp::Clear,
                         _ => {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "options_depth_stencil_inner_stencil_load_op",
@@ -3320,16 +3169,16 @@ fn decode_destack_gpu_command_render_pass_begin_args(
                             .boxed());
                         }
                     };
-                let options_depth_stencil_inner_stencil_store_op_raw = decode_uint8(
+                let options_depth_stencil_inner_stencil_store_op_raw = decode_int32(
                     slots[6],
                     "options_depth_stencil_inner_stencil_store_op_raw",
                     "stencilStoreOp",
                 )?;
                 let options_depth_stencil_inner_stencil_store_op =
                     match options_depth_stencil_inner_stencil_store_op_raw {
-                        0u8 => GpuStoreOp::Undefined,
-                        1u8 => GpuStoreOp::Store,
-                        2u8 => GpuStoreOp::Discard,
+                        0i32 => GpuStoreOp::Undefined,
+                        1i32 => GpuStoreOp::Store,
+                        2i32 => GpuStoreOp::Discard,
                         _ => {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "options_depth_stencil_inner_stencil_store_op",
@@ -3650,11 +3499,11 @@ fn decode_destack_gpu_command_set_index_buffer_args(
     let buffer_inner = resource::ResourceId(buffer_inner_inner);
     let buffer = resource::GpuBufferHandle(buffer_inner);
     let format_value = arg_value(args, 2, "format", "GpuIndexFormat")?;
-    let format_raw = decode_uint8(format_value, "format_raw", "GpuIndexFormat")?;
+    let format_raw = decode_int32(format_value, "format_raw", "GpuIndexFormat")?;
     let format = match format_raw {
-        0u8 => GpuIndexFormat::Undefined,
-        1u8 => GpuIndexFormat::Uint16,
-        2u8 => GpuIndexFormat::Uint32,
+        0i32 => GpuIndexFormat::Undefined,
+        1i32 => GpuIndexFormat::Uint16,
+        2i32 => GpuIndexFormat::Uint32,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "format",
@@ -3918,7 +3767,7 @@ fn encode_destack_gpu_device_features_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<GpuFeatureId>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.gpu.device.hasFeature.
@@ -3965,159 +3814,125 @@ fn encode_destack_gpu_device_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuDeviceInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.backend as u8 as u64, 8));
-        let field_1: RuntimeResult<vm::Value> = value.enabled_features.to_value(context);
-        let field_2: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_bind_groups as u64,
-                32,
-            ));
-            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.backend as i32 as i64, 32);
+        let field_1 = value.enabled_features.to_value(context);
+        let field_2 = {
+            let field_0 = vm::Value::uint(value.effective_limits.max_bind_groups as u64, 32);
+            let field_1 = vm::Value::uint(
                 value.effective_limits.max_bindings_per_bind_group as u64,
                 32,
-            ));
-            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_push_constant_bytes as u64,
-                32,
-            ));
-            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_texture_dimension1_d as u64,
-                32,
-            ));
-            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_texture_dimension2_d as u64,
-                32,
-            ));
-            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_texture_dimension3_d as u64,
-                32,
-            ));
-            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_texture_array_layers as u64,
-                32,
-            ));
-            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_color_attachments as u64,
-                32,
-            ));
-            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_2 =
+                vm::Value::uint(value.effective_limits.max_push_constant_bytes as u64, 32);
+            let field_3 =
+                vm::Value::uint(value.effective_limits.max_texture_dimension1_d as u64, 32);
+            let field_4 =
+                vm::Value::uint(value.effective_limits.max_texture_dimension2_d as u64, 32);
+            let field_5 =
+                vm::Value::uint(value.effective_limits.max_texture_dimension3_d as u64, 32);
+            let field_6 =
+                vm::Value::uint(value.effective_limits.max_texture_array_layers as u64, 32);
+            let field_7 = vm::Value::uint(value.effective_limits.max_color_attachments as u64, 32);
+            let field_8 = vm::Value::uint(
                 value.effective_limits.max_color_attachment_bytes_per_sample as u64,
                 32,
-            ));
-            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_9 = vm::Value::uint(
                 value.effective_limits.max_sampled_textures_per_stage as u64,
                 32,
-            ));
-            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_samplers_per_stage as u64,
-                32,
-            ));
-            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_10 =
+                vm::Value::uint(value.effective_limits.max_samplers_per_stage as u64, 32);
+            let field_11 = vm::Value::uint(
                 value.effective_limits.max_storage_buffers_per_stage as u64,
                 32,
-            ));
-            let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_12 = vm::Value::uint(
                 value.effective_limits.max_storage_textures_per_stage as u64,
                 32,
-            ));
-            let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_13 = vm::Value::uint(
                 value.effective_limits.max_uniform_buffers_per_stage as u64,
                 32,
-            ));
-            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_14 = vm::Value::uint(
                 value
                     .effective_limits
                     .max_dynamic_uniform_buffers_per_pipeline_layout as u64,
                 32,
-            ));
-            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_15 = vm::Value::uint(
                 value
                     .effective_limits
                     .max_dynamic_storage_buffers_per_pipeline_layout as u64,
                 32,
-            ));
-            let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_uniform_buffer_binding_size,
-                64,
-            ));
-            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_storage_buffer_binding_size,
-                64,
-            ));
-            let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_16 =
+                vm::Value::uint(value.effective_limits.max_uniform_buffer_binding_size, 64);
+            let field_17 =
+                vm::Value::uint(value.effective_limits.max_storage_buffer_binding_size, 64);
+            let field_18 = vm::Value::uint(
                 value.effective_limits.min_storage_buffer_offset_alignment as u64,
                 32,
-            ));
-            let field_19: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_19 = vm::Value::uint(
                 value.effective_limits.min_uniform_buffer_offset_alignment as u64,
                 32,
-            ));
-            let field_20: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_vertex_buffers as u64,
-                32,
-            ));
-            let field_21: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.effective_limits.max_vertex_attributes as u64,
-                32,
-            ));
-            let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_20 = vm::Value::uint(value.effective_limits.max_vertex_buffers as u64, 32);
+            let field_21 = vm::Value::uint(value.effective_limits.max_vertex_attributes as u64, 32);
+            let field_22 = vm::Value::uint(
                 value.effective_limits.max_vertex_buffer_array_stride as u64,
                 32,
-            ));
-            let field_23: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.effective_limits.max_buffer_size, 64));
-            let field_24: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_23 = vm::Value::uint(value.effective_limits.max_buffer_size, 64);
+            let field_24 = vm::Value::uint(
                 value.effective_limits.max_inter_stage_shader_components as u64,
                 32,
-            ));
-            let field_25: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_25 = vm::Value::uint(
                 value.effective_limits.max_inter_stage_shader_variables as u64,
                 32,
-            ));
-            let field_26: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_26 = vm::Value::uint(
                 value.effective_limits.max_compute_workgroup_storage_size as u64,
                 32,
-            ));
-            let field_27: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_27 = vm::Value::uint(
                 value.effective_limits.max_compute_invocations_per_workgroup as u64,
                 32,
-            ));
-            let field_28: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_28 = vm::Value::uint(
                 value.effective_limits.max_compute_workgroup_size_x as u64,
                 32,
-            ));
-            let field_29: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_29 = vm::Value::uint(
                 value.effective_limits.max_compute_workgroup_size_y as u64,
                 32,
-            ));
-            let field_30: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_30 = vm::Value::uint(
                 value.effective_limits.max_compute_workgroup_size_z as u64,
                 32,
-            ));
-            let field_31: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            );
+            let field_31 = vm::Value::uint(
                 value.effective_limits.max_compute_workgroups_per_dimension as u64,
                 32,
-            ));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                    field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
-                    field_22?, field_23?, field_24?, field_25?, field_26?, field_27?, field_28?,
-                    field_29?, field_30?, field_31?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
-        };
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.queue_count as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_timeline_sync));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_timestamp_queries));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_push_constants));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+            );
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+                field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+                field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
+                field_25, field_26, field_27, field_28, field_29, field_30, field_31,
             ])
-            .map_err(Box::<RuntimeError>::from)
+        };
+        let field_3 = vm::Value::uint(value.queue_count as u64, 32);
+        let field_4 = vm::Value::bool(value.has_timeline_sync);
+        let field_5 = vm::Value::bool(value.has_timestamp_queries);
+        let field_6 = vm::Value::bool(value.has_push_constants);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
     })
 }
 
@@ -4140,117 +3955,51 @@ fn encode_destack_gpu_device_limits_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuAdapterLimitsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_bind_groups as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_bindings_per_bind_group as u64,
-            32,
-        ));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_push_constant_bytes as u64, 32));
-        let field_3: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_texture_dimension1_d as u64, 32));
-        let field_4: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_texture_dimension2_d as u64, 32));
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_texture_dimension3_d as u64, 32));
-        let field_6: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_texture_array_layers as u64, 32));
-        let field_7: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_color_attachments as u64, 32));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_color_attachment_bytes_per_sample as u64,
-            32,
-        ));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_sampled_textures_per_stage as u64,
-            32,
-        ));
-        let field_10: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_samplers_per_stage as u64, 32));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_storage_buffers_per_stage as u64,
-            32,
-        ));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_storage_textures_per_stage as u64,
-            32,
-        ));
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_uniform_buffers_per_stage as u64,
-            32,
-        ));
-        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.max_bind_groups as u64, 32);
+        let field_1 = vm::Value::uint(value.max_bindings_per_bind_group as u64, 32);
+        let field_2 = vm::Value::uint(value.max_push_constant_bytes as u64, 32);
+        let field_3 = vm::Value::uint(value.max_texture_dimension1_d as u64, 32);
+        let field_4 = vm::Value::uint(value.max_texture_dimension2_d as u64, 32);
+        let field_5 = vm::Value::uint(value.max_texture_dimension3_d as u64, 32);
+        let field_6 = vm::Value::uint(value.max_texture_array_layers as u64, 32);
+        let field_7 = vm::Value::uint(value.max_color_attachments as u64, 32);
+        let field_8 = vm::Value::uint(value.max_color_attachment_bytes_per_sample as u64, 32);
+        let field_9 = vm::Value::uint(value.max_sampled_textures_per_stage as u64, 32);
+        let field_10 = vm::Value::uint(value.max_samplers_per_stage as u64, 32);
+        let field_11 = vm::Value::uint(value.max_storage_buffers_per_stage as u64, 32);
+        let field_12 = vm::Value::uint(value.max_storage_textures_per_stage as u64, 32);
+        let field_13 = vm::Value::uint(value.max_uniform_buffers_per_stage as u64, 32);
+        let field_14 = vm::Value::uint(
             value.max_dynamic_uniform_buffers_per_pipeline_layout as u64,
             32,
-        ));
-        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+        );
+        let field_15 = vm::Value::uint(
             value.max_dynamic_storage_buffers_per_pipeline_layout as u64,
             32,
-        ));
-        let field_16: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_uniform_buffer_binding_size, 64));
-        let field_17: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_storage_buffer_binding_size, 64));
-        let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.min_storage_buffer_offset_alignment as u64,
-            32,
-        ));
-        let field_19: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.min_uniform_buffer_offset_alignment as u64,
-            32,
-        ));
-        let field_20: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_vertex_buffers as u64, 32));
-        let field_21: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_vertex_attributes as u64, 32));
-        let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_vertex_buffer_array_stride as u64,
-            32,
-        ));
-        let field_23: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.max_buffer_size, 64));
-        let field_24: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_inter_stage_shader_components as u64,
-            32,
-        ));
-        let field_25: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_inter_stage_shader_variables as u64,
-            32,
-        ));
-        let field_26: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_workgroup_storage_size as u64,
-            32,
-        ));
-        let field_27: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_invocations_per_workgroup as u64,
-            32,
-        ));
-        let field_28: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_workgroup_size_x as u64,
-            32,
-        ));
-        let field_29: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_workgroup_size_y as u64,
-            32,
-        ));
-        let field_30: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_workgroup_size_z as u64,
-            32,
-        ));
-        let field_31: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.max_compute_workgroups_per_dimension as u64,
-            32,
-        ));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
-                field_22?, field_23?, field_24?, field_25?, field_26?, field_27?, field_28?,
-                field_29?, field_30?, field_31?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        );
+        let field_16 = vm::Value::uint(value.max_uniform_buffer_binding_size, 64);
+        let field_17 = vm::Value::uint(value.max_storage_buffer_binding_size, 64);
+        let field_18 = vm::Value::uint(value.min_storage_buffer_offset_alignment as u64, 32);
+        let field_19 = vm::Value::uint(value.min_uniform_buffer_offset_alignment as u64, 32);
+        let field_20 = vm::Value::uint(value.max_vertex_buffers as u64, 32);
+        let field_21 = vm::Value::uint(value.max_vertex_attributes as u64, 32);
+        let field_22 = vm::Value::uint(value.max_vertex_buffer_array_stride as u64, 32);
+        let field_23 = vm::Value::uint(value.max_buffer_size, 64);
+        let field_24 = vm::Value::uint(value.max_inter_stage_shader_components as u64, 32);
+        let field_25 = vm::Value::uint(value.max_inter_stage_shader_variables as u64, 32);
+        let field_26 = vm::Value::uint(value.max_compute_workgroup_storage_size as u64, 32);
+        let field_27 = vm::Value::uint(value.max_compute_invocations_per_workgroup as u64, 32);
+        let field_28 = vm::Value::uint(value.max_compute_workgroup_size_x as u64, 32);
+        let field_29 = vm::Value::uint(value.max_compute_workgroup_size_y as u64, 32);
+        let field_30 = vm::Value::uint(value.max_compute_workgroup_size_z as u64, 32);
+        let field_31 = vm::Value::uint(value.max_compute_workgroups_per_dimension as u64, 32);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
+            field_25, field_26, field_27, field_28, field_29, field_30, field_31,
+        ])
     })
 }
 
@@ -4522,16 +4271,16 @@ fn decode_destack_gpu_device_open_args(
                     options_required_limits_max_compute_workgroups_per_dimension,
             }
         };
-        let options_backend_raw = decode_uint8(slots[2], "options_backend_raw", "backend")?;
+        let options_backend_raw = decode_int32(slots[2], "options_backend_raw", "backend")?;
         let options_backend = match options_backend_raw {
-            0u8 => GpuBackend::Auto,
-            1u8 => GpuBackend::Vulkan,
-            2u8 => GpuBackend::Metal,
-            3u8 => GpuBackend::D3D12,
-            4u8 => GpuBackend::OpenGL,
-            5u8 => GpuBackend::OpenGles,
-            6u8 => GpuBackend::WebGpu,
-            255u8 => GpuBackend::Null,
+            0i32 => GpuBackend::Auto,
+            1i32 => GpuBackend::Vulkan,
+            2i32 => GpuBackend::Metal,
+            3i32 => GpuBackend::D3D12,
+            4i32 => GpuBackend::OpenGL,
+            5i32 => GpuBackend::OpenGles,
+            6i32 => GpuBackend::WebGpu,
+            255i32 => GpuBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_backend",
@@ -4607,18 +4356,16 @@ fn encode_destack_gpu_device_pop_error_scope_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuCapturedErrorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = match value.message {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = match value.message {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_1: RuntimeResult<vm::Value> = match value.backend_code {
-            Some(value) => Ok(vm::Value::int(value as i64, 32)),
-            None => Ok(vm::Value::VOID),
+        let field_1 = match value.backend_code {
+            Some(value) => vm::Value::int(value as i64, 32),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -4633,11 +4380,11 @@ fn decode_destack_gpu_device_push_error_scope_args(
     let device_inner = resource::ResourceId(device_inner_inner);
     let device = resource::GpuDeviceHandle(device_inner);
     let filter_value = arg_value(args, 1, "filter", "GpuErrorFilter")?;
-    let filter_raw = decode_uint8(filter_value, "filter_raw", "GpuErrorFilter")?;
+    let filter_raw = decode_int32(filter_value, "filter_raw", "GpuErrorFilter")?;
     let filter = match filter_raw {
-        1u8 => GpuErrorFilter::Validation,
-        2u8 => GpuErrorFilter::OutOfMemory,
-        3u8 => GpuErrorFilter::Internal,
+        1i32 => GpuErrorFilter::Validation,
+        2i32 => GpuErrorFilter::OutOfMemory,
+        3i32 => GpuErrorFilter::Internal,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "filter",
@@ -4699,15 +4446,12 @@ fn encode_destack_gpu_device_status_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuDeviceStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.healthy));
-        let field_1: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.loss_reason as u8 as u64, 8));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.backend_code as i64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(value.message.value());
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::bool(value.healthy);
+        let field_1 = vm::Value::int(value.loss_reason as i32 as i64, 32);
+        let field_2 = vm::Value::int(value.backend_code as i64, 32);
+        let field_3 = value.message.value();
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -5066,19 +4810,19 @@ fn decode_destack_gpu_pipeline_render_create_args(
                     ))
                     .boxed());
                 }
-                let options_render_primitive_topology_raw = decode_uint8(
+                let options_render_primitive_topology_raw = decode_int32(
                     slots[0],
                     "options_render_primitive_topology_raw",
                     "topology",
                 )?;
                 let options_render_primitive_topology = match options_render_primitive_topology_raw
                 {
-                    0u8 => GpuPrimitiveTopology::Undefined,
-                    1u8 => GpuPrimitiveTopology::PointList,
-                    2u8 => GpuPrimitiveTopology::LineList,
-                    3u8 => GpuPrimitiveTopology::LineStrip,
-                    4u8 => GpuPrimitiveTopology::TriangleList,
-                    5u8 => GpuPrimitiveTopology::TriangleStrip,
+                    0i32 => GpuPrimitiveTopology::Undefined,
+                    1i32 => GpuPrimitiveTopology::PointList,
+                    2i32 => GpuPrimitiveTopology::LineList,
+                    3i32 => GpuPrimitiveTopology::LineStrip,
+                    4i32 => GpuPrimitiveTopology::TriangleList,
+                    5i32 => GpuPrimitiveTopology::TriangleStrip,
                     _ => {
                         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                             "options_render_primitive_topology",
@@ -5092,16 +4836,16 @@ fn decode_destack_gpu_pipeline_render_create_args(
                     "options_render_primitive_strip_index_format",
                     "stripIndexFormat",
                 )?;
-                let options_render_primitive_front_face_raw = decode_uint8(
+                let options_render_primitive_front_face_raw = decode_int32(
                     slots[2],
                     "options_render_primitive_front_face_raw",
                     "frontFace",
                 )?;
                 let options_render_primitive_front_face =
                     match options_render_primitive_front_face_raw {
-                        0u8 => GpuFrontFace::Undefined,
-                        1u8 => GpuFrontFace::Ccw,
-                        2u8 => GpuFrontFace::Cw,
+                        0i32 => GpuFrontFace::Undefined,
+                        1i32 => GpuFrontFace::Ccw,
+                        2i32 => GpuFrontFace::Cw,
                         _ => {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "options_render_primitive_front_face",
@@ -5110,17 +4854,17 @@ fn decode_destack_gpu_pipeline_render_create_args(
                             .boxed());
                         }
                     };
-                let options_render_primitive_cull_mode_raw = decode_uint8(
+                let options_render_primitive_cull_mode_raw = decode_int32(
                     slots[3],
                     "options_render_primitive_cull_mode_raw",
                     "cullMode",
                 )?;
                 let options_render_primitive_cull_mode =
                     match options_render_primitive_cull_mode_raw {
-                        0u8 => GpuCullMode::Undefined,
-                        1u8 => GpuCullMode::None,
-                        2u8 => GpuCullMode::Front,
-                        3u8 => GpuCullMode::Back,
+                        0i32 => GpuCullMode::Undefined,
+                        1i32 => GpuCullMode::None,
+                        2i32 => GpuCullMode::Front,
+                        3i32 => GpuCullMode::Back,
                         _ => {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "options_render_primitive_cull_mode",
@@ -5173,22 +4917,22 @@ fn decode_destack_gpu_pipeline_render_create_args(
                         "options_render_depth_stencil_inner_depth_write_enabled",
                         "depthWriteEnabled",
                     )?;
-                    let options_render_depth_stencil_inner_depth_compare_raw = decode_uint8(
+                    let options_render_depth_stencil_inner_depth_compare_raw = decode_int32(
                         slots[2],
                         "options_render_depth_stencil_inner_depth_compare_raw",
                         "depthCompare",
                     )?;
                     let options_render_depth_stencil_inner_depth_compare =
                         match options_render_depth_stencil_inner_depth_compare_raw {
-                            0u8 => GpuCompareFunction::Undefined,
-                            1u8 => GpuCompareFunction::Never,
-                            2u8 => GpuCompareFunction::Less,
-                            3u8 => GpuCompareFunction::Equal,
-                            4u8 => GpuCompareFunction::LessEqual,
-                            5u8 => GpuCompareFunction::Greater,
-                            6u8 => GpuCompareFunction::NotEqual,
-                            7u8 => GpuCompareFunction::GreaterEqual,
-                            8u8 => GpuCompareFunction::Always,
+                            0i32 => GpuCompareFunction::Undefined,
+                            1i32 => GpuCompareFunction::Never,
+                            2i32 => GpuCompareFunction::Less,
+                            3i32 => GpuCompareFunction::Equal,
+                            4i32 => GpuCompareFunction::LessEqual,
+                            5i32 => GpuCompareFunction::Greater,
+                            6i32 => GpuCompareFunction::NotEqual,
+                            7i32 => GpuCompareFunction::GreaterEqual,
+                            8i32 => GpuCompareFunction::Always,
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
@@ -5218,22 +4962,22 @@ fn decode_destack_gpu_pipeline_render_create_args(
                             .boxed());
                         }
                         let options_render_depth_stencil_inner_stencil_front_compare_raw =
-                            decode_uint8(
+                            decode_int32(
                                 slots[0],
                                 "options_render_depth_stencil_inner_stencil_front_compare_raw",
                                 "compare",
                             )?;
                         let options_render_depth_stencil_inner_stencil_front_compare =
                             match options_render_depth_stencil_inner_stencil_front_compare_raw {
-                                0u8 => GpuCompareFunction::Undefined,
-                                1u8 => GpuCompareFunction::Never,
-                                2u8 => GpuCompareFunction::Less,
-                                3u8 => GpuCompareFunction::Equal,
-                                4u8 => GpuCompareFunction::LessEqual,
-                                5u8 => GpuCompareFunction::Greater,
-                                6u8 => GpuCompareFunction::NotEqual,
-                                7u8 => GpuCompareFunction::GreaterEqual,
-                                8u8 => GpuCompareFunction::Always,
+                                0i32 => GpuCompareFunction::Undefined,
+                                1i32 => GpuCompareFunction::Never,
+                                2i32 => GpuCompareFunction::Less,
+                                3i32 => GpuCompareFunction::Equal,
+                                4i32 => GpuCompareFunction::LessEqual,
+                                5i32 => GpuCompareFunction::Greater,
+                                6i32 => GpuCompareFunction::NotEqual,
+                                7i32 => GpuCompareFunction::GreaterEqual,
+                                8i32 => GpuCompareFunction::Always,
                                 _ => return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
                                         "options_render_depth_stencil_inner_stencil_front_compare",
@@ -5243,22 +4987,22 @@ fn decode_destack_gpu_pipeline_render_create_args(
                                 .boxed()),
                             };
                         let options_render_depth_stencil_inner_stencil_front_fail_op_raw =
-                            decode_uint8(
+                            decode_int32(
                                 slots[1],
                                 "options_render_depth_stencil_inner_stencil_front_fail_op_raw",
                                 "failOp",
                             )?;
                         let options_render_depth_stencil_inner_stencil_front_fail_op =
                             match options_render_depth_stencil_inner_stencil_front_fail_op_raw {
-                                0u8 => GpuStencilOperation::Undefined,
-                                1u8 => GpuStencilOperation::Keep,
-                                2u8 => GpuStencilOperation::Zero,
-                                3u8 => GpuStencilOperation::Replace,
-                                4u8 => GpuStencilOperation::Invert,
-                                5u8 => GpuStencilOperation::IncrementClamp,
-                                6u8 => GpuStencilOperation::DecrementClamp,
-                                7u8 => GpuStencilOperation::IncrementWrap,
-                                8u8 => GpuStencilOperation::DecrementWrap,
+                                0i32 => GpuStencilOperation::Undefined,
+                                1i32 => GpuStencilOperation::Keep,
+                                2i32 => GpuStencilOperation::Zero,
+                                3i32 => GpuStencilOperation::Replace,
+                                4i32 => GpuStencilOperation::Invert,
+                                5i32 => GpuStencilOperation::IncrementClamp,
+                                6i32 => GpuStencilOperation::DecrementClamp,
+                                7i32 => GpuStencilOperation::IncrementWrap,
+                                8i32 => GpuStencilOperation::DecrementWrap,
                                 _ => return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
                                         "options_render_depth_stencil_inner_stencil_front_fail_op",
@@ -5268,29 +5012,29 @@ fn decode_destack_gpu_pipeline_render_create_args(
                                 .boxed()),
                             };
                         let options_render_depth_stencil_inner_stencil_front_depth_fail_op_raw =
-                            decode_uint8(
+                            decode_int32(
                                 slots[2],
                                 "options_render_depth_stencil_inner_stencil_front_depth_fail_op_raw",
                                 "depthFailOp",
                             )?;
-                        let options_render_depth_stencil_inner_stencil_front_depth_fail_op = match options_render_depth_stencil_inner_stencil_front_depth_fail_op_raw { 0u8 => GpuStencilOperation::Undefined, 1u8 => GpuStencilOperation::Keep, 2u8 => GpuStencilOperation::Zero, 3u8 => GpuStencilOperation::Replace, 4u8 => GpuStencilOperation::Invert, 5u8 => GpuStencilOperation::IncrementClamp, 6u8 => GpuStencilOperation::DecrementClamp, 7u8 => GpuStencilOperation::IncrementWrap, 8u8 => GpuStencilOperation::DecrementWrap , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("options_render_depth_stencil_inner_stencil_front_depth_fail_op", "unknown GpuStencilOperation value")).boxed()), };
+                        let options_render_depth_stencil_inner_stencil_front_depth_fail_op = match options_render_depth_stencil_inner_stencil_front_depth_fail_op_raw { 0i32 => GpuStencilOperation::Undefined, 1i32 => GpuStencilOperation::Keep, 2i32 => GpuStencilOperation::Zero, 3i32 => GpuStencilOperation::Replace, 4i32 => GpuStencilOperation::Invert, 5i32 => GpuStencilOperation::IncrementClamp, 6i32 => GpuStencilOperation::DecrementClamp, 7i32 => GpuStencilOperation::IncrementWrap, 8i32 => GpuStencilOperation::DecrementWrap , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("options_render_depth_stencil_inner_stencil_front_depth_fail_op", "unknown GpuStencilOperation value")).boxed()), };
                         let options_render_depth_stencil_inner_stencil_front_pass_op_raw =
-                            decode_uint8(
+                            decode_int32(
                                 slots[3],
                                 "options_render_depth_stencil_inner_stencil_front_pass_op_raw",
                                 "passOp",
                             )?;
                         let options_render_depth_stencil_inner_stencil_front_pass_op =
                             match options_render_depth_stencil_inner_stencil_front_pass_op_raw {
-                                0u8 => GpuStencilOperation::Undefined,
-                                1u8 => GpuStencilOperation::Keep,
-                                2u8 => GpuStencilOperation::Zero,
-                                3u8 => GpuStencilOperation::Replace,
-                                4u8 => GpuStencilOperation::Invert,
-                                5u8 => GpuStencilOperation::IncrementClamp,
-                                6u8 => GpuStencilOperation::DecrementClamp,
-                                7u8 => GpuStencilOperation::IncrementWrap,
-                                8u8 => GpuStencilOperation::DecrementWrap,
+                                0i32 => GpuStencilOperation::Undefined,
+                                1i32 => GpuStencilOperation::Keep,
+                                2i32 => GpuStencilOperation::Zero,
+                                3i32 => GpuStencilOperation::Replace,
+                                4i32 => GpuStencilOperation::Invert,
+                                5i32 => GpuStencilOperation::IncrementClamp,
+                                6i32 => GpuStencilOperation::DecrementClamp,
+                                7i32 => GpuStencilOperation::IncrementWrap,
+                                8i32 => GpuStencilOperation::DecrementWrap,
                                 _ => return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
                                         "options_render_depth_stencil_inner_stencil_front_pass_op",
@@ -5326,22 +5070,22 @@ fn decode_destack_gpu_pipeline_render_create_args(
                             .boxed());
                         }
                         let options_render_depth_stencil_inner_stencil_back_compare_raw =
-                            decode_uint8(
+                            decode_int32(
                                 slots[0],
                                 "options_render_depth_stencil_inner_stencil_back_compare_raw",
                                 "compare",
                             )?;
                         let options_render_depth_stencil_inner_stencil_back_compare =
                             match options_render_depth_stencil_inner_stencil_back_compare_raw {
-                                0u8 => GpuCompareFunction::Undefined,
-                                1u8 => GpuCompareFunction::Never,
-                                2u8 => GpuCompareFunction::Less,
-                                3u8 => GpuCompareFunction::Equal,
-                                4u8 => GpuCompareFunction::LessEqual,
-                                5u8 => GpuCompareFunction::Greater,
-                                6u8 => GpuCompareFunction::NotEqual,
-                                7u8 => GpuCompareFunction::GreaterEqual,
-                                8u8 => GpuCompareFunction::Always,
+                                0i32 => GpuCompareFunction::Undefined,
+                                1i32 => GpuCompareFunction::Never,
+                                2i32 => GpuCompareFunction::Less,
+                                3i32 => GpuCompareFunction::Equal,
+                                4i32 => GpuCompareFunction::LessEqual,
+                                5i32 => GpuCompareFunction::Greater,
+                                6i32 => GpuCompareFunction::NotEqual,
+                                7i32 => GpuCompareFunction::GreaterEqual,
+                                8i32 => GpuCompareFunction::Always,
                                 _ => return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
                                         "options_render_depth_stencil_inner_stencil_back_compare",
@@ -5351,22 +5095,22 @@ fn decode_destack_gpu_pipeline_render_create_args(
                                 .boxed()),
                             };
                         let options_render_depth_stencil_inner_stencil_back_fail_op_raw =
-                            decode_uint8(
+                            decode_int32(
                                 slots[1],
                                 "options_render_depth_stencil_inner_stencil_back_fail_op_raw",
                                 "failOp",
                             )?;
                         let options_render_depth_stencil_inner_stencil_back_fail_op =
                             match options_render_depth_stencil_inner_stencil_back_fail_op_raw {
-                                0u8 => GpuStencilOperation::Undefined,
-                                1u8 => GpuStencilOperation::Keep,
-                                2u8 => GpuStencilOperation::Zero,
-                                3u8 => GpuStencilOperation::Replace,
-                                4u8 => GpuStencilOperation::Invert,
-                                5u8 => GpuStencilOperation::IncrementClamp,
-                                6u8 => GpuStencilOperation::DecrementClamp,
-                                7u8 => GpuStencilOperation::IncrementWrap,
-                                8u8 => GpuStencilOperation::DecrementWrap,
+                                0i32 => GpuStencilOperation::Undefined,
+                                1i32 => GpuStencilOperation::Keep,
+                                2i32 => GpuStencilOperation::Zero,
+                                3i32 => GpuStencilOperation::Replace,
+                                4i32 => GpuStencilOperation::Invert,
+                                5i32 => GpuStencilOperation::IncrementClamp,
+                                6i32 => GpuStencilOperation::DecrementClamp,
+                                7i32 => GpuStencilOperation::IncrementWrap,
+                                8i32 => GpuStencilOperation::DecrementWrap,
                                 _ => return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
                                         "options_render_depth_stencil_inner_stencil_back_fail_op",
@@ -5376,29 +5120,29 @@ fn decode_destack_gpu_pipeline_render_create_args(
                                 .boxed()),
                             };
                         let options_render_depth_stencil_inner_stencil_back_depth_fail_op_raw =
-                            decode_uint8(
+                            decode_int32(
                                 slots[2],
                                 "options_render_depth_stencil_inner_stencil_back_depth_fail_op_raw",
                                 "depthFailOp",
                             )?;
-                        let options_render_depth_stencil_inner_stencil_back_depth_fail_op = match options_render_depth_stencil_inner_stencil_back_depth_fail_op_raw { 0u8 => GpuStencilOperation::Undefined, 1u8 => GpuStencilOperation::Keep, 2u8 => GpuStencilOperation::Zero, 3u8 => GpuStencilOperation::Replace, 4u8 => GpuStencilOperation::Invert, 5u8 => GpuStencilOperation::IncrementClamp, 6u8 => GpuStencilOperation::DecrementClamp, 7u8 => GpuStencilOperation::IncrementWrap, 8u8 => GpuStencilOperation::DecrementWrap , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("options_render_depth_stencil_inner_stencil_back_depth_fail_op", "unknown GpuStencilOperation value")).boxed()), };
+                        let options_render_depth_stencil_inner_stencil_back_depth_fail_op = match options_render_depth_stencil_inner_stencil_back_depth_fail_op_raw { 0i32 => GpuStencilOperation::Undefined, 1i32 => GpuStencilOperation::Keep, 2i32 => GpuStencilOperation::Zero, 3i32 => GpuStencilOperation::Replace, 4i32 => GpuStencilOperation::Invert, 5i32 => GpuStencilOperation::IncrementClamp, 6i32 => GpuStencilOperation::DecrementClamp, 7i32 => GpuStencilOperation::IncrementWrap, 8i32 => GpuStencilOperation::DecrementWrap , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("options_render_depth_stencil_inner_stencil_back_depth_fail_op", "unknown GpuStencilOperation value")).boxed()), };
                         let options_render_depth_stencil_inner_stencil_back_pass_op_raw =
-                            decode_uint8(
+                            decode_int32(
                                 slots[3],
                                 "options_render_depth_stencil_inner_stencil_back_pass_op_raw",
                                 "passOp",
                             )?;
                         let options_render_depth_stencil_inner_stencil_back_pass_op =
                             match options_render_depth_stencil_inner_stencil_back_pass_op_raw {
-                                0u8 => GpuStencilOperation::Undefined,
-                                1u8 => GpuStencilOperation::Keep,
-                                2u8 => GpuStencilOperation::Zero,
-                                3u8 => GpuStencilOperation::Replace,
-                                4u8 => GpuStencilOperation::Invert,
-                                5u8 => GpuStencilOperation::IncrementClamp,
-                                6u8 => GpuStencilOperation::DecrementClamp,
-                                7u8 => GpuStencilOperation::IncrementWrap,
-                                8u8 => GpuStencilOperation::DecrementWrap,
+                                0i32 => GpuStencilOperation::Undefined,
+                                1i32 => GpuStencilOperation::Keep,
+                                2i32 => GpuStencilOperation::Zero,
+                                3i32 => GpuStencilOperation::Replace,
+                                4i32 => GpuStencilOperation::Invert,
+                                5i32 => GpuStencilOperation::IncrementClamp,
+                                6i32 => GpuStencilOperation::DecrementClamp,
+                                7i32 => GpuStencilOperation::IncrementWrap,
+                                8i32 => GpuStencilOperation::DecrementWrap,
                                 _ => return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
                                         "options_render_depth_stencil_inner_stencil_back_pass_op",
@@ -5570,11 +5314,9 @@ fn encode_destack_gpu_pipeline_shader_compilation_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuCompilationInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = value.messages.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = value.messages.to_value(context);
+        context.allocate_aggregate(vec![field_0])
     })
 }
 
@@ -5607,13 +5349,13 @@ fn decode_destack_gpu_pipeline_shader_create_args(
             ))
             .boxed());
         }
-        let options_format_raw = decode_uint8(slots[0], "options_format_raw", "format")?;
+        let options_format_raw = decode_int32(slots[0], "options_format_raw", "format")?;
         let options_format = match options_format_raw {
-            1u8 => GpuShaderFormat::Wgsl,
-            2u8 => GpuShaderFormat::SpirV,
-            3u8 => GpuShaderFormat::Msl,
-            4u8 => GpuShaderFormat::HlslOrDxil,
-            5u8 => GpuShaderFormat::Glsl,
+            1i32 => GpuShaderFormat::Wgsl,
+            2i32 => GpuShaderFormat::SpirV,
+            3i32 => GpuShaderFormat::Msl,
+            4i32 => GpuShaderFormat::HlslOrDxil,
+            5i32 => GpuShaderFormat::Glsl,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_format",
@@ -5693,19 +5435,17 @@ fn encode_destack_gpu_present_surface_acquire_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuSurfaceFrameVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.status as u8 as u64, 8));
-        let field_1: RuntimeResult<vm::Value> = match value.texture {
-            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.status as i32 as i64, 32);
+        let field_1 = match value.texture {
+            Some(value) => vm::Value::uint(value.0.0, 64),
+            None => vm::Value::VOID,
         };
-        let field_2: RuntimeResult<vm::Value> = match value.frame_id {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+        let field_2 = match value.frame_id {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -5734,14 +5474,12 @@ fn encode_destack_gpu_present_surface_capabilities_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuSurfaceCapabilitiesVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.usage_mask, 64));
-        let field_1: RuntimeResult<vm::Value> = value.formats.to_value(context);
-        let field_2: RuntimeResult<vm::Value> = value.present_modes.to_value(context);
-        let field_3: RuntimeResult<vm::Value> = value.alpha_modes.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.usage_mask, 64);
+        let field_1 = value.formats.to_value(context);
+        let field_2 = value.present_modes.to_value(context);
+        let field_3 = value.alpha_modes.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -5813,14 +5551,14 @@ fn decode_destack_gpu_present_surface_configure_args(
         let options_height = decode_uint32(slots[3], "options_height", "height")?;
         let options_format = decode_uint32(slots[4], "options_format", "format")?;
         let options_present_mode_raw =
-            decode_uint8(slots[5], "options_present_mode_raw", "presentMode")?;
+            decode_int32(slots[5], "options_present_mode_raw", "presentMode")?;
         let options_present_mode = match options_present_mode_raw {
-            0u8 => GpuPresentMode::AutoVsync,
-            1u8 => GpuPresentMode::AutoNoVsync,
-            2u8 => GpuPresentMode::Fifo,
-            3u8 => GpuPresentMode::FifoRelaxed,
-            4u8 => GpuPresentMode::Immediate,
-            5u8 => GpuPresentMode::Mailbox,
+            0i32 => GpuPresentMode::AutoVsync,
+            1i32 => GpuPresentMode::AutoNoVsync,
+            2i32 => GpuPresentMode::Fifo,
+            3i32 => GpuPresentMode::FifoRelaxed,
+            4i32 => GpuPresentMode::Immediate,
+            5i32 => GpuPresentMode::Mailbox,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_present_mode",
@@ -5829,13 +5567,13 @@ fn decode_destack_gpu_present_surface_configure_args(
                 .boxed());
             }
         };
-        let options_alpha_mode_raw = decode_uint8(slots[6], "options_alpha_mode_raw", "alphaMode")?;
+        let options_alpha_mode_raw = decode_int32(slots[6], "options_alpha_mode_raw", "alphaMode")?;
         let options_alpha_mode = match options_alpha_mode_raw {
-            0u8 => GpuSurfaceAlphaMode::Auto,
-            1u8 => GpuSurfaceAlphaMode::Opaque,
-            2u8 => GpuSurfaceAlphaMode::Premultiplied,
-            3u8 => GpuSurfaceAlphaMode::Unpremultiplied,
-            4u8 => GpuSurfaceAlphaMode::Inherit,
+            0i32 => GpuSurfaceAlphaMode::Auto,
+            1i32 => GpuSurfaceAlphaMode::Opaque,
+            2i32 => GpuSurfaceAlphaMode::Premultiplied,
+            3i32 => GpuSurfaceAlphaMode::Unpremultiplied,
+            4i32 => GpuSurfaceAlphaMode::Inherit,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_alpha_mode",
@@ -6062,14 +5800,11 @@ fn encode_destack_gpu_resource_buffer_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuBufferInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.size, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.usage, 64));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.map_state as u8 as u64, 8));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.size, 64);
+        let field_1 = vm::Value::uint(value.usage, 64);
+        let field_2 = vm::Value::int(value.map_state as i32 as i64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -6088,10 +5823,10 @@ fn decode_destack_gpu_resource_buffer_map_args(
     let length_value = arg_value(args, 2, "length", "uint64")?;
     let length = decode_uint64(length_value, "length", "uint64")?;
     let mode_value = arg_value(args, 3, "mode", "GpuMapMode")?;
-    let mode_raw = decode_uint8(mode_value, "mode_raw", "GpuMapMode")?;
+    let mode_raw = decode_int32(mode_value, "mode_raw", "GpuMapMode")?;
     let mode = match mode_raw {
-        1u8 => GpuMapMode::Read,
-        2u8 => GpuMapMode::Write,
+        1i32 => GpuMapMode::Read,
+        2i32 => GpuMapMode::Write,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "mode",
@@ -6109,13 +5844,11 @@ fn encode_destack_gpu_resource_buffer_map_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuMappedBufferRangeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.coherent));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.address, 64);
+        let field_1 = vm::Value::uint(value.length, 64);
+        let field_2 = vm::Value::bool(value.coherent);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -6142,7 +5875,7 @@ fn encode_destack_gpu_resource_buffer_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.gpu.resource.bufferUnmap.
@@ -6325,11 +6058,11 @@ fn decode_destack_gpu_resource_texture_create_args(
         let options_mip_levels = decode_uint32(slots[3], "options_mip_levels", "mipLevels")?;
         let options_samples = decode_uint32(slots[4], "options_samples", "samples")?;
         let options_format = decode_uint32(slots[5], "options_format", "format")?;
-        let options_dimension_raw = decode_uint8(slots[6], "options_dimension_raw", "dimension")?;
+        let options_dimension_raw = decode_int32(slots[6], "options_dimension_raw", "dimension")?;
         let options_dimension = match options_dimension_raw {
-            1u8 => GpuTextureDimension::D1,
-            2u8 => GpuTextureDimension::D2,
-            3u8 => GpuTextureDimension::D3,
+            1i32 => GpuTextureDimension::D1,
+            2i32 => GpuTextureDimension::D2,
+            3i32 => GpuTextureDimension::D3,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_dimension",
@@ -6408,22 +6141,18 @@ fn encode_destack_gpu_resource_texture_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuTextureInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.depth_or_layers as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mip_levels as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.samples as u64, 32));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.usage, 64));
-        let field_7: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.dimension as u8 as u64, 8));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.width as u64, 32);
+        let field_1 = vm::Value::uint(value.height as u64, 32);
+        let field_2 = vm::Value::uint(value.depth_or_layers as u64, 32);
+        let field_3 = vm::Value::uint(value.mip_levels as u64, 32);
+        let field_4 = vm::Value::uint(value.samples as u64, 32);
+        let field_5 = vm::Value::uint(value.format as u64, 32);
+        let field_6 = vm::Value::uint(value.usage, 64);
+        let field_7 = vm::Value::int(value.dimension as i32 as i64, 32);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
     })
 }
 
@@ -6829,10 +6558,10 @@ fn decode_destack_gpu_sync_fence_create_args(
             ))
             .boxed());
         }
-        let options_mode_raw = decode_uint8(slots[0], "options_mode_raw", "mode")?;
+        let options_mode_raw = decode_int32(slots[0], "options_mode_raw", "mode")?;
         let options_mode = match options_mode_raw {
-            1u8 => GpuFenceMode::Binary,
-            2u8 => GpuFenceMode::Timeline,
+            1i32 => GpuFenceMode::Binary,
+            2i32 => GpuFenceMode::Timeline,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_mode",
@@ -6913,12 +6642,12 @@ fn decode_destack_gpu_sync_query_set_create_args(
             ))
             .boxed());
         }
-        let options_query_type_raw = decode_uint8(slots[0], "options_query_type_raw", "queryType")?;
+        let options_query_type_raw = decode_int32(slots[0], "options_query_type_raw", "queryType")?;
         let options_query_type = match options_query_type_raw {
-            0u8 => GpuQueryType::Undefined,
-            1u8 => GpuQueryType::Timestamp,
-            2u8 => GpuQueryType::Occlusion,
-            3u8 => GpuQueryType::PipelineStatistics,
+            0i32 => GpuQueryType::Undefined,
+            1i32 => GpuQueryType::Timestamp,
+            2i32 => GpuQueryType::Occlusion,
+            3i32 => GpuQueryType::PipelineStatistics,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_query_type",
@@ -6998,15 +6727,11 @@ fn encode_destack_gpu_sync_query_set_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuQuerySetInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.query_type as u8 as u64, 8));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.count as u64, 32));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.pipeline_statistics_mask.0, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.query_type as i32 as i64, 32);
+        let field_1 = vm::Value::uint(value.count as u64, 32);
+        let field_2 = vm::Value::uint(value.pipeline_statistics_mask.0, 64);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -8090,7 +7815,7 @@ pub(crate) const GPU_ADAPTER_LIMITS: BindingDescriptor = BindingDescriptor::exte
 /// Binding descriptor for destack.gpu.adapter.list.
 pub(crate) const GPU_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.gpu.adapter.list",
-    "export function adapterList(request: GpuAdapterRequest): Result<GpuAdapterInfo[], PlatformError>",
+    "export function adapterList(request: GpuAdapterRequest): Result<Array<GpuAdapterInfo>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.adapter"],
@@ -21852,21 +21577,18 @@ fn destack_gpu_adapter_info_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_id = context
-                        .string_handle(value.id.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_name = context
-                        .string_handle(value.name.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_vendor = context
-                        .string_handle(value.vendor.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_driver = context
-                        .string_handle(value.driver.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_driver_version = context
-                        .string_handle(value.driver_version.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_id_value = context.intern_string(value.id.as_str());
+                    let vm_result_id = vm::StringHandle::new(vm_result_id_value);
+                    let vm_result_name_value = context.intern_string(value.name.as_str());
+                    let vm_result_name = vm::StringHandle::new(vm_result_name_value);
+                    let vm_result_vendor_value = context.intern_string(value.vendor.as_str());
+                    let vm_result_vendor = vm::StringHandle::new(vm_result_vendor_value);
+                    let vm_result_driver_value = context.intern_string(value.driver.as_str());
+                    let vm_result_driver = vm::StringHandle::new(vm_result_driver_value);
+                    let vm_result_driver_version_value =
+                        context.intern_string(value.driver_version.as_str());
+                    let vm_result_driver_version =
+                        vm::StringHandle::new(vm_result_driver_version_value);
                     let vm_result_backend = value.backend;
                     let vm_result_adapter_type = value.adapter_type;
                     let vm_result_vendor_id = value.vendor_id;
@@ -22298,10 +22020,10 @@ fn destack_gpu_adapter_list_vm_replay(
                         let result_recorded_item_vendor = decode_string(slots[2], "result_recorded_item_vendor", "vendor")?;
                         let result_recorded_item_driver = decode_string(slots[3], "result_recorded_item_driver", "driver")?;
                         let result_recorded_item_driver_version = decode_string(slots[4], "result_recorded_item_driver_version", "driverVersion")?;
-                        let result_recorded_item_backend_raw = decode_uint8(slots[5], "result_recorded_item_backend_raw", "backend")?;
-                        let result_recorded_item_backend = match result_recorded_item_backend_raw { 0u8 => GpuBackend::Auto, 1u8 => GpuBackend::Vulkan, 2u8 => GpuBackend::Metal, 3u8 => GpuBackend::D3D12, 4u8 => GpuBackend::OpenGL, 5u8 => GpuBackend::OpenGles, 6u8 => GpuBackend::WebGpu, 255u8 => GpuBackend::Null , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_backend", "unknown GpuBackend value")).boxed()), };
-                        let result_recorded_item_adapter_type_raw = decode_uint8(slots[6], "result_recorded_item_adapter_type_raw", "adapterType")?;
-                        let result_recorded_item_adapter_type = match result_recorded_item_adapter_type_raw { 0u8 => GpuAdapterType::Other, 1u8 => GpuAdapterType::Integrated, 2u8 => GpuAdapterType::Discrete, 3u8 => GpuAdapterType::Virtual, 4u8 => GpuAdapterType::Cpu , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_adapter_type", "unknown GpuAdapterType value")).boxed()), };
+                        let result_recorded_item_backend_raw = decode_int32(slots[5], "result_recorded_item_backend_raw", "backend")?;
+                        let result_recorded_item_backend = match result_recorded_item_backend_raw { 0i32 => GpuBackend::Auto, 1i32 => GpuBackend::Vulkan, 2i32 => GpuBackend::Metal, 3i32 => GpuBackend::D3D12, 4i32 => GpuBackend::OpenGL, 5i32 => GpuBackend::OpenGles, 6i32 => GpuBackend::WebGpu, 255i32 => GpuBackend::Null , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_backend", "unknown GpuBackend value")).boxed()), };
+                        let result_recorded_item_adapter_type_raw = decode_int32(slots[6], "result_recorded_item_adapter_type_raw", "adapterType")?;
+                        let result_recorded_item_adapter_type = match result_recorded_item_adapter_type_raw { 0i32 => GpuAdapterType::Other, 1i32 => GpuAdapterType::Integrated, 2i32 => GpuAdapterType::Discrete, 3i32 => GpuAdapterType::Virtual, 4i32 => GpuAdapterType::Cpu , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_adapter_type", "unknown GpuAdapterType value")).boxed()), };
                         let result_recorded_item_vendor_id = decode_uint32(slots[7], "result_recorded_item_vendor_id", "vendorId")?;
                         let result_recorded_item_device_id = decode_uint32(slots[8], "result_recorded_item_device_id", "deviceId")?;
                         let result_recorded_item_subgroup_min_size = decode_uint32(slots[9], "result_recorded_item_subgroup_min_size", "subgroupMinSize")?;
@@ -22540,11 +22262,16 @@ fn destack_gpu_adapter_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_name = context.string_handle(vm_result_item.name.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_vendor = context.string_handle(vm_result_item.vendor.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_driver = context.string_handle(vm_result_item.driver.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_driver_version = context.string_handle(vm_result_item.driver_version.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_id_value = context.intern_string(vm_result_item.id.as_str());
+                        let vm_result_item_value_id = vm::StringHandle::new(vm_result_item_value_id_value);
+                        let vm_result_item_value_name_value = context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name = vm::StringHandle::new(vm_result_item_value_name_value);
+                        let vm_result_item_value_vendor_value = context.intern_string(vm_result_item.vendor.as_str());
+                        let vm_result_item_value_vendor = vm::StringHandle::new(vm_result_item_value_vendor_value);
+                        let vm_result_item_value_driver_value = context.intern_string(vm_result_item.driver.as_str());
+                        let vm_result_item_value_driver = vm::StringHandle::new(vm_result_item_value_driver_value);
+                        let vm_result_item_value_driver_version_value = context.intern_string(vm_result_item.driver_version.as_str());
+                        let vm_result_item_value_driver_version = vm::StringHandle::new(vm_result_item_value_driver_version_value);
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_adapter_type = vm_result_item.adapter_type;
                         let vm_result_item_value_vendor_id = vm_result_item.vendor_id;
@@ -27559,9 +27286,9 @@ fn destack_gpu_device_pop_error_scope_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_message = if let Some(value) = value.message {
-                        let vm_result_message_inner = context
-                            .string_handle(value.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_message_inner_value = context.intern_string(value.as_str());
+                        let vm_result_message_inner =
+                            vm::StringHandle::new(vm_result_message_inner_value);
                         Some(vm_result_message_inner)
                     } else {
                         None
@@ -27755,9 +27482,8 @@ fn destack_gpu_device_status_vm_replay(
                     let vm_result_healthy = value.healthy;
                     let vm_result_loss_reason = value.loss_reason;
                     let vm_result_backend_code = value.backend_code;
-                    let vm_result_message = context
-                        .string_handle(value.message.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_message_value = context.intern_string(value.message.as_str());
+                    let vm_result_message = vm::StringHandle::new(vm_result_message_value);
                     let vm_result = GpuDeviceStatusVm {
                         healthy: vm_result_healthy,
                         loss_reason: vm_result_loss_reason,
@@ -28049,16 +27775,16 @@ fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
                             ))
                             .boxed());
                         }
-                        let result_recorded_messages_item_kind_raw = decode_uint8(
+                        let result_recorded_messages_item_kind_raw = decode_int32(
                             slots[0],
                             "result_recorded_messages_item_kind_raw",
                             "kind",
                         )?;
                         let result_recorded_messages_item_kind =
                             match result_recorded_messages_item_kind_raw {
-                                1u8 => GpuCompilationMessageKind::Info,
-                                2u8 => GpuCompilationMessageKind::Warning,
-                                3u8 => GpuCompilationMessageKind::Error,
+                                1i32 => GpuCompilationMessageKind::Info,
+                                2i32 => GpuCompilationMessageKind::Warning,
+                                3i32 => GpuCompilationMessageKind::Error,
                                 _ => {
                                     return Err(RuntimeError::from(
                                         PlatformError::invalid_argument_value(
@@ -28156,9 +27882,10 @@ fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
                     let mut vm_result_messages_values = Vec::with_capacity(value.messages.len());
                     for vm_result_messages_item in value.messages.iter().cloned() {
                         let vm_result_messages_item_value_kind = vm_result_messages_item.kind;
-                        let vm_result_messages_item_value_message = context
-                            .string_handle(vm_result_messages_item.message.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_messages_item_value_message_value =
+                            context.intern_string(vm_result_messages_item.message.as_str());
+                        let vm_result_messages_item_value_message =
+                            vm::StringHandle::new(vm_result_messages_item_value_message_value);
                         let vm_result_messages_item_value_line = vm_result_messages_item.line;
                         let vm_result_messages_item_value_column = vm_result_messages_item.column;
                         let vm_result_messages_item_value_offset = vm_result_messages_item.offset;
@@ -28599,7 +28326,7 @@ fn destack_gpu_resource_buffer_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

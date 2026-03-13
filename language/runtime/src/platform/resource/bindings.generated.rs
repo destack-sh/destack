@@ -13,7 +13,7 @@ use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
 };
-use crate::runtime::trace::TraceError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -42,6 +42,26 @@ fn arg_value(
     Ok(value)
 }
 
+/// Decode a signed integer argument with an explicit width.
+#[allow(dead_code)]
+fn decode_int(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+    bits: u8,
+) -> RuntimeResult<i64> {
+    let (raw, width) = value.as_int_with_width().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })?;
+    if width != bits {
+        return Err(
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+        );
+    }
+
+    Ok(raw)
+}
+
 /// Decode an unsigned integer argument with an explicit width.
 #[allow(dead_code)]
 fn decode_uint(
@@ -62,10 +82,14 @@ fn decode_uint(
     Ok(raw)
 }
 
-/// Decode a u8 argument.
+/// Decode an i32 argument.
 #[allow(dead_code)]
-fn decode_uint8(value: vm::Value, name: &'static str, expected: &'static str) -> RuntimeResult<u8> {
-    Ok(decode_uint(value, name, expected, 8)? as u8)
+fn decode_int32(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<i32> {
+    Ok(decode_int(value, name, expected, 32)? as i32)
 }
 
 /// Decode a u64 argument.
@@ -151,10 +175,10 @@ fn decode_destack_resource_id_transfer_args(
     let id_inner = decode_uint64(id_value, "id_inner", "ResourceId")?;
     let id = ResourceId(id_inner);
     let ownership_value = arg_value(args, 1, "ownership", "ResourceOwnership")?;
-    let ownership_raw = decode_uint8(ownership_value, "ownership_raw", "ResourceOwnership")?;
+    let ownership_raw = decode_int32(ownership_value, "ownership_raw", "ResourceOwnership")?;
     let ownership = match ownership_raw {
-        1u8 => ResourceOwnership::Borrowed,
-        2u8 => ResourceOwnership::Owned,
+        1i32 => ResourceOwnership::Borrowed,
+        2i32 => ResourceOwnership::Owned,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "ownership",

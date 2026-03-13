@@ -17,7 +17,7 @@ use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// ABI enum for PlatformErrorCode.
-#[repr(u16)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PlatformErrorCode {
     /// InvalidArgument.
@@ -216,104 +216,104 @@ pub enum PlatformErrorCode {
 
 impl VmValueCodec for PlatformErrorCode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u16 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1000u16 => Self::InvalidArgument,
-            1001u16 => Self::InvalidArgumentType,
-            1002u16 => Self::InvalidArgumentValue,
-            1100u16 => Self::NullPointer,
-            1200u16 => Self::NotSupported,
-            2000u16 => Self::Io,
-            2100u16 => Self::IoReadFailed,
-            2101u16 => Self::IoWriteFailed,
-            2102u16 => Self::IoNotFound,
-            2103u16 => Self::IoPermissionDenied,
-            2104u16 => Self::IoAlreadyExists,
-            2105u16 => Self::IoNotDirectory,
-            2106u16 => Self::IoIsDirectory,
-            2107u16 => Self::IoNotEmpty,
-            2108u16 => Self::IoReadOnly,
-            2109u16 => Self::IoNameTooLong,
-            2110u16 => Self::IoFileTooLarge,
-            2111u16 => Self::IoTooManyOpenFiles,
-            2112u16 => Self::IoFileTableOverflow,
-            2113u16 => Self::IoInvalidData,
-            2114u16 => Self::IoCrossDevice,
-            2115u16 => Self::IoBrokenPipe,
-            2116u16 => Self::IoTimedOut,
-            2117u16 => Self::IoInterrupted,
-            2118u16 => Self::IoBusy,
-            2119u16 => Self::IoWouldBlock,
-            3000u16 => Self::Net,
-            3100u16 => Self::NetConnectionRefused,
-            3101u16 => Self::NetTimedOut,
-            3102u16 => Self::NetConnectionReset,
-            3103u16 => Self::NetAddressInUse,
-            3104u16 => Self::NetAddressNotAvailable,
-            3105u16 => Self::NetNetworkUnreachable,
-            3106u16 => Self::NetHostUnreachable,
-            3107u16 => Self::NetConnectionAborted,
-            3108u16 => Self::NetBrokenPipe,
-            3109u16 => Self::NetDnsFailed,
-            3110u16 => Self::NetNotConnected,
-            3111u16 => Self::NetAlreadyConnected,
-            3112u16 => Self::NetMessageTooLarge,
-            3113u16 => Self::NetNotSocket,
-            3114u16 => Self::NetProtocolError,
-            3115u16 => Self::NetInProgress,
-            3116u16 => Self::NetShutdown,
-            3117u16 => Self::NetUnsupportedFamily,
-            3118u16 => Self::NetUnsupportedProtocol,
-            3119u16 => Self::NetNoBufferSpace,
-            4000u16 => Self::Process,
-            4100u16 => Self::ProcessSpawnFailed,
-            4101u16 => Self::ProcessNotFound,
-            4102u16 => Self::ProcessPermissionDenied,
-            4103u16 => Self::ProcessExecFailed,
-            4104u16 => Self::ProcessWaitFailed,
-            4105u16 => Self::ProcessSignaled,
-            4106u16 => Self::ProcessTimedOut,
-            5000u16 => Self::Random,
-            5100u16 => Self::RandomUnavailable,
-            6000u16 => Self::Time,
-            6100u16 => Self::TimeUnavailable,
-            7000u16 => Self::Ipc,
-            7100u16 => Self::IpcMessageTooLarge,
-            7101u16 => Self::IpcTimedOut,
-            7102u16 => Self::IpcClosed,
-            7103u16 => Self::IpcWouldBlock,
-            7104u16 => Self::IpcAlreadyExists,
-            7200u16 => Self::Security,
-            7210u16 => Self::SecurityDenied,
-            7211u16 => Self::SecurityViolation,
-            7300u16 => Self::Thread,
-            7310u16 => Self::ThreadSpawnFailed,
-            7311u16 => Self::ThreadJoinFailed,
-            7312u16 => Self::ThreadDeadlock,
-            7400u16 => Self::Ffi,
-            7410u16 => Self::FfiLibraryLoadFailed,
-            7411u16 => Self::FfiSymbolNotFound,
-            7412u16 => Self::FfiCallFailed,
-            7500u16 => Self::Device,
-            7510u16 => Self::DeviceUnavailable,
-            7600u16 => Self::Display,
-            7610u16 => Self::DisplayUnavailable,
-            7700u16 => Self::Audio,
-            7710u16 => Self::AudioUnavailable,
-            7800u16 => Self::Gpu,
-            7810u16 => Self::GpuUnavailable,
-            7811u16 => Self::GpuOutOfMemory,
-            7812u16 => Self::GpuDeviceLost,
-            7900u16 => Self::Resource,
-            7910u16 => Self::ResourceNotFound,
-            7911u16 => Self::ResourceClosed,
-            7912u16 => Self::ResourceBusy,
-            7913u16 => Self::ResourceTypeMismatch,
-            8000u16 => Self::IoDriver,
-            8010u16 => Self::IoSubmissionFailed,
-            8011u16 => Self::IoCompletionFailed,
-            8012u16 => Self::IoCancelled,
-            9000u16 => Self::Generic,
+            1000i32 => Self::InvalidArgument,
+            1001i32 => Self::InvalidArgumentType,
+            1002i32 => Self::InvalidArgumentValue,
+            1100i32 => Self::NullPointer,
+            1200i32 => Self::NotSupported,
+            2000i32 => Self::Io,
+            2100i32 => Self::IoReadFailed,
+            2101i32 => Self::IoWriteFailed,
+            2102i32 => Self::IoNotFound,
+            2103i32 => Self::IoPermissionDenied,
+            2104i32 => Self::IoAlreadyExists,
+            2105i32 => Self::IoNotDirectory,
+            2106i32 => Self::IoIsDirectory,
+            2107i32 => Self::IoNotEmpty,
+            2108i32 => Self::IoReadOnly,
+            2109i32 => Self::IoNameTooLong,
+            2110i32 => Self::IoFileTooLarge,
+            2111i32 => Self::IoTooManyOpenFiles,
+            2112i32 => Self::IoFileTableOverflow,
+            2113i32 => Self::IoInvalidData,
+            2114i32 => Self::IoCrossDevice,
+            2115i32 => Self::IoBrokenPipe,
+            2116i32 => Self::IoTimedOut,
+            2117i32 => Self::IoInterrupted,
+            2118i32 => Self::IoBusy,
+            2119i32 => Self::IoWouldBlock,
+            3000i32 => Self::Net,
+            3100i32 => Self::NetConnectionRefused,
+            3101i32 => Self::NetTimedOut,
+            3102i32 => Self::NetConnectionReset,
+            3103i32 => Self::NetAddressInUse,
+            3104i32 => Self::NetAddressNotAvailable,
+            3105i32 => Self::NetNetworkUnreachable,
+            3106i32 => Self::NetHostUnreachable,
+            3107i32 => Self::NetConnectionAborted,
+            3108i32 => Self::NetBrokenPipe,
+            3109i32 => Self::NetDnsFailed,
+            3110i32 => Self::NetNotConnected,
+            3111i32 => Self::NetAlreadyConnected,
+            3112i32 => Self::NetMessageTooLarge,
+            3113i32 => Self::NetNotSocket,
+            3114i32 => Self::NetProtocolError,
+            3115i32 => Self::NetInProgress,
+            3116i32 => Self::NetShutdown,
+            3117i32 => Self::NetUnsupportedFamily,
+            3118i32 => Self::NetUnsupportedProtocol,
+            3119i32 => Self::NetNoBufferSpace,
+            4000i32 => Self::Process,
+            4100i32 => Self::ProcessSpawnFailed,
+            4101i32 => Self::ProcessNotFound,
+            4102i32 => Self::ProcessPermissionDenied,
+            4103i32 => Self::ProcessExecFailed,
+            4104i32 => Self::ProcessWaitFailed,
+            4105i32 => Self::ProcessSignaled,
+            4106i32 => Self::ProcessTimedOut,
+            5000i32 => Self::Random,
+            5100i32 => Self::RandomUnavailable,
+            6000i32 => Self::Time,
+            6100i32 => Self::TimeUnavailable,
+            7000i32 => Self::Ipc,
+            7100i32 => Self::IpcMessageTooLarge,
+            7101i32 => Self::IpcTimedOut,
+            7102i32 => Self::IpcClosed,
+            7103i32 => Self::IpcWouldBlock,
+            7104i32 => Self::IpcAlreadyExists,
+            7200i32 => Self::Security,
+            7210i32 => Self::SecurityDenied,
+            7211i32 => Self::SecurityViolation,
+            7300i32 => Self::Thread,
+            7310i32 => Self::ThreadSpawnFailed,
+            7311i32 => Self::ThreadJoinFailed,
+            7312i32 => Self::ThreadDeadlock,
+            7400i32 => Self::Ffi,
+            7410i32 => Self::FfiLibraryLoadFailed,
+            7411i32 => Self::FfiSymbolNotFound,
+            7412i32 => Self::FfiCallFailed,
+            7500i32 => Self::Device,
+            7510i32 => Self::DeviceUnavailable,
+            7600i32 => Self::Display,
+            7610i32 => Self::DisplayUnavailable,
+            7700i32 => Self::Audio,
+            7710i32 => Self::AudioUnavailable,
+            7800i32 => Self::Gpu,
+            7810i32 => Self::GpuUnavailable,
+            7811i32 => Self::GpuOutOfMemory,
+            7812i32 => Self::GpuDeviceLost,
+            7900i32 => Self::Resource,
+            7910i32 => Self::ResourceNotFound,
+            7911i32 => Self::ResourceClosed,
+            7912i32 => Self::ResourceBusy,
+            7913i32 => Self::ResourceTypeMismatch,
+            8000i32 => Self::IoDriver,
+            8010i32 => Self::IoSubmissionFailed,
+            8011i32 => Self::IoCompletionFailed,
+            8012i32 => Self::IoCancelled,
+            9000i32 => Self::Generic,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -326,7 +326,7 @@ impl VmValueCodec for PlatformErrorCode {
     }
 
     fn encode(self) -> vm::Value {
-        <u16 as VmValueCodec>::encode(self as u16)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -670,9 +670,7 @@ impl VmAggregateCodec for PlatformErrorContextAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1146,9 +1144,7 @@ impl VmAggregateCodec for PlatformPathPayloadAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1400,9 +1396,7 @@ impl VmAggregateCodec for PlatformSystemSourceAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1683,9 +1677,7 @@ impl VmAggregateCodec for PlatformErrorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1870,9 +1862,7 @@ impl VmAggregateCodec for PlatformErrorContextAudioAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2046,9 +2036,7 @@ impl VmAggregateCodec for PlatformErrorContextDeviceAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2229,9 +2217,7 @@ impl VmAggregateCodec for PlatformErrorContextDisplayAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2396,9 +2382,7 @@ impl VmAggregateCodec for PlatformErrorContextFfiAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2580,9 +2564,7 @@ impl VmAggregateCodec for PlatformErrorContextGenericAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2763,9 +2745,7 @@ impl VmAggregateCodec for PlatformErrorContextGpuAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2953,9 +2933,7 @@ impl VmAggregateCodec for PlatformErrorContextIoAbi<VmAbi> {
             )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.fd, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3161,9 +3139,7 @@ impl VmAggregateCodec for PlatformErrorContextIoDriverAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3339,9 +3315,7 @@ impl VmAggregateCodec for PlatformErrorContextIpcAbi<VmAbi> {
             )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.fd, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3531,9 +3505,7 @@ impl VmAggregateCodec for PlatformErrorContextNetAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3720,9 +3692,7 @@ impl VmAggregateCodec for PlatformErrorContextProcessAbi<VmAbi> {
             )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.exit_code, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3893,9 +3863,7 @@ impl VmAggregateCodec for PlatformErrorContextResourceAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4072,9 +4040,7 @@ impl VmAggregateCodec for PlatformErrorContextSecurityAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4241,9 +4207,7 @@ impl VmAggregateCodec for PlatformErrorContextThreadAbi<VmAbi> {
             )?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.thread_id, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4397,9 +4361,7 @@ impl VmAggregateCodec for PlatformErrorContextTimerAbi<VmAbi> {
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.timer_id, context)?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.deadline_ns, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4544,9 +4506,7 @@ impl VmAggregateCodec for PlatformPathPayloadBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4674,9 +4634,7 @@ impl VmAggregateCodec for PlatformPathPayloadUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4811,9 +4769,7 @@ impl VmAggregateCodec for PlatformSystemSourceEaiAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4954,9 +4910,7 @@ impl VmAggregateCodec for PlatformSystemSourceErrnoAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5097,9 +5051,7 @@ impl VmAggregateCodec for PlatformSystemSourceHResultAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5240,9 +5192,7 @@ impl VmAggregateCodec for PlatformSystemSourceOtherAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5383,9 +5333,7 @@ impl VmAggregateCodec for PlatformSystemSourceSignalAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5526,9 +5474,7 @@ impl VmAggregateCodec for PlatformSystemSourceWinsockAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

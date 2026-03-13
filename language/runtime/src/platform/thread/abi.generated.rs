@@ -16,100 +16,12 @@ use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-/// ABI struct for ThreadOptions.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct ThreadOptions {
-    /// Requested stack size in bytes.
-    pub stack_bytes: u64,
-    /// Thread creation flags.
-    pub flags: u32,
-}
-
-pub type ThreadOptionsVm = ThreadOptions;
-
-impl VmAggregateCodec for ThreadOptions {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ThreadOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let field_stack_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        Ok(Self {
-            stack_bytes: field_stack_bytes,
-            flags: field_flags,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.stack_bytes, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-/// Value type for ThreadOptions.
-pub type ThreadOptionsValue = ThreadOptions;
-
-impl NativeAbiCodec for ThreadOptions {
-    type Value = ThreadOptionsValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for ThreadOptions {
-    type Value = ThreadOptionsValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
 /// ABI struct for ThreadCpu.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ThreadCpu {
     /// Processor group on hosts that partition logical processors.
+    /// Unix targets always use `0`.
     pub group: u16,
     /// Logical processor index within the processor group.
     pub cpu: u16,
@@ -155,9 +67,7 @@ impl VmAggregateCodec for ThreadCpu {
             <u16 as VmAggregateCodec>::encode_with_context(self.group, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.cpu, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -218,7 +128,6 @@ impl Clone for ThreadCpuSetAbi<NativeAbi> {
         *self
     }
 }
-
 impl Copy for ThreadCpuSetAbi<VmAbi> {}
 impl Clone for ThreadCpuSetAbi<VmAbi> {
     fn clone(&self) -> Self {
@@ -260,9 +169,7 @@ impl VmAggregateCodec for ThreadCpuSetAbi<VmAbi> {
         let slots = vec![
             <VmArray<ThreadCpuVm> as VmAggregateCodec>::encode_with_context(self.cpus, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -270,7 +177,7 @@ impl VmAggregateCodec for ThreadCpuSetAbi<VmAbi> {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ThreadCpuSetValue {
     /// Logical processors in the affinity set.
-    pub cpus: Vec<ThreadCpuValue>,
+    pub cpus: Vec<ThreadCpu>,
 }
 
 impl NativeAbiCodec for ThreadCpuSetAbi<NativeAbi> {
@@ -309,4 +216,98 @@ impl VmAbiCodec for ThreadCpuSetAbi<VmAbi> {
             cpus: <VmArray<ThreadCpuVm> as VmAbiCodec>::from_value(context, value.cpus)?,
         })
     }
+}
+
+/// ABI struct for ThreadOptions.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ThreadOptions {
+    /// Requested stack size in bytes.
+    pub stack_bytes: u64,
+    /// Thread creation flags.
+    pub flags: u32,
+}
+
+pub type ThreadOptionsVm = ThreadOptions;
+
+impl VmAggregateCodec for ThreadOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ThreadOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_stack_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            stack_bytes: field_stack_bytes,
+            flags: field_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.stack_bytes, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Value type for ThreadOptions.
+pub type ThreadOptionsValue = ThreadOptions;
+
+impl NativeAbiCodec for ThreadOptions {
+    type Value = ThreadOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ThreadOptions {
+    type Value = ThreadOptionsValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// Replay struct for ThreadCpuSet.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ThreadcpusetReplayRecord {
+    /// Logical processors in the affinity set.
+    pub cpus: Vec<ThreadCpu>,
 }

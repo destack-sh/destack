@@ -760,7 +760,7 @@ impl VmAbiCodec for ResourceId {
 }
 
 /// ABI enum for AudioBackend.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioBackend {
     /// Auto.
@@ -789,19 +789,19 @@ pub enum AudioBackend {
 
 impl VmValueCodec for AudioBackend {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Auto,
-            1u8 => Self::Alsa,
-            2u8 => Self::PulseAudio,
-            3u8 => Self::PipeWire,
-            4u8 => Self::CoreAudio,
-            5u8 => Self::Wasapi,
-            6u8 => Self::AAudio,
-            7u8 => Self::OpenSLES,
-            8u8 => Self::Jack,
-            9u8 => Self::Asio,
-            255u8 => Self::Null,
+            0i32 => Self::Auto,
+            1i32 => Self::Alsa,
+            2i32 => Self::PulseAudio,
+            3i32 => Self::PipeWire,
+            4i32 => Self::CoreAudio,
+            5i32 => Self::Wasapi,
+            6i32 => Self::AAudio,
+            7i32 => Self::OpenSLES,
+            8i32 => Self::Jack,
+            9i32 => Self::Asio,
+            255i32 => Self::Null,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -814,7 +814,7 @@ impl VmValueCodec for AudioBackend {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -852,7 +852,7 @@ impl VmAbiCodec for AudioBackend {
 }
 
 /// ABI enum for AudioBackendSelectionPolicy.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioBackendSelectionPolicy {
     /// Strict.
@@ -863,10 +863,10 @@ pub enum AudioBackendSelectionPolicy {
 
 impl VmValueCodec for AudioBackendSelectionPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Strict,
-            2u8 => Self::AllowFallback,
+            1i32 => Self::Strict,
+            2i32 => Self::AllowFallback,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -879,7 +879,7 @@ impl VmValueCodec for AudioBackendSelectionPolicy {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -917,7 +917,7 @@ impl VmAbiCodec for AudioBackendSelectionPolicy {
 }
 
 /// ABI enum for AudioChannelLayout.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioChannelLayout {
     /// Unknown.
@@ -942,17 +942,17 @@ pub enum AudioChannelLayout {
 
 impl VmValueCodec for AudioChannelLayout {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Mono,
-            2u8 => Self::Stereo,
-            3u8 => Self::Quad,
-            4u8 => Self::Surround41,
-            5u8 => Self::Surround51,
-            6u8 => Self::Surround61,
-            7u8 => Self::Surround71,
-            255u8 => Self::Custom,
+            0i32 => Self::Unknown,
+            1i32 => Self::Mono,
+            2i32 => Self::Stereo,
+            3i32 => Self::Quad,
+            4i32 => Self::Surround41,
+            5i32 => Self::Surround51,
+            6i32 => Self::Surround61,
+            7i32 => Self::Surround71,
+            255i32 => Self::Custom,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -965,7 +965,7 @@ impl VmValueCodec for AudioChannelLayout {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1003,7 +1003,7 @@ impl VmAbiCodec for AudioChannelLayout {
 }
 
 /// ABI enum for AudioClockDomain.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioClockDomain {
     /// Monotonic.
@@ -1014,10 +1014,10 @@ pub enum AudioClockDomain {
 
 impl VmValueCodec for AudioClockDomain {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Monotonic,
-            2u8 => Self::Wall,
+            1i32 => Self::Monotonic,
+            2i32 => Self::Wall,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1030,7 +1030,7 @@ impl VmValueCodec for AudioClockDomain {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1068,7 +1068,7 @@ impl VmAbiCodec for AudioClockDomain {
 }
 
 /// ABI enum for AudioClockQuality.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioClockQuality {
     /// None.
@@ -1081,11 +1081,11 @@ pub enum AudioClockQuality {
 
 impl VmValueCodec for AudioClockQuality {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::None,
-            1u8 => Self::Estimated,
-            2u8 => Self::Hardware,
+            0i32 => Self::None,
+            1i32 => Self::Estimated,
+            2i32 => Self::Hardware,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1098,7 +1098,7 @@ impl VmValueCodec for AudioClockQuality {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1136,7 +1136,7 @@ impl VmAbiCodec for AudioClockQuality {
 }
 
 /// ABI enum for AudioDeviceDirection.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioDeviceDirection {
     /// Playback.
@@ -1151,12 +1151,12 @@ pub enum AudioDeviceDirection {
 
 impl VmValueCodec for AudioDeviceDirection {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Playback,
-            2u8 => Self::Capture,
-            3u8 => Self::Duplex,
-            4u8 => Self::Loopback,
+            1i32 => Self::Playback,
+            2i32 => Self::Capture,
+            3i32 => Self::Duplex,
+            4i32 => Self::Loopback,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1169,7 +1169,7 @@ impl VmValueCodec for AudioDeviceDirection {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1207,7 +1207,7 @@ impl VmAbiCodec for AudioDeviceDirection {
 }
 
 /// ABI enum for AudioEventDeliveryMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioEventDeliveryMode {
     /// Auto.
@@ -1220,11 +1220,11 @@ pub enum AudioEventDeliveryMode {
 
 impl VmValueCodec for AudioEventDeliveryMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Auto,
-            2u8 => Self::NativeOnly,
-            3u8 => Self::PollOnly,
+            1i32 => Self::Auto,
+            2i32 => Self::NativeOnly,
+            3i32 => Self::PollOnly,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1237,7 +1237,7 @@ impl VmValueCodec for AudioEventDeliveryMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1275,7 +1275,7 @@ impl VmAbiCodec for AudioEventDeliveryMode {
 }
 
 /// ABI enum for AudioEventOverflowPolicy.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioEventOverflowPolicy {
     /// DropOldest.
@@ -1288,11 +1288,11 @@ pub enum AudioEventOverflowPolicy {
 
 impl VmValueCodec for AudioEventOverflowPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::DropOldest,
-            2u8 => Self::DropNewest,
-            3u8 => Self::Error,
+            1i32 => Self::DropOldest,
+            2i32 => Self::DropNewest,
+            3i32 => Self::Error,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1305,7 +1305,7 @@ impl VmValueCodec for AudioEventOverflowPolicy {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1343,7 +1343,7 @@ impl VmAbiCodec for AudioEventOverflowPolicy {
 }
 
 /// ABI enum for AudioEventSource.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioEventSource {
     /// Native.
@@ -1354,10 +1354,10 @@ pub enum AudioEventSource {
 
 impl VmValueCodec for AudioEventSource {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Native,
-            2u8 => Self::SyntheticPoll,
+            1i32 => Self::Native,
+            2i32 => Self::SyntheticPoll,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1370,7 +1370,7 @@ impl VmValueCodec for AudioEventSource {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1408,7 +1408,7 @@ impl VmAbiCodec for AudioEventSource {
 }
 
 /// ABI enum for AudioSampleFormat.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioSampleFormat {
     /// U8.
@@ -1427,14 +1427,14 @@ pub enum AudioSampleFormat {
 
 impl VmValueCodec for AudioSampleFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::U8,
-            2u8 => Self::S16,
-            3u8 => Self::S24,
-            4u8 => Self::S32,
-            5u8 => Self::F32,
-            6u8 => Self::F64,
+            1i32 => Self::U8,
+            2i32 => Self::S16,
+            3i32 => Self::S24,
+            4i32 => Self::S32,
+            5i32 => Self::F32,
+            6i32 => Self::F64,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1447,7 +1447,7 @@ impl VmValueCodec for AudioSampleFormat {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1485,7 +1485,7 @@ impl VmAbiCodec for AudioSampleFormat {
 }
 
 /// ABI enum for AudioShareMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioShareMode {
     /// Shared.
@@ -1496,10 +1496,10 @@ pub enum AudioShareMode {
 
 impl VmValueCodec for AudioShareMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Shared,
-            2u8 => Self::Exclusive,
+            1i32 => Self::Shared,
+            2i32 => Self::Exclusive,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1512,7 +1512,7 @@ impl VmValueCodec for AudioShareMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1550,7 +1550,7 @@ impl VmAbiCodec for AudioShareMode {
 }
 
 /// ABI enum for AudioStreamClockDomain.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioStreamClockDomain {
     /// Monotonic.
@@ -1569,14 +1569,14 @@ pub enum AudioStreamClockDomain {
 
 impl VmValueCodec for AudioStreamClockDomain {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Monotonic,
-            2u8 => Self::Wall,
-            3u8 => Self::Device,
-            4u8 => Self::Callback,
-            5u8 => Self::InputAdc,
-            6u8 => Self::OutputDac,
+            1i32 => Self::Monotonic,
+            2i32 => Self::Wall,
+            3i32 => Self::Device,
+            4i32 => Self::Callback,
+            5i32 => Self::InputAdc,
+            6i32 => Self::OutputDac,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1589,7 +1589,7 @@ impl VmValueCodec for AudioStreamClockDomain {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1627,7 +1627,7 @@ impl VmAbiCodec for AudioStreamClockDomain {
 }
 
 /// ABI enum for AudioStreamStateKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioStreamStateKind {
     /// Stopped.
@@ -1654,18 +1654,18 @@ pub enum AudioStreamStateKind {
 
 impl VmValueCodec for AudioStreamStateKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Stopped,
-            2u8 => Self::Starting,
-            3u8 => Self::Running,
-            4u8 => Self::Paused,
-            5u8 => Self::Draining,
-            6u8 => Self::Stopping,
-            7u8 => Self::XRun,
-            8u8 => Self::DeviceLost,
-            9u8 => Self::BackendDisconnected,
-            10u8 => Self::Interrupted,
+            1i32 => Self::Stopped,
+            2i32 => Self::Starting,
+            3i32 => Self::Running,
+            4i32 => Self::Paused,
+            5i32 => Self::Draining,
+            6i32 => Self::Stopping,
+            7i32 => Self::XRun,
+            8i32 => Self::DeviceLost,
+            9i32 => Self::BackendDisconnected,
+            10i32 => Self::Interrupted,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1678,7 +1678,7 @@ impl VmValueCodec for AudioStreamStateKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1716,7 +1716,7 @@ impl VmAbiCodec for AudioStreamStateKind {
 }
 
 /// ABI enum for AudioStreamTransferMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AudioStreamTransferMode {
     /// Push.
@@ -1725,9 +1725,9 @@ pub enum AudioStreamTransferMode {
 
 impl VmValueCodec for AudioStreamTransferMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Push,
+            1i32 => Self::Push,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1740,7 +1740,7 @@ impl VmValueCodec for AudioStreamTransferMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1778,7 +1778,7 @@ impl VmAbiCodec for AudioStreamTransferMode {
 }
 
 /// ABI enum for BackendSupport.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BackendSupport {
     /// Available.
@@ -1793,12 +1793,12 @@ pub enum BackendSupport {
 
 impl VmValueCodec for BackendSupport {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Available,
-            1u8 => Self::UnsupportedTarget,
-            2u8 => Self::DisabledByBuild,
-            3u8 => Self::HostUnavailable,
+            0i32 => Self::Available,
+            1i32 => Self::UnsupportedTarget,
+            2i32 => Self::DisabledByBuild,
+            3i32 => Self::HostUnavailable,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1811,7 +1811,7 @@ impl VmValueCodec for BackendSupport {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2139,9 +2139,7 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2623,9 +2621,7 @@ impl VmAggregateCodec for AudioBackendDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2921,9 +2917,7 @@ impl VmAggregateCodec for AudioBackendDisconnectedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3046,9 +3040,7 @@ impl VmAggregateCodec for AudioBackendDisconnectedPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3171,9 +3163,7 @@ impl VmAggregateCodec for AudioBackendResetEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3293,9 +3283,7 @@ impl VmAggregateCodec for AudioBackendResetPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3458,9 +3446,7 @@ impl VmAggregateCodec for AudioClockSnapshot {
             )?,
             <u64 as VmAggregateCodec>::encode_with_context(self.monotonic_ns, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3584,9 +3570,7 @@ impl VmAggregateCodec for AudioDefaultCaptureChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3728,9 +3712,7 @@ impl VmAggregateCodec for AudioDefaultCaptureChangedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3877,9 +3859,7 @@ impl VmAggregateCodec for AudioDefaultLoopbackChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4021,9 +4001,7 @@ impl VmAggregateCodec for AudioDefaultLoopbackChangedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4170,9 +4148,7 @@ impl VmAggregateCodec for AudioDefaultPlaybackChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4314,9 +4290,7 @@ impl VmAggregateCodec for AudioDefaultPlaybackChangedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4462,9 +4436,7 @@ impl VmAggregateCodec for AudioDeviceAddedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4600,9 +4572,7 @@ impl VmAggregateCodec for AudioDeviceAddedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4938,9 +4908,7 @@ impl VmAggregateCodec for AudioDeviceDescriptorAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.format_mask, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.share_mode_mask, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5439,9 +5407,7 @@ impl VmAggregateCodec for AudioDeviceFormatChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5583,9 +5549,7 @@ impl VmAggregateCodec for AudioDeviceFormatChangedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5717,9 +5681,7 @@ impl VmAggregateCodec for AudioDeviceListRequest {
             )?,
             <AudioDeviceListFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5834,9 +5796,7 @@ impl VmAggregateCodec for AudioDeviceOpenOptions {
             <AudioShareMode as VmAggregateCodec>::encode_with_context(self.share_mode, context)?,
             <AudioDeviceOpenFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5959,9 +5919,7 @@ impl VmAggregateCodec for AudioDeviceRemovedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6103,9 +6061,7 @@ impl VmAggregateCodec for AudioDeviceRemovedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6252,9 +6208,7 @@ impl VmAggregateCodec for AudioDeviceReroutedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6396,9 +6350,7 @@ impl VmAggregateCodec for AudioDeviceReroutedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6531,9 +6483,7 @@ impl VmAggregateCodec for AudioEventMetadata {
             <AudioBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6677,9 +6627,7 @@ impl VmAggregateCodec for AudioEventSubscriptionOptions {
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.poll_interval_ns, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6803,9 +6751,7 @@ impl VmAggregateCodec for AudioInterruptionBeganEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6928,9 +6874,7 @@ impl VmAggregateCodec for AudioInterruptionBeganPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7054,9 +6998,7 @@ impl VmAggregateCodec for AudioInterruptionEndedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7179,9 +7121,7 @@ impl VmAggregateCodec for AudioInterruptionEndedPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7287,9 +7227,7 @@ impl VmAggregateCodec for AudioStreamAvailability {
             <u32 as VmAggregateCodec>::encode_with_context(self.max_transfer_frames, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7411,9 +7349,7 @@ impl VmAggregateCodec for AudioStreamConfig {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7675,9 +7611,7 @@ impl VmAggregateCodec for AudioStreamDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8047,9 +7981,7 @@ impl VmAggregateCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8211,9 +8143,7 @@ impl VmAggregateCodec for AudioStreamDeviceChangedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8365,9 +8295,7 @@ impl VmAggregateCodec for AudioStreamOpenOptions {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8528,9 +8456,7 @@ impl VmAggregateCodec for AudioStreamState {
             <u64 as VmAggregateCodec>::encode_with_context(self.output_overflow_count, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.callback_cpu_load, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8654,9 +8580,7 @@ impl VmAggregateCodec for AudioStreamStateChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8788,9 +8712,7 @@ impl VmAggregateCodec for AudioStreamStateChangedPayload {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8925,9 +8847,7 @@ impl VmAggregateCodec for AudioStreamSupportAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9132,9 +9052,7 @@ impl VmAggregateCodec for AudioStreamTiming {
             <f64 as VmAggregateCodec>::encode_with_context(self.drift_ppm, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.callback_cpu_load, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9256,9 +9174,7 @@ impl VmAggregateCodec for AudioStreamXRunEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9417,9 +9333,7 @@ impl VmAggregateCodec for AudioStreamXRunPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
