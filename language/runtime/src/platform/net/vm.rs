@@ -1037,8 +1037,12 @@ pub fn destack_net_reverse_lookup(
         let host = unsafe { name.host.as_str()? };
         let service = unsafe { name.service.as_str()? };
 
-        let host = destack_vm::StringHandle::new(context.intern_string(host));
-        let service = destack_vm::StringHandle::new(context.intern_string(service));
+        let host = context
+            .string_handle(host)
+            .map_err(Box::<RuntimeError>::from)?;
+        let service = context
+            .string_handle(service)
+            .map_err(Box::<RuntimeError>::from)?;
         Ok(ReverseLookupNameVm { host, service })
     })
 }
@@ -2241,7 +2245,9 @@ fn net_interface_array_to_vm(
 ) -> RuntimeResult<VmArray<NetInterfaceVm>> {
     map_native_array_to_vm(context, array, |context, value| {
         let name = unsafe { value.name.as_str()? };
-        let name = destack_vm::StringHandle::new(context.intern_string(name));
+        let name = context
+            .string_handle(name)
+            .map_err(Box::<RuntimeError>::from)?;
         let mac_address = bytes_array_to_vm(context, value.mac_address)?;
         let addresses = socket_address_array_to_vm(context, value.addresses)?;
 
@@ -2264,7 +2270,9 @@ fn packet_backend_descriptor_slice_to_vm(
         let name = unsafe { value.name.as_str()? };
         Ok(PacketBackendDescriptorVm {
             backend: value.backend,
-            name: destack_vm::StringHandle::new(context.intern_string(name)),
+            name: context
+                .string_handle(name)
+                .map_err(Box::<RuntimeError>::from)?,
             available: value.available,
             priority: value.priority,
             capability_flags: value.capability_flags,
@@ -2733,7 +2741,9 @@ pub(super) fn destack_net_interface_name(
     let value =
         call_out(|out| unsafe { host_net::destack_net_interface_name(binding, out, index) })?;
     let value = unsafe { value.as_str()? };
-    Ok(destack_vm::StringHandle::new(context.intern_string(value)))
+    context
+        .string_handle(value)
+        .map_err(Box::<RuntimeError>::from)
 }
 
 /// List network interfaces with addresses and flags.
@@ -3363,7 +3373,9 @@ pub(super) fn destack_net_get_multicast_interface_v4(
         host_net::destack_net_get_multicast_interface_v4(binding, out, handle)
     })?;
     let value = unsafe { value.as_str()? };
-    Ok(destack_vm::StringHandle::new(context.intern_string(value)))
+    context
+        .string_handle(value)
+        .map_err(Box::<RuntimeError>::from)
 }
 
 /// Read the default IPv6 multicast interface for one socket.

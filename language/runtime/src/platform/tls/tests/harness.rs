@@ -8,6 +8,7 @@ use crate::platform::net::{SocketPair, SocketType, native as net_native, vm as n
 use crate::platform::tls::{TlsContextOptions, TlsContextOptionsVm, TlsRole, TlsVersion};
 use crate::platform::{ResourceId, VmSlice, resource};
 use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::tests::platform::{vm_test_raw_values, vm_test_string};
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -87,9 +88,7 @@ impl<'call> TlsHarnessContext<'call> {
         value: &str,
     ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
         match self.vm_context_mut() {
-            Some(context) => {
-                self.harness_value_vm(vm::StringHandle::new(context.intern_string(value)))
-            }
+            Some(context) => self.harness_value_vm(vm_test_string(context, value)),
             None => self.harness_value(self.call_context.store_string(value)),
         }
     }
@@ -103,7 +102,7 @@ impl<'call> TlsHarnessContext<'call> {
             Some(context) => {
                 let handles = values
                     .iter()
-                    .map(|value| vm::StringHandle::new(context.intern_string(value)))
+                    .map(|value| vm_test_string(context, value))
                     .collect::<Vec<_>>();
                 let values = VmSlice::from_values(context, &handles)?;
                 Ok(self.harness_value_vm(values))
@@ -303,8 +302,9 @@ fn vm_slice_of_slices(
         .iter()
         .copied()
         .map(|slice| slice.to_value(context))
-        .collect::<Vec<_>>();
-    let data = context.allocate_raw_values(values);
+        .collect::<RuntimeResult<Vec<_>>>()
+        .expect("vm test slice values should encode");
+    let data = vm_test_raw_values(context, values);
 
     VmSlice {
         data,

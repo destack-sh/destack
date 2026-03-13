@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
@@ -15,9 +14,12 @@ use crate::platform::runtime::{
 use crate::runtime;
 use crate::runtime::control::{ObservationEntry, SnapshotEntry, WorldViewEntry};
 use crate::runtime::engine::EngineImage;
-use crate::runtime::replay::TraceEvent;
+use crate::runtime::replay::{TraceAnchor, TraceInput, TraceOutcome, TraceRecord};
 use crate::runtime::scheduler::EventLoopSnapshot;
-use crate::runtime::world::{Image, ObservationKind, Revision, World, WorldEdge, WorldEntity};
+use crate::runtime::world::{
+    Image, ObservationCategory, ObservationEntry as ObservationLogEntry, Revision, World,
+    WorldEdge, WorldEntity,
+};
 use postcard::to_allocvec;
 
 use super::{ObservationHandleEntry, PinnedWorldView, RuntimeHandleCodec, SnapshotHandleEntry};
@@ -49,13 +51,15 @@ impl RuntimeDescriptorCodec {
         )
     }
 
-    /// Encode one runtime trace event into one low-level event kind.
-    pub(crate) fn encode_trace_event_kind(event: &TraceEvent) -> TraceEventKind {
+    /// Encode one runtime trace record into one low-level event kind.
+    pub(crate) fn encode_trace_event_kind(event: &TraceRecord) -> TraceEventKind {
         match event {
-            TraceEvent::Entropy(_) => TraceEventKind::Entropy,
-            TraceEvent::BindingCall(_) => TraceEventKind::BindingCall,
-            TraceEvent::Tick(_) | TraceEvent::WorldCommand(_) => TraceEventKind::Control,
-            TraceEvent::Marker(_) => TraceEventKind::Marker,
+            TraceRecord::Outcome(TraceOutcome::Entropy(_)) => TraceEventKind::Entropy,
+            TraceRecord::Outcome(TraceOutcome::BindingCall(_)) => TraceEventKind::BindingCall,
+            TraceRecord::Outcome(TraceOutcome::TimeAdvance(_))
+            | TraceRecord::Input(TraceInput::WorldCommand(_))
+            | TraceRecord::Input(TraceInput::WorldInvocation(_)) => TraceEventKind::Control,
+            TraceRecord::Anchor(TraceAnchor::Label(_)) => TraceEventKind::Marker,
         }
     }
 
@@ -309,38 +313,18 @@ impl RuntimeDescriptorCodec {
 
     /// Build one owned heap descriptor from one captured agent image.
     pub(crate) fn heap_descriptor(agent: &runtime::AgentImage) -> RuntimeResult<HeapDescriptor> {
-        let managed_pages = agent.heap_image.managed.pages.as_ref();
-        let raw_pages = agent.heap_image.raw.pages.as_ref();
-        let page_count = u32::try_from(managed_pages.len() + raw_pages.len()).map_err(|_| {
+        let page_count = u32::try_from(agent.heap_image.leaf_count()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "pageCount",
                 "heap page count exceeds uint32",
             ))
             .boxed()
         })?;
-        let shared_page_count = u32::try_from(
-            managed_pages
-                .iter()
-                .filter(|page| Arc::strong_count(page) > 1)
-                .count()
-                + raw_pages
-                    .iter()
-                    .filter(|page| Arc::strong_count(page) > 1)
-                    .count(),
-        )
-        .map_err(|_| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "sharedPageCount",
-                "heap shared page count exceeds uint32",
-            ))
-            .boxed()
-        })?;
 
         Ok(HeapDescriptor {
-            heap_bytes: agent.heap_image.managed.allocated_bytes,
+            heap_bytes: agent.heap_image.heap_bytes(),
             page_count,
-            shared_page_count,
-            gc_cycles: agent.heap_image.managed.gc_state.cycles,
+            gc_cycles: agent.heap_image.managed_gc_state().cycles,
         })
     }
 
@@ -515,32 +499,33 @@ impl RuntimeDescriptorCodec {
         })
     }
 
-    /// Encode one observation class into the low-level observation enum.
-    pub(crate) fn observation_kind(kind: ObservationKind) -> ObservationEventKind {
-        match kind {
-            ObservationKind::Trace => ObservationEventKind::Trace,
-            ObservationKind::Topology => ObservationEventKind::Topology,
-            ObservationKind::Resource => ObservationEventKind::Resource,
-            ObservationKind::Scheduler => ObservationEventKind::Scheduler,
-            ObservationKind::Diagnostic => ObservationEventKind::Diagnostic,
-            ObservationKind::Profile => ObservationEventKind::Profile,
+    /// Encode one observation category into the low-level observation enum.
+    pub(crate) fn observation_kind(category: ObservationCategory) -> ObservationEventKind {
+        match category {
+            ObservationCategory::Runtime => ObservationEventKind::Runtime,
+            ObservationCategory::Topology => ObservationEventKind::Topology,
+            ObservationCategory::Resource => ObservationEventKind::Resource,
+            ObservationCategory::Scheduler => ObservationEventKind::Scheduler,
+            ObservationCategory::Diagnostic => ObservationEventKind::Diagnostic,
+            ObservationCategory::Profile => ObservationEventKind::Profile,
+            ObservationCategory::Domain => ObservationEventKind::Domain,
         }
     }
 
     /// Build owned observation records from world observation events.
     pub(crate) fn observation_records(
-        records: Vec<runtime::world::ObservationRecord>,
+        records: Vec<ObservationLogEntry>,
     ) -> RuntimeResult<Vec<ObservationRecordValue>> {
         records
             .into_iter()
             .map(|record| {
-                let payload = to_allocvec(&record.event).map_err(|_| {
+                let payload = to_allocvec(&record.observation).map_err(|_| {
                     RuntimeError::from(PlatformError::io("failed to encode observation payload"))
                         .boxed()
                 })?;
 
                 Ok(ObservationRecordValue {
-                    kind: Self::observation_kind(record.kind),
+                    kind: Self::observation_kind(record.observation.category),
                     sequence: Some(TraceSequence(record.sequence.get())),
                     payload: Some(payload),
                 })
@@ -548,9 +533,9 @@ impl RuntimeDescriptorCodec {
             .collect()
     }
 
-    /// Build owned trace records from runtime trace events.
+    /// Build owned trace records from runtime trace records.
     pub(crate) fn trace_records(
-        records: Vec<(runtime::replay::TraceSequence, TraceEvent)>,
+        records: Vec<(runtime::replay::TraceSequence, TraceRecord)>,
     ) -> RuntimeResult<Vec<TraceRecordValue>> {
         records
             .into_iter()

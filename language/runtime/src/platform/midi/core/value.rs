@@ -1,5 +1,5 @@
-use crate::diagnostic::RuntimeResult;
-use crate::platform::VmSlice;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{NativeArray, NativeSlice, PlatformError, VmArray, VmSlice};
 use crate::platform::core::BackendSupport;
 use crate::platform::midi::{
     MidiBackend, MidiBackendCapabilityFlags, MidiBackendDescriptor, MidiBackendDescriptorVm,
@@ -52,16 +52,18 @@ impl MidiBackendDescriptorValue {
     pub(crate) fn into_vm(
         self,
         context: &mut vm::ExternalCallContext<'_>,
-    ) -> MidiBackendDescriptorVm {
-        MidiBackendDescriptorVm {
+    ) -> RuntimeResult<MidiBackendDescriptorVm> {
+        Ok(MidiBackendDescriptorVm {
             backend: self.backend,
-            name: vm::StringHandle::new(context.intern_string(self.name)),
+            name: context
+                .string_handle(self.name)
+                .map_err(Box::<RuntimeError>::from)?,
             support: self.support,
             priority: self.priority,
             capability_flags: self.capability_flags,
             supported_data_formats: self.supported_data_formats,
             supported_protocols: self.supported_protocols,
-        }
+        })
     }
 }
 
@@ -138,42 +140,79 @@ impl MidiPortDescriptorValue {
     }
 
     /// Encode one port descriptor for VM bindings.
-    pub(crate) fn into_vm(self, context: &mut vm::ExternalCallContext<'_>) -> MidiPortDescriptorVm {
-        MidiPortDescriptorVm {
+    pub(crate) fn into_vm(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<MidiPortDescriptorVm> {
+        Ok(MidiPortDescriptorVm {
             backend: self.backend,
-            id: vm::StringHandle::new(context.intern_string(&self.id)),
+            id: context
+                .string_handle(&self.id)
+                .map_err(Box::<RuntimeError>::from)?,
             group_id: self
                 .group_id
                 .as_ref()
-                .map(|value| vm::StringHandle::new(context.intern_string(value))),
+                .map(|value| {
+                    context
+                        .string_handle(value)
+                        .map_err(Box::<RuntimeError>::from)
+                })
+                .transpose()?,
             backend_id: self
                 .backend_id
                 .as_ref()
-                .map(|value| vm::StringHandle::new(context.intern_string(value))),
-            name: vm::StringHandle::new(context.intern_string(&self.name)),
+                .map(|value| {
+                    context
+                        .string_handle(value)
+                        .map_err(Box::<RuntimeError>::from)
+                })
+                .transpose()?,
+            name: context
+                .string_handle(&self.name)
+                .map_err(Box::<RuntimeError>::from)?,
             group_name: self
                 .group_name
                 .as_ref()
-                .map(|value| vm::StringHandle::new(context.intern_string(value))),
+                .map(|value| {
+                    context
+                        .string_handle(value)
+                        .map_err(Box::<RuntimeError>::from)
+                })
+                .transpose()?,
             manufacturer: self
                 .manufacturer
                 .as_ref()
-                .map(|value| vm::StringHandle::new(context.intern_string(value))),
+                .map(|value| {
+                    context
+                        .string_handle(value)
+                        .map_err(Box::<RuntimeError>::from)
+                })
+                .transpose()?,
             model: self
                 .model
                 .as_ref()
-                .map(|value| vm::StringHandle::new(context.intern_string(value))),
+                .map(|value| {
+                    context
+                        .string_handle(value)
+                        .map_err(Box::<RuntimeError>::from)
+                })
+                .transpose()?,
             version: self
                 .version
                 .as_ref()
-                .map(|value| vm::StringHandle::new(context.intern_string(value))),
+                .map(|value| {
+                    context
+                        .string_handle(value)
+                        .map_err(Box::<RuntimeError>::from)
+                })
+                .transpose()?,
             supported_data_formats: self.supported_data_formats,
             default_data_format: self.default_data_format,
             supported_protocols: self.supported_protocols,
             default_protocol: self.default_protocol,
             is_virtual: self.is_virtual,
             is_connected: self.is_connected,
-        }
+        })
     }
 }
 
@@ -211,18 +250,26 @@ impl MidiInputRecordValue {
     }
 
     /// Encode one input record for VM bindings.
-    pub(crate) fn into_vm(self, context: &mut vm::ExternalCallContext<'_>) -> MidiInputRecordVm {
-        MidiInputRecordVm {
+    pub(crate) fn into_vm(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<MidiInputRecordVm> {
+        Ok(MidiInputRecordVm {
             received_at_ns: self.received_at_ns,
             source_id: self
                 .source_id
                 .as_ref()
-                .map(|value| vm::StringHandle::new(context.intern_string(value))),
+                .map(|value| {
+                    context
+                        .string_handle(value)
+                        .map_err(Box::<RuntimeError>::from)
+                })
+                .transpose()?,
             data_format: self.data_format,
             protocol: self.protocol,
             framing: self.framing,
-            data: VmSlice::from_bytes(context, &self.data),
-        }
+            data: VmSlice::from_bytes(context, &self.data)?,
+        })
     }
 }
 
@@ -396,55 +443,225 @@ impl MidiEventValue {
     }
 
     /// Encode one MIDI event for VM bindings.
-    pub(crate) fn into_vm(self, context: &mut vm::ExternalCallContext<'_>) -> MidiEventVm {
+    pub(crate) fn into_vm(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<MidiEventVm> {
         match self {
             Self::PortAdded {
                 metadata,
                 direction,
                 descriptor,
-            } => MidiEventVm::MidiPortAddedEvent(MidiPortAddedEventVm {
-                kind: vm::StringHandle::new(context.intern_string("portAdded")),
+            } => Ok(MidiEventVm::MidiPortAddedEvent(MidiPortAddedEventVm {
+                kind: context
+                    .string_handle("portAdded")
+                    .map_err(Box::<RuntimeError>::from)?,
                 metadata: metadata.into_vm(),
                 payload: MidiPortAddedPayloadVm {
                     direction,
-                    descriptor: descriptor.into_vm(context),
+                    descriptor: descriptor.into_vm(context)?,
                 },
-            }),
+            })),
             Self::PortRemoved {
                 metadata,
                 direction,
                 id,
                 group_id,
-            } => MidiEventVm::MidiPortRemovedEvent(MidiPortRemovedEventVm {
-                kind: vm::StringHandle::new(context.intern_string("portRemoved")),
+            } => Ok(MidiEventVm::MidiPortRemovedEvent(MidiPortRemovedEventVm {
+                kind: context
+                    .string_handle("portRemoved")
+                    .map_err(Box::<RuntimeError>::from)?,
                 metadata: metadata.into_vm(),
                 payload: MidiPortRemovedPayloadVm {
                     direction,
-                    id: vm::StringHandle::new(context.intern_string(&id)),
+                    id: context
+                        .string_handle(&id)
+                        .map_err(Box::<RuntimeError>::from)?,
                     group_id: group_id
                         .as_ref()
-                        .map(|value| vm::StringHandle::new(context.intern_string(value))),
+                        .map(|value| {
+                            context
+                                .string_handle(value)
+                                .map_err(Box::<RuntimeError>::from)
+                        })
+                        .transpose()?,
                 },
-            }),
+            })),
             Self::PortChanged {
                 metadata,
                 direction,
                 descriptor,
-            } => MidiEventVm::MidiPortChangedEvent(MidiPortChangedEventVm {
-                kind: vm::StringHandle::new(context.intern_string("portChanged")),
+            } => Ok(MidiEventVm::MidiPortChangedEvent(MidiPortChangedEventVm {
+                kind: context
+                    .string_handle("portChanged")
+                    .map_err(Box::<RuntimeError>::from)?,
                 metadata: metadata.into_vm(),
                 payload: MidiPortChangedPayloadVm {
                     direction,
-                    descriptor: descriptor.into_vm(context),
+                    descriptor: descriptor.into_vm(context)?,
                 },
-            }),
-            Self::BackendDisconnected { metadata, flags } => {
+            })),
+            Self::BackendDisconnected { metadata, flags } => Ok(
                 MidiEventVm::MidiBackendDisconnectedEvent(MidiBackendDisconnectedEventVm {
-                    kind: vm::StringHandle::new(context.intern_string("backendDisconnected")),
+                    kind: context
+                        .string_handle("backendDisconnected")
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: metadata.into_vm(),
                     payload: MidiBackendDisconnectedPayload { flags },
-                })
-            }
+                }),
+            ),
         }
     }
+}
+
+/// Store native backend descriptors as one binding slice.
+pub(crate) fn store_backend_descriptors_native(
+    binding: &BindingCallContext,
+    values: Vec<MidiBackendDescriptorValue>,
+) -> NativeSlice<MidiBackendDescriptor> {
+    let descriptors = values
+        .into_iter()
+        .map(|value| value.into_native(binding))
+        .collect();
+
+    binding.store_slice(descriptors)
+}
+
+/// Store VM backend descriptors as one binding slice.
+pub(crate) fn store_backend_descriptors_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    values: Vec<MidiBackendDescriptorValue>,
+) -> RuntimeResult<VmSlice<MidiBackendDescriptorVm>> {
+    let descriptors = values
+        .into_iter()
+        .map(|value| value.into_vm(context))
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    VmSlice::from_values(context, &descriptors)
+}
+
+/// Store native port descriptors as one binding slice.
+pub(crate) fn store_port_descriptors_native(
+    binding: &BindingCallContext,
+    values: Vec<MidiPortDescriptorValue>,
+) -> NativeSlice<MidiPortDescriptor> {
+    let descriptors = values
+        .into_iter()
+        .map(|value| value.into_native(binding))
+        .collect();
+
+    binding.store_slice(descriptors)
+}
+
+/// Store VM port descriptors as one binding slice.
+pub(crate) fn store_port_descriptors_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    values: Vec<MidiPortDescriptorValue>,
+) -> RuntimeResult<VmSlice<MidiPortDescriptorVm>> {
+    let descriptors = values
+        .into_iter()
+        .map(|value| value.into_vm(context))
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    VmSlice::from_values(context, &descriptors)
+}
+
+/// Store native input records as one binding array.
+pub(crate) fn store_input_records_native(
+    binding: &BindingCallContext,
+    values: Vec<MidiInputRecordValue>,
+) -> NativeArray<MidiInputRecord> {
+    let records = values
+        .into_iter()
+        .map(|value| value.into_native(binding))
+        .collect();
+
+    binding.store_array(records)
+}
+
+/// Store VM input records as one binding array.
+pub(crate) fn store_input_records_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    values: Vec<MidiInputRecordValue>,
+) -> RuntimeResult<VmArray<MidiInputRecordVm>> {
+    let records = values
+        .into_iter()
+        .map(|value| value.into_vm(context))
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    VmArray::from_values(context, &records)
+}
+
+/// Store one native input record.
+pub(crate) fn store_input_record_native(
+    binding: &BindingCallContext,
+    value: MidiInputRecordValue,
+) -> MidiInputRecord {
+    value.into_native(binding)
+}
+
+/// Store one VM input record.
+pub(crate) fn store_input_record_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: MidiInputRecordValue,
+) -> RuntimeResult<MidiInputRecordVm> {
+    value.into_vm(context)
+}
+
+/// Store native MIDI events as one binding slice.
+pub(crate) fn store_events_native(
+    binding: &BindingCallContext,
+    values: Vec<MidiEventValue>,
+) -> NativeSlice<MidiEvent> {
+    let events = values
+        .into_iter()
+        .map(|value| value.into_native(binding))
+        .collect();
+
+    binding.store_slice(events)
+}
+
+/// Store VM MIDI events as one binding slice.
+pub(crate) fn store_events_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    values: Vec<MidiEventValue>,
+) -> RuntimeResult<VmSlice<MidiEventVm>> {
+    let events = values
+        .into_iter()
+        .map(|value| value.into_vm(context))
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    VmSlice::from_values(context, &events)
+}
+
+/// Store one native MIDI event.
+pub(crate) fn store_event_native(binding: &BindingCallContext, value: MidiEventValue) -> MidiEvent {
+    value.into_native(binding)
+}
+
+/// Store one VM MIDI event.
+pub(crate) fn store_event_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: MidiEventValue,
+) -> RuntimeResult<MidiEventVm> {
+    value.into_vm(context)
+}
+
+/// Validate one format and protocol pairing.
+#[cfg_attr(not(any(target_os = "macos", windows)), allow(dead_code))]
+pub(crate) fn validate_record_shape(
+    operation: &'static str,
+    data_format: MidiDataFormat,
+    protocol: Option<MidiProtocol>,
+) -> RuntimeResult<()> {
+    // reject midi2 semantics on byte-stream transport
+    if matches!(protocol, Some(MidiProtocol::Midi2)) && data_format != MidiDataFormat::Ump {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "protocol",
+            format!("{operation}: MIDI 2 requires UMP transport"),
+        ))
+        .boxed());
+    }
+
+    Ok(())
 }

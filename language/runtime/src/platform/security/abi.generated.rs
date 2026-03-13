@@ -157,7 +157,9 @@ impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.capability, context)?,
             <SecurityPolicyMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

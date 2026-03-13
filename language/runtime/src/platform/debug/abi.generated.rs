@@ -227,7 +227,9 @@ impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.url, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.process_id, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

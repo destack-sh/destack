@@ -664,7 +664,9 @@ impl VmAggregateCodec for CompletionEvent {
             <i64 as VmAggregateCodec>::encode_with_context(self.result, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -783,7 +785,9 @@ impl VmAggregateCodec for CompletionOperation {
             <u64 as VmAggregateCodec>::encode_with_context(self.argument0, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.argument1, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -902,7 +906,9 @@ impl VmAggregateCodec for DescriptorRequestAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.output_size, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1041,7 +1047,9 @@ impl VmAggregateCodec for DescriptorResultAbi<VmAbi> {
             <i64 as VmAggregateCodec>::encode_with_context(self.return_value, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.output, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1152,7 +1160,9 @@ impl VmAggregateCodec for PollEvent {
             <PollInterest as VmAggregateCodec>::encode_with_context(self.ready, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1239,7 +1249,9 @@ impl VmAggregateCodec for TimerFdSpec {
             <u64 as VmAggregateCodec>::encode_with_context(self.initial_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.interval_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1345,7 +1357,9 @@ impl VmAggregateCodec for UringFeatures {
             <bool as VmAggregateCodec>::encode_with_context(self.has_fixed_buffers, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.max_entries, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1438,7 +1452,9 @@ impl VmAggregateCodec for UringParameters {
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.sq_thread_idle_ms, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

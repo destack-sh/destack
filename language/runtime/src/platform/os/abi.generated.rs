@@ -1975,7 +1975,9 @@ impl VmAggregateCodec for BackgroundEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2163,7 +2165,9 @@ impl VmAggregateCodec for CalendarReminderAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2397,7 +2401,9 @@ impl VmAggregateCodec for IntentEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2709,7 +2715,9 @@ impl VmAggregateCodec for LifecycleEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3015,7 +3023,9 @@ impl VmAggregateCodec for NotificationEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3241,7 +3251,9 @@ impl VmAggregateCodec for NotificationTriggerAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3442,7 +3454,9 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3607,7 +3621,9 @@ impl VmAggregateCodec for BackgroundEventMetadataAbi<VmAbi> {
             )?,
             <u64 as VmAggregateCodec>::encode_with_context(self.deadline_unix_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3744,7 +3760,9 @@ impl VmAggregateCodec for BackgroundEventOpenOptions {
             <bool as VmAggregateCodec>::encode_with_context(self.include_task_ready, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.include_task_expired, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3901,7 +3919,9 @@ impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.requires_idle, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persisted, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4119,7 +4139,9 @@ impl VmAggregateCodec for BackgroundTaskExpiredEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4305,7 +4327,9 @@ impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.requires_idle, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persisted, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4523,7 +4547,9 @@ impl VmAggregateCodec for BackgroundTaskReadyEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4662,7 +4688,9 @@ impl VmAggregateCodec for CalendarAbsoluteReminderAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.absolute_unix_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4823,7 +4851,9 @@ impl VmAggregateCodec for CalendarAttendeeAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5016,7 +5046,9 @@ impl VmAggregateCodec for CalendarDescriptorAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
             <CalendarAccess as VmAggregateCodec>::encode_with_context(self.access, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5323,7 +5355,9 @@ impl VmAggregateCodec for CalendarEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5767,7 +5801,9 @@ impl VmAggregateCodec for CalendarEventDraftAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6072,7 +6108,9 @@ impl VmAggregateCodec for CalendarEventQueryAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6290,7 +6328,9 @@ impl VmAggregateCodec for CalendarRecurrenceRuleAbi<VmAbi> {
             <VmArray<i8> as VmAggregateCodec>::encode_with_context(self.by_month_days, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.by_months, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6474,7 +6514,9 @@ impl VmAggregateCodec for CalendarRelativeReminderAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.minutes_before_start, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6653,7 +6695,9 @@ impl VmAggregateCodec for ContactAbi<VmAbi> {
             )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.note, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6876,7 +6920,9 @@ impl VmAggregateCodec for ContactAddressAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7084,7 +7130,9 @@ impl VmAggregateCodec for ContactDraftAbi<VmAbi> {
             )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.note, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7273,7 +7321,9 @@ impl VmAggregateCodec for ContactEmailAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.address, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7449,7 +7499,9 @@ impl VmAggregateCodec for ContactNameAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7653,7 +7705,9 @@ impl VmAggregateCodec for ContactOrganizationAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.department, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7794,7 +7848,9 @@ impl VmAggregateCodec for ContactPageAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.next_cursor, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.has_more, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7949,7 +8005,9 @@ impl VmAggregateCodec for ContactPhoneAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8133,7 +8191,9 @@ impl VmAggregateCodec for ContactQueryAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.include_organization, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.include_notes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8326,7 +8386,9 @@ impl VmAggregateCodec for CredentialAuthenticationOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8463,7 +8525,9 @@ impl VmAggregateCodec for CredentialAuthenticationResult {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8588,7 +8652,9 @@ impl VmAggregateCodec for CredentialQueryAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.require_authentication, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8768,7 +8834,9 @@ impl VmAggregateCodec for CredentialRecordAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.created_unix_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8957,7 +9025,9 @@ impl VmAggregateCodec for CredentialWriteOptionsAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.replace_existing, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9182,7 +9252,9 @@ impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9377,7 +9449,9 @@ impl VmAggregateCodec for DocumentPickOptionsAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.allow_directories, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.copy_to_sandbox, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9565,7 +9639,9 @@ impl VmAggregateCodec for HostIdentityAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9726,7 +9802,9 @@ impl VmAggregateCodec for IntentCustomActionEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9896,7 +9974,9 @@ impl VmAggregateCodec for IntentCustomActionPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10057,7 +10137,9 @@ impl VmAggregateCodec for IntentEventMetadataAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10203,7 +10285,9 @@ impl VmAggregateCodec for IntentOpenFileEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10344,7 +10428,9 @@ impl VmAggregateCodec for IntentOpenFilePayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10474,7 +10560,9 @@ impl VmAggregateCodec for IntentOpenOptions {
             <bool as VmAggregateCodec>::encode_with_context(self.include_share, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.include_custom_action, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10596,7 +10684,9 @@ impl VmAggregateCodec for IntentOpenUrlEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10724,7 +10814,9 @@ impl VmAggregateCodec for IntentOpenUrlPayloadAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.url, context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10859,7 +10951,9 @@ impl VmAggregateCodec for IntentShareFilesEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11003,7 +11097,9 @@ impl VmAggregateCodec for IntentShareFilesPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11154,7 +11250,9 @@ impl VmAggregateCodec for IntentShareTextEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11295,7 +11393,9 @@ impl VmAggregateCodec for IntentShareTextPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11437,7 +11537,9 @@ impl VmAggregateCodec for LifecycleBackgroundEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11550,7 +11652,9 @@ impl VmAggregateCodec for LifecycleEventMetadata {
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11663,7 +11767,9 @@ impl VmAggregateCodec for LifecycleForegroundEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11802,7 +11908,9 @@ impl VmAggregateCodec for LifecycleLaunchEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11951,7 +12059,9 @@ impl VmAggregateCodec for LifecycleLowMemoryEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12077,7 +12187,9 @@ impl VmAggregateCodec for LifecycleLowMemoryPayload {
             self.severity,
             context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12200,7 +12312,9 @@ impl VmAggregateCodec for LifecycleLowPowerModeChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12323,7 +12437,9 @@ impl VmAggregateCodec for LifecycleLowPowerPayload {
             self.enabled,
             context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12436,7 +12552,9 @@ impl VmAggregateCodec for LifecyclePauseEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12575,7 +12693,9 @@ impl VmAggregateCodec for LifecycleResumeEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12714,7 +12834,9 @@ impl VmAggregateCodec for LifecycleTerminateEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12832,7 +12954,9 @@ impl VmAggregateCodec for LoadAverage {
             <f64 as VmAggregateCodec>::encode_with_context(self.five, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.fifteen, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12960,7 +13084,9 @@ impl VmAggregateCodec for LocationSample {
             <f64 as VmAggregateCodec>::encode_with_context(self.heading_degrees, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_unix_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13061,7 +13187,9 @@ impl VmAggregateCodec for LocationWatchOptions {
             <f64 as VmAggregateCodec>::encode_with_context(self.minimum_distance_meters, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.include_heading, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13221,7 +13349,9 @@ impl VmAggregateCodec for MediaAssetDescriptorAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.created_unix_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13415,7 +13545,9 @@ impl VmAggregateCodec for MediaPageAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.next_cursor, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.has_more, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13582,7 +13714,9 @@ impl VmAggregateCodec for MediaQueryAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.include_hidden, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13740,7 +13874,9 @@ impl VmAggregateCodec for MountEntryAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.file_system, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13868,7 +14004,9 @@ impl VmAggregateCodec for NetworkEvent {
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <NetworkStateVm as VmAggregateCodec>::encode_with_context(self.state, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14002,7 +14140,9 @@ impl VmAggregateCodec for NetworkState {
             <f64 as VmAggregateCodec>::encode_with_context(self.downlink_mbps, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.uplink_mbps, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14149,7 +14289,9 @@ impl VmAggregateCodec for NotificationActionAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14349,7 +14491,9 @@ impl VmAggregateCodec for NotificationCalendarDateTriggerAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14517,7 +14661,9 @@ impl VmAggregateCodec for NotificationCalendarTriggerAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.time_zone, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.repeats, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14686,7 +14832,9 @@ impl VmAggregateCodec for NotificationCategoryAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14830,7 +14978,9 @@ impl VmAggregateCodec for NotificationDeliveredEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14974,7 +15124,9 @@ impl VmAggregateCodec for NotificationDismissedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15126,7 +15278,9 @@ impl VmAggregateCodec for NotificationEventMetadataAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15251,7 +15405,9 @@ impl VmAggregateCodec for NotificationEventOpenOptions {
             <bool as VmAggregateCodec>::encode_with_context(self.include_interacted, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.include_dismissed, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15353,7 +15509,9 @@ impl VmAggregateCodec for NotificationImmediateTriggerAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.kind, context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15491,7 +15649,9 @@ impl VmAggregateCodec for NotificationInteractedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15653,7 +15813,9 @@ impl VmAggregateCodec for NotificationInteractedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15897,7 +16059,9 @@ impl VmAggregateCodec for NotificationRequestAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16168,7 +16332,9 @@ impl VmAggregateCodec for NotificationScheduledDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16312,7 +16478,9 @@ impl VmAggregateCodec for NotificationTimeIntervalTriggerAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.interval_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16440,7 +16608,9 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16568,7 +16738,9 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16675,7 +16847,9 @@ impl VmAggregateCodec for PermissionEntry {
             <Permission as VmAggregateCodec>::encode_with_context(self.permission, context)?,
             <PermissionState as VmAggregateCodec>::encode_with_context(self.state, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16773,7 +16947,9 @@ impl VmAggregateCodec for SystemSnapshot {
             <u64 as VmAggregateCodec>::encode_with_context(self.memory_available, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.page_size, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

@@ -409,7 +409,9 @@ impl VmAggregateCodec for ClockMetadata {
             <u64 as VmAggregateCodec>::encode_with_context(self.resolution_ns, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_monotonic, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -496,7 +498,9 @@ impl VmAggregateCodec for TimerOptions {
             <TimerClock as VmAggregateCodec>::encode_with_context(self.clock, context)?,
             <TimerFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

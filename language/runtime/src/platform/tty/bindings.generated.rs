@@ -161,7 +161,7 @@ fn encode_destack_tty_handle_is_terminal_file_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
+    result.and_then(|value| Ok(vm::Value::bool(value)))
 }
 
 /// Encode the result for destack.tty.handle.stdioStderr.
@@ -170,7 +170,7 @@ fn encode_destack_tty_handle_stdio_stderr_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TtyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Encode the result for destack.tty.handle.stdioStdin.
@@ -179,7 +179,7 @@ fn encode_destack_tty_handle_stdio_stdin_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TtyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Encode the result for destack.tty.handle.stdioStdout.
@@ -188,7 +188,7 @@ fn encode_destack_tty_handle_stdio_stdout_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TtyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.tty.io.read.
@@ -212,7 +212,7 @@ fn encode_destack_tty_io_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Decode arguments for destack.tty.io.write.
@@ -236,7 +236,7 @@ fn encode_destack_tty_io_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Decode arguments for destack.tty.mode.getMode.
@@ -258,12 +258,14 @@ fn encode_destack_tty_mode_get_mode_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TtyModeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.input_flags, 64);
-        let field_1 = vm::Value::uint(value.output_flags, 64);
-        let field_2 = vm::Value::uint(value.control_flags, 64);
-        let field_3 = vm::Value::uint(value.local_flags, 64);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.input_flags, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.output_flags, 64));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.control_flags, 64));
+        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.local_flags, 64));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -385,10 +387,12 @@ fn encode_destack_tty_pty_open_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PtyPairVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.controller.0.0, 64);
-        let field_1 = vm::Value::uint(value.worker.0.0, 64);
-        context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.controller.0.0, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.worker.0.0, 64));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -411,12 +415,14 @@ fn encode_destack_tty_size_get_size_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TtySizeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.rows as u64, 32);
-        let field_1 = vm::Value::uint(value.columns as u64, 32);
-        let field_2 = vm::Value::uint(value.x_pixels as u64, 32);
-        let field_3 = vm::Value::uint(value.y_pixels as u64, 32);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.rows as u64, 32));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.columns as u64, 32));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.x_pixels as u64, 32));
+        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.y_pixels as u64, 32));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -585,17 +591,19 @@ fn encode_destack_tty_termios_get_attributes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TtyTermiosAttributesVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.input_flags, 64);
-        let field_1 = vm::Value::uint(value.output_flags, 64);
-        let field_2 = vm::Value::uint(value.control_flags, 64);
-        let field_3 = vm::Value::uint(value.local_flags, 64);
-        let field_4 = value.control_characters.to_value(context);
-        let field_5 = vm::Value::uint(value.input_speed_code, 64);
-        let field_6 = vm::Value::uint(value.output_speed_code, 64);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-        ])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.input_flags, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.output_flags, 64));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.control_flags, 64));
+        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.local_flags, 64));
+        let field_4: RuntimeResult<vm::Value> = value.control_characters.to_value(context);
+        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.input_speed_code, 64));
+        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.output_speed_code, 64));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -618,7 +626,7 @@ fn encode_destack_tty_termios_get_process_group_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<process::ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0 as u64, 32))
+    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
 }
 
 /// Decode arguments for destack.tty.termios.sendBreak.
@@ -4071,7 +4079,7 @@ fn destack_tty_termios_get_attributes_vm_replay(
                     let vm_result_control_flags = value.control_flags;
                     let vm_result_local_flags = value.local_flags;
                     let vm_result_control_characters =
-                        VmSlice::<u8>::from_bytes(context, value.control_characters.as_ref());
+                        VmSlice::<u8>::from_bytes(context, value.control_characters.as_ref())?;
                     let vm_result_input_speed_code = value.input_speed_code;
                     let vm_result_output_speed_code = value.output_speed_code;
                     let vm_result = TtyTermiosAttributesVm {

@@ -96,7 +96,9 @@ pub(crate) fn destack_resource_kind(
 
     // encode the kind label as the vm-facing payload
     let label = resource_kind_label(kind);
-    Ok(destack_vm::StringHandle::new(context.intern_string(label)))
+    context
+        .string_handle(label)
+        .map_err(Box::<RuntimeError>::from)
 }
 
 /// Remove a resource from the table.

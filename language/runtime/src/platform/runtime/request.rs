@@ -294,20 +294,22 @@ impl RuntimeRequestCodec {
 
     /// Build observation options from low-level observation flags.
     pub(crate) fn observation_options_from_flags(
-        trace: Option<bool>,
+        runtime: Option<bool>,
         topology: Option<bool>,
-        resources: Option<bool>,
+        resource: Option<bool>,
         scheduler: Option<bool>,
-        diagnostics: Option<bool>,
-        profiles: Option<bool>,
+        diagnostic: Option<bool>,
+        profile: Option<bool>,
+        domain: Option<bool>,
     ) -> ObservationOptions {
         ObservationOptions {
-            trace: trace.unwrap_or(false),
+            runtime: runtime.unwrap_or(false),
             topology: topology.unwrap_or(false),
-            resource: resources.unwrap_or(false),
+            resource: resource.unwrap_or(false),
             scheduler: scheduler.unwrap_or(false),
-            diagnostic: diagnostics.unwrap_or(false),
-            profile: profiles.unwrap_or(false),
+            diagnostic: diagnostic.unwrap_or(false),
+            profile: profile.unwrap_or(false),
+            domain: domain.unwrap_or(false),
         }
     }
 }

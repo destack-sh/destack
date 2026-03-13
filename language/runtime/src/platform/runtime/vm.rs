@@ -1031,7 +1031,7 @@ pub(crate) fn destack_runtime_observation_close(
     );
     let world = table.world(RuntimeHandleCodec::decode_world_handle(entry.world))?;
 
-    world.observation().close(entry.subscription_id)
+    world.observations().close(entry.subscription_id)
 }
 
 /// Read the next batch of observation records.
@@ -1045,7 +1045,7 @@ pub(crate) fn destack_runtime_observation_next(
     let (world, subscription_id) =
         table.observation(RuntimeHandleCodec::decode_observation_handle(handle))?;
     let limit = RuntimeRequestCodec::list_limit_or_max(limit);
-    let records = world.observation().next(subscription_id, limit)?;
+    let records = world.observations().next(subscription_id, limit)?;
     let mut runtime_binding = VmRuntimeBinding::new(context);
 
     runtime_binding.encode(RuntimeDescriptorCodec::observation_records(records)?)
@@ -1061,23 +1061,25 @@ pub(crate) fn destack_runtime_observation_open(
     let table = control_table().read();
     let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
     let options = options.unwrap_or(ObservationOptionsVm {
-        trace: None,
+        runtime: None,
         topology: None,
-        resources: None,
+        resource: None,
         scheduler: None,
-        diagnostics: None,
-        profiles: None,
+        diagnostic: None,
+        profile: None,
+        domain: None,
     });
     let subscription_id =
         world
-            .observation()
+            .observations()
             .open(RuntimeRequestCodec::observation_options_from_flags(
-                options.trace,
+                options.runtime,
                 options.topology,
-                options.resources,
+                options.resource,
                 options.scheduler,
-                options.diagnostics,
-                options.profiles,
+                options.diagnostic,
+                options.profile,
+                options.domain,
             ));
 
     drop(table);
@@ -1232,7 +1234,7 @@ pub(crate) fn destack_runtime_snapshot_read(
         ));
     }
 
-    Ok(VmArray::from_bytes(context, entry.bytes.as_ref()))
+    VmArray::from_bytes(context, entry.bytes.as_ref())
 }
 
 /// Restore one world from one image.
@@ -1322,7 +1324,7 @@ pub(crate) fn destack_runtime_trace_mark(
     let table = control_table().read();
     let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
     drop(table);
-    let sequence = world.trace().record_marker(label)?;
+    let sequence = world.label(label)?;
 
     Ok(TraceSequence(sequence.get()))
 }

@@ -283,7 +283,7 @@ fn encode_destack_gpu_adapter_features_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<GpuFeatureId>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.gpu.adapter.formatCapabilities.
@@ -307,14 +307,19 @@ fn encode_destack_gpu_adapter_format_capabilities_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuAdapterFormatCapabilitiesVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.format as u64, 32);
-        let field_1 = vm::Value::uint(value.usage_mask, 64);
-        let field_2 = vm::Value::bool(value.renderable);
-        let field_3 = vm::Value::bool(value.blendable);
-        let field_4 = vm::Value::bool(value.multisample);
-        let field_5 = vm::Value::uint(value.sample_count_mask as u64, 32);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.usage_mask, 64));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.renderable));
+        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.blendable));
+        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.multisample));
+        let field_5: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.sample_count_mask as u64, 32));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -340,7 +345,7 @@ fn encode_destack_gpu_adapter_has_feature_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
+    result.and_then(|value| Ok(vm::Value::bool(value)))
 }
 
 /// Decode arguments for destack.gpu.adapter.info.
@@ -362,82 +367,162 @@ fn encode_destack_gpu_adapter_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuAdapterInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.id.value();
-        let field_1 = value.name.value();
-        let field_2 = value.vendor.value();
-        let field_3 = value.driver.value();
-        let field_4 = value.driver_version.value();
-        let field_5 = vm::Value::uint(value.backend as u8 as u64, 8);
-        let field_6 = vm::Value::uint(value.adapter_type as u8 as u64, 8);
-        let field_7 = vm::Value::uint(value.vendor_id as u64, 32);
-        let field_8 = vm::Value::uint(value.device_id as u64, 32);
-        let field_9 = vm::Value::uint(value.subgroup_min_size as u64, 32);
-        let field_10 = vm::Value::uint(value.subgroup_max_size as u64, 32);
-        let field_11 = vm::Value::bool(value.is_fallback);
-        let field_12 = value.features.to_value(context);
-        let field_13 = {
-            let field_0 = vm::Value::uint(value.limits.max_bind_groups as u64, 32);
-            let field_1 = vm::Value::uint(value.limits.max_bindings_per_bind_group as u64, 32);
-            let field_2 = vm::Value::uint(value.limits.max_push_constant_bytes as u64, 32);
-            let field_3 = vm::Value::uint(value.limits.max_texture_dimension1_d as u64, 32);
-            let field_4 = vm::Value::uint(value.limits.max_texture_dimension2_d as u64, 32);
-            let field_5 = vm::Value::uint(value.limits.max_texture_dimension3_d as u64, 32);
-            let field_6 = vm::Value::uint(value.limits.max_texture_array_layers as u64, 32);
-            let field_7 = vm::Value::uint(value.limits.max_color_attachments as u64, 32);
-            let field_8 = vm::Value::uint(
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
+        let field_1: RuntimeResult<vm::Value> = Ok(value.name.value());
+        let field_2: RuntimeResult<vm::Value> = Ok(value.vendor.value());
+        let field_3: RuntimeResult<vm::Value> = Ok(value.driver.value());
+        let field_4: RuntimeResult<vm::Value> = Ok(value.driver_version.value());
+        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.backend as u8 as u64, 8));
+        let field_6: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.adapter_type as u8 as u64, 8));
+        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.vendor_id as u64, 32));
+        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.device_id as u64, 32));
+        let field_9: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.subgroup_min_size as u64, 32));
+        let field_10: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.subgroup_max_size as u64, 32));
+        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_fallback));
+        let field_12: RuntimeResult<vm::Value> = value.features.to_value(context);
+        let field_13: RuntimeResult<vm::Value> = {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.limits.max_bind_groups as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_bindings_per_bind_group as u64,
+                32,
+            ));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_push_constant_bytes as u64,
+                32,
+            ));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_texture_dimension1_d as u64,
+                32,
+            ));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_texture_dimension2_d as u64,
+                32,
+            ));
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_texture_dimension3_d as u64,
+                32,
+            ));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_texture_array_layers as u64,
+                32,
+            ));
+            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_color_attachments as u64,
+                32,
+            ));
+            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.limits.max_color_attachment_bytes_per_sample as u64,
                 32,
-            );
-            let field_9 = vm::Value::uint(value.limits.max_sampled_textures_per_stage as u64, 32);
-            let field_10 = vm::Value::uint(value.limits.max_samplers_per_stage as u64, 32);
-            let field_11 = vm::Value::uint(value.limits.max_storage_buffers_per_stage as u64, 32);
-            let field_12 = vm::Value::uint(value.limits.max_storage_textures_per_stage as u64, 32);
-            let field_13 = vm::Value::uint(value.limits.max_uniform_buffers_per_stage as u64, 32);
-            let field_14 = vm::Value::uint(
+            ));
+            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_sampled_textures_per_stage as u64,
+                32,
+            ));
+            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_samplers_per_stage as u64,
+                32,
+            ));
+            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_storage_buffers_per_stage as u64,
+                32,
+            ));
+            let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_storage_textures_per_stage as u64,
+                32,
+            ));
+            let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_uniform_buffers_per_stage as u64,
+                32,
+            ));
+            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.limits.max_dynamic_uniform_buffers_per_pipeline_layout as u64,
                 32,
-            );
-            let field_15 = vm::Value::uint(
+            ));
+            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.limits.max_dynamic_storage_buffers_per_pipeline_layout as u64,
                 32,
-            );
-            let field_16 = vm::Value::uint(value.limits.max_uniform_buffer_binding_size, 64);
-            let field_17 = vm::Value::uint(value.limits.max_storage_buffer_binding_size, 64);
-            let field_18 =
-                vm::Value::uint(value.limits.min_storage_buffer_offset_alignment as u64, 32);
-            let field_19 =
-                vm::Value::uint(value.limits.min_uniform_buffer_offset_alignment as u64, 32);
-            let field_20 = vm::Value::uint(value.limits.max_vertex_buffers as u64, 32);
-            let field_21 = vm::Value::uint(value.limits.max_vertex_attributes as u64, 32);
-            let field_22 = vm::Value::uint(value.limits.max_vertex_buffer_array_stride as u64, 32);
-            let field_23 = vm::Value::uint(value.limits.max_buffer_size, 64);
-            let field_24 =
-                vm::Value::uint(value.limits.max_inter_stage_shader_components as u64, 32);
-            let field_25 =
-                vm::Value::uint(value.limits.max_inter_stage_shader_variables as u64, 32);
-            let field_26 =
-                vm::Value::uint(value.limits.max_compute_workgroup_storage_size as u64, 32);
-            let field_27 = vm::Value::uint(
+            ));
+            let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_uniform_buffer_binding_size,
+                64,
+            ));
+            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_storage_buffer_binding_size,
+                64,
+            ));
+            let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.min_storage_buffer_offset_alignment as u64,
+                32,
+            ));
+            let field_19: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.min_uniform_buffer_offset_alignment as u64,
+                32,
+            ));
+            let field_20: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.limits.max_vertex_buffers as u64, 32));
+            let field_21: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_vertex_attributes as u64,
+                32,
+            ));
+            let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_vertex_buffer_array_stride as u64,
+                32,
+            ));
+            let field_23: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.limits.max_buffer_size, 64));
+            let field_24: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_inter_stage_shader_components as u64,
+                32,
+            ));
+            let field_25: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_inter_stage_shader_variables as u64,
+                32,
+            ));
+            let field_26: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_compute_workgroup_storage_size as u64,
+                32,
+            ));
+            let field_27: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.limits.max_compute_invocations_per_workgroup as u64,
                 32,
-            );
-            let field_28 = vm::Value::uint(value.limits.max_compute_workgroup_size_x as u64, 32);
-            let field_29 = vm::Value::uint(value.limits.max_compute_workgroup_size_y as u64, 32);
-            let field_30 = vm::Value::uint(value.limits.max_compute_workgroup_size_z as u64, 32);
-            let field_31 =
-                vm::Value::uint(value.limits.max_compute_workgroups_per_dimension as u64, 32);
-            context.allocate_aggregate(vec![
-                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-                field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
-                field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
-                field_25, field_26, field_27, field_28, field_29, field_30, field_31,
-            ])
+            ));
+            let field_28: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_compute_workgroup_size_x as u64,
+                32,
+            ));
+            let field_29: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_compute_workgroup_size_y as u64,
+                32,
+            ));
+            let field_30: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_compute_workgroup_size_z as u64,
+                32,
+            ));
+            let field_31: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.limits.max_compute_workgroups_per_dimension as u64,
+                32,
+            ));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                    field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
+                    field_22?, field_23?, field_24?, field_25?, field_26?, field_27?, field_28?,
+                    field_29?, field_30?, field_31?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
         };
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13,
-        ])
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -460,51 +545,117 @@ fn encode_destack_gpu_adapter_limits_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuAdapterLimitsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.max_bind_groups as u64, 32);
-        let field_1 = vm::Value::uint(value.max_bindings_per_bind_group as u64, 32);
-        let field_2 = vm::Value::uint(value.max_push_constant_bytes as u64, 32);
-        let field_3 = vm::Value::uint(value.max_texture_dimension1_d as u64, 32);
-        let field_4 = vm::Value::uint(value.max_texture_dimension2_d as u64, 32);
-        let field_5 = vm::Value::uint(value.max_texture_dimension3_d as u64, 32);
-        let field_6 = vm::Value::uint(value.max_texture_array_layers as u64, 32);
-        let field_7 = vm::Value::uint(value.max_color_attachments as u64, 32);
-        let field_8 = vm::Value::uint(value.max_color_attachment_bytes_per_sample as u64, 32);
-        let field_9 = vm::Value::uint(value.max_sampled_textures_per_stage as u64, 32);
-        let field_10 = vm::Value::uint(value.max_samplers_per_stage as u64, 32);
-        let field_11 = vm::Value::uint(value.max_storage_buffers_per_stage as u64, 32);
-        let field_12 = vm::Value::uint(value.max_storage_textures_per_stage as u64, 32);
-        let field_13 = vm::Value::uint(value.max_uniform_buffers_per_stage as u64, 32);
-        let field_14 = vm::Value::uint(
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_bind_groups as u64, 32));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_bindings_per_bind_group as u64,
+            32,
+        ));
+        let field_2: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_push_constant_bytes as u64, 32));
+        let field_3: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_texture_dimension1_d as u64, 32));
+        let field_4: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_texture_dimension2_d as u64, 32));
+        let field_5: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_texture_dimension3_d as u64, 32));
+        let field_6: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_texture_array_layers as u64, 32));
+        let field_7: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_color_attachments as u64, 32));
+        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_color_attachment_bytes_per_sample as u64,
+            32,
+        ));
+        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_sampled_textures_per_stage as u64,
+            32,
+        ));
+        let field_10: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_samplers_per_stage as u64, 32));
+        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_storage_buffers_per_stage as u64,
+            32,
+        ));
+        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_storage_textures_per_stage as u64,
+            32,
+        ));
+        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_uniform_buffers_per_stage as u64,
+            32,
+        ));
+        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
             value.max_dynamic_uniform_buffers_per_pipeline_layout as u64,
             32,
-        );
-        let field_15 = vm::Value::uint(
+        ));
+        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
             value.max_dynamic_storage_buffers_per_pipeline_layout as u64,
             32,
-        );
-        let field_16 = vm::Value::uint(value.max_uniform_buffer_binding_size, 64);
-        let field_17 = vm::Value::uint(value.max_storage_buffer_binding_size, 64);
-        let field_18 = vm::Value::uint(value.min_storage_buffer_offset_alignment as u64, 32);
-        let field_19 = vm::Value::uint(value.min_uniform_buffer_offset_alignment as u64, 32);
-        let field_20 = vm::Value::uint(value.max_vertex_buffers as u64, 32);
-        let field_21 = vm::Value::uint(value.max_vertex_attributes as u64, 32);
-        let field_22 = vm::Value::uint(value.max_vertex_buffer_array_stride as u64, 32);
-        let field_23 = vm::Value::uint(value.max_buffer_size, 64);
-        let field_24 = vm::Value::uint(value.max_inter_stage_shader_components as u64, 32);
-        let field_25 = vm::Value::uint(value.max_inter_stage_shader_variables as u64, 32);
-        let field_26 = vm::Value::uint(value.max_compute_workgroup_storage_size as u64, 32);
-        let field_27 = vm::Value::uint(value.max_compute_invocations_per_workgroup as u64, 32);
-        let field_28 = vm::Value::uint(value.max_compute_workgroup_size_x as u64, 32);
-        let field_29 = vm::Value::uint(value.max_compute_workgroup_size_y as u64, 32);
-        let field_30 = vm::Value::uint(value.max_compute_workgroup_size_z as u64, 32);
-        let field_31 = vm::Value::uint(value.max_compute_workgroups_per_dimension as u64, 32);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
-            field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
-            field_25, field_26, field_27, field_28, field_29, field_30, field_31,
-        ])
+        ));
+        let field_16: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_uniform_buffer_binding_size, 64));
+        let field_17: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_storage_buffer_binding_size, 64));
+        let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.min_storage_buffer_offset_alignment as u64,
+            32,
+        ));
+        let field_19: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.min_uniform_buffer_offset_alignment as u64,
+            32,
+        ));
+        let field_20: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_vertex_buffers as u64, 32));
+        let field_21: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_vertex_attributes as u64, 32));
+        let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_vertex_buffer_array_stride as u64,
+            32,
+        ));
+        let field_23: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.max_buffer_size, 64));
+        let field_24: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_inter_stage_shader_components as u64,
+            32,
+        ));
+        let field_25: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_inter_stage_shader_variables as u64,
+            32,
+        ));
+        let field_26: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_workgroup_storage_size as u64,
+            32,
+        ));
+        let field_27: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_invocations_per_workgroup as u64,
+            32,
+        ));
+        let field_28: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_workgroup_size_x as u64,
+            32,
+        ));
+        let field_29: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_workgroup_size_y as u64,
+            32,
+        ));
+        let field_30: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_workgroup_size_z as u64,
+            32,
+        ));
+        let field_31: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_workgroups_per_dimension as u64,
+            32,
+        ));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
+                field_22?, field_23?, field_24?, field_25?, field_26?, field_27?, field_28?,
+                field_29?, field_30?, field_31?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -602,7 +753,7 @@ fn encode_destack_gpu_adapter_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<GpuAdapterInfoVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.gpu.adapter.open.
@@ -622,7 +773,7 @@ fn encode_destack_gpu_adapter_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuAdapterHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.bind.groupCreate.
@@ -666,7 +817,7 @@ fn encode_destack_gpu_bind_group_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuBindGroupHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.bind.groupDestroy.
@@ -724,7 +875,7 @@ fn encode_destack_gpu_bind_group_layout_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuBindGroupLayoutHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.bind.groupLayoutDestroy.
@@ -806,7 +957,7 @@ fn encode_destack_gpu_bind_pipeline_layout_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuPipelineLayoutHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.bind.pipelineLayoutDestroy.
@@ -1033,7 +1184,7 @@ fn encode_destack_gpu_command_compute_pass_begin_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuComputePassHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.command.computePassEnd.
@@ -1919,7 +2070,7 @@ fn encode_destack_gpu_command_encoder_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuCommandListHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.command.executeBundles.
@@ -2719,7 +2870,7 @@ fn encode_destack_gpu_command_render_bundle_encoder_finish_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuRenderBundleHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.command.renderBundleEncoderOpen.
@@ -2776,7 +2927,7 @@ fn encode_destack_gpu_command_render_bundle_encoder_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuRenderBundleEncoderHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.command.renderBundleInsertDebugMarker.
@@ -3302,7 +3453,7 @@ fn encode_destack_gpu_command_render_pass_begin_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuRenderPassHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.command.renderPassEnd.
@@ -3767,7 +3918,7 @@ fn encode_destack_gpu_device_features_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<GpuFeatureId>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.gpu.device.hasFeature.
@@ -3792,7 +3943,7 @@ fn encode_destack_gpu_device_has_feature_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
+    result.and_then(|value| Ok(vm::Value::bool(value)))
 }
 
 /// Decode arguments for destack.gpu.device.info.
@@ -3814,125 +3965,159 @@ fn encode_destack_gpu_device_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuDeviceInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.backend as u8 as u64, 8);
-        let field_1 = value.enabled_features.to_value(context);
-        let field_2 = {
-            let field_0 = vm::Value::uint(value.effective_limits.max_bind_groups as u64, 32);
-            let field_1 = vm::Value::uint(
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.backend as u8 as u64, 8));
+        let field_1: RuntimeResult<vm::Value> = value.enabled_features.to_value(context);
+        let field_2: RuntimeResult<vm::Value> = {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_bind_groups as u64,
+                32,
+            ));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_bindings_per_bind_group as u64,
                 32,
-            );
-            let field_2 =
-                vm::Value::uint(value.effective_limits.max_push_constant_bytes as u64, 32);
-            let field_3 =
-                vm::Value::uint(value.effective_limits.max_texture_dimension1_d as u64, 32);
-            let field_4 =
-                vm::Value::uint(value.effective_limits.max_texture_dimension2_d as u64, 32);
-            let field_5 =
-                vm::Value::uint(value.effective_limits.max_texture_dimension3_d as u64, 32);
-            let field_6 =
-                vm::Value::uint(value.effective_limits.max_texture_array_layers as u64, 32);
-            let field_7 = vm::Value::uint(value.effective_limits.max_color_attachments as u64, 32);
-            let field_8 = vm::Value::uint(
+            ));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_push_constant_bytes as u64,
+                32,
+            ));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_texture_dimension1_d as u64,
+                32,
+            ));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_texture_dimension2_d as u64,
+                32,
+            ));
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_texture_dimension3_d as u64,
+                32,
+            ));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_texture_array_layers as u64,
+                32,
+            ));
+            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_color_attachments as u64,
+                32,
+            ));
+            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_color_attachment_bytes_per_sample as u64,
                 32,
-            );
-            let field_9 = vm::Value::uint(
+            ));
+            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_sampled_textures_per_stage as u64,
                 32,
-            );
-            let field_10 =
-                vm::Value::uint(value.effective_limits.max_samplers_per_stage as u64, 32);
-            let field_11 = vm::Value::uint(
+            ));
+            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_samplers_per_stage as u64,
+                32,
+            ));
+            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_storage_buffers_per_stage as u64,
                 32,
-            );
-            let field_12 = vm::Value::uint(
+            ));
+            let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_storage_textures_per_stage as u64,
                 32,
-            );
-            let field_13 = vm::Value::uint(
+            ));
+            let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_uniform_buffers_per_stage as u64,
                 32,
-            );
-            let field_14 = vm::Value::uint(
+            ));
+            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value
                     .effective_limits
                     .max_dynamic_uniform_buffers_per_pipeline_layout as u64,
                 32,
-            );
-            let field_15 = vm::Value::uint(
+            ));
+            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value
                     .effective_limits
                     .max_dynamic_storage_buffers_per_pipeline_layout as u64,
                 32,
-            );
-            let field_16 =
-                vm::Value::uint(value.effective_limits.max_uniform_buffer_binding_size, 64);
-            let field_17 =
-                vm::Value::uint(value.effective_limits.max_storage_buffer_binding_size, 64);
-            let field_18 = vm::Value::uint(
+            ));
+            let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_uniform_buffer_binding_size,
+                64,
+            ));
+            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_storage_buffer_binding_size,
+                64,
+            ));
+            let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.min_storage_buffer_offset_alignment as u64,
                 32,
-            );
-            let field_19 = vm::Value::uint(
+            ));
+            let field_19: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.min_uniform_buffer_offset_alignment as u64,
                 32,
-            );
-            let field_20 = vm::Value::uint(value.effective_limits.max_vertex_buffers as u64, 32);
-            let field_21 = vm::Value::uint(value.effective_limits.max_vertex_attributes as u64, 32);
-            let field_22 = vm::Value::uint(
+            ));
+            let field_20: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_vertex_buffers as u64,
+                32,
+            ));
+            let field_21: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.effective_limits.max_vertex_attributes as u64,
+                32,
+            ));
+            let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_vertex_buffer_array_stride as u64,
                 32,
-            );
-            let field_23 = vm::Value::uint(value.effective_limits.max_buffer_size, 64);
-            let field_24 = vm::Value::uint(
+            ));
+            let field_23: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.effective_limits.max_buffer_size, 64));
+            let field_24: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_inter_stage_shader_components as u64,
                 32,
-            );
-            let field_25 = vm::Value::uint(
+            ));
+            let field_25: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_inter_stage_shader_variables as u64,
                 32,
-            );
-            let field_26 = vm::Value::uint(
+            ));
+            let field_26: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_compute_workgroup_storage_size as u64,
                 32,
-            );
-            let field_27 = vm::Value::uint(
+            ));
+            let field_27: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_compute_invocations_per_workgroup as u64,
                 32,
-            );
-            let field_28 = vm::Value::uint(
+            ));
+            let field_28: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_compute_workgroup_size_x as u64,
                 32,
-            );
-            let field_29 = vm::Value::uint(
+            ));
+            let field_29: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_compute_workgroup_size_y as u64,
                 32,
-            );
-            let field_30 = vm::Value::uint(
+            ));
+            let field_30: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_compute_workgroup_size_z as u64,
                 32,
-            );
-            let field_31 = vm::Value::uint(
+            ));
+            let field_31: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                 value.effective_limits.max_compute_workgroups_per_dimension as u64,
                 32,
-            );
-            context.allocate_aggregate(vec![
-                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-                field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
-                field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
-                field_25, field_26, field_27, field_28, field_29, field_30, field_31,
-            ])
+            ));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                    field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
+                    field_22?, field_23?, field_24?, field_25?, field_26?, field_27?, field_28?,
+                    field_29?, field_30?, field_31?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
         };
-        let field_3 = vm::Value::uint(value.queue_count as u64, 32);
-        let field_4 = vm::Value::bool(value.has_timeline_sync);
-        let field_5 = vm::Value::bool(value.has_timestamp_queries);
-        let field_6 = vm::Value::bool(value.has_push_constants);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-        ])
+        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.queue_count as u64, 32));
+        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_timeline_sync));
+        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_timestamp_queries));
+        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_push_constants));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3955,51 +4140,117 @@ fn encode_destack_gpu_device_limits_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuAdapterLimitsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.max_bind_groups as u64, 32);
-        let field_1 = vm::Value::uint(value.max_bindings_per_bind_group as u64, 32);
-        let field_2 = vm::Value::uint(value.max_push_constant_bytes as u64, 32);
-        let field_3 = vm::Value::uint(value.max_texture_dimension1_d as u64, 32);
-        let field_4 = vm::Value::uint(value.max_texture_dimension2_d as u64, 32);
-        let field_5 = vm::Value::uint(value.max_texture_dimension3_d as u64, 32);
-        let field_6 = vm::Value::uint(value.max_texture_array_layers as u64, 32);
-        let field_7 = vm::Value::uint(value.max_color_attachments as u64, 32);
-        let field_8 = vm::Value::uint(value.max_color_attachment_bytes_per_sample as u64, 32);
-        let field_9 = vm::Value::uint(value.max_sampled_textures_per_stage as u64, 32);
-        let field_10 = vm::Value::uint(value.max_samplers_per_stage as u64, 32);
-        let field_11 = vm::Value::uint(value.max_storage_buffers_per_stage as u64, 32);
-        let field_12 = vm::Value::uint(value.max_storage_textures_per_stage as u64, 32);
-        let field_13 = vm::Value::uint(value.max_uniform_buffers_per_stage as u64, 32);
-        let field_14 = vm::Value::uint(
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_bind_groups as u64, 32));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_bindings_per_bind_group as u64,
+            32,
+        ));
+        let field_2: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_push_constant_bytes as u64, 32));
+        let field_3: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_texture_dimension1_d as u64, 32));
+        let field_4: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_texture_dimension2_d as u64, 32));
+        let field_5: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_texture_dimension3_d as u64, 32));
+        let field_6: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_texture_array_layers as u64, 32));
+        let field_7: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_color_attachments as u64, 32));
+        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_color_attachment_bytes_per_sample as u64,
+            32,
+        ));
+        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_sampled_textures_per_stage as u64,
+            32,
+        ));
+        let field_10: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_samplers_per_stage as u64, 32));
+        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_storage_buffers_per_stage as u64,
+            32,
+        ));
+        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_storage_textures_per_stage as u64,
+            32,
+        ));
+        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_uniform_buffers_per_stage as u64,
+            32,
+        ));
+        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
             value.max_dynamic_uniform_buffers_per_pipeline_layout as u64,
             32,
-        );
-        let field_15 = vm::Value::uint(
+        ));
+        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
             value.max_dynamic_storage_buffers_per_pipeline_layout as u64,
             32,
-        );
-        let field_16 = vm::Value::uint(value.max_uniform_buffer_binding_size, 64);
-        let field_17 = vm::Value::uint(value.max_storage_buffer_binding_size, 64);
-        let field_18 = vm::Value::uint(value.min_storage_buffer_offset_alignment as u64, 32);
-        let field_19 = vm::Value::uint(value.min_uniform_buffer_offset_alignment as u64, 32);
-        let field_20 = vm::Value::uint(value.max_vertex_buffers as u64, 32);
-        let field_21 = vm::Value::uint(value.max_vertex_attributes as u64, 32);
-        let field_22 = vm::Value::uint(value.max_vertex_buffer_array_stride as u64, 32);
-        let field_23 = vm::Value::uint(value.max_buffer_size, 64);
-        let field_24 = vm::Value::uint(value.max_inter_stage_shader_components as u64, 32);
-        let field_25 = vm::Value::uint(value.max_inter_stage_shader_variables as u64, 32);
-        let field_26 = vm::Value::uint(value.max_compute_workgroup_storage_size as u64, 32);
-        let field_27 = vm::Value::uint(value.max_compute_invocations_per_workgroup as u64, 32);
-        let field_28 = vm::Value::uint(value.max_compute_workgroup_size_x as u64, 32);
-        let field_29 = vm::Value::uint(value.max_compute_workgroup_size_y as u64, 32);
-        let field_30 = vm::Value::uint(value.max_compute_workgroup_size_z as u64, 32);
-        let field_31 = vm::Value::uint(value.max_compute_workgroups_per_dimension as u64, 32);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
-            field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
-            field_25, field_26, field_27, field_28, field_29, field_30, field_31,
-        ])
+        ));
+        let field_16: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_uniform_buffer_binding_size, 64));
+        let field_17: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_storage_buffer_binding_size, 64));
+        let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.min_storage_buffer_offset_alignment as u64,
+            32,
+        ));
+        let field_19: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.min_uniform_buffer_offset_alignment as u64,
+            32,
+        ));
+        let field_20: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_vertex_buffers as u64, 32));
+        let field_21: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.max_vertex_attributes as u64, 32));
+        let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_vertex_buffer_array_stride as u64,
+            32,
+        ));
+        let field_23: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.max_buffer_size, 64));
+        let field_24: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_inter_stage_shader_components as u64,
+            32,
+        ));
+        let field_25: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_inter_stage_shader_variables as u64,
+            32,
+        ));
+        let field_26: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_workgroup_storage_size as u64,
+            32,
+        ));
+        let field_27: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_invocations_per_workgroup as u64,
+            32,
+        ));
+        let field_28: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_workgroup_size_x as u64,
+            32,
+        ));
+        let field_29: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_workgroup_size_y as u64,
+            32,
+        ));
+        let field_30: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_workgroup_size_z as u64,
+            32,
+        ));
+        let field_31: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+            value.max_compute_workgroups_per_dimension as u64,
+            32,
+        ));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
+                field_22?, field_23?, field_24?, field_25?, field_26?, field_27?, field_28?,
+                field_29?, field_30?, field_31?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -4306,7 +4557,7 @@ fn encode_destack_gpu_device_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.device.poll.
@@ -4332,7 +4583,7 @@ fn encode_destack_gpu_device_poll_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u64, 32))
+    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
 }
 
 /// Decode arguments for destack.gpu.device.popErrorScope.
@@ -4356,16 +4607,18 @@ fn encode_destack_gpu_device_pop_error_scope_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuCapturedErrorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = match value.message {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = match value.message {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_1 = match value.backend_code {
-            Some(value) => vm::Value::int(value as i64, 32),
-            None => vm::Value::VOID,
+        let field_1: RuntimeResult<vm::Value> = match value.backend_code {
+            Some(value) => Ok(vm::Value::int(value as i64, 32)),
+            None => Ok(vm::Value::VOID),
         };
-        context.allocate_aggregate(vec![field_0, field_1])
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -4424,7 +4677,7 @@ fn encode_destack_gpu_device_queue_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuQueueHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.device.status.
@@ -4446,12 +4699,15 @@ fn encode_destack_gpu_device_status_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuDeviceStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::bool(value.healthy);
-        let field_1 = vm::Value::uint(value.loss_reason as u8 as u64, 8);
-        let field_2 = vm::Value::int(value.backend_code as i64, 32);
-        let field_3 = value.message.value();
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.healthy));
+        let field_1: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.loss_reason as u8 as u64, 8));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.backend_code as i64, 32));
+        let field_3: RuntimeResult<vm::Value> = Ok(value.message.value());
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -4477,7 +4733,7 @@ fn encode_destack_gpu_pipeline_bind_group_layout_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuBindGroupLayoutHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.pipeline.computeCreate.
@@ -4602,7 +4858,7 @@ fn encode_destack_gpu_pipeline_compute_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuPipelineHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.pipeline.destroy.
@@ -5290,7 +5546,7 @@ fn encode_destack_gpu_pipeline_render_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuPipelineHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.pipeline.shaderCompilationInfo.
@@ -5314,9 +5570,11 @@ fn encode_destack_gpu_pipeline_shader_compilation_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuCompilationInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.messages.to_value(context);
-        context.allocate_aggregate(vec![field_0])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = value.messages.to_value(context);
+        context
+            .allocate_aggregate(vec![field_0?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -5388,7 +5646,7 @@ fn encode_destack_gpu_pipeline_shader_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuShaderHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.pipeline.shaderDestroy.
@@ -5435,17 +5693,19 @@ fn encode_destack_gpu_present_surface_acquire_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuSurfaceFrameVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.status as u8 as u64, 8);
-        let field_1 = match value.texture {
-            Some(value) => vm::Value::uint(value.0.0, 64),
-            None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.status as u8 as u64, 8));
+        let field_1: RuntimeResult<vm::Value> = match value.texture {
+            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+            None => Ok(vm::Value::VOID),
         };
-        let field_2 = match value.frame_id {
-            Some(value) => vm::Value::uint(value, 64),
-            None => vm::Value::VOID,
+        let field_2: RuntimeResult<vm::Value> = match value.frame_id {
+            Some(value) => Ok(vm::Value::uint(value, 64)),
+            None => Ok(vm::Value::VOID),
         };
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -5474,12 +5734,14 @@ fn encode_destack_gpu_present_surface_capabilities_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuSurfaceCapabilitiesVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.usage_mask, 64);
-        let field_1 = value.formats.to_value(context);
-        let field_2 = value.present_modes.to_value(context);
-        let field_3 = value.alpha_modes.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.usage_mask, 64));
+        let field_1: RuntimeResult<vm::Value> = value.formats.to_value(context);
+        let field_2: RuntimeResult<vm::Value> = value.present_modes.to_value(context);
+        let field_3: RuntimeResult<vm::Value> = value.alpha_modes.to_value(context);
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -5631,7 +5893,7 @@ fn encode_destack_gpu_present_surface_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuSurfaceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.present.surfacePresent.
@@ -5756,7 +6018,7 @@ fn encode_destack_gpu_resource_buffer_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuBufferHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.resource.bufferDestroy.
@@ -5800,11 +6062,14 @@ fn encode_destack_gpu_resource_buffer_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuBufferInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.size, 64);
-        let field_1 = vm::Value::uint(value.usage, 64);
-        let field_2 = vm::Value::uint(value.map_state as u8 as u64, 8);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.size, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.usage, 64));
+        let field_2: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.map_state as u8 as u64, 8));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -5844,11 +6109,13 @@ fn encode_destack_gpu_resource_buffer_map_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuMappedBufferRangeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.address, 64);
-        let field_1 = vm::Value::uint(value.length, 64);
-        let field_2 = vm::Value::bool(value.coherent);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.coherent));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -5875,7 +6142,7 @@ fn encode_destack_gpu_resource_buffer_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.gpu.resource.bufferUnmap.
@@ -5997,7 +6264,7 @@ fn encode_destack_gpu_resource_sampler_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuSamplerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.resource.samplerDestroy.
@@ -6097,7 +6364,7 @@ fn encode_destack_gpu_resource_texture_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuTextureHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.resource.textureDestroy.
@@ -6141,18 +6408,22 @@ fn encode_destack_gpu_resource_texture_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuTextureInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.width as u64, 32);
-        let field_1 = vm::Value::uint(value.height as u64, 32);
-        let field_2 = vm::Value::uint(value.depth_or_layers as u64, 32);
-        let field_3 = vm::Value::uint(value.mip_levels as u64, 32);
-        let field_4 = vm::Value::uint(value.samples as u64, 32);
-        let field_5 = vm::Value::uint(value.format as u64, 32);
-        let field_6 = vm::Value::uint(value.usage, 64);
-        let field_7 = vm::Value::uint(value.dimension as u8 as u64, 8);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-        ])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
+        let field_2: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.depth_or_layers as u64, 32));
+        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mip_levels as u64, 32));
+        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.samples as u64, 32));
+        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
+        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.usage, 64));
+        let field_7: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.dimension as u8 as u64, 8));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -6218,7 +6489,7 @@ fn encode_destack_gpu_resource_texture_view_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuTextureViewHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.resource.textureViewDestroy.
@@ -6588,7 +6859,7 @@ fn encode_destack_gpu_sync_fence_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuFenceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.sync.fenceDestroy.
@@ -6681,7 +6952,7 @@ fn encode_destack_gpu_sync_query_set_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuQuerySetHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.gpu.sync.querySetDestroy.
@@ -6727,11 +6998,15 @@ fn encode_destack_gpu_sync_query_set_info_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GpuQuerySetInfoVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.query_type as u8 as u64, 8);
-        let field_1 = vm::Value::uint(value.count as u64, 32);
-        let field_2 = vm::Value::uint(value.pipeline_statistics_mask.0, 64);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.query_type as u8 as u64, 8));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.count as u64, 32));
+        let field_2: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.pipeline_statistics_mask.0, 64));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -6782,7 +7057,7 @@ fn encode_destack_gpu_sync_queue_timestamp_period_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<f64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::float64)
+    result.and_then(|value| Ok(vm::Value::float64(value)))
 }
 
 /// Decode arguments for destack.gpu.sync.queueWait.
@@ -21577,18 +21852,21 @@ fn destack_gpu_adapter_info_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_id_value = context.intern_string(value.id.as_str());
-                    let vm_result_id = vm::StringHandle::new(vm_result_id_value);
-                    let vm_result_name_value = context.intern_string(value.name.as_str());
-                    let vm_result_name = vm::StringHandle::new(vm_result_name_value);
-                    let vm_result_vendor_value = context.intern_string(value.vendor.as_str());
-                    let vm_result_vendor = vm::StringHandle::new(vm_result_vendor_value);
-                    let vm_result_driver_value = context.intern_string(value.driver.as_str());
-                    let vm_result_driver = vm::StringHandle::new(vm_result_driver_value);
-                    let vm_result_driver_version_value =
-                        context.intern_string(value.driver_version.as_str());
-                    let vm_result_driver_version =
-                        vm::StringHandle::new(vm_result_driver_version_value);
+                    let vm_result_id = context
+                        .string_handle(value.id.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_name = context
+                        .string_handle(value.name.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_vendor = context
+                        .string_handle(value.vendor.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_driver = context
+                        .string_handle(value.driver.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_driver_version = context
+                        .string_handle(value.driver_version.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
                     let vm_result_backend = value.backend;
                     let vm_result_adapter_type = value.adapter_type;
                     let vm_result_vendor_id = value.vendor_id;
@@ -22262,16 +22540,11 @@ fn destack_gpu_adapter_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_id_value = context.intern_string(vm_result_item.id.as_str());
-                        let vm_result_item_value_id = vm::StringHandle::new(vm_result_item_value_id_value);
-                        let vm_result_item_value_name_value = context.intern_string(vm_result_item.name.as_str());
-                        let vm_result_item_value_name = vm::StringHandle::new(vm_result_item_value_name_value);
-                        let vm_result_item_value_vendor_value = context.intern_string(vm_result_item.vendor.as_str());
-                        let vm_result_item_value_vendor = vm::StringHandle::new(vm_result_item_value_vendor_value);
-                        let vm_result_item_value_driver_value = context.intern_string(vm_result_item.driver.as_str());
-                        let vm_result_item_value_driver = vm::StringHandle::new(vm_result_item_value_driver_value);
-                        let vm_result_item_value_driver_version_value = context.intern_string(vm_result_item.driver_version.as_str());
-                        let vm_result_item_value_driver_version = vm::StringHandle::new(vm_result_item_value_driver_version_value);
+                        let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_name = context.string_handle(vm_result_item.name.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_vendor = context.string_handle(vm_result_item.vendor.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_driver = context.string_handle(vm_result_item.driver.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_driver_version = context.string_handle(vm_result_item.driver_version.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_adapter_type = vm_result_item.adapter_type;
                         let vm_result_item_value_vendor_id = vm_result_item.vendor_id;
@@ -27286,9 +27559,9 @@ fn destack_gpu_device_pop_error_scope_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_message = if let Some(value) = value.message {
-                        let vm_result_message_inner_value = context.intern_string(value.as_str());
-                        let vm_result_message_inner =
-                            vm::StringHandle::new(vm_result_message_inner_value);
+                        let vm_result_message_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_message_inner)
                     } else {
                         None
@@ -27482,8 +27755,9 @@ fn destack_gpu_device_status_vm_replay(
                     let vm_result_healthy = value.healthy;
                     let vm_result_loss_reason = value.loss_reason;
                     let vm_result_backend_code = value.backend_code;
-                    let vm_result_message_value = context.intern_string(value.message.as_str());
-                    let vm_result_message = vm::StringHandle::new(vm_result_message_value);
+                    let vm_result_message = context
+                        .string_handle(value.message.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
                     let vm_result = GpuDeviceStatusVm {
                         healthy: vm_result_healthy,
                         loss_reason: vm_result_loss_reason,
@@ -27882,10 +28156,9 @@ fn destack_gpu_pipeline_shader_compilation_info_vm_replay(
                     let mut vm_result_messages_values = Vec::with_capacity(value.messages.len());
                     for vm_result_messages_item in value.messages.iter().cloned() {
                         let vm_result_messages_item_value_kind = vm_result_messages_item.kind;
-                        let vm_result_messages_item_value_message_value =
-                            context.intern_string(vm_result_messages_item.message.as_str());
-                        let vm_result_messages_item_value_message =
-                            vm::StringHandle::new(vm_result_messages_item_value_message_value);
+                        let vm_result_messages_item_value_message = context
+                            .string_handle(vm_result_messages_item.message.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         let vm_result_messages_item_value_line = vm_result_messages_item.line;
                         let vm_result_messages_item_value_column = vm_result_messages_item.column;
                         let vm_result_messages_item_value_offset = vm_result_messages_item.offset;
@@ -28326,7 +28599,7 @@ fn destack_gpu_resource_buffer_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

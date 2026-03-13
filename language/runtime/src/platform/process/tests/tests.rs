@@ -267,8 +267,15 @@ fn vm_path_from_utf8(
 ) -> RuntimeResult<fs::OsPathVm> {
     #[cfg(unix)]
     {
-        let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes()));
-        let kind = vm::StringHandle::new(context.intern_string("bytes"));
+        let bytes = fs::PathBytesAbi::<VmAbi>(
+            VmArray::from_bytes(context, value.as_bytes())
+                .expect("vm test byte array should allocate"),
+        );
+        let kind = vm::StringHandle::new(
+            context
+                .intern_string("bytes")
+                .expect("vm test string should intern"),
+        );
         Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))
     }
 
@@ -276,14 +283,25 @@ fn vm_path_from_utf8(
     {
         let utf16_values = value.encode_utf16().collect::<Vec<_>>();
         let utf16 = fs::PathUtf16Abi::<VmAbi>(VmArray::from_values(context, &utf16_values)?);
-        let kind = vm::StringHandle::new(context.intern_string("utf16"));
+        let kind = vm::StringHandle::new(
+            context
+                .intern_string("utf16")
+                .expect("vm test string should intern"),
+        );
         Ok(fs::OsPathVm::OsPathUtf16(fs::OsPathUtf16Vm { kind, utf16 }))
     }
 
     #[cfg(not(any(unix, windows)))]
     {
-        let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes()));
-        let kind = vm::StringHandle::new(context.intern_string("bytes"));
+        let bytes = fs::PathBytesAbi::<VmAbi>(
+            VmArray::from_bytes(context, value.as_bytes())
+                .expect("vm test byte array should allocate"),
+        );
+        let kind = vm::StringHandle::new(
+            context
+                .intern_string("bytes")
+                .expect("vm test string should intern"),
+        );
         Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))
     }
 }
@@ -295,7 +313,13 @@ fn vm_string_slice(
 ) -> RuntimeResult<VmSlice<vm::StringHandle>> {
     let handles = values
         .iter()
-        .map(|value| vm::StringHandle::new(context.intern_string(value)))
+        .map(|value| {
+            vm::StringHandle::new(
+                context
+                    .intern_string(value)
+                    .expect("vm test string should intern"),
+            )
+        })
         .collect::<Vec<_>>();
     VmSlice::from_values(context, &handles)
 }
@@ -318,29 +342,49 @@ fn vm_process_stdio_slice(
         let encoded_value = match value.kind {
             ProcessStdioKind::Descriptor => {
                 ProcessStdioVm::ProcessStdioDescriptor(process_platform::ProcessStdioDescriptorVm {
-                    kind: vm::StringHandle::new(context.intern_string("descriptor")),
+                    kind: vm::StringHandle::new(
+                        context
+                            .intern_string("descriptor")
+                            .expect("vm test string should intern"),
+                    ),
                     descriptor: value.descriptor,
                 })
             }
             ProcessStdioKind::File => {
                 ProcessStdioVm::ProcessStdioFile(process_platform::ProcessStdioFileVm {
-                    kind: vm::StringHandle::new(context.intern_string("file")),
+                    kind: vm::StringHandle::new(
+                        context
+                            .intern_string("file")
+                            .expect("vm test string should intern"),
+                    ),
                     file: resource::FileHandle(ResourceId(0)),
                 })
             }
             ProcessStdioKind::Inherit => {
                 ProcessStdioVm::ProcessStdioInherit(process_platform::ProcessStdioInheritVm {
-                    kind: vm::StringHandle::new(context.intern_string("inherit")),
+                    kind: vm::StringHandle::new(
+                        context
+                            .intern_string("inherit")
+                            .expect("vm test string should intern"),
+                    ),
                 })
             }
             ProcessStdioKind::Null => {
                 ProcessStdioVm::ProcessStdioNull(process_platform::ProcessStdioNullVm {
-                    kind: vm::StringHandle::new(context.intern_string("null")),
+                    kind: vm::StringHandle::new(
+                        context
+                            .intern_string("null")
+                            .expect("vm test string should intern"),
+                    ),
                 })
             }
             ProcessStdioKind::Pipe => {
                 ProcessStdioVm::ProcessStdioPipe(process_platform::ProcessStdioPipeVm {
-                    kind: vm::StringHandle::new(context.intern_string("pipe")),
+                    kind: vm::StringHandle::new(
+                        context
+                            .intern_string("pipe")
+                            .expect("vm test string should intern"),
+                    ),
                     pipe: resource::PipeHandle(ResourceId(0)),
                 })
             }
@@ -369,13 +413,21 @@ fn vm_process_fd_action_slice(
         let encoded_value = match value.op {
             ProcessFdActionKind::Close => {
                 ProcessFdActionVm::ProcessFdActionClose(process_platform::ProcessFdActionCloseVm {
-                    kind: vm::StringHandle::new(context.intern_string("close")),
+                    kind: vm::StringHandle::new(
+                        context
+                            .intern_string("close")
+                            .expect("vm test string should intern"),
+                    ),
                     descriptor: value.source,
                 })
             }
             ProcessFdActionKind::Dup2 => {
                 ProcessFdActionVm::ProcessFdActionDup2(process_platform::ProcessFdActionDup2Vm {
-                    kind: vm::StringHandle::new(context.intern_string("dup2")),
+                    kind: vm::StringHandle::new(
+                        context
+                            .intern_string("dup2")
+                            .expect("vm test string should intern"),
+                    ),
                     source: value.source,
                     target: value.target,
                 })
@@ -383,7 +435,11 @@ fn vm_process_fd_action_slice(
             ProcessFdActionKind::Open => {
                 let path = vm_path_from_utf8(context, &value.path)?;
                 ProcessFdActionVm::ProcessFdActionOpen(process_platform::ProcessFdActionOpenVm {
-                    kind: vm::StringHandle::new(context.intern_string("open")),
+                    kind: vm::StringHandle::new(
+                        context
+                            .intern_string("open")
+                            .expect("vm test string should intern"),
+                    ),
                     target: value.target,
                     path,
                     flags: value.flags,

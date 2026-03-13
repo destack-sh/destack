@@ -23,7 +23,7 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 pub(crate) use crate::tests::platform::assert_not_supported_result;
 pub(crate) use crate::tests::platform::{
     assert_platform_error_code_with_privileged_policy,
-    assert_platform_error_codes_with_privileged_policy,
+    assert_platform_error_codes_with_privileged_policy, vm_test_raw_values, vm_test_string,
 };
 use crate::tests::runtime::TestRuntime;
 use platform_net::{
@@ -258,8 +258,9 @@ fn vm_slice_of_slices(
     let values = slices
         .iter()
         .map(|slice| slice.to_value(context))
-        .collect::<Vec<_>>();
-    let data = context.allocate_raw_values(values);
+        .collect::<RuntimeResult<Vec<_>>>()
+        .expect("vm test slice values should encode");
+    let data = vm_test_raw_values(context, values);
     VmSlice {
         data,
         len: slices.len() as u32,
@@ -268,8 +269,7 @@ fn vm_slice_of_slices(
 }
 
 fn host_from_vm(context: &mut vm::ExternalCallContext<'_>, host: &str) -> vm::StringHandle {
-    let value = context.intern_string(host);
-    vm::StringHandle::new(value)
+    vm_test_string(context, host)
 }
 
 /// Decode a native raw socket address for assertions.
@@ -847,8 +847,13 @@ fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path
     {
         use std::os::unix::ffi::OsStrExt;
         let bytes = path.as_os_str().as_bytes();
-        let array = VmArray::from_bytes(context, bytes);
-        let kind = vm::StringHandle::new(context.intern_string("bytes"));
+        let array =
+            VmArray::from_bytes(context, bytes).expect("vm test byte array should allocate");
+        let kind = vm::StringHandle::new(
+            context
+                .intern_string("bytes")
+                .expect("vm test string should intern"),
+        );
         let path = OsPathBytesVm {
             kind,
             bytes: PathBytesAbi(array),
@@ -862,7 +867,11 @@ fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path
         use std::os::windows::ffi::OsStrExt;
         let units: Vec<u16> = path.as_os_str().encode_wide().collect();
         let array = VmArray::from_values(context, &units).expect("vm utf16 path should encode");
-        let kind = vm::StringHandle::new(context.intern_string("utf16"));
+        let kind = vm::StringHandle::new(
+            context
+                .intern_string("utf16")
+                .expect("vm test string should intern"),
+        );
         let path = OsPathUtf16Vm {
             kind,
             utf16: PathUtf16Abi(array),
@@ -884,7 +893,11 @@ fn path_ref_vm_utf16(
     let text = std::str::from_utf8(bytes).expect("test path should be valid utf8");
     let units: Vec<u16> = text.encode_utf16().collect();
     let array = VmArray::from_values(context, &units).expect("vm utf16 path should encode");
-    let kind = vm::StringHandle::new(context.intern_string("utf16"));
+    let kind = vm::StringHandle::new(
+        context
+            .intern_string("utf16")
+            .expect("vm test string should intern"),
+    );
     let path = OsPathUtf16Vm {
         kind,
         utf16: PathUtf16Abi(array),
@@ -907,7 +920,11 @@ fn uds_path_address_vm(
     path: OsPathVm,
 ) -> platform_net::UdsAddressVm {
     platform_net::UdsAddressVm::UdsPathAddress(platform_net::UdsPathAddressVm {
-        kind: vm::StringHandle::new(context.intern_string("path")),
+        kind: vm::StringHandle::new(
+            context
+                .intern_string("path")
+                .expect("vm test string should intern"),
+        ),
         path,
     })
 }

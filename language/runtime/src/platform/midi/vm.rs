@@ -139,7 +139,7 @@ pub(crate) fn destack_midi_event_read(
 ) -> RuntimeResult<MidiEventVm> {
     let event = host::midi_event_read(binding, handle, timeoutns)?;
 
-    Ok(midi_core::store_event_vm(context, event))
+    midi_core::store_event_vm(context, event)
 }
 
 /// Wait for one batch of MIDI topology events.
@@ -163,7 +163,7 @@ pub(crate) fn destack_midi_event_try_read(
 ) -> RuntimeResult<MidiEventVm> {
     let event = host::midi_event_try_read(binding, handle)?;
 
-    Ok(midi_core::store_event_vm(context, event))
+    midi_core::store_event_vm(context, event)
 }
 
 /// Poll one batch of MIDI topology events without blocking.
@@ -209,7 +209,7 @@ pub(crate) fn destack_midi_input_port_descriptor(
 ) -> RuntimeResult<MidiPortDescriptorVm> {
     let descriptor = host::midi_input_port_descriptor(binding, handle)?;
 
-    Ok(descriptor.into_vm(context))
+    descriptor.into_vm(context)
 }
 
 /// Close one opened MIDI input endpoint.
@@ -230,7 +230,7 @@ pub(crate) fn destack_midi_input_read(
 ) -> RuntimeResult<MidiInputRecordVm> {
     let record = host::midi_input_read(binding, handle, timeoutns)?;
 
-    Ok(midi_core::store_input_record_vm(context, record))
+    midi_core::store_input_record_vm(context, record)
 }
 
 /// Wait for one batch of MIDI input records.
@@ -254,7 +254,7 @@ pub(crate) fn destack_midi_input_try_read(
 ) -> RuntimeResult<MidiInputRecordVm> {
     let record = host::midi_input_try_read(binding, handle)?;
 
-    Ok(midi_core::store_input_record_vm(context, record))
+    midi_core::store_input_record_vm(context, record)
 }
 
 /// Poll one batch of MIDI input records without blocking.
@@ -311,7 +311,7 @@ pub(crate) fn destack_midi_output_port_descriptor(
 ) -> RuntimeResult<MidiPortDescriptorVm> {
     let descriptor = host::midi_output_port_descriptor(binding, handle)?;
 
-    Ok(descriptor.into_vm(context))
+    descriptor.into_vm(context)
 }
 
 /// Close one opened MIDI output endpoint.

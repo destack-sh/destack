@@ -136,12 +136,14 @@ fn encode_destack_time_clock_metadata_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ClockMetadataVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.id as u8 as u64, 8);
-        let field_1 = vm::Value::uint(value.source as u8 as u64, 8);
-        let field_2 = vm::Value::uint(value.resolution_ns, 64);
-        let field_3 = vm::Value::bool(value.is_monotonic);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id as u8 as u64, 8));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.source as u8 as u64, 8));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.resolution_ns, 64));
+        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_monotonic));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -151,7 +153,7 @@ fn encode_destack_time_clock_mono_ns_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Decode arguments for destack.time.clock.nowNs.
@@ -186,7 +188,7 @@ fn encode_destack_time_clock_now_ns_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Encode the result for destack.time.clock.processCpuNs.
@@ -195,7 +197,7 @@ fn encode_destack_time_clock_process_cpu_ns_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Encode the result for destack.time.clock.threadCpuNs.
@@ -204,7 +206,7 @@ fn encode_destack_time_clock_thread_cpu_ns_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Encode the result for destack.time.clock.wallNs.
@@ -213,7 +215,7 @@ fn encode_destack_time_clock_wall_ns_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Decode arguments for destack.time.sleep.ns.
@@ -377,7 +379,7 @@ fn encode_destack_time_timer_at_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.time.timer.cancel.
@@ -457,7 +459,7 @@ fn encode_destack_time_timer_interval_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.time.timer.isActive.
@@ -479,7 +481,7 @@ fn encode_destack_time_timer_is_active_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
+    result.and_then(|value| Ok(vm::Value::bool(value)))
 }
 
 /// Decode arguments for destack.time.timer.once.
@@ -537,7 +539,7 @@ fn encode_destack_time_timer_once_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.time.timer.pause.
@@ -581,7 +583,7 @@ fn encode_destack_time_timer_remaining_ns_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Decode arguments for destack.time.timer.reset.

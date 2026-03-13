@@ -1290,7 +1290,7 @@ pub(crate) unsafe fn destack_runtime_observation_close(
     );
     let world = table.world(RuntimeHandleCodec::decode_world_handle(entry.world))?;
 
-    world.observation().close(entry.subscription_id)
+    world.observations().close(entry.subscription_id)
 }
 
 /// Read the next batch of observation records.
@@ -1308,7 +1308,7 @@ pub(crate) unsafe fn destack_runtime_observation_next(
     let (world, subscription_id) =
         table.observation(RuntimeHandleCodec::decode_observation_handle(handle))?;
     let limit = RuntimeRequestCodec::list_limit_or_max(limit);
-    let records = world.observation().next(subscription_id, limit)?;
+    let records = world.observations().next(subscription_id, limit)?;
     let runtime_binding = NativeRuntimeBinding::new(binding);
     let records: NativeArray<ObservationRecord> = runtime_binding
         .encode::<NativeArray<ObservationRecord>>(RuntimeDescriptorCodec::observation_records(
@@ -1336,23 +1336,25 @@ pub(crate) unsafe fn destack_runtime_observation_open(
     let table = control_table().read();
     let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
     let options = options.unwrap_or(ObservationOptions {
-        trace: None,
+        runtime: None,
         topology: None,
-        resources: None,
+        resource: None,
         scheduler: None,
-        diagnostics: None,
-        profiles: None,
+        diagnostic: None,
+        profile: None,
+        domain: None,
     });
     let subscription_id =
         world
-            .observation()
+            .observations()
             .open(RuntimeRequestCodec::observation_options_from_flags(
-                options.trace,
+                options.runtime,
                 options.topology,
-                options.resources,
+                options.resource,
                 options.scheduler,
-                options.diagnostics,
-                options.profiles,
+                options.diagnostic,
+                options.profile,
+                options.domain,
             ));
 
     drop(table);
@@ -1644,7 +1646,7 @@ pub(crate) unsafe fn destack_runtime_trace_mark(
     let table = control_table().read();
     let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
     drop(table);
-    let sequence = world.trace().record_marker(label)?;
+    let sequence = world.label(label)?;
 
     unsafe { out.write(TraceSequence(sequence.get())) };
 

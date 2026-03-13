@@ -94,7 +94,9 @@ impl VmAbiCodec for vm::StringHandle {
         context: &mut vm::ExternalCallContext<'_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
-        Ok(vm::StringHandle::new(context.intern_string(&value)))
+        context
+            .string_handle(&value)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

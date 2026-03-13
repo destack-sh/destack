@@ -5,6 +5,7 @@ use crate::platform::ipc::{MessageQueueReceive, MessageQueueReceiveVm};
 use crate::platform::ipc::{UnixPeerCredentials, UnixReceiveAncillary, UnixReceiveAncillaryVm};
 use crate::platform::{PlatformError, VmSlice, resource};
 use crate::runtime::{NativeSlice, NativeStringRef};
+use crate::tests::platform::vm_test_string;
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -27,7 +28,7 @@ impl<'call> IpcHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeStringRef, destack_vm::StringHandle>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let handle = destack_vm::StringHandle::new(context.intern_string(value));
+                let handle = vm_test_string(context, value);
                 Ok(self.harness_value_vm(handle))
             }
             None => {

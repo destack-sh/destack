@@ -179,10 +179,12 @@ fn encode_destack_debug_inspector_endpoint_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InspectorEndpointVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.url.value();
-        let field_1 = vm::Value::uint(value.process_id as u64, 32);
-        context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(value.url.value());
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.process_id as u64, 32));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -205,7 +207,7 @@ fn encode_destack_debug_inspector_start_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::InspectorHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.debug.inspector.stop.
@@ -249,7 +251,7 @@ fn encode_destack_debug_profile_snapshot_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.debug.profile.start.
@@ -281,7 +283,7 @@ fn encode_destack_debug_profile_start_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProfileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.debug.profile.stop.
@@ -362,7 +364,7 @@ fn encode_destack_debug_trace_start_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TraceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.debug.trace.stop.
@@ -1565,8 +1567,9 @@ fn destack_debug_inspector_endpoint_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_url_value = context.intern_string(value.url.as_str());
-                    let vm_result_url = vm::StringHandle::new(vm_result_url_value);
+                    let vm_result_url = context
+                        .string_handle(value.url.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
                     let vm_result_process_id = value.process_id;
                     let vm_result = InspectorEndpointVm {
                         url: vm_result_url,
@@ -1712,7 +1715,7 @@ fn destack_debug_profile_snapshot_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref());
+                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref())?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

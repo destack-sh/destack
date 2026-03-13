@@ -1146,7 +1146,9 @@ impl VmAggregateCodec for MidiEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1368,7 +1370,9 @@ impl VmAggregateCodec for MidiBackendDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1570,7 +1574,9 @@ impl VmAggregateCodec for MidiBackendDisconnectedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1685,7 +1691,9 @@ impl VmAggregateCodec for MidiBackendDisconnectedPayload {
         let slots = vec![<u32 as VmAggregateCodec>::encode_with_context(
             self.flags, context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1790,7 +1798,9 @@ impl VmAggregateCodec for MidiEventMetadata {
             <MidiEventSource as VmAggregateCodec>::encode_with_context(self.source, context)?,
             <MidiBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1933,7 +1943,9 @@ impl VmAggregateCodec for MidiEventSubscriptionOptions {
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.poll_interval_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2052,7 +2064,9 @@ impl VmAggregateCodec for MidiInputPortOpenOptions {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2195,7 +2209,9 @@ impl VmAggregateCodec for MidiInputRecordAbi<VmAbi> {
             <MidiRecordFraming as VmAggregateCodec>::encode_with_context(self.framing, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2369,7 +2385,9 @@ impl VmAggregateCodec for MidiOutputPortOpenOptions {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2503,7 +2521,9 @@ impl VmAggregateCodec for MidiOutputRecordAbi<VmAbi> {
             <MidiRecordFraming as VmAggregateCodec>::encode_with_context(self.framing, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2666,7 +2686,9 @@ impl VmAggregateCodec for MidiPortAddedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2803,7 +2825,9 @@ impl VmAggregateCodec for MidiPortAddedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2950,7 +2974,9 @@ impl VmAggregateCodec for MidiPortChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3089,7 +3115,9 @@ impl VmAggregateCodec for MidiPortChangedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3335,7 +3363,9 @@ impl VmAggregateCodec for MidiPortDescriptorAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.is_virtual, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_connected, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3623,7 +3653,9 @@ impl VmAggregateCodec for MidiPortListOptions {
             )?,
             <MidiPortListFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3742,7 +3774,9 @@ impl VmAggregateCodec for MidiPortRemovedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3887,7 +3921,9 @@ impl VmAggregateCodec for MidiPortRemovedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4087,7 +4123,9 @@ impl VmAggregateCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
             <MidiProtocol as VmAggregateCodec>::encode_with_context(self.protocol, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4337,7 +4375,9 @@ impl VmAggregateCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
             <MidiDataFormat as VmAggregateCodec>::encode_with_context(self.data_format, context)?,
             <MidiProtocol as VmAggregateCodec>::encode_with_context(self.protocol, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

@@ -109,7 +109,9 @@ pub(crate) fn intern_string_to_vm(
 ) -> RuntimeResult<vm::StringHandle> {
     let value = unsafe { value.as_str()? };
 
-    Ok(vm::StringHandle::new(context.intern_string(value)))
+    context
+        .string_handle(value)
+        .map_err(Box::<RuntimeError>::from)
 }
 
 /// Intern one optional native string reference into one optional VM string handle.
@@ -201,7 +203,7 @@ pub(crate) fn bytes_to_vm(
 ) -> RuntimeResult<VmSlice<u8>> {
     let value = unsafe { value.as_slice()? };
 
-    Ok(VmSlice::from_bytes(context, value))
+    VmSlice::from_bytes(context, value)
 }
 
 /// Encode one native byte array as one VM byte array.
@@ -211,7 +213,7 @@ pub(crate) fn bytes_array_to_vm(
 ) -> RuntimeResult<VmArray<u8>> {
     let value = unsafe { value.as_slice()? };
 
-    Ok(VmArray::from_bytes(context, value))
+    VmArray::from_bytes(context, value)
 }
 
 /// Encode one native byte-array array as one VM byte-array array.
@@ -381,7 +383,7 @@ pub(crate) fn path_bytes_to_vm(
     path: PathBytes,
 ) -> RuntimeResult<PathBytesVm> {
     let bytes = unsafe { path.0.as_slice()? };
-    let array = VmArray::from_bytes(context, bytes);
+    let array = VmArray::from_bytes(context, bytes)?;
 
     Ok(PathBytesAbi::<VmAbi>(array))
 }
@@ -407,7 +409,9 @@ pub(crate) fn os_path_to_vm(
             let bytes = path_bytes_to_vm(context, path_bytes.bytes)?;
 
             Ok(OsPathVm::OsPathBytes(OsPathBytesVm {
-                kind: vm::StringHandle::new(context.intern_string("bytes")),
+                kind: context
+                    .string_handle("bytes")
+                    .map_err(Box::<RuntimeError>::from)?,
                 bytes,
             }))
         }
@@ -415,7 +419,9 @@ pub(crate) fn os_path_to_vm(
             let utf16 = path_utf16_to_vm(context, path_utf16.utf16)?;
 
             Ok(OsPathVm::OsPathUtf16(OsPathUtf16Vm {
-                kind: vm::StringHandle::new(context.intern_string("utf16")),
+                kind: context
+                    .string_handle("utf16")
+                    .map_err(Box::<RuntimeError>::from)?,
                 utf16,
             }))
         }

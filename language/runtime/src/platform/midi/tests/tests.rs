@@ -169,7 +169,9 @@ pub(crate) fn harness_string(
 ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
     match vm_context_mut(context) {
         Some(vm_context) => Ok(HarnessValue::Vm(vm::StringHandle::new(
-            vm_context.intern_string(value),
+            vm_context
+                .intern_string(value)
+                .expect("vm test string should intern"),
         ))),
         None => Ok(HarnessValue::Native(
             context.call_context.store_string(value),
@@ -312,7 +314,8 @@ pub(crate) fn harness_output_records(
                     data_format: value.data_format,
                     protocol: value.protocol,
                     framing: value.framing,
-                    data: VmSlice::from_bytes(vm_context, data),
+                    data: VmSlice::from_bytes(vm_context, data)
+                        .expect("vm test byte slice should allocate"),
                 });
             }
 
@@ -338,7 +341,11 @@ pub(crate) fn harness_virtual_input_create_options_for_backend_transport(
         Some(vm_context) => Ok(HarnessValue::Vm(MidiVirtualInputCreateOptionsVm {
             backend,
             backend_policy: MidiBackendSelectionPolicy::AllowFallback,
-            name: vm::StringHandle::new(vm_context.intern_string(name)),
+            name: vm::StringHandle::new(
+                vm_context
+                    .intern_string(name)
+                    .expect("vm test string should intern"),
+            ),
             manufacturer: None,
             model: None,
             version: None,
@@ -372,7 +379,11 @@ pub(crate) fn harness_virtual_output_create_options_for_backend_transport(
         Some(vm_context) => Ok(HarnessValue::Vm(MidiVirtualOutputCreateOptionsVm {
             backend,
             backend_policy: MidiBackendSelectionPolicy::AllowFallback,
-            name: vm::StringHandle::new(vm_context.intern_string(name)),
+            name: vm::StringHandle::new(
+                vm_context
+                    .intern_string(name)
+                    .expect("vm test string should intern"),
+            ),
             manufacturer: None,
             model: None,
             version: None,

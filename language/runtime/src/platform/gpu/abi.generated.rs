@@ -3321,7 +3321,9 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3589,7 +3591,9 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3771,7 +3775,9 @@ impl VmAggregateCodec for GpuAdapterFormatCapabilities {
             <bool as VmAggregateCodec>::encode_with_context(self.multisample, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.sample_count_mask, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3957,7 +3963,9 @@ impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
             )?,
             <GpuAdapterLimitsVm as VmAggregateCodec>::encode_with_context(self.limits, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4412,7 +4420,9 @@ impl VmAggregateCodec for GpuAdapterLimits {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4526,7 +4536,9 @@ impl VmAggregateCodec for GpuAdapterRequest {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4650,7 +4662,9 @@ impl VmAggregateCodec for GpuBindGroupBufferResourceAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4803,7 +4817,9 @@ impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4965,7 +4981,9 @@ impl VmAggregateCodec for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.has_dynamic_offset, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.min_binding_size, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5145,7 +5163,9 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5338,7 +5358,9 @@ impl VmAggregateCodec for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.multisampled, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5505,7 +5527,9 @@ impl VmAggregateCodec for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5664,7 +5688,9 @@ impl VmAggregateCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5845,7 +5871,9 @@ impl VmAggregateCodec for GpuBindGroupSamplerResourceAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5986,7 +6014,9 @@ impl VmAggregateCodec for GpuBindGroupTextureResourceAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6110,7 +6140,9 @@ impl VmAggregateCodec for GpuBlendComponent {
             <GpuBlendFactor as VmAggregateCodec>::encode_with_context(self.dst_factor, context)?,
             <GpuBlendOperation as VmAggregateCodec>::encode_with_context(self.operation, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6199,7 +6231,9 @@ impl VmAggregateCodec for GpuBlendState {
             <GpuBlendComponentVm as VmAggregateCodec>::encode_with_context(self.color, context)?,
             <GpuBlendComponentVm as VmAggregateCodec>::encode_with_context(self.alpha, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6292,7 +6326,9 @@ impl VmAggregateCodec for GpuBufferCopy {
             )?,
             <GpuBufferCopyLayoutVm as VmAggregateCodec>::encode_with_context(self.layout, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6386,7 +6422,9 @@ impl VmAggregateCodec for GpuBufferCopyLayout {
             <u32 as VmAggregateCodec>::encode_with_context(self.bytes_per_row, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.rows_per_image, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6479,7 +6517,9 @@ impl VmAggregateCodec for GpuBufferInfo {
             <u64 as VmAggregateCodec>::encode_with_context(self.usage, context)?,
             <GpuBufferMapState as VmAggregateCodec>::encode_with_context(self.map_state, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6577,7 +6617,9 @@ impl VmAggregateCodec for GpuBufferOptions {
             <bool as VmAggregateCodec>::encode_with_context(self.mapped_at_creation, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6690,7 +6732,9 @@ impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
             )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6811,7 +6855,9 @@ impl VmAggregateCodec for GpuColorTargetState {
             )?,
             <GpuColorWriteMask as VmAggregateCodec>::encode_with_context(self.write_mask, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6891,7 +6937,9 @@ impl VmAggregateCodec for GpuCommandEncoderOptions {
         let slots = vec![<u32 as VmAggregateCodec>::encode_with_context(
             self.flags, context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7000,7 +7048,9 @@ impl VmAggregateCodec for GpuCompilationInfoAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7156,7 +7206,9 @@ impl VmAggregateCodec for GpuCompilationMessageAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.offset, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7291,7 +7343,9 @@ impl VmAggregateCodec for GpuComputePassOptions {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7420,7 +7474,9 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7592,7 +7648,9 @@ impl VmAggregateCodec for GpuComputeStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7776,7 +7834,9 @@ impl VmAggregateCodec for GpuDepthStencilState {
             <f64 as VmAggregateCodec>::encode_with_context(self.depth_bias_slope_scale, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.depth_bias_clamp, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7921,7 +7981,9 @@ impl VmAggregateCodec for GpuDeviceInfoAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.has_timestamp_queries, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.has_push_constants, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8142,7 +8204,9 @@ impl VmAggregateCodec for GpuDeviceOptionsAbi<VmAbi> {
             <GpuBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8317,7 +8381,9 @@ impl VmAggregateCodec for GpuDeviceStatusAbi<VmAbi> {
             <i32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.message, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8451,7 +8517,9 @@ impl VmAggregateCodec for GpuExtent3D {
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.depth_or_array_layers, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8545,7 +8613,9 @@ impl VmAggregateCodec for GpuFenceOptions {
             <u64 as VmAggregateCodec>::encode_with_context(self.initial_value, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8683,7 +8753,9 @@ impl VmAggregateCodec for GpuFragmentStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8832,7 +8904,9 @@ impl VmAggregateCodec for GpuMappedBufferRange {
             <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.coherent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8928,7 +9002,9 @@ impl VmAggregateCodec for GpuMultisampleState {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9031,7 +9107,9 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
             )?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.end_write_index, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9140,7 +9218,9 @@ impl VmAggregateCodec for GpuPipelineConstantAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.key, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9278,7 +9358,9 @@ impl VmAggregateCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.immediate_size, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9420,7 +9502,9 @@ impl VmAggregateCodec for GpuPipelineMetadataAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.label, context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9519,7 +9603,9 @@ impl VmAggregateCodec for GpuPresentOptions {
             <u64 as VmAggregateCodec>::encode_with_context(self.frame_id, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9629,7 +9715,9 @@ impl VmAggregateCodec for GpuPrimitiveState {
             <GpuCullMode as VmAggregateCodec>::encode_with_context(self.cull_mode, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.unclipped_depth, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9729,7 +9817,9 @@ impl VmAggregateCodec for GpuQuerySetInfo {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9834,7 +9924,9 @@ impl VmAggregateCodec for GpuQuerySetOptions {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9954,7 +10046,9 @@ impl VmAggregateCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.sample_count, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10133,7 +10227,9 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
             <f64 as VmAggregateCodec>::encode_with_context(self.clear_color_b, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.clear_color_a, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10266,7 +10362,9 @@ impl VmAggregateCodec for GpuRenderPassDepthStencilAttachment {
             <u32 as VmAggregateCodec>::encode_with_context(self.clear_stencil, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.stencil_read_only, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10393,7 +10491,9 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
             <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::encode_with_context(self.timestamp_writes, context)?,
             <Option<resource::GpuQuerySetHandle> as VmAggregateCodec>::encode_with_context(self.occlusion_query_set, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10631,7 +10731,9 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10816,7 +10918,9 @@ impl VmAggregateCodec for GpuRenderState {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10951,7 +11055,9 @@ impl VmAggregateCodec for GpuSamplerOptions {
             <u16 as VmAggregateCodec>::encode_with_context(self.max_anisotropy, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11066,7 +11172,9 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11194,7 +11302,9 @@ impl VmAggregateCodec for GpuStencilFaceState {
             )?,
             <GpuStencilOperation as VmAggregateCodec>::encode_with_context(self.pass_op, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11281,7 +11391,9 @@ impl VmAggregateCodec for GpuSubmitOptions {
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timeout_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11410,7 +11522,9 @@ impl VmAggregateCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11565,7 +11679,9 @@ impl VmAggregateCodec for GpuSurfaceFrame {
             )?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.frame_id, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11718,7 +11834,9 @@ impl VmAggregateCodec for GpuSurfaceOptionsAbi<VmAbi> {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11916,7 +12034,9 @@ impl VmAggregateCodec for GpuTextureCopy {
             <u32 as VmAggregateCodec>::encode_with_context(self.origin_z, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.aspect, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12038,7 +12158,9 @@ impl VmAggregateCodec for GpuTextureInfo {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12192,7 +12314,9 @@ impl VmAggregateCodec for GpuTextureOptionsAbi<VmAbi> {
             <VmSlice<u32> as VmAggregateCodec>::encode_with_context(self.view_formats, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12389,7 +12513,9 @@ impl VmAggregateCodec for GpuTextureViewOptions {
             <u32 as VmAggregateCodec>::encode_with_context(self.aspect, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12482,7 +12608,9 @@ impl VmAggregateCodec for GpuVertexAttribute {
             <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.shader_location, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12607,7 +12735,9 @@ impl VmAggregateCodec for GpuVertexBufferLayoutAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12788,7 +12918,9 @@ impl VmAggregateCodec for GpuVertexStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

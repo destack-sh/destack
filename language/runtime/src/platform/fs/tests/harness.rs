@@ -22,7 +22,7 @@ use crate::platform::net::{self as core_net, AcceptFlags, SocketFamily, vm as pl
 use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
 use crate::runtime::{NativeSlice, NativeStringRef};
-use crate::tests::platform::is_privileged_test_mode;
+use crate::tests::platform::{is_privileged_test_mode, vm_test_raw_values};
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -46,8 +46,13 @@ impl<'call> FsHarnessContext<'call> {
         match self.vm_context_mut() {
             Some(context) => {
                 let bytes = path_bytes_vec(path);
-                let bytes = VmArray::from_bytes(context, &bytes);
-                let kind = vm::StringHandle::new(context.intern_string("bytes"));
+                let bytes = VmArray::from_bytes(context, &bytes)
+                    .expect("vm test byte array should allocate");
+                let kind = vm::StringHandle::new(
+                    context
+                        .intern_string("bytes")
+                        .expect("vm test string should intern"),
+                );
                 let path = OsPathVm::OsPathBytes(platform_fs::OsPathBytesVm {
                     kind,
                     bytes: PathBytesAbi(bytes),
@@ -73,7 +78,11 @@ impl<'call> FsHarnessContext<'call> {
                 let utf16_units = path_utf16_vec(path);
                 let utf16 = VmArray::from_values(context, &utf16_units)
                     .expect("vm utf16 path should encode");
-                let kind = vm::StringHandle::new(context.intern_string("utf16"));
+                let kind = vm::StringHandle::new(
+                    context
+                        .intern_string("utf16")
+                        .expect("vm test string should intern"),
+                );
                 let path = OsPathVm::OsPathUtf16(platform_fs::OsPathUtf16Vm {
                     kind,
                     utf16: PathUtf16Abi(utf16),
@@ -354,7 +363,11 @@ impl<'call> FsHarnessContext<'call> {
     ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
         match self.vm_context_mut() {
             Some(context) => {
-                let value = vm::StringHandle::new(context.intern_string(value));
+                let value = vm::StringHandle::new(
+                    context
+                        .intern_string(value)
+                        .expect("vm test string should intern"),
+                );
                 self.harness_value_vm(value)
             }
             None => self.harness_value(self.call_context.store_string(value)),
@@ -367,7 +380,9 @@ impl<'call> FsHarnessContext<'call> {
         bytes: &[u8],
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.vm_context_mut() {
-            Some(context) => Ok(self.harness_value_vm(VmSlice::from_bytes(context, bytes))),
+            Some(context) => Ok(self.harness_value_vm(
+                VmSlice::from_bytes(context, bytes).expect("vm test byte slice should allocate"),
+            )),
             None => Ok(self.harness_value(self.call_context.store_slice(bytes.to_vec()))),
         }
     }
@@ -427,7 +442,10 @@ impl<'call> FsHarnessContext<'call> {
             Some(context) => {
                 let vm_buffers = buffers
                     .iter()
-                    .map(|buffer| VmSlice::from_bytes(context, buffer))
+                    .map(|buffer| {
+                        VmSlice::from_bytes(context, buffer)
+                            .expect("vm test byte slice should allocate")
+                    })
                     .collect::<Vec<_>>();
                 let values = vm_slice_of_slices(context, &vm_buffers);
                 Ok(self.harness_value_vm(values))
@@ -453,8 +471,9 @@ impl<'call> FsHarnessContext<'call> {
                 let vm_buffers = buffers
                     .iter()
                     .map(|buffer| VmSlice::from_bytes(context, &vec![0_u8; buffer.len()]))
-                    .collect::<Vec<_>>();
+                    .collect::<RuntimeResult<Vec<_>>>()?;
                 let values = vm_slice_of_slices(context, &vm_buffers);
+
                 Ok(self.harness_value_vm(values))
             }
             None => {
@@ -812,7 +831,7 @@ impl<'call> FsHarnessContext<'call> {
     ) -> RuntimeResult<u64> {
         match self.vm_context_mut() {
             Some(context) => {
-                let vm_slice = VmSlice::from_bytes(context, &vec![0_u8; buffer.len()]);
+                let vm_slice = VmSlice::from_bytes(context, &vec![0_u8; buffer.len()])?;
                 let bytes = platform_net_vm::destack_net_read(
                     self.call_context,
                     context,
@@ -968,8 +987,9 @@ fn vm_slice_of_slices(
         .iter()
         .copied()
         .map(|slice| slice.to_value(context))
-        .collect::<Vec<_>>();
-    let data = context.allocate_raw_values(values);
+        .collect::<RuntimeResult<Vec<_>>>()
+        .expect("vm test slice values should encode");
+    let data = vm_test_raw_values(context, values);
 
     VmSlice {
         data,

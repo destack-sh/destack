@@ -1434,7 +1434,9 @@ impl VmAggregateCodec for InputEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1738,7 +1740,9 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1919,7 +1923,9 @@ impl VmAggregateCodec for InputAxisMetadata {
             <f64 as VmAggregateCodec>::encode_with_context(self.fuzz, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.resolution, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2006,7 +2012,9 @@ impl VmAggregateCodec for InputButtonMetadata {
             <u32 as VmAggregateCodec>::encode_with_context(self.code, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.analog, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2130,7 +2138,9 @@ impl VmAggregateCodec for InputCompositionEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2287,7 +2297,9 @@ impl VmAggregateCodec for InputCompositionEventPayloadAbi<VmAbi> {
             <i32 as VmAggregateCodec>::encode_with_context(self.selection_start, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.selection_end, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2562,7 +2574,9 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.supports_raw_hid, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_player_index, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3080,7 +3094,9 @@ impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.is_virtual, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_system, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3365,7 +3381,9 @@ impl VmAggregateCodec for InputDeviceEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3488,7 +3506,9 @@ impl VmAggregateCodec for InputDeviceEventPayload {
             <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
             <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3602,7 +3622,9 @@ impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3716,7 +3738,9 @@ impl VmAggregateCodec for InputGamepadBatteryStatus {
             )?,
             <f64 as VmAggregateCodec>::encode_with_context(self.level, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3808,7 +3832,9 @@ impl VmAggregateCodec for InputGamepadButtonState {
             <bool as VmAggregateCodec>::encode_with_context(self.touched, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3931,7 +3957,9 @@ impl VmAggregateCodec for InputGamepadEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4057,7 +4085,9 @@ impl VmAggregateCodec for InputGamepadEventPayload {
             <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
             <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4240,7 +4270,9 @@ impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4474,7 +4506,9 @@ impl VmAggregateCodec for InputGamepadTouchState {
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4585,7 +4619,9 @@ impl VmAggregateCodec for InputHapticEffectParameters {
             <f64 as VmAggregateCodec>::encode_with_context(self.left_trigger, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.right_trigger, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4707,7 +4743,9 @@ impl VmAggregateCodec for InputKeyEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4841,7 +4879,9 @@ impl VmAggregateCodec for InputKeyEventPayload {
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.repeat, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4975,7 +5015,9 @@ impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5148,7 +5190,9 @@ impl VmAggregateCodec for InputMonitorChangeEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5292,7 +5336,9 @@ impl VmAggregateCodec for InputMonitorConnectEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5436,7 +5482,9 @@ impl VmAggregateCodec for InputMonitorDisconnectEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5590,7 +5638,9 @@ impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
             <InputDeviceKind as VmAggregateCodec>::encode_with_context(self.device_kind, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5744,7 +5794,9 @@ impl VmAggregateCodec for InputPenState {
             <bool as VmAggregateCodec>::encode_with_context(self.in_contact, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.in_range, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5868,7 +5920,9 @@ impl VmAggregateCodec for InputPointerButtonEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6012,7 +6066,9 @@ impl VmAggregateCodec for InputPointerButtonEventPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6136,7 +6192,9 @@ impl VmAggregateCodec for InputPointerMotionEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6268,7 +6326,9 @@ impl VmAggregateCodec for InputPointerMotionEventPayload {
             <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6371,7 +6431,9 @@ impl VmAggregateCodec for InputPointerState {
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
             <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6489,7 +6551,9 @@ impl VmAggregateCodec for InputRawHidReportAbi<VmAbi> {
             <u8 as VmAggregateCodec>::encode_with_context(self.report_id, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6642,7 +6706,9 @@ impl VmAggregateCodec for InputScrollEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6773,7 +6839,9 @@ impl VmAggregateCodec for InputScrollEventPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6872,7 +6940,9 @@ impl VmAggregateCodec for InputSensorConfig {
             <u32 as VmAggregateCodec>::encode_with_context(self.batch_latency_ms, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6978,7 +7048,9 @@ impl VmAggregateCodec for InputSensorDescriptor {
             <f64 as VmAggregateCodec>::encode_with_context(self.resolution, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_wake, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7077,7 +7149,9 @@ impl VmAggregateCodec for InputSensorEffectiveConfig {
             <u32 as VmAggregateCodec>::encode_with_context(self.batch_latency_ms, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7200,7 +7274,9 @@ impl VmAggregateCodec for InputSensorEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7338,7 +7414,9 @@ impl VmAggregateCodec for InputSensorEventPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.z, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7451,7 +7529,9 @@ impl VmAggregateCodec for InputSensorSample {
             <f64 as VmAggregateCodec>::encode_with_context(self.w, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7573,7 +7653,9 @@ impl VmAggregateCodec for InputTextEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7701,7 +7783,9 @@ impl VmAggregateCodec for InputTextEventPayloadAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.text, context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7815,7 +7899,9 @@ impl VmAggregateCodec for InputTextInputArea {
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.cursor, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7938,7 +8024,9 @@ impl VmAggregateCodec for InputTouchContactState {
             <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8060,7 +8148,9 @@ impl VmAggregateCodec for InputTouchEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8189,7 +8279,9 @@ impl VmAggregateCodec for InputTouchEventPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8314,7 +8406,9 @@ impl VmAggregateCodec for InputTouchStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8444,7 +8538,9 @@ impl VmAggregateCodec for InputWindowTarget {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

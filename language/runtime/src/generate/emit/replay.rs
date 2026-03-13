@@ -553,10 +553,9 @@ impl<'a> ModuleCodegen<'a> {
                     vec![format!("let {name} = {value_expr};")]
                 }
             }
-            BindingType::String => vec![
-                format!("let {name}_value = context.intern_string({value_expr}.as_str());"),
-                format!("let {name} = vm::StringHandle::new({name}_value);"),
-            ],
+            BindingType::String => vec![format!(
+                "let {name} = context.string_handle({value_expr}.as_str()).map_err(Box::<RuntimeError>::from)?;"
+            )],
             BindingType::StringSlice => self.render_replay_to_vm_binding_collection_lines(
                 &BindingType::String,
                 name,

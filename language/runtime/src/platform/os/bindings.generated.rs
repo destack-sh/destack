@@ -356,7 +356,7 @@ fn encode_destack_os_background_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::BackgroundEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.os.background.event.read.
@@ -381,38 +381,56 @@ fn encode_destack_os_background_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BackgroundEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
+    result.and_then(|value| match value {
         BackgroundEventVm::BackgroundTaskExpiredEvent(value) => {
             let tag_value = vm::Value::uint(2328661317u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.identifier.value();
-                    let field_3 = value.metadata.execution_id.value();
-                    let field_4 = vm::Value::uint(value.metadata.deadline_unix_ns, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.identifier.value());
+                    let field_3: RuntimeResult<vm::Value> = Ok(value.metadata.execution_id.value());
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.deadline_unix_ns, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         BackgroundEventVm::BackgroundTaskReadyEvent(value) => {
             let tag_value = vm::Value::uint(3682195369u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.identifier.value();
-                    let field_3 = value.metadata.execution_id.value();
-                    let field_4 = vm::Value::uint(value.metadata.deadline_unix_ns, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.identifier.value());
+                    let field_3: RuntimeResult<vm::Value> = Ok(value.metadata.execution_id.value());
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.deadline_unix_ns, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
     })
 }
@@ -437,38 +455,56 @@ fn encode_destack_os_background_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BackgroundEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
+    result.and_then(|value| match value {
         BackgroundEventVm::BackgroundTaskExpiredEvent(value) => {
             let tag_value = vm::Value::uint(2328661317u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.identifier.value();
-                    let field_3 = value.metadata.execution_id.value();
-                    let field_4 = vm::Value::uint(value.metadata.deadline_unix_ns, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.identifier.value());
+                    let field_3: RuntimeResult<vm::Value> = Ok(value.metadata.execution_id.value());
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.deadline_unix_ns, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         BackgroundEventVm::BackgroundTaskReadyEvent(value) => {
             let tag_value = vm::Value::uint(3682195369u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.identifier.value();
-                    let field_3 = value.metadata.execution_id.value();
-                    let field_4 = vm::Value::uint(value.metadata.deadline_unix_ns, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.identifier.value());
+                    let field_3: RuntimeResult<vm::Value> = Ok(value.metadata.execution_id.value());
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.deadline_unix_ns, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
     })
 }
@@ -479,7 +515,7 @@ fn encode_destack_os_background_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<BackgroundTaskDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.os.background.register.
@@ -568,7 +604,7 @@ fn encode_destack_os_background_status_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BackgroundStatus>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
 }
 
 /// Decode arguments for destack.os.background.triggerTest.
@@ -588,7 +624,7 @@ fn encode_destack_os_background_trigger_test_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
+    result.and_then(|value| Ok(vm::Value::bool(value)))
 }
 
 /// Decode arguments for destack.os.background.unregister.
@@ -821,7 +857,7 @@ fn encode_destack_os_calendar_event_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.value())
+    result.and_then(|value| Ok(value.value()))
 }
 
 /// Decode arguments for destack.os.calendar.eventDelete.
@@ -911,7 +947,7 @@ fn encode_destack_os_calendar_event_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<CalendarEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.os.calendar.eventRead.
@@ -931,82 +967,89 @@ fn encode_destack_os_calendar_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CalendarEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.id.value();
-        let field_1 = value.calendar_id.value();
-        let field_2 = value.title.value();
-        let field_3 = match value.notes {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
+        let field_1: RuntimeResult<vm::Value> = Ok(value.calendar_id.value());
+        let field_2: RuntimeResult<vm::Value> = Ok(value.title.value());
+        let field_3: RuntimeResult<vm::Value> = match value.notes {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_4 = match value.location {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_4: RuntimeResult<vm::Value> = match value.location {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_5 = vm::Value::uint(value.start_unix_ns, 64);
-        let field_6 = vm::Value::uint(value.end_unix_ns, 64);
-        let field_7 = vm::Value::bool(value.all_day);
-        let field_8 = vm::Value::bool(value.canceled);
-        let field_9 = match value.time_zone {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.start_unix_ns, 64));
+        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.end_unix_ns, 64));
+        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.all_day));
+        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.canceled));
+        let field_9: RuntimeResult<vm::Value> = match value.time_zone {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_10 = vm::Value::uint(value.availability as u8 as u64, 8);
-        let field_11 = match value.url {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_10: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.availability as u8 as u64, 8));
+        let field_11: RuntimeResult<vm::Value> = match value.url {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_12 = match value.organizer_name {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_12: RuntimeResult<vm::Value> = match value.organizer_name {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_13 = match value.organizer_email {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_13: RuntimeResult<vm::Value> = match value.organizer_email {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_14 = vm::Value::bool(value.recurring);
-        let field_15 = match value.recurrence_master_id {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.recurring));
+        let field_15: RuntimeResult<vm::Value> = match value.recurrence_master_id {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_16 = match value.recurrence_id_unix_ns {
-            Some(value) => vm::Value::uint(value, 64),
-            None => vm::Value::VOID,
+        let field_16: RuntimeResult<vm::Value> = match value.recurrence_id_unix_ns {
+            Some(value) => Ok(vm::Value::uint(value, 64)),
+            None => Ok(vm::Value::VOID),
         };
-        let field_17 = match value.recurrence_rule {
+        let field_17: RuntimeResult<vm::Value> = match value.recurrence_rule {
             Some(value) => {
-                let field_0 = vm::Value::uint(value.frequency as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.interval as u64, 32);
-                let field_2 = match value.count {
-                    Some(value) => vm::Value::uint(value as u64, 32),
-                    None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.frequency as u8 as u64, 8));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.interval as u64, 32));
+                let field_2: RuntimeResult<vm::Value> = match value.count {
+                    Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                    None => Ok(vm::Value::VOID),
                 };
-                let field_3 = match value.until_unix_ns {
-                    Some(value) => vm::Value::uint(value, 64),
-                    None => vm::Value::VOID,
+                let field_3: RuntimeResult<vm::Value> = match value.until_unix_ns {
+                    Some(value) => Ok(vm::Value::uint(value, 64)),
+                    None => Ok(vm::Value::VOID),
                 };
-                let field_4 = value.by_week_days.to_value(context);
-                let field_5 = value.by_month_days.to_value(context);
-                let field_6 = value.by_months.to_value(context);
-                context.allocate_aggregate(vec![
-                    field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-                ])
+                let field_4: RuntimeResult<vm::Value> = value.by_week_days.to_value(context);
+                let field_5: RuntimeResult<vm::Value> = value.by_month_days.to_value(context);
+                let field_6: RuntimeResult<vm::Value> = value.by_months.to_value(context);
+                context
+                    .allocate_aggregate(vec![
+                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                    ])
+                    .map_err(Box::<RuntimeError>::from)
             }
-            None => vm::Value::VOID,
+            None => Ok(vm::Value::VOID),
         };
-        let field_18 = match value.attendees {
+        let field_18: RuntimeResult<vm::Value> = match value.attendees {
             Some(value) => value.to_value(context),
-            None => vm::Value::VOID,
+            None => Ok(vm::Value::VOID),
         };
-        let field_19 = match value.reminders {
+        let field_19: RuntimeResult<vm::Value> = match value.reminders {
             Some(value) => value.to_value(context),
-            None => vm::Value::VOID,
+            None => Ok(vm::Value::VOID),
         };
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
-            field_17, field_18, field_19,
-        ])
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                field_15?, field_16?, field_17?, field_18?, field_19?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -1231,7 +1274,7 @@ fn encode_destack_os_calendar_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<CalendarDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.os.clipboard.clear.
@@ -1249,7 +1292,7 @@ fn encode_destack_os_clipboard_has_text_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
+    result.and_then(|value| Ok(vm::Value::bool(value)))
 }
 
 /// Decode arguments for destack.os.clipboard.readBytes.
@@ -1281,7 +1324,7 @@ fn encode_destack_os_clipboard_read_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.os.clipboard.readText.
@@ -1290,7 +1333,7 @@ fn encode_destack_os_clipboard_read_text_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.value())
+    result.and_then(|value| Ok(value.value()))
 }
 
 /// Encode the result for destack.os.clipboard.sequence.
@@ -1299,7 +1342,7 @@ fn encode_destack_os_clipboard_sequence_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Decode arguments for destack.os.clipboard.writeBytes.
@@ -1490,7 +1533,7 @@ fn encode_destack_os_contact_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.value())
+    result.and_then(|value| Ok(value.value()))
 }
 
 /// Decode arguments for destack.os.contact.delete.
@@ -1579,11 +1622,13 @@ fn encode_destack_os_contact_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ContactPageVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.contacts.to_value(context);
-        let field_1 = value.next_cursor.value();
-        let field_2 = vm::Value::bool(value.has_more);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = value.contacts.to_value(context);
+        let field_1: RuntimeResult<vm::Value> = Ok(value.next_cursor.value());
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_more));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -1604,34 +1649,40 @@ fn encode_destack_os_contact_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ContactVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.id.value();
-        let field_1 = {
-            let field_0 = value.name.given_name.value();
-            let field_1 = value.name.middle_name.value();
-            let field_2 = value.name.family_name.value();
-            let field_3 = value.name.prefix.value();
-            let field_4 = value.name.suffix.value();
-            let field_5 = value.name.nickname.value();
-            let field_6 = value.name.phonetic_given_name.value();
-            let field_7 = value.name.phonetic_family_name.value();
-            context.allocate_aggregate(vec![
-                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
+        let field_1: RuntimeResult<vm::Value> = {
+            let field_0: RuntimeResult<vm::Value> = Ok(value.name.given_name.value());
+            let field_1: RuntimeResult<vm::Value> = Ok(value.name.middle_name.value());
+            let field_2: RuntimeResult<vm::Value> = Ok(value.name.family_name.value());
+            let field_3: RuntimeResult<vm::Value> = Ok(value.name.prefix.value());
+            let field_4: RuntimeResult<vm::Value> = Ok(value.name.suffix.value());
+            let field_5: RuntimeResult<vm::Value> = Ok(value.name.nickname.value());
+            let field_6: RuntimeResult<vm::Value> = Ok(value.name.phonetic_given_name.value());
+            let field_7: RuntimeResult<vm::Value> = Ok(value.name.phonetic_family_name.value());
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        };
+        let field_2: RuntimeResult<vm::Value> = value.phones.to_value(context);
+        let field_3: RuntimeResult<vm::Value> = value.emails.to_value(context);
+        let field_4: RuntimeResult<vm::Value> = value.addresses.to_value(context);
+        let field_5: RuntimeResult<vm::Value> = {
+            let field_0: RuntimeResult<vm::Value> = Ok(value.organization.company.value());
+            let field_1: RuntimeResult<vm::Value> = Ok(value.organization.department.value());
+            let field_2: RuntimeResult<vm::Value> = Ok(value.organization.title.value());
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .map_err(Box::<RuntimeError>::from)
+        };
+        let field_6: RuntimeResult<vm::Value> = Ok(value.note.value());
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
             ])
-        };
-        let field_2 = value.phones.to_value(context);
-        let field_3 = value.emails.to_value(context);
-        let field_4 = value.addresses.to_value(context);
-        let field_5 = {
-            let field_0 = value.organization.company.value();
-            let field_1 = value.organization.department.value();
-            let field_2 = value.organization.title.value();
-            context.allocate_aggregate(vec![field_0, field_1, field_2])
-        };
-        let field_6 = value.note.value();
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-        ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -1703,11 +1754,13 @@ fn encode_destack_os_contact_search_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ContactPageVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.contacts.to_value(context);
-        let field_1 = value.next_cursor.value();
-        let field_2 = vm::Value::bool(value.has_more);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = value.contacts.to_value(context);
+        let field_1: RuntimeResult<vm::Value> = Ok(value.next_cursor.value());
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_more));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -1903,10 +1956,13 @@ fn encode_destack_os_credentials_authenticate_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CredentialAuthenticationResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::bool(value.authenticated);
-        let field_1 = vm::Value::uint(value.mechanism as u8 as u64, 8);
-        context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.authenticated));
+        let field_1: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.mechanism as u8 as u64, 8));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -1936,7 +1992,7 @@ fn encode_destack_os_credentials_contains_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
+    result.and_then(|value| Ok(vm::Value::bool(value)))
 }
 
 /// Decode arguments for destack.os.credentials.delete.
@@ -2023,13 +2079,15 @@ fn encode_destack_os_credentials_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CredentialRecordVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.service.value();
-        let field_1 = value.account.value();
-        let field_2 = value.bytes.to_value(context);
-        let field_3 = vm::Value::uint(value.created_unix_ns, 64);
-        let field_4 = vm::Value::uint(value.modified_unix_ns, 64);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(value.service.value());
+        let field_1: RuntimeResult<vm::Value> = Ok(value.account.value());
+        let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.created_unix_ns, 64));
+        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.modified_unix_ns, 64));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -2196,7 +2254,7 @@ fn encode_destack_os_document_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::DocumentHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.os.document.pick.
@@ -2254,7 +2312,7 @@ fn encode_destack_os_document_pick_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<DocumentDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.os.document.read.
@@ -2280,7 +2338,7 @@ fn encode_destack_os_document_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.os.document.tryRead.
@@ -2304,7 +2362,7 @@ fn encode_destack_os_document_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.os.document.write.
@@ -2335,7 +2393,7 @@ fn encode_destack_os_document_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u64, 32))
+    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
 }
 
 /// Encode the result for destack.os.host.identity.
@@ -2344,12 +2402,14 @@ fn encode_destack_os_host_identity_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<HostIdentityVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.hostname.value();
-        let field_1 = value.kernel.value();
-        let field_2 = value.release.value();
-        let field_3 = value.architecture.value();
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(value.hostname.value());
+        let field_1: RuntimeResult<vm::Value> = Ok(value.kernel.value());
+        let field_2: RuntimeResult<vm::Value> = Ok(value.release.value());
+        let field_3: RuntimeResult<vm::Value> = Ok(value.architecture.value());
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -2359,7 +2419,7 @@ fn encode_destack_os_info_boot_time_unix_ns_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Encode the result for destack.os.info.loadAverage.
@@ -2368,11 +2428,13 @@ fn encode_destack_os_info_load_average_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LoadAverageVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::float64(value.one);
-        let field_1 = vm::Value::float64(value.five);
-        let field_2 = vm::Value::float64(value.fifteen);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.one));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.five));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.fifteen));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -2382,12 +2444,14 @@ fn encode_destack_os_info_system_snapshot_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SystemSnapshotVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.cpu_count as u64, 32);
-        let field_1 = vm::Value::uint(value.memory_total, 64);
-        let field_2 = vm::Value::uint(value.memory_available, 64);
-        let field_3 = vm::Value::uint(value.page_size, 64);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.cpu_count as u64, 32));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.memory_total, 64));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.memory_available, 64));
+        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.page_size, 64));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -2397,7 +2461,7 @@ fn encode_destack_os_info_uptime_ns_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Decode arguments for destack.os.intent.canOpenUrl.
@@ -2417,7 +2481,7 @@ fn encode_destack_os_intent_can_open_url_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
+    result.and_then(|value| Ok(vm::Value::bool(value)))
 }
 
 /// Decode arguments for destack.os.intent.close.
@@ -2493,7 +2557,7 @@ fn encode_destack_os_intent_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::IntentHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.os.intent.openPath.
@@ -2557,140 +2621,200 @@ fn encode_destack_os_intent_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<IntentEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
+    result.and_then(|value| match value {
         IntentEventVm::IntentCustomActionEvent(value) => {
             let tag_value = vm::Value::uint(3879189954u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.source.value();
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = value.payload.action.value();
-                    let field_1 = match value.payload.url {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.action.value());
+                    let field_1: RuntimeResult<vm::Value> = match value.payload.url {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    let field_2 = value.payload.paths.to_value(context);
-                    let field_3 = match value.payload.text {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                    let field_2: RuntimeResult<vm::Value> = value.payload.paths.to_value(context);
+                    let field_3: RuntimeResult<vm::Value> = match value.payload.text {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    let field_4 = match value.payload.mime_type {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                    let field_4: RuntimeResult<vm::Value> = match value.payload.mime_type {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         IntentEventVm::IntentOpenFileEvent(value) => {
             let tag_value = vm::Value::uint(1555330426u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.source.value();
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = match value.payload.path {
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = match value.payload.path {
                         fs::OsPathVm::OsPathBytes(value) => {
                             let tag_value = vm::Value::uint(1243901586u64, 32);
                             let payload_value = {
-                                let field_0 = value.kind.value();
-                                let field_1 = value.bytes.0.to_value(context);
-                                context.allocate_aggregate(vec![field_0, field_1])
-                            };
-                            context.allocate_aggregate(vec![tag_value, payload_value])
+                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                let field_1: RuntimeResult<vm::Value> =
+                                    value.bytes.0.to_value(context);
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }?;
+                            context
+                                .allocate_aggregate(vec![tag_value, payload_value])
+                                .map_err(Box::<RuntimeError>::from)
                         }
                         fs::OsPathVm::OsPathUtf16(value) => {
                             let tag_value = vm::Value::uint(2271740357u64, 32);
                             let payload_value = {
-                                let field_0 = value.kind.value();
-                                let field_1 = value.utf16.0.to_value(context);
-                                context.allocate_aggregate(vec![field_0, field_1])
-                            };
-                            context.allocate_aggregate(vec![tag_value, payload_value])
+                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                let field_1: RuntimeResult<vm::Value> =
+                                    value.utf16.0.to_value(context);
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }?;
+                            context
+                                .allocate_aggregate(vec![tag_value, payload_value])
+                                .map_err(Box::<RuntimeError>::from)
                         }
                     };
-                    let field_1 = match value.payload.mime_type {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                    let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         IntentEventVm::IntentOpenUrlEvent(value) => {
             let tag_value = vm::Value::uint(3539197638u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.source.value();
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = value.payload.url.value();
-                    context.allocate_aggregate(vec![field_0])
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.url.value());
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         IntentEventVm::IntentShareFilesEvent(value) => {
             let tag_value = vm::Value::uint(2751280649u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.source.value();
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = value.payload.paths.to_value(context);
-                    let field_1 = match value.payload.mime_type {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = value.payload.paths.to_value(context);
+                    let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         IntentEventVm::IntentShareTextEvent(value) => {
             let tag_value = vm::Value::uint(2932248757u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.source.value();
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = value.payload.text.value();
-                    let field_1 = match value.payload.mime_type {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                    let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
     })
 }
@@ -2758,140 +2882,200 @@ fn encode_destack_os_intent_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<IntentEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
+    result.and_then(|value| match value {
         IntentEventVm::IntentCustomActionEvent(value) => {
             let tag_value = vm::Value::uint(3879189954u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.source.value();
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = value.payload.action.value();
-                    let field_1 = match value.payload.url {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.action.value());
+                    let field_1: RuntimeResult<vm::Value> = match value.payload.url {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    let field_2 = value.payload.paths.to_value(context);
-                    let field_3 = match value.payload.text {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                    let field_2: RuntimeResult<vm::Value> = value.payload.paths.to_value(context);
+                    let field_3: RuntimeResult<vm::Value> = match value.payload.text {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    let field_4 = match value.payload.mime_type {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                    let field_4: RuntimeResult<vm::Value> = match value.payload.mime_type {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         IntentEventVm::IntentOpenFileEvent(value) => {
             let tag_value = vm::Value::uint(1555330426u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.source.value();
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = match value.payload.path {
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = match value.payload.path {
                         fs::OsPathVm::OsPathBytes(value) => {
                             let tag_value = vm::Value::uint(1243901586u64, 32);
                             let payload_value = {
-                                let field_0 = value.kind.value();
-                                let field_1 = value.bytes.0.to_value(context);
-                                context.allocate_aggregate(vec![field_0, field_1])
-                            };
-                            context.allocate_aggregate(vec![tag_value, payload_value])
+                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                let field_1: RuntimeResult<vm::Value> =
+                                    value.bytes.0.to_value(context);
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }?;
+                            context
+                                .allocate_aggregate(vec![tag_value, payload_value])
+                                .map_err(Box::<RuntimeError>::from)
                         }
                         fs::OsPathVm::OsPathUtf16(value) => {
                             let tag_value = vm::Value::uint(2271740357u64, 32);
                             let payload_value = {
-                                let field_0 = value.kind.value();
-                                let field_1 = value.utf16.0.to_value(context);
-                                context.allocate_aggregate(vec![field_0, field_1])
-                            };
-                            context.allocate_aggregate(vec![tag_value, payload_value])
+                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                let field_1: RuntimeResult<vm::Value> =
+                                    value.utf16.0.to_value(context);
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }?;
+                            context
+                                .allocate_aggregate(vec![tag_value, payload_value])
+                                .map_err(Box::<RuntimeError>::from)
                         }
                     };
-                    let field_1 = match value.payload.mime_type {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                    let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         IntentEventVm::IntentOpenUrlEvent(value) => {
             let tag_value = vm::Value::uint(3539197638u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.source.value();
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = value.payload.url.value();
-                    context.allocate_aggregate(vec![field_0])
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.url.value());
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         IntentEventVm::IntentShareFilesEvent(value) => {
             let tag_value = vm::Value::uint(2751280649u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.source.value();
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = value.payload.paths.to_value(context);
-                    let field_1 = match value.payload.mime_type {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = value.payload.paths.to_value(context);
+                    let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         IntentEventVm::IntentShareTextEvent(value) => {
             let tag_value = vm::Value::uint(2932248757u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.source.value();
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = value.payload.text.value();
-                    let field_1 = match value.payload.mime_type {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                    let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
     })
 }
@@ -2925,7 +3109,7 @@ fn encode_destack_os_lifecycle_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::LifecycleEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.os.lifecycle.read.
@@ -2950,118 +3134,188 @@ fn encode_destack_os_lifecycle_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LifecycleEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
+    result.and_then(|value| match value {
         LifecycleEventVm::LifecycleBackgroundEvent(value) => {
             let tag_value = vm::Value::uint(928362442u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleForegroundEvent(value) => {
             let tag_value = vm::Value::uint(3282312588u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleLaunchEvent(value) => {
             let tag_value = vm::Value::uint(3187108861u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleLowMemoryEvent(value) => {
             let tag_value = vm::Value::uint(2573044905u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::uint(value.payload.severity as u64, 32);
-                    context.allocate_aggregate(vec![field_0])
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.payload.severity as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleLowPowerModeChangedEvent(value) => {
             let tag_value = vm::Value::uint(2275129359u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::bool(value.payload.enabled);
-                    context.allocate_aggregate(vec![field_0])
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::bool(value.payload.enabled));
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecyclePauseEvent(value) => {
             let tag_value = vm::Value::uint(1318852949u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleResumeEvent(value) => {
             let tag_value = vm::Value::uint(314295220u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleTerminateEvent(value) => {
             let tag_value = vm::Value::uint(1662979592u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
     })
 }
@@ -3072,7 +3326,7 @@ fn encode_destack_os_lifecycle_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LifecycleState>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
 }
 
 /// Decode arguments for destack.os.lifecycle.tryRead.
@@ -3095,118 +3349,188 @@ fn encode_destack_os_lifecycle_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LifecycleEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
+    result.and_then(|value| match value {
         LifecycleEventVm::LifecycleBackgroundEvent(value) => {
             let tag_value = vm::Value::uint(928362442u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleForegroundEvent(value) => {
             let tag_value = vm::Value::uint(3282312588u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleLaunchEvent(value) => {
             let tag_value = vm::Value::uint(3187108861u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleLowMemoryEvent(value) => {
             let tag_value = vm::Value::uint(2573044905u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::uint(value.payload.severity as u64, 32);
-                    context.allocate_aggregate(vec![field_0])
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.payload.severity as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleLowPowerModeChangedEvent(value) => {
             let tag_value = vm::Value::uint(2275129359u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::bool(value.payload.enabled);
-                    context.allocate_aggregate(vec![field_0])
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::bool(value.payload.enabled));
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecyclePauseEvent(value) => {
             let tag_value = vm::Value::uint(1318852949u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleResumeEvent(value) => {
             let tag_value = vm::Value::uint(314295220u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         LifecycleEventVm::LifecycleTerminateEvent(value) => {
             let tag_value = vm::Value::uint(1662979592u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
     })
 }
@@ -3217,18 +3541,23 @@ fn encode_destack_os_location_last_known_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LocationSampleVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::float64(value.latitude_degrees);
-        let field_1 = vm::Value::float64(value.longitude_degrees);
-        let field_2 = vm::Value::float64(value.altitude_meters);
-        let field_3 = vm::Value::float64(value.horizontal_accuracy_meters);
-        let field_4 = vm::Value::float64(value.vertical_accuracy_meters);
-        let field_5 = vm::Value::float64(value.speed_meters_per_second);
-        let field_6 = vm::Value::float64(value.heading_degrees);
-        let field_7 = vm::Value::uint(value.timestamp_unix_ns, 64);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-        ])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.latitude_degrees));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.longitude_degrees));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.altitude_meters));
+        let field_3: RuntimeResult<vm::Value> =
+            Ok(vm::Value::float64(value.horizontal_accuracy_meters));
+        let field_4: RuntimeResult<vm::Value> =
+            Ok(vm::Value::float64(value.vertical_accuracy_meters));
+        let field_5: RuntimeResult<vm::Value> =
+            Ok(vm::Value::float64(value.speed_meters_per_second));
+        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.heading_degrees));
+        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_unix_ns, 64));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3238,7 +3567,7 @@ fn encode_destack_os_location_services_enabled_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
+    result.and_then(|value| Ok(vm::Value::bool(value)))
 }
 
 /// Decode arguments for destack.os.location.watchClose.
@@ -3329,7 +3658,7 @@ fn encode_destack_os_location_watch_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::LocationWatchHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.os.location.watchRead.
@@ -3354,18 +3683,23 @@ fn encode_destack_os_location_watch_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LocationSampleVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::float64(value.latitude_degrees);
-        let field_1 = vm::Value::float64(value.longitude_degrees);
-        let field_2 = vm::Value::float64(value.altitude_meters);
-        let field_3 = vm::Value::float64(value.horizontal_accuracy_meters);
-        let field_4 = vm::Value::float64(value.vertical_accuracy_meters);
-        let field_5 = vm::Value::float64(value.speed_meters_per_second);
-        let field_6 = vm::Value::float64(value.heading_degrees);
-        let field_7 = vm::Value::uint(value.timestamp_unix_ns, 64);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-        ])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.latitude_degrees));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.longitude_degrees));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.altitude_meters));
+        let field_3: RuntimeResult<vm::Value> =
+            Ok(vm::Value::float64(value.horizontal_accuracy_meters));
+        let field_4: RuntimeResult<vm::Value> =
+            Ok(vm::Value::float64(value.vertical_accuracy_meters));
+        let field_5: RuntimeResult<vm::Value> =
+            Ok(vm::Value::float64(value.speed_meters_per_second));
+        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.heading_degrees));
+        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_unix_ns, 64));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3389,18 +3723,23 @@ fn encode_destack_os_location_watch_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LocationSampleVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::float64(value.latitude_degrees);
-        let field_1 = vm::Value::float64(value.longitude_degrees);
-        let field_2 = vm::Value::float64(value.altitude_meters);
-        let field_3 = vm::Value::float64(value.horizontal_accuracy_meters);
-        let field_4 = vm::Value::float64(value.vertical_accuracy_meters);
-        let field_5 = vm::Value::float64(value.speed_meters_per_second);
-        let field_6 = vm::Value::float64(value.heading_degrees);
-        let field_7 = vm::Value::uint(value.timestamp_unix_ns, 64);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-        ])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.latitude_degrees));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.longitude_degrees));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.altitude_meters));
+        let field_3: RuntimeResult<vm::Value> =
+            Ok(vm::Value::float64(value.horizontal_accuracy_meters));
+        let field_4: RuntimeResult<vm::Value> =
+            Ok(vm::Value::float64(value.vertical_accuracy_meters));
+        let field_5: RuntimeResult<vm::Value> =
+            Ok(vm::Value::float64(value.speed_meters_per_second));
+        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.heading_degrees));
+        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_unix_ns, 64));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3421,7 +3760,7 @@ fn encode_destack_os_media_delete_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u64, 32))
+    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
 }
 
 /// Decode arguments for destack.os.media.importPath.
@@ -3456,7 +3795,7 @@ fn encode_destack_os_media_import_path_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.value())
+    result.and_then(|value| Ok(value.value()))
 }
 
 /// Decode arguments for destack.os.media.list.
@@ -3515,11 +3854,13 @@ fn encode_destack_os_media_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MediaPageVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.assets.to_value(context);
-        let field_1 = value.next_cursor.value();
-        let field_2 = vm::Value::bool(value.has_more);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = value.assets.to_value(context);
+        let field_1: RuntimeResult<vm::Value> = Ok(value.next_cursor.value());
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_more));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3540,22 +3881,24 @@ fn encode_destack_os_media_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MediaAssetDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.id.value();
-        let field_1 = value.uri.value();
-        let field_2 = value.filename.value();
-        let field_3 = value.mime_type.value();
-        let field_4 = vm::Value::uint(value.kind as u8 as u64, 8);
-        let field_5 = vm::Value::uint(value.width as u64, 32);
-        let field_6 = vm::Value::uint(value.height as u64, 32);
-        let field_7 = vm::Value::uint(value.duration_ms, 64);
-        let field_8 = vm::Value::uint(value.size_bytes, 64);
-        let field_9 = vm::Value::uint(value.created_unix_ns, 64);
-        let field_10 = vm::Value::uint(value.modified_unix_ns, 64);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10,
-        ])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
+        let field_1: RuntimeResult<vm::Value> = Ok(value.uri.value());
+        let field_2: RuntimeResult<vm::Value> = Ok(value.filename.value());
+        let field_3: RuntimeResult<vm::Value> = Ok(value.mime_type.value());
+        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.kind as u8 as u64, 8));
+        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
+        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
+        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.duration_ms, 64));
+        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.size_bytes, 64));
+        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.created_unix_ns, 64));
+        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.modified_unix_ns, 64));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                field_8?, field_9?, field_10?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3599,7 +3942,7 @@ fn encode_destack_os_mount_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<MountEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.os.mount.remove.
@@ -3630,19 +3973,24 @@ fn encode_destack_os_network_state_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NetworkStateVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.connection_type as u8 as u64, 8);
-        let field_1 = vm::Value::bool(value.connected);
-        let field_2 = vm::Value::bool(value.internet_reachable);
-        let field_3 = vm::Value::bool(value.expensive);
-        let field_4 = vm::Value::bool(value.constrained);
-        let field_5 = vm::Value::bool(value.roaming);
-        let field_6 = vm::Value::uint(value.cellular_generation as u8 as u64, 8);
-        let field_7 = vm::Value::float64(value.downlink_mbps);
-        let field_8 = vm::Value::float64(value.uplink_mbps);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-        ])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.connection_type as u8 as u64, 8));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connected));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.internet_reachable));
+        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.expensive));
+        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.constrained));
+        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.roaming));
+        let field_6: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.cellular_generation as u8 as u64, 8));
+        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.downlink_mbps));
+        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.uplink_mbps));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                field_8?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3675,7 +4023,7 @@ fn encode_destack_os_network_watch_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::NetworkWatchHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.os.network.watchRead.
@@ -3700,24 +4048,35 @@ fn encode_destack_os_network_watch_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NetworkEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_1 = vm::Value::uint(value.sequence, 64);
-        let field_2 = {
-            let field_0 = vm::Value::uint(value.state.connection_type as u8 as u64, 8);
-            let field_1 = vm::Value::bool(value.state.connected);
-            let field_2 = vm::Value::bool(value.state.internet_reachable);
-            let field_3 = vm::Value::bool(value.state.expensive);
-            let field_4 = vm::Value::bool(value.state.constrained);
-            let field_5 = vm::Value::bool(value.state.roaming);
-            let field_6 = vm::Value::uint(value.state.cellular_generation as u8 as u64, 8);
-            let field_7 = vm::Value::float64(value.state.downlink_mbps);
-            let field_8 = vm::Value::float64(value.state.uplink_mbps);
-            context.allocate_aggregate(vec![
-                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            ])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
+        let field_2: RuntimeResult<vm::Value> = {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.state.connection_type as u8 as u64, 8));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.connected));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.state.internet_reachable));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.expensive));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.constrained));
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.roaming));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.state.cellular_generation as u8 as u64,
+                8,
+            ));
+            let field_7: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.state.downlink_mbps));
+            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.state.uplink_mbps));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
         };
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3741,24 +4100,35 @@ fn encode_destack_os_network_watch_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NetworkEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_1 = vm::Value::uint(value.sequence, 64);
-        let field_2 = {
-            let field_0 = vm::Value::uint(value.state.connection_type as u8 as u64, 8);
-            let field_1 = vm::Value::bool(value.state.connected);
-            let field_2 = vm::Value::bool(value.state.internet_reachable);
-            let field_3 = vm::Value::bool(value.state.expensive);
-            let field_4 = vm::Value::bool(value.state.constrained);
-            let field_5 = vm::Value::bool(value.state.roaming);
-            let field_6 = vm::Value::uint(value.state.cellular_generation as u8 as u64, 8);
-            let field_7 = vm::Value::float64(value.state.downlink_mbps);
-            let field_8 = vm::Value::float64(value.state.uplink_mbps);
-            context.allocate_aggregate(vec![
-                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            ])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
+        let field_2: RuntimeResult<vm::Value> = {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.state.connection_type as u8 as u64, 8));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.connected));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.state.internet_reachable));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.expensive));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.constrained));
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.roaming));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                value.state.cellular_generation as u8 as u64,
+                8,
+            ));
+            let field_7: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.state.downlink_mbps));
+            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.state.uplink_mbps));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
         };
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3797,7 +4167,7 @@ fn encode_destack_os_notification_category_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<NotificationCategoryVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.os.notification.categorySet.
@@ -3897,7 +4267,7 @@ fn encode_destack_os_notification_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::NotificationEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.os.notification.event.read.
@@ -3925,326 +4295,464 @@ fn encode_destack_os_notification_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NotificationEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
+    result.and_then(|value| match value {
         NotificationEventVm::NotificationDeliveredEvent(value) => {
             let tag_value = vm::Value::uint(2024395200u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.id.value();
-                    let field_3 = {
-                        let field_0 = value.metadata.request.title.value();
-                        let field_1 = match value.metadata.request.subtitle {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.id.value());
+                    let field_3: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.title.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.metadata.request.subtitle {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.body.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.tag.value());
+                        let field_4: RuntimeResult<vm::Value> =
+                            match value.metadata.request.channel_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.metadata.request.priority as u8 as u64,
+                            8,
+                        ));
+                        let field_6: RuntimeResult<vm::Value> =
+                            match value.metadata.request.badge_count {
+                                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_7: RuntimeResult<vm::Value> = match value.metadata.request.sound {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = value.metadata.request.body.value();
-                        let field_3 = value.metadata.request.tag.value();
-                        let field_4 = match value.metadata.request.channel_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_5 =
-                            vm::Value::uint(value.metadata.request.priority as u8 as u64, 8);
-                        let field_6 = match value.metadata.request.badge_count {
-                            Some(value) => vm::Value::uint(value as u64, 32),
-                            None => vm::Value::VOID,
-                        };
-                        let field_7 = match value.metadata.request.sound {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_8 = match value.metadata.request.category_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_9 = match value.metadata.request.thread_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_10 = match value.metadata.request.trigger {
+                        let field_8: RuntimeResult<vm::Value> =
+                            match value.metadata.request.category_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_9: RuntimeResult<vm::Value> =
+                            match value.metadata.request.thread_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_10: RuntimeResult<vm::Value> = match value
+                            .metadata
+                            .request
+                            .trigger
+                        {
                             NotificationTriggerVm::NotificationCalendarDateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2325801108u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = {
-                                        let field_0 =
-                                            vm::Value::uint(value.calendar.year as u64, 16);
-                                        let field_1 =
-                                            vm::Value::uint(value.calendar.month as u64, 8);
-                                        let field_2 = vm::Value::uint(value.calendar.day as u64, 8);
-                                        let field_3 =
-                                            vm::Value::uint(value.calendar.hour as u64, 8);
-                                        let field_4 =
-                                            vm::Value::uint(value.calendar.minute as u64, 8);
-                                        let field_5 =
-                                            vm::Value::uint(value.calendar.second as u64, 8);
-                                        let field_6 = value.calendar.time_zone.value();
-                                        let field_7 = vm::Value::bool(value.calendar.repeats);
-                                        context.allocate_aggregate(vec![
-                                            field_0, field_1, field_2, field_3, field_4, field_5,
-                                            field_6, field_7,
-                                        ])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.year as u64, 16));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.month as u64, 8));
+                                        let field_2: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.day as u64, 8));
+                                        let field_3: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.hour as u64, 8));
+                                        let field_4: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.minute as u64, 8));
+                                        let field_5: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.second as u64, 8));
+                                        let field_6: RuntimeResult<vm::Value> =
+                                            Ok(value.calendar.time_zone.value());
+                                        let field_7: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::bool(value.calendar.repeats));
+                                        context
+                                            .allocate_aggregate(vec![
+                                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                                                field_5?, field_6?, field_7?,
+                                            ])
+                                            .map_err(Box::<RuntimeError>::from)
                                     };
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2453791684u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    context.allocate_aggregate(vec![field_0])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    context
+                                        .allocate_aggregate(vec![field_0?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                 let tag_value = vm::Value::uint(2128434246u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = vm::Value::uint(value.interval_ns, 64);
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.interval_ns, 64));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                         };
-                        let field_11 = match value.metadata.request.action_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_12 = match value.metadata.request.data_json {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![
-                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                            field_8, field_9, field_10, field_11, field_12,
-                        ])
+                        let field_11: RuntimeResult<vm::Value> =
+                            match value.metadata.request.action_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.metadata.request.data_json {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         NotificationEventVm::NotificationDismissedEvent(value) => {
             let tag_value = vm::Value::uint(667362994u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.id.value();
-                    let field_3 = {
-                        let field_0 = value.metadata.request.title.value();
-                        let field_1 = match value.metadata.request.subtitle {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.id.value());
+                    let field_3: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.title.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.metadata.request.subtitle {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.body.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.tag.value());
+                        let field_4: RuntimeResult<vm::Value> =
+                            match value.metadata.request.channel_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.metadata.request.priority as u8 as u64,
+                            8,
+                        ));
+                        let field_6: RuntimeResult<vm::Value> =
+                            match value.metadata.request.badge_count {
+                                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_7: RuntimeResult<vm::Value> = match value.metadata.request.sound {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = value.metadata.request.body.value();
-                        let field_3 = value.metadata.request.tag.value();
-                        let field_4 = match value.metadata.request.channel_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_5 =
-                            vm::Value::uint(value.metadata.request.priority as u8 as u64, 8);
-                        let field_6 = match value.metadata.request.badge_count {
-                            Some(value) => vm::Value::uint(value as u64, 32),
-                            None => vm::Value::VOID,
-                        };
-                        let field_7 = match value.metadata.request.sound {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_8 = match value.metadata.request.category_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_9 = match value.metadata.request.thread_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_10 = match value.metadata.request.trigger {
+                        let field_8: RuntimeResult<vm::Value> =
+                            match value.metadata.request.category_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_9: RuntimeResult<vm::Value> =
+                            match value.metadata.request.thread_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_10: RuntimeResult<vm::Value> = match value
+                            .metadata
+                            .request
+                            .trigger
+                        {
                             NotificationTriggerVm::NotificationCalendarDateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2325801108u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = {
-                                        let field_0 =
-                                            vm::Value::uint(value.calendar.year as u64, 16);
-                                        let field_1 =
-                                            vm::Value::uint(value.calendar.month as u64, 8);
-                                        let field_2 = vm::Value::uint(value.calendar.day as u64, 8);
-                                        let field_3 =
-                                            vm::Value::uint(value.calendar.hour as u64, 8);
-                                        let field_4 =
-                                            vm::Value::uint(value.calendar.minute as u64, 8);
-                                        let field_5 =
-                                            vm::Value::uint(value.calendar.second as u64, 8);
-                                        let field_6 = value.calendar.time_zone.value();
-                                        let field_7 = vm::Value::bool(value.calendar.repeats);
-                                        context.allocate_aggregate(vec![
-                                            field_0, field_1, field_2, field_3, field_4, field_5,
-                                            field_6, field_7,
-                                        ])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.year as u64, 16));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.month as u64, 8));
+                                        let field_2: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.day as u64, 8));
+                                        let field_3: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.hour as u64, 8));
+                                        let field_4: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.minute as u64, 8));
+                                        let field_5: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.second as u64, 8));
+                                        let field_6: RuntimeResult<vm::Value> =
+                                            Ok(value.calendar.time_zone.value());
+                                        let field_7: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::bool(value.calendar.repeats));
+                                        context
+                                            .allocate_aggregate(vec![
+                                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                                                field_5?, field_6?, field_7?,
+                                            ])
+                                            .map_err(Box::<RuntimeError>::from)
                                     };
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2453791684u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    context.allocate_aggregate(vec![field_0])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    context
+                                        .allocate_aggregate(vec![field_0?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                 let tag_value = vm::Value::uint(2128434246u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = vm::Value::uint(value.interval_ns, 64);
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.interval_ns, 64));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                         };
-                        let field_11 = match value.metadata.request.action_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_12 = match value.metadata.request.data_json {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![
-                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                            field_8, field_9, field_10, field_11, field_12,
-                        ])
+                        let field_11: RuntimeResult<vm::Value> =
+                            match value.metadata.request.action_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.metadata.request.data_json {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         NotificationEventVm::NotificationInteractedEvent(value) => {
             let tag_value = vm::Value::uint(3098836618u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.id.value();
-                    let field_3 = {
-                        let field_0 = value.metadata.request.title.value();
-                        let field_1 = match value.metadata.request.subtitle {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.id.value());
+                    let field_3: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.title.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.metadata.request.subtitle {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.body.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.tag.value());
+                        let field_4: RuntimeResult<vm::Value> =
+                            match value.metadata.request.channel_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.metadata.request.priority as u8 as u64,
+                            8,
+                        ));
+                        let field_6: RuntimeResult<vm::Value> =
+                            match value.metadata.request.badge_count {
+                                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_7: RuntimeResult<vm::Value> = match value.metadata.request.sound {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = value.metadata.request.body.value();
-                        let field_3 = value.metadata.request.tag.value();
-                        let field_4 = match value.metadata.request.channel_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_5 =
-                            vm::Value::uint(value.metadata.request.priority as u8 as u64, 8);
-                        let field_6 = match value.metadata.request.badge_count {
-                            Some(value) => vm::Value::uint(value as u64, 32),
-                            None => vm::Value::VOID,
-                        };
-                        let field_7 = match value.metadata.request.sound {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_8 = match value.metadata.request.category_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_9 = match value.metadata.request.thread_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_10 = match value.metadata.request.trigger {
+                        let field_8: RuntimeResult<vm::Value> =
+                            match value.metadata.request.category_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_9: RuntimeResult<vm::Value> =
+                            match value.metadata.request.thread_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_10: RuntimeResult<vm::Value> = match value
+                            .metadata
+                            .request
+                            .trigger
+                        {
                             NotificationTriggerVm::NotificationCalendarDateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2325801108u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = {
-                                        let field_0 =
-                                            vm::Value::uint(value.calendar.year as u64, 16);
-                                        let field_1 =
-                                            vm::Value::uint(value.calendar.month as u64, 8);
-                                        let field_2 = vm::Value::uint(value.calendar.day as u64, 8);
-                                        let field_3 =
-                                            vm::Value::uint(value.calendar.hour as u64, 8);
-                                        let field_4 =
-                                            vm::Value::uint(value.calendar.minute as u64, 8);
-                                        let field_5 =
-                                            vm::Value::uint(value.calendar.second as u64, 8);
-                                        let field_6 = value.calendar.time_zone.value();
-                                        let field_7 = vm::Value::bool(value.calendar.repeats);
-                                        context.allocate_aggregate(vec![
-                                            field_0, field_1, field_2, field_3, field_4, field_5,
-                                            field_6, field_7,
-                                        ])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.year as u64, 16));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.month as u64, 8));
+                                        let field_2: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.day as u64, 8));
+                                        let field_3: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.hour as u64, 8));
+                                        let field_4: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.minute as u64, 8));
+                                        let field_5: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.second as u64, 8));
+                                        let field_6: RuntimeResult<vm::Value> =
+                                            Ok(value.calendar.time_zone.value());
+                                        let field_7: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::bool(value.calendar.repeats));
+                                        context
+                                            .allocate_aggregate(vec![
+                                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                                                field_5?, field_6?, field_7?,
+                                            ])
+                                            .map_err(Box::<RuntimeError>::from)
                                     };
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2453791684u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    context.allocate_aggregate(vec![field_0])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    context
+                                        .allocate_aggregate(vec![field_0?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                 let tag_value = vm::Value::uint(2128434246u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = vm::Value::uint(value.interval_ns, 64);
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.interval_ns, 64));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                         };
-                        let field_11 = match value.metadata.request.action_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_12 = match value.metadata.request.data_json {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![
-                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                            field_8, field_9, field_10, field_11, field_12,
-                        ])
+                        let field_11: RuntimeResult<vm::Value> =
+                            match value.metadata.request.action_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.metadata.request.data_json {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = match value.payload.action_id {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = match value.payload.action_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    let field_1 = match value.payload.action_response_text {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                    let field_1: RuntimeResult<vm::Value> = match value.payload.action_response_text
+                    {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
     })
 }
@@ -4272,326 +4780,464 @@ fn encode_destack_os_notification_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NotificationEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
+    result.and_then(|value| match value {
         NotificationEventVm::NotificationDeliveredEvent(value) => {
             let tag_value = vm::Value::uint(2024395200u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.id.value();
-                    let field_3 = {
-                        let field_0 = value.metadata.request.title.value();
-                        let field_1 = match value.metadata.request.subtitle {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.id.value());
+                    let field_3: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.title.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.metadata.request.subtitle {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.body.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.tag.value());
+                        let field_4: RuntimeResult<vm::Value> =
+                            match value.metadata.request.channel_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.metadata.request.priority as u8 as u64,
+                            8,
+                        ));
+                        let field_6: RuntimeResult<vm::Value> =
+                            match value.metadata.request.badge_count {
+                                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_7: RuntimeResult<vm::Value> = match value.metadata.request.sound {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = value.metadata.request.body.value();
-                        let field_3 = value.metadata.request.tag.value();
-                        let field_4 = match value.metadata.request.channel_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_5 =
-                            vm::Value::uint(value.metadata.request.priority as u8 as u64, 8);
-                        let field_6 = match value.metadata.request.badge_count {
-                            Some(value) => vm::Value::uint(value as u64, 32),
-                            None => vm::Value::VOID,
-                        };
-                        let field_7 = match value.metadata.request.sound {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_8 = match value.metadata.request.category_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_9 = match value.metadata.request.thread_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_10 = match value.metadata.request.trigger {
+                        let field_8: RuntimeResult<vm::Value> =
+                            match value.metadata.request.category_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_9: RuntimeResult<vm::Value> =
+                            match value.metadata.request.thread_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_10: RuntimeResult<vm::Value> = match value
+                            .metadata
+                            .request
+                            .trigger
+                        {
                             NotificationTriggerVm::NotificationCalendarDateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2325801108u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = {
-                                        let field_0 =
-                                            vm::Value::uint(value.calendar.year as u64, 16);
-                                        let field_1 =
-                                            vm::Value::uint(value.calendar.month as u64, 8);
-                                        let field_2 = vm::Value::uint(value.calendar.day as u64, 8);
-                                        let field_3 =
-                                            vm::Value::uint(value.calendar.hour as u64, 8);
-                                        let field_4 =
-                                            vm::Value::uint(value.calendar.minute as u64, 8);
-                                        let field_5 =
-                                            vm::Value::uint(value.calendar.second as u64, 8);
-                                        let field_6 = value.calendar.time_zone.value();
-                                        let field_7 = vm::Value::bool(value.calendar.repeats);
-                                        context.allocate_aggregate(vec![
-                                            field_0, field_1, field_2, field_3, field_4, field_5,
-                                            field_6, field_7,
-                                        ])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.year as u64, 16));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.month as u64, 8));
+                                        let field_2: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.day as u64, 8));
+                                        let field_3: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.hour as u64, 8));
+                                        let field_4: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.minute as u64, 8));
+                                        let field_5: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.second as u64, 8));
+                                        let field_6: RuntimeResult<vm::Value> =
+                                            Ok(value.calendar.time_zone.value());
+                                        let field_7: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::bool(value.calendar.repeats));
+                                        context
+                                            .allocate_aggregate(vec![
+                                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                                                field_5?, field_6?, field_7?,
+                                            ])
+                                            .map_err(Box::<RuntimeError>::from)
                                     };
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2453791684u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    context.allocate_aggregate(vec![field_0])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    context
+                                        .allocate_aggregate(vec![field_0?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                 let tag_value = vm::Value::uint(2128434246u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = vm::Value::uint(value.interval_ns, 64);
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.interval_ns, 64));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                         };
-                        let field_11 = match value.metadata.request.action_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_12 = match value.metadata.request.data_json {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![
-                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                            field_8, field_9, field_10, field_11, field_12,
-                        ])
+                        let field_11: RuntimeResult<vm::Value> =
+                            match value.metadata.request.action_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.metadata.request.data_json {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         NotificationEventVm::NotificationDismissedEvent(value) => {
             let tag_value = vm::Value::uint(667362994u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.id.value();
-                    let field_3 = {
-                        let field_0 = value.metadata.request.title.value();
-                        let field_1 = match value.metadata.request.subtitle {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.id.value());
+                    let field_3: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.title.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.metadata.request.subtitle {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.body.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.tag.value());
+                        let field_4: RuntimeResult<vm::Value> =
+                            match value.metadata.request.channel_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.metadata.request.priority as u8 as u64,
+                            8,
+                        ));
+                        let field_6: RuntimeResult<vm::Value> =
+                            match value.metadata.request.badge_count {
+                                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_7: RuntimeResult<vm::Value> = match value.metadata.request.sound {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = value.metadata.request.body.value();
-                        let field_3 = value.metadata.request.tag.value();
-                        let field_4 = match value.metadata.request.channel_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_5 =
-                            vm::Value::uint(value.metadata.request.priority as u8 as u64, 8);
-                        let field_6 = match value.metadata.request.badge_count {
-                            Some(value) => vm::Value::uint(value as u64, 32),
-                            None => vm::Value::VOID,
-                        };
-                        let field_7 = match value.metadata.request.sound {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_8 = match value.metadata.request.category_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_9 = match value.metadata.request.thread_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_10 = match value.metadata.request.trigger {
+                        let field_8: RuntimeResult<vm::Value> =
+                            match value.metadata.request.category_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_9: RuntimeResult<vm::Value> =
+                            match value.metadata.request.thread_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_10: RuntimeResult<vm::Value> = match value
+                            .metadata
+                            .request
+                            .trigger
+                        {
                             NotificationTriggerVm::NotificationCalendarDateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2325801108u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = {
-                                        let field_0 =
-                                            vm::Value::uint(value.calendar.year as u64, 16);
-                                        let field_1 =
-                                            vm::Value::uint(value.calendar.month as u64, 8);
-                                        let field_2 = vm::Value::uint(value.calendar.day as u64, 8);
-                                        let field_3 =
-                                            vm::Value::uint(value.calendar.hour as u64, 8);
-                                        let field_4 =
-                                            vm::Value::uint(value.calendar.minute as u64, 8);
-                                        let field_5 =
-                                            vm::Value::uint(value.calendar.second as u64, 8);
-                                        let field_6 = value.calendar.time_zone.value();
-                                        let field_7 = vm::Value::bool(value.calendar.repeats);
-                                        context.allocate_aggregate(vec![
-                                            field_0, field_1, field_2, field_3, field_4, field_5,
-                                            field_6, field_7,
-                                        ])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.year as u64, 16));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.month as u64, 8));
+                                        let field_2: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.day as u64, 8));
+                                        let field_3: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.hour as u64, 8));
+                                        let field_4: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.minute as u64, 8));
+                                        let field_5: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.second as u64, 8));
+                                        let field_6: RuntimeResult<vm::Value> =
+                                            Ok(value.calendar.time_zone.value());
+                                        let field_7: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::bool(value.calendar.repeats));
+                                        context
+                                            .allocate_aggregate(vec![
+                                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                                                field_5?, field_6?, field_7?,
+                                            ])
+                                            .map_err(Box::<RuntimeError>::from)
                                     };
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2453791684u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    context.allocate_aggregate(vec![field_0])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    context
+                                        .allocate_aggregate(vec![field_0?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                 let tag_value = vm::Value::uint(2128434246u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = vm::Value::uint(value.interval_ns, 64);
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.interval_ns, 64));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                         };
-                        let field_11 = match value.metadata.request.action_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_12 = match value.metadata.request.data_json {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![
-                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                            field_8, field_9, field_10, field_11, field_12,
-                        ])
+                        let field_11: RuntimeResult<vm::Value> =
+                            match value.metadata.request.action_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.metadata.request.data_json {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         NotificationEventVm::NotificationInteractedEvent(value) => {
             let tag_value = vm::Value::uint(3098836618u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = value.metadata.id.value();
-                    let field_3 = {
-                        let field_0 = value.metadata.request.title.value();
-                        let field_1 = match value.metadata.request.subtitle {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.id.value());
+                    let field_3: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.title.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.metadata.request.subtitle {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.body.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.request.tag.value());
+                        let field_4: RuntimeResult<vm::Value> =
+                            match value.metadata.request.channel_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.metadata.request.priority as u8 as u64,
+                            8,
+                        ));
+                        let field_6: RuntimeResult<vm::Value> =
+                            match value.metadata.request.badge_count {
+                                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_7: RuntimeResult<vm::Value> = match value.metadata.request.sound {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = value.metadata.request.body.value();
-                        let field_3 = value.metadata.request.tag.value();
-                        let field_4 = match value.metadata.request.channel_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_5 =
-                            vm::Value::uint(value.metadata.request.priority as u8 as u64, 8);
-                        let field_6 = match value.metadata.request.badge_count {
-                            Some(value) => vm::Value::uint(value as u64, 32),
-                            None => vm::Value::VOID,
-                        };
-                        let field_7 = match value.metadata.request.sound {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_8 = match value.metadata.request.category_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_9 = match value.metadata.request.thread_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_10 = match value.metadata.request.trigger {
+                        let field_8: RuntimeResult<vm::Value> =
+                            match value.metadata.request.category_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_9: RuntimeResult<vm::Value> =
+                            match value.metadata.request.thread_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_10: RuntimeResult<vm::Value> = match value
+                            .metadata
+                            .request
+                            .trigger
+                        {
                             NotificationTriggerVm::NotificationCalendarDateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2325801108u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = {
-                                        let field_0 =
-                                            vm::Value::uint(value.calendar.year as u64, 16);
-                                        let field_1 =
-                                            vm::Value::uint(value.calendar.month as u64, 8);
-                                        let field_2 = vm::Value::uint(value.calendar.day as u64, 8);
-                                        let field_3 =
-                                            vm::Value::uint(value.calendar.hour as u64, 8);
-                                        let field_4 =
-                                            vm::Value::uint(value.calendar.minute as u64, 8);
-                                        let field_5 =
-                                            vm::Value::uint(value.calendar.second as u64, 8);
-                                        let field_6 = value.calendar.time_zone.value();
-                                        let field_7 = vm::Value::bool(value.calendar.repeats);
-                                        context.allocate_aggregate(vec![
-                                            field_0, field_1, field_2, field_3, field_4, field_5,
-                                            field_6, field_7,
-                                        ])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.year as u64, 16));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.month as u64, 8));
+                                        let field_2: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.day as u64, 8));
+                                        let field_3: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.hour as u64, 8));
+                                        let field_4: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.minute as u64, 8));
+                                        let field_5: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::uint(value.calendar.second as u64, 8));
+                                        let field_6: RuntimeResult<vm::Value> =
+                                            Ok(value.calendar.time_zone.value());
+                                        let field_7: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::bool(value.calendar.repeats));
+                                        context
+                                            .allocate_aggregate(vec![
+                                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                                                field_5?, field_6?, field_7?,
+                                            ])
+                                            .map_err(Box::<RuntimeError>::from)
                                     };
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                 let tag_value = vm::Value::uint(2453791684u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    context.allocate_aggregate(vec![field_0])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    context
+                                        .allocate_aggregate(vec![field_0?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                             NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                 let tag_value = vm::Value::uint(2128434246u64, 32);
                                 let payload_value = {
-                                    let field_0 = value.kind.value();
-                                    let field_1 = vm::Value::uint(value.interval_ns, 64);
-                                    context.allocate_aggregate(vec![field_0, field_1])
-                                };
-                                context.allocate_aggregate(vec![tag_value, payload_value])
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.interval_ns, 64));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
                             }
                         };
-                        let field_11 = match value.metadata.request.action_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_12 = match value.metadata.request.data_json {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![
-                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                            field_8, field_9, field_10, field_11, field_12,
-                        ])
+                        let field_11: RuntimeResult<vm::Value> =
+                            match value.metadata.request.action_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.metadata.request.data_json {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = match value.payload.action_id {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = match value.payload.action_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    let field_1 = match value.payload.action_response_text {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                    let field_1: RuntimeResult<vm::Value> = match value.payload.action_response_text
+                    {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
     })
 }
@@ -4631,7 +5277,7 @@ fn encode_destack_os_notification_pending_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<NotificationScheduledDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.os.notification.permissionState.
@@ -4640,7 +5286,7 @@ fn encode_destack_os_notification_permission_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NotificationPermissionState>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
 }
 
 /// Decode arguments for destack.os.notification.post.
@@ -4766,7 +5412,7 @@ fn encode_destack_os_notification_post_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.value())
+    result.and_then(|value| Ok(value.value()))
 }
 
 /// Encode the result for destack.os.notification.requestPermission.
@@ -4775,7 +5421,7 @@ fn encode_destack_os_notification_request_permission_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NotificationPermissionState>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
 }
 
 /// Decode arguments for destack.os.notification.schedule.
@@ -4901,7 +5547,7 @@ fn encode_destack_os_notification_schedule_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.value())
+    result.and_then(|value| Ok(value.value()))
 }
 
 /// Encode the result for destack.os.permission.openSettings.
@@ -4953,7 +5599,7 @@ fn encode_destack_os_permission_request_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PermissionState>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
 }
 
 /// Decode arguments for destack.os.permission.requestMany.
@@ -4974,7 +5620,7 @@ fn encode_destack_os_permission_request_many_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<PermissionEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.os.permission.state.
@@ -5017,7 +5663,7 @@ fn encode_destack_os_permission_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PermissionState>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
 }
 
 /// Decode arguments for destack.os.permission.stateMany.
@@ -5038,7 +5684,7 @@ fn encode_destack_os_permission_state_many_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<PermissionEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.os.power.state.
@@ -5047,7 +5693,7 @@ fn encode_destack_os_power_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PowerState>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
 }
 
 /// Encode the result for destack.os.power.suspend.
@@ -15051,14 +15697,11 @@ fn destack_os_background_event_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         BackgroundeventReplayRecord::BackgroundTaskExpiredEvent(value) => {
-                            let vm_result_background_task_expired_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_background_task_expired_event_kind = vm::StringHandle::new(vm_result_background_task_expired_event_kind_value);
+                            let vm_result_background_task_expired_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_background_task_expired_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_background_task_expired_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_background_task_expired_event_metadata_identifier_value = context.intern_string(value.metadata.identifier.as_str());
-                            let vm_result_background_task_expired_event_metadata_identifier = vm::StringHandle::new(vm_result_background_task_expired_event_metadata_identifier_value);
-                            let vm_result_background_task_expired_event_metadata_execution_id_value = context.intern_string(value.metadata.execution_id.as_str());
-                            let vm_result_background_task_expired_event_metadata_execution_id = vm::StringHandle::new(vm_result_background_task_expired_event_metadata_execution_id_value);
+                            let vm_result_background_task_expired_event_metadata_identifier = context.string_handle(value.metadata.identifier.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_background_task_expired_event_metadata_execution_id = context.string_handle(value.metadata.execution_id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_background_task_expired_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let vm_result_background_task_expired_event_metadata = BackgroundEventMetadataVm {
                                 timestamp_ns: vm_result_background_task_expired_event_metadata_timestamp_ns,
@@ -15074,14 +15717,11 @@ fn destack_os_background_event_read_vm_replay(
                             BackgroundEventVm::BackgroundTaskExpiredEvent(vm_result_background_task_expired_event)
                         }
                         BackgroundeventReplayRecord::BackgroundTaskReadyEvent(value) => {
-                            let vm_result_background_task_ready_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_background_task_ready_event_kind = vm::StringHandle::new(vm_result_background_task_ready_event_kind_value);
+                            let vm_result_background_task_ready_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_background_task_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_background_task_ready_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_background_task_ready_event_metadata_identifier_value = context.intern_string(value.metadata.identifier.as_str());
-                            let vm_result_background_task_ready_event_metadata_identifier = vm::StringHandle::new(vm_result_background_task_ready_event_metadata_identifier_value);
-                            let vm_result_background_task_ready_event_metadata_execution_id_value = context.intern_string(value.metadata.execution_id.as_str());
-                            let vm_result_background_task_ready_event_metadata_execution_id = vm::StringHandle::new(vm_result_background_task_ready_event_metadata_execution_id_value);
+                            let vm_result_background_task_ready_event_metadata_identifier = context.string_handle(value.metadata.identifier.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_background_task_ready_event_metadata_execution_id = context.string_handle(value.metadata.execution_id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_background_task_ready_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let vm_result_background_task_ready_event_metadata = BackgroundEventMetadataVm {
                                 timestamp_ns: vm_result_background_task_ready_event_metadata_timestamp_ns,
@@ -15213,14 +15853,11 @@ fn destack_os_background_event_try_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         BackgroundeventReplayRecord::BackgroundTaskExpiredEvent(value) => {
-                            let vm_result_background_task_expired_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_background_task_expired_event_kind = vm::StringHandle::new(vm_result_background_task_expired_event_kind_value);
+                            let vm_result_background_task_expired_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_background_task_expired_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_background_task_expired_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_background_task_expired_event_metadata_identifier_value = context.intern_string(value.metadata.identifier.as_str());
-                            let vm_result_background_task_expired_event_metadata_identifier = vm::StringHandle::new(vm_result_background_task_expired_event_metadata_identifier_value);
-                            let vm_result_background_task_expired_event_metadata_execution_id_value = context.intern_string(value.metadata.execution_id.as_str());
-                            let vm_result_background_task_expired_event_metadata_execution_id = vm::StringHandle::new(vm_result_background_task_expired_event_metadata_execution_id_value);
+                            let vm_result_background_task_expired_event_metadata_identifier = context.string_handle(value.metadata.identifier.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_background_task_expired_event_metadata_execution_id = context.string_handle(value.metadata.execution_id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_background_task_expired_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let vm_result_background_task_expired_event_metadata = BackgroundEventMetadataVm {
                                 timestamp_ns: vm_result_background_task_expired_event_metadata_timestamp_ns,
@@ -15236,14 +15873,11 @@ fn destack_os_background_event_try_read_vm_replay(
                             BackgroundEventVm::BackgroundTaskExpiredEvent(vm_result_background_task_expired_event)
                         }
                         BackgroundeventReplayRecord::BackgroundTaskReadyEvent(value) => {
-                            let vm_result_background_task_ready_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_background_task_ready_event_kind = vm::StringHandle::new(vm_result_background_task_ready_event_kind_value);
+                            let vm_result_background_task_ready_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_background_task_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_background_task_ready_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_background_task_ready_event_metadata_identifier_value = context.intern_string(value.metadata.identifier.as_str());
-                            let vm_result_background_task_ready_event_metadata_identifier = vm::StringHandle::new(vm_result_background_task_ready_event_metadata_identifier_value);
-                            let vm_result_background_task_ready_event_metadata_execution_id_value = context.intern_string(value.metadata.execution_id.as_str());
-                            let vm_result_background_task_ready_event_metadata_execution_id = vm::StringHandle::new(vm_result_background_task_ready_event_metadata_execution_id_value);
+                            let vm_result_background_task_ready_event_metadata_identifier = context.string_handle(value.metadata.identifier.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_background_task_ready_event_metadata_execution_id = context.string_handle(value.metadata.execution_id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_background_task_ready_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let vm_result_background_task_ready_event_metadata = BackgroundEventMetadataVm {
                                 timestamp_ns: vm_result_background_task_ready_event_metadata_timestamp_ns,
@@ -15435,10 +16069,9 @@ fn destack_os_background_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_identifier_value =
-                            context.intern_string(vm_result_item.identifier.as_str());
-                        let vm_result_item_value_identifier =
-                            vm::StringHandle::new(vm_result_item_value_identifier_value);
+                        let vm_result_item_value_identifier = context
+                            .string_handle(vm_result_item.identifier.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_trigger = vm_result_item.trigger;
                         let vm_result_item_value_minimum_interval_ns =
                             vm_result_item.minimum_interval_ns;
@@ -15627,7 +16260,7 @@ fn destack_os_clipboard_read_bytes_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -15685,8 +16318,9 @@ fn destack_os_clipboard_read_text_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_value = context.intern_string(value.as_str());
-                    let vm_result = vm::StringHandle::new(vm_result_value);
+                    let vm_result = context
+                        .string_handle(value.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -15821,16 +16455,18 @@ fn destack_os_host_identity_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_hostname_value = context.intern_string(value.hostname.as_str());
-                    let vm_result_hostname = vm::StringHandle::new(vm_result_hostname_value);
-                    let vm_result_kernel_value = context.intern_string(value.kernel.as_str());
-                    let vm_result_kernel = vm::StringHandle::new(vm_result_kernel_value);
-                    let vm_result_release_value = context.intern_string(value.release.as_str());
-                    let vm_result_release = vm::StringHandle::new(vm_result_release_value);
-                    let vm_result_architecture_value =
-                        context.intern_string(value.architecture.as_str());
-                    let vm_result_architecture =
-                        vm::StringHandle::new(vm_result_architecture_value);
+                    let vm_result_hostname = context
+                        .string_handle(value.hostname.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_kernel = context
+                        .string_handle(value.kernel.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_release = context
+                        .string_handle(value.release.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_architecture = context
+                        .string_handle(value.architecture.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
                     let vm_result = HostIdentityVm {
                         hostname: vm_result_hostname,
                         kernel: vm_result_kernel,
@@ -16617,22 +17253,18 @@ fn destack_os_intent_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         IntenteventReplayRecord::IntentCustomActionEvent(value) => {
-                            let vm_result_intent_custom_action_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_intent_custom_action_event_kind = vm::StringHandle::new(vm_result_intent_custom_action_event_kind_value);
+                            let vm_result_intent_custom_action_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_custom_action_event_metadata_source_value = context.intern_string(value.metadata.source.as_str());
-                            let vm_result_intent_custom_action_event_metadata_source = vm::StringHandle::new(vm_result_intent_custom_action_event_metadata_source_value);
+                            let vm_result_intent_custom_action_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_custom_action_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_custom_action_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_custom_action_event_metadata_sequence,
                                 source: vm_result_intent_custom_action_event_metadata_source,
                             };
-                            let vm_result_intent_custom_action_event_payload_action_value = context.intern_string(value.payload.action.as_str());
-                            let vm_result_intent_custom_action_event_payload_action = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_action_value);
+                            let vm_result_intent_custom_action_event_payload_action = context.string_handle(value.payload.action.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_custom_action_event_payload_url = if let Some(value) = value.payload.url {
-                                let vm_result_intent_custom_action_event_payload_url_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_custom_action_event_payload_url_inner = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_url_inner_value);
+                                let vm_result_intent_custom_action_event_payload_url_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_custom_action_event_payload_url_inner)
                             } else {
                                 None
@@ -16641,9 +17273,8 @@ fn destack_os_intent_read_vm_replay(
                             for vm_result_intent_custom_action_event_payload_paths_item in value.payload.paths.iter().cloned() {
                                 let vm_result_intent_custom_action_event_payload_paths_item_value = match vm_result_intent_custom_action_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind_value);
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
+                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_bytes_inner);
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes = fs::OsPathBytesVm {
                                             kind: vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind,
@@ -16652,8 +17283,7 @@ fn destack_os_intent_read_vm_replay(
                                         fs::OsPathVm::OsPathBytes(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes)
                                     }
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind_value);
+                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let mut vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                             let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
@@ -16672,15 +17302,13 @@ fn destack_os_intent_read_vm_replay(
                             }
                             let vm_result_intent_custom_action_event_payload_paths = VmArray::from_values(context, &vm_result_intent_custom_action_event_payload_paths_values)?;
                             let vm_result_intent_custom_action_event_payload_text = if let Some(value) = value.payload.text {
-                                let vm_result_intent_custom_action_event_payload_text_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_custom_action_event_payload_text_inner = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_text_inner_value);
+                                let vm_result_intent_custom_action_event_payload_text_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_custom_action_event_payload_text_inner)
                             } else {
                                 None
                             };
                             let vm_result_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let vm_result_intent_custom_action_event_payload_mime_type_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_custom_action_event_payload_mime_type_inner = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_mime_type_inner_value);
+                                let vm_result_intent_custom_action_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_custom_action_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -16700,12 +17328,10 @@ fn destack_os_intent_read_vm_replay(
                             IntentEventVm::IntentCustomActionEvent(vm_result_intent_custom_action_event)
                         }
                         IntenteventReplayRecord::IntentOpenFileEvent(value) => {
-                            let vm_result_intent_open_file_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_intent_open_file_event_kind = vm::StringHandle::new(vm_result_intent_open_file_event_kind_value);
+                            let vm_result_intent_open_file_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_open_file_event_metadata_source_value = context.intern_string(value.metadata.source.as_str());
-                            let vm_result_intent_open_file_event_metadata_source = vm::StringHandle::new(vm_result_intent_open_file_event_metadata_source_value);
+                            let vm_result_intent_open_file_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_file_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_open_file_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_open_file_event_metadata_sequence,
@@ -16713,9 +17339,8 @@ fn destack_os_intent_read_vm_replay(
                             };
                             let vm_result_intent_open_file_event_payload_path = match value.payload.path {
                                 fs::OspathReplayRecord::OsPathBytes(value) => {
-                                    let vm_result_intent_open_file_event_payload_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
-                                    let vm_result_intent_open_file_event_payload_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_intent_open_file_event_payload_path_os_path_bytes_kind_value);
-                                    let vm_result_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
+                                    let vm_result_intent_open_file_event_payload_path_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
                                     let vm_result_intent_open_file_event_payload_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_intent_open_file_event_payload_path_os_path_bytes_bytes_inner);
                                     let vm_result_intent_open_file_event_payload_path_os_path_bytes = fs::OsPathBytesVm {
                                         kind: vm_result_intent_open_file_event_payload_path_os_path_bytes_kind,
@@ -16724,8 +17349,7 @@ fn destack_os_intent_read_vm_replay(
                                     fs::OsPathVm::OsPathBytes(vm_result_intent_open_file_event_payload_path_os_path_bytes)
                                 }
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                    let vm_result_intent_open_file_event_payload_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
-                                    let vm_result_intent_open_file_event_payload_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_intent_open_file_event_payload_path_os_path_utf16_kind_value);
+                                    let vm_result_intent_open_file_event_payload_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     let mut vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                     for vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                         let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value = vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
@@ -16741,8 +17365,7 @@ fn destack_os_intent_read_vm_replay(
                                 }
                             };
                             let vm_result_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let vm_result_intent_open_file_event_payload_mime_type_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_open_file_event_payload_mime_type_inner = vm::StringHandle::new(vm_result_intent_open_file_event_payload_mime_type_inner_value);
+                                let vm_result_intent_open_file_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_open_file_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -16759,19 +17382,16 @@ fn destack_os_intent_read_vm_replay(
                             IntentEventVm::IntentOpenFileEvent(vm_result_intent_open_file_event)
                         }
                         IntenteventReplayRecord::IntentOpenUrlEvent(value) => {
-                            let vm_result_intent_open_url_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_intent_open_url_event_kind = vm::StringHandle::new(vm_result_intent_open_url_event_kind_value);
+                            let vm_result_intent_open_url_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_open_url_event_metadata_source_value = context.intern_string(value.metadata.source.as_str());
-                            let vm_result_intent_open_url_event_metadata_source = vm::StringHandle::new(vm_result_intent_open_url_event_metadata_source_value);
+                            let vm_result_intent_open_url_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_url_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_open_url_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_open_url_event_metadata_sequence,
                                 source: vm_result_intent_open_url_event_metadata_source,
                             };
-                            let vm_result_intent_open_url_event_payload_url_value = context.intern_string(value.payload.url.as_str());
-                            let vm_result_intent_open_url_event_payload_url = vm::StringHandle::new(vm_result_intent_open_url_event_payload_url_value);
+                            let vm_result_intent_open_url_event_payload_url = context.string_handle(value.payload.url.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_url_event_payload = IntentOpenUrlPayloadVm {
                                 url: vm_result_intent_open_url_event_payload_url,
                             };
@@ -16783,12 +17403,10 @@ fn destack_os_intent_read_vm_replay(
                             IntentEventVm::IntentOpenUrlEvent(vm_result_intent_open_url_event)
                         }
                         IntenteventReplayRecord::IntentShareFilesEvent(value) => {
-                            let vm_result_intent_share_files_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_intent_share_files_event_kind = vm::StringHandle::new(vm_result_intent_share_files_event_kind_value);
+                            let vm_result_intent_share_files_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_share_files_event_metadata_source_value = context.intern_string(value.metadata.source.as_str());
-                            let vm_result_intent_share_files_event_metadata_source = vm::StringHandle::new(vm_result_intent_share_files_event_metadata_source_value);
+                            let vm_result_intent_share_files_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_files_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_share_files_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_share_files_event_metadata_sequence,
@@ -16798,9 +17416,8 @@ fn destack_os_intent_read_vm_replay(
                             for vm_result_intent_share_files_event_payload_paths_item in value.payload.paths.iter().cloned() {
                                 let vm_result_intent_share_files_event_payload_paths_item_value = match vm_result_intent_share_files_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind = vm::StringHandle::new(vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind_value);
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
+                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_bytes_inner);
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes = fs::OsPathBytesVm {
                                             kind: vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind,
@@ -16809,8 +17426,7 @@ fn destack_os_intent_read_vm_replay(
                                         fs::OsPathVm::OsPathBytes(vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes)
                                     }
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind = vm::StringHandle::new(vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind_value);
+                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let mut vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                             let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
@@ -16829,8 +17445,7 @@ fn destack_os_intent_read_vm_replay(
                             }
                             let vm_result_intent_share_files_event_payload_paths = VmArray::from_values(context, &vm_result_intent_share_files_event_payload_paths_values)?;
                             let vm_result_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let vm_result_intent_share_files_event_payload_mime_type_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_share_files_event_payload_mime_type_inner = vm::StringHandle::new(vm_result_intent_share_files_event_payload_mime_type_inner_value);
+                                let vm_result_intent_share_files_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_share_files_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -16847,22 +17462,18 @@ fn destack_os_intent_read_vm_replay(
                             IntentEventVm::IntentShareFilesEvent(vm_result_intent_share_files_event)
                         }
                         IntenteventReplayRecord::IntentShareTextEvent(value) => {
-                            let vm_result_intent_share_text_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_intent_share_text_event_kind = vm::StringHandle::new(vm_result_intent_share_text_event_kind_value);
+                            let vm_result_intent_share_text_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_share_text_event_metadata_source_value = context.intern_string(value.metadata.source.as_str());
-                            let vm_result_intent_share_text_event_metadata_source = vm::StringHandle::new(vm_result_intent_share_text_event_metadata_source_value);
+                            let vm_result_intent_share_text_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_text_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_share_text_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_share_text_event_metadata_sequence,
                                 source: vm_result_intent_share_text_event_metadata_source,
                             };
-                            let vm_result_intent_share_text_event_payload_text_value = context.intern_string(value.payload.text.as_str());
-                            let vm_result_intent_share_text_event_payload_text = vm::StringHandle::new(vm_result_intent_share_text_event_payload_text_value);
+                            let vm_result_intent_share_text_event_payload_text = context.string_handle(value.payload.text.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let vm_result_intent_share_text_event_payload_mime_type_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_share_text_event_payload_mime_type_inner = vm::StringHandle::new(vm_result_intent_share_text_event_payload_mime_type_inner_value);
+                                let vm_result_intent_share_text_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_share_text_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -17254,22 +17865,18 @@ fn destack_os_intent_try_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         IntenteventReplayRecord::IntentCustomActionEvent(value) => {
-                            let vm_result_intent_custom_action_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_intent_custom_action_event_kind = vm::StringHandle::new(vm_result_intent_custom_action_event_kind_value);
+                            let vm_result_intent_custom_action_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_custom_action_event_metadata_source_value = context.intern_string(value.metadata.source.as_str());
-                            let vm_result_intent_custom_action_event_metadata_source = vm::StringHandle::new(vm_result_intent_custom_action_event_metadata_source_value);
+                            let vm_result_intent_custom_action_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_custom_action_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_custom_action_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_custom_action_event_metadata_sequence,
                                 source: vm_result_intent_custom_action_event_metadata_source,
                             };
-                            let vm_result_intent_custom_action_event_payload_action_value = context.intern_string(value.payload.action.as_str());
-                            let vm_result_intent_custom_action_event_payload_action = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_action_value);
+                            let vm_result_intent_custom_action_event_payload_action = context.string_handle(value.payload.action.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_custom_action_event_payload_url = if let Some(value) = value.payload.url {
-                                let vm_result_intent_custom_action_event_payload_url_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_custom_action_event_payload_url_inner = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_url_inner_value);
+                                let vm_result_intent_custom_action_event_payload_url_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_custom_action_event_payload_url_inner)
                             } else {
                                 None
@@ -17278,9 +17885,8 @@ fn destack_os_intent_try_read_vm_replay(
                             for vm_result_intent_custom_action_event_payload_paths_item in value.payload.paths.iter().cloned() {
                                 let vm_result_intent_custom_action_event_payload_paths_item_value = match vm_result_intent_custom_action_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind_value);
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
+                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_bytes_inner);
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes = fs::OsPathBytesVm {
                                             kind: vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind,
@@ -17289,8 +17895,7 @@ fn destack_os_intent_try_read_vm_replay(
                                         fs::OsPathVm::OsPathBytes(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes)
                                     }
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
-                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind_value);
+                                        let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let mut vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                             let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
@@ -17309,15 +17914,13 @@ fn destack_os_intent_try_read_vm_replay(
                             }
                             let vm_result_intent_custom_action_event_payload_paths = VmArray::from_values(context, &vm_result_intent_custom_action_event_payload_paths_values)?;
                             let vm_result_intent_custom_action_event_payload_text = if let Some(value) = value.payload.text {
-                                let vm_result_intent_custom_action_event_payload_text_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_custom_action_event_payload_text_inner = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_text_inner_value);
+                                let vm_result_intent_custom_action_event_payload_text_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_custom_action_event_payload_text_inner)
                             } else {
                                 None
                             };
                             let vm_result_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let vm_result_intent_custom_action_event_payload_mime_type_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_custom_action_event_payload_mime_type_inner = vm::StringHandle::new(vm_result_intent_custom_action_event_payload_mime_type_inner_value);
+                                let vm_result_intent_custom_action_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_custom_action_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -17337,12 +17940,10 @@ fn destack_os_intent_try_read_vm_replay(
                             IntentEventVm::IntentCustomActionEvent(vm_result_intent_custom_action_event)
                         }
                         IntenteventReplayRecord::IntentOpenFileEvent(value) => {
-                            let vm_result_intent_open_file_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_intent_open_file_event_kind = vm::StringHandle::new(vm_result_intent_open_file_event_kind_value);
+                            let vm_result_intent_open_file_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_open_file_event_metadata_source_value = context.intern_string(value.metadata.source.as_str());
-                            let vm_result_intent_open_file_event_metadata_source = vm::StringHandle::new(vm_result_intent_open_file_event_metadata_source_value);
+                            let vm_result_intent_open_file_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_file_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_open_file_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_open_file_event_metadata_sequence,
@@ -17350,9 +17951,8 @@ fn destack_os_intent_try_read_vm_replay(
                             };
                             let vm_result_intent_open_file_event_payload_path = match value.payload.path {
                                 fs::OspathReplayRecord::OsPathBytes(value) => {
-                                    let vm_result_intent_open_file_event_payload_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
-                                    let vm_result_intent_open_file_event_payload_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_intent_open_file_event_payload_path_os_path_bytes_kind_value);
-                                    let vm_result_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
+                                    let vm_result_intent_open_file_event_payload_path_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
                                     let vm_result_intent_open_file_event_payload_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_intent_open_file_event_payload_path_os_path_bytes_bytes_inner);
                                     let vm_result_intent_open_file_event_payload_path_os_path_bytes = fs::OsPathBytesVm {
                                         kind: vm_result_intent_open_file_event_payload_path_os_path_bytes_kind,
@@ -17361,8 +17961,7 @@ fn destack_os_intent_try_read_vm_replay(
                                     fs::OsPathVm::OsPathBytes(vm_result_intent_open_file_event_payload_path_os_path_bytes)
                                 }
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                    let vm_result_intent_open_file_event_payload_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
-                                    let vm_result_intent_open_file_event_payload_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_intent_open_file_event_payload_path_os_path_utf16_kind_value);
+                                    let vm_result_intent_open_file_event_payload_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     let mut vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                     for vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                         let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value = vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
@@ -17378,8 +17977,7 @@ fn destack_os_intent_try_read_vm_replay(
                                 }
                             };
                             let vm_result_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let vm_result_intent_open_file_event_payload_mime_type_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_open_file_event_payload_mime_type_inner = vm::StringHandle::new(vm_result_intent_open_file_event_payload_mime_type_inner_value);
+                                let vm_result_intent_open_file_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_open_file_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -17396,19 +17994,16 @@ fn destack_os_intent_try_read_vm_replay(
                             IntentEventVm::IntentOpenFileEvent(vm_result_intent_open_file_event)
                         }
                         IntenteventReplayRecord::IntentOpenUrlEvent(value) => {
-                            let vm_result_intent_open_url_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_intent_open_url_event_kind = vm::StringHandle::new(vm_result_intent_open_url_event_kind_value);
+                            let vm_result_intent_open_url_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_open_url_event_metadata_source_value = context.intern_string(value.metadata.source.as_str());
-                            let vm_result_intent_open_url_event_metadata_source = vm::StringHandle::new(vm_result_intent_open_url_event_metadata_source_value);
+                            let vm_result_intent_open_url_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_url_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_open_url_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_open_url_event_metadata_sequence,
                                 source: vm_result_intent_open_url_event_metadata_source,
                             };
-                            let vm_result_intent_open_url_event_payload_url_value = context.intern_string(value.payload.url.as_str());
-                            let vm_result_intent_open_url_event_payload_url = vm::StringHandle::new(vm_result_intent_open_url_event_payload_url_value);
+                            let vm_result_intent_open_url_event_payload_url = context.string_handle(value.payload.url.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_url_event_payload = IntentOpenUrlPayloadVm {
                                 url: vm_result_intent_open_url_event_payload_url,
                             };
@@ -17420,12 +18015,10 @@ fn destack_os_intent_try_read_vm_replay(
                             IntentEventVm::IntentOpenUrlEvent(vm_result_intent_open_url_event)
                         }
                         IntenteventReplayRecord::IntentShareFilesEvent(value) => {
-                            let vm_result_intent_share_files_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_intent_share_files_event_kind = vm::StringHandle::new(vm_result_intent_share_files_event_kind_value);
+                            let vm_result_intent_share_files_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_share_files_event_metadata_source_value = context.intern_string(value.metadata.source.as_str());
-                            let vm_result_intent_share_files_event_metadata_source = vm::StringHandle::new(vm_result_intent_share_files_event_metadata_source_value);
+                            let vm_result_intent_share_files_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_files_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_share_files_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_share_files_event_metadata_sequence,
@@ -17435,9 +18028,8 @@ fn destack_os_intent_try_read_vm_replay(
                             for vm_result_intent_share_files_event_payload_paths_item in value.payload.paths.iter().cloned() {
                                 let vm_result_intent_share_files_event_payload_paths_item_value = match vm_result_intent_share_files_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind = vm::StringHandle::new(vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind_value);
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
+                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_bytes_inner);
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes = fs::OsPathBytesVm {
                                             kind: vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind,
@@ -17446,8 +18038,7 @@ fn destack_os_intent_try_read_vm_replay(
                                         fs::OsPathVm::OsPathBytes(vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes)
                                     }
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
-                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind = vm::StringHandle::new(vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind_value);
+                                        let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let mut vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                             let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
@@ -17466,8 +18057,7 @@ fn destack_os_intent_try_read_vm_replay(
                             }
                             let vm_result_intent_share_files_event_payload_paths = VmArray::from_values(context, &vm_result_intent_share_files_event_payload_paths_values)?;
                             let vm_result_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let vm_result_intent_share_files_event_payload_mime_type_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_share_files_event_payload_mime_type_inner = vm::StringHandle::new(vm_result_intent_share_files_event_payload_mime_type_inner_value);
+                                let vm_result_intent_share_files_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_share_files_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -17484,22 +18074,18 @@ fn destack_os_intent_try_read_vm_replay(
                             IntentEventVm::IntentShareFilesEvent(vm_result_intent_share_files_event)
                         }
                         IntenteventReplayRecord::IntentShareTextEvent(value) => {
-                            let vm_result_intent_share_text_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_intent_share_text_event_kind = vm::StringHandle::new(vm_result_intent_share_text_event_kind_value);
+                            let vm_result_intent_share_text_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_share_text_event_metadata_source_value = context.intern_string(value.metadata.source.as_str());
-                            let vm_result_intent_share_text_event_metadata_source = vm::StringHandle::new(vm_result_intent_share_text_event_metadata_source_value);
+                            let vm_result_intent_share_text_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_text_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_share_text_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_share_text_event_metadata_sequence,
                                 source: vm_result_intent_share_text_event_metadata_source,
                             };
-                            let vm_result_intent_share_text_event_payload_text_value = context.intern_string(value.payload.text.as_str());
-                            let vm_result_intent_share_text_event_payload_text = vm::StringHandle::new(vm_result_intent_share_text_event_payload_text_value);
+                            let vm_result_intent_share_text_event_payload_text = context.string_handle(value.payload.text.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let vm_result_intent_share_text_event_payload_mime_type_inner_value = context.intern_string(value.as_str());
-                                let vm_result_intent_share_text_event_payload_mime_type_inner = vm::StringHandle::new(vm_result_intent_share_text_event_payload_mime_type_inner_value);
+                                let vm_result_intent_share_text_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_intent_share_text_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -17824,8 +18410,7 @@ fn destack_os_lifecycle_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         LifecycleeventReplayRecord::LifecycleBackgroundEvent(value) => {
-                            let vm_result_lifecycle_background_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_background_event_kind = vm::StringHandle::new(vm_result_lifecycle_background_event_kind_value);
+                            let vm_result_lifecycle_background_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_background_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_background_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_background_event_metadata = LifecycleEventMetadata {
@@ -17839,8 +18424,7 @@ fn destack_os_lifecycle_read_vm_replay(
                             LifecycleEventVm::LifecycleBackgroundEvent(vm_result_lifecycle_background_event)
                         }
                         LifecycleeventReplayRecord::LifecycleForegroundEvent(value) => {
-                            let vm_result_lifecycle_foreground_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_foreground_event_kind = vm::StringHandle::new(vm_result_lifecycle_foreground_event_kind_value);
+                            let vm_result_lifecycle_foreground_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_foreground_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_foreground_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_foreground_event_metadata = LifecycleEventMetadata {
@@ -17854,8 +18438,7 @@ fn destack_os_lifecycle_read_vm_replay(
                             LifecycleEventVm::LifecycleForegroundEvent(vm_result_lifecycle_foreground_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLaunchEvent(value) => {
-                            let vm_result_lifecycle_launch_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_launch_event_kind = vm::StringHandle::new(vm_result_lifecycle_launch_event_kind_value);
+                            let vm_result_lifecycle_launch_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_launch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_launch_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_launch_event_metadata = LifecycleEventMetadata {
@@ -17869,8 +18452,7 @@ fn destack_os_lifecycle_read_vm_replay(
                             LifecycleEventVm::LifecycleLaunchEvent(vm_result_lifecycle_launch_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLowMemoryEvent(value) => {
-                            let vm_result_lifecycle_low_memory_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_low_memory_event_kind = vm::StringHandle::new(vm_result_lifecycle_low_memory_event_kind_value);
+                            let vm_result_lifecycle_low_memory_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_low_memory_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_low_memory_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_low_memory_event_metadata = LifecycleEventMetadata {
@@ -17889,8 +18471,7 @@ fn destack_os_lifecycle_read_vm_replay(
                             LifecycleEventVm::LifecycleLowMemoryEvent(vm_result_lifecycle_low_memory_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLowPowerModeChangedEvent(value) => {
-                            let vm_result_lifecycle_low_power_mode_changed_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_low_power_mode_changed_event_kind = vm::StringHandle::new(vm_result_lifecycle_low_power_mode_changed_event_kind_value);
+                            let vm_result_lifecycle_low_power_mode_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_low_power_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_low_power_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_low_power_mode_changed_event_metadata = LifecycleEventMetadata {
@@ -17909,8 +18490,7 @@ fn destack_os_lifecycle_read_vm_replay(
                             LifecycleEventVm::LifecycleLowPowerModeChangedEvent(vm_result_lifecycle_low_power_mode_changed_event)
                         }
                         LifecycleeventReplayRecord::LifecyclePauseEvent(value) => {
-                            let vm_result_lifecycle_pause_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_pause_event_kind = vm::StringHandle::new(vm_result_lifecycle_pause_event_kind_value);
+                            let vm_result_lifecycle_pause_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_pause_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_pause_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_pause_event_metadata = LifecycleEventMetadata {
@@ -17924,8 +18504,7 @@ fn destack_os_lifecycle_read_vm_replay(
                             LifecycleEventVm::LifecyclePauseEvent(vm_result_lifecycle_pause_event)
                         }
                         LifecycleeventReplayRecord::LifecycleResumeEvent(value) => {
-                            let vm_result_lifecycle_resume_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_resume_event_kind = vm::StringHandle::new(vm_result_lifecycle_resume_event_kind_value);
+                            let vm_result_lifecycle_resume_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_resume_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_resume_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_resume_event_metadata = LifecycleEventMetadata {
@@ -17939,8 +18518,7 @@ fn destack_os_lifecycle_read_vm_replay(
                             LifecycleEventVm::LifecycleResumeEvent(vm_result_lifecycle_resume_event)
                         }
                         LifecycleeventReplayRecord::LifecycleTerminateEvent(value) => {
-                            let vm_result_lifecycle_terminate_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_terminate_event_kind = vm::StringHandle::new(vm_result_lifecycle_terminate_event_kind_value);
+                            let vm_result_lifecycle_terminate_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_terminate_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_terminate_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_terminate_event_metadata = LifecycleEventMetadata {
@@ -18211,8 +18789,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         LifecycleeventReplayRecord::LifecycleBackgroundEvent(value) => {
-                            let vm_result_lifecycle_background_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_background_event_kind = vm::StringHandle::new(vm_result_lifecycle_background_event_kind_value);
+                            let vm_result_lifecycle_background_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_background_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_background_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_background_event_metadata = LifecycleEventMetadata {
@@ -18226,8 +18803,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
                             LifecycleEventVm::LifecycleBackgroundEvent(vm_result_lifecycle_background_event)
                         }
                         LifecycleeventReplayRecord::LifecycleForegroundEvent(value) => {
-                            let vm_result_lifecycle_foreground_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_foreground_event_kind = vm::StringHandle::new(vm_result_lifecycle_foreground_event_kind_value);
+                            let vm_result_lifecycle_foreground_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_foreground_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_foreground_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_foreground_event_metadata = LifecycleEventMetadata {
@@ -18241,8 +18817,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
                             LifecycleEventVm::LifecycleForegroundEvent(vm_result_lifecycle_foreground_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLaunchEvent(value) => {
-                            let vm_result_lifecycle_launch_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_launch_event_kind = vm::StringHandle::new(vm_result_lifecycle_launch_event_kind_value);
+                            let vm_result_lifecycle_launch_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_launch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_launch_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_launch_event_metadata = LifecycleEventMetadata {
@@ -18256,8 +18831,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
                             LifecycleEventVm::LifecycleLaunchEvent(vm_result_lifecycle_launch_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLowMemoryEvent(value) => {
-                            let vm_result_lifecycle_low_memory_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_low_memory_event_kind = vm::StringHandle::new(vm_result_lifecycle_low_memory_event_kind_value);
+                            let vm_result_lifecycle_low_memory_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_low_memory_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_low_memory_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_low_memory_event_metadata = LifecycleEventMetadata {
@@ -18276,8 +18850,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
                             LifecycleEventVm::LifecycleLowMemoryEvent(vm_result_lifecycle_low_memory_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLowPowerModeChangedEvent(value) => {
-                            let vm_result_lifecycle_low_power_mode_changed_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_low_power_mode_changed_event_kind = vm::StringHandle::new(vm_result_lifecycle_low_power_mode_changed_event_kind_value);
+                            let vm_result_lifecycle_low_power_mode_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_low_power_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_low_power_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_low_power_mode_changed_event_metadata = LifecycleEventMetadata {
@@ -18296,8 +18869,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
                             LifecycleEventVm::LifecycleLowPowerModeChangedEvent(vm_result_lifecycle_low_power_mode_changed_event)
                         }
                         LifecycleeventReplayRecord::LifecyclePauseEvent(value) => {
-                            let vm_result_lifecycle_pause_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_pause_event_kind = vm::StringHandle::new(vm_result_lifecycle_pause_event_kind_value);
+                            let vm_result_lifecycle_pause_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_pause_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_pause_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_pause_event_metadata = LifecycleEventMetadata {
@@ -18311,8 +18883,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
                             LifecycleEventVm::LifecyclePauseEvent(vm_result_lifecycle_pause_event)
                         }
                         LifecycleeventReplayRecord::LifecycleResumeEvent(value) => {
-                            let vm_result_lifecycle_resume_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_resume_event_kind = vm::StringHandle::new(vm_result_lifecycle_resume_event_kind_value);
+                            let vm_result_lifecycle_resume_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_resume_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_resume_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_resume_event_metadata = LifecycleEventMetadata {
@@ -18326,8 +18897,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
                             LifecycleEventVm::LifecycleResumeEvent(vm_result_lifecycle_resume_event)
                         }
                         LifecycleeventReplayRecord::LifecycleTerminateEvent(value) => {
-                            let vm_result_lifecycle_terminate_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_lifecycle_terminate_event_kind = vm::StringHandle::new(vm_result_lifecycle_terminate_event_kind_value);
+                            let vm_result_lifecycle_terminate_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_lifecycle_terminate_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_lifecycle_terminate_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_lifecycle_terminate_event_metadata = LifecycleEventMetadata {
@@ -18958,13 +19528,11 @@ fn destack_os_mount_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_source_value = context.intern_string(vm_result_item.source.as_str());
-                        let vm_result_item_value_source = vm::StringHandle::new(vm_result_item_value_source_value);
+                        let vm_result_item_value_source = context.string_handle(vm_result_item.source.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_target = match vm_result_item.target {
                             fs::OspathReplayRecord::OsPathBytes(value) => {
-                                let vm_result_item_value_target_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_target_os_path_bytes_kind = vm::StringHandle::new(vm_result_item_value_target_os_path_bytes_kind_value);
-                                let vm_result_item_value_target_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
+                                let vm_result_item_value_target_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_target_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
                                 let vm_result_item_value_target_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_item_value_target_os_path_bytes_bytes_inner);
                                 let vm_result_item_value_target_os_path_bytes = fs::OsPathBytesVm {
                                     kind: vm_result_item_value_target_os_path_bytes_kind,
@@ -18973,8 +19541,7 @@ fn destack_os_mount_list_vm_replay(
                                 fs::OsPathVm::OsPathBytes(vm_result_item_value_target_os_path_bytes)
                             }
                             fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                let vm_result_item_value_target_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_target_os_path_utf16_kind = vm::StringHandle::new(vm_result_item_value_target_os_path_utf16_kind_value);
+                                let vm_result_item_value_target_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let mut vm_result_item_value_target_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                 for vm_result_item_value_target_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                     let vm_result_item_value_target_os_path_utf16_utf16_inner_item_value = vm_result_item_value_target_os_path_utf16_utf16_inner_item;
@@ -18989,8 +19556,7 @@ fn destack_os_mount_list_vm_replay(
                                 fs::OsPathVm::OsPathUtf16(vm_result_item_value_target_os_path_utf16)
                             }
                         };
-                        let vm_result_item_value_file_system_value = context.intern_string(vm_result_item.file_system.as_str());
-                        let vm_result_item_value_file_system = vm::StringHandle::new(vm_result_item_value_file_system_value);
+                        let vm_result_item_value_file_system = context.string_handle(vm_result_item.file_system.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_flags = vm_result_item.flags;
                         let vm_result_item_value = MountEntryVm {
                             source: vm_result_item_value_source,
@@ -19625,27 +20191,22 @@ fn destack_os_notification_category_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_id_value = context.intern_string(vm_result_item.id.as_str());
-                        let vm_result_item_value_id = vm::StringHandle::new(vm_result_item_value_id_value);
+                        let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let mut vm_result_item_value_actions_values = Vec::with_capacity(vm_result_item.actions.len());
                         for vm_result_item_value_actions_item in vm_result_item.actions.iter().cloned() {
-                            let vm_result_item_value_actions_item_value_id_value = context.intern_string(vm_result_item_value_actions_item.id.as_str());
-                            let vm_result_item_value_actions_item_value_id = vm::StringHandle::new(vm_result_item_value_actions_item_value_id_value);
-                            let vm_result_item_value_actions_item_value_title_value = context.intern_string(vm_result_item_value_actions_item.title.as_str());
-                            let vm_result_item_value_actions_item_value_title = vm::StringHandle::new(vm_result_item_value_actions_item_value_title_value);
+                            let vm_result_item_value_actions_item_value_id = context.string_handle(vm_result_item_value_actions_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_item_value_actions_item_value_title = context.string_handle(vm_result_item_value_actions_item.title.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_item_value_actions_item_value_style = vm_result_item_value_actions_item.style;
                             let vm_result_item_value_actions_item_value_foreground = vm_result_item_value_actions_item.foreground;
                             let vm_result_item_value_actions_item_value_authentication_required = vm_result_item_value_actions_item.authentication_required;
                             let vm_result_item_value_actions_item_value_text_input_button_title = if let Some(value) = vm_result_item_value_actions_item.text_input_button_title {
-                                let vm_result_item_value_actions_item_value_text_input_button_title_inner_value = context.intern_string(value.as_str());
-                                let vm_result_item_value_actions_item_value_text_input_button_title_inner = vm::StringHandle::new(vm_result_item_value_actions_item_value_text_input_button_title_inner_value);
+                                let vm_result_item_value_actions_item_value_text_input_button_title_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_item_value_actions_item_value_text_input_button_title_inner)
                             } else {
                                 None
                             };
                             let vm_result_item_value_actions_item_value_text_input_placeholder = if let Some(value) = vm_result_item_value_actions_item.text_input_placeholder {
-                                let vm_result_item_value_actions_item_value_text_input_placeholder_inner_value = context.intern_string(value.as_str());
-                                let vm_result_item_value_actions_item_value_text_input_placeholder_inner = vm::StringHandle::new(vm_result_item_value_actions_item_value_text_input_placeholder_inner_value);
+                                let vm_result_item_value_actions_item_value_text_input_placeholder_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_item_value_actions_item_value_text_input_placeholder_inner)
                             } else {
                                 None
@@ -19988,24 +20549,18 @@ fn destack_os_notification_pending_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_id_value = context.intern_string(vm_result_item.id.as_str());
-                        let vm_result_item_value_id = vm::StringHandle::new(vm_result_item_value_id_value);
-                        let vm_result_item_value_request_title_value = context.intern_string(vm_result_item.request.title.as_str());
-                        let vm_result_item_value_request_title = vm::StringHandle::new(vm_result_item_value_request_title_value);
+                        let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_request_title = context.string_handle(vm_result_item.request.title.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_request_subtitle = if let Some(value) = vm_result_item.request.subtitle {
-                            let vm_result_item_value_request_subtitle_inner_value = context.intern_string(value.as_str());
-                            let vm_result_item_value_request_subtitle_inner = vm::StringHandle::new(vm_result_item_value_request_subtitle_inner_value);
+                            let vm_result_item_value_request_subtitle_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                             Some(vm_result_item_value_request_subtitle_inner)
                         } else {
                             None
                         };
-                        let vm_result_item_value_request_body_value = context.intern_string(vm_result_item.request.body.as_str());
-                        let vm_result_item_value_request_body = vm::StringHandle::new(vm_result_item_value_request_body_value);
-                        let vm_result_item_value_request_tag_value = context.intern_string(vm_result_item.request.tag.as_str());
-                        let vm_result_item_value_request_tag = vm::StringHandle::new(vm_result_item_value_request_tag_value);
+                        let vm_result_item_value_request_body = context.string_handle(vm_result_item.request.body.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_request_tag = context.string_handle(vm_result_item.request.tag.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_request_channel_id = if let Some(value) = vm_result_item.request.channel_id {
-                            let vm_result_item_value_request_channel_id_inner_value = context.intern_string(value.as_str());
-                            let vm_result_item_value_request_channel_id_inner = vm::StringHandle::new(vm_result_item_value_request_channel_id_inner_value);
+                            let vm_result_item_value_request_channel_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                             Some(vm_result_item_value_request_channel_id_inner)
                         } else {
                             None
@@ -20018,38 +20573,33 @@ fn destack_os_notification_pending_list_vm_replay(
                             None
                         };
                         let vm_result_item_value_request_sound = if let Some(value) = vm_result_item.request.sound {
-                            let vm_result_item_value_request_sound_inner_value = context.intern_string(value.as_str());
-                            let vm_result_item_value_request_sound_inner = vm::StringHandle::new(vm_result_item_value_request_sound_inner_value);
+                            let vm_result_item_value_request_sound_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                             Some(vm_result_item_value_request_sound_inner)
                         } else {
                             None
                         };
                         let vm_result_item_value_request_category_id = if let Some(value) = vm_result_item.request.category_id {
-                            let vm_result_item_value_request_category_id_inner_value = context.intern_string(value.as_str());
-                            let vm_result_item_value_request_category_id_inner = vm::StringHandle::new(vm_result_item_value_request_category_id_inner_value);
+                            let vm_result_item_value_request_category_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                             Some(vm_result_item_value_request_category_id_inner)
                         } else {
                             None
                         };
                         let vm_result_item_value_request_thread_id = if let Some(value) = vm_result_item.request.thread_id {
-                            let vm_result_item_value_request_thread_id_inner_value = context.intern_string(value.as_str());
-                            let vm_result_item_value_request_thread_id_inner = vm::StringHandle::new(vm_result_item_value_request_thread_id_inner_value);
+                            let vm_result_item_value_request_thread_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                             Some(vm_result_item_value_request_thread_id_inner)
                         } else {
                             None
                         };
                         let vm_result_item_value_request_trigger = match vm_result_item.request.trigger {
                             NotificationtriggerReplayRecord::NotificationCalendarDateTrigger(value) => {
-                                let vm_result_item_value_request_trigger_notification_calendar_date_trigger_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_request_trigger_notification_calendar_date_trigger_kind = vm::StringHandle::new(vm_result_item_value_request_trigger_notification_calendar_date_trigger_kind_value);
+                                let vm_result_item_value_request_trigger_notification_calendar_date_trigger_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_year = value.calendar.year;
                                 let vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_month = value.calendar.month;
                                 let vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_day = value.calendar.day;
                                 let vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_hour = value.calendar.hour;
                                 let vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_minute = value.calendar.minute;
                                 let vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_second = value.calendar.second;
-                                let vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_time_zone_value = context.intern_string(value.calendar.time_zone.as_str());
-                                let vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_time_zone = vm::StringHandle::new(vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_time_zone_value);
+                                let vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_time_zone = context.string_handle(value.calendar.time_zone.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_repeats = value.calendar.repeats;
                                 let vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar = NotificationCalendarTriggerVm {
                                     year: vm_result_item_value_request_trigger_notification_calendar_date_trigger_calendar_year,
@@ -20068,16 +20618,14 @@ fn destack_os_notification_pending_list_vm_replay(
                                 NotificationTriggerVm::NotificationCalendarDateTrigger(vm_result_item_value_request_trigger_notification_calendar_date_trigger)
                             }
                             NotificationtriggerReplayRecord::NotificationImmediateTrigger(value) => {
-                                let vm_result_item_value_request_trigger_notification_immediate_trigger_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_request_trigger_notification_immediate_trigger_kind = vm::StringHandle::new(vm_result_item_value_request_trigger_notification_immediate_trigger_kind_value);
+                                let vm_result_item_value_request_trigger_notification_immediate_trigger_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_request_trigger_notification_immediate_trigger = NotificationImmediateTriggerVm {
                                     kind: vm_result_item_value_request_trigger_notification_immediate_trigger_kind,
                                 };
                                 NotificationTriggerVm::NotificationImmediateTrigger(vm_result_item_value_request_trigger_notification_immediate_trigger)
                             }
                             NotificationtriggerReplayRecord::NotificationTimeIntervalTrigger(value) => {
-                                let vm_result_item_value_request_trigger_notification_time_interval_trigger_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_request_trigger_notification_time_interval_trigger_kind = vm::StringHandle::new(vm_result_item_value_request_trigger_notification_time_interval_trigger_kind_value);
+                                let vm_result_item_value_request_trigger_notification_time_interval_trigger_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_request_trigger_notification_time_interval_trigger_interval_ns = value.interval_ns;
                                 let vm_result_item_value_request_trigger_notification_time_interval_trigger = NotificationTimeIntervalTriggerVm {
                                     kind: vm_result_item_value_request_trigger_notification_time_interval_trigger_kind,
@@ -20087,15 +20635,13 @@ fn destack_os_notification_pending_list_vm_replay(
                             }
                         };
                         let vm_result_item_value_request_action_id = if let Some(value) = vm_result_item.request.action_id {
-                            let vm_result_item_value_request_action_id_inner_value = context.intern_string(value.as_str());
-                            let vm_result_item_value_request_action_id_inner = vm::StringHandle::new(vm_result_item_value_request_action_id_inner_value);
+                            let vm_result_item_value_request_action_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                             Some(vm_result_item_value_request_action_id_inner)
                         } else {
                             None
                         };
                         let vm_result_item_value_request_data_json = if let Some(value) = vm_result_item.request.data_json {
-                            let vm_result_item_value_request_data_json_inner_value = context.intern_string(value.as_str());
-                            let vm_result_item_value_request_data_json_inner = vm::StringHandle::new(vm_result_item_value_request_data_json_inner_value);
+                            let vm_result_item_value_request_data_json_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                             Some(vm_result_item_value_request_data_json_inner)
                         } else {
                             None

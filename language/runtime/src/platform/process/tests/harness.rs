@@ -19,6 +19,7 @@ use crate::platform::resource::ResourceId;
 use crate::platform::thread::ThreadCpu;
 use crate::platform::{NativeArray, VmArray, VmSlice, fs, process as process_platform, resource};
 use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
+use crate::tests::platform::{vm_test_byte_array, vm_test_byte_slice, vm_test_string};
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -71,7 +72,7 @@ impl<'call> ProcessHarnessContext<'call> {
     ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
         match self.vm_context_mut() {
             Some(context) => {
-                let value = vm::StringHandle::new(context.intern_string(value));
+                let value = vm_test_string(context, value);
                 self.harness_value_vm(value)
             }
             None => {
@@ -110,7 +111,7 @@ impl<'call> ProcessHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let bytes = VmSlice::from_bytes(context, bytes);
+                let bytes = vm_test_byte_slice(context, bytes);
                 Ok(self.harness_value_vm(bytes))
             }
             None => {
@@ -127,7 +128,7 @@ impl<'call> ProcessHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeArray<u8>, VmArray<u8>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let bytes = VmArray::from_bytes(context, bytes);
+                let bytes = vm_test_byte_array(context, bytes);
                 Ok(self.harness_value_vm(bytes))
             }
             None => {

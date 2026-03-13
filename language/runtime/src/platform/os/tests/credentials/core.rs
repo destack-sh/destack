@@ -3,7 +3,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use destack_vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::VmSlice;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
     CredentialAuthenticationPolicy, CredentialAuthenticationRequirement, CredentialQuery,
@@ -13,7 +12,9 @@ use crate::platform::os::{
 use crate::runtime::NativeStringRef;
 #[cfg(any(target_vendor = "apple", target_os = "android", windows))]
 pub(super) use crate::tests::platform::assert_not_not_supported_error;
-pub(super) use crate::tests::platform::{assert_not_supported_error, assert_runtime_error_code};
+pub(super) use crate::tests::platform::{
+    assert_not_supported_error, assert_runtime_error_code, vm_test_byte_slice, vm_test_string,
+};
 
 use super::super::{HarnessValue, OsHarnessContext};
 
@@ -48,9 +49,7 @@ pub(super) fn string_value(
     // build one vm string value for vm runs
     if let Some(vm_context) = vm_context_pointer(context) {
         let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
-        return HarnessValue::Vm(destack_vm::StringHandle::new(
-            vm_context.intern_string(text),
-        ));
+        return HarnessValue::Vm(vm_test_string(vm_context, text));
     }
 
     // build one native string value for native runs
@@ -72,12 +71,10 @@ pub(super) fn credential_write_options_value(
     if let Some(vm_context) = vm_context_pointer(context) {
         let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
         let options = CredentialWriteOptionsVm {
-            service: destack_vm::StringHandle::new(vm_context.intern_string(service)),
-            account: destack_vm::StringHandle::new(vm_context.intern_string(account)),
-            access_group: Some(destack_vm::StringHandle::new(
-                vm_context.intern_string(access_group),
-            )),
-            bytes: VmSlice::from_bytes(vm_context, bytes),
+            service: vm_test_string(vm_context, service),
+            account: vm_test_string(vm_context, account),
+            access_group: Some(vm_test_string(vm_context, access_group)),
+            bytes: vm_test_byte_slice(vm_context, bytes),
             accessibility,
             authentication,
             replace_existing,
@@ -112,11 +109,9 @@ pub(super) fn credential_query_value(
     if let Some(vm_context) = vm_context_pointer(context) {
         let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
         let query = CredentialQueryVm {
-            service: destack_vm::StringHandle::new(vm_context.intern_string(service)),
-            account: destack_vm::StringHandle::new(vm_context.intern_string(account)),
-            access_group: Some(destack_vm::StringHandle::new(
-                vm_context.intern_string(access_group),
-            )),
+            service: vm_test_string(vm_context, service),
+            account: vm_test_string(vm_context, account),
+            access_group: Some(vm_test_string(vm_context, access_group)),
             require_authentication,
         };
 
@@ -146,9 +141,9 @@ pub(super) fn credential_authentication_options_value(
     if let Some(vm_context) = vm_context_pointer(context) {
         let vm_context = unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
         let options = CredentialAuthenticationOptionsVm {
-            title: destack_vm::StringHandle::new(vm_context.intern_string(title)),
-            subtitle: destack_vm::StringHandle::new(vm_context.intern_string(subtitle)),
-            message: destack_vm::StringHandle::new(vm_context.intern_string(message)),
+            title: vm_test_string(vm_context, title),
+            subtitle: vm_test_string(vm_context, subtitle),
+            message: vm_test_string(vm_context, message),
             requirement,
         };
 

@@ -81,17 +81,22 @@ impl<'a, 'ctx> VmStringStore<'a, 'ctx> {
     }
 
     /// Store a required string.
-    fn required(&mut self, value: &str) -> destack_vm::StringHandle {
-        destack_vm::StringHandle::new(self.context.intern_string(value))
+    fn required(&mut self, value: &str) -> RuntimeResult<destack_vm::StringHandle> {
+        self.context
+            .string_handle(value)
+            .map_err(Box::<RuntimeError>::from)
     }
 
     /// Store an optional string.
-    fn optional(&mut self, value: Option<&String>) -> Option<destack_vm::StringHandle> {
-        value.map(|value| self.required(value))
+    fn optional(
+        &mut self,
+        value: Option<&String>,
+    ) -> RuntimeResult<Option<destack_vm::StringHandle>> {
+        value.map(|value| self.required(value)).transpose()
     }
 
     /// Store a byte array.
-    fn bytes(&mut self, data: &[u8]) -> VmArray<u8> {
+    fn bytes(&mut self, data: &[u8]) -> RuntimeResult<VmArray<u8>> {
         VmArray::from_bytes(self.context, data)
     }
 
@@ -142,10 +147,10 @@ pub fn platform_error_vm(
     error: &DiagnosticPlatformError,
 ) -> RuntimeResult<PlatformErrorVm> {
     let code = map_platform_error_code(error.code);
-    let op = store.optional(error.op.as_ref());
-    let source = platform_source_vm(store, error.source.as_ref());
+    let op = store.optional(error.op.as_ref())?;
+    let source = platform_source_vm(store, error.source.as_ref())?;
     let context = platform_context_vm(store, error.context.as_ref())?;
-    let message = store.optional(error.message.as_ref());
+    let message = store.optional(error.message.as_ref())?;
 
     Ok(PlatformErrorVm {
         code,
@@ -213,15 +218,15 @@ fn platform_path_vm(
     match payload.encoding {
         DiagnosticPlatformPathEncoding::Bytes => Ok(Some(
             PlatformPathPayloadVm::PlatformPathPayloadBytes(PlatformPathPayloadBytesVm {
-                kind: store.required("bytes"),
-                bytes: store.bytes(&payload.data),
+                kind: store.required("bytes")?,
+                bytes: store.bytes(&payload.data)?,
             }),
         )),
         DiagnosticPlatformPathEncoding::Utf16 => {
             let utf16 = payload_utf16_units(payload);
             Ok(Some(PlatformPathPayloadVm::PlatformPathPayloadUtf16(
                 PlatformPathPayloadUtf16Vm {
-                    kind: store.required("utf16"),
+                    kind: store.required("utf16")?,
                     utf16: store.utf16(&utf16)?,
                 },
             )))
@@ -290,57 +295,62 @@ fn platform_source_native(
 fn platform_source_vm(
     store: &mut VmStringStore<'_, '_>,
     source: Option<&DiagnosticPlatformSystemSource>,
-) -> Option<PlatformSystemSourceVm> {
-    let source = source?;
+) -> RuntimeResult<Option<PlatformSystemSourceVm>> {
+    let Some(source) = source else {
+        return Ok(None);
+    };
+
     let kind = source.kind;
     let value = source.value;
     let name = source.name.as_ref();
-    let name = store.optional(name);
+    let name = store.optional(name)?;
 
-    match kind {
-        DiagnosticPlatformSystemSourceKind::Errno => Some(
+    let source = match kind {
+        DiagnosticPlatformSystemSourceKind::Errno => {
             PlatformSystemSourceVm::PlatformSystemSourceErrno(PlatformSystemSourceErrnoVm {
-                kind: store.required("errno"),
+                kind: store.required("errno")?,
                 value,
                 name,
-            }),
-        ),
-        DiagnosticPlatformSystemSourceKind::Winsock => Some(
+            })
+        }
+        DiagnosticPlatformSystemSourceKind::Winsock => {
             PlatformSystemSourceVm::PlatformSystemSourceWinsock(PlatformSystemSourceWinsockVm {
-                kind: store.required("winsock"),
+                kind: store.required("winsock")?,
                 value,
                 name,
-            }),
-        ),
-        DiagnosticPlatformSystemSourceKind::HResult => Some(
+            })
+        }
+        DiagnosticPlatformSystemSourceKind::HResult => {
             PlatformSystemSourceVm::PlatformSystemSourceHResult(PlatformSystemSourceHResultVm {
-                kind: store.required("hresult"),
+                kind: store.required("hresult")?,
                 value,
                 name,
-            }),
-        ),
-        DiagnosticPlatformSystemSourceKind::Eai => Some(
+            })
+        }
+        DiagnosticPlatformSystemSourceKind::Eai => {
             PlatformSystemSourceVm::PlatformSystemSourceEai(PlatformSystemSourceEaiVm {
-                kind: store.required("eai"),
+                kind: store.required("eai")?,
                 value,
                 name,
-            }),
-        ),
-        DiagnosticPlatformSystemSourceKind::Signal => Some(
+            })
+        }
+        DiagnosticPlatformSystemSourceKind::Signal => {
             PlatformSystemSourceVm::PlatformSystemSourceSignal(PlatformSystemSourceSignalVm {
-                kind: store.required("signal"),
+                kind: store.required("signal")?,
                 value,
                 name,
-            }),
-        ),
-        DiagnosticPlatformSystemSourceKind::Other => Some(
+            })
+        }
+        DiagnosticPlatformSystemSourceKind::Other => {
             PlatformSystemSourceVm::PlatformSystemSourceOther(PlatformSystemSourceOtherVm {
-                kind: store.required("other"),
+                kind: store.required("other")?,
                 value,
                 name,
-            }),
-        ),
-    }
+            })
+        }
+    };
+
+    Ok(Some(source))
 }
 
 /// Return one stable context kind label for invariant diagnostics.
@@ -533,128 +543,128 @@ fn platform_context_vm(
     let value = match context.kind {
         DiagnosticPlatformErrorContextKind::Audio => {
             PlatformErrorContextVm::PlatformErrorContextAudio(PlatformErrorContextAudioVm {
-                kind: store.required("audio"),
-                syscall: store.optional(context.syscall.as_ref()),
-                feature: store.optional(context.feature.as_ref()),
+                kind: store.required("audio")?,
+                syscall: store.optional(context.syscall.as_ref())?,
+                feature: store.optional(context.feature.as_ref())?,
             })
         }
         DiagnosticPlatformErrorContextKind::Device => {
             PlatformErrorContextVm::PlatformErrorContextDevice(PlatformErrorContextDeviceVm {
-                kind: store.required("device"),
-                syscall: store.optional(context.syscall.as_ref()),
+                kind: store.required("device")?,
+                syscall: store.optional(context.syscall.as_ref())?,
                 path: platform_path_vm(store, context.path.as_ref())?,
-                path_text: store.optional(context.path_text.as_ref()),
-                feature: store.optional(context.feature.as_ref()),
+                path_text: store.optional(context.path_text.as_ref())?,
+                feature: store.optional(context.feature.as_ref())?,
             })
         }
         DiagnosticPlatformErrorContextKind::Display => {
             PlatformErrorContextVm::PlatformErrorContextDisplay(PlatformErrorContextDisplayVm {
-                kind: store.required("display"),
-                syscall: store.optional(context.syscall.as_ref()),
-                feature: store.optional(context.feature.as_ref()),
+                kind: store.required("display")?,
+                syscall: store.optional(context.syscall.as_ref())?,
+                feature: store.optional(context.feature.as_ref())?,
             })
         }
         DiagnosticPlatformErrorContextKind::Ffi => {
             PlatformErrorContextVm::PlatformErrorContextFfi(PlatformErrorContextFfiVm {
-                kind: store.required("ffi"),
-                syscall: store.optional(context.syscall.as_ref()),
-                library: store.optional(context.library.as_ref()),
-                symbol: store.optional(context.symbol.as_ref()),
+                kind: store.required("ffi")?,
+                syscall: store.optional(context.syscall.as_ref())?,
+                library: store.optional(context.library.as_ref())?,
+                symbol: store.optional(context.symbol.as_ref())?,
             })
         }
         DiagnosticPlatformErrorContextKind::Generic => {
             PlatformErrorContextVm::PlatformErrorContextGeneric(PlatformErrorContextGenericVm {
-                kind: store.required("generic"),
-                syscall: store.optional(context.syscall.as_ref()),
-                argument: store.optional(context.argument.as_ref()),
-                pointer: store.optional(context.pointer.as_ref()),
-                feature: store.optional(context.feature.as_ref()),
+                kind: store.required("generic")?,
+                syscall: store.optional(context.syscall.as_ref())?,
+                argument: store.optional(context.argument.as_ref())?,
+                pointer: store.optional(context.pointer.as_ref())?,
+                feature: store.optional(context.feature.as_ref())?,
             })
         }
         DiagnosticPlatformErrorContextKind::Gpu => {
             PlatformErrorContextVm::PlatformErrorContextGpu(PlatformErrorContextGpuVm {
-                kind: store.required("gpu"),
-                syscall: store.optional(context.syscall.as_ref()),
-                feature: store.optional(context.feature.as_ref()),
+                kind: store.required("gpu")?,
+                syscall: store.optional(context.syscall.as_ref())?,
+                feature: store.optional(context.feature.as_ref())?,
             })
         }
         DiagnosticPlatformErrorContextKind::Io => {
             PlatformErrorContextVm::PlatformErrorContextIo(PlatformErrorContextIoVm {
-                kind: store.required("io"),
-                syscall: store.optional(context.syscall.as_ref()),
+                kind: store.required("io")?,
+                syscall: store.optional(context.syscall.as_ref())?,
                 path: platform_path_vm(store, context.path.as_ref())?,
                 dest: platform_path_vm(store, context.dest.as_ref())?,
-                path_text: store.optional(context.path_text.as_ref()),
-                dest_text: store.optional(context.dest_text.as_ref()),
+                path_text: store.optional(context.path_text.as_ref())?,
+                dest_text: store.optional(context.dest_text.as_ref())?,
                 fd: required_context_numeric(context.fd, context.kind, "fd"),
             })
         }
         DiagnosticPlatformErrorContextKind::IoDriver => {
             PlatformErrorContextVm::PlatformErrorContextIoDriver(PlatformErrorContextIoDriverVm {
-                kind: store.required("ioDriver"),
-                syscall: store.optional(context.syscall.as_ref()),
+                kind: store.required("ioDriver")?,
+                syscall: store.optional(context.syscall.as_ref())?,
                 fd: required_context_numeric(context.fd, context.kind, "fd"),
-                feature: store.optional(context.feature.as_ref()),
+                feature: store.optional(context.feature.as_ref())?,
             })
         }
         DiagnosticPlatformErrorContextKind::Ipc => {
             PlatformErrorContextVm::PlatformErrorContextIpc(PlatformErrorContextIpcVm {
-                kind: store.required("ipc"),
-                syscall: store.optional(context.syscall.as_ref()),
+                kind: store.required("ipc")?,
+                syscall: store.optional(context.syscall.as_ref())?,
                 path: platform_path_vm(store, context.path.as_ref())?,
-                path_text: store.optional(context.path_text.as_ref()),
+                path_text: store.optional(context.path_text.as_ref())?,
                 fd: required_context_numeric(context.fd, context.kind, "fd"),
             })
         }
         DiagnosticPlatformErrorContextKind::Net => {
             PlatformErrorContextVm::PlatformErrorContextNet(PlatformErrorContextNetVm {
-                kind: store.required("net"),
-                syscall: store.optional(context.syscall.as_ref()),
-                address: store.optional(context.address.as_ref()),
+                kind: store.required("net")?,
+                syscall: store.optional(context.syscall.as_ref())?,
+                address: store.optional(context.address.as_ref())?,
                 port: required_context_numeric(context.port, context.kind, "port"),
-                hostname: store.optional(context.hostname.as_ref()),
+                hostname: store.optional(context.hostname.as_ref())?,
             })
         }
         DiagnosticPlatformErrorContextKind::Process => {
             PlatformErrorContextVm::PlatformErrorContextProcess(PlatformErrorContextProcessVm {
-                kind: store.required("process"),
-                syscall: store.optional(context.syscall.as_ref()),
+                kind: store.required("process")?,
+                syscall: store.optional(context.syscall.as_ref())?,
                 pid: required_context_numeric(context.pid, context.kind, "pid"),
-                signal: store.optional(context.signal.as_ref()),
+                signal: store.optional(context.signal.as_ref())?,
                 exit_code: required_context_numeric(context.exit_code, context.kind, "exitCode"),
             })
         }
         DiagnosticPlatformErrorContextKind::Resource => {
             PlatformErrorContextVm::PlatformErrorContextResource(PlatformErrorContextResourceVm {
-                kind: store.required("resource"),
-                syscall: store.optional(context.syscall.as_ref()),
+                kind: store.required("resource")?,
+                syscall: store.optional(context.syscall.as_ref())?,
                 resource_id: required_context_numeric(
                     context.resource_id,
                     context.kind,
                     "resourceId",
                 ),
-                resource_kind: store.optional(context.resource_kind.as_ref()),
+                resource_kind: store.optional(context.resource_kind.as_ref())?,
             })
         }
         DiagnosticPlatformErrorContextKind::Security => {
             PlatformErrorContextVm::PlatformErrorContextSecurity(PlatformErrorContextSecurityVm {
-                kind: store.required("security"),
-                syscall: store.optional(context.syscall.as_ref()),
-                capability: store.optional(context.capability.as_ref()),
-                policy: store.optional(context.policy.as_ref()),
+                kind: store.required("security")?,
+                syscall: store.optional(context.syscall.as_ref())?,
+                capability: store.optional(context.capability.as_ref())?,
+                policy: store.optional(context.policy.as_ref())?,
             })
         }
         DiagnosticPlatformErrorContextKind::Thread => {
             PlatformErrorContextVm::PlatformErrorContextThread(PlatformErrorContextThreadVm {
-                kind: store.required("thread"),
-                syscall: store.optional(context.syscall.as_ref()),
+                kind: store.required("thread")?,
+                syscall: store.optional(context.syscall.as_ref())?,
                 thread_id: required_context_numeric(context.thread_id, context.kind, "threadId"),
             })
         }
         DiagnosticPlatformErrorContextKind::Timer => {
             PlatformErrorContextVm::PlatformErrorContextTimer(PlatformErrorContextTimerVm {
-                kind: store.required("timer"),
-                syscall: store.optional(context.syscall.as_ref()),
+                kind: store.required("timer")?,
+                syscall: store.optional(context.syscall.as_ref())?,
                 timer_id: required_context_numeric(context.timer_id, context.kind, "timerId"),
                 deadline_ns: required_context_numeric(
                     context.deadline_ns,

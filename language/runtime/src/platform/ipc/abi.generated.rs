@@ -225,7 +225,9 @@ impl VmAggregateCodec for MessageQueueReceive {
             <u32 as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.priority, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -313,7 +315,9 @@ impl VmAggregateCodec for PipePair {
             <resource::PipeHandle as VmAggregateCodec>::encode_with_context(self.read, context)?,
             <resource::PipeHandle as VmAggregateCodec>::encode_with_context(self.write, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -400,7 +404,9 @@ impl VmAggregateCodec for SharedMemoryMapping {
             <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -492,7 +498,9 @@ impl VmAggregateCodec for UnixPeerCredentials {
             <u32 as VmAggregateCodec>::encode_with_context(self.uid, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.gid, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -617,7 +625,9 @@ impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

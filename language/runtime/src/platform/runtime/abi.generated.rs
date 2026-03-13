@@ -1180,8 +1180,8 @@ impl VmAbiCodec for EngineDescriptorKind {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ObservationEventKind {
-    /// Trace.
-    Trace = 1,
+    /// Runtime.
+    Runtime = 1,
     /// Topology.
     Topology = 2,
     /// Resource.
@@ -1192,18 +1192,21 @@ pub enum ObservationEventKind {
     Diagnostic = 5,
     /// Profile.
     Profile = 6,
+    /// Domain.
+    Domain = 7,
 }
 
 impl VmValueCodec for ObservationEventKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Trace,
+            1u8 => Self::Runtime,
             2u8 => Self::Topology,
             3u8 => Self::Resource,
             4u8 => Self::Scheduler,
             5u8 => Self::Diagnostic,
             6u8 => Self::Profile,
+            7u8 => Self::Domain,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1738,7 +1741,9 @@ impl VmAggregateCodec for AgentCreateOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1907,7 +1912,9 @@ impl VmAggregateCodec for AgentDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2094,7 +2101,9 @@ impl VmAggregateCodec for AgentFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2281,7 +2290,9 @@ impl VmAggregateCodec for BranchDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2441,7 +2452,9 @@ impl VmAggregateCodec for BranchFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2600,7 +2613,9 @@ impl VmAggregateCodec for CheckpointDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2767,7 +2782,9 @@ impl VmAggregateCodec for CheckpointFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2925,7 +2942,9 @@ impl VmAggregateCodec for EngineDescriptor {
             )?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.image_bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3029,7 +3048,9 @@ impl VmAggregateCodec for EventLoopDescriptor {
             <u32 as VmAggregateCodec>::encode_with_context(self.watch_count, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.has_pending_work, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3074,8 +3095,6 @@ pub struct HeapDescriptor {
     pub heap_bytes: u64,
     /// Total captured page count.
     pub page_count: u32,
-    /// Shared page count.
-    pub shared_page_count: u32,
     /// Completed GC cycle count.
     pub gc_cycles: u64,
 }
@@ -3097,22 +3116,19 @@ impl VmAggregateCodec for HeapDescriptor {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
         let field_heap_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_page_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_shared_page_count =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_gc_cycles = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_gc_cycles = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             heap_bytes: field_heap_bytes,
             page_count: field_page_count,
-            shared_page_count: field_shared_page_count,
             gc_cycles: field_gc_cycles,
         })
     }
@@ -3124,10 +3140,11 @@ impl VmAggregateCodec for HeapDescriptor {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.heap_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.page_count, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.shared_page_count, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.gc_cycles, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3221,7 +3238,9 @@ impl VmAggregateCodec for ImageDescriptor {
             <RevisionId as VmAggregateCodec>::encode_with_context(self.revision_id, context)?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.shared_bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3307,7 +3326,9 @@ impl VmAggregateCodec for ImageFilter {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3348,18 +3369,20 @@ impl VmAbiCodec for ImageFilter {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ObservationOptions {
-    /// Include trace-adjacent events.
-    pub trace: Option<bool>,
+    /// Include runtime lifecycle and engine observations.
+    pub runtime: Option<bool>,
     /// Include topology change events.
     pub topology: Option<bool>,
     /// Include resource lifecycle events.
-    pub resources: Option<bool>,
+    pub resource: Option<bool>,
     /// Include scheduler events.
     pub scheduler: Option<bool>,
     /// Include diagnostics and policy events.
-    pub diagnostics: Option<bool>,
+    pub diagnostic: Option<bool>,
     /// Include profiler events.
-    pub profiles: Option<bool>,
+    pub profile: Option<bool>,
+    /// Include domain observations.
+    pub domain: Option<bool>,
 }
 
 pub type ObservationOptionsVm = ObservationOptions;
@@ -3379,32 +3402,35 @@ impl VmAggregateCodec for ObservationOptions {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 6 fields",
+                "expected 7 fields",
             ))
             .boxed());
         }
-        let field_trace =
+        let field_runtime =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_topology =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_resources =
+        let field_resource =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_scheduler =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_diagnostics =
+        let field_diagnostic =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_profiles =
+        let field_profile =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_domain =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
-            trace: field_trace,
+            runtime: field_runtime,
             topology: field_topology,
-            resources: field_resources,
+            resource: field_resource,
             scheduler: field_scheduler,
-            diagnostics: field_diagnostics,
-            profiles: field_profiles,
+            diagnostic: field_diagnostic,
+            profile: field_profile,
+            domain: field_domain,
         })
     }
 
@@ -3413,14 +3439,17 @@ impl VmAggregateCodec for ObservationOptions {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<bool> as VmAggregateCodec>::encode_with_context(self.trace, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.runtime, context)?,
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.topology, context)?,
-            <Option<bool> as VmAggregateCodec>::encode_with_context(self.resources, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.resource, context)?,
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.scheduler, context)?,
-            <Option<bool> as VmAggregateCodec>::encode_with_context(self.diagnostics, context)?,
-            <Option<bool> as VmAggregateCodec>::encode_with_context(self.profiles, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.diagnostic, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.profile, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.domain, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3539,7 +3568,9 @@ impl VmAggregateCodec for ObservationRecordAbi<VmAbi> {
             )?,
             <Option<VmArray<u8>> as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3697,7 +3728,9 @@ impl VmAggregateCodec for ResourceDescriptorAbi<VmAbi> {
                 self.label, context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3853,7 +3886,9 @@ impl VmAggregateCodec for ResourceFilterAbi<VmAbi> {
                 self.label, context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4011,7 +4046,9 @@ impl VmAggregateCodec for RevisionDescriptor {
             <u64 as VmAggregateCodec>::encode_with_context(self.virtual_ns, context)?,
             <ImageId as VmAggregateCodec>::encode_with_context(self.image_id, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4095,7 +4132,9 @@ impl VmAggregateCodec for RevisionFilter {
             self.branch_id,
             context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4212,7 +4251,9 @@ impl VmAggregateCodec for RuntimeCreateOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4374,7 +4415,9 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4543,7 +4586,9 @@ impl VmAggregateCodec for RuntimeFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4684,7 +4729,9 @@ impl VmAggregateCodec for RuntimeLabelAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.key, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.value, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4814,7 +4861,9 @@ impl VmAggregateCodec for RuntimeLabelSelectorAbi<VmAbi> {
                 self.value, context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4931,7 +4980,9 @@ impl VmAggregateCodec for SnapshotDescriptor {
             <SnapshotFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5064,7 +5115,9 @@ impl VmAggregateCodec for TopologyEdgeAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5247,7 +5300,9 @@ impl VmAggregateCodec for TopologyEdgeFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5411,7 +5466,9 @@ impl VmAggregateCodec for TopologyEntityAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5564,7 +5621,9 @@ impl VmAggregateCodec for TopologyEntityFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5681,7 +5740,9 @@ impl VmAggregateCodec for TraceCursorOptions {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5770,7 +5831,9 @@ impl VmAggregateCodec for TraceDescriptor {
             <BranchId as VmAggregateCodec>::encode_with_context(self.branch_id, context)?,
             <TraceSequence as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5886,7 +5949,9 @@ impl VmAggregateCodec for TraceRecordAbi<VmAbi> {
             <TraceEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <Option<VmArray<u8>> as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6053,7 +6118,9 @@ impl VmAggregateCodec for WorldCreateOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6258,7 +6325,9 @@ impl VmAggregateCodec for WorldDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6414,7 +6483,9 @@ impl VmAggregateCodec for WorldResourceId {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6500,7 +6571,9 @@ impl VmAggregateCodec for WorldViewOptions {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

@@ -301,7 +301,7 @@ fn encode_destack_crypto_agreement_derive_key_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.agreement.deriveSharedSecret.
@@ -358,7 +358,7 @@ fn encode_destack_crypto_agreement_derive_shared_secret_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.certificate.delete.
@@ -410,37 +410,54 @@ fn encode_destack_crypto_certificate_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoCertificateDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.subject.value();
-        let field_1 = value.issuer.value();
-        let field_2 = value.serial_number.value();
-        let field_3 = value.subject_alternative_names.to_value(context);
-        let field_4 = value.fingerprint_sha256.to_value(context);
-        let field_5 = {
-            let field_0 = vm::Value::uint(value.validity.not_before_unix_seconds, 64);
-            let field_1 = vm::Value::uint(value.validity.not_after_unix_seconds, 64);
-            context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(value.subject.value());
+        let field_1: RuntimeResult<vm::Value> = Ok(value.issuer.value());
+        let field_2: RuntimeResult<vm::Value> = Ok(value.serial_number.value());
+        let field_3: RuntimeResult<vm::Value> = value.subject_alternative_names.to_value(context);
+        let field_4: RuntimeResult<vm::Value> = value.fingerprint_sha256.to_value(context);
+        let field_5: RuntimeResult<vm::Value> = {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.validity.not_before_unix_seconds, 64));
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.validity.not_after_unix_seconds, 64));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
         };
-        let field_6 = vm::Value::bool(value.is_certificate_authority);
-        let field_7 = vm::Value::uint(value.key_usage_mask as u64, 32);
-        let field_8 = {
-            let field_0 = {
-                let field_0 = vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
-                let field_1 = match value.store_provenance.identity.provider {
-                    Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                    None => vm::Value::VOID,
-                };
-                let field_2 = match value.store_provenance.identity.namespace {
-                    Some(value) => value.value(),
-                    None => vm::Value::VOID,
-                };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
+        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_certificate_authority));
+        let field_7: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.key_usage_mask as u64, 32));
+        let field_8: RuntimeResult<vm::Value> = {
+            let field_0: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                    value.store_provenance.identity.kind as u8 as u64,
+                    8,
+                ));
+                let field_1: RuntimeResult<vm::Value> =
+                    match value.store_provenance.identity.provider {
+                        Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                        None => Ok(vm::Value::VOID),
+                    };
+                let field_2: RuntimeResult<vm::Value> =
+                    match value.store_provenance.identity.namespace {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
             };
-            context.allocate_aggregate(vec![field_0])
+            context
+                .allocate_aggregate(vec![field_0?])
+                .map_err(Box::<RuntimeError>::from)
         };
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-        ])
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                field_8?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -480,7 +497,7 @@ fn encode_destack_crypto_certificate_export_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.certificate.import.
@@ -522,7 +539,7 @@ fn encode_destack_crypto_certificate_import_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoCertificateHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.crypto.certificate.verify.
@@ -673,23 +690,25 @@ fn encode_destack_crypto_certificate_verify_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoCertificateVerifyResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::bool(value.valid);
-        let field_1 = vm::Value::uint(value.error as u8 as u64, 8);
-        let field_2 = vm::Value::uint(value.error_code as u64, 32);
-        let field_3 = match value.failed_certificate_index {
-            Some(value) => vm::Value::uint(value as u64, 32),
-            None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.valid));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.error as u8 as u64, 8));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.error_code as u64, 32));
+        let field_3: RuntimeResult<vm::Value> = match value.failed_certificate_index {
+            Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+            None => Ok(vm::Value::VOID),
         };
-        let field_4 = match value.failed_certificate_subject {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_4: RuntimeResult<vm::Value> = match value.failed_certificate_subject {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_5 = vm::Value::uint(value.chain_length as u64, 32);
-        let field_6 = vm::Value::bool(value.used_system_trust_anchor);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-        ])
+        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.chain_length as u64, 32));
+        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.used_system_trust_anchor));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -807,7 +826,7 @@ fn encode_destack_crypto_cipher_decrypt_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.cipher.encrypt.
@@ -901,10 +920,12 @@ fn encode_destack_crypto_cipher_encrypt_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoCipherOutputVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.bytes.to_value(context);
-        let field_1 = value.tag.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+        let field_1: RuntimeResult<vm::Value> = value.tag.to_value(context);
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -931,10 +952,12 @@ fn encode_destack_crypto_cipher_finish_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoCipherOutputVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.bytes.to_value(context);
-        let field_1 = value.tag.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+        let field_1: RuntimeResult<vm::Value> = value.tag.to_value(context);
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -1035,7 +1058,7 @@ fn encode_destack_crypto_cipher_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoCipherHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.crypto.cipher.reset.
@@ -1149,7 +1172,7 @@ fn encode_destack_crypto_cipher_update_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.cipher.updateAdditionalData.
@@ -1249,7 +1272,7 @@ fn encode_destack_crypto_digest_compute_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.digest.finish.
@@ -1272,7 +1295,7 @@ fn encode_destack_crypto_digest_finish_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.digest.open.
@@ -1312,7 +1335,7 @@ fn encode_destack_crypto_digest_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoDigestHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.crypto.digest.reset.
@@ -1427,7 +1450,7 @@ fn encode_destack_crypto_kdf_argon2id_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.kdf.hkdf.
@@ -1502,7 +1525,7 @@ fn encode_destack_crypto_kdf_hkdf_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.kdf.pbkdf2.
@@ -1573,7 +1596,7 @@ fn encode_destack_crypto_kdf_pbkdf2_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.kdf.scrypt.
@@ -1630,7 +1653,7 @@ fn encode_destack_crypto_kdf_scrypt_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.key.decrypt.
@@ -1735,7 +1758,7 @@ fn encode_destack_crypto_key_decrypt_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.key.delete.
@@ -1779,340 +1802,479 @@ fn encode_destack_crypto_key_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoKeyDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
+    result.and_then(|value| match value {
         CryptoKeyDescriptorVm::CryptoKeyDescriptorAes(value) => {
             let tag_value = vm::Value::uint(3329037564u64, 32);
             let payload_value = {
-                let field_0 = value.algorithm.value();
-                let field_1 = vm::Value::uint(value.key_kind as u8 as u64, 8);
-                let field_2 = match value.size_bits {
-                    Some(value) => vm::Value::uint(value as u64, 32),
-                    None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = Ok(value.algorithm.value());
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.key_kind as u8 as u64, 8));
+                let field_2: RuntimeResult<vm::Value> = match value.size_bits {
+                    Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                    None => Ok(vm::Value::VOID),
                 };
-                let field_3 = vm::Value::uint(value.usage_mask.0 as u64, 32);
-                let field_4 = value.label.value();
-                let field_5 = vm::Value::bool(value.extractable);
-                let field_6 = vm::Value::uint(value.residency as u8 as u64, 8);
-                let field_7 = vm::Value::bool(value.hardware_backed);
-                let field_8 = vm::Value::bool(value.persistent);
-                let field_9 = {
-                    let field_0 = {
-                        let field_0 =
-                            vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
-                        let field_1 = match value.store_provenance.identity.provider {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_2 = match value.store_provenance.identity.namespace {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_3: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.usage_mask.0 as u64, 32));
+                let field_4: RuntimeResult<vm::Value> = Ok(value.label.value());
+                let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extractable));
+                let field_6: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.residency as u8 as u64, 8));
+                let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.hardware_backed));
+                let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.persistent));
+                let field_9: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.store_provenance.identity.kind as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.provider {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.namespace {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0])
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![
-                    field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                    field_8, field_9,
-                ])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![
+                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                        field_7?, field_8?, field_9?,
+                    ])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         CryptoKeyDescriptorVm::CryptoKeyDescriptorChaCha20(value) => {
             let tag_value = vm::Value::uint(2610676967u64, 32);
             let payload_value = {
-                let field_0 = value.algorithm.value();
-                let field_1 = vm::Value::uint(value.key_kind as u8 as u64, 8);
-                let field_2 = match value.size_bits {
-                    Some(value) => vm::Value::uint(value as u64, 32),
-                    None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = Ok(value.algorithm.value());
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.key_kind as u8 as u64, 8));
+                let field_2: RuntimeResult<vm::Value> = match value.size_bits {
+                    Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                    None => Ok(vm::Value::VOID),
                 };
-                let field_3 = vm::Value::uint(value.usage_mask.0 as u64, 32);
-                let field_4 = value.label.value();
-                let field_5 = vm::Value::bool(value.extractable);
-                let field_6 = vm::Value::uint(value.residency as u8 as u64, 8);
-                let field_7 = vm::Value::bool(value.hardware_backed);
-                let field_8 = vm::Value::bool(value.persistent);
-                let field_9 = {
-                    let field_0 = {
-                        let field_0 =
-                            vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
-                        let field_1 = match value.store_provenance.identity.provider {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_2 = match value.store_provenance.identity.namespace {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_3: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.usage_mask.0 as u64, 32));
+                let field_4: RuntimeResult<vm::Value> = Ok(value.label.value());
+                let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extractable));
+                let field_6: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.residency as u8 as u64, 8));
+                let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.hardware_backed));
+                let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.persistent));
+                let field_9: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.store_provenance.identity.kind as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.provider {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.namespace {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0])
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![
-                    field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                    field_8, field_9,
-                ])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![
+                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                        field_7?, field_8?, field_9?,
+                    ])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         CryptoKeyDescriptorVm::CryptoKeyDescriptorEc(value) => {
             let tag_value = vm::Value::uint(4256206084u64, 32);
             let payload_value = {
-                let field_0 = value.algorithm.value();
-                let field_1 = vm::Value::uint(value.key_kind as u8 as u64, 8);
-                let field_2 = match value.named_curve {
-                    Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                    None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = Ok(value.algorithm.value());
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.key_kind as u8 as u64, 8));
+                let field_2: RuntimeResult<vm::Value> = match value.named_curve {
+                    Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                    None => Ok(vm::Value::VOID),
                 };
-                let field_3 = vm::Value::uint(value.usage_mask.0 as u64, 32);
-                let field_4 = value.label.value();
-                let field_5 = vm::Value::bool(value.extractable);
-                let field_6 = vm::Value::uint(value.residency as u8 as u64, 8);
-                let field_7 = vm::Value::bool(value.hardware_backed);
-                let field_8 = vm::Value::bool(value.persistent);
-                let field_9 = {
-                    let field_0 = {
-                        let field_0 =
-                            vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
-                        let field_1 = match value.store_provenance.identity.provider {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_2 = match value.store_provenance.identity.namespace {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_3: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.usage_mask.0 as u64, 32));
+                let field_4: RuntimeResult<vm::Value> = Ok(value.label.value());
+                let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extractable));
+                let field_6: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.residency as u8 as u64, 8));
+                let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.hardware_backed));
+                let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.persistent));
+                let field_9: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.store_provenance.identity.kind as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.provider {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.namespace {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0])
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![
-                    field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                    field_8, field_9,
-                ])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![
+                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                        field_7?, field_8?, field_9?,
+                    ])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         CryptoKeyDescriptorVm::CryptoKeyDescriptorEd25519(value) => {
             let tag_value = vm::Value::uint(2715380390u64, 32);
             let payload_value = {
-                let field_0 = value.algorithm.value();
-                let field_1 = vm::Value::uint(value.key_kind as u8 as u64, 8);
-                let field_2 = vm::Value::uint(value.usage_mask.0 as u64, 32);
-                let field_3 = value.label.value();
-                let field_4 = vm::Value::bool(value.extractable);
-                let field_5 = vm::Value::uint(value.residency as u8 as u64, 8);
-                let field_6 = vm::Value::bool(value.hardware_backed);
-                let field_7 = vm::Value::bool(value.persistent);
-                let field_8 = {
-                    let field_0 = {
-                        let field_0 =
-                            vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
-                        let field_1 = match value.store_provenance.identity.provider {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_2 = match value.store_provenance.identity.namespace {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.algorithm.value());
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.key_kind as u8 as u64, 8));
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.usage_mask.0 as u64, 32));
+                let field_3: RuntimeResult<vm::Value> = Ok(value.label.value());
+                let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extractable));
+                let field_5: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.residency as u8 as u64, 8));
+                let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.hardware_backed));
+                let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.persistent));
+                let field_8: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.store_provenance.identity.kind as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.provider {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.namespace {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0])
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![
-                    field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-                ])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![
+                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                        field_7?, field_8?,
+                    ])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         CryptoKeyDescriptorVm::CryptoKeyDescriptorEd448(value) => {
             let tag_value = vm::Value::uint(1419371965u64, 32);
             let payload_value = {
-                let field_0 = value.algorithm.value();
-                let field_1 = vm::Value::uint(value.key_kind as u8 as u64, 8);
-                let field_2 = vm::Value::uint(value.usage_mask.0 as u64, 32);
-                let field_3 = value.label.value();
-                let field_4 = vm::Value::bool(value.extractable);
-                let field_5 = vm::Value::uint(value.residency as u8 as u64, 8);
-                let field_6 = vm::Value::bool(value.hardware_backed);
-                let field_7 = vm::Value::bool(value.persistent);
-                let field_8 = {
-                    let field_0 = {
-                        let field_0 =
-                            vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
-                        let field_1 = match value.store_provenance.identity.provider {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_2 = match value.store_provenance.identity.namespace {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.algorithm.value());
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.key_kind as u8 as u64, 8));
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.usage_mask.0 as u64, 32));
+                let field_3: RuntimeResult<vm::Value> = Ok(value.label.value());
+                let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extractable));
+                let field_5: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.residency as u8 as u64, 8));
+                let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.hardware_backed));
+                let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.persistent));
+                let field_8: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.store_provenance.identity.kind as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.provider {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.namespace {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0])
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![
-                    field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-                ])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![
+                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                        field_7?, field_8?,
+                    ])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         CryptoKeyDescriptorVm::CryptoKeyDescriptorHmac(value) => {
             let tag_value = vm::Value::uint(2590550128u64, 32);
             let payload_value = {
-                let field_0 = value.algorithm.value();
-                let field_1 = vm::Value::uint(value.key_kind as u8 as u64, 8);
-                let field_2 = match value.size_bits {
-                    Some(value) => vm::Value::uint(value as u64, 32),
-                    None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = Ok(value.algorithm.value());
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.key_kind as u8 as u64, 8));
+                let field_2: RuntimeResult<vm::Value> = match value.size_bits {
+                    Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                    None => Ok(vm::Value::VOID),
                 };
-                let field_3 = match value.digest {
-                    Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                    None => vm::Value::VOID,
+                let field_3: RuntimeResult<vm::Value> = match value.digest {
+                    Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                    None => Ok(vm::Value::VOID),
                 };
-                let field_4 = vm::Value::uint(value.usage_mask.0 as u64, 32);
-                let field_5 = value.label.value();
-                let field_6 = vm::Value::bool(value.extractable);
-                let field_7 = vm::Value::uint(value.residency as u8 as u64, 8);
-                let field_8 = vm::Value::bool(value.hardware_backed);
-                let field_9 = vm::Value::bool(value.persistent);
-                let field_10 = {
-                    let field_0 = {
-                        let field_0 =
-                            vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
-                        let field_1 = match value.store_provenance.identity.provider {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_2 = match value.store_provenance.identity.namespace {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_4: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.usage_mask.0 as u64, 32));
+                let field_5: RuntimeResult<vm::Value> = Ok(value.label.value());
+                let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extractable));
+                let field_7: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.residency as u8 as u64, 8));
+                let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.hardware_backed));
+                let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.persistent));
+                let field_10: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.store_provenance.identity.kind as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.provider {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.namespace {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0])
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![
-                    field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                    field_8, field_9, field_10,
-                ])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![
+                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                        field_7?, field_8?, field_9?, field_10?,
+                    ])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         CryptoKeyDescriptorVm::CryptoKeyDescriptorRsa(value) => {
             let tag_value = vm::Value::uint(3734490529u64, 32);
             let payload_value = {
-                let field_0 = value.algorithm.value();
-                let field_1 = vm::Value::uint(value.key_kind as u8 as u64, 8);
-                let field_2 = match value.modulus_bits {
-                    Some(value) => vm::Value::uint(value as u64, 32),
-                    None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = Ok(value.algorithm.value());
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.key_kind as u8 as u64, 8));
+                let field_2: RuntimeResult<vm::Value> = match value.modulus_bits {
+                    Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                    None => Ok(vm::Value::VOID),
                 };
-                let field_3 = match value.public_exponent {
-                    Some(value) => vm::Value::uint(value as u64, 32),
-                    None => vm::Value::VOID,
+                let field_3: RuntimeResult<vm::Value> = match value.public_exponent {
+                    Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                    None => Ok(vm::Value::VOID),
                 };
-                let field_4 = match value.digest {
-                    Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                    None => vm::Value::VOID,
+                let field_4: RuntimeResult<vm::Value> = match value.digest {
+                    Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                    None => Ok(vm::Value::VOID),
                 };
-                let field_5 = vm::Value::uint(value.usage_mask.0 as u64, 32);
-                let field_6 = value.label.value();
-                let field_7 = vm::Value::bool(value.extractable);
-                let field_8 = vm::Value::uint(value.residency as u8 as u64, 8);
-                let field_9 = vm::Value::bool(value.hardware_backed);
-                let field_10 = vm::Value::bool(value.persistent);
-                let field_11 = {
-                    let field_0 = {
-                        let field_0 =
-                            vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
-                        let field_1 = match value.store_provenance.identity.provider {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_2 = match value.store_provenance.identity.namespace {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_5: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.usage_mask.0 as u64, 32));
+                let field_6: RuntimeResult<vm::Value> = Ok(value.label.value());
+                let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extractable));
+                let field_8: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.residency as u8 as u64, 8));
+                let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.hardware_backed));
+                let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.persistent));
+                let field_11: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.store_provenance.identity.kind as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.provider {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.namespace {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0])
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![
-                    field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                    field_8, field_9, field_10, field_11,
-                ])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![
+                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                        field_7?, field_8?, field_9?, field_10?, field_11?,
+                    ])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         CryptoKeyDescriptorVm::CryptoKeyDescriptorX25519(value) => {
             let tag_value = vm::Value::uint(2316288397u64, 32);
             let payload_value = {
-                let field_0 = value.algorithm.value();
-                let field_1 = vm::Value::uint(value.key_kind as u8 as u64, 8);
-                let field_2 = vm::Value::uint(value.usage_mask.0 as u64, 32);
-                let field_3 = value.label.value();
-                let field_4 = vm::Value::bool(value.extractable);
-                let field_5 = vm::Value::uint(value.residency as u8 as u64, 8);
-                let field_6 = vm::Value::bool(value.hardware_backed);
-                let field_7 = vm::Value::bool(value.persistent);
-                let field_8 = {
-                    let field_0 = {
-                        let field_0 =
-                            vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
-                        let field_1 = match value.store_provenance.identity.provider {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_2 = match value.store_provenance.identity.namespace {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.algorithm.value());
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.key_kind as u8 as u64, 8));
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.usage_mask.0 as u64, 32));
+                let field_3: RuntimeResult<vm::Value> = Ok(value.label.value());
+                let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extractable));
+                let field_5: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.residency as u8 as u64, 8));
+                let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.hardware_backed));
+                let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.persistent));
+                let field_8: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.store_provenance.identity.kind as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.provider {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.namespace {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0])
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![
-                    field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-                ])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![
+                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                        field_7?, field_8?,
+                    ])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         CryptoKeyDescriptorVm::CryptoKeyDescriptorX448(value) => {
             let tag_value = vm::Value::uint(1911697504u64, 32);
             let payload_value = {
-                let field_0 = value.algorithm.value();
-                let field_1 = vm::Value::uint(value.key_kind as u8 as u64, 8);
-                let field_2 = vm::Value::uint(value.usage_mask.0 as u64, 32);
-                let field_3 = value.label.value();
-                let field_4 = vm::Value::bool(value.extractable);
-                let field_5 = vm::Value::uint(value.residency as u8 as u64, 8);
-                let field_6 = vm::Value::bool(value.hardware_backed);
-                let field_7 = vm::Value::bool(value.persistent);
-                let field_8 = {
-                    let field_0 = {
-                        let field_0 =
-                            vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
-                        let field_1 = match value.store_provenance.identity.provider {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_2 = match value.store_provenance.identity.namespace {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.algorithm.value());
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.key_kind as u8 as u64, 8));
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.usage_mask.0 as u64, 32));
+                let field_3: RuntimeResult<vm::Value> = Ok(value.label.value());
+                let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extractable));
+                let field_5: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.residency as u8 as u64, 8));
+                let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.hardware_backed));
+                let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.persistent));
+                let field_8: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.store_provenance.identity.kind as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.provider {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.store_provenance.identity.namespace {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0])
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![
-                    field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-                ])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![
+                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                        field_7?, field_8?,
+                    ])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
     })
 }
@@ -2219,7 +2381,7 @@ fn encode_destack_crypto_key_encrypt_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.key.exportPrivate.
@@ -2288,7 +2450,7 @@ fn encode_destack_crypto_key_export_private_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.key.exportPublic.
@@ -2332,7 +2494,7 @@ fn encode_destack_crypto_key_export_public_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.key.exportSecret.
@@ -2376,7 +2538,7 @@ fn encode_destack_crypto_key_export_secret_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.key.generatePair.
@@ -2403,10 +2565,12 @@ fn encode_destack_crypto_key_generate_pair_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoKeyPairVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.public_key.0.0, 64);
-        let field_1 = vm::Value::uint(value.private_key.0.0, 64);
-        context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.public_key.0.0, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.private_key.0.0, 64));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -2434,7 +2598,7 @@ fn encode_destack_crypto_key_generate_secret_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.crypto.key.import.
@@ -2461,7 +2625,7 @@ fn encode_destack_crypto_key_import_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.crypto.key.sign.
@@ -2573,7 +2737,7 @@ fn encode_destack_crypto_key_sign_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.key.unwrap.
@@ -2684,7 +2848,7 @@ fn encode_destack_crypto_key_unwrap_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.crypto.key.verify.
@@ -2799,7 +2963,7 @@ fn encode_destack_crypto_key_verify_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
+    result.and_then(|value| Ok(vm::Value::bool(value)))
 }
 
 /// Decode arguments for destack.crypto.key.wrap.
@@ -2925,7 +3089,7 @@ fn encode_destack_crypto_key_wrap_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.mac.close.
@@ -3049,7 +3213,7 @@ fn encode_destack_crypto_mac_compute_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.mac.finish.
@@ -3071,7 +3235,7 @@ fn encode_destack_crypto_mac_finish_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.mac.open.
@@ -3162,7 +3326,7 @@ fn encode_destack_crypto_mac_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoMacHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.crypto.mac.reset.
@@ -3318,7 +3482,7 @@ fn encode_destack_crypto_mac_verify_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
+    result.and_then(|value| Ok(vm::Value::bool(value)))
 }
 
 /// Encode the result for destack.crypto.probe.agreementAlgorithms.
@@ -3327,7 +3491,7 @@ fn encode_destack_crypto_probe_agreement_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyAgreementAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.crypto.probe.cipherAlgorithms.
@@ -3336,7 +3500,7 @@ fn encode_destack_crypto_probe_cipher_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoCipherAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.crypto.probe.digestAlgorithms.
@@ -3345,7 +3509,7 @@ fn encode_destack_crypto_probe_digest_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoDigestAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.crypto.probe.kdfAlgorithms.
@@ -3354,7 +3518,7 @@ fn encode_destack_crypto_probe_kdf_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKdfAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.crypto.probe.keyAlgorithms.
@@ -3363,7 +3527,7 @@ fn encode_destack_crypto_probe_key_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.crypto.probe.keyFormats.
@@ -3372,7 +3536,7 @@ fn encode_destack_crypto_probe_key_formats_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyFormat>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.crypto.probe.keyResidencies.
@@ -3381,7 +3545,7 @@ fn encode_destack_crypto_probe_key_residencies_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyResidency>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.crypto.probe.keyWrapAlgorithms.
@@ -3390,7 +3554,7 @@ fn encode_destack_crypto_probe_key_wrap_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoKeyWrapAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.crypto.probe.macAlgorithms.
@@ -3399,7 +3563,7 @@ fn encode_destack_crypto_probe_mac_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoMacAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.crypto.probe.namedCurves.
@@ -3408,7 +3572,7 @@ fn encode_destack_crypto_probe_named_curves_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoNamedCurve>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.crypto.probe.signatureAlgorithms.
@@ -3417,7 +3581,7 @@ fn encode_destack_crypto_probe_signature_algorithms_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CryptoSignatureAlgorithm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.random.bytes.
@@ -3437,7 +3601,7 @@ fn encode_destack_crypto_random_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.random.fill.
@@ -3551,13 +3715,15 @@ fn encode_destack_crypto_store_list_certificates_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoCertificateListPageVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.entries.to_value(context);
-        let field_1 = match value.next_cursor {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = value.entries.to_value(context);
+        let field_1: RuntimeResult<vm::Value> = match value.next_cursor {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        context.allocate_aggregate(vec![field_0, field_1])
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3655,13 +3821,15 @@ fn encode_destack_crypto_store_list_keys_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoKeyListPageVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.entries.to_value(context);
-        let field_1 = match value.next_cursor {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = value.entries.to_value(context);
+        let field_1: RuntimeResult<vm::Value> = match value.next_cursor {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        context.allocate_aggregate(vec![field_0, field_1])
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3744,7 +3912,7 @@ fn encode_destack_crypto_store_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoStoreHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.crypto.store.probeCapability.
@@ -3796,47 +3964,69 @@ fn encode_destack_crypto_store_probe_capability_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CryptoStoreCapabilityVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = {
-            let field_0 = vm::Value::uint(value.identity.kind as u8 as u64, 8);
-            let field_1 = match value.identity.provider {
-                Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.identity.kind as u8 as u64, 8));
+            let field_1: RuntimeResult<vm::Value> = match value.identity.provider {
+                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                None => Ok(vm::Value::VOID),
             };
-            let field_2 = match value.identity.namespace {
-                Some(value) => value.value(),
-                None => vm::Value::VOID,
+            let field_2: RuntimeResult<vm::Value> = match value.identity.namespace {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
             };
-            context.allocate_aggregate(vec![field_0, field_1, field_2])
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .map_err(Box::<RuntimeError>::from)
         };
-        let field_1 = vm::Value::bool(value.is_available);
-        let field_2 = vm::Value::bool(value.supports_hardware_backed);
-        let field_3 = vm::Value::bool(value.supports_persistent);
-        let field_4 = vm::Value::bool(value.supports_key_export);
-        let field_5 = value.supported_key_algorithms.to_value(context);
-        let field_6 = value.supported_key_formats.to_value(context);
-        let field_7 = value.supported_key_residencies.to_value(context);
-        let field_8 = value.key_capabilities.to_value(context);
-        let field_9 = value.signature_capabilities.to_value(context);
-        let field_10 = value.asymmetric_encryption_capabilities.to_value(context);
-        let field_11 = value.key_wrap_capabilities.to_value(context);
-        let field_12 = value.cipher_capabilities.to_value(context);
-        let field_13 = value.mac_capabilities.to_value(context);
-        let field_14 = value.agreement_capabilities.to_value(context);
-        let field_15 = {
-            let field_0 = vm::Value::bool(value.certificate_capabilities.supports_import);
-            let field_1 = vm::Value::bool(value.certificate_capabilities.supports_export);
-            let field_2 = vm::Value::bool(value.certificate_capabilities.supports_descriptor);
-            let field_3 = vm::Value::bool(value.certificate_capabilities.supports_verify);
-            let field_4 = vm::Value::bool(value.certificate_capabilities.supports_delete);
-            let field_5 =
-                vm::Value::bool(value.certificate_capabilities.supports_system_trust_anchors);
-            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_available));
+        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_hardware_backed));
+        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_persistent));
+        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_key_export));
+        let field_5: RuntimeResult<vm::Value> = value.supported_key_algorithms.to_value(context);
+        let field_6: RuntimeResult<vm::Value> = value.supported_key_formats.to_value(context);
+        let field_7: RuntimeResult<vm::Value> = value.supported_key_residencies.to_value(context);
+        let field_8: RuntimeResult<vm::Value> = value.key_capabilities.to_value(context);
+        let field_9: RuntimeResult<vm::Value> = value.signature_capabilities.to_value(context);
+        let field_10: RuntimeResult<vm::Value> =
+            value.asymmetric_encryption_capabilities.to_value(context);
+        let field_11: RuntimeResult<vm::Value> = value.key_wrap_capabilities.to_value(context);
+        let field_12: RuntimeResult<vm::Value> = value.cipher_capabilities.to_value(context);
+        let field_13: RuntimeResult<vm::Value> = value.mac_capabilities.to_value(context);
+        let field_14: RuntimeResult<vm::Value> = value.agreement_capabilities.to_value(context);
+        let field_15: RuntimeResult<vm::Value> = {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
+                value.certificate_capabilities.supports_import,
+            ));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
+                value.certificate_capabilities.supports_export,
+            ));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
+                value.certificate_capabilities.supports_descriptor,
+            ));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
+                value.certificate_capabilities.supports_verify,
+            ));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
+                value.certificate_capabilities.supports_delete,
+            ));
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
+                value.certificate_capabilities.supports_system_trust_anchors,
+            ));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
         };
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14, field_15,
-        ])
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                field_15?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -3846,7 +4036,7 @@ fn encode_destack_crypto_store_probe_kinds_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<CryptoStoreKind>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Replay payload for destack.crypto.probe.agreementAlgorithms.
@@ -9903,8 +10093,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                         None
                     };
                     let vm_result_identity_namespace = if let Some(value) = value.identity.namespace {
-                        let vm_result_identity_namespace_inner_value = context.intern_string(value.as_str());
-                        let vm_result_identity_namespace_inner = vm::StringHandle::new(vm_result_identity_namespace_inner_value);
+                        let vm_result_identity_namespace_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_identity_namespace_inner)
                     } else {
                         None
