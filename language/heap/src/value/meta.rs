@@ -91,10 +91,19 @@ pub struct ReferenceMeta {
     bits: u8,
 }
 
+/// The packed bit mask for the reference kind.
 const REF_KIND_MASK: u8 = 0x7;
+
+/// The packed bit that marks mutable references.
 const REF_MUTABLE_BIT: u8 = 1 << 3;
+
+/// The packed bit that marks nullable references.
 const REF_NULLABLE_BIT: u8 = 1 << 4;
+
+/// The shift used for the packed reference address space.
 const REF_ADDRESS_SPACE_SHIFT: u8 = 5;
+
+/// The packed bit mask for the reference address space.
 const REF_ADDRESS_SPACE_MASK: u8 = 0x7 << REF_ADDRESS_SPACE_SHIFT;
 
 impl ReferenceMeta {

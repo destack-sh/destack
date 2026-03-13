@@ -1,18 +1,18 @@
 mod bitmap;
-mod gc;
-mod managed;
-mod page;
-mod raw;
-mod slot;
-mod store;
+mod defaults;
+mod heap;
+mod image;
+mod limits;
+mod usage;
+mod vector;
 
 pub use bitmap::*;
-pub use gc::*;
-pub use managed::*;
-pub use page::*;
-pub use raw::*;
-pub use slot::*;
-pub use store::*;
+pub(crate) use defaults::*;
+pub use heap::*;
+pub use image::*;
+pub use limits::*;
+pub use usage::*;
+pub(crate) use vector::*;
 
 #[cfg(test)]
 #[path = "tests.rs"]

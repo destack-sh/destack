@@ -6,7 +6,7 @@ use destack_mir as mir;
 #[derive(Debug)]
 pub struct StringLayout;
 
-// string layout as defined by the builtin/lib/native/string/string.ds file
+/// String layout as defined by the language/builtin/lib/native/string/string.ds file.
 impl StringLayout {
     /// The slot index for `lengthUtf16`.
     pub const LENGTH_UTF16: usize = 0;
@@ -36,6 +36,7 @@ pub const STRING_FLAG_IS_INTERNED: u32 = 1 << 3;
 pub const STRING_FLAG_IS_EXTERNAL: u32 = 1 << 4;
 
 /// MIR type alias for the runtime string layout used by VM tests.
+/// (Also defined by language/builtin/lib/native/string/string.ds)
 pub const STRING_TYPE_ALIAS: &str = "type @String = { lengthUtf16: u32, lengthBytes: u32, hash: u64, capacity: u32, flags: u32, data: ref<raw u8> }\n";
 
 /// Check whether a MIR type matches the runtime string layout.
