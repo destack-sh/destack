@@ -20,6 +20,7 @@ declare namespace tty {
     /// Read one terminal mode snapshot for one terminal handle.
     /// Mode fields are projected from host terminal APIs.
     /// Field-level behavior is host-specific, especially for non-POSIX backends.
+    /// Windows PTY worker handles may report `notSupported` because ConPTY pipes do not expose console-mode APIs.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -50,6 +51,7 @@ declare namespace tty {
     ///
     /// Apply one terminal mode snapshot to one terminal handle.
     /// Mode transition timing and unsupported bits follow host API behavior.
+    /// Windows PTY worker handles may report `notSupported` because ConPTY pipes do not expose console-mode APIs.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -80,6 +82,7 @@ declare namespace tty {
     ///
     /// Apply one host-defined raw-mode profile for one terminal handle.
     /// This maps to cfmakeraw-style behavior on Unix and console-mode toggles on Windows.
+    /// Windows PTY worker handles may report `notSupported` because ConPTY pipes do not expose console-mode APIs.
     ///
     /// # Platform
     /// Unix and Windows.

@@ -80,13 +80,13 @@ declare namespace input {
     /// Read one relative pointer state snapshot.
     ///
     /// Return one relative motion and button state snapshot for one opened pointer-capable device.
-    /// Delta units follow backend-native relative motion semantics.
+    /// Delta values are projected from the current snapshot and the last stored pointer baseline while relative mode is active.
     /// Pen-capable devices can populate pressure and tilt metadata.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific relative motion streams from evdev or libinput-style backends on Unix.
-    /// Uses raw-input relative motion on Windows.
+    /// Uses backend pointer snapshots plus runtime-managed relative baselines.
+    /// Relative mode must be enabled before this lane becomes readable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

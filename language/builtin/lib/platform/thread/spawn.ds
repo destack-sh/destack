@@ -16,6 +16,7 @@ declare namespace thread {
     /// Spawn one host thread that enters one runtime-provided thread entry handle.
     /// The runtime resolves `entry` against its thread-entry table and passes `argument` as one machine-word payload.
     /// Thread entry creation and argument interpretation are runtime ABI contracts.
+    /// FUGU #Broken: revisit ThreadEntryHandles across thread/process
     ///
     /// # Platform
     /// Unix and Windows.
@@ -52,7 +53,7 @@ declare namespace thread {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses pthread_join on Unix and WaitForSingleObject plus exit code on Windows.
+    /// Uses host thread joins plus one runtime-managed completion slot.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
