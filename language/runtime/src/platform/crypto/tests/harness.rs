@@ -27,6 +27,7 @@ use crate::platform::{
     NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, crypto as platform_crypto, resource,
 };
 use crate::runtime::{NativeSlice, NativeStringRef};
+use crate::tests::platform::vm_test_string;
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -209,7 +210,7 @@ fn vm_string_from_native(
     let value = unsafe { value.as_str()? };
 
     // intern and return vm handle
-    Ok(destack_vm::StringHandle::new(context.intern_string(value)))
+    Ok(vm_test_string(context, value))
 }
 
 /// Convert one optional native string into one optional VM string handle.
@@ -326,9 +327,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ) -> HarnessValue<NativeStringRef, destack_vm::StringHandle> {
         // route string encoding to the active engine
         match self.vm_context_mut() {
-            Some(context) => {
-                self.harness_value_vm(destack_vm::StringHandle::new(context.intern_string(value)))
-            }
+            Some(context) => self.harness_value_vm(vm_test_string(context, value)),
             None => self.harness_value(self.call_context.store_string(value)),
         }
     }

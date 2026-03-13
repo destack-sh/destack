@@ -1,6 +1,6 @@
 use destack_vm;
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::{
     bytes_to_vm, call_out, map_native_array_to_vm, map_native_slice_to_vm,
     store_bytes_from_vm as bytes_from_vm, store_string_from_vm as string_from_vm,
@@ -39,11 +39,21 @@ fn device_info_to_vm(
 
     // build one vm device-info record
     Ok(InputDeviceDescriptorVm {
-        id: destack_vm::StringHandle::new(context.intern_string(id)),
-        instance_id: destack_vm::StringHandle::new(context.intern_string(instance_id)),
-        hardware_id: destack_vm::StringHandle::new(context.intern_string(hardware_id)),
-        name: destack_vm::StringHandle::new(context.intern_string(name)),
-        transport: destack_vm::StringHandle::new(context.intern_string(transport)),
+        id: context
+            .string_handle(id)
+            .map_err(Box::<RuntimeError>::from)?,
+        instance_id: context
+            .string_handle(instance_id)
+            .map_err(Box::<RuntimeError>::from)?,
+        hardware_id: context
+            .string_handle(hardware_id)
+            .map_err(Box::<RuntimeError>::from)?,
+        name: context
+            .string_handle(name)
+            .map_err(Box::<RuntimeError>::from)?,
+        transport: context
+            .string_handle(transport)
+            .map_err(Box::<RuntimeError>::from)?,
         kind: value.kind,
         vendor_id: value.vendor_id,
         product_id: value.product_id,
@@ -211,7 +221,9 @@ fn native_string_to_vm(
     value: NativeStringRef,
 ) -> RuntimeResult<destack_vm::StringHandle> {
     let value = unsafe { value.as_str()? };
-    Ok(destack_vm::StringHandle::new(context.intern_string(value)))
+    context
+        .string_handle(value)
+        .map_err(Box::<RuntimeError>::from)
 }
 
 /// Convert one native event metadata payload into its VM shape.
@@ -314,7 +326,9 @@ fn keyboard_state_to_vm(
     Ok(InputKeyboardStateVm {
         timestamp_ns: value.timestamp_ns,
         sequence: value.sequence,
-        device_id: destack_vm::StringHandle::new(context.intern_string(device_id)),
+        device_id: context
+            .string_handle(device_id)
+            .map_err(Box::<RuntimeError>::from)?,
         modifiers: value.modifiers,
         pressed_codes,
         pressed_scan_codes,
@@ -371,7 +385,9 @@ fn touch_state_to_vm(
     Ok(InputTouchStateVm {
         timestamp_ns: value.timestamp_ns,
         sequence: value.sequence,
-        device_id: destack_vm::StringHandle::new(context.intern_string(device_id)),
+        device_id: context
+            .string_handle(device_id)
+            .map_err(Box::<RuntimeError>::from)?,
         contacts,
     })
 }

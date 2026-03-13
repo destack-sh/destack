@@ -2034,7 +2034,9 @@ impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2265,7 +2267,9 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2863,7 +2867,9 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3570,7 +3576,9 @@ impl VmAggregateCodec for WindowModeOptionsAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3774,7 +3782,9 @@ impl VmAggregateCodec for DisplayAddedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3916,7 +3926,9 @@ impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4065,7 +4077,9 @@ impl VmAggregateCodec for DisplayBackendDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4212,7 +4226,9 @@ impl VmAggregateCodec for DisplayColorState {
             )?,
             <Option<u16> as VmAggregateCodec>::encode_with_context(self.bits_per_channel, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4427,7 +4443,9 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4735,7 +4753,9 @@ impl VmAggregateCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4905,7 +4925,9 @@ impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5045,7 +5067,9 @@ impl VmAggregateCodec for DisplayEventQueueOptions {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5160,7 +5184,9 @@ impl VmAggregateCodec for DisplayGammaRampAbi<VmAbi> {
             <VmSlice<u16> as VmAggregateCodec>::encode_with_context(self.green, context)?,
             <VmSlice<u16> as VmAggregateCodec>::encode_with_context(self.blue, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5287,7 +5313,9 @@ impl VmAggregateCodec for DisplayMode {
             <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.bit_depth, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5412,7 +5440,9 @@ impl VmAggregateCodec for DisplayModeChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5550,7 +5580,9 @@ impl VmAggregateCodec for DisplayModeChangedPayload {
             )?,
             <DisplayModeVm as VmAggregateCodec>::encode_with_context(self.current, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5668,7 +5700,9 @@ impl VmAggregateCodec for DisplayMonitorEventFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5837,7 +5871,9 @@ impl VmAggregateCodec for DisplayMonitorEventMetadataAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6020,7 +6056,9 @@ impl VmAggregateCodec for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6168,7 +6206,9 @@ impl VmAggregateCodec for DisplayMonitorListRequest {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6263,7 +6303,9 @@ impl VmAggregateCodec for DisplayMonitorOpenOptions {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6387,7 +6429,9 @@ impl VmAggregateCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6540,7 +6584,9 @@ impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6704,7 +6750,9 @@ impl VmAggregateCodec for DisplayRemovedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6856,7 +6904,9 @@ impl VmAggregateCodec for DisplayRemovedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6995,7 +7045,9 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7123,7 +7175,9 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7228,7 +7282,9 @@ impl VmAggregateCodec for WindowAspectRatio {
             <u32 as VmAggregateCodec>::encode_with_context(self.numerator, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.denominator, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7351,7 +7407,9 @@ impl VmAggregateCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7484,7 +7542,9 @@ impl VmAggregateCodec for WindowAspectRatioPayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7599,7 +7659,9 @@ impl VmAggregateCodec for WindowBorderlessModeOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7750,7 +7812,9 @@ impl VmAggregateCodec for WindowChromeChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7871,7 +7935,9 @@ impl VmAggregateCodec for WindowChromePayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7984,7 +8050,9 @@ impl VmAggregateCodec for WindowCloseRequestedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8117,7 +8185,9 @@ impl VmAggregateCodec for WindowCreatedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8358,7 +8428,9 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8634,7 +8706,9 @@ impl VmAggregateCodec for WindowDestroyedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8776,7 +8850,9 @@ impl VmAggregateCodec for WindowDisplayChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8901,7 +8977,9 @@ impl VmAggregateCodec for WindowDisplayPayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9014,7 +9092,9 @@ impl VmAggregateCodec for WindowDropCancelledEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9147,7 +9227,9 @@ impl VmAggregateCodec for WindowDropCompletedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9280,7 +9362,9 @@ impl VmAggregateCodec for WindowDropFilePayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9422,7 +9506,9 @@ impl VmAggregateCodec for WindowDropHoverLeavePayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9572,7 +9658,9 @@ impl VmAggregateCodec for WindowDropHoverPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9711,7 +9799,9 @@ impl VmAggregateCodec for WindowDropStartedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9844,7 +9934,9 @@ impl VmAggregateCodec for WindowDropTextPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9969,7 +10061,9 @@ impl VmAggregateCodec for WindowEventFilter {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10077,7 +10171,9 @@ impl VmAggregateCodec for WindowEventMetadata {
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10191,7 +10287,9 @@ impl VmAggregateCodec for WindowEventOpenOptions {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10313,7 +10411,9 @@ impl VmAggregateCodec for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10475,7 +10575,9 @@ impl VmAggregateCodec for WindowFileDroppedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10627,7 +10729,9 @@ impl VmAggregateCodec for WindowFileHoverLeftEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10786,7 +10890,9 @@ impl VmAggregateCodec for WindowFileHoveredEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10933,7 +11039,9 @@ impl VmAggregateCodec for WindowFocusChangedEventAbi<VmAbi> {
             )?,
             <WindowFocusPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11048,7 +11156,9 @@ impl VmAggregateCodec for WindowFocusPayload {
             <bool as VmAggregateCodec>::encode_with_context(self.previous_focused, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.current_focused, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11171,7 +11281,9 @@ impl VmAggregateCodec for WindowIconImageAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.pixels, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11320,7 +11432,9 @@ impl VmAggregateCodec for WindowIconSetAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11424,7 +11538,9 @@ impl VmAggregateCodec for WindowLogicalSize {
             <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11543,7 +11659,9 @@ impl VmAggregateCodec for WindowModalChangedEventAbi<VmAbi> {
             )?,
             <WindowModalPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11658,7 +11776,9 @@ impl VmAggregateCodec for WindowModalPayload {
             <bool as VmAggregateCodec>::encode_with_context(self.previous_modal, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.current_modal, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11777,7 +11897,9 @@ impl VmAggregateCodec for WindowModeChangedEventAbi<VmAbi> {
             )?,
             <WindowModePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11919,7 +12041,9 @@ impl VmAggregateCodec for WindowModePayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12083,7 +12207,9 @@ impl VmAggregateCodec for WindowMousePassthroughChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12215,7 +12341,9 @@ impl VmAggregateCodec for WindowMousePassthroughPayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12337,7 +12465,9 @@ impl VmAggregateCodec for WindowOcclusionChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12460,7 +12590,9 @@ impl VmAggregateCodec for WindowOcclusionPayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12582,7 +12714,9 @@ impl VmAggregateCodec for WindowOpacityChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12697,7 +12831,9 @@ impl VmAggregateCodec for WindowOpacityPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.previous_opacity, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.current_opacity, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12973,7 +13109,9 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13341,7 +13479,9 @@ impl VmAggregateCodec for WindowParentChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13466,7 +13606,9 @@ impl VmAggregateCodec for WindowParentPayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13553,7 +13695,9 @@ impl VmAggregateCodec for WindowPhysicalSize {
             <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13640,7 +13784,9 @@ impl VmAggregateCodec for WindowPosition {
             <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13762,7 +13908,9 @@ impl VmAggregateCodec for WindowPositionChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13885,7 +14033,9 @@ impl VmAggregateCodec for WindowPositionPayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13998,7 +14148,9 @@ impl VmAggregateCodec for WindowRefreshRequestedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14140,7 +14292,9 @@ impl VmAggregateCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14265,7 +14419,9 @@ impl VmAggregateCodec for WindowSafeAreaInsets {
             <u32 as VmAggregateCodec>::encode_with_context(self.right_px, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.bottom_px, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14364,7 +14520,9 @@ impl VmAggregateCodec for WindowSafeAreaPayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14487,7 +14645,9 @@ impl VmAggregateCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14616,7 +14776,9 @@ impl VmAggregateCodec for WindowScaleFactorPayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14735,7 +14897,9 @@ impl VmAggregateCodec for WindowSizeChangedEventAbi<VmAbi> {
             )?,
             <WindowSizePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14856,7 +15020,9 @@ impl VmAggregateCodec for WindowSizeConstraints {
                 self.max, context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14969,7 +15135,9 @@ impl VmAggregateCodec for WindowSizePayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15202,7 +15370,9 @@ impl VmAggregateCodec for WindowState {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15326,7 +15496,9 @@ impl VmAggregateCodec for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15455,7 +15627,9 @@ impl VmAggregateCodec for WindowTaskbarVisibilityPayload {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.current_taskbar_visible, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15577,7 +15751,9 @@ impl VmAggregateCodec for WindowTextDroppedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15724,7 +15900,9 @@ impl VmAggregateCodec for WindowThemeChangedEventAbi<VmAbi> {
             )?,
             <WindowThemePayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15839,7 +16017,9 @@ impl VmAggregateCodec for WindowThemePayload {
             <WindowTheme as VmAggregateCodec>::encode_with_context(self.previous_theme, context)?,
             <WindowTheme as VmAggregateCodec>::encode_with_context(self.current_theme, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15961,7 +16141,9 @@ impl VmAggregateCodec for WindowTransientChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16088,7 +16270,9 @@ impl VmAggregateCodec for WindowTransientPayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16211,7 +16395,9 @@ impl VmAggregateCodec for WindowVisibilityChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16337,7 +16523,9 @@ impl VmAggregateCodec for WindowVisibilityPayload {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16439,7 +16627,9 @@ impl VmAggregateCodec for WindowWindowedModeOptionsAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.kind, context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

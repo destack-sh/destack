@@ -108,7 +108,11 @@ pub(super) fn harness_string(
     value: &str,
 ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
     if let Some(vm_context) = vm_context_mut(context) {
-        let value = vm::StringHandle::new(vm_context.intern_string(value));
+        let value = vm_context
+            .intern_string(value)
+            .expect("vm test string should intern");
+        let value = vm::StringHandle::new(value);
+
         context.harness_value_vm(value)
     } else {
         context.harness_value(context.call_context.store_string(value))
@@ -217,7 +221,8 @@ pub(super) fn harness_bytes(
     data: &[u8],
 ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
     if let Some(vm_context) = vm_context_mut(context) {
-        let value = VmSlice::from_bytes(vm_context, data);
+        let value = VmSlice::from_bytes(vm_context, data)?;
+
         Ok(context.harness_value_vm(value))
     } else {
         Ok(context.harness_value(context.call_context.store_slice(data.to_vec())))
@@ -228,17 +233,20 @@ pub(super) fn harness_bytes(
 fn vm_slice_of_slices(
     context: &mut vm::ExternalCallContext<'_>,
     slices: &[VmSlice<u8>],
-) -> VmSlice<VmSlice<u8>> {
+) -> RuntimeResult<VmSlice<VmSlice<u8>>> {
     let values = slices
         .iter()
         .map(|slice| slice.to_value(context))
-        .collect::<Vec<_>>();
-    let data = context.allocate_raw_values(values);
-    VmSlice {
+        .collect::<RuntimeResult<Vec<_>>>()?;
+    let data = context
+        .allocate_raw_values(values)
+        .map_err(RuntimeError::from)?;
+
+    Ok(VmSlice {
         data,
         len: slices.len() as u32,
         _marker: std::marker::PhantomData::<VmSlice<u8>>,
-    }
+    })
 }
 
 /// Build one harness nested byte-slice value for vectorized I/O.
@@ -250,8 +258,10 @@ pub(super) fn harness_bytes_slices(
         let vm_buffers = buffers
             .iter()
             .map(|buffer| VmSlice::from_bytes(vm_context, buffer))
-            .collect::<Vec<_>>();
-        Ok(context.harness_value_vm(vm_slice_of_slices(vm_context, &vm_buffers)))
+            .collect::<RuntimeResult<Vec<_>>>()?;
+        let values = vm_slice_of_slices(vm_context, &vm_buffers)?;
+
+        Ok(context.harness_value_vm(values))
     } else {
         let native_buffers = buffers
             .iter()
@@ -273,8 +283,10 @@ pub(super) fn harness_mutable_bytes_slices(
         let vm_buffers = buffers
             .iter()
             .map(|buffer| VmSlice::from_bytes(vm_context, &vec![0u8; buffer.len()]))
-            .collect::<Vec<_>>();
-        Ok(context.harness_value_vm(vm_slice_of_slices(vm_context, &vm_buffers)))
+            .collect::<RuntimeResult<Vec<_>>>()?;
+        let values = vm_slice_of_slices(vm_context, &vm_buffers)?;
+
+        Ok(context.harness_value_vm(values))
     } else {
         let native_buffers = buffers
             .iter_mut()

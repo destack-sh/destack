@@ -66,7 +66,9 @@ impl VmAggregateCodec for ThreadOptions {
             <u64 as VmAggregateCodec>::encode_with_context(self.stack_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

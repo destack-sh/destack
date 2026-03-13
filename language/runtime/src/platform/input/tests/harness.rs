@@ -18,6 +18,7 @@ use crate::platform::input::{
 };
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
 use crate::runtime::{NativeSlice, NativeStringRef};
+use crate::tests::platform::vm_test_string;
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -463,7 +464,7 @@ impl<'call> InputHarnessContext<'call> {
         // build vm or native string payload based on active harness kind
         match self.vm_context_mut() {
             Some(context) => {
-                let value = vm::StringHandle::new(context.intern_string(value));
+                let value = vm_test_string(context, value);
                 self.harness_value_vm(value)
             }
             None => self.harness_value(self.call_context.store_string(value)),

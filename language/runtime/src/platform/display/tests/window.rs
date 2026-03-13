@@ -245,7 +245,9 @@ pub(super) fn test_window_open_mode_exclusive_with_invalid_display_is_rejected()
                     display_platform::WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(
                         display_platform::WindowExclusiveFullscreenModeOptionsVm {
                             kind: destack_vm::StringHandle::new(
-                                vm_context.intern_string("exclusiveFullscreen"),
+                                vm_context
+                                    .intern_string("exclusiveFullscreen")
+                                    .expect("vm test string should intern"),
                             ),
                             display: DisplayHandle(ResourceId(0)),
                             display_mode: None,

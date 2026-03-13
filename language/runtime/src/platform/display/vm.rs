@@ -104,8 +104,12 @@ fn display_descriptor_to_vm(
 
     Ok(DisplayDescriptorVm {
         backend: value.backend,
-        id: destack_vm::StringHandle::new(context.intern_string(id)),
-        name: destack_vm::StringHandle::new(context.intern_string(name)),
+        id: context
+            .string_handle(id)
+            .map_err(Box::<RuntimeError>::from)?,
+        name: context
+            .string_handle(name)
+            .map_err(Box::<RuntimeError>::from)?,
         primary: value.primary,
         x: value.x,
         y: value.y,
@@ -134,7 +138,9 @@ fn display_backend_descriptor_to_vm(
 
     Ok(DisplayBackendDescriptorVm {
         backend: value.backend,
-        name: destack_vm::StringHandle::new(context.intern_string(name)),
+        name: context
+            .string_handle(name)
+            .map_err(Box::<RuntimeError>::from)?,
         support: value.support,
         priority: value.priority,
         capability_flags: value.capability_flags,
@@ -153,7 +159,9 @@ fn display_event_to_vm(
             let descriptor = display_descriptor_to_vm(context, event.payload.descriptor)?;
             Ok(DisplayMonitorEventVm::DisplayAddedEvent(
                 platform::display::DisplayAddedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata,
                     payload: platform::display::DisplayAddedPayloadVm { descriptor },
                 },
@@ -170,7 +178,9 @@ fn display_event_to_vm(
             let current = display_descriptor_to_vm(context, event.payload.current)?;
             Ok(DisplayMonitorEventVm::DisplayDescriptorChangedEvent(
                 platform::display::DisplayDescriptorChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata,
                     payload: platform::display::DisplayDescriptorChangedPayloadVm {
                         previous,
@@ -185,7 +195,9 @@ fn display_event_to_vm(
             let metadata = display_event_metadata_to_vm(context, event.metadata)?;
             Ok(DisplayMonitorEventVm::DisplayModeChangedEvent(
                 platform::display::DisplayModeChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata,
                     payload: event.payload,
                 },
@@ -196,7 +208,9 @@ fn display_event_to_vm(
             let metadata = display_event_metadata_to_vm(context, event.metadata)?;
             Ok(DisplayMonitorEventVm::DisplayPrimaryChangedEvent(
                 platform::display::DisplayPrimaryChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata,
                     payload: platform::display::DisplayPrimaryPayloadVm {
                         previous_id: optional_string_to_vm(context, event.payload.previous_id)?,
@@ -216,7 +230,9 @@ fn display_event_to_vm(
                 .transpose()?;
             Ok(DisplayMonitorEventVm::DisplayRemovedEvent(
                 platform::display::DisplayRemovedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata,
                     payload: platform::display::DisplayRemovedPayloadVm {
                         id: payload_id,
@@ -235,7 +251,11 @@ fn display_event_metadata_to_vm(
 ) -> RuntimeResult<platform::display::DisplayMonitorEventMetadataVm> {
     let display_id = if let Some(value) = value.display_id {
         let value = unsafe { value.as_str()? };
-        Some(destack_vm::StringHandle::new(context.intern_string(value)))
+        Some(
+            context
+                .string_handle(value)
+                .map_err(Box::<RuntimeError>::from)?,
+        )
     } else {
         None
     };
@@ -259,8 +279,12 @@ fn window_descriptor_to_vm(
 
     Ok(WindowDescriptorVm {
         backend: value.backend,
-        id: destack_vm::StringHandle::new(context.intern_string(id)),
-        title: destack_vm::StringHandle::new(context.intern_string(title)),
+        id: context
+            .string_handle(id)
+            .map_err(Box::<RuntimeError>::from)?,
+        title: context
+            .string_handle(title)
+            .map_err(Box::<RuntimeError>::from)?,
         role: value.role,
         mode: window_mode_options_to_vm(context, value.mode)?,
         display: value.display,
@@ -468,7 +492,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowAspectRatioChangedEvent(
                 platform::display::WindowAspectRatioChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -478,7 +504,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowChromeChangedEvent(
                 platform::display::WindowChromeChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -488,7 +516,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowCloseRequestedEvent(
                 platform::display::WindowCloseRequestedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                 },
             ))
@@ -497,7 +527,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowCreatedEvent(
                 platform::display::WindowCreatedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                 },
             ))
@@ -506,7 +538,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDestroyedEvent(
                 platform::display::WindowDestroyedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                 },
             ))
@@ -515,7 +549,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDisplayChangedEvent(
                 platform::display::WindowDisplayChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -525,7 +561,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDropCancelledEvent(
                 platform::display::WindowDropCancelledEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                 },
             ))
@@ -534,7 +572,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDropCompletedEvent(
                 platform::display::WindowDropCompletedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                 },
             ))
@@ -543,7 +583,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDropStartedEvent(
                 platform::display::WindowDropStartedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                 },
             ))
@@ -552,7 +594,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFileDroppedEvent(
                 platform::display::WindowFileDroppedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: window_drop_file_payload_to_vm(context, event.payload)?,
                 },
@@ -562,7 +606,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFileHoverLeftEvent(
                 platform::display::WindowFileHoverLeftEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: window_drop_hover_leave_payload_to_vm(context, event.payload)?,
                 },
@@ -572,7 +618,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFileHoveredEvent(
                 platform::display::WindowFileHoveredEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: window_drop_hover_payload_to_vm(context, event.payload)?,
                 },
@@ -582,7 +630,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFocusChangedEvent(
                 platform::display::WindowFocusChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -592,7 +642,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowModalChangedEvent(
                 platform::display::WindowModalChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -602,7 +654,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowModeChangedEvent(
                 platform::display::WindowModeChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: window_mode_payload_to_vm(context, event.payload)?,
                 },
@@ -612,7 +666,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowMousePassthroughChangedEvent(
                 platform::display::WindowMousePassthroughChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -622,7 +678,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowOcclusionChangedEvent(
                 platform::display::WindowOcclusionChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -632,7 +690,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowOpacityChangedEvent(
                 platform::display::WindowOpacityChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -642,7 +702,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowParentChangedEvent(
                 platform::display::WindowParentChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -652,7 +714,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowPositionChangedEvent(
                 platform::display::WindowPositionChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -662,7 +726,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowRefreshRequestedEvent(
                 platform::display::WindowRefreshRequestedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                 },
             ))
@@ -671,7 +737,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowSafeAreaChangedEvent(
                 platform::display::WindowSafeAreaChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -681,7 +749,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowScaleFactorChangedEvent(
                 platform::display::WindowScaleFactorChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -691,7 +761,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowSizeChangedEvent(
                 platform::display::WindowSizeChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -701,7 +773,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowTaskbarVisibilityChangedEvent(
                 platform::display::WindowTaskbarVisibilityChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -711,7 +785,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowTextDroppedEvent(
                 platform::display::WindowTextDroppedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: window_drop_text_payload_to_vm(context, event.payload)?,
                 },
@@ -721,7 +797,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowThemeChangedEvent(
                 platform::display::WindowThemeChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -731,7 +809,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowTransientChangedEvent(
                 platform::display::WindowTransientChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },
@@ -741,7 +821,9 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowVisibilityChangedEvent(
                 platform::display::WindowVisibilityChangedEventVm {
-                    kind: destack_vm::StringHandle::new(context.intern_string(kind)),
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
                 },

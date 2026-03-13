@@ -1291,7 +1291,9 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1491,7 +1493,9 @@ impl VmAggregateCodec for SerialEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1695,7 +1699,9 @@ impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1859,7 +1865,9 @@ impl VmAggregateCodec for BluetoothAdapterDescriptorAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.powered, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.low_energy, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2017,7 +2025,9 @@ impl VmAggregateCodec for BluetoothAdvertisementDataAbi<VmAbi> {
             <VmArray<BluetoothAdvertisementManufacturerDataVm> as VmAggregateCodec>::encode_with_context(self.manufacturer_data, context)?,
             <VmArray<BluetoothAdvertisementServiceDataVm> as VmAggregateCodec>::encode_with_context(self.service_data, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2215,7 +2225,9 @@ impl VmAggregateCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
             <u16 as VmAggregateCodec>::encode_with_context(self.company_id, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2345,7 +2357,9 @@ impl VmAggregateCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2529,7 +2543,9 @@ impl VmAggregateCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2724,7 +2740,9 @@ impl VmAggregateCodec for BluetoothGattCharacteristicDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uuid, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.properties, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2878,7 +2896,9 @@ impl VmAggregateCodec for BluetoothGattDescriptorDescriptorAbi<VmAbi> {
             )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uuid, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3030,7 +3050,9 @@ impl VmAggregateCodec for BluetoothGattServiceDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uuid, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3175,7 +3197,9 @@ impl VmAggregateCodec for BluetoothGattValueEventAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.value, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3393,7 +3417,9 @@ impl VmAggregateCodec for BluetoothScanFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3627,7 +3653,9 @@ impl VmAggregateCodec for CameraControlRange {
             <f64 as VmAggregateCodec>::encode_with_context(self.step, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.auto_supported, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3758,7 +3786,9 @@ impl VmAggregateCodec for CameraDeviceDescriptorAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.front_facing, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.depth_capable, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3961,7 +3991,9 @@ impl VmAggregateCodec for CameraFrameAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4150,7 +4182,9 @@ impl VmAggregateCodec for CameraFrameMetadata {
             )?,
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.zoom_ratio, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4249,7 +4283,9 @@ impl VmAggregateCodec for CameraPlaneLayout {
             <u32 as VmAggregateCodec>::encode_with_context(self.row_stride_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.pixel_stride_bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4362,7 +4398,9 @@ impl VmAggregateCodec for CameraStreamCapability {
             <u32 as VmAggregateCodec>::encode_with_context(self.dynamic_range_mask, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.stabilization_mode_mask, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4461,7 +4499,9 @@ impl VmAggregateCodec for CameraStreamConfig {
             <u32 as VmAggregateCodec>::encode_with_context(self.frame_rate_milli_hz, context)?,
             <CameraPixelFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4571,7 +4611,9 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4699,7 +4741,9 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4836,7 +4880,9 @@ impl VmAggregateCodec for SerialErrorEventAbi<VmAbi> {
             )?,
             <SerialErrorPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4949,7 +4995,9 @@ impl VmAggregateCodec for SerialErrorPayload {
             <i32 as VmAggregateCodec>::encode_with_context(self.code, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.detail, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5036,7 +5084,9 @@ impl VmAggregateCodec for SerialEventMetadata {
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5156,7 +5206,9 @@ impl VmAggregateCodec for SerialPortConfig {
             <u64 as VmAggregateCodec>::encode_with_context(self.read_timeout_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.write_timeout_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5289,7 +5341,9 @@ impl VmAggregateCodec for SerialPortDescriptorAbi<VmAbi> {
             <Option<u16> as VmAggregateCodec>::encode_with_context(self.usb_product_id, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.usb_backed, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5463,7 +5517,9 @@ impl VmAggregateCodec for SerialReadReadyEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5575,7 +5631,9 @@ impl VmAggregateCodec for SerialReadReadyPayload {
             self.available_bytes,
             context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5699,7 +5757,9 @@ impl VmAggregateCodec for SerialSignalsChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5819,7 +5879,9 @@ impl VmAggregateCodec for SerialSignalsChangedPayload {
             self.signal_bits,
             context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5942,7 +6004,9 @@ impl VmAggregateCodec for SerialWriteReadyEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6057,7 +6121,9 @@ impl VmAggregateCodec for SerialWriteReadyPayload {
             self.writable_bytes,
             context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6182,7 +6248,9 @@ impl VmAggregateCodec for UsbConfigurationDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6338,7 +6406,9 @@ impl VmAggregateCodec for UsbControlSetup {
             <u16 as VmAggregateCodec>::encode_with_context(self.index, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6494,7 +6564,9 @@ impl VmAggregateCodec for UsbDeviceDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6679,7 +6751,9 @@ impl VmAggregateCodec for UsbEndpointDescriptor {
             <u16 as VmAggregateCodec>::encode_with_context(self.max_packet_size, context)?,
             <u8 as VmAggregateCodec>::encode_with_context(self.interval, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6793,7 +6867,9 @@ impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6936,7 +7012,9 @@ impl VmAggregateCodec for UsbHotplugDetachedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7079,7 +7157,9 @@ impl VmAggregateCodec for UsbHotplugEventMetadataAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <UsbDeviceDescriptorVm as VmAggregateCodec>::encode_with_context(self.device, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7238,7 +7318,9 @@ impl VmAggregateCodec for UsbInterfaceDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7412,7 +7494,9 @@ impl VmAggregateCodec for UsbIsochronousTransferResultAbi<VmAbi> {
             )?,
             <VmSlice<i32> as VmAggregateCodec>::encode_with_context(self.packet_statuses, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7588,7 +7672,9 @@ impl VmAggregateCodec for UsbStringDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

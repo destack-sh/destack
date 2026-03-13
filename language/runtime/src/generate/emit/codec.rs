@@ -54,20 +54,8 @@ impl<'a> ModuleCodegen<'a> {
             return vec!["result.map(|_| vm::Value::VOID)".to_string()];
         }
 
-        if matches!(binding_type, BindingType::Bool) {
-            return vec!["result.map(vm::Value::bool)".to_string()];
-        }
-
-        if matches!(binding_type, BindingType::Float(32)) {
-            return vec!["result.map(vm::Value::float32)".to_string()];
-        }
-
-        if matches!(binding_type, BindingType::Float(64)) {
-            return vec!["result.map(vm::Value::float64)".to_string()];
-        }
-
         let expr = self.render_encode_expr(binding_type, "value");
-        vec![format!("result.map(|value| {expr})")]
+        vec![format!("result.and_then(|value| {expr})")]
     }
 
     /// Render one VM value expression for one encoded binding value.
@@ -77,23 +65,27 @@ impl<'a> ModuleCodegen<'a> {
         value_expr: &str,
     ) -> String {
         match binding_type {
-            BindingType::Void => "vm::Value::VOID".to_string(),
-            BindingType::Bool => format!("vm::Value::bool({value_expr})"),
-            BindingType::Int(64) => format!("vm::Value::int({value_expr}, 64)"),
-            BindingType::Int(bits) => format!("vm::Value::int({value_expr} as i64, {bits})"),
-            BindingType::UInt(64) => format!("vm::Value::uint({value_expr}, 64)"),
-            BindingType::UInt(bits) => format!("vm::Value::uint({value_expr} as u64, {bits})"),
-            BindingType::Float(32) => format!("vm::Value::float32({value_expr})"),
-            BindingType::Float(64) => format!("vm::Value::float64({value_expr})"),
+            BindingType::Void => "Ok(vm::Value::VOID)".to_string(),
+            BindingType::Bool => format!("Ok(vm::Value::bool({value_expr}))"),
+            BindingType::Int(64) => format!("Ok(vm::Value::int({value_expr}, 64))"),
+            BindingType::Int(bits) => {
+                format!("Ok(vm::Value::int({value_expr} as i64, {bits}))")
+            }
+            BindingType::UInt(64) => format!("Ok(vm::Value::uint({value_expr}, 64))"),
+            BindingType::UInt(bits) => {
+                format!("Ok(vm::Value::uint({value_expr} as u64, {bits}))")
+            }
+            BindingType::Float(32) => format!("Ok(vm::Value::float32({value_expr}))"),
+            BindingType::Float(64) => format!("Ok(vm::Value::float64({value_expr}))"),
             BindingType::Float(width) => panic!("unsupported float width for VM binding: {width}"),
-            BindingType::String => format!("{value_expr}.value()"),
+            BindingType::String => format!("Ok({value_expr}.value())"),
             BindingType::StringSlice | BindingType::Slice(_) | BindingType::Array(_) => {
                 format!("{value_expr}.to_value(context)")
             }
             BindingType::Optional(inner) => {
                 let some_expr = self.render_encode_expr(inner, "value");
                 format!(
-                    "match {value_expr} {{ Some(value) => {some_expr}, None => vm::Value::VOID }}"
+                    "match {value_expr} {{ Some(value) => {some_expr}, None => Ok(vm::Value::VOID) }}"
                 )
             }
             BindingType::Newtype {
@@ -124,14 +116,14 @@ impl<'a> ModuleCodegen<'a> {
                     for variant in variants {
                         if let BindingEnumValue::String(value) = &variant.value {
                             arms.push(format!(
-                                "{enum_path}::{} => context.intern_string(\"{value}\")",
+                                "{enum_path}::{} => Ok(context.string_handle(\"{value}\").map_err(Box::<RuntimeError>::from)?.value())",
                                 variant.name
                             ));
                         }
                     }
 
                     format!(
-                        "match {value_expr} {{ {} , _ => context.intern_string(\"\"), }}",
+                        "match {value_expr} {{ {} , _ => Ok(context.string_handle(\"\").map_err(Box::<RuntimeError>::from)?.value()), }}",
                         arms.join(", ")
                     )
                 }
@@ -151,7 +143,7 @@ impl<'a> ModuleCodegen<'a> {
                 }
 
                 lines.push(format!(
-                    "context.allocate_aggregate(vec![{}])",
+                    "context.allocate_aggregate(vec![{}]).map_err(Box::<RuntimeError>::from)",
                     encoded_fields.join(", ")
                 ));
                 format!("{{ {} }}", lines.join(" "))
@@ -167,7 +159,7 @@ impl<'a> ModuleCodegen<'a> {
                     let tag = Self::tagged_union_variant_tag(name, variant.name.as_str());
                     let payload_expr = self.render_encode_expr(&variant.binding_type, "value");
                     arms.push(format!(
-                        "{union_type}::{}(value) => {{ let tag_value = vm::Value::uint({tag}u64, 32); let payload_value = {payload_expr}; context.allocate_aggregate(vec![tag_value, payload_value]) }}",
+                        "{union_type}::{}(value) => {{ let tag_value = vm::Value::uint({tag}u64, 32); let payload_value = {payload_expr}?; context.allocate_aggregate(vec![tag_value, payload_value]).map_err(Box::<RuntimeError>::from) }}",
                         variant.name
                     ));
                 }

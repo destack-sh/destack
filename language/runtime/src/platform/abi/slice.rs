@@ -65,10 +65,12 @@ impl<T> VmSlice<T> {
     }
 
     /// Encode this VM slice into an aggregate value.
-    pub fn to_value(self, context: &mut vm::ExternalCallContext<'_>) -> vm::Value {
+    pub fn to_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let data = vm::Value::raw_pointer(self.data);
         let len = vm::Value::uint(self.len as u64, 32);
-        context.allocate_pair(data, len)
+        context
+            .allocate_pair(data, len)
+            .map_err(|error| RuntimeError::from(error).boxed())
     }
 
     /// Read the raw VM values stored in this slice.
@@ -102,7 +104,10 @@ impl<T: VmAggregateCodec> VmSlice<T> {
         for value in values {
             encoded.push(T::encode_with_context(*value, context)?);
         }
-        let data = context.allocate_raw_values(encoded);
+        let data = context
+            .allocate_raw_values(encoded)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+
         Ok(Self {
             data,
             len: values.len() as u32,
@@ -172,19 +177,25 @@ impl<T: Copy> VmAggregateCodec for VmSlice<T> {
         self,
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
-        Ok(self.to_value(context))
+        self.to_value(context)
     }
 }
 
 impl VmSlice<u8> {
     /// Allocate a VM slice from raw bytes.
-    pub fn from_bytes(context: &mut vm::ExternalCallContext<'_>, bytes: &[u8]) -> Self {
-        let data = context.allocate_raw_bytes(bytes);
-        Self {
+    pub fn from_bytes(
+        context: &mut vm::ExternalCallContext<'_>,
+        bytes: &[u8],
+    ) -> RuntimeResult<Self> {
+        let data = context
+            .allocate_raw_bytes(bytes)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+
+        Ok(Self {
             data,
             len: bytes.len() as u32,
             _marker: PhantomData,
-        }
+        })
     }
 
     /// Read a byte slice from the VM.

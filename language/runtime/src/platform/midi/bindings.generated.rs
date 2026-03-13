@@ -184,7 +184,7 @@ fn encode_destack_midi_backend_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<MidiBackendDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.midi.event.close.
@@ -321,7 +321,7 @@ fn encode_destack_midi_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.midi.event.read.
@@ -345,195 +345,285 @@ fn encode_destack_midi_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
+    result.and_then(|value| match value {
         MidiEventVm::MidiBackendDisconnectedEvent(value) => {
             let tag_value = vm::Value::uint(4143034202u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
-                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
-                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::uint(value.payload.flags as u64, 32);
-                    context.allocate_aggregate(vec![field_0])
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.payload.flags as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         MidiEventVm::MidiPortAddedEvent(value) => {
             let tag_value = vm::Value::uint(639313437u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
-                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
-                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::uint(value.payload.direction as u8 as u64, 8);
-                    let field_1 = {
-                        let field_0 =
-                            vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8);
-                        let field_1 = value.payload.descriptor.id.value();
-                        let field_2 = match value.payload.descriptor.group_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.payload.direction as u8 as u64, 8));
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.payload.descriptor.backend as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(value.payload.descriptor.id.value());
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.group_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.backend_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(value.payload.descriptor.name.value());
+                        let field_5: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.group_name {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_6: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.manufacturer {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_7: RuntimeResult<vm::Value> = match value.payload.descriptor.model
+                        {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.payload.descriptor.backend_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_4 = value.payload.descriptor.name.value();
-                        let field_5 = match value.payload.descriptor.group_name {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_6 = match value.payload.descriptor.manufacturer {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_7 = match value.payload.descriptor.model {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_8 = match value.payload.descriptor.version {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_9 = vm::Value::uint(
+                        let field_8: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.version {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                             value.payload.descriptor.supported_data_formats.0 as u64,
                             32,
-                        );
-                        let field_10 = match value.payload.descriptor.default_data_format {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_11 = vm::Value::uint(
+                        ));
+                        let field_10: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.default_data_format {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                             value.payload.descriptor.supported_protocols.0 as u64,
                             32,
-                        );
-                        let field_12 = match value.payload.descriptor.default_protocol {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_13 = vm::Value::bool(value.payload.descriptor.is_virtual);
-                        let field_14 = vm::Value::bool(value.payload.descriptor.is_connected);
-                        context.allocate_aggregate(vec![
-                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                            field_8, field_9, field_10, field_11, field_12, field_13, field_14,
-                        ])
+                        ));
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.default_protocol {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_13: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
+                        let field_14: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?, field_13?, field_14?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         MidiEventVm::MidiPortChangedEvent(value) => {
             let tag_value = vm::Value::uint(2166240247u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
-                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
-                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::uint(value.payload.direction as u8 as u64, 8);
-                    let field_1 = {
-                        let field_0 =
-                            vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8);
-                        let field_1 = value.payload.descriptor.id.value();
-                        let field_2 = match value.payload.descriptor.group_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.payload.direction as u8 as u64, 8));
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.payload.descriptor.backend as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(value.payload.descriptor.id.value());
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.group_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.backend_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(value.payload.descriptor.name.value());
+                        let field_5: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.group_name {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_6: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.manufacturer {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_7: RuntimeResult<vm::Value> = match value.payload.descriptor.model
+                        {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.payload.descriptor.backend_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_4 = value.payload.descriptor.name.value();
-                        let field_5 = match value.payload.descriptor.group_name {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_6 = match value.payload.descriptor.manufacturer {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_7 = match value.payload.descriptor.model {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_8 = match value.payload.descriptor.version {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_9 = vm::Value::uint(
+                        let field_8: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.version {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                             value.payload.descriptor.supported_data_formats.0 as u64,
                             32,
-                        );
-                        let field_10 = match value.payload.descriptor.default_data_format {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_11 = vm::Value::uint(
+                        ));
+                        let field_10: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.default_data_format {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                             value.payload.descriptor.supported_protocols.0 as u64,
                             32,
-                        );
-                        let field_12 = match value.payload.descriptor.default_protocol {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_13 = vm::Value::bool(value.payload.descriptor.is_virtual);
-                        let field_14 = vm::Value::bool(value.payload.descriptor.is_connected);
-                        context.allocate_aggregate(vec![
-                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                            field_8, field_9, field_10, field_11, field_12, field_13, field_14,
-                        ])
+                        ));
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.default_protocol {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_13: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
+                        let field_14: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?, field_13?, field_14?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         MidiEventVm::MidiPortRemovedEvent(value) => {
             let tag_value = vm::Value::uint(1791639446u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
-                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
-                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::uint(value.payload.direction as u8 as u64, 8);
-                    let field_1 = value.payload.id.value();
-                    let field_2 = match value.payload.group_id {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.payload.direction as u8 as u64, 8));
+                    let field_1: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.payload.group_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
     })
 }
@@ -561,7 +651,7 @@ fn encode_destack_midi_event_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<MidiEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.midi.event.tryRead.
@@ -583,195 +673,285 @@ fn encode_destack_midi_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
+    result.and_then(|value| match value {
         MidiEventVm::MidiBackendDisconnectedEvent(value) => {
             let tag_value = vm::Value::uint(4143034202u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
-                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
-                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::uint(value.payload.flags as u64, 32);
-                    context.allocate_aggregate(vec![field_0])
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.payload.flags as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         MidiEventVm::MidiPortAddedEvent(value) => {
             let tag_value = vm::Value::uint(639313437u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
-                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
-                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::uint(value.payload.direction as u8 as u64, 8);
-                    let field_1 = {
-                        let field_0 =
-                            vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8);
-                        let field_1 = value.payload.descriptor.id.value();
-                        let field_2 = match value.payload.descriptor.group_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.payload.direction as u8 as u64, 8));
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.payload.descriptor.backend as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(value.payload.descriptor.id.value());
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.group_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.backend_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(value.payload.descriptor.name.value());
+                        let field_5: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.group_name {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_6: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.manufacturer {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_7: RuntimeResult<vm::Value> = match value.payload.descriptor.model
+                        {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.payload.descriptor.backend_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_4 = value.payload.descriptor.name.value();
-                        let field_5 = match value.payload.descriptor.group_name {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_6 = match value.payload.descriptor.manufacturer {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_7 = match value.payload.descriptor.model {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_8 = match value.payload.descriptor.version {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_9 = vm::Value::uint(
+                        let field_8: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.version {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                             value.payload.descriptor.supported_data_formats.0 as u64,
                             32,
-                        );
-                        let field_10 = match value.payload.descriptor.default_data_format {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_11 = vm::Value::uint(
+                        ));
+                        let field_10: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.default_data_format {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                             value.payload.descriptor.supported_protocols.0 as u64,
                             32,
-                        );
-                        let field_12 = match value.payload.descriptor.default_protocol {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_13 = vm::Value::bool(value.payload.descriptor.is_virtual);
-                        let field_14 = vm::Value::bool(value.payload.descriptor.is_connected);
-                        context.allocate_aggregate(vec![
-                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                            field_8, field_9, field_10, field_11, field_12, field_13, field_14,
-                        ])
+                        ));
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.default_protocol {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_13: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
+                        let field_14: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?, field_13?, field_14?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         MidiEventVm::MidiPortChangedEvent(value) => {
             let tag_value = vm::Value::uint(2166240247u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
-                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
-                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::uint(value.payload.direction as u8 as u64, 8);
-                    let field_1 = {
-                        let field_0 =
-                            vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8);
-                        let field_1 = value.payload.descriptor.id.value();
-                        let field_2 = match value.payload.descriptor.group_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.payload.direction as u8 as u64, 8));
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.payload.descriptor.backend as u8 as u64,
+                            8,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(value.payload.descriptor.id.value());
+                        let field_2: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.group_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.backend_id {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(value.payload.descriptor.name.value());
+                        let field_5: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.group_name {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_6: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.manufacturer {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_7: RuntimeResult<vm::Value> = match value.payload.descriptor.model
+                        {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.payload.descriptor.backend_id {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_4 = value.payload.descriptor.name.value();
-                        let field_5 = match value.payload.descriptor.group_name {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_6 = match value.payload.descriptor.manufacturer {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_7 = match value.payload.descriptor.model {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_8 = match value.payload.descriptor.version {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
-                        };
-                        let field_9 = vm::Value::uint(
+                        let field_8: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.version {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                             value.payload.descriptor.supported_data_formats.0 as u64,
                             32,
-                        );
-                        let field_10 = match value.payload.descriptor.default_data_format {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_11 = vm::Value::uint(
+                        ));
+                        let field_10: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.default_data_format {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
                             value.payload.descriptor.supported_protocols.0 as u64,
                             32,
-                        );
-                        let field_12 = match value.payload.descriptor.default_protocol {
-                            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-                            None => vm::Value::VOID,
-                        };
-                        let field_13 = vm::Value::bool(value.payload.descriptor.is_virtual);
-                        let field_14 = vm::Value::bool(value.payload.descriptor.is_connected);
-                        context.allocate_aggregate(vec![
-                            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
-                            field_8, field_9, field_10, field_11, field_12, field_13, field_14,
-                        ])
+                        ));
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.payload.descriptor.default_protocol {
+                                Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_13: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
+                        let field_14: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?, field_13?, field_14?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    context.allocate_aggregate(vec![field_0, field_1])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
         MidiEventVm::MidiPortRemovedEvent(value) => {
             let tag_value = vm::Value::uint(1791639446u64, 32);
             let payload_value = {
-                let field_0 = value.kind.value();
-                let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
-                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
-                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
-                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                let field_1: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                let field_2 = {
-                    let field_0 = vm::Value::uint(value.payload.direction as u8 as u64, 8);
-                    let field_1 = value.payload.id.value();
-                    let field_2 = match value.payload.group_id {
-                        Some(value) => value.value(),
-                        None => vm::Value::VOID,
+                let field_2: RuntimeResult<vm::Value> = {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.payload.direction as u8 as u64, 8));
+                    let field_1: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.payload.group_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
                 };
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
-            };
-            context.allocate_aggregate(vec![tag_value, payload_value])
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            }?;
+            context
+                .allocate_aggregate(vec![tag_value, payload_value])
+                .map_err(Box::<RuntimeError>::from)
         }
     })
 }
@@ -797,7 +977,7 @@ fn encode_destack_midi_event_try_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<MidiEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.midi.input.port.close.
@@ -843,50 +1023,54 @@ fn encode_destack_midi_input_port_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiPortDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.backend as u8 as u64, 8);
-        let field_1 = value.id.value();
-        let field_2 = match value.group_id {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.backend as u8 as u64, 8));
+        let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
+        let field_2: RuntimeResult<vm::Value> = match value.group_id {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_3 = match value.backend_id {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_3: RuntimeResult<vm::Value> = match value.backend_id {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_4 = value.name.value();
-        let field_5 = match value.group_name {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_4: RuntimeResult<vm::Value> = Ok(value.name.value());
+        let field_5: RuntimeResult<vm::Value> = match value.group_name {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_6 = match value.manufacturer {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_6: RuntimeResult<vm::Value> = match value.manufacturer {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_7 = match value.model {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_7: RuntimeResult<vm::Value> = match value.model {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_8 = match value.version {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_8: RuntimeResult<vm::Value> = match value.version {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_9 = vm::Value::uint(value.supported_data_formats.0 as u64, 32);
-        let field_10 = match value.default_data_format {
-            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-            None => vm::Value::VOID,
+        let field_9: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.supported_data_formats.0 as u64, 32));
+        let field_10: RuntimeResult<vm::Value> = match value.default_data_format {
+            Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+            None => Ok(vm::Value::VOID),
         };
-        let field_11 = vm::Value::uint(value.supported_protocols.0 as u64, 32);
-        let field_12 = match value.default_protocol {
-            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-            None => vm::Value::VOID,
+        let field_11: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.supported_protocols.0 as u64, 32));
+        let field_12: RuntimeResult<vm::Value> = match value.default_protocol {
+            Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+            None => Ok(vm::Value::VOID),
         };
-        let field_13 = vm::Value::bool(value.is_virtual);
-        let field_14 = vm::Value::bool(value.is_connected);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14,
-        ])
+        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_virtual));
+        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_connected));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -962,7 +1146,7 @@ fn encode_destack_midi_input_port_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<MidiPortDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.midi.input.port.open.
@@ -1077,7 +1261,7 @@ fn encode_destack_midi_input_port_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiInputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.midi.input.read.
@@ -1102,20 +1286,25 @@ fn encode_destack_midi_input_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiInputRecordVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.received_at_ns, 64);
-        let field_1 = match value.source_id {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.received_at_ns, 64));
+        let field_1: RuntimeResult<vm::Value> = match value.source_id {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_2 = vm::Value::uint(value.data_format as u8 as u64, 8);
-        let field_3 = match value.protocol {
-            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-            None => vm::Value::VOID,
+        let field_2: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.data_format as u8 as u64, 8));
+        let field_3: RuntimeResult<vm::Value> = match value.protocol {
+            Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+            None => Ok(vm::Value::VOID),
         };
-        let field_4 = vm::Value::uint(value.framing as u8 as u64, 8);
-        let field_5 = value.data.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.framing as u8 as u64, 8));
+        let field_5: RuntimeResult<vm::Value> = value.data.to_value(context);
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -1143,7 +1332,7 @@ fn encode_destack_midi_input_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<MidiInputRecordVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.midi.input.tryRead.
@@ -1166,20 +1355,25 @@ fn encode_destack_midi_input_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiInputRecordVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.received_at_ns, 64);
-        let field_1 = match value.source_id {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.received_at_ns, 64));
+        let field_1: RuntimeResult<vm::Value> = match value.source_id {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_2 = vm::Value::uint(value.data_format as u8 as u64, 8);
-        let field_3 = match value.protocol {
-            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-            None => vm::Value::VOID,
+        let field_2: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.data_format as u8 as u64, 8));
+        let field_3: RuntimeResult<vm::Value> = match value.protocol {
+            Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+            None => Ok(vm::Value::VOID),
         };
-        let field_4 = vm::Value::uint(value.framing as u8 as u64, 8);
-        let field_5 = value.data.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.framing as u8 as u64, 8));
+        let field_5: RuntimeResult<vm::Value> = value.data.to_value(context);
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -1205,7 +1399,7 @@ fn encode_destack_midi_input_try_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<MidiInputRecordVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.midi.input.virtual.create.
@@ -1332,7 +1526,7 @@ fn encode_destack_midi_input_virtual_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiInputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.midi.output.flush.
@@ -1401,50 +1595,54 @@ fn encode_destack_midi_output_port_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiPortDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.backend as u8 as u64, 8);
-        let field_1 = value.id.value();
-        let field_2 = match value.group_id {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.backend as u8 as u64, 8));
+        let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
+        let field_2: RuntimeResult<vm::Value> = match value.group_id {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_3 = match value.backend_id {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_3: RuntimeResult<vm::Value> = match value.backend_id {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_4 = value.name.value();
-        let field_5 = match value.group_name {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_4: RuntimeResult<vm::Value> = Ok(value.name.value());
+        let field_5: RuntimeResult<vm::Value> = match value.group_name {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_6 = match value.manufacturer {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_6: RuntimeResult<vm::Value> = match value.manufacturer {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_7 = match value.model {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_7: RuntimeResult<vm::Value> = match value.model {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_8 = match value.version {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_8: RuntimeResult<vm::Value> = match value.version {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_9 = vm::Value::uint(value.supported_data_formats.0 as u64, 32);
-        let field_10 = match value.default_data_format {
-            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-            None => vm::Value::VOID,
+        let field_9: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.supported_data_formats.0 as u64, 32));
+        let field_10: RuntimeResult<vm::Value> = match value.default_data_format {
+            Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+            None => Ok(vm::Value::VOID),
         };
-        let field_11 = vm::Value::uint(value.supported_protocols.0 as u64, 32);
-        let field_12 = match value.default_protocol {
-            Some(value) => vm::Value::uint(value as u8 as u64, 8),
-            None => vm::Value::VOID,
+        let field_11: RuntimeResult<vm::Value> =
+            Ok(vm::Value::uint(value.supported_protocols.0 as u64, 32));
+        let field_12: RuntimeResult<vm::Value> = match value.default_protocol {
+            Some(value) => Ok(vm::Value::uint(value as u8 as u64, 8)),
+            None => Ok(vm::Value::VOID),
         };
-        let field_13 = vm::Value::bool(value.is_virtual);
-        let field_14 = vm::Value::bool(value.is_connected);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14,
-        ])
+        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_virtual));
+        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_connected));
+        context
+            .allocate_aggregate(vec![
+                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+            ])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -1520,7 +1718,7 @@ fn encode_destack_midi_output_port_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<MidiPortDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.midi.output.port.open.
@@ -1632,7 +1830,7 @@ fn encode_destack_midi_output_port_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiOutputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.midi.output.virtual.create.
@@ -1756,7 +1954,7 @@ fn encode_destack_midi_output_virtual_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiOutputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.midi.output.write.
@@ -1786,7 +1984,7 @@ fn encode_destack_midi_output_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u64, 32))
+    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
 }
 
 /// Replay payload for destack.midi.backend.list.
@@ -7298,10 +7496,9 @@ fn destack_midi_backend_list_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value_backend = vm_result_item.backend;
-                        let vm_result_item_value_name_value =
-                            context.intern_string(vm_result_item.name.as_str());
-                        let vm_result_item_value_name =
-                            vm::StringHandle::new(vm_result_item_value_name_value);
+                        let vm_result_item_value_name = context
+                            .string_handle(vm_result_item.name.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_support = vm_result_item.support;
                         let vm_result_item_value_priority = vm_result_item.priority;
                         let vm_result_item_value_capability_flags = vm_result_item.capability_flags;
@@ -7805,8 +8002,7 @@ fn destack_midi_event_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         MidieventReplayRecord::MidiBackendDisconnectedEvent(value) => {
-                            let vm_result_midi_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_midi_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_midi_backend_disconnected_event_kind_value);
+                            let vm_result_midi_backend_disconnected_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_midi_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_midi_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7831,8 +8027,7 @@ fn destack_midi_event_read_vm_replay(
                             MidiEventVm::MidiBackendDisconnectedEvent(vm_result_midi_backend_disconnected_event)
                         }
                         MidieventReplayRecord::MidiPortAddedEvent(value) => {
-                            let vm_result_midi_port_added_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_midi_port_added_event_kind = vm::StringHandle::new(vm_result_midi_port_added_event_kind_value);
+                            let vm_result_midi_port_added_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_midi_port_added_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_midi_port_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7847,48 +8042,40 @@ fn destack_midi_event_read_vm_replay(
                             };
                             let vm_result_midi_port_added_event_payload_direction = value.payload.direction;
                             let vm_result_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let vm_result_midi_port_added_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
-                            let vm_result_midi_port_added_event_payload_descriptor_id = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_id_value);
+                            let vm_result_midi_port_added_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let vm_result_midi_port_added_event_payload_descriptor_group_id_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_group_id_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_group_id_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_group_id_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let vm_result_midi_port_added_event_payload_descriptor_backend_id_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_backend_id_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_backend_id_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
-                            let vm_result_midi_port_added_event_payload_descriptor_name = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_name_value);
+                            let vm_result_midi_port_added_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let vm_result_midi_port_added_event_payload_descriptor_group_name_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_group_name_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_group_name_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_group_name_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let vm_result_midi_port_added_event_payload_descriptor_model_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_model_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_model_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_model_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let vm_result_midi_port_added_event_payload_descriptor_version_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_version_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_version_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_version_inner)
                             } else {
                                 None
@@ -7938,8 +8125,7 @@ fn destack_midi_event_read_vm_replay(
                             MidiEventVm::MidiPortAddedEvent(vm_result_midi_port_added_event)
                         }
                         MidieventReplayRecord::MidiPortChangedEvent(value) => {
-                            let vm_result_midi_port_changed_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_midi_port_changed_event_kind = vm::StringHandle::new(vm_result_midi_port_changed_event_kind_value);
+                            let vm_result_midi_port_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_midi_port_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_midi_port_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -7954,48 +8140,40 @@ fn destack_midi_event_read_vm_replay(
                             };
                             let vm_result_midi_port_changed_event_payload_direction = value.payload.direction;
                             let vm_result_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let vm_result_midi_port_changed_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
-                            let vm_result_midi_port_changed_event_payload_descriptor_id = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_id_value);
+                            let vm_result_midi_port_changed_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_id_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_id_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_group_id_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_group_id_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
-                            let vm_result_midi_port_changed_event_payload_descriptor_name = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_name_value);
+                            let vm_result_midi_port_changed_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_name_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_name_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_group_name_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_group_name_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let vm_result_midi_port_changed_event_payload_descriptor_model_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_model_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_model_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_model_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let vm_result_midi_port_changed_event_payload_descriptor_version_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_version_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_version_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_version_inner)
                             } else {
                                 None
@@ -8045,8 +8223,7 @@ fn destack_midi_event_read_vm_replay(
                             MidiEventVm::MidiPortChangedEvent(vm_result_midi_port_changed_event)
                         }
                         MidieventReplayRecord::MidiPortRemovedEvent(value) => {
-                            let vm_result_midi_port_removed_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_midi_port_removed_event_kind = vm::StringHandle::new(vm_result_midi_port_removed_event_kind_value);
+                            let vm_result_midi_port_removed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_midi_port_removed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_midi_port_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8060,11 +8237,9 @@ fn destack_midi_event_read_vm_replay(
                                 backend: vm_result_midi_port_removed_event_metadata_backend,
                             };
                             let vm_result_midi_port_removed_event_payload_direction = value.payload.direction;
-                            let vm_result_midi_port_removed_event_payload_id_value = context.intern_string(value.payload.id.as_str());
-                            let vm_result_midi_port_removed_event_payload_id = vm::StringHandle::new(vm_result_midi_port_removed_event_payload_id_value);
+                            let vm_result_midi_port_removed_event_payload_id = context.string_handle(value.payload.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                let vm_result_midi_port_removed_event_payload_group_id_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_removed_event_payload_group_id_inner = vm::StringHandle::new(vm_result_midi_port_removed_event_payload_group_id_inner_value);
+                                let vm_result_midi_port_removed_event_payload_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_removed_event_payload_group_id_inner)
                             } else {
                                 None
@@ -8471,8 +8646,7 @@ fn destack_midi_event_read_batch_vm_replay(
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value = match vm_result_item {
                             MidieventReplayRecord::MidiBackendDisconnectedEvent(value) => {
-                                let vm_result_item_value_midi_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_midi_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_item_value_midi_backend_disconnected_event_kind_value);
+                                let vm_result_item_value_midi_backend_disconnected_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_midi_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_midi_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8497,8 +8671,7 @@ fn destack_midi_event_read_batch_vm_replay(
                                 MidiEventVm::MidiBackendDisconnectedEvent(vm_result_item_value_midi_backend_disconnected_event)
                             }
                             MidieventReplayRecord::MidiPortAddedEvent(value) => {
-                                let vm_result_item_value_midi_port_added_event_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_midi_port_added_event_kind = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_kind_value);
+                                let vm_result_item_value_midi_port_added_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_midi_port_added_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_midi_port_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8513,48 +8686,40 @@ fn destack_midi_event_read_batch_vm_replay(
                                 };
                                 let vm_result_item_value_midi_port_added_event_payload_direction = value.payload.direction;
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_id = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_id_value);
+                                let vm_result_item_value_midi_port_added_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_name = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_name_value);
+                                let vm_result_item_value_midi_port_added_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner)
                                 } else {
                                     None
@@ -8604,8 +8769,7 @@ fn destack_midi_event_read_batch_vm_replay(
                                 MidiEventVm::MidiPortAddedEvent(vm_result_item_value_midi_port_added_event)
                             }
                             MidieventReplayRecord::MidiPortChangedEvent(value) => {
-                                let vm_result_item_value_midi_port_changed_event_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_midi_port_changed_event_kind = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_kind_value);
+                                let vm_result_item_value_midi_port_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_midi_port_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_midi_port_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8620,48 +8784,40 @@ fn destack_midi_event_read_batch_vm_replay(
                                 };
                                 let vm_result_item_value_midi_port_changed_event_payload_direction = value.payload.direction;
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_id = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_id_value);
+                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_name = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_name_value);
+                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner)
                                 } else {
                                     None
@@ -8711,8 +8867,7 @@ fn destack_midi_event_read_batch_vm_replay(
                                 MidiEventVm::MidiPortChangedEvent(vm_result_item_value_midi_port_changed_event)
                             }
                             MidieventReplayRecord::MidiPortRemovedEvent(value) => {
-                                let vm_result_item_value_midi_port_removed_event_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_midi_port_removed_event_kind = vm::StringHandle::new(vm_result_item_value_midi_port_removed_event_kind_value);
+                                let vm_result_item_value_midi_port_removed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_midi_port_removed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_midi_port_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -8726,11 +8881,9 @@ fn destack_midi_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_midi_port_removed_event_metadata_backend,
                                 };
                                 let vm_result_item_value_midi_port_removed_event_payload_direction = value.payload.direction;
-                                let vm_result_item_value_midi_port_removed_event_payload_id_value = context.intern_string(value.payload.id.as_str());
-                                let vm_result_item_value_midi_port_removed_event_payload_id = vm::StringHandle::new(vm_result_item_value_midi_port_removed_event_payload_id_value);
+                                let vm_result_item_value_midi_port_removed_event_payload_id = context.string_handle(value.payload.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                    let vm_result_item_value_midi_port_removed_event_payload_group_id_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_removed_event_payload_group_id_inner = vm::StringHandle::new(vm_result_item_value_midi_port_removed_event_payload_group_id_inner_value);
+                                    let vm_result_item_value_midi_port_removed_event_payload_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_removed_event_payload_group_id_inner)
                                 } else {
                                     None
@@ -9130,8 +9283,7 @@ fn destack_midi_event_try_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         MidieventReplayRecord::MidiBackendDisconnectedEvent(value) => {
-                            let vm_result_midi_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_midi_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_midi_backend_disconnected_event_kind_value);
+                            let vm_result_midi_backend_disconnected_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_midi_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_midi_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9156,8 +9308,7 @@ fn destack_midi_event_try_read_vm_replay(
                             MidiEventVm::MidiBackendDisconnectedEvent(vm_result_midi_backend_disconnected_event)
                         }
                         MidieventReplayRecord::MidiPortAddedEvent(value) => {
-                            let vm_result_midi_port_added_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_midi_port_added_event_kind = vm::StringHandle::new(vm_result_midi_port_added_event_kind_value);
+                            let vm_result_midi_port_added_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_midi_port_added_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_midi_port_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9172,48 +9323,40 @@ fn destack_midi_event_try_read_vm_replay(
                             };
                             let vm_result_midi_port_added_event_payload_direction = value.payload.direction;
                             let vm_result_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let vm_result_midi_port_added_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
-                            let vm_result_midi_port_added_event_payload_descriptor_id = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_id_value);
+                            let vm_result_midi_port_added_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let vm_result_midi_port_added_event_payload_descriptor_group_id_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_group_id_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_group_id_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_group_id_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let vm_result_midi_port_added_event_payload_descriptor_backend_id_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_backend_id_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_backend_id_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
-                            let vm_result_midi_port_added_event_payload_descriptor_name = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_name_value);
+                            let vm_result_midi_port_added_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let vm_result_midi_port_added_event_payload_descriptor_group_name_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_group_name_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_group_name_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_group_name_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let vm_result_midi_port_added_event_payload_descriptor_model_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_model_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_model_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_model_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let vm_result_midi_port_added_event_payload_descriptor_version_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_added_event_payload_descriptor_version_inner = vm::StringHandle::new(vm_result_midi_port_added_event_payload_descriptor_version_inner_value);
+                                let vm_result_midi_port_added_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_added_event_payload_descriptor_version_inner)
                             } else {
                                 None
@@ -9263,8 +9406,7 @@ fn destack_midi_event_try_read_vm_replay(
                             MidiEventVm::MidiPortAddedEvent(vm_result_midi_port_added_event)
                         }
                         MidieventReplayRecord::MidiPortChangedEvent(value) => {
-                            let vm_result_midi_port_changed_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_midi_port_changed_event_kind = vm::StringHandle::new(vm_result_midi_port_changed_event_kind_value);
+                            let vm_result_midi_port_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_midi_port_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_midi_port_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9279,48 +9421,40 @@ fn destack_midi_event_try_read_vm_replay(
                             };
                             let vm_result_midi_port_changed_event_payload_direction = value.payload.direction;
                             let vm_result_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let vm_result_midi_port_changed_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
-                            let vm_result_midi_port_changed_event_payload_descriptor_id = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_id_value);
+                            let vm_result_midi_port_changed_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_id_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_id_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_group_id_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_group_id_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
-                            let vm_result_midi_port_changed_event_payload_descriptor_name = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_name_value);
+                            let vm_result_midi_port_changed_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_name_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_name_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_group_name_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_group_name_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let vm_result_midi_port_changed_event_payload_descriptor_model_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_model_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_model_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_model_inner)
                             } else {
                                 None
                             };
                             let vm_result_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let vm_result_midi_port_changed_event_payload_descriptor_version_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_changed_event_payload_descriptor_version_inner = vm::StringHandle::new(vm_result_midi_port_changed_event_payload_descriptor_version_inner_value);
+                                let vm_result_midi_port_changed_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_changed_event_payload_descriptor_version_inner)
                             } else {
                                 None
@@ -9370,8 +9504,7 @@ fn destack_midi_event_try_read_vm_replay(
                             MidiEventVm::MidiPortChangedEvent(vm_result_midi_port_changed_event)
                         }
                         MidieventReplayRecord::MidiPortRemovedEvent(value) => {
-                            let vm_result_midi_port_removed_event_kind_value = context.intern_string(value.kind.as_str());
-                            let vm_result_midi_port_removed_event_kind = vm::StringHandle::new(vm_result_midi_port_removed_event_kind_value);
+                            let vm_result_midi_port_removed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_midi_port_removed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_midi_port_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9385,11 +9518,9 @@ fn destack_midi_event_try_read_vm_replay(
                                 backend: vm_result_midi_port_removed_event_metadata_backend,
                             };
                             let vm_result_midi_port_removed_event_payload_direction = value.payload.direction;
-                            let vm_result_midi_port_removed_event_payload_id_value = context.intern_string(value.payload.id.as_str());
-                            let vm_result_midi_port_removed_event_payload_id = vm::StringHandle::new(vm_result_midi_port_removed_event_payload_id_value);
+                            let vm_result_midi_port_removed_event_payload_id = context.string_handle(value.payload.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                let vm_result_midi_port_removed_event_payload_group_id_inner_value = context.intern_string(value.as_str());
-                                let vm_result_midi_port_removed_event_payload_group_id_inner = vm::StringHandle::new(vm_result_midi_port_removed_event_payload_group_id_inner_value);
+                                let vm_result_midi_port_removed_event_payload_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_midi_port_removed_event_payload_group_id_inner)
                             } else {
                                 None
@@ -9795,8 +9926,7 @@ fn destack_midi_event_try_read_batch_vm_replay(
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value = match vm_result_item {
                             MidieventReplayRecord::MidiBackendDisconnectedEvent(value) => {
-                                let vm_result_item_value_midi_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_midi_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_item_value_midi_backend_disconnected_event_kind_value);
+                                let vm_result_item_value_midi_backend_disconnected_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_midi_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_midi_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9821,8 +9951,7 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                 MidiEventVm::MidiBackendDisconnectedEvent(vm_result_item_value_midi_backend_disconnected_event)
                             }
                             MidieventReplayRecord::MidiPortAddedEvent(value) => {
-                                let vm_result_item_value_midi_port_added_event_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_midi_port_added_event_kind = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_kind_value);
+                                let vm_result_item_value_midi_port_added_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_midi_port_added_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_midi_port_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9837,48 +9966,40 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                 };
                                 let vm_result_item_value_midi_port_added_event_payload_direction = value.payload.direction;
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_id = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_id_value);
+                                let vm_result_item_value_midi_port_added_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_name = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_name_value);
+                                let vm_result_item_value_midi_port_added_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner = vm::StringHandle::new(vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner_value);
+                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner)
                                 } else {
                                     None
@@ -9928,8 +10049,7 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                 MidiEventVm::MidiPortAddedEvent(vm_result_item_value_midi_port_added_event)
                             }
                             MidieventReplayRecord::MidiPortChangedEvent(value) => {
-                                let vm_result_item_value_midi_port_changed_event_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_midi_port_changed_event_kind = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_kind_value);
+                                let vm_result_item_value_midi_port_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_midi_port_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_midi_port_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -9944,48 +10064,40 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                 };
                                 let vm_result_item_value_midi_port_changed_event_payload_direction = value.payload.direction;
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_id = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_id_value);
+                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_name = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_name_value);
+                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner)
                                 } else {
                                     None
                                 };
                                 let vm_result_item_value_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner = vm::StringHandle::new(vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner_value);
+                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner)
                                 } else {
                                     None
@@ -10035,8 +10147,7 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                 MidiEventVm::MidiPortChangedEvent(vm_result_item_value_midi_port_changed_event)
                             }
                             MidieventReplayRecord::MidiPortRemovedEvent(value) => {
-                                let vm_result_item_value_midi_port_removed_event_kind_value = context.intern_string(value.kind.as_str());
-                                let vm_result_item_value_midi_port_removed_event_kind = vm::StringHandle::new(vm_result_item_value_midi_port_removed_event_kind_value);
+                                let vm_result_item_value_midi_port_removed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_midi_port_removed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_midi_port_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -10050,11 +10161,9 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_midi_port_removed_event_metadata_backend,
                                 };
                                 let vm_result_item_value_midi_port_removed_event_payload_direction = value.payload.direction;
-                                let vm_result_item_value_midi_port_removed_event_payload_id_value = context.intern_string(value.payload.id.as_str());
-                                let vm_result_item_value_midi_port_removed_event_payload_id = vm::StringHandle::new(vm_result_item_value_midi_port_removed_event_payload_id_value);
+                                let vm_result_item_value_midi_port_removed_event_payload_id = context.string_handle(value.payload.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                    let vm_result_item_value_midi_port_removed_event_payload_group_id_inner_value = context.intern_string(value.as_str());
-                                    let vm_result_item_value_midi_port_removed_event_payload_group_id_inner = vm::StringHandle::new(vm_result_item_value_midi_port_removed_event_payload_group_id_inner_value);
+                                    let vm_result_item_value_midi_port_removed_event_payload_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     Some(vm_result_item_value_midi_port_removed_event_payload_group_id_inner)
                                 } else {
                                     None
@@ -10296,57 +10405,56 @@ fn destack_midi_input_port_descriptor_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_backend = value.backend;
-                    let vm_result_id_value = context.intern_string(value.id.as_str());
-                    let vm_result_id = vm::StringHandle::new(vm_result_id_value);
+                    let vm_result_id = context
+                        .string_handle(value.id.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
                     let vm_result_group_id = if let Some(value) = value.group_id {
-                        let vm_result_group_id_inner_value = context.intern_string(value.as_str());
-                        let vm_result_group_id_inner =
-                            vm::StringHandle::new(vm_result_group_id_inner_value);
+                        let vm_result_group_id_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_group_id_inner)
                     } else {
                         None
                     };
                     let vm_result_backend_id = if let Some(value) = value.backend_id {
-                        let vm_result_backend_id_inner_value =
-                            context.intern_string(value.as_str());
-                        let vm_result_backend_id_inner =
-                            vm::StringHandle::new(vm_result_backend_id_inner_value);
+                        let vm_result_backend_id_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_backend_id_inner)
                     } else {
                         None
                     };
-                    let vm_result_name_value = context.intern_string(value.name.as_str());
-                    let vm_result_name = vm::StringHandle::new(vm_result_name_value);
+                    let vm_result_name = context
+                        .string_handle(value.name.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
                     let vm_result_group_name = if let Some(value) = value.group_name {
-                        let vm_result_group_name_inner_value =
-                            context.intern_string(value.as_str());
-                        let vm_result_group_name_inner =
-                            vm::StringHandle::new(vm_result_group_name_inner_value);
+                        let vm_result_group_name_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_group_name_inner)
                     } else {
                         None
                     };
                     let vm_result_manufacturer = if let Some(value) = value.manufacturer {
-                        let vm_result_manufacturer_inner_value =
-                            context.intern_string(value.as_str());
-                        let vm_result_manufacturer_inner =
-                            vm::StringHandle::new(vm_result_manufacturer_inner_value);
+                        let vm_result_manufacturer_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_manufacturer_inner)
                     } else {
                         None
                     };
                     let vm_result_model = if let Some(value) = value.model {
-                        let vm_result_model_inner_value = context.intern_string(value.as_str());
-                        let vm_result_model_inner =
-                            vm::StringHandle::new(vm_result_model_inner_value);
+                        let vm_result_model_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_model_inner)
                     } else {
                         None
                     };
                     let vm_result_version = if let Some(value) = value.version {
-                        let vm_result_version_inner_value = context.intern_string(value.as_str());
-                        let vm_result_version_inner =
-                            vm::StringHandle::new(vm_result_version_inner_value);
+                        let vm_result_version_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_version_inner)
                     } else {
                         None
@@ -10777,73 +10885,61 @@ fn destack_midi_input_port_list_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value_backend = vm_result_item.backend;
-                        let vm_result_item_value_id_value =
-                            context.intern_string(vm_result_item.id.as_str());
-                        let vm_result_item_value_id =
-                            vm::StringHandle::new(vm_result_item_value_id_value);
-                        let vm_result_item_value_group_id = if let Some(value) =
-                            vm_result_item.group_id
-                        {
-                            let vm_result_item_value_group_id_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_group_id_inner =
-                                vm::StringHandle::new(vm_result_item_value_group_id_inner_value);
-                            Some(vm_result_item_value_group_id_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_item_value_backend_id = if let Some(value) =
-                            vm_result_item.backend_id
-                        {
-                            let vm_result_item_value_backend_id_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_backend_id_inner =
-                                vm::StringHandle::new(vm_result_item_value_backend_id_inner_value);
-                            Some(vm_result_item_value_backend_id_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_item_value_name_value =
-                            context.intern_string(vm_result_item.name.as_str());
-                        let vm_result_item_value_name =
-                            vm::StringHandle::new(vm_result_item_value_name_value);
-                        let vm_result_item_value_group_name = if let Some(value) =
-                            vm_result_item.group_name
-                        {
-                            let vm_result_item_value_group_name_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_group_name_inner =
-                                vm::StringHandle::new(vm_result_item_value_group_name_inner_value);
-                            Some(vm_result_item_value_group_name_inner)
-                        } else {
-                            None
-                        };
+                        let vm_result_item_value_id = context
+                            .string_handle(vm_result_item.id.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_group_id =
+                            if let Some(value) = vm_result_item.group_id {
+                                let vm_result_item_value_group_id_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_item_value_group_id_inner)
+                            } else {
+                                None
+                            };
+                        let vm_result_item_value_backend_id =
+                            if let Some(value) = vm_result_item.backend_id {
+                                let vm_result_item_value_backend_id_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_item_value_backend_id_inner)
+                            } else {
+                                None
+                            };
+                        let vm_result_item_value_name = context
+                            .string_handle(vm_result_item.name.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_group_name =
+                            if let Some(value) = vm_result_item.group_name {
+                                let vm_result_item_value_group_name_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_item_value_group_name_inner)
+                            } else {
+                                None
+                            };
                         let vm_result_item_value_manufacturer =
                             if let Some(value) = vm_result_item.manufacturer {
-                                let vm_result_item_value_manufacturer_inner_value =
-                                    context.intern_string(value.as_str());
-                                let vm_result_item_value_manufacturer_inner = vm::StringHandle::new(
-                                    vm_result_item_value_manufacturer_inner_value,
-                                );
+                                let vm_result_item_value_manufacturer_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_item_value_manufacturer_inner)
                             } else {
                                 None
                             };
                         let vm_result_item_value_model = if let Some(value) = vm_result_item.model {
-                            let vm_result_item_value_model_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_model_inner =
-                                vm::StringHandle::new(vm_result_item_value_model_inner_value);
+                            let vm_result_item_value_model_inner = context
+                                .string_handle(value.as_str())
+                                .map_err(Box::<RuntimeError>::from)?;
                             Some(vm_result_item_value_model_inner)
                         } else {
                             None
                         };
                         let vm_result_item_value_version =
                             if let Some(value) = vm_result_item.version {
-                                let vm_result_item_value_version_inner_value =
-                                    context.intern_string(value.as_str());
-                                let vm_result_item_value_version_inner =
-                                    vm::StringHandle::new(vm_result_item_value_version_inner_value);
+                                let vm_result_item_value_version_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_item_value_version_inner)
                             } else {
                                 None
@@ -11031,9 +11127,9 @@ fn destack_midi_input_read_vm_replay(
                 Ok(value) => {
                     let vm_result_received_at_ns = value.received_at_ns;
                     let vm_result_source_id = if let Some(value) = value.source_id {
-                        let vm_result_source_id_inner_value = context.intern_string(value.as_str());
-                        let vm_result_source_id_inner =
-                            vm::StringHandle::new(vm_result_source_id_inner_value);
+                        let vm_result_source_id_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_source_id_inner)
                     } else {
                         None
@@ -11046,7 +11142,7 @@ fn destack_midi_input_read_vm_replay(
                         None
                     };
                     let vm_result_framing = value.framing;
-                    let vm_result_data = VmSlice::<u8>::from_bytes(context, value.data.as_ref());
+                    let vm_result_data = VmSlice::<u8>::from_bytes(context, value.data.as_ref())?;
                     let vm_result = MidiInputRecordVm {
                         received_at_ns: vm_result_received_at_ns,
                         source_id: vm_result_source_id,
@@ -11265,17 +11361,15 @@ fn destack_midi_input_read_batch_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value_received_at_ns = vm_result_item.received_at_ns;
-                        let vm_result_item_value_source_id = if let Some(value) =
-                            vm_result_item.source_id
-                        {
-                            let vm_result_item_value_source_id_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_source_id_inner =
-                                vm::StringHandle::new(vm_result_item_value_source_id_inner_value);
-                            Some(vm_result_item_value_source_id_inner)
-                        } else {
-                            None
-                        };
+                        let vm_result_item_value_source_id =
+                            if let Some(value) = vm_result_item.source_id {
+                                let vm_result_item_value_source_id_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_item_value_source_id_inner)
+                            } else {
+                                None
+                            };
                         let vm_result_item_value_data_format = vm_result_item.data_format;
                         let vm_result_item_value_protocol =
                             if let Some(value) = vm_result_item.protocol {
@@ -11286,7 +11380,7 @@ fn destack_midi_input_read_batch_vm_replay(
                             };
                         let vm_result_item_value_framing = vm_result_item.framing;
                         let vm_result_item_value_data =
-                            VmSlice::<u8>::from_bytes(context, vm_result_item.data.as_ref());
+                            VmSlice::<u8>::from_bytes(context, vm_result_item.data.as_ref())?;
                         let vm_result_item_value = MidiInputRecordVm {
                             received_at_ns: vm_result_item_value_received_at_ns,
                             source_id: vm_result_item_value_source_id,
@@ -11383,9 +11477,9 @@ fn destack_midi_input_try_read_vm_replay(
                 Ok(value) => {
                     let vm_result_received_at_ns = value.received_at_ns;
                     let vm_result_source_id = if let Some(value) = value.source_id {
-                        let vm_result_source_id_inner_value = context.intern_string(value.as_str());
-                        let vm_result_source_id_inner =
-                            vm::StringHandle::new(vm_result_source_id_inner_value);
+                        let vm_result_source_id_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_source_id_inner)
                     } else {
                         None
@@ -11398,7 +11492,7 @@ fn destack_midi_input_try_read_vm_replay(
                         None
                     };
                     let vm_result_framing = value.framing;
-                    let vm_result_data = VmSlice::<u8>::from_bytes(context, value.data.as_ref());
+                    let vm_result_data = VmSlice::<u8>::from_bytes(context, value.data.as_ref())?;
                     let vm_result = MidiInputRecordVm {
                         received_at_ns: vm_result_received_at_ns,
                         source_id: vm_result_source_id,
@@ -11616,17 +11710,15 @@ fn destack_midi_input_try_read_batch_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value_received_at_ns = vm_result_item.received_at_ns;
-                        let vm_result_item_value_source_id = if let Some(value) =
-                            vm_result_item.source_id
-                        {
-                            let vm_result_item_value_source_id_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_source_id_inner =
-                                vm::StringHandle::new(vm_result_item_value_source_id_inner_value);
-                            Some(vm_result_item_value_source_id_inner)
-                        } else {
-                            None
-                        };
+                        let vm_result_item_value_source_id =
+                            if let Some(value) = vm_result_item.source_id {
+                                let vm_result_item_value_source_id_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_item_value_source_id_inner)
+                            } else {
+                                None
+                            };
                         let vm_result_item_value_data_format = vm_result_item.data_format;
                         let vm_result_item_value_protocol =
                             if let Some(value) = vm_result_item.protocol {
@@ -11637,7 +11729,7 @@ fn destack_midi_input_try_read_batch_vm_replay(
                             };
                         let vm_result_item_value_framing = vm_result_item.framing;
                         let vm_result_item_value_data =
-                            VmSlice::<u8>::from_bytes(context, vm_result_item.data.as_ref());
+                            VmSlice::<u8>::from_bytes(context, vm_result_item.data.as_ref())?;
                         let vm_result_item_value = MidiInputRecordVm {
                             received_at_ns: vm_result_item_value_received_at_ns,
                             source_id: vm_result_item_value_source_id,
@@ -11978,57 +12070,56 @@ fn destack_midi_output_port_descriptor_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_backend = value.backend;
-                    let vm_result_id_value = context.intern_string(value.id.as_str());
-                    let vm_result_id = vm::StringHandle::new(vm_result_id_value);
+                    let vm_result_id = context
+                        .string_handle(value.id.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
                     let vm_result_group_id = if let Some(value) = value.group_id {
-                        let vm_result_group_id_inner_value = context.intern_string(value.as_str());
-                        let vm_result_group_id_inner =
-                            vm::StringHandle::new(vm_result_group_id_inner_value);
+                        let vm_result_group_id_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_group_id_inner)
                     } else {
                         None
                     };
                     let vm_result_backend_id = if let Some(value) = value.backend_id {
-                        let vm_result_backend_id_inner_value =
-                            context.intern_string(value.as_str());
-                        let vm_result_backend_id_inner =
-                            vm::StringHandle::new(vm_result_backend_id_inner_value);
+                        let vm_result_backend_id_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_backend_id_inner)
                     } else {
                         None
                     };
-                    let vm_result_name_value = context.intern_string(value.name.as_str());
-                    let vm_result_name = vm::StringHandle::new(vm_result_name_value);
+                    let vm_result_name = context
+                        .string_handle(value.name.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
                     let vm_result_group_name = if let Some(value) = value.group_name {
-                        let vm_result_group_name_inner_value =
-                            context.intern_string(value.as_str());
-                        let vm_result_group_name_inner =
-                            vm::StringHandle::new(vm_result_group_name_inner_value);
+                        let vm_result_group_name_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_group_name_inner)
                     } else {
                         None
                     };
                     let vm_result_manufacturer = if let Some(value) = value.manufacturer {
-                        let vm_result_manufacturer_inner_value =
-                            context.intern_string(value.as_str());
-                        let vm_result_manufacturer_inner =
-                            vm::StringHandle::new(vm_result_manufacturer_inner_value);
+                        let vm_result_manufacturer_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_manufacturer_inner)
                     } else {
                         None
                     };
                     let vm_result_model = if let Some(value) = value.model {
-                        let vm_result_model_inner_value = context.intern_string(value.as_str());
-                        let vm_result_model_inner =
-                            vm::StringHandle::new(vm_result_model_inner_value);
+                        let vm_result_model_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_model_inner)
                     } else {
                         None
                     };
                     let vm_result_version = if let Some(value) = value.version {
-                        let vm_result_version_inner_value = context.intern_string(value.as_str());
-                        let vm_result_version_inner =
-                            vm::StringHandle::new(vm_result_version_inner_value);
+                        let vm_result_version_inner = context
+                            .string_handle(value.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_version_inner)
                     } else {
                         None
@@ -12459,73 +12550,61 @@ fn destack_midi_output_port_list_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value_backend = vm_result_item.backend;
-                        let vm_result_item_value_id_value =
-                            context.intern_string(vm_result_item.id.as_str());
-                        let vm_result_item_value_id =
-                            vm::StringHandle::new(vm_result_item_value_id_value);
-                        let vm_result_item_value_group_id = if let Some(value) =
-                            vm_result_item.group_id
-                        {
-                            let vm_result_item_value_group_id_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_group_id_inner =
-                                vm::StringHandle::new(vm_result_item_value_group_id_inner_value);
-                            Some(vm_result_item_value_group_id_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_item_value_backend_id = if let Some(value) =
-                            vm_result_item.backend_id
-                        {
-                            let vm_result_item_value_backend_id_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_backend_id_inner =
-                                vm::StringHandle::new(vm_result_item_value_backend_id_inner_value);
-                            Some(vm_result_item_value_backend_id_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_item_value_name_value =
-                            context.intern_string(vm_result_item.name.as_str());
-                        let vm_result_item_value_name =
-                            vm::StringHandle::new(vm_result_item_value_name_value);
-                        let vm_result_item_value_group_name = if let Some(value) =
-                            vm_result_item.group_name
-                        {
-                            let vm_result_item_value_group_name_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_group_name_inner =
-                                vm::StringHandle::new(vm_result_item_value_group_name_inner_value);
-                            Some(vm_result_item_value_group_name_inner)
-                        } else {
-                            None
-                        };
+                        let vm_result_item_value_id = context
+                            .string_handle(vm_result_item.id.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_group_id =
+                            if let Some(value) = vm_result_item.group_id {
+                                let vm_result_item_value_group_id_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_item_value_group_id_inner)
+                            } else {
+                                None
+                            };
+                        let vm_result_item_value_backend_id =
+                            if let Some(value) = vm_result_item.backend_id {
+                                let vm_result_item_value_backend_id_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_item_value_backend_id_inner)
+                            } else {
+                                None
+                            };
+                        let vm_result_item_value_name = context
+                            .string_handle(vm_result_item.name.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_group_name =
+                            if let Some(value) = vm_result_item.group_name {
+                                let vm_result_item_value_group_name_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_item_value_group_name_inner)
+                            } else {
+                                None
+                            };
                         let vm_result_item_value_manufacturer =
                             if let Some(value) = vm_result_item.manufacturer {
-                                let vm_result_item_value_manufacturer_inner_value =
-                                    context.intern_string(value.as_str());
-                                let vm_result_item_value_manufacturer_inner = vm::StringHandle::new(
-                                    vm_result_item_value_manufacturer_inner_value,
-                                );
+                                let vm_result_item_value_manufacturer_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_item_value_manufacturer_inner)
                             } else {
                                 None
                             };
                         let vm_result_item_value_model = if let Some(value) = vm_result_item.model {
-                            let vm_result_item_value_model_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_model_inner =
-                                vm::StringHandle::new(vm_result_item_value_model_inner_value);
+                            let vm_result_item_value_model_inner = context
+                                .string_handle(value.as_str())
+                                .map_err(Box::<RuntimeError>::from)?;
                             Some(vm_result_item_value_model_inner)
                         } else {
                             None
                         };
                         let vm_result_item_value_version =
                             if let Some(value) = vm_result_item.version {
-                                let vm_result_item_value_version_inner_value =
-                                    context.intern_string(value.as_str());
-                                let vm_result_item_value_version_inner =
-                                    vm::StringHandle::new(vm_result_item_value_version_inner_value);
+                                let vm_result_item_value_version_inner = context
+                                    .string_handle(value.as_str())
+                                    .map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_item_value_version_inner)
                             } else {
                                 None

@@ -2002,7 +2002,9 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2451,7 +2453,9 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2919,7 +2923,9 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3256,7 +3262,9 @@ impl VmAggregateCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.info, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.output_length, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3444,7 +3452,9 @@ impl VmAggregateCodec for CryptoArgon2idRequestAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.parallelism, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3636,7 +3646,9 @@ impl VmAggregateCodec for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.label, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3857,7 +3869,9 @@ impl VmAggregateCodec for CryptoCertificateDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4115,7 +4129,9 @@ impl VmAggregateCodec for CryptoCertificateListEntryAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4286,7 +4302,9 @@ impl VmAggregateCodec for CryptoCertificateListPageAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4469,7 +4487,9 @@ impl VmAggregateCodec for CryptoCertificateQueryAbi<VmAbi> {
             )?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.limit, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4629,7 +4649,9 @@ impl VmAggregateCodec for CryptoCertificateValidity {
             <u64 as VmAggregateCodec>::encode_with_context(self.not_before_unix_seconds, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.not_after_unix_seconds, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4742,7 +4764,9 @@ impl VmAggregateCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
             )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.value, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4944,7 +4968,9 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5237,7 +5263,9 @@ impl VmAggregateCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5435,7 +5463,9 @@ impl VmAggregateCodec for CryptoCipherOutputAbi<VmAbi> {
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.tag, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5586,7 +5616,9 @@ impl VmAggregateCodec for CryptoCipherParametersAbi<VmAbi> {
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.tag, context)?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.tag_length_bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5779,7 +5811,9 @@ impl VmAggregateCodec for CryptoHkdfRequestAbi<VmAbi> {
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.info, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5989,7 +6023,9 @@ impl VmAggregateCodec for CryptoKeyDescriptorAesAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6237,7 +6273,9 @@ impl VmAggregateCodec for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6488,7 +6526,9 @@ impl VmAggregateCodec for CryptoKeyDescriptorEcAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6741,7 +6781,9 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd25519Abi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6977,7 +7019,9 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd448Abi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7230,7 +7274,9 @@ impl VmAggregateCodec for CryptoKeyDescriptorHmacAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7512,7 +7558,9 @@ impl VmAggregateCodec for CryptoKeyDescriptorRsaAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7790,7 +7838,9 @@ impl VmAggregateCodec for CryptoKeyDescriptorX25519Abi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8026,7 +8076,9 @@ impl VmAggregateCodec for CryptoKeyDescriptorX448Abi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8257,7 +8309,9 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAesAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8480,7 +8534,9 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8704,7 +8760,9 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEcAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8927,7 +8985,9 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9139,7 +9199,9 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9362,7 +9424,9 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9608,7 +9672,9 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9849,7 +9915,9 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10061,7 +10129,9 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX448Abi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10289,7 +10359,9 @@ impl VmAggregateCodec for CryptoKeyImportRequestAesAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10535,7 +10607,9 @@ impl VmAggregateCodec for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10790,7 +10864,9 @@ impl VmAggregateCodec for CryptoKeyImportRequestEcAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11053,7 +11129,9 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd25519Abi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11299,7 +11377,9 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd448Abi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11551,7 +11631,9 @@ impl VmAggregateCodec for CryptoKeyImportRequestHmacAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11814,7 +11896,9 @@ impl VmAggregateCodec for CryptoKeyImportRequestRsaAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12077,7 +12161,9 @@ impl VmAggregateCodec for CryptoKeyImportRequestX25519Abi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12323,7 +12409,9 @@ impl VmAggregateCodec for CryptoKeyImportRequestX448Abi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12535,7 +12623,9 @@ impl VmAggregateCodec for CryptoKeyListEntryAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12696,7 +12786,9 @@ impl VmAggregateCodec for CryptoKeyListPageAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12836,7 +12928,9 @@ impl VmAggregateCodec for CryptoKeyPair {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12980,7 +13074,9 @@ impl VmAggregateCodec for CryptoKeyQueryAbi<VmAbi> {
             )?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.limit, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13173,7 +13269,9 @@ impl VmAggregateCodec for CryptoKeyWrapParametersAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.label, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13313,7 +13411,9 @@ impl VmAggregateCodec for CryptoMacParameters {
             <CryptoDigestAlgorithm as VmAggregateCodec>::encode_with_context(self.digest, context)?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.tag_length_bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13438,7 +13538,9 @@ impl VmAggregateCodec for CryptoPbkdf2RequestAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.iterations, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13586,7 +13688,9 @@ impl VmAggregateCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.passphrase, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13744,7 +13848,9 @@ impl VmAggregateCodec for CryptoScryptRequestAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.max_memory_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13901,7 +14007,9 @@ impl VmAggregateCodec for CryptoSignatureParameters {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14022,7 +14130,9 @@ impl VmAggregateCodec for CryptoStoreAgreementCapability {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_derive_key, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14165,7 +14275,9 @@ impl VmAggregateCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14456,7 +14568,9 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
             <VmArray<CryptoStoreAgreementCapabilityVm> as VmAggregateCodec>::encode_with_context(self.agreement_capabilities, context)?,
             <CryptoStoreCertificateCapabilityVm as VmAggregateCodec>::encode_with_context(self.certificate_capabilities, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14871,7 +14985,9 @@ impl VmAggregateCodec for CryptoStoreCertificateCapability {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15005,7 +15121,9 @@ impl VmAggregateCodec for CryptoStoreCipherCapability {
             <u32 as VmAggregateCodec>::encode_with_context(self.min_tag_length_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.max_tag_length_bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15129,7 +15247,9 @@ impl VmAggregateCodec for CryptoStoreIdentityAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15353,7 +15473,9 @@ impl VmAggregateCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15660,7 +15782,9 @@ impl VmAggregateCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15876,7 +16000,9 @@ impl VmAggregateCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.min_tag_length_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.max_tag_length_bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16109,7 +16235,9 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16262,7 +16390,9 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -16415,7 +16545,9 @@ impl VmAggregateCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

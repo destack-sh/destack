@@ -303,14 +303,18 @@ pub(crate) fn store_native_record(
 pub(crate) fn store_vm_record(
     context: &mut vm::ExternalCallContext<'_>,
     record: &CredentialRecordOwned,
-) -> CredentialRecordVm {
-    CredentialRecordVm {
-        service: vm::StringHandle::new(context.intern_string(&record.service)),
-        account: vm::StringHandle::new(context.intern_string(&record.account)),
-        bytes: VmSlice::from_bytes(context, &record.bytes),
+) -> RuntimeResult<CredentialRecordVm> {
+    Ok(CredentialRecordVm {
+        service: context
+            .string_handle(&record.service)
+            .map_err(Box::<RuntimeError>::from)?,
+        account: context
+            .string_handle(&record.account)
+            .map_err(Box::<RuntimeError>::from)?,
+        bytes: VmSlice::from_bytes(context, &record.bytes)?,
         created_unix_ns: record.created_unix_ns,
         modified_unix_ns: record.modified_unix_ns,
-    }
+    })
 }
 
 /// Authenticate one credential request through the native ABI surface.
@@ -464,7 +468,7 @@ pub(crate) fn destack_os_credentials_read_vm(
     let query = decode_vm_query(context, query)?;
     let record = read_credentials(binding, &query)?;
 
-    Ok(store_vm_record(context, &record))
+    store_vm_record(context, &record)
 }
 
 /// Write one credential record through the native ABI surface.

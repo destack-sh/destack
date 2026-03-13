@@ -252,7 +252,7 @@ fn encode_destack_tls_context_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TlsContextHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.tls.context.setCipherSuites.
@@ -525,7 +525,7 @@ fn encode_destack_tls_session_export_keying_material_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.tls.session.handshake.
@@ -547,7 +547,7 @@ fn encode_destack_tls_session_handshake_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TlsHandshakeStatus>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
 }
 
 /// Decode arguments for destack.tls.session.negotiatedAlpn.
@@ -569,7 +569,7 @@ fn encode_destack_tls_session_negotiated_alpn_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.tls.session.open.
@@ -605,7 +605,7 @@ fn encode_destack_tls_session_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TlsSessionHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.tls.session.peerCertificatesPem.
@@ -627,7 +627,7 @@ fn encode_destack_tls_session_peer_certificates_pem_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.and_then(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.tls.session.read.
@@ -651,7 +651,7 @@ fn encode_destack_tls_session_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Decode arguments for destack.tls.session.resumptionState.
@@ -673,7 +673,7 @@ fn encode_destack_tls_session_resumption_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TlsSessionResumptionState>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
 }
 
 /// Decode arguments for destack.tls.session.shutdown.
@@ -719,7 +719,7 @@ fn encode_destack_tls_session_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Replay payload for destack.tls.context.close.
@@ -2336,7 +2336,7 @@ fn destack_tls_session_negotiated_alpn_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

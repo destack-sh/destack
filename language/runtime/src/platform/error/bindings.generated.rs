@@ -107,504 +107,650 @@ fn encode_destack_error_error_take_platform_error_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PlatformErrorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.code as u16 as u64, 16);
-        let field_1 = match value.op {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.code as u16 as u64, 16));
+        let field_1: RuntimeResult<vm::Value> = match value.op {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        let field_2 = match value.source {
+        let field_2: RuntimeResult<vm::Value> = match value.source {
             Some(value) => match value {
                 PlatformSystemSourceVm::PlatformSystemSourceEai(value) => {
                     let tag_value = vm::Value::uint(3714893166u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = vm::Value::int(value.value as i64, 32);
-                        let field_2 = match value.name {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.value as i64, 32));
+                        let field_2: RuntimeResult<vm::Value> = match value.name {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformSystemSourceVm::PlatformSystemSourceErrno(value) => {
                     let tag_value = vm::Value::uint(631622357u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = vm::Value::int(value.value as i64, 32);
-                        let field_2 = match value.name {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.value as i64, 32));
+                        let field_2: RuntimeResult<vm::Value> = match value.name {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformSystemSourceVm::PlatformSystemSourceHResult(value) => {
                     let tag_value = vm::Value::uint(1028132082u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = vm::Value::int(value.value as i64, 32);
-                        let field_2 = match value.name {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.value as i64, 32));
+                        let field_2: RuntimeResult<vm::Value> = match value.name {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformSystemSourceVm::PlatformSystemSourceOther(value) => {
                     let tag_value = vm::Value::uint(3614867150u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = vm::Value::int(value.value as i64, 32);
-                        let field_2 = match value.name {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.value as i64, 32));
+                        let field_2: RuntimeResult<vm::Value> = match value.name {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformSystemSourceVm::PlatformSystemSourceSignal(value) => {
                     let tag_value = vm::Value::uint(2760780772u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = vm::Value::int(value.value as i64, 32);
-                        let field_2 = match value.name {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.value as i64, 32));
+                        let field_2: RuntimeResult<vm::Value> = match value.name {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformSystemSourceVm::PlatformSystemSourceWinsock(value) => {
                     let tag_value = vm::Value::uint(1456327686u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = vm::Value::int(value.value as i64, 32);
-                        let field_2 = match value.name {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.value as i64, 32));
+                        let field_2: RuntimeResult<vm::Value> = match value.name {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
             },
-            None => vm::Value::VOID,
+            None => Ok(vm::Value::VOID),
         };
-        let field_3 = match value.context {
+        let field_3: RuntimeResult<vm::Value> = match value.context {
             Some(value) => match value {
                 PlatformErrorContextVm::PlatformErrorContextAudio(value) => {
                     let tag_value = vm::Value::uint(1349179423u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.feature {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.feature {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextDevice(value) => {
                     let tag_value = vm::Value::uint(1175468002u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.path {
+                        let field_2: RuntimeResult<vm::Value> = match value.path {
                             Some(value) => match value {
                                 PlatformPathPayloadVm::PlatformPathPayloadBytes(value) => {
                                     let tag_value = vm::Value::uint(2764680609u64, 32);
                                     let payload_value = {
-                                        let field_0 = value.kind.value();
-                                        let field_1 = value.bytes.to_value(context);
-                                        context.allocate_aggregate(vec![field_0, field_1])
-                                    };
-                                    context.allocate_aggregate(vec![tag_value, payload_value])
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.bytes.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
                                 }
                                 PlatformPathPayloadVm::PlatformPathPayloadUtf16(value) => {
                                     let tag_value = vm::Value::uint(2409119511u64, 32);
                                     let payload_value = {
-                                        let field_0 = value.kind.value();
-                                        let field_1 = value.utf16.to_value(context);
-                                        context.allocate_aggregate(vec![field_0, field_1])
-                                    };
-                                    context.allocate_aggregate(vec![tag_value, payload_value])
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.utf16.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
                                 }
                             },
-                            None => vm::Value::VOID,
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.path_text {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_3: RuntimeResult<vm::Value> = match value.path_text {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_4 = match value.feature {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_4: RuntimeResult<vm::Value> = match value.feature {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
                         context
-                            .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextDisplay(value) => {
                     let tag_value = vm::Value::uint(2713129955u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.feature {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.feature {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextFfi(value) => {
                     let tag_value = vm::Value::uint(296575469u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.library {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.library {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.symbol {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_3: RuntimeResult<vm::Value> = match value.symbol {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextGeneric(value) => {
                     let tag_value = vm::Value::uint(1651991300u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.argument {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.argument {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.pointer {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_3: RuntimeResult<vm::Value> = match value.pointer {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_4 = match value.feature {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_4: RuntimeResult<vm::Value> = match value.feature {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
                         context
-                            .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextGpu(value) => {
                     let tag_value = vm::Value::uint(10423638u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.feature {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.feature {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextIo(value) => {
                     let tag_value = vm::Value::uint(629091376u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.path {
+                        let field_2: RuntimeResult<vm::Value> = match value.path {
                             Some(value) => match value {
                                 PlatformPathPayloadVm::PlatformPathPayloadBytes(value) => {
                                     let tag_value = vm::Value::uint(2764680609u64, 32);
                                     let payload_value = {
-                                        let field_0 = value.kind.value();
-                                        let field_1 = value.bytes.to_value(context);
-                                        context.allocate_aggregate(vec![field_0, field_1])
-                                    };
-                                    context.allocate_aggregate(vec![tag_value, payload_value])
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.bytes.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
                                 }
                                 PlatformPathPayloadVm::PlatformPathPayloadUtf16(value) => {
                                     let tag_value = vm::Value::uint(2409119511u64, 32);
                                     let payload_value = {
-                                        let field_0 = value.kind.value();
-                                        let field_1 = value.utf16.to_value(context);
-                                        context.allocate_aggregate(vec![field_0, field_1])
-                                    };
-                                    context.allocate_aggregate(vec![tag_value, payload_value])
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.utf16.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
                                 }
                             },
-                            None => vm::Value::VOID,
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.dest {
+                        let field_3: RuntimeResult<vm::Value> = match value.dest {
                             Some(value) => match value {
                                 PlatformPathPayloadVm::PlatformPathPayloadBytes(value) => {
                                     let tag_value = vm::Value::uint(2764680609u64, 32);
                                     let payload_value = {
-                                        let field_0 = value.kind.value();
-                                        let field_1 = value.bytes.to_value(context);
-                                        context.allocate_aggregate(vec![field_0, field_1])
-                                    };
-                                    context.allocate_aggregate(vec![tag_value, payload_value])
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.bytes.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
                                 }
                                 PlatformPathPayloadVm::PlatformPathPayloadUtf16(value) => {
                                     let tag_value = vm::Value::uint(2409119511u64, 32);
                                     let payload_value = {
-                                        let field_0 = value.kind.value();
-                                        let field_1 = value.utf16.to_value(context);
-                                        context.allocate_aggregate(vec![field_0, field_1])
-                                    };
-                                    context.allocate_aggregate(vec![tag_value, payload_value])
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.utf16.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
                                 }
                             },
-                            None => vm::Value::VOID,
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_4 = match value.path_text {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_4: RuntimeResult<vm::Value> = match value.path_text {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_5 = match value.dest_text {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_5: RuntimeResult<vm::Value> = match value.dest_text {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_6 = match value.fd {
-                            Some(value) => vm::Value::int(value as i64, 32),
-                            None => vm::Value::VOID,
+                        let field_6: RuntimeResult<vm::Value> = match value.fd {
+                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![
-                            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-                        ])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextIoDriver(value) => {
                     let tag_value = vm::Value::uint(3236432103u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.fd {
-                            Some(value) => vm::Value::int(value as i64, 32),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.fd {
+                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.feature {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_3: RuntimeResult<vm::Value> = match value.feature {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextIpc(value) => {
                     let tag_value = vm::Value::uint(1171251870u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.path {
+                        let field_2: RuntimeResult<vm::Value> = match value.path {
                             Some(value) => match value {
                                 PlatformPathPayloadVm::PlatformPathPayloadBytes(value) => {
                                     let tag_value = vm::Value::uint(2764680609u64, 32);
                                     let payload_value = {
-                                        let field_0 = value.kind.value();
-                                        let field_1 = value.bytes.to_value(context);
-                                        context.allocate_aggregate(vec![field_0, field_1])
-                                    };
-                                    context.allocate_aggregate(vec![tag_value, payload_value])
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.bytes.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
                                 }
                                 PlatformPathPayloadVm::PlatformPathPayloadUtf16(value) => {
                                     let tag_value = vm::Value::uint(2409119511u64, 32);
                                     let payload_value = {
-                                        let field_0 = value.kind.value();
-                                        let field_1 = value.utf16.to_value(context);
-                                        context.allocate_aggregate(vec![field_0, field_1])
-                                    };
-                                    context.allocate_aggregate(vec![tag_value, payload_value])
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.utf16.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
                                 }
                             },
-                            None => vm::Value::VOID,
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.path_text {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_3: RuntimeResult<vm::Value> = match value.path_text {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_4 = match value.fd {
-                            Some(value) => vm::Value::int(value as i64, 32),
-                            None => vm::Value::VOID,
+                        let field_4: RuntimeResult<vm::Value> = match value.fd {
+                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                            None => Ok(vm::Value::VOID),
                         };
                         context
-                            .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextNet(value) => {
                     let tag_value = vm::Value::uint(2690143185u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.address {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.address {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.port {
-                            Some(value) => vm::Value::uint(value as u64, 16),
-                            None => vm::Value::VOID,
+                        let field_3: RuntimeResult<vm::Value> = match value.port {
+                            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_4 = match value.hostname {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_4: RuntimeResult<vm::Value> = match value.hostname {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
                         context
-                            .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextProcess(value) => {
                     let tag_value = vm::Value::uint(1891737808u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.pid {
-                            Some(value) => vm::Value::uint(value, 64),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.pid {
+                            Some(value) => Ok(vm::Value::uint(value, 64)),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.signal {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_3: RuntimeResult<vm::Value> = match value.signal {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_4 = match value.exit_code {
-                            Some(value) => vm::Value::int(value as i64, 32),
-                            None => vm::Value::VOID,
+                        let field_4: RuntimeResult<vm::Value> = match value.exit_code {
+                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                            None => Ok(vm::Value::VOID),
                         };
                         context
-                            .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextResource(value) => {
                     let tag_value = vm::Value::uint(2486361974u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.resource_id {
-                            Some(value) => vm::Value::uint(value, 64),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.resource_id {
+                            Some(value) => Ok(vm::Value::uint(value, 64)),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.resource_kind {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_3: RuntimeResult<vm::Value> = match value.resource_kind {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextSecurity(value) => {
                     let tag_value = vm::Value::uint(522139370u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.capability {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.capability {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.policy {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_3: RuntimeResult<vm::Value> = match value.policy {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextThread(value) => {
                     let tag_value = vm::Value::uint(2561716789u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.thread_id {
-                            Some(value) => vm::Value::uint(value, 64),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.thread_id {
+                            Some(value) => Ok(vm::Value::uint(value, 64)),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
                 PlatformErrorContextVm::PlatformErrorContextTimer(value) => {
                     let tag_value = vm::Value::uint(3049620673u64, 32);
                     let payload_value = {
-                        let field_0 = value.kind.value();
-                        let field_1 = match value.syscall {
-                            Some(value) => value.value(),
-                            None => vm::Value::VOID,
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.syscall {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_2 = match value.timer_id {
-                            Some(value) => vm::Value::uint(value, 64),
-                            None => vm::Value::VOID,
+                        let field_2: RuntimeResult<vm::Value> = match value.timer_id {
+                            Some(value) => Ok(vm::Value::uint(value, 64)),
+                            None => Ok(vm::Value::VOID),
                         };
-                        let field_3 = match value.deadline_ns {
-                            Some(value) => vm::Value::uint(value, 64),
-                            None => vm::Value::VOID,
+                        let field_3: RuntimeResult<vm::Value> = match value.deadline_ns {
+                            Some(value) => Ok(vm::Value::uint(value, 64)),
+                            None => Ok(vm::Value::VOID),
                         };
-                        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
-                    };
-                    context.allocate_aggregate(vec![tag_value, payload_value])
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
                 }
             },
-            None => vm::Value::VOID,
+            None => Ok(vm::Value::VOID),
         };
-        let field_4 = match value.message {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
+        let field_4: RuntimeResult<vm::Value> = match value.message {
+            Some(value) => Ok(value.value()),
+            None => Ok(vm::Value::VOID),
         };
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 

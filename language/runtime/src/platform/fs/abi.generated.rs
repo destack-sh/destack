@@ -1952,7 +1952,9 @@ impl VmAggregateCodec for DirentNextAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2115,7 +2117,9 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2331,7 +2335,9 @@ impl VmAggregateCodec for WatchEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2528,7 +2534,9 @@ impl VmAggregateCodec for DirentAbi<VmAbi> {
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.name, context)?,
             <DirentKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2648,7 +2656,9 @@ impl VmAggregateCodec for DirentNextEndAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.kind, context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2769,7 +2779,9 @@ impl VmAggregateCodec for DirentNextEntryAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <DirentVm as VmAggregateCodec>::encode_with_context(self.entry, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2880,7 +2892,9 @@ impl VmAggregateCodec for OpenOptions {
             <FileMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
             <OpenResolveFlags as VmAggregateCodec>::encode_with_context(self.resolve, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2990,7 +3004,9 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3118,7 +3134,9 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3219,7 +3237,9 @@ impl VmAggregateCodec for SpliceCursor {
         let slots = vec![
             <Option<FileOffset> as VmAggregateCodec>::encode_with_context(self.offset, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3366,7 +3386,9 @@ impl VmAggregateCodec for Stat {
             <u64 as VmAggregateCodec>::encode_with_context(self.ctime_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.birthtime_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3493,7 +3515,9 @@ impl VmAggregateCodec for StatFs {
             <StatFsFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.namelen, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3659,7 +3683,9 @@ impl VmAggregateCodec for Statx {
             <u64 as VmAggregateCodec>::encode_with_context(self.ctime_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.mtime_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3768,7 +3794,9 @@ impl VmAggregateCodec for WatchBatchAbi<VmAbi> {
             <VmArray<WatchEventVm> as VmAggregateCodec>::encode_with_context(self.events, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.overflowed, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3906,7 +3934,9 @@ impl VmAggregateCodec for WatchCreateEventAbi<VmAbi> {
             )?,
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4013,7 +4043,9 @@ impl VmAggregateCodec for WatchEventMetadata {
             self.cookie,
             context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4131,7 +4163,9 @@ impl VmAggregateCodec for WatchMetadataEventAbi<VmAbi> {
             )?,
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4273,7 +4307,9 @@ impl VmAggregateCodec for WatchModifyEventAbi<VmAbi> {
             )?,
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4390,7 +4426,9 @@ impl VmAggregateCodec for WatchOptions {
             <bool as VmAggregateCodec>::encode_with_context(self.recursive, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.follow_symlinks, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4503,7 +4541,9 @@ impl VmAggregateCodec for WatchOverflowEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4639,7 +4679,9 @@ impl VmAggregateCodec for WatchRemoveEventAbi<VmAbi> {
             )?,
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4787,7 +4829,9 @@ impl VmAggregateCodec for WatchRenameEventAbi<VmAbi> {
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.related_path, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

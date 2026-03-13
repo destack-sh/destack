@@ -436,7 +436,9 @@ impl VmAggregateCodec for PtyPair {
             )?,
             <resource::TtyHandle as VmAggregateCodec>::encode_with_context(self.worker, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -533,7 +535,9 @@ impl VmAggregateCodec for TtyMode {
             <u64 as VmAggregateCodec>::encode_with_context(self.control_flags, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.local_flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -629,7 +633,9 @@ impl VmAggregateCodec for TtySize {
             <u32 as VmAggregateCodec>::encode_with_context(self.x_pixels, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.y_pixels, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -769,7 +775,9 @@ impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.input_speed_code, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.output_speed_code, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

@@ -280,7 +280,9 @@ impl VmAggregateCodec for RandomStreamStateAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.version, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -439,7 +441,9 @@ impl VmAggregateCodec for SecureRandomMetadataAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.is_fips_approved, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.entropy_bits_per_byte, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

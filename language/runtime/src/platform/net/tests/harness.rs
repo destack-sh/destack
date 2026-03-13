@@ -89,7 +89,11 @@ impl<'call> NetHarnessContext<'call> {
     ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
         match self.vm_context_mut() {
             Some(context) => {
-                let value = vm::StringHandle::new(context.intern_string(value));
+                let value = vm::StringHandle::new(
+                    context
+                        .intern_string(value)
+                        .expect("vm test string should intern"),
+                );
                 self.harness_value_vm(value)
             }
             None => self.harness_value(self.call_context.store_string(value)),
@@ -102,7 +106,9 @@ impl<'call> NetHarnessContext<'call> {
         bytes: &[u8],
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.vm_context_mut() {
-            Some(context) => Ok(self.harness_value_vm(VmSlice::from_bytes(context, bytes))),
+            Some(context) => Ok(self.harness_value_vm(
+                VmSlice::from_bytes(context, bytes).expect("vm test byte slice should allocate"),
+            )),
             None => Ok(self.harness_value(self.call_context.store_slice(bytes.to_vec()))),
         }
     }
@@ -304,7 +310,10 @@ impl<'call> NetHarnessContext<'call> {
             Some(context) => {
                 let vm_buffers = buffers
                     .iter()
-                    .map(|buffer| VmSlice::from_bytes(context, buffer))
+                    .map(|buffer| {
+                        VmSlice::from_bytes(context, buffer)
+                            .expect("vm test byte slice should allocate")
+                    })
                     .collect::<Vec<_>>();
                 let values = vm_slice_of_slices(context, &vm_buffers);
                 Ok(self.harness_value_vm(values))
@@ -329,7 +338,10 @@ impl<'call> NetHarnessContext<'call> {
             Some(context) => {
                 let vm_buffers = buffers
                     .iter()
-                    .map(|buffer| VmSlice::from_bytes(context, &vec![0_u8; buffer.len()]))
+                    .map(|buffer| {
+                        VmSlice::from_bytes(context, &vec![0_u8; buffer.len()])
+                            .expect("vm test byte slice should allocate")
+                    })
                     .collect::<Vec<_>>();
                 let values = vm_slice_of_slices(context, &vm_buffers);
                 Ok(self.harness_value_vm(values))
@@ -802,10 +814,10 @@ impl<'call> NetHarnessContext<'call> {
                 let message = SocketSendMessageVm {
                     address: None,
                     fds: VmArray::from_values(context, &[]).expect("empty fd array should encode"),
-                    control: platform_net::SocketControlBufferAbi::<VmAbi>(VmArray::from_bytes(
-                        context,
-                        &[],
-                    )),
+                    control: platform_net::SocketControlBufferAbi::<VmAbi>(
+                        VmArray::from_bytes(context, &[])
+                            .expect("vm test byte array should allocate"),
+                    ),
                     flags: SocketMessageFlags(flags),
                     credentials: if has_credentials {
                         Some(SocketCredentialsVm {
@@ -871,9 +883,10 @@ impl<'call> NetHarnessContext<'call> {
                 let message = SocketSendMessageVm {
                     address: Some(address),
                     fds: VmArray::from_values(context, &[]).expect("empty fd array should encode"),
-                    control: platform_net::SocketControlBufferAbi::<VmAbi>(VmArray::from_bytes(
-                        context, control,
-                    )),
+                    control: platform_net::SocketControlBufferAbi::<VmAbi>(
+                        VmArray::from_bytes(context, control)
+                            .expect("vm test byte array should allocate"),
+                    ),
                     flags: SocketMessageFlags(flags),
                     credentials: if has_credentials {
                         Some(SocketCredentialsVm {
@@ -939,12 +952,14 @@ impl<'call> NetHarnessContext<'call> {
             Some(context) => {
                 let mut entries = Vec::with_capacity(buffers.len());
                 for buffer in buffers {
-                    let payload = VmSlice::from_bytes(context, buffer);
+                    let payload = VmSlice::from_bytes(context, buffer)
+                        .expect("vm test byte slice should allocate");
                     let message = SocketSendMessageVm {
                         address: None,
                         fds: VmArray::from_values(context, &[])?,
                         control: platform_net::SocketControlBufferAbi::<VmAbi>(
-                            VmArray::from_bytes(context, &[]),
+                            VmArray::from_bytes(context, &[])
+                                .expect("vm test byte array should allocate"),
                         ),
                         flags: SocketMessageFlags(send_flags),
                         credentials: None,
@@ -1003,7 +1018,8 @@ impl<'call> NetHarnessContext<'call> {
             Some(context) => {
                 let mut requests = Vec::with_capacity(buffers.len());
                 for buffer in buffers.iter() {
-                    let payload = VmSlice::from_bytes(context, &vec![0u8; buffer.len()]);
+                    let payload = VmSlice::from_bytes(context, &vec![0u8; buffer.len()])
+                        .expect("vm test byte slice should allocate");
                     requests.push(platform_net::SocketRecvBatchRequestVm {
                         payload,
                         recv_flags: SocketMessageFlags(recv_flags),

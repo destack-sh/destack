@@ -2,6 +2,10 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(test)]
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(test)]
+use crate::platform::{VmArray, VmSlice};
+#[cfg(test)]
+use destack_vm as vm;
 
 #[cfg(test)]
 /// Extract one platform error code from one failed runtime result.
@@ -200,6 +204,48 @@ fn assert_no_permission_denied_in_privileged_mode(
 pub(crate) fn is_privileged_test_mode() -> bool {
     let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
     matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
+}
+
+#[cfg(test)]
+/// Intern one VM test string into one handle.
+pub(crate) fn vm_test_string(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: &str,
+) -> vm::StringHandle {
+    let value = context
+        .intern_string(value)
+        .expect("vm test string should intern");
+
+    vm::StringHandle::new(value)
+}
+
+#[cfg(test)]
+/// Allocate one VM test byte array.
+pub(crate) fn vm_test_byte_array(
+    context: &mut vm::ExternalCallContext<'_>,
+    bytes: &[u8],
+) -> VmArray<u8> {
+    VmArray::from_bytes(context, bytes).expect("vm test byte array should allocate")
+}
+
+#[cfg(test)]
+/// Allocate one VM test byte slice.
+pub(crate) fn vm_test_byte_slice(
+    context: &mut vm::ExternalCallContext<'_>,
+    bytes: &[u8],
+) -> VmSlice<u8> {
+    VmSlice::from_bytes(context, bytes).expect("vm test byte slice should allocate")
+}
+
+#[cfg(test)]
+/// Allocate one VM test raw payload from fully encoded values.
+pub(crate) fn vm_test_raw_values(
+    context: &mut vm::ExternalCallContext<'_>,
+    values: Vec<vm::Value>,
+) -> vm::RawPointer {
+    context
+        .allocate_raw_values(values)
+        .expect("vm test raw values should allocate")
 }
 
 #[cfg(test)]

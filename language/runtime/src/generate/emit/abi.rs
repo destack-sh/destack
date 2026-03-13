@@ -516,7 +516,9 @@ impl AbiRenderer<'_> {
                 output.push_str("            }\n");
             }
             output.push_str("        };\n");
-            output.push_str("        Ok(context.allocate_aggregate(slots))\n");
+            output.push_str(
+                "        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)\n",
+            );
             output.push_str("    }\n");
             output.push_str("}\n\n");
 
@@ -727,7 +729,9 @@ impl AbiRenderer<'_> {
                 ));
                 }
                 output.push_str("        ];\n");
-                output.push_str("        Ok(context.allocate_aggregate(slots))\n");
+                output.push_str(
+                    "        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)\n",
+                );
                 output.push_str("    }\n");
                 output.push_str("}\n\n");
 
@@ -864,7 +868,9 @@ impl AbiRenderer<'_> {
                 ));
                 }
                 output.push_str("        ];\n");
-                output.push_str("        Ok(context.allocate_aggregate(slots))\n");
+                output.push_str(
+                    "        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)\n",
+                );
                 output.push_str("    }\n");
                 output.push_str("}\n\n");
 

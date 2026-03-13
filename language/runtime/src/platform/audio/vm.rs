@@ -9,7 +9,7 @@ use super::{
     AudioStreamDescriptorVm, AudioStreamOpenOptionsVm, AudioStreamStateVm, AudioStreamSupportVm,
     AudioStreamTimingVm, native as native_audio,
 };
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform;
 use crate::platform::core::{
     bytes_to_vm, call_out, intern_string_to_vm as string_to_vm, map_native_slice_to_vm,
@@ -28,10 +28,18 @@ fn device_descriptor_to_vm(
     value: AudioDeviceDescriptor,
 ) -> RuntimeResult<AudioDeviceDescriptorVm> {
     Ok(AudioDeviceDescriptorVm {
-        id: StringHandle::new(context.intern_string(unsafe { value.id.as_str()? })),
-        group_id: StringHandle::new(context.intern_string(unsafe { value.group_id.as_str()? })),
-        name: StringHandle::new(context.intern_string(unsafe { value.name.as_str()? })),
-        transport: StringHandle::new(context.intern_string(unsafe { value.transport.as_str()? })),
+        id: context
+            .string_handle(unsafe { value.id.as_str()? })
+            .map_err(Box::<RuntimeError>::from)?,
+        group_id: context
+            .string_handle(unsafe { value.group_id.as_str()? })
+            .map_err(Box::<RuntimeError>::from)?,
+        name: context
+            .string_handle(unsafe { value.name.as_str()? })
+            .map_err(Box::<RuntimeError>::from)?,
+        transport: context
+            .string_handle(unsafe { value.transport.as_str()? })
+            .map_err(Box::<RuntimeError>::from)?,
         backend: value.backend,
         direction: value.direction,
         connected: value.connected,
@@ -68,7 +76,9 @@ fn backend_descriptor_to_vm(
 ) -> RuntimeResult<AudioBackendDescriptorVm> {
     Ok(AudioBackendDescriptorVm {
         backend: value.backend,
-        name: StringHandle::new(context.intern_string(unsafe { value.name.as_str()? })),
+        name: context
+            .string_handle(unsafe { value.name.as_str()? })
+            .map_err(Box::<RuntimeError>::from)?,
         support: value.support,
         priority: value.priority,
         capability_flags: value.capability_flags,
@@ -291,8 +301,12 @@ fn stream_descriptor_to_vm(
 ) -> RuntimeResult<AudioStreamDescriptorVm> {
     Ok(AudioStreamDescriptorVm {
         backend: value.backend,
-        backend_id: StringHandle::new(context.intern_string(unsafe { value.backend_id.as_str()? })),
-        device_id: StringHandle::new(context.intern_string(unsafe { value.device_id.as_str()? })),
+        backend_id: context
+            .string_handle(unsafe { value.backend_id.as_str()? })
+            .map_err(Box::<RuntimeError>::from)?,
+        device_id: context
+            .string_handle(unsafe { value.device_id.as_str()? })
+            .map_err(Box::<RuntimeError>::from)?,
         sample_rate: value.sample_rate,
         channels: value.channels,
         channel_layout: value.channel_layout,

@@ -1707,7 +1707,9 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1885,7 +1887,9 @@ impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2033,7 +2037,9 @@ impl VmAggregateCodec for KeepAliveConfig {
             <u32 as VmAggregateCodec>::encode_with_context(self.interval_seconds, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.probe_count, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2119,7 +2125,9 @@ impl VmAggregateCodec for Linger {
             <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.seconds, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2254,7 +2262,9 @@ impl VmAggregateCodec for NetInterfaceAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2422,7 +2432,9 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2550,7 +2562,9 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2699,7 +2713,9 @@ impl VmAggregateCodec for PacketBackendDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2861,7 +2877,9 @@ impl VmAggregateCodec for PacketCaptureOptions {
             <i32 as VmAggregateCodec>::encode_with_context(self.timeout_ms, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.promiscuous, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2968,7 +2986,9 @@ impl VmAggregateCodec for PacketCaptureRecord {
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.truncated, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3066,7 +3086,9 @@ impl VmAggregateCodec for PacketCaptureStats {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3159,7 +3181,9 @@ impl VmAggregateCodec for PacketFanoutOptions {
             <PacketFanoutMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3262,7 +3286,9 @@ impl VmAggregateCodec for PacketRingOptions {
             <u32 as VmAggregateCodec>::encode_with_context(self.frame_count, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.retire_timeout_ms, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3389,7 +3415,9 @@ impl VmAggregateCodec for ResolveQueryAbi<VmAbi> {
             <SocketFamily as VmAggregateCodec>::encode_with_context(self.family, context)?,
             <ResolveFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3534,7 +3562,9 @@ impl VmAggregateCodec for ReverseLookupNameAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.host, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3689,7 +3719,9 @@ impl VmAggregateCodec for RouteEntryAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.metric, context)?,
             <RouteKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3853,7 +3885,9 @@ impl VmAggregateCodec for SocketAddressAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3969,7 +4003,9 @@ impl VmAggregateCodec for SocketCredentials {
             <u32 as VmAggregateCodec>::encode_with_context(self.uid, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.gid, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4061,7 +4097,9 @@ impl VmAggregateCodec for SocketPair {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4174,7 +4212,9 @@ impl VmAggregateCodec for SocketRecvBatchRequestAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4315,7 +4355,9 @@ impl VmAggregateCodec for SocketRecvFromAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4507,7 +4549,9 @@ impl VmAggregateCodec for SocketRecvMessageAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4707,7 +4751,9 @@ impl VmAggregateCodec for SocketSendBatchEntryAbi<VmAbi> {
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.payload, context)?,
             <SocketSendMessageVm as VmAggregateCodec>::encode_with_context(self.message, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4868,7 +4914,9 @@ impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5035,7 +5083,9 @@ impl VmAggregateCodec for SocketSendToAbi<VmAbi> {
             <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.address, context)?,
             <SocketMessageFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5168,7 +5218,9 @@ impl VmAggregateCodec for UdpReceiveAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
             <UdpMessageFlags as VmAggregateCodec>::encode_with_context(self.recv_flags, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5313,7 +5365,9 @@ impl VmAggregateCodec for UdpSourceMembershipV4Abi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5464,7 +5518,9 @@ impl VmAggregateCodec for UdpSourceMembershipV6Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5598,7 +5654,9 @@ impl VmAggregateCodec for UdsAbstractAddressAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.abstract_name, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5731,7 +5789,9 @@ impl VmAggregateCodec for UdsPathAddressAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5851,7 +5911,9 @@ impl VmAggregateCodec for UdsUnnamedAddressAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.kind, context,
         )?];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

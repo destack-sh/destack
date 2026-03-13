@@ -1,6 +1,6 @@
 use std::fmt;
 
-use destack_vm as vm;
+use {destack_heap as heap, destack_vm as vm};
 
 use crate::platform::diagnostic::PlatformError;
 
@@ -92,6 +92,20 @@ pub enum RuntimeError {
         /// Missing image identifier.
         image_id: u128,
     } = 118,
+    /// One world moment was not found in lineage.
+    MomentNotFound {
+        /// Branch identifier for the missing moment.
+        branch_id: u128,
+        /// Trace sequence for the missing moment.
+        sequence: u64,
+    } = 144,
+    /// One requested moment does not belong to the active world branch.
+    MomentBranchMismatch {
+        /// Requested moment branch identifier.
+        moment_branch_id: u128,
+        /// Active world branch identifier.
+        world_branch_id: u128,
+    } = 145,
     /// Observation subscription identifier was not found.
     ObservationSubscriptionNotFound {
         /// Missing observation subscription identifier.
@@ -226,6 +240,15 @@ pub enum RuntimeError {
         /// Human-readable inconsistency detail.
         detail: String,
     } = 126,
+    /// One runtime heap exceeded its configured hard limit.
+    HeapLimitExceeded {
+        /// The limited heap scope.
+        scope: String,
+        /// The exact retained heap bytes currently in use.
+        used_bytes: u64,
+        /// The configured hard limit in bytes.
+        max_bytes: u64,
+    } = 146,
     /// Internal runtime error.
     Internal { message: String } = 113,
 }
@@ -286,6 +309,20 @@ impl RuntimeError {
             }
             RuntimeError::ImageNotFound { image_id } => {
                 format!("image not found: {image_id}")
+            }
+            RuntimeError::MomentNotFound {
+                branch_id,
+                sequence,
+            } => {
+                format!("moment not found: branch {branch_id} at sequence {sequence}")
+            }
+            RuntimeError::MomentBranchMismatch {
+                moment_branch_id,
+                world_branch_id,
+            } => {
+                format!(
+                    "moment branch mismatch: moment branch {moment_branch_id} does not match world branch {world_branch_id}"
+                )
             }
             RuntimeError::ObservationSubscriptionNotFound { subscription_id } => {
                 format!("observation subscription not found: {subscription_id}")
@@ -387,6 +424,15 @@ impl RuntimeError {
             RuntimeError::InconsistentImage { detail } => {
                 format!("captured image is inconsistent: {detail}")
             }
+            RuntimeError::HeapLimitExceeded {
+                scope,
+                used_bytes,
+                max_bytes,
+            } => {
+                format!(
+                    "{scope} heap limit exceeded: using {used_bytes} bytes with limit {max_bytes}"
+                )
+            }
             RuntimeError::Internal { message } => format!("internal error: {message}"),
         }
     }
@@ -431,7 +477,18 @@ impl std::error::Error for RuntimeError {}
 
 impl From<vm::Error> for RuntimeError {
     fn from(error: vm::Error) -> Self {
-        RuntimeError::Vm(Box::new(error))
+        match error {
+            vm::Error::HeapLimitExceeded {
+                scope,
+                used_bytes,
+                max_bytes,
+            } => RuntimeError::HeapLimitExceeded {
+                scope,
+                used_bytes,
+                max_bytes,
+            },
+            error => RuntimeError::Vm(Box::new(error)),
+        }
     }
 }
 
@@ -450,6 +507,18 @@ impl From<PlatformError> for Box<RuntimeError> {
 impl From<vm::RuntimeError> for Box<RuntimeError> {
     fn from(error: vm::RuntimeError) -> Self {
         Box::new(RuntimeError::from(error.error))
+    }
+}
+
+impl From<heap::HeapLimitError> for Box<RuntimeError> {
+    /// Convert one heap limit violation into one runtime error.
+    fn from(error: heap::HeapLimitError) -> Self {
+        RuntimeError::HeapLimitExceeded {
+            scope: error.scope.name().to_string(),
+            used_bytes: error.used_bytes,
+            max_bytes: error.max_bytes,
+        }
+        .boxed()
     }
 }
 
@@ -492,6 +561,15 @@ impl From<Box<RuntimeError>> for vm::Error {
                     name: format!("{name} ({affinity})"),
                 }
             }
+            RuntimeError::HeapLimitExceeded {
+                scope,
+                used_bytes,
+                max_bytes,
+            } => vm::Error::HeapLimitExceeded {
+                scope,
+                used_bytes,
+                max_bytes,
+            },
             other => vm::Error::Panic {
                 message: other.message(),
             },

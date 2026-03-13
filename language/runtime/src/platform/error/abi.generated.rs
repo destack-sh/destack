@@ -670,7 +670,9 @@ impl VmAggregateCodec for PlatformErrorContextAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1144,7 +1146,9 @@ impl VmAggregateCodec for PlatformPathPayloadAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1396,7 +1400,9 @@ impl VmAggregateCodec for PlatformSystemSourceAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1677,7 +1683,9 @@ impl VmAggregateCodec for PlatformErrorAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1862,7 +1870,9 @@ impl VmAggregateCodec for PlatformErrorContextAudioAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2036,7 +2046,9 @@ impl VmAggregateCodec for PlatformErrorContextDeviceAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2217,7 +2229,9 @@ impl VmAggregateCodec for PlatformErrorContextDisplayAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2382,7 +2396,9 @@ impl VmAggregateCodec for PlatformErrorContextFfiAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2564,7 +2580,9 @@ impl VmAggregateCodec for PlatformErrorContextGenericAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2745,7 +2763,9 @@ impl VmAggregateCodec for PlatformErrorContextGpuAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2933,7 +2953,9 @@ impl VmAggregateCodec for PlatformErrorContextIoAbi<VmAbi> {
             )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.fd, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3139,7 +3161,9 @@ impl VmAggregateCodec for PlatformErrorContextIoDriverAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3315,7 +3339,9 @@ impl VmAggregateCodec for PlatformErrorContextIpcAbi<VmAbi> {
             )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.fd, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3505,7 +3531,9 @@ impl VmAggregateCodec for PlatformErrorContextNetAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3692,7 +3720,9 @@ impl VmAggregateCodec for PlatformErrorContextProcessAbi<VmAbi> {
             )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.exit_code, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3863,7 +3893,9 @@ impl VmAggregateCodec for PlatformErrorContextResourceAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4040,7 +4072,9 @@ impl VmAggregateCodec for PlatformErrorContextSecurityAbi<VmAbi> {
                 context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4207,7 +4241,9 @@ impl VmAggregateCodec for PlatformErrorContextThreadAbi<VmAbi> {
             )?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.thread_id, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4361,7 +4397,9 @@ impl VmAggregateCodec for PlatformErrorContextTimerAbi<VmAbi> {
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.timer_id, context)?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.deadline_ns, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4506,7 +4544,9 @@ impl VmAggregateCodec for PlatformPathPayloadBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4634,7 +4674,9 @@ impl VmAggregateCodec for PlatformPathPayloadUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4769,7 +4811,9 @@ impl VmAggregateCodec for PlatformSystemSourceEaiAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4910,7 +4954,9 @@ impl VmAggregateCodec for PlatformSystemSourceErrnoAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5051,7 +5097,9 @@ impl VmAggregateCodec for PlatformSystemSourceHResultAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5192,7 +5240,9 @@ impl VmAggregateCodec for PlatformSystemSourceOtherAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5333,7 +5383,9 @@ impl VmAggregateCodec for PlatformSystemSourceSignalAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5474,7 +5526,9 @@ impl VmAggregateCodec for PlatformSystemSourceWinsockAbi<VmAbi> {
                 self.name, context,
             )?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 

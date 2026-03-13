@@ -330,10 +330,12 @@ fn encode_destack_memory_map_reserve_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MemoryRangeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.address, 64);
-        let field_1 = vm::Value::uint(value.length, 64);
-        context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -408,10 +410,12 @@ fn encode_destack_memory_protect_remap_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProtectedMemoryRangeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.address, 64);
-        let field_1 = vm::Value::uint(value.length, 64);
-        context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -421,7 +425,7 @@ fn encode_destack_memory_query_allocation_granularity_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Encode the result for destack.memory.query.hugePageSize.
@@ -430,9 +434,9 @@ fn encode_destack_memory_query_huge_page_size_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<Option<u64>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| match value {
-        Some(value) => vm::Value::uint(value, 64),
-        None => vm::Value::VOID,
+    result.and_then(|value| match value {
+        Some(value) => Ok(vm::Value::uint(value, 64)),
+        None => Ok(vm::Value::VOID),
     })
 }
 
@@ -442,7 +446,7 @@ fn encode_destack_memory_query_page_size_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Replay payload for destack.memory.advise.adviseRange.

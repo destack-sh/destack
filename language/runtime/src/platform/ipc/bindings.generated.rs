@@ -175,7 +175,7 @@ fn encode_destack_ipc_message_queue_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MessageQueueHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.ipc.message.queueReceive.
@@ -202,10 +202,12 @@ fn encode_destack_ipc_message_queue_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MessageQueueReceiveVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.bytes as u64, 32);
-        let field_1 = vm::Value::uint(value.priority as u64, 32);
-        context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes as u64, 32));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.priority as u64, 32));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -302,10 +304,12 @@ fn encode_destack_ipc_pipe_open_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PipePairVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.read.0.0, 64);
-        let field_1 = vm::Value::uint(value.write.0.0, 64);
-        context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.read.0.0, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.write.0.0, 64));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -330,7 +334,7 @@ fn encode_destack_ipc_pipe_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Decode arguments for destack.ipc.pipe.write.
@@ -354,7 +358,7 @@ fn encode_destack_ipc_pipe_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Decode arguments for destack.ipc.sharedMemory.close.
@@ -401,7 +405,7 @@ fn encode_destack_ipc_shared_memory_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SharedMemoryHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.ipc.sharedMemory.map.
@@ -430,10 +434,12 @@ fn encode_destack_ipc_shared_memory_map_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SharedMemoryMappingVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.address, 64);
-        let field_1 = vm::Value::uint(value.length, 64);
-        context.allocate_aggregate(vec![field_0, field_1])
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
+        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
+        context
+            .allocate_aggregate(vec![field_0?, field_1?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -456,7 +462,7 @@ fn encode_destack_ipc_shared_memory_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SharedMemoryHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.ipc.sharedMemory.unmap.
@@ -540,7 +546,7 @@ fn encode_destack_ipc_sync_futex_wake_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u64, 32))
+    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
 }
 
 /// Decode arguments for destack.ipc.sync.semaphoreCreate.
@@ -564,7 +570,7 @@ fn encode_destack_ipc_sync_semaphore_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SemaphoreHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
 }
 
 /// Decode arguments for destack.ipc.sync.semaphorePost.
@@ -636,22 +642,26 @@ fn encode_destack_ipc_unix_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UnixReceiveAncillaryVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.bytes, 64);
-        let field_1 = value.handles.to_value(context);
-        let field_2 = match value.credentials {
+    result.and_then(|value| {
+        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
+        let field_1: RuntimeResult<vm::Value> = value.handles.to_value(context);
+        let field_2: RuntimeResult<vm::Value> = match value.credentials {
             Some(value) => {
-                let field_0 = match value.pid {
-                    Some(value) => vm::Value::uint(value as u64, 32),
-                    None => vm::Value::VOID,
+                let field_0: RuntimeResult<vm::Value> = match value.pid {
+                    Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                    None => Ok(vm::Value::VOID),
                 };
-                let field_1 = vm::Value::uint(value.uid as u64, 32);
-                let field_2 = vm::Value::uint(value.gid as u64, 32);
-                context.allocate_aggregate(vec![field_0, field_1, field_2])
+                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.uid as u64, 32));
+                let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.gid as u64, 32));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
             }
-            None => vm::Value::VOID,
+            None => Ok(vm::Value::VOID),
         };
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+        context
+            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 
@@ -692,7 +702,7 @@ fn encode_destack_ipc_unix_send_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
 }
 
 /// Replay payload for destack.ipc.message.queueClose.

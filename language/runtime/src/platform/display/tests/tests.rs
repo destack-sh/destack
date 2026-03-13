@@ -161,7 +161,9 @@ pub(crate) fn harness_string(
         Some(vm_context) => {
             let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
             Ok(HarnessValue::Vm(vm::StringHandle::new(
-                vm_context.intern_string(value),
+                vm_context
+                    .intern_string(value)
+                    .expect("vm test string should intern"),
             )))
         }
         None => Ok(HarnessValue::Native(
@@ -365,7 +367,11 @@ pub(crate) fn default_window_options(
             HarnessValue::Vm(display::WindowOptionsVm {
                 backend: display::DisplayBackend::Auto,
                 backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
-                title: vm::StringHandle::new(vm_context.intern_string(title)),
+                title: vm::StringHandle::new(
+                    vm_context
+                        .intern_string(title)
+                        .expect("vm test string should intern"),
+                ),
                 role: display::WindowRole::Toplevel,
                 size_logical: display::WindowLogicalSizeVm {
                     width: 1280.0,
@@ -376,7 +382,11 @@ pub(crate) fn default_window_options(
                 display: None,
                 mode: display::WindowModeOptionsVm::WindowWindowedModeOptions(
                     display::WindowWindowedModeOptionsVm {
-                        kind: vm::StringHandle::new(vm_context.intern_string("windowed")),
+                        kind: vm::StringHandle::new(
+                            vm_context
+                                .intern_string("windowed")
+                                .expect("vm test string should intern"),
+                        ),
                     },
                 ),
                 visibility: display::WindowVisibility::Visible,
@@ -758,7 +768,8 @@ pub(crate) fn harness_window_icon_set(
 
     if let Some(vm_context) = context.vm_context {
         let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
-        let pixels_vm = VmSlice::from_bytes(vm_context, &pixels);
+        let pixels_vm =
+            VmSlice::from_bytes(vm_context, &pixels).expect("vm test byte slice should allocate");
         let image_vm = display::WindowIconImageVm {
             width: 2,
             height: 2,
@@ -823,14 +834,22 @@ pub(crate) fn harness_window_mode_options(
             HarnessWindowMode::Windowed => {
                 HarnessValue::Vm(display::WindowModeOptionsVm::WindowWindowedModeOptions(
                     display::WindowWindowedModeOptionsVm {
-                        kind: vm::StringHandle::new(vm_context.intern_string("windowed")),
+                        kind: vm::StringHandle::new(
+                            vm_context
+                                .intern_string("windowed")
+                                .expect("vm test string should intern"),
+                        ),
                     },
                 ))
             }
             HarnessWindowMode::Borderless => {
                 HarnessValue::Vm(display::WindowModeOptionsVm::WindowBorderlessModeOptions(
                     display::WindowBorderlessModeOptionsVm {
-                        kind: vm::StringHandle::new(vm_context.intern_string("borderless")),
+                        kind: vm::StringHandle::new(
+                            vm_context
+                                .intern_string("borderless")
+                                .expect("vm test string should intern"),
+                        ),
                         display: None,
                     },
                 ))
@@ -842,7 +861,9 @@ pub(crate) fn harness_window_mode_options(
                 display::WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(
                     display::WindowExclusiveFullscreenModeOptionsVm {
                         kind: vm::StringHandle::new(
-                            vm_context.intern_string("exclusiveFullscreen"),
+                            vm_context
+                                .intern_string("exclusiveFullscreen")
+                                .expect("vm test string should intern"),
                         ),
                         display,
                         display_mode,
