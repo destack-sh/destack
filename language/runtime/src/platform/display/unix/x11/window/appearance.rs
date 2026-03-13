@@ -30,14 +30,15 @@ pub(crate) unsafe fn window_set_always_on_top(
         window_handle,
         "destack.display.window.setAlwaysOnTop",
     )?;
-    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
-    host_state.always_on_top = always_on_top;
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
     set_net_wm_state(
         connection_state.as_ref(),
         host_state.window,
         connection_state.atoms.net_wm_state_above,
         always_on_top,
     )?;
+    drop(host_state);
+    runtime_state.process_runtime_ingress("destack.display.window.setAlwaysOnTop")?;
 
     Ok(())
 }
@@ -324,20 +325,15 @@ pub(crate) unsafe fn window_set_taskbar_visible(
         window_handle,
         "destack.display.window.setTaskbarVisible",
     )?;
-    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
-    let previous = host_state.clone();
-    host_state.taskbar_visible = visible;
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
     set_net_wm_state(
         connection_state.as_ref(),
         host_state.window,
         connection_state.atoms.net_wm_state_skip_taskbar,
         !visible,
     )?;
-    let current = host_state.clone();
     drop(host_state);
-
-    // publish all affected state deltas
-    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
+    runtime_state.process_runtime_ingress("destack.display.window.setTaskbarVisible")?;
 
     Ok(())
 }
@@ -388,10 +384,9 @@ pub(crate) unsafe fn window_set_visibility(
         window_handle,
         "destack.display.window.setVisibility",
     )?;
-    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // apply host visibility transitions
-    let previous_visibility = host_state.visibility;
     match visibility {
         WindowVisibility::Hidden => {
             connection_state
@@ -429,15 +424,8 @@ pub(crate) unsafe fn window_set_visibility(
             format!("flush failed: {error}"),
         )
     })?;
-    host_state.visibility = visibility;
     drop(host_state);
-
-    event::publish_window_visibility_changed(
-        &runtime_state,
-        window_handle,
-        previous_visibility,
-        visibility,
-    );
+    runtime_state.process_runtime_ingress("destack.display.window.setVisibility")?;
 
     Ok(())
 }

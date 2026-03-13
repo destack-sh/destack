@@ -3,8 +3,8 @@ use x11rb::protocol::xproto::Window;
 use crate::platform::display::{
     DisplayBackend, DisplayMode, DisplayOrientation, DisplaySupportStatus, WindowAspectRatio,
     WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowLogicalSize, WindowModeOptions,
-    WindowPhysicalSize, WindowPosition, WindowRole, WindowSafeAreaInsets, WindowSizeConstraints,
-    WindowTheme, WindowVisibility,
+    WindowOcclusionState, WindowPhysicalSize, WindowPosition, WindowRole, WindowSafeAreaInsets,
+    WindowSizeConstraints, WindowTheme, WindowVisibility,
 };
 use crate::platform::resource;
 
@@ -95,6 +95,8 @@ pub(crate) struct X11WindowHostState {
     pub(crate) role: WindowRole,
     /// Current mode configuration.
     pub(crate) mode: WindowModeOptions,
+    /// Pending mode request awaiting wm confirmation.
+    pub(crate) pending_mode: Option<WindowModeOptions>,
     /// Captured restore payload for active exclusive fullscreen transitions.
     pub(crate) exclusive_restore: Option<ExclusiveModeRestore>,
     /// Current display association.
@@ -143,6 +145,8 @@ pub(crate) struct X11WindowHostState {
     pub(crate) scale_factor_milli: u32,
     /// Current keyboard focus state.
     pub(crate) focused: bool,
+    /// Current occlusion state.
+    pub(crate) occlusion: WindowOcclusionState,
     /// Current safe-area insets when available.
     pub(crate) safe_area_insets: Option<WindowSafeAreaInsets>,
     /// Current theme value.

@@ -186,7 +186,7 @@ pub(crate) unsafe fn window_focus(
         window_handle,
         "destack.display.window.focus",
     )?;
-    let mut resolved_host_state = resolved_host_state
+    let resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
@@ -210,14 +210,8 @@ pub(crate) unsafe fn window_focus(
             format!("flush failed: {error}"),
         )
     })?;
-
-    // publish focus event when state changes
-    if !resolved_host_state.focused {
-        let previous_focused = resolved_host_state.focused;
-        resolved_host_state.focused = true;
-        drop(resolved_host_state);
-        event::publish_window_focus_changed(&runtime_state, window_handle, previous_focused, true);
-    }
+    drop(resolved_host_state);
+    runtime_state.process_runtime_ingress("destack.display.window.focus")?;
 
     Ok(())
 }

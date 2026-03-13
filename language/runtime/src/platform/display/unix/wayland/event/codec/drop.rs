@@ -126,7 +126,6 @@ pub(crate) fn window_drop_event_from_record(
         | WindowEventRecordKind::Destroyed { .. }
         | WindowEventRecordKind::RefreshRequested { .. }
         | WindowEventRecordKind::VisibilityChanged { .. }
-        | WindowEventRecordKind::OcclusionChanged { .. }
         | WindowEventRecordKind::PositionChanged { .. }
         | WindowEventRecordKind::SizeChanged { .. }
         | WindowEventRecordKind::ScaleFactorChanged { .. }

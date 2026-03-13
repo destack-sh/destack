@@ -1,10 +1,11 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::display::unix::x11::model::X11WindowHostState;
 use crate::platform::display::{DisplayMode, WindowModeOptions};
 use crate::platform::resource;
 
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    CLIENT_MESSAGE_EVENT, ClientMessageData, ClientMessageEvent,
+    AtomEnum, CLIENT_MESSAGE_EVENT, ClientMessageData, ClientMessageEvent,
     ConnectionExt as XprotoConnectionExt, EventMask,
 };
 
@@ -174,4 +175,82 @@ pub(crate) fn query_window_wm_state(
         })?;
 
     Ok(reply.value32().and_then(|mut value| value.next()))
+}
+
+/// Query the current `_NET_WM_STATE` atom set for one window.
+pub(crate) fn query_net_wm_state_atoms(
+    connection_state: &core::X11ConnectionState,
+    window: u32,
+    operation: &'static str,
+) -> RuntimeResult<Vec<u32>> {
+    let reply = connection_state
+        .connection
+        .get_property(
+            false,
+            window,
+            connection_state.atoms.net_wm_state,
+            AtomEnum::ATOM,
+            0,
+            64,
+        )
+        .map_err(|error| {
+            core::io_error(operation, format!("get_property request failed: {error}"))
+        })?
+        .reply()
+        .map_err(|error| {
+            core::io_error(operation, format!("get_property reply failed: {error}"))
+        })?;
+
+    Ok(reply
+        .value32()
+        .map(|values| values.collect::<Vec<_>>())
+        .unwrap_or_default())
+}
+
+/// Refresh one cached X11 window state from `_NET_WM_STATE`.
+pub(crate) fn refresh_net_wm_state(
+    connection_state: &core::X11ConnectionState,
+    host_state: &mut X11WindowHostState,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let state_atoms = query_net_wm_state_atoms(connection_state, host_state.window, operation)?;
+    let is_fullscreen = state_atoms
+        .iter()
+        .any(|atom| *atom == connection_state.atoms.net_wm_state_fullscreen);
+
+    host_state.always_on_top = state_atoms
+        .iter()
+        .any(|atom| *atom == connection_state.atoms.net_wm_state_above);
+    host_state.taskbar_visible = !state_atoms
+        .iter()
+        .any(|atom| *atom == connection_state.atoms.net_wm_state_skip_taskbar);
+    host_state.modal = state_atoms
+        .iter()
+        .any(|atom| *atom == connection_state.atoms.net_wm_state_modal);
+
+    // confirm or clear one pending mode request from wm state
+    if let Some(pending_mode) = host_state.pending_mode {
+        if is_fullscreen
+            && matches!(
+                pending_mode,
+                WindowModeOptions::WindowBorderlessModeOptions(_)
+                    | WindowModeOptions::WindowExclusiveFullscreenModeOptions(_)
+            )
+        {
+            host_state.mode = pending_mode;
+            host_state.display = mode_display(pending_mode);
+            host_state.pending_mode = None;
+        } else if !is_fullscreen
+            && matches!(
+                pending_mode,
+                WindowModeOptions::WindowWindowedModeOptions(_)
+            )
+        {
+            host_state.mode = pending_mode;
+            host_state.display = None;
+            host_state.pending_mode = None;
+        }
+    }
+
+    Ok(())
 }

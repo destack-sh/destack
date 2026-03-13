@@ -3,7 +3,6 @@ use crate::platform::display::{WindowDescriptor, WindowState};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::occlusion_from_visibility;
 use crate::platform::display::unix::x11::{core as x11_core, resource as display_resource};
 
 /// Read descriptor metadata for one window.
@@ -75,7 +74,7 @@ pub(crate) unsafe fn window_state(
         role: host_state.role,
         display: host_state.display,
         focused: host_state.focused,
-        occlusion: occlusion_from_visibility(host_state.visibility),
+        occlusion: host_state.occlusion,
         safe_area_insets: host_state.safe_area_insets,
         theme: host_state.theme,
         chrome: host_state.chrome,

@@ -1,16 +1,20 @@
+use crate::platform::NativeStringRef;
+use crate::platform::display::unix::wayland::mode_display;
 use crate::platform::display::{
-    WindowLogicalSize, WindowPhysicalSize, WindowPosition, WindowVisibility,
+    WindowBorderlessModeOptions, WindowLogicalSize, WindowModeOptions, WindowPhysicalSize,
+    WindowPosition, WindowVisibility, WindowWindowedModeOptions,
 };
 
 use super::{
     WaylandConnectionDispatchState, WaylandWindowDispatchToken, XDG_TOPLEVEL_STATE_ACTIVATED,
-    XDG_TOPLEVEL_STATE_MAXIMIZED,
+    XDG_TOPLEVEL_STATE_FULLSCREEN, XDG_TOPLEVEL_STATE_MAXIMIZED,
 };
 use crate::platform::display::unix::wayland::event;
 
 /// Decode xdg_toplevel state flags from one raw state-array payload.
-fn decode_toplevel_states(states: &[u8]) -> (bool, bool) {
+fn decode_toplevel_states(states: &[u8]) -> (bool, bool, bool) {
     let mut is_maximized = false;
+    let mut is_fullscreen = false;
     let mut is_activated = false;
 
     // parse one u32 sequence from the packed wayland state array
@@ -20,12 +24,24 @@ fn decode_toplevel_states(states: &[u8]) -> (bool, bool) {
         if lane == XDG_TOPLEVEL_STATE_MAXIMIZED {
             is_maximized = true;
         }
+        if lane == XDG_TOPLEVEL_STATE_FULLSCREEN {
+            is_fullscreen = true;
+        }
         if lane == XDG_TOPLEVEL_STATE_ACTIVATED {
             is_activated = true;
         }
     }
 
-    (is_maximized, is_activated)
+    (is_maximized, is_fullscreen, is_activated)
+}
+
+/// Resolve the stored kind string for one window mode payload.
+fn mode_kind(mode: WindowModeOptions) -> NativeStringRef {
+    match mode {
+        WindowModeOptions::WindowWindowedModeOptions(value) => value.kind,
+        WindowModeOptions::WindowBorderlessModeOptions(value) => value.kind,
+        WindowModeOptions::WindowExclusiveFullscreenModeOptions(value) => value.kind,
+    }
 }
 
 /// Apply one toplevel configure event to runtime window state and events.
@@ -55,18 +71,57 @@ pub(crate) fn apply_toplevel_configure(
     }
 
     // update visibility from maximize and fullscreen state lanes
-    let (is_maximized, is_activated) = decode_toplevel_states(states);
+    let (is_maximized, is_fullscreen, is_activated) = decode_toplevel_states(states);
     let next_visibility = if is_maximized {
         WindowVisibility::Maximized
     } else {
         WindowVisibility::Visible
     };
 
-    if host_state.visibility != next_visibility
-        && host_state.visibility != WindowVisibility::Hidden
-        && host_state.visibility != WindowVisibility::Minimized
-    {
+    if host_state.visibility != next_visibility {
         host_state.visibility = next_visibility;
+    }
+
+    // update mode from compositor fullscreen confirmation
+    if is_fullscreen {
+        if let Some(pending_mode) = host_state.pending_mode
+            && matches!(
+                pending_mode,
+                WindowModeOptions::WindowBorderlessModeOptions(_)
+            )
+        {
+            host_state.mode = pending_mode;
+            host_state.display = mode_display(pending_mode);
+            host_state.pending_mode = None;
+        } else if !matches!(
+            host_state.mode,
+            WindowModeOptions::WindowBorderlessModeOptions(_)
+        ) {
+            let display = host_state.display;
+            let kind = mode_kind(host_state.mode);
+            host_state.mode =
+                WindowModeOptions::WindowBorderlessModeOptions(WindowBorderlessModeOptions {
+                    kind,
+                    display,
+                });
+        }
+    } else if let Some(pending_mode) = host_state.pending_mode
+        && matches!(
+            pending_mode,
+            WindowModeOptions::WindowWindowedModeOptions(_)
+        )
+    {
+        host_state.mode = pending_mode;
+        host_state.display = None;
+        host_state.pending_mode = None;
+    } else if matches!(
+        host_state.mode,
+        WindowModeOptions::WindowBorderlessModeOptions(_)
+    ) {
+        let kind = mode_kind(host_state.mode);
+        host_state.mode =
+            WindowModeOptions::WindowWindowedModeOptions(WindowWindowedModeOptions { kind });
+        host_state.display = None;
     }
 
     // update focus state from activated lane

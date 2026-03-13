@@ -9,7 +9,7 @@ use crate::platform::display::{
 use crate::platform::resource;
 
 use super::core::{
-    publish_window_mode_changed, publish_window_occlusion_changed, publish_window_position_changed,
+    publish_window_mode_changed, publish_window_position_changed,
     publish_window_scale_factor_changed, publish_window_size_changed,
     publish_window_visibility_changed,
 };
@@ -234,18 +234,6 @@ pub(crate) fn publish_state_deltas(
             window,
             previous.visibility,
             next.visibility,
-        );
-    }
-
-    let previous_occlusion = window::occlusion_from_visibility(previous.visibility);
-    let current_occlusion = window::occlusion_from_visibility(next.visibility);
-
-    if previous_occlusion != current_occlusion {
-        publish_window_occlusion_changed(
-            runtime_state,
-            window,
-            previous_occlusion,
-            current_occlusion,
         );
     }
 
