@@ -3,12 +3,16 @@ use serde::{Deserialize, Serialize};
 /// Runtime heap configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct HeapOptions {
-    /// Heap growth target percentage.
-    pub heap_growth_percent: u32,
+    /// Growth target percentage.
+    pub growth_percent: u32,
     /// Soft heap limit in bytes.
-    pub heap_soft_limit_bytes: Option<u64>,
+    pub soft_limit_bytes: Option<u64>,
     /// Initial heap size hint in bytes.
-    pub heap_initial_bytes: Option<u64>,
+    pub initial_bytes: Option<u64>,
+    /// Dedicated managed span threshold in values.
+    pub managed_large_span_values: usize,
+    /// Dedicated raw span threshold in bytes.
+    pub raw_large_span_bytes: usize,
     /// Hard limit for total retained heap bytes.
     pub max_bytes: Option<u64>,
     /// Hard limit for retained managed heap bytes.
@@ -20,9 +24,11 @@ pub struct HeapOptions {
 impl Default for HeapOptions {
     fn default() -> Self {
         Self {
-            heap_growth_percent: 100,
-            heap_soft_limit_bytes: None,
-            heap_initial_bytes: None,
+            growth_percent: 100,
+            soft_limit_bytes: None,
+            initial_bytes: None,
+            managed_large_span_values: 256,
+            raw_large_span_bytes: 4096,
             max_bytes: None,
             max_managed_bytes: None,
             max_raw_bytes: None,
@@ -35,12 +41,16 @@ impl Default for HeapOptions {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct HeapOptionsJson {
-    /// Heap growth target percentage.
-    pub heap_growth_percent: Option<u32>,
+    /// Growth target percentage.
+    pub growth_percent: Option<u32>,
     /// Soft heap limit in bytes.
-    pub heap_soft_limit_bytes: Option<u64>,
+    pub soft_limit_bytes: Option<u64>,
     /// Initial heap size hint in bytes.
-    pub heap_initial_bytes: Option<u64>,
+    pub initial_bytes: Option<u64>,
+    /// Dedicated managed span threshold in values.
+    pub managed_large_span_values: Option<usize>,
+    /// Dedicated raw span threshold in bytes.
+    pub raw_large_span_bytes: Option<usize>,
     /// Hard limit for total retained heap bytes.
     pub max_bytes: Option<u64>,
     /// Hard limit for retained managed heap bytes.
@@ -53,16 +63,22 @@ impl HeapOptionsJson {
     /// Apply heap overrides to a base set of options.
     pub fn apply_to(&self, options: &mut HeapOptions) {
         // apply pacing overrides
-        if let Some(heap_growth_percent) = self.heap_growth_percent {
-            options.heap_growth_percent = heap_growth_percent;
+        if let Some(growth_percent) = self.growth_percent {
+            options.growth_percent = growth_percent;
         }
 
         // apply memory limit overrides
-        if let Some(heap_soft_limit_bytes) = self.heap_soft_limit_bytes {
-            options.heap_soft_limit_bytes = Some(heap_soft_limit_bytes);
+        if let Some(soft_limit_bytes) = self.soft_limit_bytes {
+            options.soft_limit_bytes = Some(soft_limit_bytes);
         }
-        if let Some(heap_initial_bytes) = self.heap_initial_bytes {
-            options.heap_initial_bytes = Some(heap_initial_bytes);
+        if let Some(initial_bytes) = self.initial_bytes {
+            options.initial_bytes = Some(initial_bytes);
+        }
+        if let Some(managed_large_span_values) = self.managed_large_span_values {
+            options.managed_large_span_values = managed_large_span_values;
+        }
+        if let Some(raw_large_span_bytes) = self.raw_large_span_bytes {
+            options.raw_large_span_bytes = raw_large_span_bytes;
         }
 
         // apply hard limit overrides
