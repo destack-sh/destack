@@ -403,12 +403,10 @@ pub enum PlatformCapability {
     SecuritySandbox,
     /// `thread.local`.
     ThreadLocal,
-    /// `thread.priority`.
-    ThreadPriority,
+    /// `thread.sched`.
+    ThreadSched,
     /// `thread.spawn`.
     ThreadSpawn,
-    /// `thread.sync`.
-    ThreadSync,
     /// `thread.wait`.
     ThreadWait,
     /// `time.monotonic.read`.
@@ -659,9 +657,8 @@ impl PlatformCapability {
         Self::SecurityRestrict,
         Self::SecuritySandbox,
         Self::ThreadLocal,
-        Self::ThreadPriority,
+        Self::ThreadSched,
         Self::ThreadSpawn,
-        Self::ThreadSync,
         Self::ThreadWait,
         Self::TimeMonotonicRead,
         Self::TimeTimer,
@@ -889,9 +886,8 @@ impl PlatformCapability {
             Self::SecurityRestrict => "security.restrict",
             Self::SecuritySandbox => "security.sandbox",
             Self::ThreadLocal => "thread.local",
-            Self::ThreadPriority => "thread.priority",
+            Self::ThreadSched => "thread.sched",
             Self::ThreadSpawn => "thread.spawn",
-            Self::ThreadSync => "thread.sync",
             Self::ThreadWait => "thread.wait",
             Self::TimeMonotonicRead => "time.monotonic.read",
             Self::TimeTimer => "time.timer",
@@ -1125,9 +1121,8 @@ impl PlatformCapability {
             "security.restrict" => Some(Self::SecurityRestrict),
             "security.sandbox" => Some(Self::SecuritySandbox),
             "thread.local" => Some(Self::ThreadLocal),
-            "thread.priority" => Some(Self::ThreadPriority),
+            "thread.sched" => Some(Self::ThreadSched),
             "thread.spawn" => Some(Self::ThreadSpawn),
-            "thread.sync" => Some(Self::ThreadSync),
             "thread.wait" => Some(Self::ThreadWait),
             "time.monotonic.read" => Some(Self::TimeMonotonicRead),
             "time.timer" => Some(Self::TimeTimer),

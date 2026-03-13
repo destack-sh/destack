@@ -1,36 +1,16 @@
 #![allow(clippy::missing_safety_doc)]
-use std::ffi::c_void;
-use std::ptr;
+use std::sync::atomic::Ordering;
 
 use windows_sys::Win32::Foundation::{CloseHandle, WAIT_FAILED, WAIT_OBJECT_0};
-use windows_sys::Win32::System::Threading::{
-    CreateThread, GetExitCodeThread, INFINITE, WaitForSingleObject,
-};
+use windows_sys::Win32::System::Threading::{INFINITE, WaitForSingleObject};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::resource::{ResourceKind, ThreadHandle};
-use crate::platform::thread::{ThreadOptions, core as core_thread, resource as resource_thread};
+use crate::platform::resource::{ThreadEntryHandle, ThreadHandle};
+use crate::platform::thread::resource::{ThreadLifecycleState, ThreadResource};
+use crate::platform::thread::{ThreadOptions, core as core_thread};
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::NativeStringRef;
 
 use crate::runtime::BindingCallContext;
-
-/// Thread bootstrap payload passed to one native Windows thread.
-struct ThreadStartPayload {
-    /// Exit code returned by the thread routine.
-    exit_code: u32,
-}
-
-/// Run one native Windows thread start routine.
-unsafe extern "system" fn thread_start(payload: *mut c_void) -> u32 {
-    if payload.is_null() {
-        return 0;
-    }
-
-    // reclaim the bootstrap payload ownership
-    let payload = unsafe { Box::from_raw(payload as *mut ThreadStartPayload) };
-    payload.exit_code
-}
 /// Detach one host thread.
 ///
 /// Detach one thread from join tracking.
@@ -52,31 +32,43 @@ pub(crate) unsafe fn destack_thread_detach(
     binding: &BindingCallContext,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
-    // remove and validate the thread resource
-    let resource = core_thread::take_thread_resource::<resource_thread::ThreadResource>(
+    // resolve and validate the thread resource
+    let resource = core_thread::resolve_thread_resource::<ThreadResource>(
         binding,
         handle.0,
         "handle",
         "thread handle",
     )?;
 
+    // mark the handle as being detached
+    core_thread::begin_thread_consume(&resource, ThreadLifecycleState::Detaching)?;
+
     // close the native thread handle to detach
     let rc = unsafe { CloseHandle(resource.native_handle) };
     if rc == 0 {
+        core_thread::reset_thread_consume(&resource)?;
         return Err(core_platform::io_error("CloseHandle"));
     }
+
+    // consume the detached handle after host success
+    let _ = core_thread::take_thread_resource::<ThreadResource>(
+        binding,
+        handle.0,
+        "handle",
+        "thread handle",
+    )?;
 
     Ok(())
 }
 
 /// Join one host thread.
 ///
-/// Wait for one joinable thread to exit and return its exit code.
-/// Join behavior follows host thread lifecycle rules.
+/// Wait for one joinable thread to exit and return its machine-word result.
+/// Join lifecycle follows host thread rules, but the returned value is runtime-defined.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses pthread_join on Unix and WaitForSingleObject plus exit code on Windows.
+/// Uses WaitForSingleObject on Windows and one runtime-managed completion slot.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -88,7 +80,7 @@ pub(crate) unsafe fn destack_thread_detach(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_join(
     binding: &BindingCallContext,
-    out: *mut u32,
+    out: *mut u64,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -96,22 +88,25 @@ pub(crate) unsafe fn destack_thread_join(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // remove and validate the thread resource
-    let resource = core_thread::take_thread_resource::<resource_thread::ThreadResource>(
+    // resolve and validate the thread resource
+    let resource = core_thread::resolve_thread_resource::<ThreadResource>(
         binding,
         handle.0,
         "handle",
         "thread handle",
     )?;
 
+    // mark the handle as being joined
+    core_thread::begin_thread_consume(&resource, ThreadLifecycleState::Joining)?;
+
     // wait for thread termination
     let wait_result = unsafe { WaitForSingleObject(resource.native_handle, INFINITE) };
     if wait_result == WAIT_FAILED {
-        let _ = unsafe { CloseHandle(resource.native_handle) };
+        core_thread::reset_thread_consume(&resource)?;
         return Err(core_platform::io_error("WaitForSingleObject"));
     }
     if wait_result != WAIT_OBJECT_0 {
-        let _ = unsafe { CloseHandle(resource.native_handle) };
+        core_thread::reset_thread_consume(&resource)?;
         return Err(RuntimeError::from(PlatformError::io_with(
             None,
             None,
@@ -123,21 +118,25 @@ pub(crate) unsafe fn destack_thread_join(
         .boxed());
     }
 
-    // resolve the thread exit code
-    let mut exit_code = 0_u32;
-    let exit_code_rc = unsafe { GetExitCodeThread(resource.native_handle, &mut exit_code) };
-    if exit_code_rc == 0 {
-        let _ = unsafe { CloseHandle(resource.native_handle) };
-        return Err(core_platform::io_error("GetExitCodeThread"));
-    }
-
     // close the thread handle after join
     let close_rc = unsafe { CloseHandle(resource.native_handle) };
     if close_rc == 0 {
+        core_thread::reset_thread_consume(&resource)?;
         return Err(core_platform::io_error("CloseHandle"));
     }
 
-    // write the exit code
+    // consume the joined handle after host success
+    let _ = core_thread::take_thread_resource::<ThreadResource>(
+        binding,
+        handle.0,
+        "handle",
+        "thread handle",
+    )?;
+
+    // load the published machine-word result
+    let exit_code = resource.completion.exit_code.load(Ordering::Acquire);
+
+    // write the machine-word result
     unsafe {
         *out = exit_code;
     }
@@ -147,12 +146,11 @@ pub(crate) unsafe fn destack_thread_join(
 
 /// Spawn one host thread.
 ///
-/// Spawn one host thread that enters a runtime-provided entry symbol.
-/// Entry dispatch and argument passing are runtime ABI contracts.
+/// This is currently parked until runtime installed thread entry handles exist.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses pthread_create on Unix and CreateThread on Windows.
+/// Host thread creation is not yet wired for this entry model.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -163,75 +161,11 @@ pub(crate) unsafe fn destack_thread_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_spawn(
-    binding: &BindingCallContext,
-    out: *mut ThreadHandle,
-    entry: NativeStringRef,
-    argument: u64,
-    options: ThreadOptions,
+    _binding: &BindingCallContext,
+    _out: *mut ThreadHandle,
+    _entry: ThreadEntryHandle,
+    _argument: u64,
+    _options: ThreadOptions,
 ) -> RuntimeResult<()> {
-    // validate output pointer
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-
-    // validate supported spawn option flags
-    if options.flags != 0 {
-        return Err(core_thread::unsupported_flags_error(
-            "options.flags",
-            options.flags,
-        ));
-    }
-
-    // validate and decode the entry symbol
-    let _entry_symbol = unsafe { entry.as_str()? };
-
-    // validate optional stack size
-    let stack_size = usize::try_from(options.stack_bytes).map_err(|_| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "options.stackBytes",
-            "stack size exceeds host usize range",
-        ))
-        .boxed()
-    })?;
-
-    // allocate the bootstrap payload for the thread routine
-    let payload = Box::new(ThreadStartPayload {
-        exit_code: argument as u32,
-    });
-    let payload_ptr = Box::into_raw(payload) as *mut c_void;
-
-    // create the native thread
-    let mut _thread_id = 0_u32;
-    let native_handle = unsafe {
-        CreateThread(
-            ptr::null(),
-            stack_size,
-            Some(thread_start),
-            payload_ptr,
-            0,
-            &mut _thread_id,
-        )
-    };
-    if native_handle == 0 {
-        unsafe {
-            let _ = Box::from_raw(payload_ptr as *mut ThreadStartPayload);
-        }
-        return Err(core_platform::io_error("CreateThread"));
-    }
-
-    // store one spawned thread resource
-    let resource_id = core_thread::insert_thread_resource(
-        binding,
-        ResourceKind::Thread,
-        "thread",
-        resource_thread::ThreadResource { native_handle },
-    );
-
-    // write the thread handle
-    let handle = ThreadHandle(resource_id);
-    unsafe {
-        *out = handle;
-    }
-
-    Ok(())
+    Err(core_thread::thread_spawn_unavailable_error())
 }

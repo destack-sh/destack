@@ -7,9 +7,11 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::thread::{ThreadOptions, ThreadOptionsVm};
+use crate::platform::thread::{
+    ThreadCpu, ThreadCpuSet, ThreadCpuSetVm, ThreadOptions, ThreadOptionsVm,
+};
 use crate::platform::{
-    NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, abi as platform_abi,
+    PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
@@ -127,6 +129,17 @@ fn decode_string(
     Ok(vm::StringHandle::new(value))
 }
 
+/// Decode an array argument.
+#[allow(dead_code)]
+fn decode_array<T>(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<VmArray<T>> {
+    VmArray::<T>::from_value(context, value, name, expected)
+}
+
 /// Encode the result for destack.thread.local.create.
 #[inline]
 fn encode_destack_thread_local_create_result(
@@ -204,9 +217,9 @@ fn encode_destack_thread_local_set_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.thread.priority.getAffinity.
+/// Decode arguments for destack.thread.sched.getAffinity.
 #[inline]
-fn decode_destack_thread_priority_get_affinity_args(
+fn decode_destack_thread_scheduling_get_affinity_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
@@ -217,18 +230,21 @@ fn decode_destack_thread_priority_get_affinity_args(
     Ok((handle,))
 }
 
-/// Encode the result for destack.thread.priority.getAffinity.
+/// Encode the result for destack.thread.sched.getAffinity.
 #[inline]
-fn encode_destack_thread_priority_get_affinity_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<u64>,
+fn encode_destack_thread_scheduling_get_affinity_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<ThreadCpuSetVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value, 64))
+    result.map(|value| {
+        let field_0 = value.cpus.to_value(context);
+        context.allocate_aggregate(vec![field_0])
+    })
 }
 
-/// Decode arguments for destack.thread.priority.getPriority.
+/// Decode arguments for destack.thread.sched.getPriority.
 #[inline]
-fn decode_destack_thread_priority_get_priority_args(
+fn decode_destack_thread_scheduling_get_priority_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
@@ -239,42 +255,63 @@ fn decode_destack_thread_priority_get_priority_args(
     Ok((handle,))
 }
 
-/// Encode the result for destack.thread.priority.getPriority.
+/// Encode the result for destack.thread.sched.getPriority.
 #[inline]
-fn encode_destack_thread_priority_get_priority_result(
+fn encode_destack_thread_scheduling_get_priority_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::int(value as i64, 32))
 }
 
-/// Decode arguments for destack.thread.priority.setAffinity.
+/// Decode arguments for destack.thread.sched.setAffinity.
 #[inline]
-fn decode_destack_thread_priority_set_affinity_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+fn decode_destack_thread_scheduling_set_affinity_args(
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::ThreadHandle, u64)> {
+) -> RuntimeResult<(resource::ThreadHandle, ThreadCpuSetVm)> {
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ThreadHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::ThreadHandle(handle_inner);
-    let mask_value = arg_value(args, 1, "mask", "uint64")?;
-    let mask = decode_uint64(mask_value, "mask", "uint64")?;
-    Ok((handle, mask))
+    let cpus_value = arg_value(args, 1, "cpus", "ThreadCpuSet")?;
+    let cpus = {
+        if cpus_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "cpus",
+                "ThreadCpuSet",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(cpus_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "cpus",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let cpus_cpus = decode_array::<ThreadCpu>(context, slots[0], "cpus_cpus", "cpus");
+        let cpus_cpus = cpus_cpus?;
+        ThreadCpuSetVm { cpus: cpus_cpus }
+    };
+    Ok((handle, cpus))
 }
 
-/// Encode the result for destack.thread.priority.setAffinity.
+/// Encode the result for destack.thread.sched.setAffinity.
 #[inline]
-fn encode_destack_thread_priority_set_affinity_result(
+fn encode_destack_thread_scheduling_set_affinity_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.thread.priority.setPriority.
+/// Decode arguments for destack.thread.sched.setPriority.
 #[inline]
-fn decode_destack_thread_priority_set_priority_args(
+fn decode_destack_thread_scheduling_set_priority_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle, i32)> {
@@ -287,9 +324,9 @@ fn decode_destack_thread_priority_set_priority_args(
     Ok((handle, priority))
 }
 
-/// Encode the result for destack.thread.priority.setPriority.
+/// Encode the result for destack.thread.sched.setPriority.
 #[inline]
-fn encode_destack_thread_priority_set_priority_result(
+fn encode_destack_thread_scheduling_set_priority_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -335,9 +372,9 @@ fn decode_destack_thread_spawn_join_args(
 #[inline]
 fn encode_destack_thread_spawn_join_result(
     _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<u32>,
+    result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u64, 32))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.thread.spawn.start.
@@ -345,9 +382,11 @@ fn encode_destack_thread_spawn_join_result(
 fn decode_destack_thread_spawn_start_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, u64, ThreadOptionsVm)> {
-    let entry_value = arg_value(args, 0, "entry", "string")?;
-    let entry = decode_string(entry_value, "entry", "string")?;
+) -> RuntimeResult<(resource::ThreadEntryHandle, u64, ThreadOptionsVm)> {
+    let entry_value = arg_value(args, 0, "entry", "ThreadEntryHandle")?;
+    let entry_inner_inner = decode_uint64(entry_value, "entry_inner_inner", "ThreadEntryHandle")?;
+    let entry_inner = platform_resource::ResourceId(entry_inner_inner);
+    let entry = resource::ThreadEntryHandle(entry_inner);
     let argument_value = arg_value(args, 1, "argument", "uint64")?;
     let argument = decode_uint64(argument_value, "argument", "uint64")?;
     let options_value = arg_value(args, 2, "options", "ThreadOptions")?;
@@ -388,9 +427,9 @@ fn encode_destack_thread_spawn_start_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.thread.sync.addressWait.
+/// Decode arguments for destack.thread.wait.addressWait.
 #[inline]
-fn decode_destack_thread_sync_address_wait_args(
+fn decode_destack_thread_wait_address_wait_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u32, u64)> {
@@ -403,18 +442,18 @@ fn decode_destack_thread_sync_address_wait_args(
     Ok((address, expected, timeoutns))
 }
 
-/// Encode the result for destack.thread.sync.addressWait.
+/// Encode the result for destack.thread.wait.addressWait.
 #[inline]
-fn encode_destack_thread_sync_address_wait_result(
+fn encode_destack_thread_wait_address_wait_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.thread.sync.addressWakeAll.
+/// Decode arguments for destack.thread.wait.addressWakeAll.
 #[inline]
-fn decode_destack_thread_sync_address_wake_all_args(
+fn decode_destack_thread_wait_address_wake_all_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
@@ -423,18 +462,18 @@ fn decode_destack_thread_sync_address_wake_all_args(
     Ok((address,))
 }
 
-/// Encode the result for destack.thread.sync.addressWakeAll.
+/// Encode the result for destack.thread.wait.addressWakeAll.
 #[inline]
-fn encode_destack_thread_sync_address_wake_all_result(
+fn encode_destack_thread_wait_address_wake_all_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.thread.sync.addressWakeOne.
+/// Decode arguments for destack.thread.wait.addressWakeOne.
 #[inline]
-fn decode_destack_thread_sync_address_wake_one_args(
+fn decode_destack_thread_wait_address_wake_one_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
@@ -443,377 +482,9 @@ fn decode_destack_thread_sync_address_wake_one_args(
     Ok((address,))
 }
 
-/// Encode the result for destack.thread.sync.addressWakeOne.
+/// Encode the result for destack.thread.wait.addressWakeOne.
 #[inline]
-fn encode_destack_thread_sync_address_wake_one_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.thread.sync.barrierCreate.
-#[inline]
-fn decode_destack_thread_sync_barrier_create_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(u32, u32)> {
-    let participants_value = arg_value(args, 0, "participants", "uint32")?;
-    let participants = decode_uint32(participants_value, "participants", "uint32")?;
-    let flags_value = arg_value(args, 1, "flags", "uint32")?;
-    let flags = decode_uint32(flags_value, "flags", "uint32")?;
-    Ok((participants, flags))
-}
-
-/// Encode the result for destack.thread.sync.barrierCreate.
-#[inline]
-fn encode_destack_thread_sync_barrier_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<resource::BarrierHandle>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
-}
-
-/// Decode arguments for destack.thread.sync.barrierWait.
-#[inline]
-fn decode_destack_thread_sync_barrier_wait_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::BarrierHandle, u64)> {
-    let handle_value = arg_value(args, 0, "handle", "BarrierHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "BarrierHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::BarrierHandle(handle_inner);
-    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
-    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((handle, timeoutns))
-}
-
-/// Encode the result for destack.thread.sync.barrierWait.
-#[inline]
-fn encode_destack_thread_sync_barrier_wait_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<bool>,
-) -> RuntimeResult<vm::Value> {
-    result.map(vm::Value::bool)
-}
-
-/// Decode arguments for destack.thread.sync.condVarCreate.
-#[inline]
-fn decode_destack_thread_sync_cond_var_create_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(u32,)> {
-    let flags_value = arg_value(args, 0, "flags", "uint32")?;
-    let flags = decode_uint32(flags_value, "flags", "uint32")?;
-    Ok((flags,))
-}
-
-/// Encode the result for destack.thread.sync.condVarCreate.
-#[inline]
-fn encode_destack_thread_sync_cond_var_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<resource::CondVarHandle>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
-}
-
-/// Decode arguments for destack.thread.sync.condVarNotifyAll.
-#[inline]
-fn decode_destack_thread_sync_cond_var_notify_all_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::CondVarHandle,)> {
-    let condvar_value = arg_value(args, 0, "condvar", "CondVarHandle")?;
-    let condvar_inner_inner = decode_uint64(condvar_value, "condvar_inner_inner", "CondVarHandle")?;
-    let condvar_inner = resource::ResourceId(condvar_inner_inner);
-    let condvar = resource::CondVarHandle(condvar_inner);
-    Ok((condvar,))
-}
-
-/// Encode the result for destack.thread.sync.condVarNotifyAll.
-#[inline]
-fn encode_destack_thread_sync_cond_var_notify_all_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.thread.sync.condVarNotifyOne.
-#[inline]
-fn decode_destack_thread_sync_cond_var_notify_one_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::CondVarHandle,)> {
-    let condvar_value = arg_value(args, 0, "condvar", "CondVarHandle")?;
-    let condvar_inner_inner = decode_uint64(condvar_value, "condvar_inner_inner", "CondVarHandle")?;
-    let condvar_inner = resource::ResourceId(condvar_inner_inner);
-    let condvar = resource::CondVarHandle(condvar_inner);
-    Ok((condvar,))
-}
-
-/// Encode the result for destack.thread.sync.condVarNotifyOne.
-#[inline]
-fn encode_destack_thread_sync_cond_var_notify_one_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.thread.sync.condVarWait.
-#[inline]
-fn decode_destack_thread_sync_cond_var_wait_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::CondVarHandle, resource::MutexHandle, u64)> {
-    let condvar_value = arg_value(args, 0, "condvar", "CondVarHandle")?;
-    let condvar_inner_inner = decode_uint64(condvar_value, "condvar_inner_inner", "CondVarHandle")?;
-    let condvar_inner = resource::ResourceId(condvar_inner_inner);
-    let condvar = resource::CondVarHandle(condvar_inner);
-    let mutex_value = arg_value(args, 1, "mutex", "MutexHandle")?;
-    let mutex_inner_inner = decode_uint64(mutex_value, "mutex_inner_inner", "MutexHandle")?;
-    let mutex_inner = resource::ResourceId(mutex_inner_inner);
-    let mutex = resource::MutexHandle(mutex_inner);
-    let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
-    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((condvar, mutex, timeoutns))
-}
-
-/// Encode the result for destack.thread.sync.condVarWait.
-#[inline]
-fn encode_destack_thread_sync_cond_var_wait_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.thread.sync.mutexCreate.
-#[inline]
-fn decode_destack_thread_sync_mutex_create_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(u32,)> {
-    let flags_value = arg_value(args, 0, "flags", "uint32")?;
-    let flags = decode_uint32(flags_value, "flags", "uint32")?;
-    Ok((flags,))
-}
-
-/// Encode the result for destack.thread.sync.mutexCreate.
-#[inline]
-fn encode_destack_thread_sync_mutex_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<resource::MutexHandle>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
-}
-
-/// Decode arguments for destack.thread.sync.mutexLock.
-#[inline]
-fn decode_destack_thread_sync_mutex_lock_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::MutexHandle, u64)> {
-    let handle_value = arg_value(args, 0, "handle", "MutexHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MutexHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::MutexHandle(handle_inner);
-    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
-    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((handle, timeoutns))
-}
-
-/// Encode the result for destack.thread.sync.mutexLock.
-#[inline]
-fn encode_destack_thread_sync_mutex_lock_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.thread.sync.mutexUnlock.
-#[inline]
-fn decode_destack_thread_sync_mutex_unlock_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::MutexHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "MutexHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MutexHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::MutexHandle(handle_inner);
-    Ok((handle,))
-}
-
-/// Encode the result for destack.thread.sync.mutexUnlock.
-#[inline]
-fn encode_destack_thread_sync_mutex_unlock_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.thread.sync.rwlockCreate.
-#[inline]
-fn decode_destack_thread_sync_rwlock_create_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(u32,)> {
-    let flags_value = arg_value(args, 0, "flags", "uint32")?;
-    let flags = decode_uint32(flags_value, "flags", "uint32")?;
-    Ok((flags,))
-}
-
-/// Encode the result for destack.thread.sync.rwlockCreate.
-#[inline]
-fn encode_destack_thread_sync_rwlock_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<resource::RwLockHandle>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
-}
-
-/// Decode arguments for destack.thread.sync.rwlockReadLock.
-#[inline]
-fn decode_destack_thread_sync_rwlock_read_lock_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::RwLockHandle, u64)> {
-    let handle_value = arg_value(args, 0, "handle", "RwLockHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "RwLockHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::RwLockHandle(handle_inner);
-    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
-    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((handle, timeoutns))
-}
-
-/// Encode the result for destack.thread.sync.rwlockReadLock.
-#[inline]
-fn encode_destack_thread_sync_rwlock_read_lock_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.thread.sync.rwlockUnlock.
-#[inline]
-fn decode_destack_thread_sync_rwlock_unlock_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::RwLockHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "RwLockHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "RwLockHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::RwLockHandle(handle_inner);
-    Ok((handle,))
-}
-
-/// Encode the result for destack.thread.sync.rwlockUnlock.
-#[inline]
-fn encode_destack_thread_sync_rwlock_unlock_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.thread.sync.rwlockWriteLock.
-#[inline]
-fn decode_destack_thread_sync_rwlock_write_lock_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::RwLockHandle, u64)> {
-    let handle_value = arg_value(args, 0, "handle", "RwLockHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "RwLockHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::RwLockHandle(handle_inner);
-    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
-    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((handle, timeoutns))
-}
-
-/// Encode the result for destack.thread.sync.rwlockWriteLock.
-#[inline]
-fn encode_destack_thread_sync_rwlock_write_lock_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.thread.sync.semaphoreCreate.
-#[inline]
-fn decode_destack_thread_sync_semaphore_create_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(u32, u32, u32)> {
-    let initial_value = arg_value(args, 0, "initial", "uint32")?;
-    let initial = decode_uint32(initial_value, "initial", "uint32")?;
-    let maximum_value = arg_value(args, 1, "maximum", "uint32")?;
-    let maximum = decode_uint32(maximum_value, "maximum", "uint32")?;
-    let flags_value = arg_value(args, 2, "flags", "uint32")?;
-    let flags = decode_uint32(flags_value, "flags", "uint32")?;
-    Ok((initial, maximum, flags))
-}
-
-/// Encode the result for destack.thread.sync.semaphoreCreate.
-#[inline]
-fn encode_destack_thread_sync_semaphore_create_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<resource::ThreadSemaphoreHandle>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value.0.0, 64))
-}
-
-/// Decode arguments for destack.thread.sync.semaphorePost.
-#[inline]
-fn decode_destack_thread_sync_semaphore_post_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::ThreadSemaphoreHandle, u32)> {
-    let handle_value = arg_value(args, 0, "handle", "ThreadSemaphoreHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "ThreadSemaphoreHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::ThreadSemaphoreHandle(handle_inner);
-    let count_value = arg_value(args, 1, "count", "uint32")?;
-    let count = decode_uint32(count_value, "count", "uint32")?;
-    Ok((handle, count))
-}
-
-/// Encode the result for destack.thread.sync.semaphorePost.
-#[inline]
-fn encode_destack_thread_sync_semaphore_post_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.thread.sync.semaphoreWait.
-#[inline]
-fn decode_destack_thread_sync_semaphore_wait_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::ThreadSemaphoreHandle, u64)> {
-    let handle_value = arg_value(args, 0, "handle", "ThreadSemaphoreHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "ThreadSemaphoreHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::ThreadSemaphoreHandle(handle_inner);
-    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
-    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((handle, timeoutns))
-}
-
-/// Encode the result for destack.thread.sync.semaphoreWait.
-#[inline]
-fn encode_destack_thread_sync_semaphore_wait_result(
+fn encode_destack_thread_wait_address_wake_one_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -932,14 +603,14 @@ pub(crate) const THREAD_LOCAL_SET: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.thread.priority.getAffinity.
-pub(crate) const THREAD_PRIORITY_GET_AFFINITY: BindingDescriptor =
+/// Binding descriptor for destack.thread.sched.getAffinity.
+pub(crate) const THREAD_SCHEDULING_GET_AFFINITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.priority.getAffinity",
-        "export function getAffinity(handle: ThreadHandle): Result<uint64, PlatformError>",
+        "destack.thread.sched.getAffinity",
+        "export function getAffinity(handle: ThreadHandle): Result<ThreadCpuSet, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
-        &["thread.priority"],
+        &["thread.sched"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
         BindingAffinity::Any,
@@ -960,14 +631,14 @@ pub(crate) const THREAD_PRIORITY_GET_AFFINITY: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.thread.priority.getPriority.
-pub(crate) const THREAD_PRIORITY_GET_PRIORITY: BindingDescriptor =
+/// Binding descriptor for destack.thread.sched.getPriority.
+pub(crate) const THREAD_SCHEDULING_GET_PRIORITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.priority.getPriority",
+        "destack.thread.sched.getPriority",
         "export function getPriority(handle: ThreadHandle): Result<int32, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
-        &["thread.priority"],
+        &["thread.sched"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
         BindingAffinity::Any,
@@ -988,13 +659,13 @@ pub(crate) const THREAD_PRIORITY_GET_PRIORITY: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.thread.priority.setAffinity.
-pub(crate) const THREAD_PRIORITY_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.priority.setAffinity",
-    "export function setAffinity(handle: ThreadHandle, mask: uint64): Result<void, PlatformError>",
+/// Binding descriptor for destack.thread.sched.setAffinity.
+pub(crate) const THREAD_SCHEDULING_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sched.setAffinity",
+    "export function setAffinity(handle: ThreadHandle, cpus: ThreadCpuSet): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
-    &["thread.priority"],
+    &["thread.sched"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
     BindingAffinity::Any,
@@ -1002,13 +673,13 @@ pub(crate) const THREAD_PRIORITY_SET_AFFINITY: BindingDescriptor = BindingDescri
     .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.thread.priority.setPriority.
-pub(crate) const THREAD_PRIORITY_SET_PRIORITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.priority.setPriority",
+/// Binding descriptor for destack.thread.sched.setPriority.
+pub(crate) const THREAD_SCHEDULING_SET_PRIORITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sched.setPriority",
     "export function setPriority(handle: ThreadHandle, priority: int32): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
-    &["thread.priority"],
+    &["thread.sched"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
     BindingAffinity::Any,
@@ -1048,7 +719,7 @@ pub(crate) const THREAD_SPAWN_DETACH: BindingDescriptor =
 pub(crate) const THREAD_SPAWN_JOIN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.spawn.join",
-        "export function join(handle: ThreadHandle): Result<uint32, PlatformError>",
+        "export function join(handle: ThreadHandle): Result<uint64, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["thread.spawn"],
@@ -1075,7 +746,7 @@ pub(crate) const THREAD_SPAWN_JOIN: BindingDescriptor =
 /// Binding descriptor for destack.thread.spawn.start.
 pub(crate) const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.spawn.start",
-    "export function spawn(entry: string, argument: uint64, options: ThreadOptions): Result<ThreadHandle, PlatformError>",
+    "export function spawn(entry: ThreadEntryHandle, argument: uint64, options: ThreadOptions): Result<ThreadHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["thread.spawn"],
@@ -1086,9 +757,9 @@ pub(crate) const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::exte
     .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.thread.sync.addressWait.
-pub(crate) const THREAD_SYNC_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.sync.addressWait",
+/// Binding descriptor for destack.thread.wait.addressWait.
+pub(crate) const THREAD_WAIT_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.wait.addressWait",
     "export function addressWait(address: uint64, expected: uint32, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
@@ -1100,10 +771,10 @@ pub(crate) const THREAD_SYNC_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor
     .with_namespace("thread")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.thread.sync.addressWakeAll.
-pub(crate) const THREAD_SYNC_ADDRESS_WAKE_ALL: BindingDescriptor =
+/// Binding descriptor for destack.thread.wait.addressWakeAll.
+pub(crate) const THREAD_WAIT_ADDRESS_WAKE_ALL: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.addressWakeAll",
+        "destack.thread.wait.addressWakeAll",
         "export function addressWakeAll(address: uint64): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
@@ -1128,10 +799,10 @@ pub(crate) const THREAD_SYNC_ADDRESS_WAKE_ALL: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.thread.sync.addressWakeOne.
-pub(crate) const THREAD_SYNC_ADDRESS_WAKE_ONE: BindingDescriptor =
+/// Binding descriptor for destack.thread.wait.addressWakeOne.
+pub(crate) const THREAD_WAIT_ADDRESS_WAKE_ONE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.addressWakeOne",
+        "destack.thread.wait.addressWakeOne",
         "export function addressWakeOne(address: uint64): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
@@ -1155,328 +826,6 @@ pub(crate) const THREAD_SYNC_ADDRESS_WAKE_ONE: BindingDescriptor =
         "solaris",
         "windows",
     ]);
-
-/// Binding descriptor for destack.thread.sync.barrierCreate.
-pub(crate) const THREAD_SYNC_BARRIER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.sync.barrierCreate",
-    "export function barrierCreate(participants: uint32, flags: uint32): Result<BarrierHandle, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["thread.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.thread.sync.barrierWait.
-pub(crate) const THREAD_SYNC_BARRIER_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.sync.barrierWait",
-    "export function barrierWait(handle: BarrierHandle, timeoutNs: uint64): Result<boolean, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["thread.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.thread.sync.condVarCreate.
-pub(crate) const THREAD_SYNC_COND_VAR_CREATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.condVarCreate",
-        "export function condVarCreate(flags: uint32): Result<CondVarHandle, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.sync"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.thread.sync.condVarNotifyAll.
-pub(crate) const THREAD_SYNC_COND_VAR_NOTIFY_ALL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.condVarNotifyAll",
-        "export function condVarNotifyAll(condVar: CondVarHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.sync"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.thread.sync.condVarNotifyOne.
-pub(crate) const THREAD_SYNC_COND_VAR_NOTIFY_ONE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.condVarNotifyOne",
-        "export function condVarNotifyOne(condVar: CondVarHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.sync"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.thread.sync.condVarWait.
-pub(crate) const THREAD_SYNC_COND_VAR_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.sync.condVarWait",
-    "export function condVarWait(condVar: CondVarHandle, mutex: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["thread.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.thread.sync.mutexCreate.
-pub(crate) const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.mutexCreate",
-        "export function mutexCreate(flags: uint32): Result<MutexHandle, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.sync"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.thread.sync.mutexLock.
-pub(crate) const THREAD_SYNC_MUTEX_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.sync.mutexLock",
-    "export function mutexLock(handle: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["thread.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.thread.sync.mutexUnlock.
-pub(crate) const THREAD_SYNC_MUTEX_UNLOCK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.mutexUnlock",
-        "export function mutexUnlock(handle: MutexHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.sync"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.thread.sync.rwlockCreate.
-pub(crate) const THREAD_SYNC_RWLOCK_CREATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.rwlockCreate",
-        "export function rwlockCreate(flags: uint32): Result<RwLockHandle, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.sync"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.thread.sync.rwlockReadLock.
-pub(crate) const THREAD_SYNC_RWLOCK_READ_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.sync.rwlockReadLock",
-    "export function rwlockReadLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["thread.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.thread.sync.rwlockUnlock.
-pub(crate) const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.rwlockUnlock",
-        "export function rwlockUnlock(handle: RwLockHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.sync"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.thread.sync.rwlockWriteLock.
-pub(crate) const THREAD_SYNC_RWLOCK_WRITE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.sync.rwlockWriteLock",
-    "export function rwlockWriteLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["thread.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.thread.sync.semaphoreCreate.
-pub(crate) const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.sync.semaphoreCreate",
-    "export function semaphoreCreate(initial: uint32, maximum: uint32, flags: uint32): Result<ThreadSemaphoreHandle, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["thread.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.thread.sync.semaphorePost.
-pub(crate) const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.sync.semaphorePost",
-    "export function semaphorePost(handle: ThreadSemaphoreHandle, count: uint32): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["thread.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.thread.sync.semaphoreWait.
-pub(crate) const THREAD_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.thread.sync.semaphoreWait",
-    "export function semaphoreWait(handle: ThreadSemaphoreHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["thread.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Native binding set for thread.
 pub(crate) const THREAD_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
@@ -1503,24 +852,24 @@ pub(crate) const THREAD_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_thread_local_set as *const (),
         ),
         NativeBinding::new(
-            THREAD_PRIORITY_GET_AFFINITY,
-            "destack.thread.priority.getAffinity",
-            destack_thread_priority_get_affinity as *const (),
+            THREAD_SCHEDULING_GET_AFFINITY,
+            "destack.thread.sched.getAffinity",
+            destack_thread_scheduling_get_affinity as *const (),
         ),
         NativeBinding::new(
-            THREAD_PRIORITY_GET_PRIORITY,
-            "destack.thread.priority.getPriority",
-            destack_thread_priority_get_priority as *const (),
+            THREAD_SCHEDULING_GET_PRIORITY,
+            "destack.thread.sched.getPriority",
+            destack_thread_scheduling_get_priority as *const (),
         ),
         NativeBinding::new(
-            THREAD_PRIORITY_SET_AFFINITY,
-            "destack.thread.priority.setAffinity",
-            destack_thread_priority_set_affinity as *const (),
+            THREAD_SCHEDULING_SET_AFFINITY,
+            "destack.thread.sched.setAffinity",
+            destack_thread_scheduling_set_affinity as *const (),
         ),
         NativeBinding::new(
-            THREAD_PRIORITY_SET_PRIORITY,
-            "destack.thread.priority.setPriority",
-            destack_thread_priority_set_priority as *const (),
+            THREAD_SCHEDULING_SET_PRIORITY,
+            "destack.thread.sched.setPriority",
+            destack_thread_scheduling_set_priority as *const (),
         ),
         NativeBinding::new(
             THREAD_SPAWN_DETACH,
@@ -1538,99 +887,19 @@ pub(crate) const THREAD_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_thread_spawn_start as *const (),
         ),
         NativeBinding::new(
-            THREAD_SYNC_ADDRESS_WAIT,
-            "destack.thread.sync.addressWait",
-            destack_thread_sync_address_wait as *const (),
+            THREAD_WAIT_ADDRESS_WAIT,
+            "destack.thread.wait.addressWait",
+            destack_thread_wait_address_wait as *const (),
         ),
         NativeBinding::new(
-            THREAD_SYNC_ADDRESS_WAKE_ALL,
-            "destack.thread.sync.addressWakeAll",
-            destack_thread_sync_address_wake_all as *const (),
+            THREAD_WAIT_ADDRESS_WAKE_ALL,
+            "destack.thread.wait.addressWakeAll",
+            destack_thread_wait_address_wake_all as *const (),
         ),
         NativeBinding::new(
-            THREAD_SYNC_ADDRESS_WAKE_ONE,
-            "destack.thread.sync.addressWakeOne",
-            destack_thread_sync_address_wake_one as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_BARRIER_CREATE,
-            "destack.thread.sync.barrierCreate",
-            destack_thread_sync_barrier_create as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_BARRIER_WAIT,
-            "destack.thread.sync.barrierWait",
-            destack_thread_sync_barrier_wait as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_COND_VAR_CREATE,
-            "destack.thread.sync.condVarCreate",
-            destack_thread_sync_cond_var_create as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_COND_VAR_NOTIFY_ALL,
-            "destack.thread.sync.condVarNotifyAll",
-            destack_thread_sync_cond_var_notify_all as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_COND_VAR_NOTIFY_ONE,
-            "destack.thread.sync.condVarNotifyOne",
-            destack_thread_sync_cond_var_notify_one as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_COND_VAR_WAIT,
-            "destack.thread.sync.condVarWait",
-            destack_thread_sync_cond_var_wait as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_MUTEX_CREATE,
-            "destack.thread.sync.mutexCreate",
-            destack_thread_sync_mutex_create as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_MUTEX_LOCK,
-            "destack.thread.sync.mutexLock",
-            destack_thread_sync_mutex_lock as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_MUTEX_UNLOCK,
-            "destack.thread.sync.mutexUnlock",
-            destack_thread_sync_mutex_unlock as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_RWLOCK_CREATE,
-            "destack.thread.sync.rwlockCreate",
-            destack_thread_sync_rwlock_create as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_RWLOCK_READ_LOCK,
-            "destack.thread.sync.rwlockReadLock",
-            destack_thread_sync_rwlock_read_lock as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_RWLOCK_UNLOCK,
-            "destack.thread.sync.rwlockUnlock",
-            destack_thread_sync_rwlock_unlock as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_RWLOCK_WRITE_LOCK,
-            "destack.thread.sync.rwlockWriteLock",
-            destack_thread_sync_rwlock_write_lock as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_SEMAPHORE_CREATE,
-            "destack.thread.sync.semaphoreCreate",
-            destack_thread_sync_semaphore_create as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_SEMAPHORE_POST,
-            "destack.thread.sync.semaphorePost",
-            destack_thread_sync_semaphore_post as *const (),
-        ),
-        NativeBinding::new(
-            THREAD_SYNC_SEMAPHORE_WAIT,
-            "destack.thread.sync.semaphoreWait",
-            destack_thread_sync_semaphore_wait as *const (),
+            THREAD_WAIT_ADDRESS_WAKE_ONE,
+            "destack.thread.wait.addressWakeOne",
+            destack_thread_wait_address_wake_one as *const (),
         ),
     ],
 };
@@ -1736,9 +1005,9 @@ pub(crate) unsafe extern "C" fn destack_thread_local_set(
     })
 }
 
-#[unsafe(export_name = "destack.thread.priority.getAffinity")]
-pub(crate) unsafe extern "C" fn destack_thread_priority_get_affinity(
-    out: *mut u64,
+#[unsafe(export_name = "destack.thread.sched.getAffinity")]
+pub(crate) unsafe extern "C" fn destack_thread_scheduling_get_affinity(
+    out: *mut ThreadCpuSet,
     handle: resource::ThreadHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1749,7 +1018,7 @@ pub(crate) unsafe extern "C" fn destack_thread_priority_get_affinity(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_PRIORITY_GET_AFFINITY)?;
+                context.on_before_binding_resolve_world(THREAD_SCHEDULING_GET_AFFINITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_get_affinity(context, out, handle)
@@ -1762,8 +1031,8 @@ pub(crate) unsafe extern "C" fn destack_thread_priority_get_affinity(
     })
 }
 
-#[unsafe(export_name = "destack.thread.priority.getPriority")]
-pub(crate) unsafe extern "C" fn destack_thread_priority_get_priority(
+#[unsafe(export_name = "destack.thread.sched.getPriority")]
+pub(crate) unsafe extern "C" fn destack_thread_scheduling_get_priority(
     out: *mut i32,
     handle: resource::ThreadHandle,
 ) -> RuntimeStatus {
@@ -1775,7 +1044,7 @@ pub(crate) unsafe extern "C" fn destack_thread_priority_get_priority(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_PRIORITY_GET_PRIORITY)?;
+                context.on_before_binding_resolve_world(THREAD_SCHEDULING_GET_PRIORITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_get_priority(context, out, handle)
@@ -1788,31 +1057,31 @@ pub(crate) unsafe extern "C" fn destack_thread_priority_get_priority(
     })
 }
 
-#[unsafe(export_name = "destack.thread.priority.setAffinity")]
-pub(crate) unsafe extern "C" fn destack_thread_priority_set_affinity(
+#[unsafe(export_name = "destack.thread.sched.setAffinity")]
+pub(crate) unsafe extern "C" fn destack_thread_scheduling_set_affinity(
     handle: resource::ThreadHandle,
-    mask: u64,
+    cpus: ThreadCpuSet,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &mask);
+        let _ = (&handle, &cpus);
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_PRIORITY_SET_AFFINITY)?;
+                context.on_before_binding_resolve_world(THREAD_SCHEDULING_SET_AFFINITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_set_affinity(context, handle, mask)
+                    platform_native::destack_thread_set_affinity(context, handle, cpus)
                 },
                 RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_set_affinity(context, handle, mask)
+                    platform_simulation_native::destack_thread_set_affinity(context, handle, cpus)
                 },
             }
         }
     })
 }
 
-#[unsafe(export_name = "destack.thread.priority.setPriority")]
-pub(crate) unsafe extern "C" fn destack_thread_priority_set_priority(
+#[unsafe(export_name = "destack.thread.sched.setPriority")]
+pub(crate) unsafe extern "C" fn destack_thread_scheduling_set_priority(
     handle: resource::ThreadHandle,
     priority: i32,
 ) -> RuntimeStatus {
@@ -1821,7 +1090,7 @@ pub(crate) unsafe extern "C" fn destack_thread_priority_set_priority(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_PRIORITY_SET_PRIORITY)?;
+                context.on_before_binding_resolve_world(THREAD_SCHEDULING_SET_PRIORITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_set_priority(context, handle, priority)
@@ -1860,7 +1129,7 @@ pub(crate) unsafe extern "C" fn destack_thread_spawn_detach(
 
 #[unsafe(export_name = "destack.thread.spawn.join")]
 pub(crate) unsafe extern "C" fn destack_thread_spawn_join(
-    out: *mut u32,
+    out: *mut u64,
     handle: resource::ThreadHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1887,7 +1156,7 @@ pub(crate) unsafe extern "C" fn destack_thread_spawn_join(
 #[unsafe(export_name = "destack.thread.spawn.start")]
 pub(crate) unsafe extern "C" fn destack_thread_spawn_start(
     out: *mut resource::ThreadHandle,
-    entry: NativeStringRef,
+    entry: resource::ThreadEntryHandle,
     argument: u64,
     options: ThreadOptions,
 ) -> RuntimeStatus {
@@ -1914,8 +1183,8 @@ pub(crate) unsafe extern "C" fn destack_thread_spawn_start(
     })
 }
 
-#[unsafe(export_name = "destack.thread.sync.addressWait")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_address_wait(
+#[unsafe(export_name = "destack.thread.wait.addressWait")]
+pub(crate) unsafe extern "C" fn destack_thread_wait_address_wait(
     address: u64,
     expected: u32,
     timeoutns: u64,
@@ -1925,7 +1194,7 @@ pub(crate) unsafe extern "C" fn destack_thread_sync_address_wait(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAIT)?;
+                context.on_before_binding_resolve_world(THREAD_WAIT_ADDRESS_WAIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_address_wait(
@@ -1942,8 +1211,8 @@ pub(crate) unsafe extern "C" fn destack_thread_sync_address_wait(
     })
 }
 
-#[unsafe(export_name = "destack.thread.sync.addressWakeAll")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_address_wake_all(
+#[unsafe(export_name = "destack.thread.wait.addressWakeAll")]
+pub(crate) unsafe extern "C" fn destack_thread_wait_address_wake_all(
     address: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1951,7 +1220,7 @@ pub(crate) unsafe extern "C" fn destack_thread_sync_address_wake_all(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ALL)?;
+                context.on_before_binding_resolve_world(THREAD_WAIT_ADDRESS_WAKE_ALL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_address_wake_all(context, address)
@@ -1964,8 +1233,8 @@ pub(crate) unsafe extern "C" fn destack_thread_sync_address_wake_all(
     })
 }
 
-#[unsafe(export_name = "destack.thread.sync.addressWakeOne")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_address_wake_one(
+#[unsafe(export_name = "destack.thread.wait.addressWakeOne")]
+pub(crate) unsafe extern "C" fn destack_thread_wait_address_wake_one(
     address: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1973,430 +1242,13 @@ pub(crate) unsafe extern "C" fn destack_thread_sync_address_wake_one(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ONE)?;
+                context.on_before_binding_resolve_world(THREAD_WAIT_ADDRESS_WAKE_ONE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_address_wake_one(context, address)
                 },
                 RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_thread_address_wake_one(context, address)
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.barrierCreate")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_barrier_create(
-    out: *mut resource::BarrierHandle,
-    participants: u32,
-    flags: u32,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &participants, &flags);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_BARRIER_CREATE)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_barrier_create(
-                        context,
-                        out,
-                        participants,
-                        flags,
-                    )
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_barrier_create(
-                        context,
-                        out,
-                        participants,
-                        flags,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.barrierWait")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_barrier_wait(
-    out: *mut bool,
-    handle: resource::BarrierHandle,
-    timeoutns: u64,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &timeoutns);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_BARRIER_WAIT)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_barrier_wait(context, out, handle, timeoutns)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_barrier_wait(
-                        context, out, handle, timeoutns,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.condVarCreate")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_cond_var_create(
-    out: *mut resource::CondVarHandle,
-    flags: u32,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &flags);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_CREATE)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_cond_var_create(context, out, flags)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_cond_var_create(context, out, flags)
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.condVarNotifyAll")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_cond_var_notify_all(
-    condvar: resource::CondVarHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = &condvar;
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ALL)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_cond_var_notify_all(context, condvar)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_cond_var_notify_all(context, condvar)
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.condVarNotifyOne")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_cond_var_notify_one(
-    condvar: resource::CondVarHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = &condvar;
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ONE)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_cond_var_notify_one(context, condvar)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_cond_var_notify_one(context, condvar)
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.condVarWait")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_cond_var_wait(
-    condvar: resource::CondVarHandle,
-    mutex: resource::MutexHandle,
-    timeoutns: u64,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&condvar, &mutex, &timeoutns);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_WAIT)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_cond_var_wait(
-                        context, condvar, mutex, timeoutns,
-                    )
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_cond_var_wait(
-                        context, condvar, mutex, timeoutns,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.mutexCreate")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_mutex_create(
-    out: *mut resource::MutexHandle,
-    flags: u32,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &flags);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_CREATE)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_mutex_create(context, out, flags)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_mutex_create(context, out, flags)
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.mutexLock")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_mutex_lock(
-    handle: resource::MutexHandle,
-    timeoutns: u64,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&handle, &timeoutns);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_LOCK)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_mutex_lock(context, handle, timeoutns)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_mutex_lock(
-                        context, handle, timeoutns,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.mutexUnlock")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_mutex_unlock(
-    handle: resource::MutexHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = &handle;
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_UNLOCK)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_mutex_unlock(context, handle)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_mutex_unlock(context, handle)
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.rwlockCreate")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_rwlock_create(
-    out: *mut resource::RwLockHandle,
-    flags: u32,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &flags);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_CREATE)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_rwlock_create(context, out, flags)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_rwlock_create(context, out, flags)
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.rwlockReadLock")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_rwlock_read_lock(
-    handle: resource::RwLockHandle,
-    timeoutns: u64,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&handle, &timeoutns);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_READ_LOCK)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_rwlock_read_lock(context, handle, timeoutns)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_rwlock_read_lock(
-                        context, handle, timeoutns,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.rwlockUnlock")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_rwlock_unlock(
-    handle: resource::RwLockHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = &handle;
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_UNLOCK)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_rwlock_unlock(context, handle)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_rwlock_unlock(context, handle)
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.rwlockWriteLock")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_rwlock_write_lock(
-    handle: resource::RwLockHandle,
-    timeoutns: u64,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&handle, &timeoutns);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_WRITE_LOCK)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_rwlock_write_lock(context, handle, timeoutns)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_rwlock_write_lock(
-                        context, handle, timeoutns,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.semaphoreCreate")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_semaphore_create(
-    out: *mut resource::ThreadSemaphoreHandle,
-    initial: u32,
-    maximum: u32,
-    flags: u32,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &initial, &maximum, &flags);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_CREATE)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_semaphore_create(
-                        context, out, initial, maximum, flags,
-                    )
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_semaphore_create(
-                        context, out, initial, maximum, flags,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.semaphorePost")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_semaphore_post(
-    handle: resource::ThreadSemaphoreHandle,
-    count: u32,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&handle, &count);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_POST)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_semaphore_post(context, handle, count)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_semaphore_post(
-                        context, handle, count,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.thread.sync.semaphoreWait")]
-pub(crate) unsafe extern "C" fn destack_thread_sync_semaphore_wait(
-    handle: resource::ThreadSemaphoreHandle,
-    timeoutns: u64,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&handle, &timeoutns);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_WAIT)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_semaphore_wait(context, handle, timeoutns)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_thread_semaphore_wait(
-                        context, handle, timeoutns,
-                    )
                 },
             }
         }
@@ -2524,17 +1376,17 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            THREAD_PRIORITY_GET_AFFINITY,
+            THREAD_SCHEDULING_GET_AFFINITY,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
-                        decode_destack_thread_priority_get_affinity_args(context, args)?;
+                        decode_destack_thread_scheduling_get_affinity_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_PRIORITY_GET_AFFINITY)?;
+                            .on_before_binding_resolve_world(THREAD_SCHEDULING_GET_AFFINITY)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_get_affinity(binding, context, handle)
@@ -2546,7 +1398,7 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
                             }
                         }
                     };
-                    encode_destack_thread_priority_get_affinity_result(context, result)
+                    encode_destack_thread_scheduling_get_affinity_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -2556,17 +1408,17 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            THREAD_PRIORITY_GET_PRIORITY,
+            THREAD_SCHEDULING_GET_PRIORITY,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
                     let (handle,) =
-                        decode_destack_thread_priority_get_priority_args(context, args)?;
+                        decode_destack_thread_scheduling_get_priority_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_PRIORITY_GET_PRIORITY)?;
+                            .on_before_binding_resolve_world(THREAD_SCHEDULING_GET_PRIORITY)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_get_priority(binding, context, handle)
@@ -2578,7 +1430,7 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
                             }
                         }
                     };
-                    encode_destack_thread_priority_get_priority_result(context, result)
+                    encode_destack_thread_scheduling_get_priority_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -2588,29 +1440,29 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            THREAD_PRIORITY_SET_AFFINITY,
+            THREAD_SCHEDULING_SET_AFFINITY,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle, mask) =
-                        decode_destack_thread_priority_set_affinity_args(context, args)?;
+                    let (handle, cpus) =
+                        decode_destack_thread_scheduling_set_affinity_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_PRIORITY_SET_AFFINITY)?;
+                            .on_before_binding_resolve_world(THREAD_SCHEDULING_SET_AFFINITY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_set_affinity(
-                                binding, context, handle, mask,
+                                binding, context, handle, cpus,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_thread_set_affinity(
-                                    binding, context, handle, mask,
+                                    binding, context, handle, cpus,
                                 )
                             }
                         }
                     };
-                    encode_destack_thread_priority_set_affinity_result(context, result)
+                    encode_destack_thread_scheduling_set_affinity_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -2620,17 +1472,17 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            THREAD_PRIORITY_SET_PRIORITY,
+            THREAD_SCHEDULING_SET_PRIORITY,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
                     let (handle, priority) =
-                        decode_destack_thread_priority_set_priority_args(context, args)?;
+                        decode_destack_thread_scheduling_set_priority_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_PRIORITY_SET_PRIORITY)?;
+                            .on_before_binding_resolve_world(THREAD_SCHEDULING_SET_PRIORITY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_set_priority(
                                 binding, context, handle, priority,
@@ -2642,7 +1494,7 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
                             }
                         }
                     };
-                    encode_destack_thread_priority_set_priority_result(context, result)
+                    encode_destack_thread_scheduling_set_priority_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -2746,17 +1598,17 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            THREAD_SYNC_ADDRESS_WAIT,
+            THREAD_WAIT_ADDRESS_WAIT,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
                     let (address, expected, timeoutns) =
-                        decode_destack_thread_sync_address_wait_args(context, args)?;
+                        decode_destack_thread_wait_address_wait_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAIT)?;
+                            binding.on_before_binding_resolve_world(THREAD_WAIT_ADDRESS_WAIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_address_wait(
                                 binding, context, address, expected, timeoutns,
@@ -2768,7 +1620,7 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
                             }
                         }
                     };
-                    encode_destack_thread_sync_address_wait_result(context, result)
+                    encode_destack_thread_wait_address_wait_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -2778,17 +1630,17 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            THREAD_SYNC_ADDRESS_WAKE_ALL,
+            THREAD_WAIT_ADDRESS_WAKE_ALL,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
                     let (address,) =
-                        decode_destack_thread_sync_address_wake_all_args(context, args)?;
+                        decode_destack_thread_wait_address_wake_all_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ALL)?;
+                            .on_before_binding_resolve_world(THREAD_WAIT_ADDRESS_WAKE_ALL)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_address_wake_all(
                                 binding, context, address,
@@ -2800,7 +1652,7 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
                             }
                         }
                     };
-                    encode_destack_thread_sync_address_wake_all_result(context, result)
+                    encode_destack_thread_wait_address_wake_all_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -2810,17 +1662,17 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            THREAD_SYNC_ADDRESS_WAKE_ONE,
+            THREAD_WAIT_ADDRESS_WAKE_ONE,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
                     let (address,) =
-                        decode_destack_thread_sync_address_wake_one_args(context, args)?;
+                        decode_destack_thread_wait_address_wake_one_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ONE)?;
+                            .on_before_binding_resolve_world(THREAD_WAIT_ADDRESS_WAKE_ONE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_address_wake_one(
                                 binding, context, address,
@@ -2832,520 +1684,7 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
                             }
                         }
                     };
-                    encode_destack_thread_sync_address_wake_one_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_BARRIER_CREATE,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (participants, flags) =
-                        decode_destack_thread_sync_barrier_create_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_BARRIER_CREATE)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_thread_barrier_create(
-                                binding,
-                                context,
-                                participants,
-                                flags,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_barrier_create(
-                                    binding,
-                                    context,
-                                    participants,
-                                    flags,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_barrier_create_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_BARRIER_WAIT,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle, timeoutns) =
-                        decode_destack_thread_sync_barrier_wait_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_BARRIER_WAIT)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_thread_barrier_wait(
-                                binding, context, handle, timeoutns,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_barrier_wait(
-                                    binding, context, handle, timeoutns,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_barrier_wait_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_COND_VAR_CREATE,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (flags,) = decode_destack_thread_sync_cond_var_create_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_CREATE)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_thread_cond_var_create(binding, context, flags)
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_cond_var_create(
-                                    binding, context, flags,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_cond_var_create_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_COND_VAR_NOTIFY_ALL,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (condvar,) =
-                        decode_destack_thread_sync_cond_var_notify_all_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ALL)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_thread_cond_var_notify_all(
-                                binding, context, condvar,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_cond_var_notify_all(
-                                    binding, context, condvar,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_cond_var_notify_all_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_COND_VAR_NOTIFY_ONE,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (condvar,) =
-                        decode_destack_thread_sync_cond_var_notify_one_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ONE)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_thread_cond_var_notify_one(
-                                binding, context, condvar,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_cond_var_notify_one(
-                                    binding, context, condvar,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_cond_var_notify_one_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_COND_VAR_WAIT,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (condvar, mutex, timeoutns) =
-                        decode_destack_thread_sync_cond_var_wait_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_WAIT)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_thread_cond_var_wait(
-                                binding, context, condvar, mutex, timeoutns,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_cond_var_wait(
-                                    binding, context, condvar, mutex, timeoutns,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_cond_var_wait_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_MUTEX_CREATE,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (flags,) = decode_destack_thread_sync_mutex_create_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_CREATE)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_thread_mutex_create(binding, context, flags)
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_mutex_create(
-                                    binding, context, flags,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_mutex_create_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_MUTEX_LOCK,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle, timeoutns) =
-                        decode_destack_thread_sync_mutex_lock_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_LOCK)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_thread_mutex_lock(
-                                binding, context, handle, timeoutns,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_mutex_lock(
-                                    binding, context, handle, timeoutns,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_mutex_lock_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_MUTEX_UNLOCK,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle,) = decode_destack_thread_sync_mutex_unlock_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_UNLOCK)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_thread_mutex_unlock(binding, context, handle)
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_mutex_unlock(
-                                    binding, context, handle,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_mutex_unlock_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_RWLOCK_CREATE,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (flags,) = decode_destack_thread_sync_rwlock_create_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_CREATE)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_thread_rwlock_create(binding, context, flags)
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_rwlock_create(
-                                    binding, context, flags,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_rwlock_create_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_RWLOCK_READ_LOCK,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle, timeoutns) =
-                        decode_destack_thread_sync_rwlock_read_lock_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_READ_LOCK)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_thread_rwlock_read_lock(
-                                binding, context, handle, timeoutns,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_rwlock_read_lock(
-                                    binding, context, handle, timeoutns,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_rwlock_read_lock_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_RWLOCK_UNLOCK,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle,) = decode_destack_thread_sync_rwlock_unlock_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_UNLOCK)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_thread_rwlock_unlock(binding, context, handle)
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_rwlock_unlock(
-                                    binding, context, handle,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_rwlock_unlock_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_RWLOCK_WRITE_LOCK,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle, timeoutns) =
-                        decode_destack_thread_sync_rwlock_write_lock_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_WRITE_LOCK)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_thread_rwlock_write_lock(
-                                binding, context, handle, timeoutns,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_rwlock_write_lock(
-                                    binding, context, handle, timeoutns,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_rwlock_write_lock_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_SEMAPHORE_CREATE,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (initial, maximum, flags) =
-                        decode_destack_thread_sync_semaphore_create_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_CREATE)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_thread_semaphore_create(
-                                binding, context, initial, maximum, flags,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_semaphore_create(
-                                    binding, context, initial, maximum, flags,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_semaphore_create_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_SEMAPHORE_POST,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle, count) =
-                        decode_destack_thread_sync_semaphore_post_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_POST)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_thread_semaphore_post(
-                                binding, context, handle, count,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_semaphore_post(
-                                    binding, context, handle, count,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_semaphore_post_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            THREAD_SYNC_SEMAPHORE_WAIT,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle, timeoutns) =
-                        decode_destack_thread_sync_semaphore_wait_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_WAIT)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_thread_semaphore_wait(
-                                binding, context, handle, timeoutns,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_thread_semaphore_wait(
-                                    binding, context, handle, timeoutns,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_thread_sync_semaphore_wait_result(context, result)
+                    encode_destack_thread_wait_address_wake_one_result(context, result)
                 })
                 .map_err(Into::into)
             }

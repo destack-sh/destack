@@ -2,12 +2,12 @@
 
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::platform::PlatformError;
 
 use crate::runtime::BindingCallContext;
 
 use crate::platform::resource;
-use crate::platform::thread::ThreadOptions;
+use crate::platform::thread::{ThreadCpuSet, ThreadOptions};
 
 /// Create one thread-local key.
 ///
@@ -121,10 +121,11 @@ pub(crate) unsafe fn destack_thread_local_set(
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.set")).boxed())
 }
 
-/// Read thread affinity mask.
+/// Read thread CPU affinity.
 ///
-/// Read one thread CPU affinity mask.
-/// Affinity mask width and normalization are host-architecture dependent.
+/// Read one thread logical-processor affinity set.
+/// Unix targets always report group `0`.
+/// Windows reports group-local logical processors for the active thread affinity.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -134,13 +135,13 @@ pub(crate) unsafe fn destack_thread_local_set(
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
 ///
 /// # Security
-/// Requires `thread.priority`.
+/// Requires `thread.sched`.
 ///
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_affinity(
     _binding: &BindingCallContext,
-    out: *mut u64,
+    out: *mut ThreadCpuSet,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -149,7 +150,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.getAffinity",
+        "destack.thread.sched.getAffinity",
     ))
     .boxed())
 }
@@ -167,7 +168,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
 ///
 /// # Security
-/// Requires `thread.priority`.
+/// Requires `thread.sched`.
 ///
 /// # Replay
 /// External, nonrecordable.
@@ -182,37 +183,38 @@ pub(crate) unsafe fn destack_thread_get_priority(
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.getPriority",
+        "destack.thread.sched.getPriority",
     ))
     .boxed())
 }
 
-/// Set thread affinity mask.
+/// Set thread CPU affinity.
 ///
-/// Bind one thread to a CPU affinity mask.
-/// Affinity mask semantics are host scheduler-defined.
+/// Bind one thread to one set of logical processors.
+/// Unix targets interpret every entry with group `0`.
+/// Windows maps entries to processor groups and group-local logical processors.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses sched affinity APIs on Unix and SetThreadAffinityMask on Windows.
+/// Uses pthread affinity APIs on Unix and SetThreadGroupAffinity on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
 ///
 /// # Security
-/// Requires `thread.priority`.
+/// Requires `thread.sched`.
 ///
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_affinity(
     _binding: &BindingCallContext,
     handle: resource::ThreadHandle,
-    mask: u64,
+    cpus: ThreadCpuSet,
 ) -> RuntimeResult<()> {
-    let _ = (handle, mask);
+    let _ = (handle, cpus);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.setAffinity",
+        "destack.thread.sched.setAffinity",
     ))
     .boxed())
 }
@@ -230,7 +232,7 @@ pub(crate) unsafe fn destack_thread_set_affinity(
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
 ///
 /// # Security
-/// Requires `thread.priority`.
+/// Requires `thread.sched`.
 ///
 /// # Replay
 /// External, nonrecordable.
@@ -242,7 +244,7 @@ pub(crate) unsafe fn destack_thread_set_priority(
     let _ = (handle, priority);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.setPriority",
+        "destack.thread.sched.setPriority",
     ))
     .boxed())
 }
@@ -275,12 +277,12 @@ pub(crate) unsafe fn destack_thread_detach(
 
 /// Join one host thread.
 ///
-/// Wait for one joinable thread to exit and return its exit code.
-/// Join behavior follows host thread lifecycle rules.
+/// Wait for one joinable thread to exit and return its machine-word result.
+/// Join lifecycle follows host thread rules, but the returned value is runtime-defined.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses pthread_join on Unix and WaitForSingleObject plus exit code on Windows.
+/// Uses one runtime-managed completion slot on supported hosts.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -292,7 +294,7 @@ pub(crate) unsafe fn destack_thread_detach(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_join(
     _binding: &BindingCallContext,
-    out: *mut u32,
+    out: *mut u64,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -305,8 +307,8 @@ pub(crate) unsafe fn destack_thread_join(
 
 /// Spawn one host thread.
 ///
-/// Spawn one host thread that enters a runtime-provided entry symbol.
-/// Entry dispatch and argument passing are runtime ABI contracts.
+/// Spawn one host thread that enters one runtime-provided thread entry handle.
+/// Thread entry creation and argument interpretation are runtime ABI contracts.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -323,7 +325,7 @@ pub(crate) unsafe fn destack_thread_join(
 pub(crate) unsafe fn destack_thread_spawn(
     _binding: &BindingCallContext,
     out: *mut resource::ThreadHandle,
-    entry: NativeStringRef,
+    entry: resource::ThreadEntryHandle,
     argument: u64,
     options: ThreadOptions,
 ) -> RuntimeResult<()> {
@@ -361,7 +363,7 @@ pub(crate) unsafe fn destack_thread_address_wait(
     let _ = (address, expected, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.addressWait",
+        "destack.thread.wait.addressWait",
     ))
     .boxed())
 }
@@ -390,7 +392,7 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
     let _ = address;
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.addressWakeAll",
+        "destack.thread.wait.addressWakeAll",
     ))
     .boxed())
 }
@@ -419,506 +421,7 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
     let _ = address;
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.addressWakeOne",
-    ))
-    .boxed())
-}
-
-/// Create one thread barrier.
-///
-/// Create one reusable barrier for a fixed participant count.
-/// Participant-count semantics follow host barrier primitives.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread barriers on Unix and runtime-host barrier emulation on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_barrier_create(
-    _binding: &BindingCallContext,
-    out: *mut resource::BarrierHandle,
-    participants: u32,
-    flags: u32,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, participants, flags);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.barrierCreate",
-    ))
-    .boxed())
-}
-
-/// Wait for barrier rendezvous.
-///
-/// Block until all participants reach one barrier phase.
-/// Return value marks whether the caller became phase leader.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread barriers on Unix and runtime-host barrier emulation on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioTimedOut, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_barrier_wait(
-    _binding: &BindingCallContext,
-    out: *mut bool,
-    handle: resource::BarrierHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle, timeoutns);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.barrierWait",
-    ))
-    .boxed())
-}
-
-/// Create one condition variable.
-///
-/// Create one condition variable for wait-notify synchronization.
-/// Condition variable association with mutexes is validated on wait calls.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread condition variables on Unix and condition variable APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_cond_var_create(
-    _binding: &BindingCallContext,
-    out: *mut resource::CondVarHandle,
-    flags: u32,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, flags);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarCreate",
-    ))
-    .boxed())
-}
-
-/// Notify all condition-variable waiters.
-///
-/// Wake all waiters blocked on a condition variable.
-/// Wake ordering and runnable scheduling follow host synchronization semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host condition-variable broadcast primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_cond_var_notify_all(
-    _binding: &BindingCallContext,
-    condvar: resource::CondVarHandle,
-) -> RuntimeResult<()> {
-    let _ = condvar;
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarNotifyAll",
-    ))
-    .boxed())
-}
-
-/// Notify one condition-variable waiter.
-///
-/// Wake one waiter blocked on a condition variable.
-/// Waiter selection order follows host synchronization semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host condition-variable notify primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_cond_var_notify_one(
-    _binding: &BindingCallContext,
-    condvar: resource::CondVarHandle,
-) -> RuntimeResult<()> {
-    let _ = condvar;
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarNotifyOne",
-    ))
-    .boxed())
-}
-
-/// Wait on one condition variable.
-///
-/// Atomically release one mutex and wait for one condition-variable notification.
-/// Mutex is reacquired before returning from wait according to host semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host condition-variable wait primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_cond_var_wait(
-    _binding: &BindingCallContext,
-    condvar: resource::CondVarHandle,
-    mutex: resource::MutexHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    let _ = (condvar, mutex, timeoutns);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarWait",
-    ))
-    .boxed())
-}
-
-/// Create one mutex.
-///
-/// Create one host mutex with runtime-selected attributes.
-/// Mutex ownership and recursion behavior follow host primitive configuration.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread mutexes on Unix and SRW or critical section primitives on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_mutex_create(
-    _binding: &BindingCallContext,
-    out: *mut resource::MutexHandle,
-    flags: u32,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, flags);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.mutexCreate",
-    ))
-    .boxed())
-}
-
-/// Lock one mutex.
-///
-/// Acquire one mutex, waiting until ownership is available.
-/// Wait ordering and fairness follow host synchronization semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host mutex wait primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_mutex_lock(
-    _binding: &BindingCallContext,
-    handle: resource::MutexHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.mutexLock",
-    ))
-    .boxed())
-}
-
-/// Unlock one mutex.
-///
-/// Release ownership of one mutex.
-/// Wakeup behavior for waiters follows host synchronization semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host mutex unlock primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_mutex_unlock(
-    _binding: &BindingCallContext,
-    handle: resource::MutexHandle,
-) -> RuntimeResult<()> {
-    let _ = handle;
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.mutexUnlock",
-    ))
-    .boxed())
-}
-
-/// Create one read-write lock.
-///
-/// Create one read-write lock for shared and exclusive access control.
-/// Reader and writer preference is host-primitive defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread rwlock on Unix and SRW lock abstractions on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_rwlock_create(
-    _binding: &BindingCallContext,
-    out: *mut resource::RwLockHandle,
-    flags: u32,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, flags);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockCreate",
-    ))
-    .boxed())
-}
-
-/// Lock one read-write lock for read access.
-///
-/// Acquire shared read access for one read-write lock.
-/// Read acquisition ordering follows host synchronization semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host rwlock read-lock primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_rwlock_read_lock(
-    _binding: &BindingCallContext,
-    handle: resource::RwLockHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockReadLock",
-    ))
-    .boxed())
-}
-
-/// Unlock one read-write lock.
-///
-/// Release one read or write ownership slot on a read-write lock.
-/// Wakeup behavior for waiters follows host synchronization semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host rwlock unlock primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_rwlock_unlock(
-    _binding: &BindingCallContext,
-    handle: resource::RwLockHandle,
-) -> RuntimeResult<()> {
-    let _ = handle;
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockUnlock",
-    ))
-    .boxed())
-}
-
-/// Lock one read-write lock for write access.
-///
-/// Acquire exclusive write access for one read-write lock.
-/// Write acquisition ordering follows host synchronization semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host rwlock write-lock primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioTimedOut, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_rwlock_write_lock(
-    _binding: &BindingCallContext,
-    handle: resource::RwLockHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockWriteLock",
-    ))
-    .boxed())
-}
-
-/// Create one thread-scoped semaphore.
-///
-/// Create one semaphore for in-process thread synchronization.
-/// Semaphore bounds and fairness follow host primitive semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses semaphores or equivalent host synchronization primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_semaphore_create(
-    _binding: &BindingCallContext,
-    out: *mut resource::ThreadSemaphoreHandle,
-    initial: u32,
-    maximum: u32,
-    flags: u32,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, initial, maximum, flags);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.semaphoreCreate",
-    ))
-    .boxed())
-}
-
-/// Post one semaphore count for thread synchronization.
-///
-/// Increment one semaphore by count and wake eligible waiters.
-/// Wake behavior follows host semaphore primitives.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host semaphore post primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_semaphore_post(
-    _binding: &BindingCallContext,
-    handle: resource::ThreadSemaphoreHandle,
-    count: u32,
-) -> RuntimeResult<()> {
-    let _ = (handle, count);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.semaphorePost",
-    ))
-    .boxed())
-}
-
-/// Wait one semaphore count for thread synchronization.
-///
-/// Decrement one semaphore count, waiting up to the timeout when needed.
-/// Wake ordering follows host scheduler behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host semaphore wait primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioTimedOut, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.sync`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_thread_semaphore_wait(
-    _binding: &BindingCallContext,
-    handle: resource::ThreadSemaphoreHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.semaphoreWait",
+        "destack.thread.wait.addressWakeOne",
     ))
     .boxed())
 }

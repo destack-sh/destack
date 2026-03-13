@@ -50,11 +50,7 @@ macro_rules! for_each_resource_handle_kind {
             (DeviceHandle, Device, "resource.device", "device", "The handle for one device endpoint."),
             (PtyHandle, Pty, "resource.pty", "pty", "The handle for one pseudo terminal endpoint."),
             (ThreadHandle, Thread, "resource.thread", "thread", "The handle for one thread object."),
-            (MutexHandle, Mutex, "resource.mutex", "mutex", "The handle for one mutex object."),
-            (RwLockHandle, RwLock, "resource.rw.lock", "rw_lock", "The handle for one read write lock object."),
-            (CondVarHandle, CondVar, "resource.cond.var", "cond_var", "The handle for one condition variable object."),
-            (ThreadSemaphoreHandle, ThreadSemaphore, "resource.thread.semaphore", "thread_semaphore", "The handle for one thread-scoped semaphore object."),
-            (BarrierHandle, Barrier, "resource.barrier", "barrier", "The handle for one thread-scoped barrier object."),
+            (ThreadEntryHandle, ThreadEntry, "resource.thread.entry", "thread_entry", "The handle for one runtime thread entry object."),
             (ThreadLocalKey, ThreadLocal, "resource.thread.local", "thread_local", "The handle for one thread local key."),
             (SandboxHandle, Sandbox, "resource.sandbox", "sandbox", "The handle for one sandbox scope."),
             (InspectorHandle, Inspector, "resource.inspector", "inspector", "The handle for one inspector session."),
@@ -192,7 +188,7 @@ macro_rules! define_resource_kind {
 
                     Self::Process => &[ResourceFacet::Process],
 
-                    Self::Thread => &[ResourceFacet::Thread],
+                    Self::Thread | Self::ThreadEntry => &[ResourceFacet::Thread],
 
                     Self::Timer | Self::TimerFd => &[ResourceFacet::Timer, ResourceFacet::Clock],
 
@@ -207,11 +203,6 @@ macro_rules! define_resource_kind {
                     | Self::Symbol
                     | Self::Semaphore
                     | Self::Device
-                    | Self::Mutex
-                    | Self::RwLock
-                    | Self::CondVar
-                    | Self::ThreadSemaphore
-                    | Self::Barrier
                     | Self::ThreadLocal
                     | Self::Sandbox
                     | Self::Inspector

@@ -31,14 +31,14 @@ declare namespace thread {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.scheduling`.
+    /// Requires `thread.sched`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.thread.scheduling.setPriority", {
+    @binding("destack.thread.sched.setPriority", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["thread.scheduling"],
+        capabilities: ["thread.sched"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
@@ -60,14 +60,14 @@ declare namespace thread {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.scheduling`.
+    /// Requires `thread.sched`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.thread.scheduling.getPriority", {
+    @binding("destack.thread.sched.getPriority", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["thread.scheduling"],
+        capabilities: ["thread.sched"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
@@ -90,14 +90,14 @@ declare namespace thread {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.scheduling`.
+    /// Requires `thread.sched`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.thread.scheduling.setAffinity", {
+    @binding("destack.thread.sched.setAffinity", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["thread.scheduling"],
+        capabilities: ["thread.sched"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
@@ -123,14 +123,14 @@ declare namespace thread {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
     ///
     /// # Security
-    /// Requires `thread.scheduling`.
+    /// Requires `thread.sched`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.thread.scheduling.getAffinity", {
+    @binding("destack.thread.sched.getAffinity", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["thread.scheduling"],
+        capabilities: ["thread.sched"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
