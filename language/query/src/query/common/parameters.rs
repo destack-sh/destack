@@ -72,10 +72,11 @@ pub(crate) fn parameter_data_for_symbol(
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the symbol and its primary declaration
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let global_node_id = symbol.primary_declaration?;
-    drop(symbols);
+    let global_node_id = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration?
+    };
 
     // resolve the source text for doc parsing
     let source_file = session.files.get(ctx.file_id);

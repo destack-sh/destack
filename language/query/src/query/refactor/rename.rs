@@ -326,10 +326,11 @@ fn resolve_name_from_primary_declaration(
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the primary declaration node id
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(canonical_id.local_id);
-    let declaration = symbol.primary_declaration?;
-    drop(symbols);
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(canonical_id.local_id);
+        symbol.primary_declaration?
+    };
 
     let dir_tree = ctx.tree();
     match declaration.local_id.ty {
@@ -416,10 +417,11 @@ fn resolve_interface_member_target(
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the member declaration node
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(canonical_id.local_id);
-    let declaration = symbol.primary_declaration?;
-    drop(symbols);
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(canonical_id.local_id);
+        symbol.primary_declaration?
+    };
 
     if declaration.local_id.ty != dir::NodeType::Member {
         return None;
@@ -477,22 +479,24 @@ fn collect_interface_member_implementations(
             continue;
         };
 
-        let types = ctx.types();
-        let mut implementing_symbols = Vec::new();
-        for (symbol_id, lineage) in types.iter_lineages() {
-            let implements = lineage.implements.iter().any(|symbol| {
-                let canonical = get_canonical_symbol(session, *symbol);
-                canonical == target.interface_symbol
-            });
-            if !implements {
-                continue;
+        let implementing_symbols = {
+            let types = ctx.types();
+            let mut implementing_symbols = Vec::new();
+            for (symbol_id, lineage) in types.iter_lineages() {
+                let implements = lineage.implements.iter().any(|symbol| {
+                    let canonical = get_canonical_symbol(session, *symbol);
+                    canonical == target.interface_symbol
+                });
+                if !implements {
+                    continue;
+                }
+                if symbol_id.module_id != ctx.module_id {
+                    continue;
+                }
+                implementing_symbols.push(symbol_id.local_id);
             }
-            if symbol_id.module_id != ctx.module_id {
-                continue;
-            }
-            implementing_symbols.push(symbol_id.local_id);
-        }
-        drop(types);
+            implementing_symbols
+        };
 
         if implementing_symbols.is_empty() {
             continue;

@@ -8,7 +8,7 @@ use destack_source::{EnclosingSpan, File, FileId, Span};
 use parking_lot::RwLock;
 
 use super::QueryContext;
-use destack_workspace::{Module, ModuleAst, ModuleDir, Session};
+use destack_workspace::{Module, ModuleAst, ModuleDirData, Session};
 
 /// Get a module by FileId.
 pub fn get_module_by_file_id(session: &Session, file_id: FileId) -> Option<Arc<RwLock<Module>>> {
@@ -18,14 +18,11 @@ pub fn get_module_by_file_id(session: &Session, file_id: FileId) -> Option<Arc<R
 /// Get the span of a DIR node by mapping through AST source map.
 pub fn get_dir_node_span(
     ast: &ModuleAst,
-    dir: &ModuleDir,
+    dir: &ModuleDirData,
     dir_node_id: LocalNodeIdAny,
 ) -> Option<Span> {
-    let dir_tree = dir.tree.read();
-
     // get the AST node id from the DIR node
-    let ast_node_id = dir_tree.get_source(dir_node_id.id);
-    drop(dir_tree);
+    let ast_node_id = dir.tree.get_source(dir_node_id.id);
 
     // get the span from AST source map
     Some(ast.tree.source_map.get(ast_node_id))
@@ -35,14 +32,11 @@ pub fn get_dir_node_span(
 /// Falls back to full span if no main span is set.
 pub fn get_dir_node_main_span(
     ast: &ModuleAst,
-    dir: &ModuleDir,
+    dir: &ModuleDirData,
     dir_node_id: LocalNodeIdAny,
 ) -> Option<Span> {
-    let dir_tree = dir.tree.read();
-
     // get the AST node id from the DIR node
-    let ast_node_id = dir_tree.get_source(dir_node_id.id);
-    drop(dir_tree);
+    let ast_node_id = dir.tree.get_source(dir_node_id.id);
 
     // try to get the main span first (e.g., identifier span for declarations)
     Some(ast.tree.source_map.get_main_or_enclosing(ast_node_id))

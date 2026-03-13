@@ -312,10 +312,11 @@ fn resolve_member_symbol_from_declaration(
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the primary declaration for the base symbol
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(base_symbol.local_id);
-    let declaration = symbol.primary_declaration?;
-    drop(symbols);
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(base_symbol.local_id);
+        symbol.primary_declaration?
+    };
 
     // convert the declaration into a declaration node id
     let Ok(local_decl_id): Result<dir::LocalNodeId<Declaration>, _> = declaration.try_into() else {
@@ -363,13 +364,15 @@ fn resolve_member_symbol_from_lineage(
     let ctx = crate::query_context(session, &module)?;
 
     // collect direct lineage targets for inheritance and implementation
-    let types = ctx.types();
-    let lineage = types.get_lineage_for_symbol(base_symbol)?;
-    let extends = lineage.extends;
-    let implements = lineage.implements.clone();
-    let embedded = lineage.embedded.clone();
-    drop(types);
-    drop(module);
+    let (extends, implements, embedded) = {
+        let types = ctx.types();
+        let lineage = types.get_lineage_for_symbol(base_symbol)?;
+        Some((
+            lineage.extends,
+            lineage.implements.clone(),
+            lineage.embedded.clone(),
+        ))
+    }?;
 
     // prefer direct parent first for deterministic results
     if let Some(parent_symbol) = extends
@@ -430,10 +433,11 @@ pub(crate) fn resolve_nominal_symbol_from_initializer(
     symbol_id: GlobalSymbolId,
 ) -> Option<GlobalSymbolId> {
     // resolve the primary declaration for the symbol
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let declaration = symbol.primary_declaration?;
-    drop(symbols);
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration?
+    };
 
     // find the declarator that owns the declaration
     let dir_tree = ctx.tree();
@@ -592,10 +596,11 @@ fn resolve_type_symbol_from_target_context(
     }
 
     // resolve direct dependency targets when the symbol is an import alias
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let declaration = symbol.primary_declaration?;
-    drop(symbols);
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration?
+    };
 
     if declaration.local_id.ty != NodeType::DependencyItem {
         return None;
@@ -843,16 +848,19 @@ fn resolve_namespace_member_symbol_inner(
     let alias_ctx = crate::query_context(session, &module)?;
 
     // require a dependency item declaration for the alias symbol
-    let symbols = alias_ctx.symbols();
-    let symbol = symbols.get_symbol(alias_symbol.local_id);
-    let declaration = symbol.primary_declaration;
-    let symbol_name = symbol.name();
-    let forwarded_symbol = symbol.target_symbol.or_else(|| {
-        symbol
-            .canonical_symbol
-            .filter(|canonical| *canonical != alias_symbol)
-    });
-    drop(symbols);
+    let (declaration, symbol_name, forwarded_symbol) = {
+        let symbols = alias_ctx.symbols();
+        let symbol = symbols.get_symbol(alias_symbol.local_id);
+        (
+            symbol.primary_declaration,
+            symbol.name(),
+            symbol.target_symbol.or_else(|| {
+                symbol
+                    .canonical_symbol
+                    .filter(|canonical| *canonical != alias_symbol)
+            }),
+        )
+    };
 
     let Some(declaration) = declaration else {
         if let Some(alias_name) = symbol_name
@@ -1163,7 +1171,7 @@ pub(crate) fn resolve_type_symbol_from_module(
         }
     }
 
-    let exports = ctx.dir.exported_symbols.read();
+    let exports = &ctx.dir.exported_symbols;
     for ((space, key), export) in exports.iter() {
         let dir::StaticKey::Name(export_name) = *key else {
             continue;

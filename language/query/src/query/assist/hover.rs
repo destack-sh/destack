@@ -116,9 +116,13 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     let documentation = doc_text_for_symbol(session, canonical_id);
 
     // try rich signature formatting first (for top level declarations)
-    if let Some(formatted) =
-        format_symbol_signature(canonical_id, &session.modules, &session.strings, profile)
-    {
+    if let Some(formatted) = format_symbol_signature(
+        canonical_id,
+        &session.artifacts,
+        &session.modules,
+        &session.strings,
+        profile,
+    ) {
         // resolve the hover location
         let location = hover_location(session, symbol_at.span);
 
@@ -165,6 +169,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format member hover with full signature
                 let member = dir_tree.get::<Member>(member_id);
                 format_member_hover(
+                    &session.artifacts,
                     &session.strings,
                     &session.modules,
                     member,
@@ -183,6 +188,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format enum field hover
                 let field = dir_tree.get::<EnumField>(field_id);
                 format_enum_field_hover(
+                    &session.artifacts,
                     &session.strings,
                     &session.modules,
                     field,
@@ -200,6 +206,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format parameter hover
                 let param = dir_tree.get::<Parameter>(param_id);
                 format_parameter_hover(
+                    &session.artifacts,
                     &session.strings,
                     &session.modules,
                     param,
@@ -214,6 +221,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
         NodeType::Pattern => {
             // local variable or destructuring pattern
             format_local_variable_hover(
+                &session.artifacts,
                 name.as_deref(),
                 symbol_at.symbol_id,
                 &symbols,
@@ -264,6 +272,7 @@ fn resolve_hover_type_text(
     // format the local type for display
     Some(format_local_type(
         type_id,
+        &session.artifacts,
         &types,
         &session.modules,
         &session.strings,
@@ -294,7 +303,7 @@ fn hover_range_for_symbol(
 ) -> Span {
     // preserve full declaration ranges for member declarations
     if node_id.ty == NodeType::Member
-        && let Some(span) = get_dir_node_span(ctx.ast, ctx.dir, node_id)
+        && let Some(span) = get_dir_node_span(ctx.ast, &ctx.dir, node_id)
     {
         return span;
     }

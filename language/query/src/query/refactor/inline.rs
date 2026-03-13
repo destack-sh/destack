@@ -72,15 +72,18 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     }
 
     // resolve the symbol metadata
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(canonical_id.local_id);
-    let declaration = symbol.primary_declaration?;
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(canonical_id.local_id);
+        let declaration = symbol.primary_declaration?;
 
-    // avoid inlining symbols that are exported from the module
-    if symbol.export.is_some() {
-        return None;
-    }
-    drop(symbols);
+        // avoid inlining symbols that are exported from the module
+        if symbol.export.is_some() {
+            return None;
+        }
+
+        declaration
+    };
 
     // find the declarator that owns the symbol
     let dir_tree = ctx.tree();
@@ -344,7 +347,6 @@ fn collect_inline_reference_entries(
             replacement: ReferenceReplacement::ObjectShorthand { name: key_name },
         });
     }
-    drop(symbols);
 
     entries.sort_by_key(|entry| (entry.span.start, entry.span.end));
     entries.dedup_by(|left, right| {

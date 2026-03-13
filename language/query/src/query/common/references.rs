@@ -447,8 +447,8 @@ fn resolve_expression_reference_span(
     dir_tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
-    let span = get_dir_node_main_span(ctx.ast, ctx.dir, expression_id.into())
-        .or_else(|| get_dir_node_span(ctx.ast, ctx.dir, expression_id.into()))?;
+    let span = get_dir_node_main_span(ctx.ast, &ctx.dir, expression_id.into())
+        .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, expression_id.into()))?;
 
     let Some(parent) = dir_tree.get_parent(expression_id.id) else {
         return Some(span);
@@ -479,7 +479,7 @@ fn resolve_expression_reference_span(
     }
 
     // recover receiver spans when direct mapping points at member names
-    if let Some(member_span) = get_dir_node_span(ctx.ast, ctx.dir, parent_expression_id.into())
+    if let Some(member_span) = get_dir_node_span(ctx.ast, &ctx.dir, parent_expression_id.into())
         && member_span.file == member_name_span.file
         && member_span.start < receiver_end
     {
@@ -495,20 +495,22 @@ fn resolve_member_receiver_reference_span(
     member_expression_id: dir::LocalNodeId<Expression>,
     receiver_expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
-    let dir_tree = ctx.tree();
-    let mut receiver_expression_id = receiver_expression_id;
-    loop {
-        let receiver_expression = dir_tree.get::<Expression>(receiver_expression_id);
-        let Expression::Parenthesized { expression } = receiver_expression else {
-            break;
-        };
-        receiver_expression_id = *expression;
-    }
-    drop(dir_tree);
+    let receiver_expression_id = {
+        let dir_tree = ctx.tree();
+        let mut receiver_expression_id = receiver_expression_id;
+        loop {
+            let receiver_expression = dir_tree.get::<Expression>(receiver_expression_id);
+            let Expression::Parenthesized { expression } = receiver_expression else {
+                break;
+            };
+            receiver_expression_id = *expression;
+        }
+        receiver_expression_id
+    };
 
     let receiver_span = ast_member_receiver_span(ctx, member_expression_id)
-        .or_else(|| get_dir_node_main_span(ctx.ast, ctx.dir, receiver_expression_id.into()))
-        .or_else(|| get_dir_node_span(ctx.ast, ctx.dir, receiver_expression_id.into()))?;
+        .or_else(|| get_dir_node_main_span(ctx.ast, &ctx.dir, receiver_expression_id.into()))
+        .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, receiver_expression_id.into()))?;
 
     let Some(member_name_span) = get_member_access_name_span(ctx, member_expression_id) else {
         return Some(receiver_span);
@@ -528,7 +530,7 @@ fn resolve_member_receiver_reference_span(
     }
 
     // recover from member spans that only map to the member name
-    if let Some(member_span) = get_dir_node_span(ctx.ast, ctx.dir, member_expression_id.into())
+    if let Some(member_span) = get_dir_node_span(ctx.ast, &ctx.dir, member_expression_id.into())
         && member_span.file == member_name_span.file
         && member_span.start < receiver_end
     {
@@ -543,9 +545,10 @@ fn ast_member_receiver_span(
     ctx: &QueryContext<'_>,
     member_expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
-    let dir_tree = ctx.tree();
-    let source_id = dir_tree.get_source(member_expression_id.id);
-    drop(dir_tree);
+    let source_id = {
+        let dir_tree = ctx.tree();
+        dir_tree.get_source(member_expression_id.id)
+    };
 
     let expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
     let expression = ctx.ast.tree.get(expression_id);
@@ -629,12 +632,14 @@ fn symbol_is_namespace_in_context(ctx: &QueryContext<'_>, symbol_id: GlobalSymbo
         return false;
     }
 
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let Some(declaration) = symbol.primary_declaration else {
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration
+    };
+    let Some(declaration) = declaration else {
         return false;
     };
-    drop(symbols);
 
     if declaration.local_id.ty != NodeType::Declaration {
         return false;
@@ -695,15 +700,17 @@ fn collect_interface_type_parameter_spans(
         return Vec::new();
     }
 
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(canonical_id.local_id);
-    let Some(declaration) = symbol.primary_declaration else {
-        return Vec::new();
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(canonical_id.local_id);
+        let Some(declaration) = symbol.primary_declaration else {
+            return Vec::new();
+        };
+        if declaration.local_id.ty != NodeType::Parameter {
+            return Vec::new();
+        }
+        declaration
     };
-    if declaration.local_id.ty != NodeType::Parameter {
-        return Vec::new();
-    }
-    drop(symbols);
 
     let dir_tree = ctx.tree();
     let mut current = declaration.local_id.id;
@@ -717,14 +724,14 @@ fn collect_interface_type_parameter_spans(
                 break;
             }
 
-            let Some(interface_span) = get_dir_node_span(ctx.ast, ctx.dir, parent) else {
+            let Some(interface_span) = get_dir_node_span(ctx.ast, &ctx.dir, parent) else {
                 break;
             };
 
             let mut spans = Vec::new();
             for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
                 let Some(expression_span) =
-                    get_dir_node_span(ctx.ast, ctx.dir, expression_id.into())
+                    get_dir_node_span(ctx.ast, &ctx.dir, expression_id.into())
                 else {
                     continue;
                 };
@@ -752,7 +759,7 @@ fn collect_interface_type_parameter_spans(
                     continue;
                 }
 
-                let Some(span) = get_dir_node_main_span(ctx.ast, ctx.dir, expression_id.into())
+                let Some(span) = get_dir_node_main_span(ctx.ast, &ctx.dir, expression_id.into())
                     .or(Some(expression_span))
                 else {
                     continue;
@@ -1059,7 +1066,7 @@ fn collect_dependency_reference_spans(
         } else {
             None
         }
-        .or_else(|| get_dir_node_main_span(ctx.ast, ctx.dir, item_id.into()));
+        .or_else(|| get_dir_node_main_span(ctx.ast, &ctx.dir, item_id.into()));
 
         let Some(span) = span else {
             continue;
@@ -1088,7 +1095,7 @@ fn dependency_item_name_span(
 ) -> Option<Span> {
     // fall back to the main span when no name was provided
     let Some(target_name) = target_name else {
-        return get_dir_node_main_span(ctx.ast, ctx.dir, item_id.into());
+        return get_dir_node_main_span(ctx.ast, &ctx.dir, item_id.into());
     };
 
     // resolve name + alias for matching

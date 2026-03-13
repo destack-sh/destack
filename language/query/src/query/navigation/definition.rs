@@ -139,8 +139,8 @@ fn resolve_import_definition_at_offset(
         let item = dir_tree.get::<DependencyItem>(item_id);
 
         // resolve the main declaration span for coarse overlap checks
-        let fallback_span = get_dir_node_main_span(ctx.ast, ctx.dir, item_id.into())
-            .or_else(|| get_dir_node_span(ctx.ast, ctx.dir, item_id.into()));
+        let fallback_span = get_dir_node_main_span(ctx.ast, &ctx.dir, item_id.into())
+            .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, item_id.into()));
 
         // skip items that do not cover the cursor
         if !fallback_span.is_some_and(|span| span.contains(offset)) {
@@ -216,16 +216,14 @@ fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Op
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
     let ctx = crate::query_context(session, &module)?;
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration?
+    };
 
-    // get primary_declaration directly
-    let declaration = symbol.primary_declaration?;
-
-    drop(symbols);
-
-    get_dir_node_main_span(ctx.ast, ctx.dir, declaration.local_id)
-        .or_else(|| get_dir_node_span(ctx.ast, ctx.dir, declaration.local_id))
+    get_dir_node_main_span(ctx.ast, &ctx.dir, declaration.local_id)
+        .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, declaration.local_id))
 }
 
 /// Find the type definition of the symbol at the given position.
@@ -258,31 +256,30 @@ pub fn goto_type_definition(
     }
 
     // for non-type symbols (variables, parameters, etc.), look up their value type
-    let types = ctx.types();
+    let resolved_type_symbol = {
+        let types = ctx.types();
 
-    // try get_value_type_id first (for inferred types)
-    if let Some(type_id) = types.get_value_type_id(symbol_id) {
-        let ty = types.get_type(type_id);
-        if let Some(type_symbol) = ty.symbol() {
-            drop(types);
-            drop(module);
-            let span = get_symbol_definition_span(session, type_symbol)?;
-            return Some(DefinitionResult::single(span));
+        // try get_value_type_id first
+        if let Some(type_id) = types.get_value_type_id(symbol_id) {
+            let ty = types.get_type(type_id);
+            if let Some(type_symbol) = ty.symbol() {
+                Some(type_symbol)
+            } else {
+                None
+            }
         }
-    }
-
-    // fall back to declared type (type annotation) if inferred not available
-    let node_id = symbol_at.node_id.into_global(symbol_id.module_id);
-    if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
-        let ty = types.get_type(type_id);
-        if let Some(type_symbol) = ty.symbol() {
-            drop(types);
-            drop(module);
-            let span = get_symbol_definition_span(session, type_symbol)?;
-            return Some(DefinitionResult::single(span));
+        // otherwise fall back to declared or inferred type
+        else {
+            let node_id = symbol_at.node_id.into_global(symbol_id.module_id);
+            let type_id = types.get_declared_or_inferred_type_id(node_id)?;
+            let ty = types.get_type(type_id);
+            ty.symbol()
         }
+    };
+    if let Some(type_symbol) = resolved_type_symbol {
+        let span = get_symbol_definition_span(session, type_symbol)?;
+        return Some(DefinitionResult::single(span));
     }
-    drop(types);
 
     // final fallback: try to get type from declaration context
     if let Some(type_symbol) = get_type_from_declaration_context(session, &ctx, symbol_at.node_id) {
@@ -347,8 +344,6 @@ fn get_type_from_declaration_context(
 
             // check if this is a type reference (GlobalReference, etc.)
             if let Some(target) = expr.target_symbol() {
-                drop(types);
-                drop(dir_tree);
                 // verify target is a type symbol
                 let target_module = session.modules.get(target.module_id);
                 let target_module = target_module.read();
@@ -404,25 +399,26 @@ fn overload_definition_span_for_call_site(
     }
 
     // resolve the selected call candidate signature
-    let types = ctx.types();
-    let node_id = GlobalNodeIdAny {
-        module_id: ctx.module_id,
-        local_id: parent_expression_id.into(),
-    };
-    let resolution_id = types.get_resolution_for_node(node_id)?;
-    let resolution = types.get_resolution(resolution_id);
-    let (target_symbol, dynamic_parameters) = match resolution {
-        Resolution::Static { candidate, .. } => (
-            get_canonical_symbol(session, candidate.target_symbol),
-            candidate
-                .resolved_signature
-                .as_ref()?
-                .dynamic_parameters
-                .clone(),
-        ),
-        _ => return None,
-    };
-    drop(types);
+    let (target_symbol, dynamic_parameters) = {
+        let types = ctx.types();
+        let node_id = GlobalNodeIdAny {
+            module_id: ctx.module_id,
+            local_id: parent_expression_id.into(),
+        };
+        let resolution_id = types.get_resolution_for_node(node_id)?;
+        let resolution = types.get_resolution(resolution_id);
+        match resolution {
+            Resolution::Static { candidate, .. } => Some((
+                get_canonical_symbol(session, candidate.target_symbol),
+                candidate
+                    .resolved_signature
+                    .as_ref()?
+                    .dynamic_parameters
+                    .clone(),
+            )),
+            _ => None,
+        }
+    }?;
 
     // only match declaration signatures within the target symbol module
     if target_symbol.module_id != ctx.module_id {
@@ -442,11 +438,14 @@ fn overload_declaration_span_for_signature(
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
     let ctx = crate::query_context(session, &module)?;
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let primary_declaration = symbol.primary_declaration;
-    let secondary_declarations = symbol.secondary_declarations.clone();
-    drop(symbols);
+    let (primary_declaration, secondary_declarations) = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        (
+            symbol.primary_declaration,
+            symbol.secondary_declarations.clone(),
+        )
+    };
 
     let mut declarations = Vec::new();
     if let Some(primary_declaration) = primary_declaration {
@@ -472,8 +471,8 @@ fn overload_declaration_span_for_signature(
             .zip(dynamic_parameter_types.iter())
             .all(|(left, right)| left == right)
         {
-            return get_dir_node_main_span(ctx.ast, ctx.dir, declaration.local_id)
-                .or_else(|| get_dir_node_span(ctx.ast, ctx.dir, declaration.local_id));
+            return get_dir_node_main_span(ctx.ast, &ctx.dir, declaration.local_id)
+                .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, declaration.local_id));
         }
     }
 

@@ -192,8 +192,13 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
                     let ty = types.get_type(type_id);
 
                     // format a widened display type for literal values
-                    let type_str =
-                        format_type_for_inlay_hint(ty, &types, &session.modules, &session.strings);
+                    let type_str = format_type_for_inlay_hint(
+                        ty,
+                        &session.artifacts,
+                        &types,
+                        &session.modules,
+                        &session.strings,
+                    );
 
                     // add type hint after the binding name
                     hints.push(InlayHint::type_hint(name_span.end, type_str));

@@ -116,19 +116,18 @@ pub fn prepare_call_hierarchy(
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
     let ctx = crate::query_context(session, &module)?;
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(canonical_id.local_id);
+    let name = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(canonical_id.local_id);
 
-    // check if it's a function
-    if symbol.ty != SymbolType::Function {
-        return None;
-    }
+        // check if it's a function
+        if symbol.ty != SymbolType::Function {
+            return None;
+        }
 
-    // get the name
-    let name = resolve_symbol_name(session, canonical_id)?;
-
-    drop(symbols);
-    drop(module);
+        // get the name
+        resolve_symbol_name(session, canonical_id)?
+    };
 
     // resolve the selection range at the symbol name
     let selection_range = get_symbol_definition_span(session, canonical_id)?;
@@ -164,69 +163,69 @@ pub fn incoming_calls(
             continue;
         };
         let module_id = ctx.module_id;
-        let dir_tree = ctx.tree();
-        let types = ctx.types();
+        let call_sites_by_function: HashMap<GlobalSymbolId, Vec<Span>> = {
+            let dir_tree = ctx.tree();
+            let types = ctx.types();
 
-        // collect call sites and their containing functions
-        let mut call_sites_by_function: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
+            // collect call sites and their containing functions
+            let mut call_sites_by_function: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
 
-        // check call expressions for direct and resolved targets
-        let resolution_matches = |expression_id: LocalNodeId<Expression>| {
-            let node_id = GlobalNodeIdAny {
-                module_id,
-                local_id: expression_id.into(),
+            // check call expressions for direct and resolved targets
+            let resolution_matches = |expression_id: LocalNodeId<Expression>| {
+                let node_id = GlobalNodeIdAny {
+                    module_id,
+                    local_id: expression_id.into(),
+                };
+                let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
+                    return false;
+                };
+                let resolution = types.get_resolution(resolution_id);
+                let candidates = match resolution {
+                    Resolution::Static { candidate, .. } => std::slice::from_ref(candidate),
+                    Resolution::Dynamic { candidates, .. } => candidates.as_slice(),
+                    _ => return false,
+                };
+                candidates.iter().any(|candidate| {
+                    get_canonical_symbol(session, candidate.target_symbol) == canonical_id
+                })
             };
-            let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
-                return false;
-            };
-            let resolution = types.get_resolution(resolution_id);
-            let candidates = match resolution {
-                Resolution::Static { candidate, .. } => std::slice::from_ref(candidate),
-                Resolution::Dynamic { candidates, .. } => candidates.as_slice(),
-                _ => return false,
-            };
-            candidates.iter().any(|candidate| {
-                get_canonical_symbol(session, candidate.target_symbol) == canonical_id
-            })
+
+            for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
+                let Expression::Call { left, .. } = expr else {
+                    continue;
+                };
+
+                let mut matches = false;
+                let left_expr = dir_tree.get::<Expression>(*left);
+                if let Some(target) = left_expr.target_symbol() {
+                    let target_canonical = get_canonical_symbol(session, target);
+                    matches = target_canonical == canonical_id;
+                }
+
+                if !matches && (resolution_matches(expr_id) || resolution_matches(*left)) {
+                    matches = true;
+                }
+
+                if !matches {
+                    continue;
+                }
+
+                let Some(call_span) = get_dir_node_span(ctx.ast, &ctx.dir, expr_id.into()) else {
+                    continue;
+                };
+
+                if let Some(containing_fn) =
+                    find_containing_function(&dir_tree, module_id, expr_id.into())
+                {
+                    call_sites_by_function
+                        .entry(containing_fn)
+                        .or_default()
+                        .push(call_span);
+                }
+            }
+
+            call_sites_by_function
         };
-
-        for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
-            let Expression::Call { left, .. } = expr else {
-                continue;
-            };
-
-            let mut matches = false;
-            let left_expr = dir_tree.get::<Expression>(*left);
-            if let Some(target) = left_expr.target_symbol() {
-                let target_canonical = get_canonical_symbol(session, target);
-                matches = target_canonical == canonical_id;
-            }
-
-            if !matches && (resolution_matches(expr_id) || resolution_matches(*left)) {
-                matches = true;
-            }
-
-            if !matches {
-                continue;
-            }
-
-            let Some(call_span) = get_dir_node_span(ctx.ast, ctx.dir, expr_id.into()) else {
-                continue;
-            };
-
-            if let Some(containing_fn) =
-                find_containing_function(&dir_tree, module_id, expr_id.into())
-            {
-                call_sites_by_function
-                    .entry(containing_fn)
-                    .or_default()
-                    .push(call_span);
-            }
-        }
-
-        drop(types);
-        drop(dir_tree);
-        drop(module);
 
         // convert to incoming calls
         for (fn_symbol_id, call_spans) in call_sites_by_function {
@@ -264,44 +263,44 @@ pub fn outgoing_calls(
     let Some(ctx) = crate::query_context(session, &module) else {
         return Vec::new();
     };
-    let dir_tree = ctx.tree();
-    let symbols = ctx.symbols();
+    let calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = {
+        let dir_tree = ctx.tree();
+        let symbols = ctx.symbols();
 
-    // find the declaration for this symbol
-    let symbol = symbols.get_symbol(canonical_id.local_id);
-    let Some(primary_decl) = symbol.primary_declaration else {
-        return Vec::new();
-    };
+        // find the declaration for this symbol
+        let symbol = symbols.get_symbol(canonical_id.local_id);
+        let Some(primary_decl) = symbol.primary_declaration else {
+            return Vec::new();
+        };
 
-    // get the function's body expression
-    let decl_id: dir::LocalNodeId<dir::Declaration> = match primary_decl.try_into() {
-        Ok(id) => id,
-        Err(_) => return Vec::new(),
-    };
-    let decl = dir_tree.get::<dir::Declaration>(decl_id);
-    let dir::Declaration::Function { body, .. } = decl else {
-        return Vec::new();
-    };
-    let Some(body_id) = body else {
-        return Vec::new();
-    };
+        // get the function's body expression
+        let decl_id: dir::LocalNodeId<dir::Declaration> = match primary_decl.try_into() {
+            Ok(id) => id,
+            Err(_) => return Vec::new(),
+        };
+        let decl = dir_tree.get::<dir::Declaration>(decl_id);
+        let dir::Declaration::Function { body, .. } = decl else {
+            return Vec::new();
+        };
+        let Some(body_id) = body else {
+            return Vec::new();
+        };
 
-    // collect all call expressions in the body
-    let mut collector = CallCollector::new(session);
-    let body_expr = dir_tree.get::<Expression>(*body_id);
-    collector.visit_expression(&dir_tree, *body_id, body_expr);
+        // collect all call expressions in the body
+        let mut collector = CallCollector::new(session);
+        let body_expr = dir_tree.get::<Expression>(*body_id);
+        collector.visit_expression(&dir_tree, *body_id, body_expr);
 
-    // get spans for collected calls
-    let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
-    for (target_id, expr_id) in collector.calls {
-        if let Some(span) = get_dir_node_span(ctx.ast, ctx.dir, expr_id.into()) {
-            calls_with_spans.entry(target_id).or_default().push(span);
+        // get spans for collected calls
+        let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
+        for (target_id, expr_id) in collector.calls {
+            if let Some(span) = get_dir_node_span(ctx.ast, &ctx.dir, expr_id.into()) {
+                calls_with_spans.entry(target_id).or_default().push(span);
+            }
         }
-    }
 
-    drop(symbols);
-    drop(dir_tree);
-    drop(module);
+        calls_with_spans
+    };
 
     // convert to outgoing calls
     let mut outgoing = Vec::new();
@@ -312,15 +311,14 @@ pub fn outgoing_calls(
         let Some(target_ctx) = crate::query_context(session, &target) else {
             continue;
         };
-        let target_symbols = target_ctx.symbols();
-        let target_symbol = target_symbols.get_symbol(target_symbol_id.local_id);
-
-        if target_symbol.ty != SymbolType::Function {
+        let is_function = {
+            let target_symbols = target_ctx.symbols();
+            let target_symbol = target_symbols.get_symbol(target_symbol_id.local_id);
+            target_symbol.ty == SymbolType::Function
+        };
+        if !is_function {
             continue;
         }
-
-        drop(target_symbols);
-        drop(target);
 
         if let Some(target_item) = call_hierarchy_item_from_symbol(session, target_symbol_id) {
             outgoing.push(CallHierarchyOutgoingCall {
@@ -444,17 +442,14 @@ fn call_hierarchy_item_from_symbol(
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
     let ctx = crate::query_context(session, &module)?;
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(canonical_id.local_id);
-
-    if symbol.ty != SymbolType::Function {
-        return None;
-    }
-
-    let name = resolve_symbol_name(session, canonical_id)?;
-
-    drop(symbols);
-    drop(module);
+    let name = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(canonical_id.local_id);
+        if symbol.ty != SymbolType::Function {
+            return None;
+        }
+        resolve_symbol_name(session, canonical_id)?
+    };
 
     // resolve the selection range at the symbol name
     let selection_range = get_symbol_definition_span(session, canonical_id)?;

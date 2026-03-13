@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use destack_core::StringPool;
 use destack_dir as dir;
-
 use destack_source::ProfileId;
-use destack_workspace::{Module, ModuleRegistry, Package, PackageRegistry};
+
+use destack_workspace::{ArtifactRegistry, Module, ModuleRegistry, Package, PackageRegistry};
 
 const DEFAULT_INT_DISPLAY: &str = "int32";
 const DEFAULT_FLOAT_DISPLAY: &str = "float64";
@@ -16,34 +16,37 @@ const DEFAULT_CHARACTER_DISPLAY: &str = "character";
 /// Format a global type id as a human-readable string.
 pub fn format_global_type(
     ty_id: dir::GlobalTypeId,
+    artifacts: &ArtifactRegistry,
     modules: &ModuleRegistry,
     strings: &StringPool,
     profile: ProfileId,
 ) -> String {
-    let module = modules.get(ty_id.module_id);
-    let module = module.read();
-    let Some(dir) = module.dir_maybe(profile) else {
+    let Some(dir) = artifacts.dir_snapshot(ty_id.module_id, profile) else {
         return "<missing>".to_string();
     };
-    let types = dir.types.read();
-    let ty = types.get_type(ty_id.local_id);
-    format_type(ty, &types, modules, strings)
+    let Some(ty) = dir.types.get_type_maybe(ty_id.local_id) else {
+        return "<missing>".to_string();
+    };
+
+    format_type(ty, artifacts, &dir.types, modules, strings)
 }
 
 /// Format a type by its id.
 pub fn format_local_type(
     ty_id: dir::LocalTypeId,
+    artifacts: &ArtifactRegistry,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
 ) -> String {
     let ty = types.get_type(ty_id);
-    format_type(ty, types, modules, strings)
+    format_type(ty, artifacts, types, modules, strings)
 }
 
 /// Format a type as a human-readable string.
 pub fn format_type(
     ty: &dir::Type,
+    artifacts: &ArtifactRegistry,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -53,7 +56,7 @@ pub fn format_type(
         dir::Type::Value { value } => {
             format!(
                 "type {}",
-                format_local_type(*value, types, modules, strings)
+                format_local_type(*value, artifacts, types, modules, strings)
             )
         }
         dir::Type::This => "this".to_string(),
@@ -63,6 +66,7 @@ pub fn format_type(
         } => format_type_reference(
             *symbol,
             static_arguments.as_deref(),
+            artifacts,
             types,
             modules,
             strings,
@@ -76,10 +80,10 @@ pub fn format_type(
             then_type,
             else_type,
         } => {
-            let left = format_local_type(*left, types, modules, strings);
-            let right = format_local_type(*right, types, modules, strings);
-            let then_type = format_local_type(*then_type, types, modules, strings);
-            let else_type = format_local_type(*else_type, types, modules, strings);
+            let left = format_local_type(*left, artifacts, types, modules, strings);
+            let right = format_local_type(*right, artifacts, types, modules, strings);
+            let then_type = format_local_type(*then_type, artifacts, types, modules, strings);
+            let else_type = format_local_type(*else_type, artifacts, types, modules, strings);
             format!("{left} extends {right} ? {then_type} : {else_type}")
         }
         dir::Type::Mapped {
@@ -88,24 +92,25 @@ pub fn format_type(
             value,
         } => {
             let name = strings.get(parameter.name).to_string();
-            let constraint = format_local_type(parameter.constraint, types, modules, strings);
+            let constraint =
+                format_local_type(parameter.constraint, artifacts, types, modules, strings);
             let key_remap = parameter
                 .key_remap
                 .map(|key_remap| {
                     format!(
                         " as {}",
-                        format_local_type(key_remap, types, modules, strings)
+                        format_local_type(key_remap, artifacts, types, modules, strings)
                     )
                 })
                 .unwrap_or_default();
             let readonly = format_type_mapped_modifier_prefix(modifiers.readonly);
             let optional = format_type_mapped_modifier_suffix(modifiers.optional);
-            let value = format_local_type(*value, types, modules, strings);
+            let value = format_local_type(*value, artifacts, types, modules, strings);
             format!("{{ {readonly}[{name} in {constraint}{key_remap}]{optional}: {value} }}")
         }
         dir::Type::Index { left, index } => {
-            let left = format_local_type(*left, types, modules, strings);
-            let index = format_local_type(*index, types, modules, strings);
+            let left = format_local_type(*left, artifacts, types, modules, strings);
+            let index = format_local_type(*index, artifacts, types, modules, strings);
             format!("{left}[{index}]")
         }
         dir::Type::TemplateLiteral {
@@ -116,7 +121,7 @@ pub fn format_type(
             for (index, string_id) in template_strings.iter().enumerate() {
                 result.push_str(&strings.get(*string_id));
                 if let Some(span_id) = spans.get(index) {
-                    let span = format_local_type(*span_id, types, modules, strings);
+                    let span = format_local_type(*span_id, artifacts, types, modules, strings);
                     result.push_str("${");
                     result.push_str(&span);
                     result.push('}');
@@ -140,7 +145,9 @@ pub fn format_type(
             if let Some(static_arguments) = static_arguments {
                 let formatted_arguments = static_arguments
                     .iter()
-                    .map(|argument| format_static_argument(argument, types, modules, strings))
+                    .map(|argument| {
+                        format_static_argument(argument, artifacts, types, modules, strings)
+                    })
                     .collect::<Vec<_>>()
                     .join(", ");
                 result.push('<');
@@ -154,7 +161,7 @@ pub fn format_type(
             let constraint = constraint.map(|constraint| {
                 format!(
                     " extends {}",
-                    format_local_type(constraint, types, modules, strings)
+                    format_local_type(constraint, artifacts, types, modules, strings)
                 )
             });
             format!("infer {}{}", name.as_ref(), constraint.unwrap_or_default())
@@ -164,8 +171,9 @@ pub fn format_type(
             subject,
             target,
         } => {
-            let subject = format_type_predicate_subject(*subject, modules, strings);
-            let target = target.map(|target| format_local_type(target, types, modules, strings));
+            let subject = format_type_predicate_subject(*subject, artifacts, strings);
+            let target =
+                target.map(|target| format_local_type(target, artifacts, types, modules, strings));
             match (asserts, target) {
                 (true, Some(target)) => format!("asserts {subject} is {target}"),
                 (true, None) => format!("asserts {subject}"),
@@ -174,14 +182,14 @@ pub fn format_type(
             }
         }
         dir::Type::Unary { operator, right } => {
-            format_type_unary(*operator, *right, types, modules, strings)
+            format_type_unary(*operator, *right, artifacts, types, modules, strings)
         }
         dir::Type::ValueOf {
             mutability,
             variance,
             right,
         } => {
-            let right_str = format_local_type(*right, types, modules, strings);
+            let right_str = format_local_type(*right, artifacts, types, modules, strings);
             let mut result = String::from("^");
             if let Some(m) = mutability {
                 result.push_str(match m {
@@ -200,7 +208,7 @@ pub fn format_type(
             variance,
             right,
         } => {
-            let right_str = format_local_type(*right, types, modules, strings);
+            let right_str = format_local_type(*right, artifacts, types, modules, strings);
             let mut result = String::from("&");
             if let Some(m) = mutability {
                 result.push_str(match m {
@@ -215,7 +223,7 @@ pub fn format_type(
             result
         }
         dir::Type::PointerOf { mutability, right } => {
-            let right_str = format_local_type(*right, types, modules, strings);
+            let right_str = format_local_type(*right, artifacts, types, modules, strings);
             let mut result = String::from("*");
             if let Some(m) = mutability {
                 result.push_str(match m {
@@ -230,13 +238,13 @@ pub fn format_type(
             left,
             operator,
             right,
-        } => format_type_binary(*left, *operator, *right, types, modules, strings),
+        } => format_type_binary(*left, *operator, *right, artifacts, types, modules, strings),
         dir::Type::ArraySized {
             element,
             count: _,
             is_readonly,
         } => {
-            let elem_str = format_local_type(*element, types, modules, strings);
+            let elem_str = format_local_type(*element, artifacts, types, modules, strings);
             let needs_parens = matches!(types.get_type(*element), dir::Type::Union { .. });
             let readonly_prefix = if *is_readonly { "readonly " } else { "" };
             if needs_parens {
@@ -251,7 +259,7 @@ pub fn format_type(
         } => {
             let readonly_prefix = if *is_readonly { "readonly " } else { "" };
             if let Some(elem) = element {
-                let elem_str = format_local_type(*elem, types, modules, strings);
+                let elem_str = format_local_type(*elem, artifacts, types, modules, strings);
                 let needs_parens = matches!(types.get_type(*elem), dir::Type::Union { .. });
                 if needs_parens {
                     format!("{readonly_prefix}({elem_str})[]")
@@ -268,7 +276,9 @@ pub fn format_type(
         } => {
             let elements: Vec<_> = elements
                 .iter()
-                .map(|element| format_type_tuple_element(element, types, modules, strings))
+                .map(|element| {
+                    format_type_tuple_element(element, artifacts, types, modules, strings)
+                })
                 .collect();
             let readonly_prefix = if *is_readonly { "readonly " } else { "" };
             format!("{readonly_prefix}({})", elements.join(", "))
@@ -283,26 +293,28 @@ pub fn format_type(
 
             for field in fields {
                 let key = format_static_key(&field.key, strings);
-                let ty = format_local_type(field.ty, types, modules, strings);
+                let ty = format_local_type(field.ty, artifacts, types, modules, strings);
                 let opt = if field.is_optional { "?" } else { "" };
                 let readonly = if field.is_readonly { "readonly " } else { "" };
                 items.push(format!("{readonly}{key}{opt}: {ty}"));
             }
 
             for signature in call_signatures {
-                let signature = format_local_type(*signature, types, modules, strings);
+                let signature = format_local_type(*signature, artifacts, types, modules, strings);
                 items.push(signature);
             }
 
             for signature in construct_signatures {
-                let signature = format_local_type(*signature, types, modules, strings);
+                let signature = format_local_type(*signature, artifacts, types, modules, strings);
                 items.push(format!("new {signature}"));
             }
 
             for signature in index_signatures {
                 let name = strings.get(signature.name).to_string();
-                let key_type = format_local_type(signature.key_type, types, modules, strings);
-                let value_type = format_local_type(signature.value_type, types, modules, strings);
+                let key_type =
+                    format_local_type(signature.key_type, artifacts, types, modules, strings);
+                let value_type =
+                    format_local_type(signature.value_type, artifacts, types, modules, strings);
                 let readonly = if signature.is_readonly {
                     "readonly "
                 } else {
@@ -335,22 +347,26 @@ pub fn format_type(
             } else {
                 let params: Vec<_> = static_parameters
                     .iter()
-                    .map(|p| format_local_type(*p, types, modules, strings))
+                    .map(|p| format_local_type(*p, artifacts, types, modules, strings))
                     .collect();
                 format!("<{}>", params.join(", "))
             };
             let mut dynamic_params: Vec<String> = Vec::new();
             if let Some(this_parameter) = this_parameter {
-                let this_type = format_local_type(*this_parameter, types, modules, strings);
+                let this_type =
+                    format_local_type(*this_parameter, artifacts, types, modules, strings);
                 dynamic_params.push(format!("this: {this_type}"));
             }
             dynamic_params.extend(
                 dynamic_parameters
                     .iter()
-                    .map(|p| format_local_type(*p, types, modules, strings)),
+                    .map(|p| format_local_type(*p, artifacts, types, modules, strings)),
             );
             let ret = if let Some(ret_ty) = return_type {
-                format!(": {}", format_local_type(*ret_ty, types, modules, strings))
+                format!(
+                    ": {}",
+                    format_local_type(*ret_ty, artifacts, types, modules, strings)
+                )
             } else {
                 String::new()
             };
@@ -366,7 +382,13 @@ pub fn format_type(
                 if !seen.insert(*element_id) {
                     continue;
                 }
-                formatted.push(format_local_type(*element_id, types, modules, strings));
+                formatted.push(format_local_type(
+                    *element_id,
+                    artifacts,
+                    types,
+                    modules,
+                    strings,
+                ));
             }
             formatted.join(" | ")
         }
@@ -377,7 +399,13 @@ pub fn format_type(
                 if !seen.insert(*element_id) {
                     continue;
                 }
-                formatted.push(format_local_type(*element_id, types, modules, strings));
+                formatted.push(format_local_type(
+                    *element_id,
+                    artifacts,
+                    types,
+                    modules,
+                    strings,
+                ));
             }
             formatted.join(" & ")
         }
@@ -452,6 +480,7 @@ pub fn format_scalar_literal(scalar: &dir::ScalarLiteral, strings: &StringPool) 
 /// Format a type for inlay hints.
 pub fn format_type_for_inlay_hint(
     ty: &dir::Type,
+    artifacts: &ArtifactRegistry,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -466,7 +495,7 @@ pub fn format_type_for_inlay_hint(
     }
 
     // otherwise, format the type as usual
-    format_type(ty, types, modules, strings)
+    format_type(ty, artifacts, types, modules, strings)
 }
 
 /// Map a scalar literal type to its default primitive display name.
@@ -487,17 +516,18 @@ pub fn widened_scalar_literal_name(value: &dir::ScalarLiteral) -> &'static str {
 pub fn format_type_reference(
     symbol: dir::GlobalSymbolId,
     static_arguments: Option<&[dir::StaticArgument]>,
+    artifacts: &ArtifactRegistry,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
 ) -> String {
-    let name = format_symbol_name(symbol, modules, strings);
+    let name = format_symbol_name(symbol, artifacts, strings);
     if let Some(arguments) = static_arguments
         && !arguments.is_empty()
     {
         let argument_strs: Vec<_> = arguments
             .iter()
-            .map(|argument| format_static_argument(argument, types, modules, strings))
+            .map(|argument| format_static_argument(argument, artifacts, types, modules, strings))
             .collect();
         format!("{name}<{}>", argument_strs.join(", "))
     } else {
@@ -508,15 +538,13 @@ pub fn format_type_reference(
 /// Get the name of a symbol from any module.
 pub fn format_symbol_name(
     symbol_id: dir::GlobalSymbolId,
-    modules: &ModuleRegistry,
+    artifacts: &ArtifactRegistry,
     strings: &StringPool,
 ) -> String {
-    let module = modules.get(symbol_id.module_id);
-    let module = module.read();
-    let Some(dir) = module.dir_base_maybe() else {
+    let Some(dir) = artifacts.dir_any_snapshot(symbol_id.module_id) else {
         return "<unknown>".to_string();
     };
-    let symbols = dir.symbols.read();
+    let symbols = &dir.symbols;
     let symbol = symbols.get_symbol(symbol_id.into_local());
     if let Some(name_id) = symbol.name() {
         strings.get(name_id).to_string()
@@ -528,14 +556,12 @@ pub fn format_symbol_name(
 /// Get the symbol path for a symbol within its module.
 pub fn format_symbol_path(
     symbol_id: dir::GlobalSymbolId,
-    modules: &ModuleRegistry,
+    artifacts: &ArtifactRegistry,
     strings: &StringPool,
 ) -> Option<String> {
     // load the module symbols
-    let module = modules.get(symbol_id.module_id);
-    let module = module.read();
-    let dir = module.dir_base_maybe()?;
-    let symbols = dir.symbols.read();
+    let dir = artifacts.dir_any_snapshot(symbol_id.module_id)?;
+    let symbols = &dir.symbols;
 
     // seed with the symbol name
     let symbol = symbols.get_symbol(symbol_id.into_local());
@@ -576,6 +602,7 @@ pub fn format_symbol_path(
 /// Get the qualified name of a symbol with module prefix.
 pub fn format_symbol_qualified_name(
     symbol_id: dir::GlobalSymbolId,
+    artifacts: &ArtifactRegistry,
     modules: &ModuleRegistry,
     packages: &PackageRegistry,
     strings: &StringPool,
@@ -594,7 +621,7 @@ pub fn format_symbol_qualified_name(
     let module_path = module_path_without_extension(&module, &package)?;
 
     // resolve symbol path
-    let symbol_path = format_symbol_path(symbol_id, modules, strings)?;
+    let symbol_path = format_symbol_path(symbol_id, artifacts, strings)?;
     let module_prefix = if module_path.is_empty() {
         package_name.to_string()
     } else {
@@ -607,11 +634,12 @@ pub fn format_symbol_qualified_name(
 /// Get the qualified name of a unique symbol.
 pub fn format_unique_symbol_qualified_name(
     symbol_id: dir::GlobalSymbolId,
+    artifacts: &ArtifactRegistry,
     modules: &ModuleRegistry,
     packages: &PackageRegistry,
     strings: &StringPool,
 ) -> Option<String> {
-    let name = format_symbol_qualified_name(symbol_id, modules, packages, strings)?;
+    let name = format_symbol_qualified_name(symbol_id, artifacts, modules, packages, strings)?;
     Some(format!("{name}#unique"))
 }
 
@@ -686,6 +714,7 @@ pub fn format_symbol_key(key: &dir::SymbolKey, strings: &StringPool) -> String {
 /// Format a StaticArgument.
 pub fn format_static_argument(
     argument: &dir::StaticArgument,
+    artifacts: &ArtifactRegistry,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -693,10 +722,10 @@ pub fn format_static_argument(
     match argument {
         dir::StaticArgument::Unevaluated { node } => types
             .get_declared_or_inferred_type_id(*node)
-            .map(|type_id| format_local_type(type_id, types, modules, strings))
+            .map(|type_id| format_local_type(type_id, artifacts, types, modules, strings))
             .unwrap_or_else(|| "<unevaluated>".to_string()),
         dir::StaticArgument::Evaluated { name, value } => {
-            let value_str = format_static_expression(value, types, modules, strings);
+            let value_str = format_static_expression(value, artifacts, types, modules, strings);
             if let Some(name_id) = name {
                 let name_str = &*strings.get(*name_id);
                 format!("{name_str}: {value_str}")
@@ -710,6 +739,7 @@ pub fn format_static_argument(
 /// Format a StaticExpression.
 pub fn format_static_expression(
     expression: &dir::StaticExpression,
+    artifacts: &ArtifactRegistry,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -721,19 +751,19 @@ pub fn format_static_expression(
         dir::StaticExpression::Declaration { .. } => "<declaration>".to_string(),
         dir::StaticExpression::Type { ty } => {
             let ty = types.get_type(*ty);
-            format_type(ty, types, modules, strings)
+            format_type(ty, artifacts, types, modules, strings)
         }
         dir::StaticExpression::ArrayExpression { elements } => {
             let elements: Vec<_> = elements
                 .iter()
-                .map(|e| format_static_expression(e, types, modules, strings))
+                .map(|e| format_static_expression(e, artifacts, types, modules, strings))
                 .collect();
             format!("[{}]", elements.join(", "))
         }
         dir::StaticExpression::TupleExpression { elements } => {
             let elements: Vec<_> = elements
                 .iter()
-                .map(|e| format_static_expression(e, types, modules, strings))
+                .map(|e| format_static_expression(e, artifacts, types, modules, strings))
                 .collect();
             format!("({})", elements.join(", "))
         }
@@ -745,11 +775,12 @@ pub fn format_static_expression(
 fn format_type_unary(
     operator: dir::TypeUnaryOperator,
     right: dir::LocalTypeId,
+    artifacts: &ArtifactRegistry,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
 ) -> String {
-    let right_str = format_local_type(right, types, modules, strings);
+    let right_str = format_local_type(right, artifacts, types, modules, strings);
     match operator {
         dir::TypeUnaryOperator::Not => format!("!{right_str}"),
         dir::TypeUnaryOperator::Must => format!("{right_str}!"),
@@ -792,6 +823,7 @@ fn format_type_mapped_modifier_suffix(modifier: dir::TypeModifier) -> &'static s
 
 fn format_type_tuple_element(
     element: &dir::TypeElement,
+    artifacts: &ArtifactRegistry,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -805,10 +837,12 @@ fn format_type_tuple_element(
     }
     if let Some(label) = element.label {
         let name = strings.get(label);
-        let ty = format_local_type(element.ty, types, modules, strings);
+        let ty = format_local_type(element.ty, artifacts, types, modules, strings);
         result.push_str(&format!("{}: {ty}", name.as_ref()));
     } else {
-        result.push_str(&format_local_type(element.ty, types, modules, strings));
+        result.push_str(&format_local_type(
+            element.ty, artifacts, types, modules, strings,
+        ));
     }
     if element.is_optional {
         result.push('?');
@@ -827,24 +861,14 @@ fn format_path(path: &dir::Path, strings: &StringPool) -> String {
 
 fn format_type_predicate_subject(
     subject: dir::TypePredicateSubject,
-    modules: &ModuleRegistry,
+    artifacts: &ArtifactRegistry,
     strings: &StringPool,
 ) -> String {
     match subject {
         dir::TypePredicateSubject::This => "this".to_string(),
         dir::TypePredicateSubject::Unresolved(name) => strings.get(name).to_string(),
         dir::TypePredicateSubject::Symbol(symbol_id) => {
-            let module = modules.get(symbol_id.module_id);
-            let module = module.read();
-            let Some(dir) = module.dir_base_maybe() else {
-                return "<unknown>".to_string();
-            };
-            let symbols = dir.symbols.read();
-            let symbol = symbols.get_symbol(symbol_id.into_local());
-            symbol
-                .name()
-                .map(|name| strings.get(name).to_string())
-                .unwrap_or_else(|| "<anonymous>".to_string())
+            format_symbol_name(symbol_id, artifacts, strings)
         }
     }
 }
@@ -854,12 +878,13 @@ fn format_type_binary(
     left: dir::LocalTypeId,
     operator: dir::TypeBinaryOperator,
     right: dir::LocalTypeId,
+    artifacts: &ArtifactRegistry,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
 ) -> String {
-    let left_str = format_local_type(left, types, modules, strings);
-    let right_str = format_local_type(right, types, modules, strings);
+    let left_str = format_local_type(left, artifacts, types, modules, strings);
+    let right_str = format_local_type(right, artifacts, types, modules, strings);
     let op_str = match operator {
         dir::TypeBinaryOperator::Cast => "as",
         dir::TypeBinaryOperator::In => "in",

@@ -162,7 +162,13 @@ fn extract_expression(
     let return_type = ctx.get_expression_type(expr_id.into()).map(|type_id| {
         let types = ctx.types();
         let ty = types.get_type(type_id);
-        format_type_for_inlay_hint(ty, &types, &session.modules, &session.strings)
+        format_type_for_inlay_hint(
+            ty,
+            &session.artifacts,
+            &types,
+            &session.modules,
+            &session.strings,
+        )
     });
     let return_type = filter_inferred_type(return_type);
     let return_type = async_return_type(return_type, requires_async)
@@ -480,7 +486,13 @@ fn collect_output_symbols(
             .map(|type_id| {
                 let types = ctx.types();
                 let ty = types.get_type(type_id);
-                format_type_for_inlay_hint(ty, &types, &session.modules, &session.strings)
+                format_type_for_inlay_hint(
+                    ty,
+                    &session.artifacts,
+                    &types,
+                    &session.modules,
+                    &session.strings,
+                )
             })
             .filter(|ty| !ty.is_empty())
             .or_else(|| symbol_type_text(session, ctx, canonical));
@@ -676,7 +688,13 @@ fn collect_free_variables(
             .map(|type_id| {
                 let types = ctx.types();
                 let ty = types.get_type(type_id);
-                format_type_for_inlay_hint(ty, &types, &session.modules, &session.strings)
+                format_type_for_inlay_hint(
+                    ty,
+                    &session.artifacts,
+                    &types,
+                    &session.modules,
+                    &session.strings,
+                )
             })
             .filter(|ty| !ty.is_empty())
             .or_else(|| symbol_type_text(session, ctx, canonical));
@@ -706,14 +724,20 @@ fn symbol_type_text(
 ) -> Option<String> {
     // prefer the current query context when possible
     if symbol_id.module_id == ctx.module_id {
-        let symbols = ctx.symbols();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-        let declaration = symbol.primary_declaration?;
-        drop(symbols);
+        let declaration = {
+            let symbols = ctx.symbols();
+            let symbol = symbols.get_symbol(symbol_id.local_id);
+            symbol.primary_declaration?
+        };
 
         let type_id = ctx.get_node_type(declaration.local_id)?;
-        let type_text =
-            format_local_type(type_id, &ctx.types(), &session.modules, &session.strings);
+        let type_text = format_local_type(
+            type_id,
+            &session.artifacts,
+            &ctx.types(),
+            &session.modules,
+            &session.strings,
+        );
         if type_text.is_empty() {
             return None;
         }
@@ -725,13 +749,20 @@ fn symbol_type_text(
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
     let ctx = crate::query_context(session, &module)?;
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let declaration = symbol.primary_declaration?;
-    drop(symbols);
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration?
+    };
 
     let type_id = ctx.get_node_type(declaration.local_id)?;
-    let type_text = format_local_type(type_id, &ctx.types(), &session.modules, &session.strings);
+    let type_text = format_local_type(
+        type_id,
+        &session.artifacts,
+        &ctx.types(),
+        &session.modules,
+        &session.strings,
+    );
     if type_text.is_empty() {
         None
     } else {
