@@ -308,7 +308,7 @@ impl RuntimeRequestCodec {
             resource: resource.unwrap_or(false),
             scheduler: scheduler.unwrap_or(false),
             diagnostic: diagnostic.unwrap_or(false),
-            profile: profile.unwrap_or(false),
+            telemetry: profile.unwrap_or(false),
             domain: domain.unwrap_or(false),
         }
     }

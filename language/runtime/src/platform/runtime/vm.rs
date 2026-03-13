@@ -1344,7 +1344,7 @@ pub(crate) fn destack_runtime_trace_next(
     let mut records = Vec::new();
 
     for _ in 0..limit {
-        let sequence = cursor.tell();
+        let sequence = cursor.sequence();
         let Some(event) = cursor.next_event()? else {
             break;
         };
@@ -1371,7 +1371,7 @@ pub(crate) fn destack_runtime_trace_open(
         start_sequence: None,
     });
     if let Some(start_sequence) = options.start_sequence {
-        cursor.seek_sequence(runtime::replay::TraceSequence::new(start_sequence.0))?;
+        cursor.seek_sequence(runtime::trace::TraceSequence::new(start_sequence.0))?;
     }
 
     drop(table);
@@ -1431,7 +1431,7 @@ pub(crate) fn destack_runtime_trace_seek_sequence(
     let table = control_table().read();
     let (_world, cursor) =
         table.trace_cursor(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
-    cursor.seek_sequence(runtime::replay::TraceSequence::new(sequence.0))
+    cursor.seek_sequence(runtime::trace::TraceSequence::new(sequence.0))
 }
 
 /// Return the current sequence position of one causal trace cursor.
@@ -1444,7 +1444,7 @@ pub(crate) fn destack_runtime_trace_tell(
     let table = control_table().read();
     let (_world, cursor) =
         table.trace_cursor(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
-    let sequence = cursor.tell();
+    let sequence = cursor.sequence();
 
     Ok(TraceSequence(sequence.get()))
 }

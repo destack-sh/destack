@@ -1190,8 +1190,8 @@ pub enum ObservationEventKind {
     Scheduler = 4,
     /// Diagnostic.
     Diagnostic = 5,
-    /// Profile.
-    Profile = 6,
+    /// Telemetry.
+    Telemetry = 6,
     /// Domain.
     Domain = 7,
 }
@@ -1205,7 +1205,7 @@ impl VmValueCodec for ObservationEventKind {
             3u8 => Self::Resource,
             4u8 => Self::Scheduler,
             5u8 => Self::Diagnostic,
-            6u8 => Self::Profile,
+            6u8 => Self::Telemetry,
             7u8 => Self::Domain,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(

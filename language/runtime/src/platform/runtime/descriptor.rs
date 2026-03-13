@@ -14,10 +14,10 @@ use crate::platform::runtime::{
 use crate::runtime;
 use crate::runtime::control::{ObservationEntry, SnapshotEntry, WorldViewEntry};
 use crate::runtime::engine::EngineImage;
-use crate::runtime::replay::{TraceAnchor, TraceInput, TraceOutcome, TraceRecord};
 use crate::runtime::scheduler::EventLoopSnapshot;
+use crate::runtime::trace::{Outcome, TraceRecord};
 use crate::runtime::world::{
-    Image, ObservationCategory, ObservationEntry as ObservationLogEntry, Revision, World,
+    Image, ObservationCategory, ObservationRecord as ObservationLogEntry, Revision, World,
     WorldEdge, WorldEntity,
 };
 use postcard::to_allocvec;
@@ -54,12 +54,13 @@ impl RuntimeDescriptorCodec {
     /// Encode one runtime trace record into one low-level event kind.
     pub(crate) fn encode_trace_event_kind(event: &TraceRecord) -> TraceEventKind {
         match event {
-            TraceRecord::Outcome(TraceOutcome::Entropy(_)) => TraceEventKind::Entropy,
-            TraceRecord::Outcome(TraceOutcome::BindingCall(_)) => TraceEventKind::BindingCall,
-            TraceRecord::Outcome(TraceOutcome::TimeAdvance(_))
-            | TraceRecord::Input(TraceInput::WorldCommand(_))
-            | TraceRecord::Input(TraceInput::WorldInvocation(_)) => TraceEventKind::Control,
-            TraceRecord::Anchor(TraceAnchor::Label(_)) => TraceEventKind::Marker,
+            TraceRecord::Outcome(Outcome::Entropy(_)) => TraceEventKind::Entropy,
+            TraceRecord::Outcome(Outcome::BindingCall(_)) => TraceEventKind::BindingCall,
+            TraceRecord::Input(_)
+            | TraceRecord::Outcome(Outcome::TimeAdvance(_))
+            | TraceRecord::Outcome(Outcome::RuntimeSpawned { .. })
+            | TraceRecord::Outcome(Outcome::AgentSpawned { .. }) => TraceEventKind::Control,
+            TraceRecord::Anchor(_) => TraceEventKind::Marker,
         }
     }
 
@@ -507,7 +508,7 @@ impl RuntimeDescriptorCodec {
             ObservationCategory::Resource => ObservationEventKind::Resource,
             ObservationCategory::Scheduler => ObservationEventKind::Scheduler,
             ObservationCategory::Diagnostic => ObservationEventKind::Diagnostic,
-            ObservationCategory::Profile => ObservationEventKind::Profile,
+            ObservationCategory::Telemetry => ObservationEventKind::Telemetry,
             ObservationCategory::Domain => ObservationEventKind::Domain,
         }
     }
@@ -535,7 +536,7 @@ impl RuntimeDescriptorCodec {
 
     /// Build owned trace records from runtime trace records.
     pub(crate) fn trace_records(
-        records: Vec<(runtime::replay::TraceSequence, TraceRecord)>,
+        records: Vec<(runtime::trace::TraceSequence, TraceRecord)>,
     ) -> RuntimeResult<Vec<TraceRecordValue>> {
         records
             .into_iter()
