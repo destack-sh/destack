@@ -214,19 +214,12 @@ pub(crate) fn refresh_net_wm_state(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let state_atoms = query_net_wm_state_atoms(connection_state, host_state.window, operation)?;
-    let is_fullscreen = state_atoms
-        .iter()
-        .any(|atom| *atom == connection_state.atoms.net_wm_state_fullscreen);
+    let is_fullscreen = state_atoms.contains(&connection_state.atoms.net_wm_state_fullscreen);
 
-    host_state.always_on_top = state_atoms
-        .iter()
-        .any(|atom| *atom == connection_state.atoms.net_wm_state_above);
-    host_state.taskbar_visible = !state_atoms
-        .iter()
-        .any(|atom| *atom == connection_state.atoms.net_wm_state_skip_taskbar);
-    host_state.modal = state_atoms
-        .iter()
-        .any(|atom| *atom == connection_state.atoms.net_wm_state_modal);
+    host_state.always_on_top = state_atoms.contains(&connection_state.atoms.net_wm_state_above);
+    host_state.taskbar_visible =
+        !state_atoms.contains(&connection_state.atoms.net_wm_state_skip_taskbar);
+    host_state.modal = state_atoms.contains(&connection_state.atoms.net_wm_state_modal);
 
     // confirm or clear one pending mode request from wm state
     if let Some(pending_mode) = host_state.pending_mode {

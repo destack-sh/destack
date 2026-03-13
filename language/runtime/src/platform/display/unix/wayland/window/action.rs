@@ -1,11 +1,13 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
+use crate::platform::display::unix::wayland::event;
 use crate::platform::display::{WindowAttentionLevel, WindowResizeEdge, WindowVisibility};
 use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
 
 use super::{require_xdg_toplevel_id, resolve_window_host_state, with_window_host_state};
 use crate::platform::display::unix::wayland::core as wayland_core;
+use wayland_protocols::xdg::shell::client::xdg_toplevel::ResizeEdge;
 
 /// Request one user-attention pulse for one window.
 pub(crate) unsafe fn window_request_attention(
@@ -218,14 +220,14 @@ pub(crate) unsafe fn window_begin_resize_drag(
 
     // map abstract resize edge into xdg-shell resize edge enum
     let edge = match edge {
-        WindowResizeEdge::North => xdg_toplevel::ResizeEdge::Top,
-        WindowResizeEdge::South => xdg_toplevel::ResizeEdge::Bottom,
-        WindowResizeEdge::West => xdg_toplevel::ResizeEdge::Left,
-        WindowResizeEdge::East => xdg_toplevel::ResizeEdge::Right,
-        WindowResizeEdge::NorthWest => xdg_toplevel::ResizeEdge::TopLeft,
-        WindowResizeEdge::NorthEast => xdg_toplevel::ResizeEdge::TopRight,
-        WindowResizeEdge::SouthWest => xdg_toplevel::ResizeEdge::BottomLeft,
-        WindowResizeEdge::SouthEast => xdg_toplevel::ResizeEdge::BottomRight,
+        WindowResizeEdge::North => ResizeEdge::Top,
+        WindowResizeEdge::South => ResizeEdge::Bottom,
+        WindowResizeEdge::West => ResizeEdge::Left,
+        WindowResizeEdge::East => ResizeEdge::Right,
+        WindowResizeEdge::NorthWest => ResizeEdge::TopLeft,
+        WindowResizeEdge::NorthEast => ResizeEdge::TopRight,
+        WindowResizeEdge::SouthWest => ResizeEdge::BottomLeft,
+        WindowResizeEdge::SouthEast => ResizeEdge::BottomRight,
     };
 
     // request compositor interactive resize with seat and serial lanes

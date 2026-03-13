@@ -10,23 +10,11 @@ use x11rb::wrapper::ConnectionExt as X11WrapperConnectionExt;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::platform::display::{
-    WindowAspectRatio, WindowChromeKind, WindowOcclusionState, WindowPhysicalSize,
-    WindowSizeConstraints, WindowVisibility,
+    WindowAspectRatio, WindowChromeKind, WindowPhysicalSize, WindowSizeConstraints,
 };
 
 use super::constants::*;
 use crate::platform::display::unix::x11::core;
-
-/// Resolve one occlusion value from one x11 visibility state.
-pub(crate) fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionState {
-    // hidden and minimized windows are not visible to presentation
-    if visibility == WindowVisibility::Hidden || visibility == WindowVisibility::Minimized {
-        return WindowOcclusionState::Occluded;
-    }
-
-    // x11 does not expose one portable compositor occlusion query for visible windows
-    WindowOcclusionState::Unknown
-}
 
 /// Apply one decoration policy through `_MOTIF_WM_HINTS`.
 pub(crate) fn apply_window_decorated(

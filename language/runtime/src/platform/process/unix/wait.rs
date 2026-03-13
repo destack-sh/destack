@@ -11,8 +11,6 @@ use crate::platform::process::{
     ProcessWaitStoppedStatus, Signal,
 };
 use crate::platform::resource;
-#[cfg(any(target_os = "linux", target_os = "android"))]
-use std::time::{Duration, Instant};
 
 /// Resolve a process handle into its process id payload.
 fn resolve_spawned_process_handle(
@@ -193,96 +191,6 @@ pub(super) fn process_wait_pid(pid: u32, flags: u32) -> RuntimeResult<ProcessWai
     }
 
     Ok(wait_status_from_raw(waited, raw_status))
-}
-
-/// Wait for one process state transition with a timeout.
-#[cfg(any(target_os = "linux", target_os = "android"))]
-pub(super) fn process_wait_pid_timeout(
-    pid: u32,
-    timeout_ns: u64,
-) -> RuntimeResult<ProcessWaitStatus> {
-    if timeout_ns == 0 {
-        return process_wait_pid(pid, PROCESS_WAIT_FLAG_NOHANG);
-    }
-
-    let timeout = Duration::from_nanos(timeout_ns);
-    let deadline = Instant::now().checked_add(timeout).ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "timeoutns",
-            "timeout is too large",
-        ))
-        .boxed()
-    })?;
-
-    let mut sleep_duration = Duration::from_micros(100);
-    let max_sleep_duration = Duration::from_millis(10);
-    loop {
-        match process_wait_pid(pid, PROCESS_WAIT_FLAG_NOHANG) {
-            Ok(status) => return Ok(status),
-            Err(error) => {
-                if !is_would_block_error(&error) {
-                    return Err(error);
-                }
-
-                if Instant::now() >= deadline {
-                    return Err(error);
-                }
-            }
-        }
-
-        let now = Instant::now();
-        let remaining = deadline.saturating_duration_since(now);
-        let sleep = remaining.min(sleep_duration);
-        if !sleep.is_zero() {
-            sleep_for_duration(sleep);
-        }
-        sleep_duration = (sleep_duration * 2).min(max_sleep_duration);
-    }
-}
-
-/// Sleep for one duration using host nanosleep semantics.
-#[cfg(any(target_os = "linux", target_os = "android"))]
-fn sleep_for_duration(duration: Duration) {
-    if duration.is_zero() {
-        return;
-    }
-
-    let max_seconds = libc::time_t::MAX as u64;
-    let requested_seconds = duration.as_secs().min(max_seconds);
-    let mut requested = libc::timespec {
-        tv_sec: requested_seconds as libc::time_t,
-        tv_nsec: duration.subsec_nanos() as libc::c_long,
-    };
-
-    loop {
-        let mut remaining = libc::timespec {
-            tv_sec: 0,
-            tv_nsec: 0,
-        };
-        let rc = unsafe { libc::nanosleep(&requested, &mut remaining) };
-        if rc == 0 {
-            return;
-        }
-
-        let errno = std::io::Error::last_os_error()
-            .raw_os_error()
-            .unwrap_or(libc::EINVAL);
-        if errno != libc::EINTR {
-            return;
-        }
-
-        requested = remaining;
-    }
-}
-
-/// Return true when a runtime error maps to `ioWouldBlock`.
-#[cfg(any(target_os = "linux", target_os = "android"))]
-fn is_would_block_error(error: &RuntimeError) -> bool {
-    let Some(platform_error) = error.platform_error() else {
-        return false;
-    };
-
-    platform_error.code == PlatformErrorCode::IoWouldBlock
 }
 
 /// Decode public wait flags into host waitpid flags.

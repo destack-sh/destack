@@ -2,7 +2,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::process::core as core_process;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::platform::thread::ThreadCpu;
 
 use crate::runtime::BindingCallContext;

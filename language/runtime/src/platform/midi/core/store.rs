@@ -32,7 +32,7 @@ pub(crate) fn store_backend_descriptors_vm(
     let descriptors = values
         .into_iter()
         .map(|value| value.into_vm(context))
-        .collect::<Vec<_>>();
+        .collect::<RuntimeResult<Vec<_>>>()?;
 
     VmSlice::from_values(context, &descriptors)
 }
@@ -58,7 +58,7 @@ pub(crate) fn store_port_descriptors_vm(
     let descriptors = values
         .into_iter()
         .map(|value| value.into_vm(context))
-        .collect::<Vec<_>>();
+        .collect::<RuntimeResult<Vec<_>>>()?;
 
     VmSlice::from_values(context, &descriptors)
 }
@@ -84,7 +84,7 @@ pub(crate) fn store_input_records_vm(
     let records = values
         .into_iter()
         .map(|value| value.into_vm(context))
-        .collect::<Vec<_>>();
+        .collect::<RuntimeResult<Vec<_>>>()?;
 
     VmArray::from_values(context, &records)
 }
@@ -101,7 +101,7 @@ pub(crate) fn store_input_record_native(
 pub(crate) fn store_input_record_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: MidiInputRecordValue,
-) -> MidiInputRecordVm {
+) -> RuntimeResult<MidiInputRecordVm> {
     value.into_vm(context)
 }
 
@@ -126,7 +126,7 @@ pub(crate) fn store_events_vm(
     let events = values
         .into_iter()
         .map(|value| value.into_vm(context))
-        .collect::<Vec<_>>();
+        .collect::<RuntimeResult<Vec<_>>>()?;
 
     VmSlice::from_values(context, &events)
 }
@@ -140,6 +140,6 @@ pub(crate) fn store_event_native(binding: &BindingCallContext, value: MidiEventV
 pub(crate) fn store_event_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: MidiEventValue,
-) -> MidiEventVm {
+) -> RuntimeResult<MidiEventVm> {
     value.into_vm(context)
 }

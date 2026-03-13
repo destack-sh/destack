@@ -921,7 +921,7 @@ pub(crate) unsafe fn destack_process_signal_fd_set_mask(
             ));
         }
 
-        return update_signal_fd(binding, handle, signals);
+        update_signal_fd(binding, handle, signals)
     }
 }
 

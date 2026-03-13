@@ -13,6 +13,8 @@ use super::{
 use super::{assert_platform_error_codes_with_privileged_policy, with_harness_context};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+use crate::platform::net::RouteKind;
 #[cfg(target_os = "linux")]
 use crate::platform::net::{
     PACKET_BACKEND_CAP_CAPTURE, PACKET_BACKEND_CAP_FANOUT, PACKET_BACKEND_CAP_FILTER,
@@ -32,8 +34,7 @@ use crate::platform::net::{
     PacketBackend, PacketBackendSelectionPolicy, PacketCaptureOptions, PacketCaptureOptionsVm,
 };
 use crate::platform::net::{
-    PacketFanoutMode, PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, RouteKind,
-    SocketFamily,
+    PacketFanoutMode, PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, SocketFamily,
 };
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use crate::platform::net::{RouteEntry, RouteEntryVm};

@@ -7,6 +7,7 @@ use super::{Mutation, RuntimeId};
 
 /// One world input recorded in authoritative trace.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum Input {
     /// One world tick input.
     Tick,

@@ -104,6 +104,7 @@ fn copy_range_with_kernel_fast_path(
     while remaining > 0 {
         // bound one syscall length to host size_t range
         let chunk = remaining.min(usize::MAX as u64) as usize;
+        #[cfg(target_os = "linux")]
         let rc = unsafe {
             libc::copy_file_range(
                 src_fd,
@@ -113,6 +114,18 @@ fn copy_range_with_kernel_fast_path(
                 chunk,
                 0,
             )
+        };
+        #[cfg(target_os = "android")]
+        let rc = unsafe {
+            libc::syscall(
+                libc::SYS_copy_file_range,
+                src_fd,
+                &mut src_offset as *mut libc::off_t,
+                dst_fd,
+                &mut dst_offset as *mut libc::off_t,
+                chunk,
+                0,
+            ) as libc::ssize_t
         };
 
         // fall back to the portable loop only when the kernel rejects the primitive itself

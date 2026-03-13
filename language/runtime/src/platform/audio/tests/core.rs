@@ -94,9 +94,9 @@ impl DeterministicSequence {
 }
 
 /// Return the mutable VM context when the harness is running in VM mode.
-pub(super) fn vm_context_mut<'a>(
-    context: &'a AudioHarnessContext<'a>,
-) -> Option<&'a mut vm::ExternalCallContext<'a>> {
+pub(super) fn vm_context_mut<'context, 'call>(
+    context: &'context mut AudioHarnessContext<'call>,
+) -> Option<&'context mut vm::ExternalCallContext<'call>> {
     context
         .vm_context
         .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })

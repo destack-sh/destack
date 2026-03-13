@@ -22,6 +22,7 @@ pub enum EventKind {
 
 /// Query-visible event payload projected from trace or observation state.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum EventPayload {
     /// One projected trace input.
     Input(Input),

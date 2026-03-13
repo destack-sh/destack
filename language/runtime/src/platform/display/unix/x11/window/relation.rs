@@ -67,7 +67,7 @@ pub(crate) unsafe fn window_set_modal(
         window_handle,
         "destack.display.window.setModal",
     )?;
-    let mut resolved_host_state = resolved_host_state
+    let resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 

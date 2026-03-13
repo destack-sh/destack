@@ -134,10 +134,10 @@ pub(crate) fn destack_os_host_identity_vm(
 
     // encode the payload in the VM call context
     let output = HostIdentityVm {
-        hostname: vm::StringHandle::new(context.intern_string(&identity.hostname)),
-        kernel: vm::StringHandle::new(context.intern_string(&identity.kernel)),
-        release: vm::StringHandle::new(context.intern_string(&identity.release)),
-        architecture: vm::StringHandle::new(context.intern_string(&identity.architecture)),
+        hostname: vm::StringHandle::new(context.intern_string(&identity.hostname)?),
+        kernel: vm::StringHandle::new(context.intern_string(&identity.kernel)?),
+        release: vm::StringHandle::new(context.intern_string(&identity.release)?),
+        architecture: vm::StringHandle::new(context.intern_string(&identity.architecture)?),
     };
 
     Ok(output)

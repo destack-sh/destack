@@ -356,19 +356,19 @@ impl TraceCursor {
         }
 
         // active tail
-        if let Some(segment) = state.active_segment() {
-            if sequence_in_segment(sequence, segment) {
-                let read_segment = tail_start + state.sealed_tail().len();
-                let segment_offset = sequence_offset_in_segment(sequence, segment)?;
+        if let Some(segment) = state.active_segment()
+            && sequence_in_segment(sequence, segment)
+        {
+            let read_segment = tail_start + state.sealed_tail().len();
+            let segment_offset = sequence_offset_in_segment(sequence, segment)?;
 
-                return Ok(TraceReadCursor {
-                    read_segment,
-                    read_index: segment_offset.0,
-                    read_offset: segment_offset.1,
-                    next_sequence: sequence,
-                    validated_segment: None,
-                });
-            }
+            return Ok(TraceReadCursor {
+                read_segment,
+                read_index: segment_offset.0,
+                read_offset: segment_offset.1,
+                next_sequence: sequence,
+                validated_segment: None,
+            });
         }
 
         // fall through to the visible end boundary
