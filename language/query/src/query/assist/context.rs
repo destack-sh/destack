@@ -318,8 +318,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
                     let receiver_global = receiver_local.into_global(ctx.module_id);
                     let receiver_symbol = get_expression_symbol(&dir_tree, *left);
 
-                    // resolve the receiver type after releasing the dir tree guard
-                    drop(dir_tree);
+                    // resolve the receiver type after the tree borrow ends
                     let receiver_type =
                         get_receiver_type(session, &ctx, receiver_global, receiver_symbol);
 
@@ -557,7 +556,6 @@ fn get_receiver_type(
 
                 if let Some(declarator_id) = declarator_id {
                     let declarator = dir_tree.get::<dir::Declarator>(declarator_id).clone();
-                    drop(dir_tree);
 
                     if let Some(ty_expr_id) = declarator.ty {
                         let types = ctx.types();

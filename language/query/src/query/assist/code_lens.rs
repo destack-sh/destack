@@ -141,44 +141,42 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
         return Vec::new();
     };
     let module_id = ctx.module_id;
-    let dir_tree = ctx.tree();
-    let symbols = ctx.symbols();
-
     let mut lenses = Vec::new();
 
     // collect declarations and their info
-    let declarations: Vec<_> = dir_tree
-        .iter_nodes_of_type::<dir::Declaration>()
-        .map(
-            |(decl_id, decl): (dir::LocalNodeId<dir::Declaration>, &dir::Declaration)| {
-                let symbol_id = decl.symbol();
-                let global_symbol_id = GlobalSymbolId {
-                    module_id,
-                    local_id: symbol_id,
-                };
-                let ast_node_id = dir_tree.get_source(decl_id.id);
-                let main_span = ctx
-                    .ast
-                    .tree
-                    .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
-                let name = resolve_symbol_name(session, global_symbol_id);
-                let is_test = has_decorator_named(ctx.ast, ast_node_id, "test");
-                let symbol_type = symbols.get_symbol(symbol_id).ty;
-                (
-                    decl.clone(),
-                    global_symbol_id,
-                    main_span,
-                    is_test,
-                    name,
-                    symbol_type,
-                )
-            },
-        )
-        .collect();
+    let declarations: Vec<_> = {
+        let dir_tree = ctx.tree();
+        let symbols = ctx.symbols();
 
-    drop(symbols);
-    drop(dir_tree);
-    drop(module);
+        dir_tree
+            .iter_nodes_of_type::<dir::Declaration>()
+            .map(
+                |(decl_id, decl): (dir::LocalNodeId<dir::Declaration>, &dir::Declaration)| {
+                    let symbol_id = decl.symbol();
+                    let global_symbol_id = GlobalSymbolId {
+                        module_id,
+                        local_id: symbol_id,
+                    };
+                    let ast_node_id = dir_tree.get_source(decl_id.id);
+                    let main_span = ctx
+                        .ast
+                        .tree
+                        .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
+                    let name = resolve_symbol_name(session, global_symbol_id);
+                    let is_test = has_decorator_named(ctx.ast, ast_node_id, "test");
+                    let symbol_type = symbols.get_symbol(symbol_id).ty;
+                    (
+                        decl.clone(),
+                        global_symbol_id,
+                        main_span,
+                        is_test,
+                        name,
+                        symbol_type,
+                    )
+                },
+            )
+            .collect()
+    };
 
     for (declaration, global_symbol_id, main_span, is_test, name, symbol_type) in declarations {
         let Some(span) = main_span else {

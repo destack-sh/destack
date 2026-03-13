@@ -1,7 +1,8 @@
+use std::sync::Arc;
+
 use destack_dir::{self as dir};
 use destack_source::{FileId, ModuleId, ProfileId};
-use destack_workspace::{Module, ModuleAst, ModuleDir, Session};
-use parking_lot::RwLockReadGuard;
+use destack_workspace::{Module, ModuleAst, ModuleDirData, Session};
 
 use super::get_module_by_file_id;
 
@@ -14,7 +15,7 @@ pub struct QueryContext<'a> {
     /// The module AST (syntax tree and strings).
     pub ast: &'a ModuleAst,
     /// The module DIR (semantic IR).
-    pub dir: &'a ModuleDir,
+    pub dir: Arc<ModuleDirData>,
     /// The profile used for this context.
     pub profile_id: ProfileId,
     /// The module id.
@@ -26,20 +27,20 @@ pub struct QueryContext<'a> {
 impl<'a> QueryContext<'a> {
     /// Get a read guard on the DIR node tree.
     #[inline]
-    pub fn tree(&self) -> RwLockReadGuard<'_, dir::NodeTree> {
-        self.dir.tree.read()
+    pub fn tree(&self) -> &dir::NodeTree {
+        &self.dir.tree
     }
 
     /// Get a read guard on the symbol table.
     #[inline]
-    pub fn symbols(&self) -> RwLockReadGuard<'_, dir::SymbolTable> {
-        self.dir.symbols.read()
+    pub fn symbols(&self) -> &dir::SymbolTable {
+        &self.dir.symbols
     }
 
     /// Get a read guard on the type table.
     #[inline]
-    pub fn types(&self) -> RwLockReadGuard<'_, dir::TypeTable> {
-        self.dir.types.read()
+    pub fn types(&self) -> &dir::TypeTable {
+        &self.dir.types
     }
 
     /// Get the inferred type id for a node (expression, declaration, etc.).
@@ -84,12 +85,7 @@ pub fn query_context_with_profile<'a>(
     let ast = module.ast_maybe()?;
 
     // resolve profile and base dirs for selection
-    let profile_dir = module.dir_maybe(profile);
-    let base_dir = module.dir_base_maybe();
-
-    // resolve module dir
-    // prefer profile dir, but allow base dir when profile dir is unavailable
-    let dir = profile_dir.or(base_dir)?;
+    let dir = _session.artifacts.dir_snapshot(module.id, profile)?;
 
     // build query context
     Some(QueryContext {

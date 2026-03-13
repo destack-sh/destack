@@ -121,21 +121,19 @@ pub fn goto_implementation(
     };
 
     // resolve the target symbol metadata
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(canonical_id.local_id);
-
-    // classify the symbol by type
-    let is_interface = symbol.ty == SymbolType::Interface;
-    let is_class = symbol.ty == SymbolType::Class;
+    let (is_interface, is_class) = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(canonical_id.local_id);
+        (
+            symbol.ty == SymbolType::Interface,
+            symbol.ty == SymbolType::Class,
+        )
+    };
 
     // bail out for symbols that cannot be implemented
     if !is_interface && !is_class {
         return Some(ImplementationResult::empty());
     }
-
-    // release the target module handles before scanning
-    drop(symbols);
-    drop(target_module);
 
     // initialize the result spans
     let mut locations = Vec::new();
@@ -229,7 +227,7 @@ pub fn goto_implementation(
 
                 // fall back to goto_type_definition when nominal resolution misses
                 if !matches_target {
-                    let span = get_dir_node_main_span(ctx.ast, ctx.dir, (*type_expr_id).into());
+                    let span = get_dir_node_main_span(ctx.ast, &ctx.dir, (*type_expr_id).into());
                     if let Some(span) = span
                         && let Some(result) =
                             super::goto_type_definition(session, span.file, span.start)
@@ -290,7 +288,7 @@ fn resolve_type_symbol_at_offset(
         // scan expression nodes to find a type reference under the cursor
         let dir_tree = ctx.tree();
         for (expression_id, _expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-            let Some(span) = get_dir_node_main_span(ctx.ast, ctx.dir, expression_id.into()) else {
+            let Some(span) = get_dir_node_main_span(ctx.ast, &ctx.dir, expression_id.into()) else {
                 continue;
             };
 
@@ -401,7 +399,7 @@ fn collect_target_symbols(session: &Session, symbol_id: GlobalSymbolId) -> HashS
         if target_symbol.is_none()
             && let Some(name_id) = symbol.name()
         {
-            let exports = ctx.dir.exported_symbols.read();
+            let exports = &ctx.dir.exported_symbols;
             let dir_tree = ctx.tree();
             for ((space, key), export) in exports.iter() {
                 let dir::StaticKey::Name(export_name) = *key else {

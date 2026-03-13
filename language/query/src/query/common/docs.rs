@@ -100,10 +100,11 @@ pub(crate) fn doc_text_for_symbol(
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the symbol declaration
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let declaration = symbol.primary_declaration?;
-    drop(symbols);
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration?
+    };
 
     // resolve the source node for the declaration
     let dir_tree = ctx.tree();

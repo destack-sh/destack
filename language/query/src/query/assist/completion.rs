@@ -423,6 +423,7 @@ fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) 
     // format the type using the symbol's module type table
     Some(format_local_type(
         type_id,
+        &session.artifacts,
         &types,
         &session.modules,
         &session.strings,
@@ -456,8 +457,13 @@ fn completion_for_member(
     // add type detail from the resolved member type
     if let Some(member_type_id) = member.type_id {
         if let Some(types) = types {
-            let type_text =
-                format_local_type(member_type_id, types, &session.modules, &session.strings);
+            let type_text = format_local_type(
+                member_type_id,
+                &session.artifacts,
+                types,
+                &session.modules,
+                &session.strings,
+            );
             completion = completion.with_detail(type_text);
         }
     } else {
@@ -1033,8 +1039,6 @@ fn complete_members(
     let Some(ctx) = crate::query_context(session, &module) else {
         return Vec::new();
     };
-    let types = ctx.types();
-    let symbols = ctx.symbols();
     let current_module_id = ctx.module_id;
     let fallback_type_name = fallback_type_name
         .map(ToOwned::to_owned)
@@ -1052,6 +1056,8 @@ fn complete_members(
     // primary path: use receiver type for type aware completions
     if let Some(type_id) = receiver_type {
         // resolve members from the type
+        let types = ctx.types();
+        let symbols = ctx.symbols();
         let members = resolve_type_members(&types, &symbols, type_id, session, current_module_id);
 
         for member in members {
@@ -1084,8 +1090,8 @@ fn complete_members(
     }
 
     // fallback path: resolve nominal type from the receiver initializer
-    if let Some(symbol_id) = receiver_symbol {
-        let type_symbol = if symbol_id.module_id == ctx.module_id {
+    let type_symbol = if let Some(symbol_id) = receiver_symbol {
+        if symbol_id.module_id == ctx.module_id {
             resolve_nominal_symbol_from_initializer(session, &ctx, symbol_id)
         } else {
             let symbol_module = session.modules.get(symbol_id.module_id);
@@ -1094,99 +1100,92 @@ fn complete_members(
             symbol_ctx.and_then(|symbol_ctx| {
                 resolve_nominal_symbol_from_initializer(session, &symbol_ctx, symbol_id)
             })
-        };
-
-        if let Some(type_symbol) = type_symbol {
-            drop(types);
-            drop(symbols);
-            drop(module);
-
-            let members = resolve_reference_members(type_symbol, session, current_module_id);
-            for member in members {
-                let Some(completion) = completion_for_member(session, member, None) else {
-                    continue;
-                };
-
-                results.push(completion);
-            }
-
-            return results;
         }
+    } else {
+        None
+    };
+    if let Some(type_symbol) = type_symbol {
+        let members = resolve_reference_members(type_symbol, session, current_module_id);
+        for member in members {
+            let Some(completion) = completion_for_member(session, member, None) else {
+                continue;
+            };
+
+            results.push(completion);
+        }
+
+        return results;
     }
 
     // fallback path: use receiver symbol (for cases where type inference hasn't run)
     if let Some(symbol_id) = receiver_symbol {
-        // release the current module state before switching contexts
-        drop(types);
-        drop(symbols);
-        drop(module);
-
-        // load the symbol's module
         let symbol_module = session.modules.get(symbol_id.module_id);
         let symbol_module = symbol_module.read();
         let Some(symbol_ctx) = crate::query_context(session, &symbol_module) else {
             return Vec::new();
         };
-        let symbols = symbol_ctx.symbols();
-        let types = symbol_ctx.types();
-        let receiver_symbol = symbols.get_symbol(symbol_id.local_id);
-        let is_enum_receiver = receiver_symbol.ty == SymbolType::Enum;
+        let mut scoped_results = {
+            let symbols = symbol_ctx.symbols();
+            let types = symbol_ctx.types();
+            let receiver_symbol = symbols.get_symbol(symbol_id.local_id);
+            let is_enum_receiver = receiver_symbol.ty == SymbolType::Enum;
+            let mut scoped_results = Vec::new();
 
-        // get the scope owned by this symbol (for types like struct/class)
-        if let Some(owned_scope_id) = owned_scope_for_symbol(&symbols, symbol_id.local_id) {
-            let scope = symbols.get_scope_by_id(owned_scope_id);
+            // get the scope owned by this symbol (for types like struct/class)
+            if let Some(owned_scope_id) = owned_scope_for_symbol(&symbols, symbol_id.local_id) {
+                let scope = symbols.get_scope_by_id(owned_scope_id);
 
-            // add all named symbols in the scope as member completions
-            for (key, member_id) in symbols.active_named_symbols(scope) {
-                if let dir::StaticKey::Name(name_id) = key {
-                    let member_symbol = symbols.get_symbol(member_id);
-                    let name = session.strings.get(name_id).to_string();
-                    let kind = if is_enum_receiver {
-                        CompletionKind::EnumMember
-                    } else {
-                        CompletionKind::from(member_symbol.ty)
-                    };
+                // add all named symbols in the scope as member completions
+                for (key, member_id) in symbols.active_named_symbols(scope) {
+                    if let dir::StaticKey::Name(name_id) = key {
+                        let member_symbol = symbols.get_symbol(member_id);
+                        let name = session.strings.get(name_id).to_string();
+                        let kind = if is_enum_receiver {
+                            CompletionKind::EnumMember
+                        } else {
+                            CompletionKind::from(member_symbol.ty)
+                        };
 
-                    let mut completion =
-                        Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
-                    let member_symbol_id = dir::GlobalSymbolId {
-                        module_id: symbol_id.module_id,
-                        local_id: member_id,
-                    };
+                        let mut completion =
+                            Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
+                        let member_symbol_id = dir::GlobalSymbolId {
+                            module_id: symbol_id.module_id,
+                            local_id: member_id,
+                        };
 
-                    // add type detail from primary declaration
-                    let declaration = member_symbol.primary_declaration;
-                    if let Some(declaration) = declaration {
-                        let type_id = types.get_declared_or_inferred_type_id(declaration);
-                        if let Some(type_id) = type_id {
-                            let type_text = format_local_type(
-                                type_id,
-                                &types,
-                                &session.modules,
-                                &session.strings,
-                            );
-                            completion = completion.with_detail(type_text);
+                        // add type detail from primary declaration
+                        let declaration = member_symbol.primary_declaration;
+                        if let Some(declaration) = declaration {
+                            let type_id = types.get_declared_or_inferred_type_id(declaration);
+                            if let Some(type_id) = type_id {
+                                let type_text = format_local_type(
+                                    type_id,
+                                    &session.artifacts,
+                                    &types,
+                                    &session.modules,
+                                    &session.strings,
+                                );
+                                completion = completion.with_detail(type_text);
+                            }
                         }
+
+                        // fall back to generic detail for functions
+                        if completion.detail.is_none() && member_symbol.ty == SymbolType::Function {
+                            completion = completion.with_detail("method");
+                        }
+
+                        // attach declaration documentation for the member symbol
+                        completion =
+                            attach_completion_documentation(session, completion, member_symbol_id);
+
+                        scoped_results.push(completion);
                     }
-
-                    // fall back to generic detail for functions
-                    if completion.detail.is_none() && member_symbol.ty == SymbolType::Function {
-                        completion = completion.with_detail("method");
-                    }
-
-                    // attach declaration documentation for the member symbol
-                    completion =
-                        attach_completion_documentation(session, completion, member_symbol_id);
-
-                    results.push(completion);
                 }
             }
-        }
 
-        // release the borrowed symbol module state
-        drop(types);
-        drop(symbols);
-        drop(symbol_module);
+            scoped_results
+        };
+        results.append(&mut scoped_results);
 
         // merge extension members for this symbol
         let extension_members =
@@ -1434,8 +1433,13 @@ fn complete_object_literal(
 
             // add type detail
             if let Some(member_type_id) = member.type_id {
-                let type_text =
-                    format_local_type(member_type_id, &types, &session.modules, &session.strings);
+                let type_text = format_local_type(
+                    member_type_id,
+                    &session.artifacts,
+                    &types,
+                    &session.modules,
+                    &session.strings,
+                );
                 completion = completion.with_detail(type_text);
             }
             results.push(completion);
@@ -1520,13 +1524,13 @@ fn complete_types(
             return symbol.ty;
         }
 
-        let module = session.modules.get(canonical_id.module_id);
-        let module = module.read();
-        let Some(dir) = module.dir_maybe(ctx.profile_id) else {
+        let Some(dir) = session
+            .artifacts
+            .dir_snapshot(canonical_id.module_id, ctx.profile_id)
+        else {
             return symbol.ty;
         };
-        let symbols = dir.symbols.read();
-        let canonical_symbol = symbols.get_symbol(canonical_id.local_id);
+        let canonical_symbol = dir.symbols.get_symbol(canonical_id.local_id);
         canonical_symbol.ty
     };
 
@@ -1699,36 +1703,36 @@ fn complete_values(
     let Some(ctx) = crate::query_context(session, &module) else {
         return keyword_completions();
     };
-    let symbols = ctx.symbols();
     let module_id = ctx.module_id;
 
     // initialize completion buffers
     let mut results = Vec::new();
 
     // collect symbols to process (to avoid holding symbols lock while generating snippets)
-    let mut symbols_to_process: Vec<(dir::LocalSymbolId, String, SymbolType)> = Vec::new();
+    let symbols_to_process: Vec<(dir::LocalSymbolId, String, SymbolType)> = {
+        let symbols = ctx.symbols();
+        let mut symbols_to_process = Vec::new();
 
-    // walk visible symbols in scope order
-    let mut seen_names = HashSet::new();
-    let scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
-    let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
+        // walk visible symbols in scope order
+        let mut seen_names = HashSet::new();
+        let scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
+        let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-    for visible in visible_symbols(&symbols, scope_id, mark, Some(SymbolSpace::Value)) {
-        let dir::StaticKey::Name(name_id) = visible.key else {
-            continue;
-        };
+        for visible in visible_symbols(&symbols, scope_id, mark, Some(SymbolSpace::Value)) {
+            let dir::StaticKey::Name(name_id) = visible.key else {
+                continue;
+            };
 
-        let name = session.strings.get(name_id).to_string();
-        if !seen_names.insert(name.clone()) {
-            continue;
+            let name = session.strings.get(name_id).to_string();
+            if !seen_names.insert(name.clone()) {
+                continue;
+            }
+
+            symbols_to_process.push((visible.id, name, visible.symbol.ty));
         }
 
-        symbols_to_process.push((visible.id, name, visible.symbol.ty));
-    }
-
-    // release symbol and module handles before formatting snippets
-    drop(symbols);
-    drop(module);
+        symbols_to_process
+    };
 
     // build completions with snippets for functions
     for (local_id, name, symbol_type) in symbols_to_process {

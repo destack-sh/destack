@@ -111,16 +111,13 @@ pub fn prepare_type_hierarchy(
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
     let ctx = crate::query_context(session, &module)?;
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(canonical_id.local_id);
-
-    let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
-
-    // get the name
-    let name = resolve_symbol_name(session, canonical_id)?;
-
-    drop(symbols);
-    drop(module);
+    let (kind, name) = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(canonical_id.local_id);
+        let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
+        let name = resolve_symbol_name(session, canonical_id)?;
+        Some((kind, name))
+    }?;
 
     // resolve the selection range at the symbol name
     let selection_range = get_symbol_definition_span(session, canonical_id)?;
@@ -153,27 +150,28 @@ pub fn supertypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierar
     let Some(ctx) = crate::query_context(session, &module) else {
         return Vec::new();
     };
-    let types = ctx.types();
-    let Some(lineage) = types.get_lineage_for_symbol(canonical_id) else {
-        return Vec::new();
+    let supertype_ids: Vec<GlobalSymbolId> = {
+        let types = ctx.types();
+        let Some(lineage) = types.get_lineage_for_symbol(canonical_id) else {
+            return Vec::new();
+        };
+
+        // collect supertype symbol ids
+        let mut supertype_ids: Vec<GlobalSymbolId> = Vec::new();
+
+        // add extended type (parent class or extended interface)
+        if let Some(extends_id) = lineage.extends {
+            supertype_ids.push(extends_id);
+        }
+
+        // add implemented interfaces
+        supertype_ids.extend(lineage.implements.iter().copied());
+
+        // add embedded types (for structs with composition)
+        supertype_ids.extend(lineage.embedded.iter().copied());
+
+        supertype_ids
     };
-
-    // collect supertype symbol ids
-    let mut supertype_ids: Vec<GlobalSymbolId> = Vec::new();
-
-    // add extended type (parent class or extended interface)
-    if let Some(extends_id) = lineage.extends {
-        supertype_ids.push(extends_id);
-    }
-
-    // add implemented interfaces
-    supertype_ids.extend(lineage.implements.iter().copied());
-
-    // add embedded types (for structs with composition)
-    supertype_ids.extend(lineage.embedded.iter().copied());
-
-    drop(types);
-    drop(module);
 
     // convert to TypeHierarchyItems
     supertype_ids
@@ -228,13 +226,13 @@ fn type_hierarchy_item_from_symbol(
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
     let ctx = crate::query_context(session, &module)?;
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(canonical_id.local_id);
-    let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
-    let name = resolve_symbol_name(session, canonical_id)?;
-
-    drop(symbols);
-    drop(module);
+    let (kind, name) = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(canonical_id.local_id);
+        let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
+        let name = resolve_symbol_name(session, canonical_id)?;
+        Some((kind, name))
+    }?;
 
     // resolve the selection range at the symbol name
     let selection_range = get_symbol_definition_span(session, canonical_id)?;

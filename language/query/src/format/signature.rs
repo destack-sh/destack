@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 
 use super::types::format_local_type;
 use destack_source::ProfileId;
-use destack_workspace::{Module, ModuleRegistry};
+use destack_workspace::{ArtifactRegistry, Module, ModuleRegistry};
 
 /// Formatted declaration signature.
 #[derive(Debug, Clone)]
@@ -31,14 +31,17 @@ pub struct FormattedCallSignature {
 pub fn format_declaration_signature(
     declaration: &dir::Declaration,
     module: &Module,
+    artifacts: &ArtifactRegistry,
     modules: &ModuleRegistry,
     strings: &StringPool,
     profile: ProfileId,
 ) -> FormattedSignature {
     // resolve dir data for formatting
-    let dir = module.dir(profile);
-    let dir_tree = dir.tree.read();
-    let types = dir.types.read();
+    let dir = artifacts
+        .dir_snapshot(module.id, profile)
+        .unwrap_or_else(|| panic!("no DIR artifact for profile {profile:?}"));
+    let dir_tree = &dir.tree;
+    let types = &dir.types;
     let module_id = module.id;
 
     // resolve declaration metadata
@@ -64,6 +67,7 @@ pub fn format_declaration_signature(
             &name,
             signature,
             export_prefix,
+            artifacts,
             module_id,
             &dir_tree,
             &types,
@@ -82,18 +86,21 @@ pub fn format_declaration_signature(
             format_import_alias(&name, *kind, export_prefix)
         }
         dir::Declaration::Struct { generics, .. } => {
-            let generics_text =
-                format_generics(generics, module_id, &dir_tree, &types, modules, strings);
+            let generics_text = format_generics(
+                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+            );
             format!("{export_prefix}struct {name}{generics_text}")
         }
         dir::Declaration::Class { generics, .. } => {
-            let generics_text =
-                format_generics(generics, module_id, &dir_tree, &types, modules, strings);
+            let generics_text = format_generics(
+                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+            );
             format!("{export_prefix}class {name}{generics_text}")
         }
         dir::Declaration::Interface { generics, .. } => {
-            let generics_text =
-                format_generics(generics, module_id, &dir_tree, &types, modules, strings);
+            let generics_text = format_generics(
+                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+            );
             format!("{export_prefix}interface {name}{generics_text}")
         }
         dir::Declaration::Enum { .. } => {
@@ -120,6 +127,7 @@ fn format_function(
     name: &str,
     signature: &dir::FunctionSignature,
     export_prefix: &str,
+    artifacts: &ArtifactRegistry,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -136,13 +144,14 @@ fn format_function(
     let generics_text = signature
         .generics
         .as_ref()
-        .map(|g| format_generics(g, module_id, dir_tree, types, modules, strings))
+        .map(|g| format_generics(g, artifacts, module_id, dir_tree, types, modules, strings))
         .unwrap_or_default();
 
     // format dynamic parameters
     let parameters_text = format_parameters(
         signature.this_parameter,
         &signature.dynamic_parameters,
+        artifacts,
         module_id,
         dir_tree,
         types,
@@ -160,7 +169,12 @@ fn format_function(
             };
             types.get_declared_or_inferred_type_id(node_id)
         })
-        .map(|type_id| format!(": {}", format_local_type(type_id, types, modules, strings)))
+        .map(|type_id| {
+            format!(
+                ": {}",
+                format_local_type(type_id, artifacts, types, modules, strings)
+            )
+        })
         .unwrap_or_default();
 
     // return the formatted function signature
@@ -183,6 +197,7 @@ fn format_import_alias(name: &str, kind: dir::DependencyKind, export_prefix: &st
 pub fn format_call_signature(
     name: &str,
     signature: &dir::FunctionSignature,
+    artifacts: &ArtifactRegistry,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -200,7 +215,7 @@ pub fn format_call_signature(
     let generics_text = signature
         .generics
         .as_ref()
-        .map(|g| format_generics(g, module_id, dir_tree, types, modules, strings))
+        .map(|g| format_generics(g, artifacts, module_id, dir_tree, types, modules, strings))
         .unwrap_or_default();
 
     // choose dynamic parameters
@@ -214,6 +229,7 @@ pub fn format_call_signature(
     let parameter_labels = format_parameter_labels(
         this_parameter,
         &signature.dynamic_parameters,
+        artifacts,
         module_id,
         dir_tree,
         types,
@@ -232,7 +248,12 @@ pub fn format_call_signature(
             };
             types.get_declared_or_inferred_type_id(node_id)
         })
-        .map(|type_id| format!(": {}", format_local_type(type_id, types, modules, strings)))
+        .map(|type_id| {
+            format!(
+                ": {}",
+                format_local_type(type_id, artifacts, types, modules, strings)
+            )
+        })
         .unwrap_or_default();
 
     // build the call signature label
@@ -248,6 +269,7 @@ pub fn format_call_signature(
 /// Format generic type parameters.
 fn format_generics(
     generics: &dir::Generics,
+    artifacts: &ArtifactRegistry,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -266,7 +288,15 @@ fn format_generics(
     let formatted: Vec<_> = parameters
         .iter()
         .map(|parameter_id| {
-            format_parameter(*parameter_id, module_id, dir_tree, types, modules, strings)
+            format_parameter(
+                *parameter_id,
+                artifacts,
+                module_id,
+                dir_tree,
+                types,
+                modules,
+                strings,
+            )
         })
         .collect();
 
@@ -278,6 +308,7 @@ fn format_generics(
 fn format_parameters(
     this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
     parameters: &[dir::LocalNodeId<dir::Parameter>],
+    artifacts: &ArtifactRegistry,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -288,6 +319,7 @@ fn format_parameters(
     let formatted = format_parameter_labels(
         this_parameter,
         parameters,
+        artifacts,
         module_id,
         dir_tree,
         types,
@@ -303,6 +335,7 @@ fn format_parameters(
 fn format_parameter_labels(
     this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
     parameters: &[dir::LocalNodeId<dir::Parameter>],
+    artifacts: &ArtifactRegistry,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -314,14 +347,29 @@ fn format_parameter_labels(
 
     // add the explicit this parameter when present
     if let Some(this_parameter) = this_parameter {
-        let this_text =
-            format_parameter(this_parameter, module_id, dir_tree, types, modules, strings);
+        let this_text = format_parameter(
+            this_parameter,
+            artifacts,
+            module_id,
+            dir_tree,
+            types,
+            modules,
+            strings,
+        );
         formatted.push(format!("this: {this_text}"));
     }
 
     // add remaining parameters in order
     formatted.extend(parameters.iter().map(|parameter_id| {
-        format_parameter(*parameter_id, module_id, dir_tree, types, modules, strings)
+        format_parameter(
+            *parameter_id,
+            artifacts,
+            module_id,
+            dir_tree,
+            types,
+            modules,
+            strings,
+        )
     }));
 
     // return the formatted labels
@@ -331,6 +379,7 @@ fn format_parameter_labels(
 /// Format a single parameter with its type annotation.
 fn format_parameter(
     parameter_id: dir::LocalNodeId<dir::Parameter>,
+    artifacts: &ArtifactRegistry,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -357,7 +406,7 @@ fn format_parameter(
     };
 
     if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
-        let type_text = format_local_type(type_id, types, modules, strings);
+        let type_text = format_local_type(type_id, artifacts, types, modules, strings);
         format!("{name}: {type_text}")
     } else {
         name
@@ -367,6 +416,7 @@ fn format_parameter(
 /// Format a symbol's signature for hover display.
 pub fn format_symbol_signature(
     symbol_id: dir::GlobalSymbolId,
+    artifacts: &ArtifactRegistry,
     modules: &ModuleRegistry,
     strings: &StringPool,
     profile: ProfileId,
@@ -374,21 +424,20 @@ pub fn format_symbol_signature(
     // resolve module dir data
     let module = modules.get(symbol_id.module_id);
     let module = module.read();
-    let dir = module.dir_maybe(profile)?;
-    let symbols = dir.symbols.read();
-    let symbol = symbols.get_symbol(symbol_id.into_local());
-
-    // resolve the primary declaration
-    let declaration_ref = symbol.primary_declaration?;
-    drop(symbols);
+    let dir = artifacts.dir_snapshot(symbol_id.module_id, profile)?;
+    let declaration_ref = {
+        let symbols = &dir.symbols;
+        let symbol = symbols.get_symbol(symbol_id.into_local());
+        symbol.primary_declaration?
+    };
 
     // read the declaration from the tree
-    let dir_tree = dir.tree.read();
+    let dir_tree = &dir.tree;
     let declaration_id = declaration_ref.local_id.try_into().ok()?;
     let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
 
     // resolve type table and metadata
-    let types = dir.types.read();
+    let types = &dir.types;
     let kind = declaration.kind_name();
     let descriptor = declaration.descriptor();
 
@@ -414,6 +463,7 @@ pub fn format_symbol_signature(
             &name,
             signature,
             export_prefix,
+            artifacts,
             module_id,
             &dir_tree,
             &types,
@@ -432,18 +482,21 @@ pub fn format_symbol_signature(
             format_import_alias(&name, *kind, export_prefix)
         }
         dir::Declaration::Struct { generics, .. } => {
-            let generics_text =
-                format_generics(generics, module_id, &dir_tree, &types, modules, strings);
+            let generics_text = format_generics(
+                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+            );
             format!("{export_prefix}struct {name}{generics_text}")
         }
         dir::Declaration::Class { generics, .. } => {
-            let generics_text =
-                format_generics(generics, module_id, &dir_tree, &types, modules, strings);
+            let generics_text = format_generics(
+                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+            );
             format!("{export_prefix}class {name}{generics_text}")
         }
         dir::Declaration::Interface { generics, .. } => {
-            let generics_text =
-                format_generics(generics, module_id, &dir_tree, &types, modules, strings);
+            let generics_text = format_generics(
+                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+            );
             format!("{export_prefix}interface {name}{generics_text}")
         }
         dir::Declaration::Enum { .. } => format!("{export_prefix}enum {name}"),

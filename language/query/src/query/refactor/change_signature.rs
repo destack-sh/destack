@@ -181,10 +181,11 @@ fn constructor_owner_symbol(
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the declaration node
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let declaration = symbol.primary_declaration?;
-    drop(symbols);
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration?
+    };
 
     if declaration.local_id.ty != dir::NodeType::Member {
         return None;
@@ -373,10 +374,11 @@ fn resolve_namespace_member_symbol(
     let alias_ctx = crate::query_context(session, &module)?;
 
     // resolve the dependency item that introduced the alias
-    let symbols = alias_ctx.symbols();
-    let symbol = symbols.get_symbol(alias_symbol.local_id);
-    let declaration = symbol.primary_declaration?;
-    drop(symbols);
+    let declaration = {
+        let symbols = alias_ctx.symbols();
+        let symbol = symbols.get_symbol(alias_symbol.local_id);
+        symbol.primary_declaration?
+    };
 
     if declaration.local_id.ty != dir::NodeType::DependencyItem {
         return None;
@@ -476,10 +478,11 @@ fn function_parameter_span(session: &Session, symbol_id: dir::GlobalSymbolId) ->
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the declaration node
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let declaration = symbol.primary_declaration?;
-    drop(symbols);
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration?
+    };
 
     let dir_tree = ctx.tree();
     let local_id = declaration.local_id;
@@ -533,10 +536,11 @@ fn function_parameter_spans(session: &Session, symbol_id: dir::GlobalSymbolId) -
     let Some(ctx) = crate::query_context(session, &module) else {
         return spans;
     };
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let secondary = symbol.secondary_declarations.clone();
-    drop(symbols);
+    let secondary = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.secondary_declarations.clone()
+    };
 
     let Some(secondary) = secondary else {
         return spans;
@@ -567,10 +571,11 @@ fn function_parameter_name_positions(
     };
 
     // resolve the primary declaration node
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let declaration = symbol.primary_declaration;
-    drop(symbols);
+    let declaration = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration
+    };
 
     let Some(declaration) = declaration else {
         return HashMap::new();

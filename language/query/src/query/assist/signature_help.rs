@@ -216,10 +216,11 @@ fn signature_info_for_symbol(
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the symbol declaration
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let declaration_ref = symbol.primary_declaration?;
-    drop(symbols);
+    let declaration_ref = {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.primary_declaration?
+    };
 
     // resolve the source text for doc parsing
     let source_file = session.files.get(ctx.file_id);
@@ -268,6 +269,7 @@ fn signature_info_for_symbol(
     let formatted = format_call_signature(
         function_name,
         signature,
+        &session.artifacts,
         ctx.module_id,
         &dir_tree,
         &types,

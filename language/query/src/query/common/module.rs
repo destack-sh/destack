@@ -86,7 +86,7 @@ pub fn get_module_exports_maybe(
     let mut exports = Vec::new();
 
     // read the exported symbols table
-    let exported_symbols = ctx.dir.exported_symbols.read();
+    let exported_symbols = &ctx.dir.exported_symbols;
 
     if !exported_symbols.is_empty() {
         // collect exported symbols from the export table
