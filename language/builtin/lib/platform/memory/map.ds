@@ -1,5 +1,6 @@
 import type { PlatformError } from "../error/index.ds";
-import { MemoryNumaPolicy, MemoryProtection, MemoryReserveFlags } from "./types.ds";
+import { MemoryProtection, MemoryReserveFlags } from "./types.ds";
+import { ProtectedMemoryRange } from "./protect.ds";
 
 /// Memory range descriptor.
 export struct MemoryRange {
@@ -11,10 +12,46 @@ export struct MemoryRange {
 
 /// Virtual memory map bindings.
 declare namespace memory {
+    /// Allocate one mapped range.
+    ///
+    /// Reserve and commit one virtual memory range in a single host operation.
+    /// Allocation-time policy flags such as large pages are applied here when supported.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses mmap allocation paths on Unix and VirtualAlloc reserve-plus-commit on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `memory.map`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.memory.map.allocate", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["memory.map"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+
+        affinity: "any",
+    })
+    export function allocate(
+        length: uint64,
+        addressHint: uint64,
+        protection: MemoryProtection,
+        flags: MemoryReserveFlags,
+    ): Result<ProtectedMemoryRange, PlatformError>;
+
     /// Reserve one virtual memory range.
     ///
     /// Reserve one address range without committing physical backing.
     /// A zero address hint lets the host choose placement.
+    /// Explicit address hints follow host allocation-granularity alignment rules.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -113,6 +150,7 @@ declare namespace memory {
     ///
     /// Release one virtual memory reservation back to the host allocator.
     /// Released ranges become invalid for future access by caller code.
+    /// On Windows the length must cover the full reserved allocation span.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -139,38 +177,4 @@ declare namespace memory {
     })
     export function release(address: uint64, length: uint64): Result<void, PlatformError>;
 
-    /// Bind one range to a NUMA policy.
-    ///
-    /// Apply NUMA placement policy for one virtual memory range.
-    /// Node masks and policy modes are interpreted by host NUMA APIs.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mbind or set_mempolicy on Linux and VirtualAllocExNuma-style APIs on Windows where supported.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.numa`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.memory.map.numaBind", {
-        effect: "external",
-        replay: "recordable",
-        capabilities: ["memory.numa"],
-        platforms: ["windows", "unix"],
-        simulation: "model",
-        scope: "host",
-        blocking: "sometimes",
-
-        affinity: "any",
-    })
-    export function numaBind(
-        address: uint64,
-        length: uint64,
-        policy: MemoryNumaPolicy,
-        nodeMask: uint64,
-    ): Result<void, PlatformError>;
 }

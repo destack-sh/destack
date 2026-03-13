@@ -1,8 +1,8 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::call_out;
 use crate::platform::memory::{
-    MemoryAdvice, MemoryNumaPolicy, MemoryProtection, MemoryRangeVm, MemoryRemapFlags,
-    MemoryReserveFlags, ProtectedMemoryRangeVm,
+    MemoryAdvice, MemoryProtection, MemoryRangeVm, MemoryRemapFlags, MemoryReserveFlags,
+    ProtectedMemoryRangeVm,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -28,17 +28,6 @@ pub(crate) fn destack_memory_discard(
     length: u64,
 ) -> RuntimeResult<()> {
     unsafe { host_memory::destack_memory_discard(binding, address, length) }
-}
-
-/// Toggle huge-page preference for one range.
-pub(crate) fn destack_memory_huge_page(
-    binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    address: u64,
-    length: u64,
-    enabled: bool,
-) -> RuntimeResult<()> {
-    unsafe { host_memory::destack_memory_huge_page(binding, address, length, enabled) }
 }
 
 /// Lock one memory range into physical memory.
@@ -82,18 +71,6 @@ pub(crate) fn destack_memory_decommit(
     unsafe { host_memory::destack_memory_decommit(binding, address, length) }
 }
 
-/// Bind one range to a NUMA policy.
-pub(crate) fn destack_memory_numa_bind(
-    binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    address: u64,
-    length: u64,
-    policy: MemoryNumaPolicy,
-    nodemask: u64,
-) -> RuntimeResult<()> {
-    unsafe { host_memory::destack_memory_numa_bind(binding, address, length, policy, nodemask) }
-}
-
 /// Release one reserved range.
 pub(crate) fn destack_memory_release(
     binding: &BindingCallContext,
@@ -102,6 +79,20 @@ pub(crate) fn destack_memory_release(
     length: u64,
 ) -> RuntimeResult<()> {
     unsafe { host_memory::destack_memory_release(binding, address, length) }
+}
+
+/// Allocate one mapped range.
+pub(crate) fn destack_memory_allocate(
+    binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    length: u64,
+    addresshint: u64,
+    protection: MemoryProtection,
+    flags: MemoryReserveFlags,
+) -> RuntimeResult<ProtectedMemoryRangeVm> {
+    call_out(|out| unsafe {
+        host_memory::destack_memory_allocate(binding, out, length, addresshint, protection, flags)
+    })
 }
 
 /// Reserve one virtual memory range.
