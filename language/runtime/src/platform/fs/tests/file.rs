@@ -330,6 +330,16 @@ fn test_fs_preadv2_pwritev2_nonzero_flags_support_matches_platform() {
 #[test]
 fn test_fs_mkfifo_and_mkfifoat_support_matches_platform() {
     with_harness_context(|mut context| {
+        #[cfg(target_os = "linux")]
+        let fifo_type_mask = libc::S_IFMT;
+        #[cfg(not(target_os = "linux"))]
+        let fifo_type_mask = libc::S_IFMT as u32;
+
+        #[cfg(target_os = "linux")]
+        let fifo_type_value = libc::S_IFIFO;
+        #[cfg(not(target_os = "linux"))]
+        let fifo_type_value = libc::S_IFIFO as u32;
+
         // runtime and temp directory
         let temp_dir = temp_dir("fs_mkfifo");
         let fifo_path = temp_dir.join("fifo.pipe");
@@ -345,7 +355,7 @@ fn test_fs_mkfifo_and_mkfifoat_support_matches_platform() {
         mkfifo_result?;
         let fifo = context.path_bytes(&fifo_path);
         let stat = context.destack_fs_stat(fifo)?;
-        assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
+        assert_eq!(stat.mode.0 & fifo_type_mask, fifo_type_value);
 
         // create fifo through directory-relative lane
         let dir = context.path_bytes(&temp_dir);
@@ -358,7 +368,7 @@ fn test_fs_mkfifo_and_mkfifoat_support_matches_platform() {
         mkfifoat_result?;
         let fifo = context.path_bytes(&temp_dir.join("fifoat.pipe"));
         let stat = context.destack_fs_stat(fifo)?;
-        assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
+        assert_eq!(stat.mode.0 & fifo_type_mask, fifo_type_value);
 
         // cleanup created nodes and directory resources
         context.destack_fs_closedir(directory)?;
@@ -419,6 +429,16 @@ fn test_fs_mkfifo_and_mkfifoat_utf16_roundtrip() {
 #[test]
 fn test_fs_mknod_and_mknodat_fifo_support_matches_platform() {
     with_harness_context(|mut context| {
+        #[cfg(target_os = "linux")]
+        let fifo_type_mask = libc::S_IFMT;
+        #[cfg(not(target_os = "linux"))]
+        let fifo_type_mask = libc::S_IFMT as u32;
+
+        #[cfg(target_os = "linux")]
+        let fifo_type_value = libc::S_IFIFO;
+        #[cfg(not(target_os = "linux"))]
+        let fifo_type_value = libc::S_IFIFO as u32;
+
         // runtime and temp directory
         let temp_dir = temp_dir("fs_mknod");
         let node_path = temp_dir.join("node.pipe");
@@ -427,7 +447,7 @@ fn test_fs_mknod_and_mknodat_fifo_support_matches_platform() {
         context.destack_fs_mkdir(dir, FileMode(0o755))?;
 
         // create fifo-style node through mknod
-        let node_mode = FileMode((libc::S_IFIFO as u32) | 0o644);
+        let node_mode = FileMode(fifo_type_value | 0o644);
         let node = context.path_bytes(&node_path);
         let mknod_result = context.destack_fs_mknod(node, node_mode, NodeDevice(0));
 
@@ -443,7 +463,7 @@ fn test_fs_mknod_and_mknodat_fifo_support_matches_platform() {
         } else {
             let node = context.path_bytes(&node_path);
             let stat = context.destack_fs_stat(node)?;
-            assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
+            assert_eq!(stat.mode.0 & fifo_type_mask, fifo_type_value);
         }
 
         // create fifo-style node through mknodat
@@ -465,7 +485,7 @@ fn test_fs_mknod_and_mknodat_fifo_support_matches_platform() {
         } else {
             let node = context.path_bytes(&temp_dir.join("nodeat.pipe"));
             let stat = context.destack_fs_stat(node)?;
-            assert_eq!(stat.mode.0 & libc::S_IFMT as u32, libc::S_IFIFO as u32);
+            assert_eq!(stat.mode.0 & fifo_type_mask, fifo_type_value);
         }
 
         // cleanup created nodes and directory resources
