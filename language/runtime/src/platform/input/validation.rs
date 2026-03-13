@@ -1,8 +1,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::input::InputHapticEffectParameters;
 #[cfg(unix)]
 use crate::platform::input::InputWindowTarget;
+use crate::platform::input::{InputHapticEffectParameters, InputSensorConfig};
 
 /// Maximum event count accepted by one input batch read call.
 pub(crate) const MAX_READ_BATCH_EVENTS: u32 = 4_096;
@@ -74,6 +74,23 @@ pub(crate) fn validate_sensor_sample_rate_hz(sample_rate_hz: f64) -> RuntimeResu
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "config.sampleRateHz",
             "config.sampleRateHz must be finite and non-negative",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Validate one requested sensor stream configuration.
+pub(crate) fn validate_sensor_config(config: InputSensorConfig) -> RuntimeResult<()> {
+    // validate sample-rate shape first
+    validate_sensor_sample_rate_hz(config.sample_rate_hz)?;
+
+    // require one positive sample rate for enabled streams
+    if config.enabled && config.sample_rate_hz <= 0.0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "config.sampleRateHz",
+            "config.sampleRateHz must be greater than zero when the sensor stream is enabled",
         ))
         .boxed());
     }

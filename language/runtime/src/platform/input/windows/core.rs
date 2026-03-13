@@ -279,8 +279,6 @@ pub(super) struct WindowsInputBinding {
     pub(super) pending_console_button_transitions: VecDeque<PendingConsoleButtonTransition>,
     /// Pending console records queued for input.read calls.
     pub(super) pending_console_records: VecDeque<PendingConsoleRecord>,
-    /// Pending composition events queued for text.readComposition calls.
-    pub(super) pending_console_composition_events: VecDeque<PendingConsoleCompositionEvent>,
     /// Original console mode captured at open time.
     pub(super) original_mode: Option<u32>,
     /// Raw-input descriptor for per-device backends.
@@ -345,15 +343,6 @@ impl std::fmt::Debug for PendingConsoleRecord {
             .field("event_type", &(self.record.EventType as u32))
             .finish()
     }
-}
-
-/// Deferred composition code unit queued for text-session reads.
-#[derive(Debug, Clone, Copy)]
-pub(super) struct PendingConsoleCompositionEvent {
-    /// Event timestamp in monotonic nanoseconds.
-    pub(super) timestamp_ns: u64,
-    /// UTF-16 code unit observed from one key-down record.
-    pub(super) code_unit: u16,
 }
 
 /// Finalizer payload for console-backed windows input resources.
@@ -902,7 +891,7 @@ pub(super) fn set_xinput_player_index_override(
 }
 
 /// Return whether one target selects one explicit window resource.
-fn has_explicit_window_target(target: InputWindowTarget) -> bool {
+pub(super) fn has_explicit_window_target(target: InputWindowTarget) -> bool {
     target
         .window
         .is_some_and(|window| window.0.0 != WINDOW_TARGET_DEFAULT_RESOURCE_ID)

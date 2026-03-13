@@ -1,24 +1,13 @@
 use super::{core as input_core, xinput as xinput_input};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::input::{InputDeviceKind, InputKeyboardState};
+use crate::platform::input::InputKeyboardState;
 use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Return whether one resolved binding supports keyboard state queries.
 fn is_keyboard_capable_backend(resolved: &input_core::WindowsInputResolved) -> bool {
-    if resolved.backend == input_core::WindowsInputBackend::Console {
-        return true;
-    }
-
-    if resolved.backend == input_core::WindowsInputBackend::RawDevice {
-        let Some(raw_device) = resolved.raw_device.as_ref() else {
-            return false;
-        };
-        return raw_device.kind == InputDeviceKind::Keyboard;
-    }
-
-    false
+    resolved.backend == input_core::WindowsInputBackend::Console
 }
 
 /// Return one stable runtime device identifier for one resolved backend binding.

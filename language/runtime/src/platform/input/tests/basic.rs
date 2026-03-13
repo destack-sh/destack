@@ -34,13 +34,6 @@ const ERR_PERMISSION_OR_NOT_SUPPORTED: [PlatformErrorCode; 2] = [
     PlatformErrorCode::IoPermissionDenied,
     PlatformErrorCode::NotSupported,
 ];
-#[cfg(target_os = "linux")]
-const ERR_NOT_SUPPORTED: [PlatformErrorCode; 1] = [PlatformErrorCode::NotSupported];
-#[cfg(windows)]
-const ERR_WOULD_BLOCK_OR_NOT_SUPPORTED: [PlatformErrorCode; 2] = [
-    PlatformErrorCode::IoWouldBlock,
-    PlatformErrorCode::NotSupported,
-];
 #[cfg(windows)]
 const ERR_WOULD_BLOCK_PERMISSION_OR_NOT_SUPPORTED: [PlatformErrorCode; 3] = [
     PlatformErrorCode::IoWouldBlock,
@@ -327,16 +320,7 @@ fn open_first_windows_sensor_device_or_skip(
 fn open_first_windows_keyboard_device_or_skip(
     context: &mut InputHarnessContext<'_>,
 ) -> RuntimeResult<Option<InputDeviceHandle>> {
-    // prefer per-device raw keyboard endpoints first
-    let raw = open_first_windows_raw_device_with_capabilities_or_skip(
-        context,
-        &[InputDeviceCapabilityKind::Keyboard],
-    )?;
-    if raw.is_some() {
-        return Ok(raw);
-    }
-
-    // fall back to console keyboard stream
+    // prefer the console path because raw-input keyboards do not yet expose per-device snapshots
     open_windows_console_device_or_skip(context)
 }
 
@@ -363,7 +347,7 @@ fn open_first_windows_pointer_device_or_skip(
 fn open_first_windows_text_device_or_skip(
     context: &mut InputHarnessContext<'_>,
 ) -> RuntimeResult<Option<InputDeviceHandle>> {
-    // prefer console first because it supports composition queue coverage
+    // prefer console first because it provides the broadest current text surface
     let console = open_windows_console_device_or_skip(context)?;
     if console.is_some() {
         return Ok(console);
@@ -772,6 +756,24 @@ fn test_input_open_rejects_second_windows_raw_handle_for_same_device() {
             PlatformErrorCode::IoWouldBlock,
         )?;
         context.destack_input_close(first)?;
+
+        Ok(())
+    });
+}
+
+/// Report honest exclusive-grab metadata for windows raw-input devices.
+#[cfg(windows)]
+#[test]
+fn test_input_windows_raw_device_metadata_does_not_claim_exclusive_grab() {
+    with_harness_context(|mut context| {
+        let Some((_handle, device)) = open_first_windows_raw_device_or_skip(&mut context)? else {
+            return Ok(());
+        };
+
+        assert!(
+            !device.supports_exclusive_grab,
+            "windows raw-input devices should not claim exclusive-grab support"
+        );
 
         Ok(())
     });
@@ -1585,10 +1587,10 @@ fn test_input_windows_pointer_capture_accepts_default_target() {
     });
 }
 
-/// Accept default-target pointer capture toggles for Linux pointer-capable handles.
+/// Report not-supported pointer capture on Linux evdev-style pointer handles.
 #[cfg(target_os = "linux")]
 #[test]
-fn test_input_linux_pointer_capture_accepts_default_target() {
+fn test_input_linux_pointer_capture_reports_not_supported() {
     with_harness_context(|mut context| {
         let Some(handle) = open_first_device_with_capabilities_or_skip(
             &mut context,
@@ -1598,17 +1600,26 @@ fn test_input_linux_pointer_capture_accepts_default_target() {
             return Ok(());
         };
 
+        let capabilities = context.destack_input_capabilities(handle)?;
+        let capabilities = context.capabilities_from_value(capabilities)?;
+        assert!(
+            !capabilities.supports_pointer_capture,
+            "linux pointer capabilities should not claim pointer capture support"
+        );
+
         let target = InputWindowTarget {
             window: Some(WindowHandle(ResourceId(0))),
         };
-        assert_ok_or_expected_error(
-            context.destack_input_pointer_capture(handle, context.window_target(target), true),
-            &[PlatformErrorCode::IoPermissionDenied],
-        )?;
-        assert_ok_or_expected_error(
-            context.destack_input_pointer_capture(handle, context.window_target(target), false),
-            &[PlatformErrorCode::IoPermissionDenied],
-        )?;
+        assert_not_supported_result(context.destack_input_pointer_capture(
+            handle,
+            context.window_target(target),
+            true,
+        ))?;
+        assert_not_supported_result(context.destack_input_pointer_capture(
+            handle,
+            context.window_target(target),
+            false,
+        ))?;
 
         context.destack_input_close(handle)?;
         Ok(())
@@ -1665,7 +1676,7 @@ fn test_input_linux_pointer_state_and_relative_mode_surface_matches_capabilities
     });
 }
 
-/// Reject unknown explicit window targets on windows text APIs.
+/// Reject explicit window targets on windows text APIs.
 #[cfg(windows)]
 #[test]
 fn test_input_windows_text_target_rejects_explicit_window() {
@@ -1688,14 +1699,14 @@ fn test_input_windows_text_target_rejects_explicit_window() {
                 context.window_target(explicit_input_target()),
                 context.text_input_area(area),
             ),
-            PlatformErrorCode::IoNotFound,
+            PlatformErrorCode::NotSupported,
         )?;
         assert_platform_error_code(
             context.destack_input_text_get_area(
                 handle,
                 context.window_target(explicit_input_target()),
             ),
-            PlatformErrorCode::IoNotFound,
+            PlatformErrorCode::NotSupported,
         )?;
         assert_platform_error_code(
             context.destack_input_text_start(
@@ -1703,11 +1714,11 @@ fn test_input_windows_text_target_rejects_explicit_window() {
                 context.window_target(explicit_input_target()),
                 InputTextInputType::Text,
             ),
-            PlatformErrorCode::IoNotFound,
+            PlatformErrorCode::NotSupported,
         )?;
         assert_platform_error_code(
             context.destack_input_text_stop(handle, context.window_target(explicit_input_target())),
-            PlatformErrorCode::IoNotFound,
+            PlatformErrorCode::NotSupported,
         )?;
 
         context.destack_input_close(handle)?;
@@ -1715,10 +1726,10 @@ fn test_input_windows_text_target_rejects_explicit_window() {
     });
 }
 
-/// Report io-would-block composition reads when no windows composition event is queued.
+/// Report not-supported composition reads on windows console backends.
 #[cfg(windows)]
 #[test]
-fn test_input_windows_text_composition_requires_pending_event() {
+fn test_input_windows_text_composition_reports_not_supported() {
     with_harness_context(|mut context| {
         let Some(handle) = open_windows_console_device_or_skip(&mut context)? else {
             return Ok(());
@@ -1726,16 +1737,16 @@ fn test_input_windows_text_composition_requires_pending_event() {
 
         assert_platform_error_code(
             context.destack_input_text_read_composition(handle),
-            PlatformErrorCode::IoWouldBlock,
+            PlatformErrorCode::NotSupported,
         )?;
         context.destack_input_text_start(
             handle,
             context.window_target(default_input_target()),
             InputTextInputType::Text,
         )?;
-        let _ = assert_ok_or_expected_error(
+        assert_platform_error_code(
             context.destack_input_text_try_read_composition(handle),
-            &[PlatformErrorCode::IoWouldBlock],
+            PlatformErrorCode::NotSupported,
         )?;
 
         context.destack_input_close(handle)?;
@@ -1743,10 +1754,10 @@ fn test_input_windows_text_composition_requires_pending_event() {
     });
 }
 
-/// Report io-would-block composition reads when no Unix composition event is queued.
+/// Report not-supported composition reads on Unix terminal text backends.
 #[cfg(target_os = "linux")]
 #[test]
-fn test_input_unix_text_composition_requires_pending_event() {
+fn test_input_unix_text_composition_reports_not_supported() {
     with_harness_context(|mut context| {
         let Some(handle) = open_first_device_with_capabilities_or_skip(
             &mut context,
@@ -1758,7 +1769,7 @@ fn test_input_unix_text_composition_requires_pending_event() {
 
         assert_platform_error_code(
             context.destack_input_text_read_composition(handle),
-            PlatformErrorCode::IoWouldBlock,
+            PlatformErrorCode::NotSupported,
         )?;
         let target = InputWindowTarget {
             window: Some(WindowHandle(ResourceId(0))),
@@ -1768,12 +1779,9 @@ fn test_input_unix_text_composition_requires_pending_event() {
             context.window_target(target),
             InputTextInputType::Text,
         )?;
-        let _ = assert_ok_or_expected_error(
+        assert_platform_error_code(
             context.destack_input_text_try_read_composition(handle),
-            &[
-                PlatformErrorCode::IoWouldBlock,
-                PlatformErrorCode::IoInterrupted,
-            ],
+            PlatformErrorCode::NotSupported,
         )?;
         context.destack_input_text_stop(handle, context.window_target(target))?;
 
@@ -1798,16 +1806,20 @@ fn test_input_windows_console_capabilities_report_supported_pointer_features() {
             "console backend should report relative pointer support"
         );
         assert!(
-            capabilities.supports_pointer_capture,
-            "console backend should report pointer capture support"
+            !capabilities.supports_pointer_grab,
+            "console backend should not claim pointer-grab support without a real lock or confine primitive"
+        );
+        assert!(
+            !capabilities.supports_pointer_capture,
+            "console backend should not claim pointer capture support without real capture semantics"
         );
         assert!(
             capabilities.supports_pointer_warp,
             "console backend should report pointer warp support"
         );
         assert!(
-            capabilities.supports_composition,
-            "console backend should report composition support"
+            !capabilities.supports_composition,
+            "console backend should not claim composition support without real IME lifecycle events"
         );
 
         context.destack_input_close(handle)?;
@@ -1856,24 +1868,20 @@ fn test_input_windows_raw_gamepad_state_surface_matches_capabilities() {
             "raw gamepad handles should expose gamepad capability kind"
         );
 
-        if let Some(state) = assert_ok_or_expected_error(
-            context.destack_input_gamepad_state(handle),
-            &ERR_WOULD_BLOCK_PERMISSION_INVALID_DATA_OR_NOT_SUPPORTED,
-        )? {
-            let state = context.gamepad_state_from_value(state)?;
-            assert!(
-                state.connected,
-                "raw gamepad snapshots should report connected state"
-            );
-            assert_eq!(
-                state.axis_count, 4,
-                "raw gamepad snapshots should project standard axis slots"
-            );
-            assert_eq!(
-                state.button_count, 17,
-                "raw gamepad snapshots should project standard button slots"
-            );
-        }
+        let state = context.destack_input_gamepad_state(handle)?;
+        let state = context.gamepad_state_from_value(state)?;
+        assert!(
+            state.connected,
+            "raw gamepad snapshots should report connected state"
+        );
+        assert_eq!(
+            state.axis_count, 4,
+            "raw gamepad snapshots should project standard axis slots"
+        );
+        assert_eq!(
+            state.button_count, 17,
+            "raw gamepad snapshots should project standard button slots"
+        );
 
         context.destack_input_close(handle)?;
         Ok(())
@@ -2096,20 +2104,16 @@ fn test_input_windows_touch_state_surface_matches_capabilities() {
             return Ok(());
         };
 
-        if let Some(state) = assert_ok_or_expected_error(
-            context.destack_input_touch_state(handle),
-            &ERR_WOULD_BLOCK_OR_NOT_SUPPORTED,
-        )? {
-            let state = context.touch_state_from_value(state)?;
-            assert!(
-                !state.device_id.is_empty(),
-                "touch snapshots should include a stable device id"
-            );
-            assert!(
-                state.sequence > 0,
-                "touch snapshots should include a nonzero sequence"
-            );
-        }
+        let state = context.destack_input_touch_state(handle)?;
+        let state = context.touch_state_from_value(state)?;
+        assert!(
+            !state.device_id.is_empty(),
+            "touch snapshots should include a stable device id"
+        );
+        assert!(
+            state.sequence > 0,
+            "touch snapshots should include a nonzero sequence"
+        );
 
         context.destack_input_close(handle)?;
         Ok(())
@@ -2139,20 +2143,31 @@ fn test_input_windows_sensor_surface_matches_capabilities() {
             batch_latency_ms: 0,
             flags: 0,
         };
-        if let Some(effective) = assert_ok_or_expected_error(
-            context.destack_input_sensor_configure(handle, kind, context.sensor_config(config)),
-            &ERR_PERMISSION_OR_NOT_SUPPORTED,
-        )? {
-            let effective = context.sensor_effective_config_from_value(effective);
-            assert!(
-                effective.sample_rate_hz >= 0.0,
-                "effective sensor sample rate should be non-negative"
-            );
-        }
+        let effective =
+            context.destack_input_sensor_configure(handle, kind, context.sensor_config(config))?;
+        let effective = context.sensor_effective_config_from_value(effective);
+        assert!(
+            effective.sample_rate_hz >= 0.0,
+            "effective sensor sample rate should be non-negative"
+        );
+
+        assert_platform_error_code(
+            context.destack_input_sensor_configure(
+                handle,
+                kind,
+                context.sensor_config(InputSensorConfig {
+                    enabled: true,
+                    sample_rate_hz: 0.0,
+                    batch_latency_ms: 0,
+                    flags: 0,
+                }),
+            ),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
 
         if let Some(sample) = assert_ok_or_expected_error(
             context.destack_input_sensor_try_read(handle, kind),
-            &ERR_WOULD_BLOCK_OR_NOT_SUPPORTED,
+            &[PlatformErrorCode::IoWouldBlock],
         )? {
             let sample = context.sensor_sample_from_value(sample);
             assert_eq!(
@@ -2179,14 +2194,7 @@ fn test_input_linux_sensor_surface_matches_capabilities() {
             return Ok(());
         };
 
-        let Some(sensors) = assert_ok_or_expected_error(
-            context.destack_input_sensor_list(handle),
-            &ERR_NOT_SUPPORTED,
-        )?
-        else {
-            context.destack_input_close(handle)?;
-            return Ok(());
-        };
+        let sensors = context.destack_input_sensor_list(handle)?;
         let sensors = context.sensor_infos_from_value(sensors)?;
         assert!(
             !sensors.is_empty(),
@@ -2207,6 +2215,20 @@ fn test_input_linux_sensor_surface_matches_capabilities() {
             effective.enabled,
             "enabled sensor configuration should report one enabled effective config"
         );
+
+        assert_platform_error_code(
+            context.destack_input_sensor_configure(
+                handle,
+                kind,
+                context.sensor_config(InputSensorConfig {
+                    enabled: true,
+                    sample_rate_hz: 0.0,
+                    batch_latency_ms: 0,
+                    flags: 0,
+                }),
+            ),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
 
         if let Some(sample) = assert_ok_or_expected_error(
             context.destack_input_sensor_try_read(handle, kind),
@@ -2343,6 +2365,26 @@ fn test_input_windows_keyboard_state_surface_matches_capabilities() {
     });
 }
 
+/// Report not-supported raw keyboard snapshots on windows until per-device state exists.
+#[cfg(windows)]
+#[test]
+fn test_input_windows_raw_keyboard_state_reports_not_supported() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_first_windows_raw_device_with_capabilities_or_skip(
+            &mut context,
+            &[InputDeviceCapabilityKind::Keyboard],
+        )?
+        else {
+            return Ok(());
+        };
+
+        assert_not_supported_result(context.destack_input_keyboard_state(handle))?;
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
 /// Exercise pointer snapshots and relative-mode toggles for one windows pointer handle.
 #[cfg(windows)]
 #[test]
@@ -2395,31 +2437,95 @@ fn test_input_windows_pointer_state_and_relative_mode_surface_matches_capabiliti
     });
 }
 
-/// Exercise pointer grab-mode transitions for one windows pointer-capable handle.
+/// Exercise pointer grab-mode transitions for one windows raw pointer-capable handle.
 #[cfg(windows)]
 #[test]
-fn test_input_windows_pointer_set_grab_mode_surface_matches_capabilities() {
+fn test_input_windows_raw_pointer_set_grab_mode_surface_matches_capabilities() {
     with_harness_context(|mut context| {
-        let Some(handle) = open_first_windows_pointer_device_or_skip(&mut context)? else {
+        let Some(handle) = open_first_windows_raw_device_with_capabilities_or_skip(
+            &mut context,
+            &[InputDeviceCapabilityKind::Pointer],
+        )?
+        else {
             return Ok(());
         };
 
-        assert_ok_or_expected_error(
-            context.destack_input_pointer_set_grab_mode(
-                handle,
-                context.window_target(default_input_target()),
-                InputPointerGrabMode::None,
-            ),
-            &ERR_PERMISSION_OR_NOT_SUPPORTED,
+        context.destack_input_pointer_set_grab_mode(
+            handle,
+            context.window_target(default_input_target()),
+            InputPointerGrabMode::None,
         )?;
-        assert_ok_or_expected_error(
-            context.destack_input_pointer_set_grab_mode(
-                handle,
-                context.window_target(default_input_target()),
-                InputPointerGrabMode::Locked,
-            ),
-            &ERR_PERMISSION_OR_NOT_SUPPORTED,
-        )?;
+        assert_not_supported_result(context.destack_input_pointer_set_grab_mode(
+            handle,
+            context.window_target(default_input_target()),
+            InputPointerGrabMode::Locked,
+        ))?;
+        assert_not_supported_result(context.destack_input_pointer_set_grab_mode(
+            handle,
+            context.window_target(default_input_target()),
+            InputPointerGrabMode::Confined,
+        ))?;
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Reject target-less locked grabs on windows raw pointer endpoints.
+#[cfg(windows)]
+#[test]
+fn test_input_windows_raw_pointer_locked_grab_requires_explicit_target() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_first_windows_raw_device_with_capabilities_or_skip(
+            &mut context,
+            &[InputDeviceCapabilityKind::Pointer],
+        )?
+        else {
+            return Ok(());
+        };
+
+        let capabilities = context.destack_input_capabilities(handle)?;
+        let capabilities = context.capabilities_from_value(capabilities)?;
+        assert!(
+            capabilities.supports_pointer_grab,
+            "windows raw pointer capabilities should only claim pointer-grab support when one real locked or confined path exists"
+        );
+
+        assert_not_supported_result(context.destack_input_pointer_set_grab_mode(
+            handle,
+            context.window_target(default_input_target()),
+            InputPointerGrabMode::Locked,
+        ))?;
+        assert_not_supported_result(context.destack_input_pointer_set_grab_mode(
+            handle,
+            context.window_target(default_input_target()),
+            InputPointerGrabMode::Confined,
+        ))?;
+
+        context.destack_input_close(handle)?;
+        Ok(())
+    });
+}
+
+/// Report unsupported pointer capture and grab semantics on the windows console backend.
+#[cfg(windows)]
+#[test]
+fn test_input_windows_console_pointer_capture_and_grab_report_not_supported() {
+    with_harness_context(|mut context| {
+        let Some(handle) = open_windows_console_device_or_skip(&mut context)? else {
+            return Ok(());
+        };
+
+        assert_not_supported_result(context.destack_input_pointer_capture(
+            handle,
+            context.window_target(default_input_target()),
+            true,
+        ))?;
+        assert_not_supported_result(context.destack_input_pointer_set_grab_mode(
+            handle,
+            context.window_target(default_input_target()),
+            InputPointerGrabMode::Locked,
+        ))?;
         assert_not_supported_result(context.destack_input_pointer_set_grab_mode(
             handle,
             context.window_target(default_input_target()),
@@ -2487,6 +2593,11 @@ fn test_input_windows_raw_pointer_capture_reports_not_supported() {
         assert_not_supported_result(context.destack_input_pointer_capture(
             handle,
             context.window_target(default_input_target()),
+            true,
+        ))?;
+        assert_not_supported_result(context.destack_input_pointer_capture(
+            handle,
+            context.window_target(explicit_input_target()),
             true,
         ))?;
 
@@ -2559,6 +2670,34 @@ fn test_input_windows_haptics_surface_matches_capabilities() {
         let Some(handle) = open_first_windows_xinput_device_or_skip(&mut context)? else {
             return Ok(());
         };
+
+        let capabilities = context.destack_input_capabilities(handle)?;
+        let capabilities = context.capabilities_from_value(capabilities)?;
+        if !capabilities.supports_rumble
+            || !capabilities
+                .kinds
+                .contains(&InputDeviceCapabilityKind::Haptics)
+        {
+            assert_not_supported_result(context.destack_input_haptics_effects(handle))?;
+
+            let params = InputHapticEffectParameters {
+                duration_ms: 16,
+                start_delay_ms: 0,
+                strong_magnitude: 0.7,
+                weak_magnitude: 0.3,
+                left_trigger: 0.2,
+                right_trigger: 0.2,
+            };
+            assert_not_supported_result(context.destack_input_haptics_play(
+                handle,
+                InputHapticEffectType::DualRumble,
+                context.haptics_parameters(params),
+            ))?;
+            assert_not_supported_result(context.destack_input_haptics_stop(handle))?;
+
+            context.destack_input_close(handle)?;
+            return Ok(());
+        }
 
         let Some(effects) = assert_ok_or_expected_error(
             context.destack_input_haptics_effects(handle),

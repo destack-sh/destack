@@ -18,11 +18,10 @@ use windows_sys::Win32::System::Console::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputCompositionEvent, InputCompositionEventPayload, InputDeviceEventPayload, InputEvent,
-    InputEventAction, InputEventKind, InputEventMetadata, InputGamepadEventPayload,
-    InputKeyEventPayload, InputMonitorEvent, InputPointerButtonEventPayload,
-    InputPointerMotionEventPayload, InputReadMode, InputScrollEventPayload, InputTextEventPayload,
-    validation as input_validation,
+    InputDeviceEventPayload, InputEvent, InputEventAction, InputEventKind,
+    InputGamepadEventPayload, InputKeyEventPayload, InputMonitorEvent,
+    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputReadMode,
+    InputScrollEventPayload, InputTextEventPayload, validation as input_validation,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, core as core_platform, resource};
@@ -165,8 +164,6 @@ const POINTER_BUTTON_X1: u32 = 1u32 << 3;
 const POINTER_BUTTON_X2: u32 = 1u32 << 4;
 /// Maximum queued console records per opened console handle.
 const WINDOWS_PENDING_CONSOLE_RECORD_LIMIT: usize = 4096;
-/// Maximum queued composition events per opened console handle.
-const WINDOWS_PENDING_CONSOLE_COMPOSITION_EVENT_LIMIT: usize = 4096;
 
 /// One mapped console record result with optional deferred transitions.
 struct ConsoleRecordMapping {
@@ -672,25 +669,6 @@ fn set_xinput_packet_number(
     }
 }
 
-/// Extract one composition UTF-16 code unit from one console record when present.
-fn composition_code_unit_from_console_record(record: &INPUT_RECORD) -> Option<u16> {
-    if record.EventType as u32 != KEY_EVENT {
-        return None;
-    }
-
-    let key = unsafe { record.Event.KeyEvent };
-    if key.bKeyDown == 0 {
-        return None;
-    }
-
-    let code_unit = unsafe { key.uChar.UnicodeChar };
-    if code_unit == 0 {
-        return None;
-    }
-
-    Some(code_unit)
-}
-
 /// Push one pending console record with one bounded queue limit.
 fn push_bounded_console_record(
     queue: &mut VecDeque<input_core::PendingConsoleRecord>,
@@ -701,18 +679,6 @@ fn push_bounded_console_record(
     }
 
     queue.push_back(pending_record);
-}
-
-/// Push one pending console composition event with one bounded queue limit.
-fn push_bounded_console_composition_event(
-    queue: &mut VecDeque<input_core::PendingConsoleCompositionEvent>,
-    pending_event: input_core::PendingConsoleCompositionEvent,
-) {
-    if queue.len() >= WINDOWS_PENDING_CONSOLE_COMPOSITION_EVENT_LIMIT {
-        queue.pop_front();
-    }
-
-    queue.push_back(pending_event);
 }
 
 /// Read one host console record with blocking or nonblocking behavior.
@@ -789,23 +755,10 @@ pub(super) fn queue_console_record_for_demux(
             return Some(());
         }
 
-        let timestamp_ns = pending_record.timestamp_ns;
-        let composition_code_unit =
-            composition_code_unit_from_console_record(&pending_record.record);
         push_bounded_console_record(
             &mut resolved_binding.pending_console_records,
             pending_record,
         );
-
-        if let Some(code_unit) = composition_code_unit {
-            push_bounded_console_composition_event(
-                &mut resolved_binding.pending_console_composition_events,
-                input_core::PendingConsoleCompositionEvent {
-                    timestamp_ns,
-                    code_unit,
-                },
-            );
-        }
 
         Some(())
     });
@@ -846,67 +799,6 @@ fn pop_pending_console_record(
         Some(Some(Some(record))) => Ok(Some(record)),
         Some(Some(None)) | Some(None) => Ok(None),
         None => Err(input_core::input_not_found(operation, handle)),
-    }
-}
-
-/// Pop one queued composition event for one console handle.
-pub(super) fn pop_pending_console_composition_event(
-    binding: &BindingCallContext,
-    handle: resource::InputDeviceHandle,
-    operation: &'static str,
-) -> RuntimeResult<Option<input_core::PendingConsoleCompositionEvent>> {
-    let event = binding.agent().resources.with_entry_mut(handle.0, |entry| {
-        if entry.kind != ResourceKind::InputDevice {
-            return None;
-        }
-
-        if entry.label.as_deref() != Some(input_core::INPUT_RESOURCE_LABEL) {
-            return None;
-        }
-
-        let resolved_binding = entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<input_core::WindowsInputBinding>())?;
-        if resolved_binding.backend != input_core::WindowsInputBackend::Console {
-            return Some(None);
-        }
-
-        Some(
-            resolved_binding
-                .pending_console_composition_events
-                .pop_front(),
-        )
-    });
-
-    match event {
-        Some(Some(Some(event))) => Ok(Some(event)),
-        Some(Some(None)) | Some(None) => Ok(None),
-        None => Err(input_core::input_not_found(operation, handle)),
-    }
-}
-
-/// Build one composition payload from one queued UTF-16 code unit.
-pub(super) fn build_composition_event_from_pending(
-    binding: &BindingCallContext,
-    pending: input_core::PendingConsoleCompositionEvent,
-) -> InputCompositionEvent {
-    let text = String::from_utf16_lossy(&[pending.code_unit]);
-    let selection_end = text.chars().count() as i32;
-
-    InputCompositionEvent {
-        kind: binding.store_string("composition"),
-        metadata: InputEventMetadata {
-            timestamp_ns: pending.timestamp_ns,
-            sequence: 0,
-            device_id: binding.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
-        },
-        payload: InputCompositionEventPayload {
-            action: InputEventAction::Commit,
-            text: binding.store_string(&text),
-            selection_start: 0,
-            selection_end,
-        },
     }
 }
 
@@ -1647,10 +1539,9 @@ mod tests {
     use crate::platform::input::host::windows::event::{
         FROM_LEFT_1ST_BUTTON_PRESSED, FROM_LEFT_2ND_BUTTON_PRESSED, FROM_LEFT_3RD_BUTTON_PRESSED,
         FROM_LEFT_4TH_BUTTON_PRESSED, INPUT_RECORD, KEY_EVENT, RIGHTMOST_BUTTON_PRESSED,
-        WINDOWS_PENDING_CONSOLE_COMPOSITION_EVENT_LIMIT, WINDOWS_PENDING_CONSOLE_RECORD_LIMIT,
-        composition_code_unit_from_console_record, decode_console_button_transition, input_core,
-        pack_console_buffer_size, push_bounded_console_composition_event,
-        push_bounded_console_record, stable_pointer_buttons_from_console_state,
+        WINDOWS_PENDING_CONSOLE_RECORD_LIMIT, decode_console_button_transition, input_core,
+        pack_console_buffer_size, push_bounded_console_record,
+        stable_pointer_buttons_from_console_state,
     };
 
     /// Decode release transitions even when another button remains pressed.
@@ -1677,34 +1568,6 @@ mod tests {
         assert_eq!(transition.0, 0);
         assert_eq!(transition.1, InputEventAction::Press);
         assert_eq!(transition.2, 1);
-    }
-
-    /// Extract one composition code unit from one text-bearing key-down record.
-    #[test]
-    fn test_composition_code_unit_from_console_record_extracts_key_text() {
-        let mut record: INPUT_RECORD = unsafe { std::mem::zeroed() };
-        record.EventType = KEY_EVENT as u16;
-        record.Event.KeyEvent.bKeyDown = 1;
-        record.Event.KeyEvent.uChar.UnicodeChar = 'A' as u16;
-
-        let extracted = composition_code_unit_from_console_record(&record);
-        assert_eq!(extracted, Some('A' as u16));
-    }
-
-    /// Reject non-text and key-up records for composition extraction.
-    #[test]
-    fn test_composition_code_unit_from_console_record_rejects_non_text_records() {
-        let mut key_up: INPUT_RECORD = unsafe { std::mem::zeroed() };
-        key_up.EventType = KEY_EVENT as u16;
-        key_up.Event.KeyEvent.bKeyDown = 0;
-        key_up.Event.KeyEvent.uChar.UnicodeChar = 'A' as u16;
-        assert_eq!(composition_code_unit_from_console_record(&key_up), None);
-
-        let mut no_text: INPUT_RECORD = unsafe { std::mem::zeroed() };
-        no_text.EventType = KEY_EVENT as u16;
-        no_text.Event.KeyEvent.bKeyDown = 1;
-        no_text.Event.KeyEvent.uChar.UnicodeChar = 0;
-        assert_eq!(composition_code_unit_from_console_record(&no_text), None);
     }
 
     /// Map console button-state bits into stable pointer bit fields.
@@ -1757,32 +1620,6 @@ mod tests {
             queue.front().map(|record| record.timestamp_ns),
             Some(1),
             "oldest entries should be evicted first"
-        );
-    }
-
-    /// Keep pending composition queues bounded.
-    #[test]
-    fn test_push_bounded_console_composition_event_enforces_limit() {
-        let mut queue = VecDeque::new();
-        for index in 0..(WINDOWS_PENDING_CONSOLE_COMPOSITION_EVENT_LIMIT + 1) {
-            push_bounded_console_composition_event(
-                &mut queue,
-                input_core::PendingConsoleCompositionEvent {
-                    timestamp_ns: index as u64,
-                    code_unit: index as u16,
-                },
-            );
-        }
-
-        assert_eq!(
-            queue.len(),
-            WINDOWS_PENDING_CONSOLE_COMPOSITION_EVENT_LIMIT,
-            "composition queue should remain bounded"
-        );
-        assert_eq!(
-            queue.front().map(|event| event.timestamp_ns),
-            Some(1),
-            "oldest composition entries should be evicted first"
         );
     }
 }

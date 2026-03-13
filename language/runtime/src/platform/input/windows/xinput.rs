@@ -361,7 +361,7 @@ fn connection_type_from_capabilities(
 /// Return whether one xinput device supports force feedback.
 fn supports_rumble(capabilities: Option<XINPUT_CAPABILITIES>) -> bool {
     let Some(capabilities) = capabilities else {
-        return true;
+        return false;
     };
 
     (capabilities.Flags & XINPUT_CAPS_FFB_SUPPORTED) != 0
@@ -536,7 +536,7 @@ pub(super) fn haptics_effects_for_xinput(
     let _ = query_xinput_state(user_index, operation)?;
     let supports_rumble = supports_rumble(query_xinput_capabilities(user_index));
     if !supports_rumble {
-        return Ok(Vec::new());
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
     Ok(vec![InputHapticEffectType::DualRumble])
@@ -550,6 +550,10 @@ pub(super) fn play_haptics_for_xinput(
     operation: &'static str,
 ) -> RuntimeResult<InputHapticsResult> {
     let _ = query_xinput_state(user_index, operation)?;
+    if !supports_rumble(query_xinput_capabilities(user_index)) {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
     if effect != InputHapticEffectType::DualRumble {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
@@ -579,6 +583,11 @@ pub(super) fn stop_haptics_for_xinput(
     user_index: u8,
     operation: &'static str,
 ) -> RuntimeResult<()> {
+    let _ = query_xinput_state(user_index, operation)?;
+    if !supports_rumble(query_xinput_capabilities(user_index)) {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
     let vibration = XINPUT_VIBRATION {
         wLeftMotorSpeed: 0,
         wRightMotorSpeed: 0,
