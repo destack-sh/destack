@@ -1,15 +1,15 @@
 use super::{
-    assert_ok_or_expected_error, assert_platform_error_codes, close_tty_worker_resource,
-    decode_harness_value, open_pty_or_skip_not_supported, with_harness_context,
+    assert_platform_error_codes, close_tty_worker_resource, decode_harness_value,
+    open_pty_or_skip_not_supported, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceId, TtyHandle};
 use crate::platform::tty::TtySize;
 
-/// Roundtrip tty size on one opened worker endpoint.
+/// Roundtrip tty size on one supported worker endpoint.
 #[cfg(any(unix, windows))]
 #[test]
-fn test_tty_size_roundtrip_or_not_supported() {
+fn test_tty_size_roundtrip() {
     with_harness_context(|mut context| {
         // open one pty pair or skip when unsupported
         let pair = open_pty_or_skip_not_supported(&mut context, 24, 80, 0)?;
@@ -22,15 +22,7 @@ fn test_tty_size_roundtrip_or_not_supported() {
         let size = decode_harness_value(size);
         if size.rows > 0 && size.columns > 0 {
             let size_value = context.tty_size_value(size);
-            let set_result = assert_ok_or_expected_error(
-                context.destack_tty_set_size(pair.worker, size_value),
-                &[PlatformErrorCode::NotSupported],
-            )?;
-            if set_result.is_none() {
-                context.destack_tty_pty_close(pair.controller)?;
-                close_tty_worker_resource(context.call_context, pair.worker)?;
-                return Ok(());
-            }
+            context.destack_tty_set_size(pair.worker, size_value)?;
         }
 
         // close resources
@@ -66,10 +58,10 @@ fn test_tty_set_size_rejects_zero_dimensions() {
     });
 }
 
-/// Roundtrip one explicit size update for one opened worker endpoint.
+/// Roundtrip one explicit size update for one supported worker endpoint.
 #[cfg(any(unix, windows))]
 #[test]
-fn test_tty_size_updates_roundtrip_or_not_supported() {
+fn test_tty_size_updates_roundtrip() {
     with_harness_context(|mut context| {
         let pair = open_pty_or_skip_not_supported(&mut context, 24, 80, 0)?;
         let Some(pair) = pair else {
@@ -83,15 +75,7 @@ fn test_tty_size_updates_roundtrip_or_not_supported() {
             y_pixels: 0,
         };
         let target_value = context.tty_size_value(target_size);
-        let set_result = assert_ok_or_expected_error(
-            context.destack_tty_set_size(pair.worker, target_value),
-            &[PlatformErrorCode::NotSupported],
-        )?;
-        if set_result.is_none() {
-            context.destack_tty_pty_close(pair.controller)?;
-            close_tty_worker_resource(context.call_context, pair.worker)?;
-            return Ok(());
-        }
+        context.destack_tty_set_size(pair.worker, target_value)?;
 
         let updated = context.destack_tty_get_size(pair.worker)?;
         let updated = decode_harness_value(updated);
@@ -144,15 +128,7 @@ fn test_tty_size_windows_pseudo_console_pixels_are_zero() {
             y_pixels: 480,
         };
         let requested = context.tty_size_value(requested);
-        let set_result = assert_ok_or_expected_error(
-            context.destack_tty_set_size(pair.worker, requested),
-            &[PlatformErrorCode::NotSupported],
-        )?;
-        if set_result.is_none() {
-            context.destack_tty_pty_close(pair.controller)?;
-            close_tty_worker_resource(context.call_context, pair.worker)?;
-            return Ok(());
-        }
+        context.destack_tty_set_size(pair.worker, requested)?;
 
         let observed = context.destack_tty_get_size(pair.worker)?;
         let observed = decode_harness_value(observed);

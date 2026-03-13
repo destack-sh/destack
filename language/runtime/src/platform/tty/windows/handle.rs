@@ -108,7 +108,16 @@ fn register_stdio_tty(
     }
 
     // reject standard streams that are not console terminals
-    let is_console = is_console_handle(duplicated, operation)?;
+    let is_console = match is_console_handle(duplicated, operation) {
+        Ok(is_console) => is_console,
+        Err(error) => {
+            unsafe {
+                CloseHandle(duplicated);
+            }
+
+            return Err(error);
+        }
+    };
     if !is_console {
         unsafe {
             CloseHandle(duplicated);

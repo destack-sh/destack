@@ -1,6 +1,4 @@
 #[cfg(any(unix, windows))]
-mod basic;
-#[cfg(any(unix, windows))]
 mod handle;
 #[cfg(any(unix, windows))]
 mod io;

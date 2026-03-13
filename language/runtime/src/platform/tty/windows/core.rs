@@ -14,7 +14,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::tty::core::{PTY_RESOURCE_LABEL, TTY_RESOURCE_LABEL, invalid_tty_handle};
-use crate::platform::tty::{PtyPair, TtyMode, TtySize};
+use crate::platform::tty::{PtyPair, TtySize};
 use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
@@ -81,8 +81,6 @@ pub(super) struct WindowsTtyBinding {
     pub(super) write_handle: HANDLE,
     /// Optional pseudo-console handle used for resize operations.
     pub(super) pseudo_console: Option<HPCON>,
-    /// Cached tty mode snapshot for this worker.
-    pub(super) mode: RwLock<TtyMode>,
     /// Cached tty size snapshot for this worker.
     pub(super) size: RwLock<TtySize>,
 }
@@ -271,17 +269,10 @@ pub(super) fn register_pty_pair(
     write_handle: HANDLE,
     initial_size: TtySize,
 ) -> PtyPair {
-    let mode = TtyMode {
-        input_flags: 0,
-        output_flags: 0,
-        control_flags: 0,
-        local_flags: 0,
-    };
     let resolved_binding = Arc::new(WindowsTtyBinding {
         read_handle,
         write_handle,
         pseudo_console: Some(pseudo_console),
-        mode: RwLock::new(mode),
         size: RwLock::new(initial_size),
     });
 

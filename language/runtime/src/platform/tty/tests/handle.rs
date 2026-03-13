@@ -182,7 +182,6 @@ fn test_tty_handle_stdio_open_close_or_expected_errors() {
                 PlatformErrorCode::IoInvalidData,
                 PlatformErrorCode::IoNotFound,
                 PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NotSupported,
             ],
         )?;
         if let Some(stdin) = stdin {
@@ -196,7 +195,6 @@ fn test_tty_handle_stdio_open_close_or_expected_errors() {
                 PlatformErrorCode::IoInvalidData,
                 PlatformErrorCode::IoNotFound,
                 PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NotSupported,
             ],
         )?;
         if let Some(stdout) = stdout {
@@ -210,7 +208,6 @@ fn test_tty_handle_stdio_open_close_or_expected_errors() {
                 PlatformErrorCode::IoInvalidData,
                 PlatformErrorCode::IoNotFound,
                 PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::NotSupported,
             ],
         )?;
         if let Some(stderr) = stderr {

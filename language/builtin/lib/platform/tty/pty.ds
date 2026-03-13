@@ -18,7 +18,7 @@ declare namespace tty {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses posix_openpt and openpty on Unix and ConPTY on Windows.
+    /// Uses host pseudo-terminal APIs on Unix and ConPTY on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
