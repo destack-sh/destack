@@ -405,16 +405,3 @@ pub unsafe extern "C" fn destack_host_android_midi_output_write(
         },
     )
 }
-
-/// Flush one Android MIDI output session.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_output_flush(
-    runtime_id: u64,
-    session_id: u64,
-) -> u32 {
-    call_android_midi_callback(
-        runtime_id,
-        |callbacks| callbacks.output_flush,
-        |callback| unsafe { callback(runtime_id, session_id) },
-    )
-}

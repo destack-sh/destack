@@ -1,12 +1,12 @@
 use super::core::{
-    TEST_INPUT_SESSION_ID, TEST_OUTPUT_SESSION_ID, lock_test_callbacks, register_test_callbacks,
+    TEST_INPUT_SESSION_ID, TEST_OUTPUT_SESSION_ID, TEST_SOURCE_ID, lock_test_callbacks,
+    recorded_test_state, register_test_callbacks,
 };
 use crate::host::android::abi::{HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_OK};
 use crate::host::android::midi::{
     AndroidHostMidiInputRecordHeader, AndroidHostMidiOutputRecordHeader,
     destack_host_android_midi_input_port_close, destack_host_android_midi_input_read,
-    destack_host_android_midi_output_flush, destack_host_android_midi_output_port_close,
-    destack_host_android_midi_output_write,
+    destack_host_android_midi_output_port_close, destack_host_android_midi_output_write,
 };
 use crate::runtime::NativeSlice;
 
@@ -64,16 +64,29 @@ fn test_register_bindings_routes_input_read_callback() {
     assert_eq!(status, HOST_STATUS_OK);
     assert_eq!(record_count_written, 1);
     assert_eq!(record.received_at_ns, 77);
+    assert_eq!(record.data_format, 1);
+    assert_eq!(record.protocol, 1);
+    assert_eq!(record.framing, 1);
+
+    let source_start = record.source_id_offset as usize;
+    let source_end = source_start + record.source_id_len as usize;
+    let data_start = record.data_offset as usize;
+    let data_end = data_start + record.data_len as usize;
+    assert_eq!(
+        std::str::from_utf8(&blob_bytes[source_start..source_end]).unwrap(),
+        TEST_SOURCE_ID
+    );
+    assert_eq!(&blob_bytes[data_start..data_end], &[0x90, 0x40, 0x7f]);
 }
 
-/// Route Android MIDI write, flush, and close calls through the registered callback table.
+/// Route Android MIDI write and close calls through the registered callback table.
 #[test]
-fn test_register_bindings_routes_write_flush_and_close_callbacks() {
+fn test_register_bindings_routes_write_and_close_callbacks() {
     let _lock = lock_test_callbacks();
     let callbacks = register_test_callbacks();
     let output_record = AndroidHostMidiOutputRecordHeader {
-        send_at_ns: 0,
-        has_send_at: 0,
+        send_at_ns: 55,
+        has_send_at: 1,
         data_offset: 0,
         data_len: 3,
         data_format: 1,
@@ -103,12 +116,20 @@ fn test_register_bindings_routes_write_flush_and_close_callbacks() {
     assert_eq!(status, HOST_STATUS_OK);
     assert_eq!(records_written, 1);
 
-    // verify flush and close route through the registered callbacks
-    let status = unsafe {
-        destack_host_android_midi_output_flush(callbacks.runtime_id, TEST_OUTPUT_SESSION_ID)
-    };
-    assert_eq!(status, HOST_STATUS_OK);
+    let state = recorded_test_state();
+    let output_write = state
+        .output_write
+        .expect("output write should record one forwarded request");
+    assert_eq!(output_write.session_id, TEST_OUTPUT_SESSION_ID);
+    assert_eq!(output_write.records.len(), 1);
+    assert_eq!(output_write.records[0].send_at_ns, 55);
+    assert_eq!(output_write.records[0].has_send_at, 1);
+    assert_eq!(output_write.records[0].data_format, 1);
+    assert_eq!(output_write.records[0].protocol, 1);
+    assert_eq!(output_write.records[0].framing, 1);
+    assert_eq!(output_write.records[0].data, output_blob);
 
+    // verify close routes through the registered callbacks
     let status = unsafe {
         destack_host_android_midi_input_port_close(callbacks.runtime_id, TEST_INPUT_SESSION_ID)
     };
@@ -118,4 +139,8 @@ fn test_register_bindings_routes_write_flush_and_close_callbacks() {
         destack_host_android_midi_output_port_close(callbacks.runtime_id, TEST_OUTPUT_SESSION_ID)
     };
     assert_eq!(status, HOST_STATUS_OK);
+
+    let state = recorded_test_state();
+    assert_eq!(state.closed_input_sessions, vec![TEST_INPUT_SESSION_ID]);
+    assert_eq!(state.closed_output_sessions, vec![TEST_OUTPUT_SESSION_ID]);
 }

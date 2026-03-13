@@ -20,13 +20,13 @@ fn process_limit_resource(raw: u32) -> ProcessLimitResource {
     ProcessLimitResource(raw)
 }
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 /// Return one raw `rlimit` resource constant on targets where libc exposes `u32`.
 fn raw_limit_resource(constant: u32) -> u32 {
     constant
 }
 
-#[cfg(not(any(target_os = "linux", target_os = "android")))]
+#[cfg(not(target_os = "linux"))]
 /// Return one raw `rlimit` resource constant on targets where libc exposes signed integers.
 fn raw_limit_resource(constant: i32) -> u32 {
     constant

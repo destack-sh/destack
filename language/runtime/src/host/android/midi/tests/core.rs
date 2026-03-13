@@ -13,7 +13,7 @@ use crate::host::android::tests::{
 use crate::host::core::HostQueue;
 use crate::host::core::registry::HostRegistrationGuard;
 use crate::runtime::{NativeSlice, NativeStringRef};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 /// One test Android MIDI capability bitset.
 pub(super) const TEST_CAPABILITY_FLAGS: u64 = 0x33;
@@ -50,6 +50,141 @@ pub(super) struct AndroidMidiTestCallbacks {
     _registration: HostRegistrationGuard,
 }
 
+/// One recorded input-port open request.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedInputOpenCall {
+    /// The requested endpoint id.
+    pub id: String,
+    /// The requested data-format code.
+    pub data_format: u32,
+    /// The requested protocol code.
+    pub protocol: u32,
+    /// The requested queue capacity.
+    pub queue_capacity: u32,
+}
+
+/// One recorded output-port open request.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedOutputOpenCall {
+    /// The requested endpoint id.
+    pub id: String,
+    /// The requested data-format code.
+    pub data_format: u32,
+    /// The requested protocol code.
+    pub protocol: u32,
+}
+
+/// One recorded virtual-input creation request.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedInputVirtualCreateCall {
+    /// The requested endpoint name.
+    pub name: String,
+    /// The requested manufacturer string.
+    pub manufacturer: String,
+    /// The requested model string.
+    pub model: String,
+    /// The requested version string.
+    pub version: String,
+    /// The requested data-format code.
+    pub data_format: u32,
+    /// The requested protocol code.
+    pub protocol: u32,
+    /// The requested queue capacity.
+    pub queue_capacity: u32,
+}
+
+/// One recorded virtual-output creation request.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedOutputVirtualCreateCall {
+    /// The requested endpoint name.
+    pub name: String,
+    /// The requested manufacturer string.
+    pub manufacturer: String,
+    /// The requested model string.
+    pub model: String,
+    /// The requested version string.
+    pub version: String,
+    /// The requested data-format code.
+    pub data_format: u32,
+    /// The requested protocol code.
+    pub protocol: u32,
+}
+
+/// One recorded event-open request.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedEventOpenCall {
+    /// The requested subscription flags.
+    pub flags: u32,
+    /// The requested direction mask.
+    pub direction_mask: u32,
+}
+
+/// One recorded output-write record.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedOutputWriteRecord {
+    /// The requested send timestamp.
+    pub send_at_ns: u64,
+    /// Whether the send timestamp is present.
+    pub has_send_at: u32,
+    /// The requested data-format code.
+    pub data_format: u32,
+    /// The requested protocol code.
+    pub protocol: u32,
+    /// The requested framing code.
+    pub framing: u32,
+    /// The encoded payload bytes.
+    pub data: Vec<u8>,
+}
+
+/// One recorded output-write call.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedOutputWriteCall {
+    /// The targeted output session.
+    pub session_id: u64,
+    /// The forwarded output records.
+    pub records: Vec<RecordedOutputWriteRecord>,
+}
+
+/// One snapshot of the recorded Android MIDI callback traffic.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct AndroidMidiTestState {
+    /// The most recent input-port open call.
+    pub input_port_open: Option<RecordedInputOpenCall>,
+    /// The most recent output-port open call.
+    pub output_port_open: Option<RecordedOutputOpenCall>,
+    /// The most recent virtual-input create call.
+    pub input_virtual_create: Option<RecordedInputVirtualCreateCall>,
+    /// The most recent virtual-output create call.
+    pub output_virtual_create: Option<RecordedOutputVirtualCreateCall>,
+    /// The most recent event-open call.
+    pub event_open: Option<RecordedEventOpenCall>,
+    /// The most recent output-write call.
+    pub output_write: Option<RecordedOutputWriteCall>,
+    /// Closed input session ids.
+    pub closed_input_sessions: Vec<u64>,
+    /// Closed output session ids.
+    pub closed_output_sessions: Vec<u64>,
+    /// Closed event session ids.
+    pub closed_event_sessions: Vec<u64>,
+}
+
+/// Return the shared recorded-callback state.
+fn test_state() -> &'static Mutex<AndroidMidiTestState> {
+    static TEST_STATE: OnceLock<Mutex<AndroidMidiTestState>> = OnceLock::new();
+
+    TEST_STATE.get_or_init(|| Mutex::new(AndroidMidiTestState::default()))
+}
+
+/// Reset the recorded-callback state for one test case.
+fn reset_test_state() {
+    *test_state().lock().unwrap() = AndroidMidiTestState::default();
+}
+
+/// Return one snapshot of the recorded-callback state.
+pub(super) fn recorded_test_state() -> AndroidMidiTestState {
+    test_state().lock().unwrap().clone()
+}
+
 /// Return one native string reference for the given string.
 pub(super) fn native_string_ref(value: &str) -> NativeStringRef {
     NativeStringRef {
@@ -64,6 +199,19 @@ fn append_string(buffer: &mut Vec<u8>, value: &str) -> (u32, u32) {
     buffer.extend_from_slice(value.as_bytes());
 
     (offset, value.len() as u32)
+}
+
+/// Decode one native string reference into one owned Rust string.
+fn decode_native_string(value: NativeStringRef) -> String {
+    if value.data.is_null() || value.len == 0 {
+        return String::new();
+    }
+
+    let bytes = unsafe { std::slice::from_raw_parts(value.data, value.len as usize) };
+
+    std::str::from_utf8(bytes)
+        .expect("android midi test strings should be utf8")
+        .to_string()
 }
 
 /// Build one deterministic descriptor header and append its strings.
@@ -190,13 +338,13 @@ pub(super) fn test_callbacks() -> AndroidHostMidiCallbacks {
         event_read: Some(test_event_read),
         event_close: Some(test_event_close),
         output_write: Some(test_output_write),
-        output_flush: Some(test_output_flush),
     }
 }
 
 /// Register one live Android MIDI callback table for one test case.
 pub(super) fn register_test_callbacks() -> AndroidMidiTestCallbacks {
     let (queue, registration, runtime_id) = register_android_runtime();
+    reset_test_state();
 
     let status = register_android_bindings_midi(runtime_id, test_callbacks());
     assert_eq!(status, HOST_STATUS_OK);
@@ -285,10 +433,10 @@ pub(super) unsafe extern "C" fn test_output_port_list(
 /// Return one deterministic opened input-port payload.
 pub(super) unsafe extern "C" fn test_input_port_open(
     _runtime_id: u64,
-    _id: NativeStringRef,
-    _data_format: u32,
-    _protocol: u32,
-    _queue_capacity: u32,
+    id: NativeStringRef,
+    data_format: u32,
+    protocol: u32,
+    queue_capacity: u32,
     opened_port: *mut AndroidHostMidiOpenedPortHeader,
     string_bytes: NativeSlice<u8>,
     string_bytes_written: *mut u32,
@@ -296,6 +444,15 @@ pub(super) unsafe extern "C" fn test_input_port_open(
     if opened_port.is_null() || string_bytes_written.is_null() {
         return HOST_STATUS_INVALID_ARGUMENT;
     }
+
+    let mut state = test_state().lock().unwrap();
+    state.input_port_open = Some(RecordedInputOpenCall {
+        id: decode_native_string(id),
+        data_format,
+        protocol,
+        queue_capacity,
+    });
+    drop(state);
 
     unsafe {
         write_opened_port_payload(
@@ -310,9 +467,9 @@ pub(super) unsafe extern "C" fn test_input_port_open(
 /// Return one deterministic opened output-port payload.
 pub(super) unsafe extern "C" fn test_output_port_open(
     _runtime_id: u64,
-    _id: NativeStringRef,
-    _data_format: u32,
-    _protocol: u32,
+    id: NativeStringRef,
+    data_format: u32,
+    protocol: u32,
     opened_port: *mut AndroidHostMidiOpenedPortHeader,
     string_bytes: NativeSlice<u8>,
     string_bytes_written: *mut u32,
@@ -320,6 +477,14 @@ pub(super) unsafe extern "C" fn test_output_port_open(
     if opened_port.is_null() || string_bytes_written.is_null() {
         return HOST_STATUS_INVALID_ARGUMENT;
     }
+
+    let mut state = test_state().lock().unwrap();
+    state.output_port_open = Some(RecordedOutputOpenCall {
+        id: decode_native_string(id),
+        data_format,
+        protocol,
+    });
+    drop(state);
 
     unsafe {
         write_opened_port_payload(
@@ -334,13 +499,13 @@ pub(super) unsafe extern "C" fn test_output_port_open(
 /// Return one deterministic virtual input-port payload.
 pub(super) unsafe extern "C" fn test_input_virtual_create(
     _runtime_id: u64,
-    _name: NativeStringRef,
-    _manufacturer: NativeStringRef,
-    _model: NativeStringRef,
-    _version: NativeStringRef,
-    _data_format: u32,
-    _protocol: u32,
-    _queue_capacity: u32,
+    name: NativeStringRef,
+    manufacturer: NativeStringRef,
+    model: NativeStringRef,
+    version: NativeStringRef,
+    data_format: u32,
+    protocol: u32,
+    queue_capacity: u32,
     opened_port: *mut AndroidHostMidiOpenedPortHeader,
     string_bytes: NativeSlice<u8>,
     string_bytes_written: *mut u32,
@@ -348,6 +513,18 @@ pub(super) unsafe extern "C" fn test_input_virtual_create(
     if opened_port.is_null() || string_bytes_written.is_null() {
         return HOST_STATUS_INVALID_ARGUMENT;
     }
+
+    let mut state = test_state().lock().unwrap();
+    state.input_virtual_create = Some(RecordedInputVirtualCreateCall {
+        name: decode_native_string(name),
+        manufacturer: decode_native_string(manufacturer),
+        model: decode_native_string(model),
+        version: decode_native_string(version),
+        data_format,
+        protocol,
+        queue_capacity,
+    });
+    drop(state);
 
     unsafe {
         write_opened_port_payload(
@@ -362,12 +539,12 @@ pub(super) unsafe extern "C" fn test_input_virtual_create(
 /// Return one deterministic virtual output-port payload.
 pub(super) unsafe extern "C" fn test_output_virtual_create(
     _runtime_id: u64,
-    _name: NativeStringRef,
-    _manufacturer: NativeStringRef,
-    _model: NativeStringRef,
-    _version: NativeStringRef,
-    _data_format: u32,
-    _protocol: u32,
+    name: NativeStringRef,
+    manufacturer: NativeStringRef,
+    model: NativeStringRef,
+    version: NativeStringRef,
+    data_format: u32,
+    protocol: u32,
     opened_port: *mut AndroidHostMidiOpenedPortHeader,
     string_bytes: NativeSlice<u8>,
     string_bytes_written: *mut u32,
@@ -375,6 +552,17 @@ pub(super) unsafe extern "C" fn test_output_virtual_create(
     if opened_port.is_null() || string_bytes_written.is_null() {
         return HOST_STATUS_INVALID_ARGUMENT;
     }
+
+    let mut state = test_state().lock().unwrap();
+    state.output_virtual_create = Some(RecordedOutputVirtualCreateCall {
+        name: decode_native_string(name),
+        manufacturer: decode_native_string(manufacturer),
+        model: decode_native_string(model),
+        version: decode_native_string(version),
+        data_format,
+        protocol,
+    });
+    drop(state);
 
     unsafe {
         write_opened_port_payload(
@@ -388,19 +576,32 @@ pub(super) unsafe extern "C" fn test_output_virtual_create(
 
 /// Report one successful input-port close.
 pub(super) unsafe extern "C" fn test_input_port_close(_runtime_id: u64, _session_id: u64) -> u32 {
+    test_state()
+        .lock()
+        .unwrap()
+        .closed_input_sessions
+        .push(_session_id);
+
     HOST_STATUS_OK
 }
 
 /// Report one successful event-subscription open.
 pub(super) unsafe extern "C" fn test_event_open(
     _runtime_id: u64,
-    _flags: u32,
-    _direction_mask: u32,
+    flags: u32,
+    direction_mask: u32,
     session_id: *mut u64,
 ) -> u32 {
     if session_id.is_null() {
         return HOST_STATUS_INVALID_ARGUMENT;
     }
+
+    let mut state = test_state().lock().unwrap();
+    state.event_open = Some(RecordedEventOpenCall {
+        flags,
+        direction_mask,
+    });
+    drop(state);
 
     unsafe {
         *session_id = TEST_EVENT_SESSION_ID;
@@ -466,11 +667,23 @@ pub(super) unsafe extern "C" fn test_event_read(
 
 /// Report one successful event-subscription close.
 pub(super) unsafe extern "C" fn test_event_close(_runtime_id: u64, _session_id: u64) -> u32 {
+    test_state()
+        .lock()
+        .unwrap()
+        .closed_event_sessions
+        .push(_session_id);
+
     HOST_STATUS_OK
 }
 
 /// Report one successful output-port close.
 pub(super) unsafe extern "C" fn test_output_port_close(_runtime_id: u64, _session_id: u64) -> u32 {
+    test_state()
+        .lock()
+        .unwrap()
+        .closed_output_sessions
+        .push(_session_id);
+
     HOST_STATUS_OK
 }
 
@@ -535,25 +748,58 @@ pub(super) unsafe extern "C" fn test_input_read(
 /// Report one successful outbound write.
 pub(super) unsafe extern "C" fn test_output_write(
     _runtime_id: u64,
-    _session_id: u64,
-    _headers: NativeSlice<AndroidHostMidiOutputRecordHeader>,
+    session_id: u64,
+    headers: NativeSlice<AndroidHostMidiOutputRecordHeader>,
     record_count: u32,
-    _blob_bytes: NativeSlice<u8>,
+    blob_bytes: NativeSlice<u8>,
     records_written: *mut u32,
 ) -> u32 {
     if records_written.is_null() {
         return HOST_STATUS_INVALID_ARGUMENT;
     }
 
+    let header_slice = if headers.data.is_null() || headers.len == 0 {
+        &[][..]
+    } else {
+        unsafe { std::slice::from_raw_parts(headers.data, headers.len as usize) }
+    };
+    let blob_slice = if blob_bytes.data.is_null() || blob_bytes.len == 0 {
+        &[][..]
+    } else {
+        unsafe { std::slice::from_raw_parts(blob_bytes.data, blob_bytes.len as usize) }
+    };
+
+    let mut recorded_records = Vec::with_capacity(header_slice.len());
+
+    for header in header_slice {
+        let data_start = header.data_offset as usize;
+        let data_end = data_start.saturating_add(header.data_len as usize);
+        let data = blob_slice
+            .get(data_start..data_end)
+            .expect("android midi output write should reference one in-range payload slice")
+            .to_vec();
+
+        recorded_records.push(RecordedOutputWriteRecord {
+            send_at_ns: header.send_at_ns,
+            has_send_at: header.has_send_at,
+            data_format: header.data_format,
+            protocol: header.protocol,
+            framing: header.framing,
+            data,
+        });
+    }
+
+    let mut state = test_state().lock().unwrap();
+    state.output_write = Some(RecordedOutputWriteCall {
+        session_id,
+        records: recorded_records,
+    });
+    drop(state);
+
     unsafe {
         *records_written = record_count;
     }
 
-    HOST_STATUS_OK
-}
-
-/// Report one successful output flush.
-pub(super) unsafe extern "C" fn test_output_flush(_runtime_id: u64, _session_id: u64) -> u32 {
     HOST_STATUS_OK
 }
 
