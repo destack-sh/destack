@@ -733,31 +733,6 @@ impl<'call> MidiHarnessContext<'call> {
         }
     }
 
-    /// Flush queued outbound MIDI records.
-    ///
-    /// Request immediate flush of queued outbound MIDI records for one opened output endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.write`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_midi_output_flush(
-        &mut self,
-        handle: resource::MidiOutputPortHandle,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => midi_vm::destack_midi_output_flush(self.call_context, context, handle),
-            None => unsafe { midi_native::destack_midi_output_flush(self.call_context, handle) },
-        }
-    }
-
     /// Close one opened MIDI output endpoint.
     ///
     /// Close one opened MIDI output session and release host resources.

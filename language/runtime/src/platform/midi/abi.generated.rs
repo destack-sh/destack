@@ -417,10 +417,14 @@ pub enum MidiBackend {
     JackMidi = 2,
     /// CoreMIDI.
     CoreMIDI = 3,
+    /// WindowsMidi.
+    WindowsMidi = 4,
     /// WinMM.
-    WinMM = 4,
+    WinMM = 5,
     /// WinRT.
-    WinRT = 5,
+    WinRT = 6,
+    /// AndroidMidi.
+    AndroidMidi = 7,
     /// Null.
     Null = 255,
 }
@@ -433,8 +437,10 @@ impl VmValueCodec for MidiBackend {
             1u8 => Self::Alsa,
             2u8 => Self::JackMidi,
             3u8 => Self::CoreMIDI,
-            4u8 => Self::WinMM,
-            5u8 => Self::WinRT,
+            4u8 => Self::WindowsMidi,
+            5u8 => Self::WinMM,
+            6u8 => Self::WinRT,
+            7u8 => Self::AndroidMidi,
             255u8 => Self::Null,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(

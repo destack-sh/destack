@@ -6,13 +6,13 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
-use crate::platform::service::affinity::ServiceAffinity;
-use crate::platform::service::executor::caller::CallerThreadExecutor;
-use crate::platform::service::{self};
+use crate::runtime::process::service::affinity::ServiceAffinity;
+use crate::runtime::process::service::executor::caller::CallerThreadExecutor;
+use crate::runtime::process::service::{self};
 
 use super::abi::{
-    MIDIClientCreateWithBlock, MIDIClientDispose, MIDIClientRef, MIDINotification,
-    create_cf_string, release_cf,
+    MIDIClientCreateWithBlock, MIDIClientDispose, MIDIClientRef, MIDIGetNumberOfDestinations,
+    MIDIGetNumberOfSources, MIDINotification, create_cf_string, release_cf,
 };
 use super::core::{CoreMidiEndpointOverride, CoreMidiEventDeliveryKind, CoreMidiEventSession};
 use super::event::dispatch_native_notification;
@@ -87,11 +87,9 @@ impl CoreMidiService {
 
     /// Return one runtime-owned virtual endpoint transport override.
     pub(super) fn endpoint_override(&self, unique_id: i32) -> Option<CoreMidiEndpointOverride> {
-        self.executor
-            .call("destack.midi.coremidi.endpointOverride", || {
-                Ok(self.endpoint_overrides.lock().get(&unique_id).copied())
-            })
-            .expect("CoreMIDI endpoint override lookup should succeed")
+        let _ = &self.executor;
+
+        self.endpoint_overrides.lock().get(&unique_id).copied()
     }
 
     /// Register one runtime-owned virtual endpoint transport override.
@@ -100,34 +98,35 @@ impl CoreMidiService {
         unique_id: i32,
         override_value: CoreMidiEndpointOverride,
     ) {
-        self.executor
-            .call("destack.midi.coremidi.insertEndpointOverride", || {
-                self.endpoint_overrides
-                    .lock()
-                    .insert(unique_id, override_value);
-                Ok(())
-            })
-            .expect("CoreMIDI endpoint override registration should succeed");
+        let _ = &self.executor;
+
+        self.endpoint_overrides
+            .lock()
+            .insert(unique_id, override_value);
     }
 
     /// Remove one runtime-owned virtual endpoint transport override.
     pub(super) fn remove_endpoint_override(&self, unique_id: i32) {
-        self.executor
-            .call("destack.midi.coremidi.removeEndpointOverride", || {
-                self.endpoint_overrides.lock().remove(&unique_id);
-                Ok(())
-            })
-            .expect("CoreMIDI endpoint override removal should succeed");
+        let _ = &self.executor;
+
+        self.endpoint_overrides.lock().remove(&unique_id);
     }
 
     /// Return the shared CoreMIDI operational client.
     pub(super) fn operation_client(&self) -> MIDIClientRef {
-        self.executor
-            .call("destack.midi.coremidi.operationClient", || {
-                Ok(self.operation_client)
-            })
-            .expect("CoreMIDI operational client lookup should succeed")
+        let _ = &self.executor;
+
+        self.operation_client
     }
+}
+
+/// Check whether the CoreMIDI API surface is reachable on this host.
+pub(crate) fn check_core_midi_support(operation: &'static str) -> RuntimeResult<()> {
+    let _ = operation;
+    let _source_count = unsafe { MIDIGetNumberOfSources() };
+    let _destination_count = unsafe { MIDIGetNumberOfDestinations() };
+
+    Ok(())
 }
 
 /// Create one CoreMIDI client reference.

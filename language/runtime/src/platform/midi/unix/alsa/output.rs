@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiOutputRecordValue, MidiPortDescriptorValue, validate_output_record_payload,
-    validate_record_shape,
+    MidiOutputRecordValue, MidiPortDescriptorValue, remove_midi_output_resource,
+    resolve_descriptor_open_transport, validate_output_record_payload, validate_record_shape,
 };
 use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiOutputPortOpenOptions, MidiPortDirection,
@@ -14,18 +14,17 @@ use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 
 use super::abi::SND_SEQ_OPEN_DUPLEX;
-use super::backend::resolve_backend;
 use super::core::{
-    AlsaOutputSession, AlsaOutputSessionKind, connect_to, create_midi_parser, create_simple_port,
-    default_port_type, hidden_source_port_capability, insert_output_resource,
-    native_optional_string, native_string, open_sequencer_handle, virtual_source_port_capability,
+    AlsaOutputSession, AlsaOutputSessionKind, connect_to, create_midi_parser, create_queue,
+    create_simple_port, default_port_type, hidden_source_port_capability, insert_output_resource,
+    native_optional_string, native_string, open_sequencer_handle, schedule_output_event,
+    virtual_source_port_capability,
 };
 use super::descriptor::{
-    endpoint_address, filtered_descriptors, resolve_endpoint, validate_endpoint_transport_request,
-    virtual_output_descriptor,
+    endpoint_address, filtered_descriptors, resolve_endpoint, virtual_output_descriptor,
 };
 use super::event::refresh_native_event_sessions;
-use super::resource::{output_resource, remove_output_resource};
+use super::resource::output_resource;
 
 /// The empty ALSA event type used when the parser has not produced one event yet.
 const SND_SEQ_EVENT_NONE: u8 = 255;
@@ -35,17 +34,6 @@ pub(crate) fn midi_output_port_list(
     binding: &BindingCallContext,
     options: MidiPortListOptions,
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
-    let _backend = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.output.port.list",
-    )?;
     let service = binding
         .agent()
         .platform_state
@@ -65,17 +53,6 @@ pub(crate) fn midi_output_port_open(
     id: &str,
     options: MidiOutputPortOpenOptions,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
-    let _backend = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.output.port.open",
-    )?;
     let service = binding
         .agent()
         .platform_state
@@ -88,23 +65,13 @@ pub(crate) fn midi_output_port_open(
         "destack.midi.output.port.open",
     )?;
 
-    let data_format = options.data_format.unwrap_or(
-        endpoint
-            .descriptor
-            .default_data_format
-            .unwrap_or(MidiDataFormat::Midi1Bytes),
-    );
-    let protocol = options
-        .protocol
-        .or(endpoint.descriptor.default_protocol)
-        .unwrap_or(MidiProtocol::Midi1);
-
-    validate_record_shape("destack.midi.output.port.open", data_format, Some(protocol))?;
-    validate_endpoint_transport_request(
+    let (data_format, protocol) = resolve_descriptor_open_transport(
         "destack.midi.output.port.open",
         &endpoint.descriptor,
-        data_format,
-        Some(protocol),
+        options.data_format,
+        options.protocol,
+        MidiDataFormat::Midi1Bytes,
+        Some(MidiProtocol::Midi1),
     )?;
 
     let handle = open_sequencer_handle(
@@ -120,6 +87,11 @@ pub(crate) fn midi_output_port_open(
         default_port_type(),
         "destack.midi.output.port.open",
     )?;
+    let queue = create_queue(
+        &handle,
+        "Destack MIDI Output Queue",
+        "destack.midi.output.port.open",
+    )?;
     let (remote_client_id, remote_port_id) =
         endpoint_address(&endpoint.descriptor, "destack.midi.output.port.open")?;
     connect_to(&handle, local_port_id, remote_client_id, remote_port_id)?;
@@ -129,9 +101,10 @@ pub(crate) fn midi_output_port_open(
         _service: service,
         descriptor: endpoint.descriptor,
         data_format,
-        protocol: Some(protocol),
+        protocol,
         kind: AlsaOutputSessionKind::Destination {
             handle,
+            queue,
             local_port_id,
             remote_client_id,
             remote_port_id,
@@ -157,7 +130,12 @@ pub(crate) fn midi_output_port_close(
     binding: &BindingCallContext,
     handle: resource::MidiOutputPortHandle,
 ) -> RuntimeResult<()> {
-    remove_output_resource(binding, handle, "destack.midi.output.port.close")
+    remove_midi_output_resource(
+        binding,
+        handle.0,
+        "destack.midi.output.port.close",
+        "midi output",
+    )
 }
 
 /// Write ALSA sequencer output records.
@@ -200,19 +178,26 @@ pub(crate) fn midi_output_write(
     match &session.kind {
         AlsaOutputSessionKind::Destination {
             handle,
+            queue,
             local_port_id,
             parser,
             ..
         }
         | AlsaOutputSessionKind::VirtualSource {
             handle,
+            queue,
             local_port_id,
             parser,
         } => {
             let parser = parser.lock();
+            let mut has_queued_records = false;
 
             for record in &records {
                 let mut remaining = record.data.as_slice();
+                let scheduled_delay_ns = record
+                    .send_at_ns
+                    .map(|send_at_ns| send_at_ns.saturating_sub(core_platform::monotonic_now_ns()))
+                    .filter(|delay_ns| *delay_ns != 0);
 
                 while !remaining.is_empty() {
                     let mut event = unsafe { std::mem::zeroed() };
@@ -252,9 +237,16 @@ pub(crate) fn midi_output_write(
                         ));
                     }
 
-                    // direct send
-                    let status = unsafe {
-                        (handle.library.api.snd_seq_event_output_direct)(handle.raw, &mut event)
+                    // direct or scheduled send
+                    let status = if let Some(delay_ns) = scheduled_delay_ns {
+                        schedule_output_event(&mut event, queue.id, delay_ns);
+                        has_queued_records = true;
+
+                        unsafe { (handle.library.api.snd_seq_event_output)(handle.raw, &mut event) }
+                    } else {
+                        unsafe {
+                            (handle.library.api.snd_seq_event_output_direct)(handle.raw, &mut event)
+                        }
                     };
                     if status < 0 {
                         return Err(super::core::alsa_operation_error(
@@ -269,34 +261,22 @@ pub(crate) fn midi_output_write(
                 }
             }
 
+            // submit queued records
+            if has_queued_records {
+                let status = unsafe { (handle.library.api.snd_seq_drain_output)(handle.raw) };
+                if status < 0 {
+                    return Err(super::core::alsa_operation_error(
+                        &handle.library,
+                        "destack.midi.output.write",
+                        "snd_seq_drain_output",
+                        status,
+                    ));
+                }
+            }
+
             Ok(records.len() as u32)
         }
     }
-}
-
-/// Flush queued ALSA sequencer output records.
-pub(crate) fn midi_output_flush(
-    binding: &BindingCallContext,
-    handle: resource::MidiOutputPortHandle,
-) -> RuntimeResult<()> {
-    let session = output_resource(binding, handle, "destack.midi.output.flush")?;
-
-    match &session.kind {
-        AlsaOutputSessionKind::Destination { handle, .. }
-        | AlsaOutputSessionKind::VirtualSource { handle, .. } => {
-            let status = unsafe { (handle.library.api.snd_seq_drain_output)(handle.raw) };
-            if status < 0 {
-                return Err(super::core::alsa_operation_error(
-                    &handle.library,
-                    "destack.midi.output.flush",
-                    "snd_seq_drain_output",
-                    status,
-                ));
-            }
-        }
-    }
-
-    Ok(())
 }
 
 /// Create one virtual ALSA sequencer output endpoint.
@@ -304,22 +284,11 @@ pub(crate) fn midi_output_virtual_create(
     binding: &BindingCallContext,
     options: MidiVirtualOutputCreateOptions,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
     let name = native_string(options.name)?;
     let _manufacturer = native_optional_string(options.manufacturer)?;
     let _model = native_optional_string(options.model)?;
     let _version = native_optional_string(options.version)?;
 
-    let _backend = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.output.virtual.create",
-    )?;
     let service = binding
         .agent()
         .platform_state
@@ -345,6 +314,11 @@ pub(crate) fn midi_output_virtual_create(
         default_port_type(),
         "destack.midi.output.virtual.create",
     )?;
+    let queue = create_queue(
+        &handle,
+        "Destack MIDI Virtual Output Queue",
+        "destack.midi.output.virtual.create",
+    )?;
     let parser = create_midi_parser(&service.library, "destack.midi.output.virtual.create")?;
     let descriptor = virtual_output_descriptor(
         name,
@@ -360,6 +334,7 @@ pub(crate) fn midi_output_virtual_create(
         protocol: Some(options.protocol),
         kind: AlsaOutputSessionKind::VirtualSource {
             handle,
+            queue,
             local_port_id,
             parser: parking_lot::Mutex::new(parser),
         },

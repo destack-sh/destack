@@ -4,7 +4,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
     MidiOutputRecordValue, MidiPortDescriptorValue, remove_labeled_resource,
-    validate_output_record_payload, validate_record_shape,
+    resolve_descriptor_open_transport, validate_output_record_payload, validate_record_shape,
 };
 use crate::platform::midi::{
     MidiDataFormat, MidiOutputPortOpenOptions, MidiPortDirection, MidiPortListOptions,
@@ -13,22 +13,15 @@ use crate::platform::midi::{
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 
-use super::backend::resolve_backend;
 use super::core::{WinRtOutputSession, insert_output_resource};
-use super::descriptor::{
-    filtered_descriptors, resolve_endpoint, validate_endpoint_transport_request,
-};
+use super::descriptor::{filtered_descriptors, resolve_endpoint};
 use super::resource::output_resource;
+
 /// List WinRT output ports.
 pub(crate) fn midi_output_port_list(
     binding: &BindingCallContext,
     options: MidiPortListOptions,
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
-    let _ = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.output.port.list",
-    )?;
     let service = binding
         .agent()
         .platform_state
@@ -48,28 +41,11 @@ pub(crate) fn midi_output_port_open(
     id: &str,
     options: MidiOutputPortOpenOptions,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
-    let _ = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.output.port.open",
-    )?;
     let service = binding
         .agent()
         .platform_state
         .midi
         .winrt_service("destack.midi.output.port.open")?;
-
-    validate_record_shape(
-        "destack.midi.output.port.open",
-        options.data_format.unwrap_or(MidiDataFormat::Midi1Bytes),
-        options.protocol,
-    )?;
 
     let endpoint = resolve_endpoint(
         &service,
@@ -78,17 +54,13 @@ pub(crate) fn midi_output_port_open(
         "destack.midi.output.port.open",
     )?;
     let descriptor = endpoint.descriptor.clone();
-    let data_format = options
-        .data_format
-        .or(descriptor.default_data_format)
-        .unwrap_or(MidiDataFormat::Midi1Bytes);
-    let protocol = options.protocol.or(descriptor.default_protocol);
-
-    validate_endpoint_transport_request(
+    let (_data_format, _protocol) = resolve_descriptor_open_transport(
         "destack.midi.output.port.open",
         &descriptor,
-        data_format,
-        protocol,
+        options.data_format,
+        options.protocol,
+        MidiDataFormat::Midi1Bytes,
+        None,
     )?;
     let host_session_id =
         service.open_output_session(endpoint.backend_id, "destack.midi.output.port.open")?;
@@ -178,28 +150,11 @@ pub(crate) fn midi_output_write(
     )
 }
 
-/// Flush queued outbound WinRT MIDI records.
-pub(crate) fn midi_output_flush(
-    binding: &BindingCallContext,
-    handle: resource::MidiOutputPortHandle,
-) -> RuntimeResult<()> {
-    let _session = output_resource(binding, handle, "destack.midi.output.flush")?;
-    let _ = binding;
-
-    Ok(())
-}
-
 /// Reject virtual output creation on WinRT.
 pub(crate) fn midi_output_virtual_create(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     _options: MidiVirtualOutputCreateOptions,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
     Err(core_platform::not_supported(
         "destack.midi.output.virtual.create",
     ))

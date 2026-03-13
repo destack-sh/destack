@@ -37,7 +37,7 @@ declare namespace midi {
     /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -51,7 +51,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.port"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -65,7 +65,7 @@ declare namespace midi {
     /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -79,7 +79,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.port"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -96,7 +96,7 @@ declare namespace midi {
     /// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -110,7 +110,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.port"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -123,7 +123,7 @@ declare namespace midi {
     /// Close one opened MIDI input session and release host resources.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -137,7 +137,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.port"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -153,7 +153,7 @@ declare namespace midi {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -167,7 +167,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -186,7 +186,7 @@ declare namespace midi {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -200,7 +200,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -220,7 +220,7 @@ declare namespace midi {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -234,7 +234,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "never",
@@ -250,7 +250,7 @@ declare namespace midi {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -264,7 +264,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "never",
@@ -280,7 +280,7 @@ declare namespace midi {
     /// Create one host-visible virtual MIDI input endpoint and return one opened input handle for reads.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -294,7 +294,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.virtual"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",

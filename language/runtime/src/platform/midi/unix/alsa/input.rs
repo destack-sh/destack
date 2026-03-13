@@ -5,7 +5,9 @@ use std::thread;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiInputRecordValue, MidiPortDescriptorValue, validate_record_shape,
+    MidiInputRecordValue, MidiPortDescriptorValue, read_queued_batch, read_queued_item,
+    remove_midi_input_resource, resolve_descriptor_open_transport, surface_terminal_error,
+    try_read_queued_batch, try_read_queued_item, validate_record_shape,
 };
 use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiInputPortOpenOptions, MidiPortDirection,
@@ -13,55 +15,27 @@ use crate::platform::midi::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
+use crate::runtime::core::queue::BoundedQueue;
 
 use super::abi::{POLLIN, SND_SEQ_OPEN_DUPLEX, poll, pollfd, snd_seq_event_t};
-use super::backend::resolve_backend;
 use super::core::{
-    AlsaInputSession, AlsaInputSessionKind, AlsaInputTerminalError, BoundedQueue,
-    alsa_record_framing, binding_timestamp_now, connect_from, create_midi_parser,
-    create_simple_port, default_port_type, hidden_destination_port_capability,
-    input_queue_capacity, insert_input_resource, native_optional_string, native_string,
-    open_sequencer_handle, virtual_destination_port_capability,
+    AlsaInputSession, AlsaInputSessionKind, AlsaInputTerminalError, alsa_record_framing,
+    create_midi_parser, create_queue, create_simple_port, default_port_type,
+    enable_port_realtime_timestamps, hidden_destination_port_capability,
+    input_event_received_at_ns, input_queue_capacity, insert_input_resource,
+    native_optional_string, native_string, open_sequencer_handle, subscribe_from_with_timestamps,
+    virtual_destination_port_capability,
 };
 use super::descriptor::{
-    endpoint_address, filtered_descriptors, resolve_endpoint, validate_endpoint_transport_request,
-    virtual_input_descriptor,
+    endpoint_address, filtered_descriptors, resolve_endpoint, virtual_input_descriptor,
 };
 use super::event::refresh_native_event_sessions;
-use super::resource::{input_resource, remove_input_resource};
-
-/// Surface one deferred ALSA reader failure after the queue drains.
-fn surface_reader_failure(
-    session: &AlsaInputSession,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    let terminal_error = session.terminal_error.lock();
-    let Some(terminal_error) = terminal_error.as_ref() else {
-        return Ok(());
-    };
-
-    Err(core_platform::io_operation_error(
-        operation,
-        None,
-        terminal_error.message(),
-    ))
-}
+use super::resource::input_resource;
 /// List ALSA sequencer input endpoints.
 pub(crate) fn midi_input_port_list(
     binding: &BindingCallContext,
     options: MidiPortListOptions,
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
-    let _backend = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.input.port.list",
-    )?;
     let service = binding
         .agent()
         .platform_state
@@ -81,17 +55,6 @@ pub(crate) fn midi_input_port_open(
     id: &str,
     options: MidiInputPortOpenOptions,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
-    let _backend = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.input.port.open",
-    )?;
     let service = binding
         .agent()
         .platform_state
@@ -104,23 +67,13 @@ pub(crate) fn midi_input_port_open(
         "destack.midi.input.port.open",
     )?;
 
-    let data_format = options.data_format.unwrap_or(
-        endpoint
-            .descriptor
-            .default_data_format
-            .unwrap_or(MidiDataFormat::Midi1Bytes),
-    );
-    let protocol = options
-        .protocol
-        .or(endpoint.descriptor.default_protocol)
-        .unwrap_or(MidiProtocol::Midi1);
-
-    validate_record_shape("destack.midi.input.port.open", data_format, Some(protocol))?;
-    validate_endpoint_transport_request(
+    let (data_format, protocol) = resolve_descriptor_open_transport(
         "destack.midi.input.port.open",
         &endpoint.descriptor,
-        data_format,
-        Some(protocol),
+        options.data_format,
+        options.protocol,
+        MidiDataFormat::Midi1Bytes,
+        Some(MidiProtocol::Midi1),
     )?;
 
     let queue = Arc::new(BoundedQueue::new(input_queue_capacity(
@@ -139,16 +92,28 @@ pub(crate) fn midi_input_port_open(
         default_port_type(),
         "destack.midi.input.port.open",
     )?;
+    let queue_id = create_queue(
+        &handle,
+        "Destack MIDI Input Queue",
+        "destack.midi.input.port.open",
+    )?;
     let (remote_client_id, remote_port_id) =
         endpoint_address(&endpoint.descriptor, "destack.midi.input.port.open")?;
-    connect_from(&handle, local_port_id, remote_client_id, remote_port_id)?;
+    subscribe_from_with_timestamps(
+        &handle,
+        local_port_id,
+        remote_client_id,
+        remote_port_id,
+        queue_id.id,
+    )?;
 
     let stop_flag = Arc::new(AtomicBool::new(false));
     let terminal_error = Arc::new(parking_lot::Mutex::new(None));
     let reader_thread = spawn_input_reader(
         handle.library.clone(),
         handle.raw as usize,
-        Some(endpoint.descriptor.id.clone()),
+        queue_id.start_epoch_ns,
+        Some(Arc::<str>::from(endpoint.descriptor.id.clone())),
         queue.clone(),
         terminal_error.clone(),
         stop_flag.clone(),
@@ -161,6 +126,7 @@ pub(crate) fn midi_input_port_open(
         terminal_error,
         kind: parking_lot::Mutex::new(AlsaInputSessionKind::Source {
             handle,
+            queue: queue_id,
             local_port_id,
             remote_client_id,
             remote_port_id,
@@ -187,7 +153,12 @@ pub(crate) fn midi_input_port_close(
     binding: &BindingCallContext,
     handle: resource::MidiInputPortHandle,
 ) -> RuntimeResult<()> {
-    remove_input_resource(binding, handle, "destack.midi.input.port.close")
+    remove_midi_input_resource(
+        binding,
+        handle.0,
+        "destack.midi.input.port.close",
+        "midi input",
+    )
 }
 
 /// Wait for one ALSA MIDI input record.
@@ -198,21 +169,19 @@ pub(crate) fn midi_input_read(
 ) -> RuntimeResult<MidiInputRecordValue> {
     let session = input_resource(binding, handle, "destack.midi.input.read")?;
 
-    // queued record
-    let record = session
-        .queue
-        .pop_with_timeout(std::time::Duration::from_nanos(timeout_ns));
-    if let Some(record) = record {
-        return Ok(record);
-    }
-
-    // deferred backend failure
-    surface_reader_failure(&session, "destack.midi.input.read")?;
-
-    Err(core_platform::io_would_block(
+    read_queued_item(
+        &session.queue,
+        timeout_ns,
         "destack.midi.input.read",
         "no queued MIDI input record is available",
-    ))
+        || {
+            surface_terminal_error(
+                "destack.midi.input.read",
+                &session.terminal_error,
+                |terminal_error| terminal_error.message(),
+            )
+        },
+    )
 }
 
 /// Wait for one ALSA MIDI input record batch.
@@ -224,21 +193,20 @@ pub(crate) fn midi_input_read_batch(
 ) -> RuntimeResult<Vec<MidiInputRecordValue>> {
     let session = input_resource(binding, handle, "destack.midi.input.readBatch")?;
 
-    let records = session.queue.pop_batch_with_timeout(
+    read_queued_batch(
+        &session.queue,
         max_records as usize,
-        std::time::Duration::from_nanos(timeout_ns),
-    );
-    if !records.is_empty() {
-        return Ok(records);
-    }
-
-    // deferred backend failure
-    surface_reader_failure(&session, "destack.midi.input.readBatch")?;
-
-    Err(core_platform::io_would_block(
+        timeout_ns,
         "destack.midi.input.readBatch",
         "no queued MIDI input records are available",
-    ))
+        || {
+            surface_terminal_error(
+                "destack.midi.input.readBatch",
+                &session.terminal_error,
+                |terminal_error| terminal_error.message(),
+            )
+        },
+    )
 }
 
 /// Poll one ALSA MIDI input record without blocking.
@@ -248,19 +216,18 @@ pub(crate) fn midi_input_try_read(
 ) -> RuntimeResult<MidiInputRecordValue> {
     let session = input_resource(binding, handle, "destack.midi.input.tryRead")?;
 
-    // queued record
-    let record = session.queue.try_pop();
-    if let Some(record) = record {
-        return Ok(record);
-    }
-
-    // deferred backend failure
-    surface_reader_failure(&session, "destack.midi.input.tryRead")?;
-
-    Err(core_platform::io_would_block(
+    try_read_queued_item(
+        &session.queue,
         "destack.midi.input.tryRead",
         "no queued MIDI input record is available",
-    ))
+        || {
+            surface_terminal_error(
+                "destack.midi.input.tryRead",
+                &session.terminal_error,
+                |terminal_error| terminal_error.message(),
+            )
+        },
+    )
 }
 
 /// Poll one ALSA MIDI input record batch without blocking.
@@ -270,18 +237,20 @@ pub(crate) fn midi_input_try_read_batch(
     max_records: u32,
 ) -> RuntimeResult<Vec<MidiInputRecordValue>> {
     let session = input_resource(binding, handle, "destack.midi.input.tryReadBatch")?;
-    let records = session.queue.try_pop_batch(max_records as usize);
-    if !records.is_empty() {
-        return Ok(records);
-    }
 
-    // deferred backend failure
-    surface_reader_failure(&session, "destack.midi.input.tryReadBatch")?;
-
-    Err(core_platform::io_would_block(
+    try_read_queued_batch(
+        &session.queue,
+        max_records as usize,
         "destack.midi.input.tryReadBatch",
         "no queued MIDI input records are available",
-    ))
+        || {
+            surface_terminal_error(
+                "destack.midi.input.tryReadBatch",
+                &session.terminal_error,
+                |terminal_error| terminal_error.message(),
+            )
+        },
+    )
 }
 
 /// Create one virtual ALSA sequencer input endpoint.
@@ -289,22 +258,11 @@ pub(crate) fn midi_input_virtual_create(
     binding: &BindingCallContext,
     options: MidiVirtualInputCreateOptions,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
     let name = native_string(options.name)?;
     let _manufacturer = native_optional_string(options.manufacturer)?;
     let _model = native_optional_string(options.model)?;
     let _version = native_optional_string(options.version)?;
 
-    let _backend = resolve_backend(
-        options.backend,
-        options.backend_policy,
-        "destack.midi.input.virtual.create",
-    )?;
     let service = binding
         .agent()
         .platform_state
@@ -333,12 +291,24 @@ pub(crate) fn midi_input_virtual_create(
         default_port_type(),
         "destack.midi.input.virtual.create",
     )?;
+    let queue_id = create_queue(
+        &handle,
+        "Destack MIDI Virtual Input Queue",
+        "destack.midi.input.virtual.create",
+    )?;
+    enable_port_realtime_timestamps(
+        &handle,
+        local_port_id,
+        queue_id.id,
+        "destack.midi.input.virtual.create",
+    )?;
 
     let stop_flag = Arc::new(AtomicBool::new(false));
     let terminal_error = Arc::new(parking_lot::Mutex::new(None));
     let reader_thread = spawn_input_reader(
         handle.library.clone(),
         handle.raw as usize,
+        queue_id.start_epoch_ns,
         None,
         queue.clone(),
         terminal_error.clone(),
@@ -359,6 +329,7 @@ pub(crate) fn midi_input_virtual_create(
         terminal_error,
         kind: parking_lot::Mutex::new(AlsaInputSessionKind::VirtualDestination {
             handle,
+            queue: queue_id,
             local_port_id,
             stop_flag,
             reader_thread: Some(reader_thread),
@@ -379,7 +350,8 @@ pub(crate) fn midi_input_virtual_create(
 fn spawn_input_reader(
     library: Arc<super::core::AlsaLibrary>,
     raw_handle: usize,
-    source_id: Option<String>,
+    queue_start_ns: u64,
+    source_id: Option<Arc<str>>,
     queue: Arc<BoundedQueue<MidiInputRecordValue>>,
     terminal_error: Arc<parking_lot::Mutex<Option<AlsaInputTerminalError>>>,
     stop_flag: Arc<AtomicBool>,
@@ -478,6 +450,18 @@ fn spawn_input_reader(
                             event,
                         )
                     };
+                    let Some(received_at_ns) =
+                        input_event_received_at_ns(unsafe { &*event }, queue_start_ns)
+                    else {
+                        unsafe {
+                            (library.api.snd_seq_free_event)(event);
+                        }
+
+                        let mut terminal_error = terminal_error.lock();
+                        *terminal_error = Some(AlsaInputTerminalError::MissingRealtimeTimestamp);
+                        queue.close();
+                        break;
+                    };
 
                     unsafe {
                         (library.api.snd_seq_free_event)(event);
@@ -493,7 +477,7 @@ fn spawn_input_reader(
                     is_inside_sysex = next_is_inside_sysex;
 
                     queue.push_drop_oldest(MidiInputRecordValue {
-                        received_at_ns: binding_timestamp_now(),
+                        received_at_ns,
                         source_id: source_id.clone(),
                         data_format: MidiDataFormat::Midi1Bytes,
                         protocol: Some(MidiProtocol::Midi1),

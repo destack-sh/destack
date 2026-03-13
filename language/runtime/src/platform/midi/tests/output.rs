@@ -2,36 +2,16 @@ use super::{
     assert_ok_or_expected_error, assert_platform_error_codes, decode_backend_descriptors_full,
     decode_port_descriptor, decode_port_descriptors, harness_output_open_options,
     harness_output_records, harness_port_list_options, harness_string,
-    harness_virtual_output_create_options_for_backend_transport, preferred_transport_pair,
-    with_harness_context,
+    harness_virtual_output_create_options_for_backend_transport, output_record_for_transport,
+    output_record_for_transport_with_timestamp, preferred_transport_pair, with_harness_context,
 };
-use crate::platform::core::BackendSupport;
+use crate::platform::core::{BackendSupport, monotonic_now_ns};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::midi::{
-    MIDI_BACKEND_CAP_VIRTUAL_OUTPUT, MIDI_DATA_FORMAT_FLAG_UMP, MIDI_PROTOCOL_FLAG_MIDI2,
-    MidiBackend, MidiDataFormat, MidiOutputRecord, MidiProtocol, MidiRecordFraming,
+    MIDI_BACKEND_CAP_SCHEDULED_OUTPUT, MIDI_BACKEND_CAP_VIRTUAL_OUTPUT, MIDI_DATA_FORMAT_FLAG_UMP,
+    MIDI_PROTOCOL_FLAG_MIDI2, MidiBackend, MidiDataFormat, MidiProtocol,
 };
 use crate::platform::resource;
-
-/// Build one minimal valid output record for one transport pair.
-fn output_record_for_transport(
-    context: &mut super::MidiHarnessContext<'_>,
-    data_format: MidiDataFormat,
-    protocol: MidiProtocol,
-) -> MidiOutputRecord {
-    let data = match data_format {
-        MidiDataFormat::Midi1Bytes => vec![0x90, 0x3C, 0x40],
-        MidiDataFormat::Ump => vec![0x40, 0x90, 0x3C, 0x40],
-    };
-
-    MidiOutputRecord {
-        send_at_ns: None,
-        data_format,
-        protocol: Some(protocol),
-        framing: MidiRecordFraming::Complete,
-        data: context.call_context.store_slice(data),
-    }
-}
 
 /// List MIDI output ports or report one expected unsupported host error.
 #[cfg(any(unix, windows))]
@@ -156,45 +136,6 @@ fn test_midi_listed_output_ports_open_and_describe_when_available() {
     });
 }
 
-/// Flush opened MIDI output ports successfully when endpoints are present.
-#[cfg(any(unix, windows))]
-#[test]
-fn test_midi_listed_output_ports_flush_when_available() {
-    with_harness_context(|mut context| {
-        let list_options = harness_port_list_options(&mut context);
-
-        // output flush
-        let output_result = assert_ok_or_expected_error(
-            context.destack_midi_output_port_list(list_options),
-            &[PlatformErrorCode::NotSupported],
-        )?;
-
-        if let Some(output_result) = output_result {
-            let descriptors = decode_port_descriptors(&mut context, output_result)?;
-
-            if let Some((
-                id,
-                _name,
-                _is_connected,
-                _formats,
-                _default_format,
-                _protocols,
-                _default_protocol,
-            )) = descriptors.first()
-            {
-                let id = harness_string(&mut context, id)?;
-                let options = harness_output_open_options(&mut context);
-                let handle = context.destack_midi_output_port_open(id, options)?;
-
-                context.destack_midi_output_flush(handle)?;
-                context.destack_midi_output_port_close(handle)?;
-            }
-        }
-
-        Ok(())
-    });
-}
-
 /// Write one valid record through one advertised virtual output when a backend supports it.
 #[cfg(any(unix, windows))]
 #[test]
@@ -246,12 +187,84 @@ fn test_midi_virtual_output_write_succeeds_when_backend_advertises_virtual_outpu
             )?;
             let handle = context.destack_midi_output_virtual_create(options)?;
 
-            // successful write and flush
+            // successful write
             let record = output_record_for_transport(&mut context, data_format, protocol);
             let records = harness_output_records(&mut context, &[record])?;
             let written = context.destack_midi_output_write(handle, records)?;
             assert_eq!(written, 1);
-            context.destack_midi_output_flush(handle)?;
+            context.destack_midi_output_port_close(handle)?;
+        }
+
+        Ok(())
+    });
+}
+
+/// Reject scheduled timestamps on virtual outputs when the backend does not advertise them.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_midi_virtual_output_write_rejects_scheduled_timestamps_without_backend_support() {
+    with_harness_context(|mut context| {
+        let result = assert_ok_or_expected_error(
+            context.destack_midi_backend_list(),
+            &[PlatformErrorCode::NotSupported],
+        )?;
+
+        let Some(result) = result else {
+            return Ok(());
+        };
+
+        let descriptors = decode_backend_descriptors_full(&mut context, result)?;
+        for (
+            backend,
+            _name,
+            support,
+            _priority,
+            capability_flags,
+            supported_data_formats,
+            supported_protocols,
+        ) in descriptors
+        {
+            if support != BackendSupport::Available || backend == MidiBackend::Null {
+                continue;
+            }
+
+            if capability_flags.0 & MIDI_BACKEND_CAP_VIRTUAL_OUTPUT.0 == 0 {
+                continue;
+            }
+
+            if capability_flags.0 & MIDI_BACKEND_CAP_SCHEDULED_OUTPUT.0 != 0 {
+                continue;
+            }
+
+            let Some((data_format, protocol)) =
+                preferred_transport_pair(supported_data_formats, None, supported_protocols, None)
+            else {
+                continue;
+            };
+
+            let name = format!("Destack MIDI Scheduled Output {backend:?}");
+            let options = harness_virtual_output_create_options_for_backend_transport(
+                &mut context,
+                backend,
+                &name,
+                data_format,
+                protocol,
+            )?;
+            let handle = context.destack_midi_output_virtual_create(options)?;
+
+            let send_at_ns = monotonic_now_ns().saturating_add(50_000_000);
+            let record = output_record_for_transport_with_timestamp(
+                &mut context,
+                data_format,
+                protocol,
+                Some(send_at_ns),
+            );
+            let records = harness_output_records(&mut context, &[record])?;
+            assert_platform_error_codes(
+                context.destack_midi_output_write(handle, records),
+                &[PlatformErrorCode::InvalidArgument],
+            )?;
+
             context.destack_midi_output_port_close(handle)?;
         }
 
@@ -279,13 +292,11 @@ fn test_midi_missing_output_endpoints_and_handles_fail_with_expected_errors() {
         )?;
 
         let missing_output_handle = resource::MidiOutputPortHandle(resource::ResourceId(0));
-        let one_record = MidiOutputRecord {
-            send_at_ns: None,
-            data_format: MidiDataFormat::Midi1Bytes,
-            protocol: None,
-            framing: MidiRecordFraming::Complete,
-            data: context.call_context.store_slice(vec![0x90, 0x3C, 0x40]),
-        };
+        let one_record = output_record_for_transport(
+            &mut context,
+            MidiDataFormat::Midi1Bytes,
+            MidiProtocol::Midi1,
+        );
         let records = harness_output_records(&mut context, &[one_record])?;
 
         // handle failures
@@ -313,15 +324,6 @@ fn test_midi_missing_output_endpoints_and_handles_fail_with_expected_errors() {
                 PlatformErrorCode::InvalidArgument,
             ],
         )?;
-        assert_platform_error_codes(
-            context.destack_midi_output_flush(missing_output_handle),
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoNotFound,
-                PlatformErrorCode::InvalidArgument,
-            ],
-        )?;
-
         Ok(())
     });
 }

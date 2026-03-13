@@ -8,8 +8,8 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform, BackendSupport};
 use crate::platform::midi::{MidiEventSource, MidiPortDirection};
-use crate::platform::service::affinity::ServiceAffinity;
-use crate::platform::service::{self};
+use crate::runtime::process::service::affinity::ServiceAffinity;
+use crate::runtime::process::service::{self};
 
 use super::abi::{
     POLLIN, SND_SEQ_CLIENT_SYSTEM, SND_SEQ_OPEN_INPUT, SND_SEQ_PORT_CAP_NO_EXPORT,
@@ -18,7 +18,7 @@ use super::abi::{
 };
 use super::core::{
     AlsaEndpointInfo, AlsaEventSession, AlsaHandle, AlsaLibrary, AlsaTopologyState,
-    alsa_operation_error, c_string, create_simple_port, default_port_type,
+    alsa_operation_error, create_simple_port, default_port_type,
     hidden_destination_port_capability, is_input_source, is_internal_client_name,
     is_output_destination, open_sequencer_handle,
 };
@@ -330,8 +330,8 @@ fn query_topology_snapshot(handle: &AlsaHandle) -> RuntimeResult<AlsaTopologySta
 
         let client_id = unsafe { (handle.library.api.snd_seq_client_info_get_client)(client_info) };
         let client_name = unsafe { (handle.library.api.snd_seq_client_info_get_name)(client_info) };
-        let client_name =
-            c_string(client_name).unwrap_or_else(|| format!("ALSA Client {client_id}"));
+        let client_name = core_platform::string_from_c_str(client_name)
+            .unwrap_or_else(|| format!("ALSA Client {client_id}"));
 
         // skip internal plumbing clients
         if is_internal_client_name(&client_name) {
@@ -353,7 +353,8 @@ fn query_topology_snapshot(handle: &AlsaHandle) -> RuntimeResult<AlsaTopologySta
 
             let port_id = unsafe { (handle.library.api.snd_seq_port_info_get_port)(port_info) };
             let port_name = unsafe { (handle.library.api.snd_seq_port_info_get_name)(port_info) };
-            let port_name = c_string(port_name).unwrap_or_else(|| format!("Port {port_id}"));
+            let port_name = core_platform::string_from_c_str(port_name)
+                .unwrap_or_else(|| format!("Port {port_id}"));
             let capability =
                 unsafe { (handle.library.api.snd_seq_port_info_get_capability)(port_info) };
             let port_type = unsafe { (handle.library.api.snd_seq_port_info_get_type)(port_info) };

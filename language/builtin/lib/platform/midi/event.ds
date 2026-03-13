@@ -163,7 +163,7 @@ declare namespace midi {
     /// Subscription routing and queue depth follow host backend behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -177,7 +177,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.observe"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -191,7 +191,7 @@ declare namespace midi {
     /// Pending events are discarded.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -205,7 +205,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.observe"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -219,7 +219,7 @@ declare namespace midi {
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -233,7 +233,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.observe"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -250,7 +250,7 @@ declare namespace midi {
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -264,7 +264,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.observe"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -282,7 +282,7 @@ declare namespace midi {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -296,7 +296,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.observe"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "never",
@@ -310,7 +310,7 @@ declare namespace midi {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -324,7 +324,7 @@ declare namespace midi {
         effect: "external",
         replay: "recordable",
         capabilities: ["midi.observe"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "never",

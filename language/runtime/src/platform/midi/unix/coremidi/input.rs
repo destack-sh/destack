@@ -5,7 +5,9 @@ use std::sync::atomic::AtomicBool;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiInputRecordValue, MidiPortDescriptorValue, remove_labeled_resource, validate_record_shape,
+    MidiInputRecordValue, MidiPortDescriptorValue, input_queue_capacity, read_queued_batch,
+    read_queued_item, remove_labeled_resource, resolve_descriptor_open_transport,
+    try_read_queued_batch, try_read_queued_item, validate_record_shape,
 };
 use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiInputPortOpenOptions, MidiPortDirection,
@@ -13,6 +15,7 @@ use crate::platform::midi::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
+use crate::runtime::core::queue::BoundedQueue;
 
 use super::abi::{
     MIDIDestinationCreate, MIDIDestinationCreateWithProtocol, MIDIInputPortCreate,
@@ -26,13 +29,11 @@ use super::callback::{
     modern_receive_block,
 };
 use super::core::{
-    BoundedQueue, CoreMidiInputSession, CoreMidiInputSessionKind, core_midi_status_error,
-    input_queue_capacity, insert_input_resource, native_optional_string, native_string,
-    selected_protocol_id,
+    CoreMidiInputSession, CoreMidiInputSessionKind, core_midi_status_error, insert_input_resource,
+    native_optional_string, native_string, selected_protocol_id,
 };
 use super::descriptor::{
     endpoint_descriptor, filtered_descriptors, register_endpoint_override, resolve_endpoint,
-    validate_endpoint_transport_request,
 };
 use super::event::refresh_native_event_sessions;
 use super::resource::input_resource;
@@ -65,12 +66,6 @@ pub(crate) fn midi_input_port_open(
     id: &str,
     options: MidiInputPortOpenOptions,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
     let _ = resolve_backend(
         options.backend,
         options.backend_policy,
@@ -82,29 +77,19 @@ pub(crate) fn midi_input_port_open(
         .midi
         .core_midi_service("destack.midi.input.port.open")?;
 
-    validate_record_shape(
-        "destack.midi.input.port.open",
-        options.data_format.unwrap_or(MidiDataFormat::Midi1Bytes),
-        options.protocol,
-    )?;
-
     let (endpoint, descriptor) = resolve_endpoint(
         &service,
         MidiPortDirection::Input,
         id,
         "destack.midi.input.port.open",
     )?;
-    let data_format = options
-        .data_format
-        .or(descriptor.default_data_format)
-        .unwrap_or(MidiDataFormat::Midi1Bytes);
-    let protocol = options.protocol.or(descriptor.default_protocol);
-
-    validate_endpoint_transport_request(
+    let (data_format, protocol) = resolve_descriptor_open_transport(
         "destack.midi.input.port.open",
         &descriptor,
-        data_format,
-        protocol,
+        options.data_format,
+        options.protocol,
+        MidiDataFormat::Midi1Bytes,
+        None,
     )?;
 
     let queue = Arc::new(BoundedQueue::new(input_queue_capacity(
@@ -119,7 +104,8 @@ pub(crate) fn midi_input_port_open(
                 "failed to encode one CoreMIDI input port name",
             ));
         };
-        let receive_block = modern_receive_block(queue.clone(), Some(descriptor.id.clone()));
+        let receive_block =
+            modern_receive_block(queue.clone(), Some(Arc::<str>::from(descriptor.id.clone())));
         let mut port = 0u32;
 
         let status = unsafe {
@@ -167,7 +153,7 @@ pub(crate) fn midi_input_port_open(
         };
         let context = Box::new(LegacyInputCallbackContext {
             queue: queue.clone(),
-            source_id: Some(descriptor.id.clone()),
+            source_id: Some(Arc::<str>::from(descriptor.id.clone())),
             is_inside_sysex: AtomicBool::new(false),
         });
         let callback_context = LegacyInputCallbackToken::new(context);
@@ -261,15 +247,14 @@ pub(crate) fn midi_input_read(
     timeout_ns: u64,
 ) -> RuntimeResult<MidiInputRecordValue> {
     let session = input_resource(binding, handle, "destack.midi.input.read")?;
-    let timeout = std::time::Duration::from_nanos(timeout_ns);
 
-    match session.queue.pop_with_timeout(timeout) {
-        Some(record) => Ok(record),
-        None => Err(core_platform::io_would_block(
-            "destack.midi.input.read",
-            "midi input queue is empty",
-        )),
-    }
+    read_queued_item(
+        &session.queue,
+        timeout_ns,
+        "destack.midi.input.read",
+        "midi input queue is empty",
+        || Ok(()),
+    )
 }
 
 /// Wait for one batch of CoreMIDI input records.
@@ -280,19 +265,15 @@ pub(crate) fn midi_input_read_batch(
     timeout_ns: u64,
 ) -> RuntimeResult<Vec<MidiInputRecordValue>> {
     let session = input_resource(binding, handle, "destack.midi.input.readBatch")?;
-    let batch = session.queue.pop_batch_with_timeout(
-        max_records.max(1) as usize,
-        std::time::Duration::from_nanos(timeout_ns),
-    );
 
-    if batch.is_empty() {
-        return Err(core_platform::io_would_block(
-            "destack.midi.input.readBatch",
-            "midi input queue is empty",
-        ));
-    }
-
-    Ok(batch)
+    read_queued_batch(
+        &session.queue,
+        max_records as usize,
+        timeout_ns,
+        "destack.midi.input.readBatch",
+        "midi input queue is empty",
+        || Ok(()),
+    )
 }
 
 /// Poll one CoreMIDI input record.
@@ -302,13 +283,12 @@ pub(crate) fn midi_input_try_read(
 ) -> RuntimeResult<MidiInputRecordValue> {
     let session = input_resource(binding, handle, "destack.midi.input.tryRead")?;
 
-    match session.queue.try_pop() {
-        Some(record) => Ok(record),
-        None => Err(core_platform::io_would_block(
-            "destack.midi.input.tryRead",
-            "midi input queue is empty",
-        )),
-    }
+    try_read_queued_item(
+        &session.queue,
+        "destack.midi.input.tryRead",
+        "midi input queue is empty",
+        || Ok(()),
+    )
 }
 
 /// Poll one batch of CoreMIDI input records.
@@ -318,16 +298,14 @@ pub(crate) fn midi_input_try_read_batch(
     max_records: u32,
 ) -> RuntimeResult<Vec<MidiInputRecordValue>> {
     let session = input_resource(binding, handle, "destack.midi.input.tryReadBatch")?;
-    let batch = session.queue.try_pop_batch(max_records.max(1) as usize);
 
-    if batch.is_empty() {
-        return Err(core_platform::io_would_block(
-            "destack.midi.input.tryReadBatch",
-            "midi input queue is empty",
-        ));
-    }
-
-    Ok(batch)
+    try_read_queued_batch(
+        &session.queue,
+        max_records as usize,
+        "destack.midi.input.tryReadBatch",
+        "midi input queue is empty",
+        || Ok(()),
+    )
 }
 
 /// Create one CoreMIDI virtual input session.
@@ -335,12 +313,6 @@ pub(crate) fn midi_input_virtual_create(
     binding: &BindingCallContext,
     options: MidiVirtualInputCreateOptions,
 ) -> RuntimeResult<resource::MidiInputPortHandle> {
-    binding
-        .agent()
-        .platform_state
-        .midi
-        .mark_runtime_active(binding);
-
     let name = native_string(options.name)?;
     let manufacturer = native_optional_string(options.manufacturer)?;
     let model = native_optional_string(options.model)?;

@@ -10,21 +10,23 @@ use windows::Foundation::TypedEventHandler;
 use windows::Storage::Streams::DataWriter;
 use windows::core::{Error as WinError, HSTRING, Ref};
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiInputRecordValue, MidiOutputRecordValue, MidiPortDescriptorValue,
+    MidiInputRecordValue, MidiOutputRecordValue, MidiPortDescriptorValue, MidiRecordBytes,
+    binding_timestamp_now,
 };
 use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiPortDirection, MidiProtocol, MidiRecordFraming,
 };
-use crate::platform::service::affinity::{ServiceAffinity, ServiceThreadBootstrap};
-use crate::platform::service::executor::dedicated::DedicatedThreadExecutor;
-use crate::platform::service::{self};
+use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceThreadBootstrap};
+use crate::runtime::process::service::executor::dedicated::DedicatedThreadExecutor;
+use crate::runtime::process::service::{self};
 
 use super::core::{
-    BoundedQueue, WinRtEndpointInfo, WinRtEventDeliveryKind, WinRtEventSession, WinRtTopologyState,
-    binding_timestamp_now, winrt_relative_timestamp_to_mono_ns,
+    WinRtEndpointInfo, WinRtEventDeliveryKind, WinRtEventSession, WinRtTopologyState,
+    winrt_relative_timestamp_to_mono_ns,
 };
 use super::descriptor::device_descriptor;
 use super::event::{queue_backend_disconnected_events, refresh_native_event_sessions};
@@ -143,6 +145,7 @@ impl WinRtService {
         backend_id: String,
         descriptor: MidiPortDescriptorValue,
         queue: Arc<BoundedQueue<MidiInputRecordValue>>,
+        terminal_error: Arc<Mutex<Option<String>>>,
         operation: &'static str,
     ) -> RuntimeResult<u64> {
         self.executor.call(operation, move |state| {
@@ -158,16 +161,26 @@ impl WinRtService {
 
             // input callback
             let callback_queue = queue.clone();
-            let source_id = descriptor.id.clone();
+            let callback_terminal_error = terminal_error.clone();
+            let source_id = Arc::<str>::from(descriptor.id.clone());
             let token = port
                 .MessageReceived(&TypedEventHandler::new(
                     move |_port: Ref<'_, MidiInPort>,
                           args: Ref<'_, MidiMessageReceivedEventArgs>| {
                         if let Some(args) = args.as_ref()
-                            && let Ok(record) =
-                                decode_input_message(open_epoch_ns, source_id.clone(), args)
                         {
-                            callback_queue.push_drop_oldest(record);
+                            match decode_input_message(open_epoch_ns, source_id.clone(), args) {
+                                Ok(record) => callback_queue.push_drop_oldest(record),
+                                Err(error) => {
+                                    let mut terminal_error = callback_terminal_error.lock();
+                                    if terminal_error.is_none() {
+                                        *terminal_error = Some(format!(
+                                            "winrt midi input session failed to decode one inbound message: {error}",
+                                        ));
+                                    }
+                                    callback_queue.close();
+                                }
+                            }
                         }
 
                         Ok(())
@@ -261,20 +274,20 @@ pub(super) fn winrt_error(
     operation: &'static str,
     action: &str,
     error: &WinError,
-) -> Box<crate::diagnostic::RuntimeError> {
+) -> Box<RuntimeError> {
     core_platform::io_operation_error(operation, None, format!("{action}: {error}"))
 }
 
 /// Decode one WinRT input message into one inbound record.
 fn decode_input_message(
     open_epoch_ns: u64,
-    source_id: String,
+    source_id: Arc<str>,
     args: &MidiMessageReceivedEventArgs,
 ) -> windows::core::Result<MidiInputRecordValue> {
     let message = args.Message()?;
     let buffer = message.RawData()?;
     let reader = windows::Storage::Streams::DataReader::FromBuffer(&buffer)?;
-    let mut data = vec![0u8; buffer.Length()? as usize];
+    let mut data = MidiRecordBytes::from_elem(0u8, buffer.Length()? as usize);
     reader.ReadBytes(&mut data)?;
 
     Ok(MidiInputRecordValue {
@@ -398,7 +411,10 @@ where
     T: windows::core::RuntimeType + 'static,
 {
     TypedEventHandler::new(move |_watcher, _args| {
-        let _ = refresh_direction_cache(&topology, direction, &selector, operation);
+        if refresh_direction_cache(&topology, direction, &selector, operation).is_err() {
+            queue_backend_disconnected_events(&registry, MidiEventSource::Native, 0);
+            return Ok(());
+        }
 
         refresh_native_event_sessions(&topology, &registry, MidiEventSource::Native);
         Ok(())
@@ -556,6 +572,16 @@ pub(crate) fn winrt_service(operation: &'static str) -> RuntimeResult<Arc<WinRtS
             native_event_registry,
         })
     })
+}
+
+/// Check whether the WinRT MIDI API surface is reachable on this host.
+pub(crate) fn check_winrt_support(operation: &'static str) -> RuntimeResult<()> {
+    let _input_selector = MidiInPort::GetDeviceSelector()
+        .map_err(|error| winrt_error(operation, "MidiInPort::GetDeviceSelector", &error))?;
+    let _output_selector = MidiOutPort::GetDeviceSelector()
+        .map_err(|error| winrt_error(operation, "MidiOutPort::GetDeviceSelector", &error))?;
+
+    Ok(())
 }
 
 /// Register one native event subscription.

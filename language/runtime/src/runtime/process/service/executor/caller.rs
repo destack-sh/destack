@@ -2,13 +2,13 @@ use crate::diagnostic::RuntimeResult;
 
 /// One caller-thread executor for one host-affine platform service.
 #[cfg_attr(
-    any(target_os = "ios", target_os = "android", windows),
+    any(target_os = "macos", target_os = "ios", target_os = "android", windows),
     allow(dead_code)
 )]
 pub(crate) struct CallerThreadExecutor;
 
 #[cfg_attr(
-    any(target_os = "ios", target_os = "android", windows),
+    any(target_os = "macos", target_os = "ios", target_os = "android", windows),
     allow(dead_code)
 )]
 impl CallerThreadExecutor {

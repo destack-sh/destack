@@ -23,8 +23,8 @@ use crate::platform::midi::{
     MidiOutputPortOpenOptions, MidiOutputPortOpenOptionsVm, MidiOutputRecord, MidiOutputRecordVm,
     MidiPortDescriptor, MidiPortDescriptorVm, MidiPortDirection, MidiPortDirectionFlags,
     MidiPortListFlags, MidiPortListOptions, MidiPortListOptionsVm, MidiProtocol, MidiProtocolFlags,
-    MidiVirtualInputCreateOptions, MidiVirtualInputCreateOptionsVm, MidiVirtualOutputCreateOptions,
-    MidiVirtualOutputCreateOptionsVm,
+    MidiRecordFraming, MidiVirtualInputCreateOptions, MidiVirtualInputCreateOptionsVm,
+    MidiVirtualOutputCreateOptions, MidiVirtualOutputCreateOptionsVm,
 };
 use crate::platform::{NativeArray, NativeSlice, PlatformError, VmArray, VmSlice};
 use crate::runtime::{BindingCallContext, NativeStringRef};
@@ -151,6 +151,28 @@ pub(crate) fn support_allows_host_execution(support: BackendSupport) -> bool {
     matches!(support, BackendSupport::Available)
 }
 
+/// One decoded backend descriptor row used by tests.
+pub(crate) type BackendDescriptorRow = (
+    MidiBackend,
+    String,
+    BackendSupport,
+    u16,
+    MidiBackendCapabilityFlags,
+    MidiDataFormatFlags,
+    MidiProtocolFlags,
+);
+
+/// One decoded MIDI port identity row used by tests.
+pub(crate) type PortDescriptorIdentityRow = (
+    String,
+    Option<String>,
+    String,
+    Option<String>,
+    Option<String>,
+    bool,
+    bool,
+);
+
 #[cfg(any(target_os = "macos", target_os = "linux", windows))]
 /// Return one process-global serialization lock for backend-global MIDI tests.
 fn midi_test_lock() -> &'static Mutex<()> {
@@ -196,7 +218,12 @@ pub(crate) fn harness_port_list_options_with_flags(
     context: &mut MidiHarnessContext<'_>,
     flags: MidiPortListFlags,
 ) -> HarnessValue<MidiPortListOptions, MidiPortListOptionsVm> {
-    harness_port_list_options_for_backend(context, MidiBackend::Auto, flags)
+    harness_port_list_options_for_backend_with_policy(
+        context,
+        MidiBackend::Auto,
+        MidiBackendSelectionPolicy::AllowFallback,
+        flags,
+    )
 }
 
 /// Build MIDI port-list options for one explicit backend selector.
@@ -205,9 +232,24 @@ pub(crate) fn harness_port_list_options_for_backend(
     backend: MidiBackend,
     flags: MidiPortListFlags,
 ) -> HarnessValue<MidiPortListOptions, MidiPortListOptionsVm> {
+    harness_port_list_options_for_backend_with_policy(
+        context,
+        backend,
+        MidiBackendSelectionPolicy::Strict,
+        flags,
+    )
+}
+
+/// Build MIDI port-list options for one backend selector and selection policy.
+pub(crate) fn harness_port_list_options_for_backend_with_policy(
+    context: &mut MidiHarnessContext<'_>,
+    backend: MidiBackend,
+    backend_policy: MidiBackendSelectionPolicy,
+    flags: MidiPortListFlags,
+) -> HarnessValue<MidiPortListOptions, MidiPortListOptionsVm> {
     let options = MidiPortListOptions {
         backend,
-        backend_policy: MidiBackendSelectionPolicy::AllowFallback,
+        backend_policy,
         flags,
     };
 
@@ -246,9 +288,26 @@ pub(crate) fn harness_input_open_options_for_backend_transport(
     data_format: Option<MidiDataFormat>,
     protocol: Option<MidiProtocol>,
 ) -> HarnessValue<MidiInputPortOpenOptions, MidiInputPortOpenOptionsVm> {
+    harness_input_open_options_for_backend_transport_with_policy(
+        context,
+        backend,
+        MidiBackendSelectionPolicy::Strict,
+        data_format,
+        protocol,
+    )
+}
+
+/// Build MIDI input-open options for one backend, policy, and requested transport shape.
+pub(crate) fn harness_input_open_options_for_backend_transport_with_policy(
+    context: &mut MidiHarnessContext<'_>,
+    backend: MidiBackend,
+    backend_policy: MidiBackendSelectionPolicy,
+    data_format: Option<MidiDataFormat>,
+    protocol: Option<MidiProtocol>,
+) -> HarnessValue<MidiInputPortOpenOptions, MidiInputPortOpenOptionsVm> {
     let options = MidiInputPortOpenOptions {
         backend,
-        backend_policy: MidiBackendSelectionPolicy::AllowFallback,
+        backend_policy,
         data_format,
         protocol,
         queue_capacity: 0,
@@ -289,9 +348,26 @@ pub(crate) fn harness_output_open_options_for_backend_transport(
     data_format: Option<MidiDataFormat>,
     protocol: Option<MidiProtocol>,
 ) -> HarnessValue<MidiOutputPortOpenOptions, MidiOutputPortOpenOptionsVm> {
+    harness_output_open_options_for_backend_transport_with_policy(
+        context,
+        backend,
+        MidiBackendSelectionPolicy::Strict,
+        data_format,
+        protocol,
+    )
+}
+
+/// Build MIDI output-open options for one backend, policy, and requested transport shape.
+pub(crate) fn harness_output_open_options_for_backend_transport_with_policy(
+    context: &mut MidiHarnessContext<'_>,
+    backend: MidiBackend,
+    backend_policy: MidiBackendSelectionPolicy,
+    data_format: Option<MidiDataFormat>,
+    protocol: Option<MidiProtocol>,
+) -> HarnessValue<MidiOutputPortOpenOptions, MidiOutputPortOpenOptionsVm> {
     let options = MidiOutputPortOpenOptions {
         backend,
-        backend_policy: MidiBackendSelectionPolicy::AllowFallback,
+        backend_policy,
         data_format,
         protocol,
     };
@@ -334,6 +410,36 @@ pub(crate) fn harness_output_records(
     }
 }
 
+/// Build one minimal valid output record for one transport pair.
+pub(crate) fn output_record_for_transport(
+    context: &mut MidiHarnessContext<'_>,
+    data_format: MidiDataFormat,
+    protocol: MidiProtocol,
+) -> MidiOutputRecord {
+    output_record_for_transport_with_timestamp(context, data_format, protocol, None)
+}
+
+/// Build one minimal valid output record for one transport pair and optional deadline.
+pub(crate) fn output_record_for_transport_with_timestamp(
+    context: &mut MidiHarnessContext<'_>,
+    data_format: MidiDataFormat,
+    protocol: MidiProtocol,
+    send_at_ns: Option<u64>,
+) -> MidiOutputRecord {
+    let data = match data_format {
+        MidiDataFormat::Midi1Bytes => vec![0x90, 0x3C, 0x40],
+        MidiDataFormat::Ump => vec![0x40, 0x90, 0x3C, 0x40],
+    };
+
+    MidiOutputRecord {
+        send_at_ns,
+        data_format,
+        protocol: Some(protocol),
+        framing: MidiRecordFraming::Complete,
+        data: context.call_context.store_slice(data),
+    }
+}
+
 /// Build virtual-input creation options for one backend and requested transport shape.
 pub(crate) fn harness_virtual_input_create_options_for_backend_transport(
     context: &mut MidiHarnessContext<'_>,
@@ -342,10 +448,29 @@ pub(crate) fn harness_virtual_input_create_options_for_backend_transport(
     data_format: MidiDataFormat,
     protocol: MidiProtocol,
 ) -> RuntimeResult<HarnessValue<MidiVirtualInputCreateOptions, MidiVirtualInputCreateOptionsVm>> {
+    harness_virtual_input_create_options_for_backend_transport_with_policy(
+        context,
+        backend,
+        MidiBackendSelectionPolicy::Strict,
+        name,
+        data_format,
+        protocol,
+    )
+}
+
+/// Build virtual-input creation options for one backend, policy, and requested transport shape.
+pub(crate) fn harness_virtual_input_create_options_for_backend_transport_with_policy(
+    context: &mut MidiHarnessContext<'_>,
+    backend: MidiBackend,
+    backend_policy: MidiBackendSelectionPolicy,
+    name: &str,
+    data_format: MidiDataFormat,
+    protocol: MidiProtocol,
+) -> RuntimeResult<HarnessValue<MidiVirtualInputCreateOptions, MidiVirtualInputCreateOptionsVm>> {
     match vm_context_mut(context) {
         Some(vm_context) => Ok(HarnessValue::Vm(MidiVirtualInputCreateOptionsVm {
             backend,
-            backend_policy: MidiBackendSelectionPolicy::AllowFallback,
+            backend_policy,
             name: vm::StringHandle::new(
                 vm_context
                     .intern_string(name)
@@ -360,7 +485,7 @@ pub(crate) fn harness_virtual_input_create_options_for_backend_transport(
         })),
         None => Ok(HarnessValue::Native(MidiVirtualInputCreateOptions {
             backend,
-            backend_policy: MidiBackendSelectionPolicy::AllowFallback,
+            backend_policy,
             name: context.call_context.store_string(name),
             manufacturer: None,
             model: None,
@@ -380,10 +505,29 @@ pub(crate) fn harness_virtual_output_create_options_for_backend_transport(
     data_format: MidiDataFormat,
     protocol: MidiProtocol,
 ) -> RuntimeResult<HarnessValue<MidiVirtualOutputCreateOptions, MidiVirtualOutputCreateOptionsVm>> {
+    harness_virtual_output_create_options_for_backend_transport_with_policy(
+        context,
+        backend,
+        MidiBackendSelectionPolicy::Strict,
+        name,
+        data_format,
+        protocol,
+    )
+}
+
+/// Build virtual-output creation options for one backend, policy, and requested transport shape.
+pub(crate) fn harness_virtual_output_create_options_for_backend_transport_with_policy(
+    context: &mut MidiHarnessContext<'_>,
+    backend: MidiBackend,
+    backend_policy: MidiBackendSelectionPolicy,
+    name: &str,
+    data_format: MidiDataFormat,
+    protocol: MidiProtocol,
+) -> RuntimeResult<HarnessValue<MidiVirtualOutputCreateOptions, MidiVirtualOutputCreateOptionsVm>> {
     match vm_context_mut(context) {
         Some(vm_context) => Ok(HarnessValue::Vm(MidiVirtualOutputCreateOptionsVm {
             backend,
-            backend_policy: MidiBackendSelectionPolicy::AllowFallback,
+            backend_policy,
             name: vm::StringHandle::new(
                 vm_context
                     .intern_string(name)
@@ -397,7 +541,7 @@ pub(crate) fn harness_virtual_output_create_options_for_backend_transport(
         })),
         None => Ok(HarnessValue::Native(MidiVirtualOutputCreateOptions {
             backend,
-            backend_policy: MidiBackendSelectionPolicy::AllowFallback,
+            backend_policy,
             name: context.call_context.store_string(name),
             manufacturer: None,
             model: None,
@@ -432,9 +576,28 @@ pub(crate) fn harness_event_open_options_for_backend(
     direction_mask: MidiPortDirectionFlags,
     delivery_mode: MidiEventDeliveryMode,
 ) -> HarnessValue<MidiEventSubscriptionOptions, MidiEventSubscriptionOptionsVm> {
+    harness_event_open_options_for_backend_with_policy(
+        context,
+        backend,
+        MidiBackendSelectionPolicy::Strict,
+        flags,
+        direction_mask,
+        delivery_mode,
+    )
+}
+
+/// Build MIDI event-subscription options for one backend selector and selection policy.
+pub(crate) fn harness_event_open_options_for_backend_with_policy(
+    context: &mut MidiHarnessContext<'_>,
+    backend: MidiBackend,
+    backend_policy: MidiBackendSelectionPolicy,
+    flags: MidiEventSubscriptionFlags,
+    direction_mask: MidiPortDirectionFlags,
+    delivery_mode: MidiEventDeliveryMode,
+) -> HarnessValue<MidiEventSubscriptionOptions, MidiEventSubscriptionOptionsVm> {
     let options = MidiEventSubscriptionOptions {
         backend,
-        backend_policy: MidiBackendSelectionPolicy::AllowFallback,
+        backend_policy,
         flags,
         direction_mask,
         delivery_mode,
@@ -454,17 +617,7 @@ pub(crate) fn harness_event_open_options_for_backend(
 pub(crate) fn decode_backend_descriptors_full(
     context: &mut MidiHarnessContext<'_>,
     value: HarnessValue<NativeSlice<MidiBackendDescriptor>, VmSlice<MidiBackendDescriptorVm>>,
-) -> RuntimeResult<
-    Vec<(
-        MidiBackend,
-        String,
-        BackendSupport,
-        u16,
-        MidiBackendCapabilityFlags,
-        MidiDataFormatFlags,
-        MidiProtocolFlags,
-    )>,
-> {
+) -> RuntimeResult<Vec<BackendDescriptorRow>> {
     match value {
         HarnessValue::Native(values) => {
             let values = unsafe { values.as_slice()? };
@@ -518,6 +671,72 @@ pub(crate) fn decode_backend_descriptors_full(
     }
 }
 
+/// Decode and return one backend descriptor row by selector.
+#[cfg(any(target_os = "android", windows))]
+pub(crate) fn backend_descriptor_row(
+    context: &mut MidiHarnessContext<'_>,
+    backend: MidiBackend,
+) -> RuntimeResult<BackendDescriptorRow> {
+    let descriptors = context.destack_midi_backend_list()?;
+    let descriptors = decode_backend_descriptors_full(context, descriptors)?;
+
+    descriptors
+        .into_iter()
+        .find(|row| row.0 == backend)
+        .ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument(format!(
+                "missing midi backend descriptor row for {backend:?}"
+            )))
+            .boxed()
+        })
+}
+
+/// Decode listed input-port rows for one explicit backend.
+#[cfg(any(target_os = "android", windows))]
+pub(crate) fn listed_backend_input_rows(
+    context: &mut MidiHarnessContext<'_>,
+    backend: MidiBackend,
+    flags: MidiPortListFlags,
+) -> RuntimeResult<
+    Vec<(
+        String,
+        String,
+        bool,
+        MidiDataFormatFlags,
+        Option<MidiDataFormat>,
+        MidiProtocolFlags,
+        Option<MidiProtocol>,
+    )>,
+> {
+    let options = harness_port_list_options_for_backend(context, backend, flags);
+    let rows = context.destack_midi_input_port_list(options)?;
+
+    decode_port_descriptors(context, rows)
+}
+
+/// Decode listed output-port rows for one explicit backend.
+#[cfg(any(target_os = "android", windows))]
+pub(crate) fn listed_backend_output_rows(
+    context: &mut MidiHarnessContext<'_>,
+    backend: MidiBackend,
+    flags: MidiPortListFlags,
+) -> RuntimeResult<
+    Vec<(
+        String,
+        String,
+        bool,
+        MidiDataFormatFlags,
+        Option<MidiDataFormat>,
+        MidiProtocolFlags,
+        Option<MidiProtocol>,
+    )>,
+> {
+    let options = harness_port_list_options_for_backend(context, backend, flags);
+    let rows = context.destack_midi_output_port_list(options)?;
+
+    decode_port_descriptors(context, rows)
+}
+
 /// Return whether one advertised format mask contains one data format.
 pub(crate) fn supports_data_format(
     supported_data_formats: MidiDataFormatFlags,
@@ -568,6 +787,34 @@ pub(crate) fn preferred_transport_pair(
     }
 
     Some((data_format, protocol))
+}
+
+/// Return whether one advertised transport shape can back one Web MIDI port.
+pub(crate) fn supports_web_midi_transport(
+    supported_data_formats: MidiDataFormatFlags,
+    supported_protocols: MidiProtocolFlags,
+) -> bool {
+    supports_data_format(supported_data_formats, MidiDataFormat::Midi1Bytes)
+        || (supports_data_format(supported_data_formats, MidiDataFormat::Ump)
+            && supports_protocol(supported_protocols, MidiProtocol::Midi1))
+}
+
+/// Choose one exact transport pair that a Web MIDI wrapper can expose.
+pub(crate) fn preferred_web_midi_transport_pair(
+    supported_data_formats: MidiDataFormatFlags,
+    supported_protocols: MidiProtocolFlags,
+) -> Option<(MidiDataFormat, MidiProtocol)> {
+    if supports_data_format(supported_data_formats, MidiDataFormat::Midi1Bytes) {
+        return Some((MidiDataFormat::Midi1Bytes, MidiProtocol::Midi1));
+    }
+
+    if supports_data_format(supported_data_formats, MidiDataFormat::Ump)
+        && supports_protocol(supported_protocols, MidiProtocol::Midi1)
+    {
+        return Some((MidiDataFormat::Ump, MidiProtocol::Midi1));
+    }
+
+    None
 }
 
 /// Decode one MIDI port descriptor into one plain Rust row.
@@ -634,6 +881,134 @@ pub(crate) fn decode_port_descriptor(
                 value.default_data_format,
                 value.default_protocol,
             ))
+        }
+    }
+}
+
+/// Decode one MIDI port descriptor into one Web MIDI identity shape.
+pub(crate) fn decode_port_descriptor_identity(
+    context: &mut MidiHarnessContext<'_>,
+    value: HarnessValue<MidiPortDescriptor, MidiPortDescriptorVm>,
+) -> RuntimeResult<PortDescriptorIdentityRow> {
+    match value {
+        HarnessValue::Native(value) => Ok((
+            unsafe { value.id.as_str()? }.to_string(),
+            value
+                .manufacturer
+                .map(|value| unsafe { value.as_str() })
+                .transpose()?
+                .map(str::to_string),
+            unsafe { value.name.as_str()? }.to_string(),
+            value
+                .version
+                .map(|value| unsafe { value.as_str() })
+                .transpose()?
+                .map(str::to_string),
+            value
+                .backend_id
+                .map(|value| unsafe { value.as_str() })
+                .transpose()?
+                .map(str::to_string),
+            value.is_virtual,
+            value.is_connected,
+        )),
+        HarnessValue::Vm(value) => {
+            let Some(vm_context) = vm_context_mut(context) else {
+                return Err(RuntimeError::from(PlatformError::invalid_argument(
+                    "missing vm context",
+                ))
+                .boxed());
+            };
+
+            let id = vm_context
+                .string_ref(value.id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string();
+            let manufacturer = value
+                .manufacturer
+                .map(|value| {
+                    vm_context
+                        .string_ref(value)
+                        .map_err(|error| RuntimeError::from(error).boxed())
+                        .map(|value| value.as_str().to_string())
+                })
+                .transpose()?;
+            let name = vm_context
+                .string_ref(value.name)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string();
+            let version = value
+                .version
+                .map(|value| {
+                    vm_context
+                        .string_ref(value)
+                        .map_err(|error| RuntimeError::from(error).boxed())
+                        .map(|value| value.as_str().to_string())
+                })
+                .transpose()?;
+            let backend_id = value
+                .backend_id
+                .map(|value| {
+                    vm_context
+                        .string_ref(value)
+                        .map_err(|error| RuntimeError::from(error).boxed())
+                        .map(|value| value.as_str().to_string())
+                })
+                .transpose()?;
+
+            Ok((
+                id,
+                manufacturer,
+                name,
+                version,
+                backend_id,
+                value.is_virtual,
+                value.is_connected,
+            ))
+        }
+    }
+}
+
+/// Decode one MIDI port descriptor list into one Web MIDI identity shape.
+pub(crate) fn decode_port_descriptor_identities(
+    context: &mut MidiHarnessContext<'_>,
+    value: HarnessValue<NativeSlice<MidiPortDescriptor>, VmSlice<MidiPortDescriptorVm>>,
+) -> RuntimeResult<Vec<PortDescriptorIdentityRow>> {
+    match value {
+        HarnessValue::Native(values) => {
+            let values = unsafe { values.as_slice()? };
+            let mut decoded = Vec::with_capacity(values.len());
+
+            for value in values {
+                decoded.push(decode_port_descriptor_identity(
+                    context,
+                    context.harness_value(*value),
+                )?);
+            }
+
+            Ok(decoded)
+        }
+        HarnessValue::Vm(values) => {
+            let Some(vm_context) = vm_context_mut(context) else {
+                return Err(RuntimeError::from(PlatformError::invalid_argument(
+                    "missing vm context",
+                ))
+                .boxed());
+            };
+
+            let values = values.read_values(vm_context)?;
+            let mut decoded = Vec::with_capacity(values.len());
+
+            for value in values {
+                decoded.push(decode_port_descriptor_identity(
+                    context,
+                    context.harness_value_vm(value),
+                )?);
+            }
+
+            Ok(decoded)
         }
     }
 }
