@@ -174,7 +174,8 @@ pub(crate) fn host_control_ioctl(
             )
         };
         if result == SOCKET_ERROR {
-            return Err(core_platform::net_error("WSAIoctl"));
+            let code = core_platform::last_wsa_error_code();
+            return Err(core_platform::net_error_with_code("WSAIoctl", code));
         }
 
         let output_len = (bytes_returned as usize).min(output_lane.len());

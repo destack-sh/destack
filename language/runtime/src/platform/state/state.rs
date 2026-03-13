@@ -6,6 +6,7 @@ use crate::platform::audio::{PlatformAudioImage, PlatformAudioState};
 use crate::platform::display::{PlatformDisplayImage, PlatformDisplayState};
 use crate::platform::fs::{PlatformFsImage, PlatformFsState};
 use crate::platform::input::{PlatformInputImage, PlatformInputState};
+use crate::platform::io::{PlatformIoImage, PlatformIoState};
 use crate::platform::midi::{PlatformMidiImage, PlatformMidiState};
 use crate::platform::net::{PlatformNetImage, PlatformNetState};
 use crate::platform::os::{PlatformOsImage, PlatformOsState};
@@ -21,6 +22,8 @@ pub(crate) struct PlatformState {
     pub fs: PlatformFsState,
     /// Input module state.
     pub input: PlatformInputState,
+    /// I/O module state.
+    pub io: PlatformIoState,
     /// MIDI module state.
     pub midi: PlatformMidiState,
     /// Network module state.
@@ -30,7 +33,7 @@ pub(crate) struct PlatformState {
 }
 
 /// Materialized platform-state image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct PlatformStateImage {
     /// Audio platform-state image.
     pub audio: PlatformAudioImage,
@@ -40,6 +43,8 @@ pub struct PlatformStateImage {
     pub fs: PlatformFsImage,
     /// Input platform-state image.
     pub input: PlatformInputImage,
+    /// I/O platform-state image.
+    pub io: PlatformIoImage,
     /// MIDI platform-state image.
     pub midi: PlatformMidiImage,
     /// Network platform-state image.
@@ -65,6 +70,7 @@ impl Capture for PlatformState {
             display: self.display.capture_image(mode, ())?,
             fs: self.fs.capture_image(mode, ())?,
             input: self.input.capture_image(mode, ())?,
+            io: self.io.capture_image(mode, ())?,
             midi: self.midi.capture_image(mode, ())?,
             net: self.net.capture_image(mode, ())?,
             os: self.os.capture_image(mode, ())?,
@@ -81,6 +87,7 @@ impl Capture for PlatformState {
         self.display.restore_image(&image.display, ())?;
         self.fs.restore_image(&image.fs, ())?;
         self.input.restore_image(&image.input, ())?;
+        self.io.restore_image(&image.io, ())?;
         self.midi.restore_image(&image.midi, ())?;
         self.net.restore_image(&image.net, ())?;
         self.os.restore_image(&image.os, ())?;

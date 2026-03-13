@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Instant;
 
 use parking_lot::Mutex;
@@ -162,17 +162,8 @@ impl PollResource {
     }
 }
 
-/// Agent-scoped key for event attachment routing.
-type EventAttachmentKey = (usize, ResourceId);
-/// Attachment targets keyed by poll resource id.
-type EventAttachmentTargets = HashMap<ResourceId, u64>;
-/// Global event attachment registry keyed by agent and token.
-type EventAttachmentRegistry = HashMap<EventAttachmentKey, EventAttachmentTargets>;
-
-/// Return a stable identity key for the current agent.
-pub(super) fn agent_key(binding: &BindingCallContext) -> usize {
-    binding.agent() as *const _ as usize
-}
+/// Token-scoped key for event attachment routing.
+type EventAttachmentKey = ResourceId;
 
 /// Build one not-found error for poll handles.
 fn poll_not_found(op: &'static str, handle: resource::PollHandle) -> Box<RuntimeError> {
@@ -347,13 +338,8 @@ pub(super) fn poll_close(
 
     // drop stale event token attachments for this poll handle
     {
-        let current_agent_key = agent_key(binding);
-        let mut attachments_by_token = event_attachment_map().lock();
-        attachments_by_token.retain(|(key, _), attachments| {
-            if *key != current_agent_key {
-                return true;
-            }
-
+        let mut attachments_by_token = binding.agent().platform_state.io.event_attachments().lock();
+        attachments_by_token.retain(|_, attachments| {
             attachments.remove(&handle.0);
             !attachments.is_empty()
         });
@@ -624,15 +610,9 @@ fn event_exists(binding: &BindingCallContext, token: EventToken) -> bool {
         .unwrap_or(false)
 }
 
-/// Return attachment mappings for event tokens.
-fn event_attachment_map() -> &'static Mutex<EventAttachmentRegistry> {
-    static ATTACHMENTS: OnceLock<Mutex<EventAttachmentRegistry>> = OnceLock::new();
-    ATTACHMENTS.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
 /// Return the attachment key for one event token in one agent.
-fn event_attachment_key(binding: &BindingCallContext, token: EventToken) -> (usize, ResourceId) {
-    (agent_key(binding), ResourceId(token.0))
+fn event_attachment_key(_binding: &BindingCallContext, token: EventToken) -> EventAttachmentKey {
+    ResourceId(token.0)
 }
 
 /// Resolve one io_uring payload from one uring handle.
@@ -1277,7 +1257,13 @@ pub(super) fn event_close(binding: &BindingCallContext, token: EventToken) -> Ru
 
     // remove stored poll attachments for this token
     let attachment_key = event_attachment_key(binding, token);
-    event_attachment_map().lock().remove(&attachment_key);
+    binding
+        .agent()
+        .platform_state
+        .io
+        .event_attachments()
+        .lock()
+        .remove(&attachment_key);
 
     io_host::host_event_close(binding, token)
 }
@@ -1316,7 +1302,11 @@ pub(super) fn event_signal(
 
     // read current attachment mappings before dispatch
     let attachment_key = event_attachment_key(binding, token);
-    let attachments = event_attachment_map()
+    let attachments = binding
+        .agent()
+        .platform_state
+        .io
+        .event_attachments()
         .lock()
         .get(&attachment_key)
         .cloned()
@@ -1333,7 +1323,7 @@ pub(super) fn event_signal(
 
     // prune stale attachments that no longer point to live poll handles
     if !stale_targets.is_empty() {
-        let mut attachments_by_token = event_attachment_map().lock();
+        let mut attachments_by_token = binding.agent().platform_state.io.event_attachments().lock();
         if let Some(attachments) = attachments_by_token.get_mut(&attachment_key) {
             for target in stale_targets {
                 attachments.remove(&target);
@@ -1379,7 +1369,7 @@ pub(super) fn event_attach(
 
     // store the attachment routing metadata for this token
     let attachment_key = event_attachment_key(binding, token);
-    let mut attachments = event_attachment_map().lock();
+    let mut attachments = binding.agent().platform_state.io.event_attachments().lock();
     attachments
         .entry(attachment_key)
         .or_default()

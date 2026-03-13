@@ -1,13 +1,6 @@
 use std::ffi::c_void;
 
-#[cfg(all(unix, not(target_os = "linux")))]
-use std::collections::HashMap;
-#[cfg(all(unix, not(target_os = "linux")))]
-use std::sync::OnceLock;
-
 use libc::{c_int, c_ulong};
-#[cfg(all(unix, not(target_os = "linux")))]
-use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "linux")]
@@ -70,8 +63,6 @@ impl ResourceFinalizer for UnixDescriptorFinalizer {
 #[cfg(all(unix, not(target_os = "linux")))]
 #[derive(Debug)]
 struct UnixEventPipeFinalizer {
-    /// Agent identity key used for descriptor-map routing.
-    agent_key: usize,
     /// Read descriptor stored in the runtime resource table.
     read_descriptor: c_int,
     /// Write descriptor used for event signal writes.
@@ -80,11 +71,8 @@ struct UnixEventPipeFinalizer {
 
 #[cfg(all(unix, not(target_os = "linux")))]
 impl ResourceFinalizer for UnixEventPipeFinalizer {
-    /// Clear descriptor routing state and close one pipe descriptor pair.
-    fn finalize(self: Box<Self>, resource_id: ResourceId) {
-        let descriptor_key = (self.agent_key, resource_id);
-        event_signal_descriptor_map().lock().remove(&descriptor_key);
-
+    /// Close one pipe descriptor pair.
+    fn finalize(self: Box<Self>, _resource_id: ResourceId) {
         unsafe {
             libc::close(self.write_descriptor);
             libc::close(self.read_descriptor);
@@ -92,20 +80,12 @@ impl ResourceFinalizer for UnixEventPipeFinalizer {
     }
 }
 
-/// Return write descriptors for non-linux event token pipes.
+/// Payload stored for one pipe-backed event token.
 #[cfg(all(unix, not(target_os = "linux")))]
-fn event_signal_descriptor_map() -> &'static Mutex<HashMap<(usize, ResourceId), c_int>> {
-    static DESCRIPTORS: OnceLock<Mutex<HashMap<(usize, ResourceId), c_int>>> = OnceLock::new();
-    DESCRIPTORS.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-/// Return the descriptor-map key for one event token in one agent.
-#[cfg(all(unix, not(target_os = "linux")))]
-fn event_signal_descriptor_key(
-    binding: &BindingCallContext,
-    token: EventToken,
-) -> (usize, ResourceId) {
-    (io_core::agent_key(binding), ResourceId(token.0))
+#[derive(Debug)]
+struct UnixEventPipeResource {
+    /// Write descriptor used for event signals.
+    write_descriptor: c_int,
 }
 
 /// Create one nonblocking close-on-exec pipe pair for events.
@@ -526,12 +506,11 @@ pub(crate) fn host_event_open(
         }
 
         // store one runtime event token resource
-        let agent_key = io_core::agent_key(binding);
         let entry = ResourceEntry::new(ResourceKind::Event)
             .with_label(io_core::EVENT_RESOURCE_LABEL)
             .with_fd(read_descriptor)
+            .with_payload(UnixEventPipeResource { write_descriptor })
             .with_finalizer(UnixEventPipeFinalizer {
-                agent_key,
                 read_descriptor,
                 write_descriptor,
             });
@@ -540,10 +519,6 @@ pub(crate) fn host_event_open(
                 .agent()
                 .resources
                 .insert(binding.world(), entry, Some(binding.engine()));
-        let descriptor_key = event_signal_descriptor_key(binding, EventToken(resource_id.0));
-        event_signal_descriptor_map()
-            .lock()
-            .insert(descriptor_key, write_descriptor);
 
         Ok(EventToken(resource_id.0))
     }
@@ -554,12 +529,6 @@ pub(crate) fn host_event_close(
     binding: &BindingCallContext,
     token: EventToken,
 ) -> RuntimeResult<()> {
-    #[cfg(all(unix, not(target_os = "linux")))]
-    {
-        let descriptor_key = event_signal_descriptor_key(binding, token);
-        event_signal_descriptor_map().lock().remove(&descriptor_key);
-    }
-
     // remove one token resource from the runtime table
     let removed = binding.agent().resources.remove_and_finalize(
         binding.world(),
@@ -590,12 +559,21 @@ pub(crate) fn host_event_signal(
             .ok_or_else(|| io_core::event_not_found("destack.io.event.signal", token))?
     };
     #[cfg(all(unix, not(target_os = "linux")))]
-    let descriptor_key = event_signal_descriptor_key(binding, token);
-    #[cfg(all(unix, not(target_os = "linux")))]
-    let descriptor = event_signal_descriptor_map()
-        .lock()
-        .get(&descriptor_key)
-        .copied()
+    let descriptor = binding
+        .agent()
+        .resources
+        .with_entry(ResourceId(token.0), |entry| {
+            if entry.kind != ResourceKind::Event {
+                return None;
+            }
+
+            entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<UnixEventPipeResource>())
+                .map(|resource| resource.write_descriptor)
+        })
+        .flatten()
         .ok_or_else(|| io_core::event_not_found("destack.io.event.signal", token))?;
 
     // write one signal payload
