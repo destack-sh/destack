@@ -6,7 +6,7 @@ use crate::snapshot::{ContinuationImage, YieldStateImage};
 #[cfg(feature = "stats")]
 use crate::telemetry::InstructionProfile;
 use crate::telemetry::Statistics;
-use destack_heap::{ManagedPointer, Value};
+use destack_heap::{ManagedReference, Value};
 
 /// Resume state captured at a yield terminator.
 #[derive(Debug, Clone)]
@@ -95,7 +95,7 @@ impl Continuation {
     }
 
     /// Collect managed heap roots referenced by this continuation.
-    pub fn collect_roots(&self, roots: &mut Vec<ManagedPointer>) {
+    pub fn collect_roots(&self, roots: &mut Vec<ManagedReference>) {
         // collect roots from captured frames
         for frame in &self.call_stack {
             frame.collect_roots(&self.value_stack, &self.local_stack, roots);

@@ -10,7 +10,7 @@ use super::string::StringInterner;
 use super::{ExternalFn, ExternalFnPtr, ExternalHandler, GlobalStorage, StringRef};
 use crate::diagnostic::Error;
 use crate::snapshot::IsolateImage;
-use destack_heap::{Heap, ManagedPointer, RawPointer, Value};
+use destack_heap::{Heap, ManagedReference, RawPointer, Value};
 
 // isolate id generator for continuation validation
 static ISOLATE_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -91,17 +91,23 @@ impl IsolateState {
     /// Intern a string literal and return its managed value.
     pub(crate) fn intern_string_literal(&mut self, heap: &mut Heap, value: &str) -> Value {
         // delegate to the string interner
-        let string_interner = &mut self.string_interner;
-        let (managed_heap, raw_heap) = heap.parts_mut();
+        self.string_interner.intern_string_literal(heap, value)
+    }
 
-        string_interner.intern_string_literal(managed_heap, raw_heap, value)
+    /// Intern a UTF-8 string literal and return its managed value.
+    pub(crate) fn try_intern_string_literal(
+        &mut self,
+        heap: &mut Heap,
+        value: &str,
+    ) -> Result<Value, Error> {
+        // delegate to the string interner
+        self.string_interner.try_intern_string_literal(heap, value)
     }
 
     /// Read a UTF-8 string value from the heap.
     pub(crate) fn string_value(&self, heap: &Heap, value: Value) -> Result<String, Error> {
         // delegate to the string interner
-        self.string_interner
-            .string_value(heap.managed(), heap.raw(), value)
+        self.string_interner.string_value(heap, value)
     }
 
     /// Read a UTF-8 string view from the heap.
@@ -111,9 +117,7 @@ impl IsolateState {
         value: Value,
     ) -> Result<StringRef<'a>, Error> {
         // resolve the borrowed string view
-        let view = self
-            .string_interner
-            .string_value_view(heap.managed(), heap.raw(), value)?;
+        let view = self.string_interner.string_value_view(heap, value)?;
 
         Ok(StringRef::new(heap, view.ptr, view.len))
     }
@@ -122,28 +126,60 @@ impl IsolateState {
     pub(crate) fn string_value_for_handle(
         &self,
         heap: &Heap,
-        handle: ManagedPointer,
+        handle: ManagedReference,
     ) -> Result<String, Error> {
-        self.string_interner
-            .string_value_for_handle(heap.managed(), heap.raw(), handle)
+        self.string_interner.string_value_for_handle(heap, handle)
     }
 
     /// Allocate an aggregate on the heap and return it as a Value.
     pub(crate) fn allocate_aggregate(&mut self, heap: &mut Heap, values: Vec<Value>) -> Value {
-        let handle = heap.managed_mut().allocate_with_values(values);
-        Value::aggregate(handle)
+        self.try_allocate_aggregate(heap, values)
+            .unwrap_or_else(|error| panic!("{error}"))
     }
 
     /// Allocate a 2-element aggregate on the heap (avoids Vec allocation).
     pub(crate) fn allocate_pair(&mut self, heap: &mut Heap, first: Value, second: Value) -> Value {
-        let handle = heap.managed_mut().allocate_pair(first, second);
-        Value::aggregate(handle)
+        self.try_allocate_pair(heap, first, second)
+            .unwrap_or_else(|error| panic!("{error}"))
     }
 
     /// Allocate a 1-element aggregate on the heap (avoids Vec allocation).
     pub(crate) fn allocate_single(&mut self, heap: &mut Heap, value: Value) -> Value {
-        let handle = heap.managed_mut().allocate_single(value);
-        Value::aggregate(handle)
+        self.try_allocate_single(heap, value)
+            .unwrap_or_else(|error| panic!("{error}"))
+    }
+
+    /// Allocate an aggregate on the heap and return it as a value.
+    pub(crate) fn try_allocate_aggregate(
+        &mut self,
+        heap: &mut Heap,
+        values: Vec<Value>,
+    ) -> Result<Value, Error> {
+        let handle = heap.allocate_managed_values(values).map_err(Error::from)?;
+        Ok(Value::aggregate(handle))
+    }
+
+    /// Allocate a 2-element aggregate on the heap.
+    pub(crate) fn try_allocate_pair(
+        &mut self,
+        heap: &mut Heap,
+        first: Value,
+        second: Value,
+    ) -> Result<Value, Error> {
+        let handle = heap
+            .allocate_managed_pair(first, second)
+            .map_err(Error::from)?;
+        Ok(Value::aggregate(handle))
+    }
+
+    /// Allocate a 1-element aggregate on the heap.
+    pub(crate) fn try_allocate_single(
+        &mut self,
+        heap: &mut Heap,
+        value: Value,
+    ) -> Result<Value, Error> {
+        let handle = heap.allocate_managed_single(value).map_err(Error::from)?;
+        Ok(Value::aggregate(handle))
     }
 
     /// Allocate a raw heap cell with value slots and return its pointer.
@@ -152,16 +188,30 @@ impl IsolateState {
         heap: &mut Heap,
         values: Vec<Value>,
     ) -> RawPointer {
-        heap.raw_mut().allocate_with_values(values)
+        self.try_allocate_raw_values(heap, values)
+            .unwrap_or_else(|error| panic!("{error}"))
+    }
+
+    /// Allocate a raw heap cell with value slots and return its pointer.
+    pub(crate) fn try_allocate_raw_values(
+        &mut self,
+        heap: &mut Heap,
+        values: Vec<Value>,
+    ) -> Result<RawPointer, Error> {
+        heap.allocate_raw_values(values).map_err(Error::from)
     }
 
     /// Allocate a raw heap cell with byte storage and return its pointer.
-    pub(crate) fn allocate_raw_bytes(&mut self, heap: &mut Heap, bytes: &[u8]) -> RawPointer {
-        heap.raw_mut().allocate_with_bytes(bytes)
+    pub(crate) fn try_allocate_raw_bytes(
+        &mut self,
+        heap: &mut Heap,
+        bytes: &[u8],
+    ) -> Result<RawPointer, Error> {
+        heap.allocate_raw_bytes(bytes).map_err(Error::from)
     }
 
     /// Collect string literal handles as GC roots.
-    pub(crate) fn collect_string_roots(&self, roots: &mut Vec<ManagedPointer>) {
+    pub(crate) fn collect_string_roots(&self, roots: &mut Vec<ManagedReference>) {
         // delegate to the string interner
         self.string_interner.collect_roots(roots);
     }
@@ -169,10 +219,7 @@ impl IsolateState {
     /// Sweep raw string payloads for freed managed string headers.
     pub(crate) fn sweep_string_buffers(&mut self, heap: &mut Heap) {
         // delegate to the string interner
-        let string_interner = &mut self.string_interner;
-        let (managed_heap, raw_heap) = heap.parts_mut();
-
-        string_interner.sweep_buffers(managed_heap, raw_heap);
+        self.string_interner.sweep_buffers(heap);
     }
 }
 

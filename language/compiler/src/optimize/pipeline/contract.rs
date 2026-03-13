@@ -305,7 +305,7 @@ fn type_requires_layout(
 
 /// Return true when a layout entry exists in the layout table.
 fn layout_exists(layout_table: &mir::LayoutTable, layout_id: mir::LayoutId) -> bool {
-    (layout_id.0 as usize) < layout_table.layouts.len()
+    layout_id.index() < layout_table.layouts.len()
 }
 
 /// Anchor an instruction id for diagnostics.

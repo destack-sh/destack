@@ -2669,7 +2669,7 @@ fn run_program_with_tree_result(
 
     // build isolate and arguments
     let mut isolate = Isolate::build_with_options(tree, strings, options)?;
-    let mut heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+    let mut heap = Heap::new();
     isolate.initialize(&mut heap)?;
     let args = program.args_for_profile(&isolate, profile);
 
@@ -2714,7 +2714,7 @@ fn run_program_with_tree_result_default_args(
 
     // build isolate and arguments
     let mut isolate = Isolate::build_with_options(tree, strings, options)?;
-    let mut heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+    let mut heap = Heap::new();
     isolate.initialize(&mut heap)?;
     let args = (program.default_args)(&isolate);
 

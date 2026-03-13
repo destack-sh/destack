@@ -307,7 +307,7 @@ block0:
     let result = run_mir(mir, "double_free", &[]);
     assert!(result.is_err());
     let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::InvalidManagedPointer));
+    assert!(matches!(err.error, Error::InvalidManagedReference));
 }
 
 /// String header fields expose UTF-16 and UTF-8 lengths.
@@ -448,5 +448,5 @@ block0:
     let result = run_mir(mir, "use_after_free", &[]);
     assert!(result.is_err());
     let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::InvalidManagedPointer));
+    assert!(matches!(err.error, Error::InvalidManagedReference));
 }

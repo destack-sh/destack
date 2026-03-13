@@ -229,7 +229,7 @@ block0(v0: fn(i32) -> i32, v1: i32):
     // create isolate and run
     let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-    let mut heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+    let mut heap = Heap::new();
 
     // initialize isolate state against the authoritative heap
     isolate
@@ -260,7 +260,7 @@ block0(v0: fn(i32) -> i32, v1: i32):
         .expect("failed to parse MIR");
     let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-    let mut heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+    let mut heap = Heap::new();
 
     // initialize isolate state against the authoritative heap
     isolate

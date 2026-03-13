@@ -4,7 +4,7 @@ use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ComptimeOutput, ModuleComptime, ModuleDir, ProfileId, TrustPolicy};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
-use vm::{Heap, ManagedHeap, RawHeap};
+use vm::Heap;
 use {destack_dir as dir, destack_vm as vm};
 
 impl Compiler {
@@ -302,7 +302,7 @@ impl Compiler {
                 module: module_id,
                 message: format!("{error}"),
             })?;
-            let heap = Heap::new(ManagedHeap::new(), RawHeap::new());
+            let heap = Heap::new();
             let mut heap = heap;
             isolate
                 .initialize(&mut heap)

@@ -6,7 +6,7 @@ use super::super::decode::{INVALID_VALUE_ID, ThreadedBlock, ThreadedFunction};
 use super::interpreter::ThreadedFunctionTable;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::snapshot::FrameImage;
-use destack_heap::{HeapCell, ManagedPointer, Value};
+use destack_heap::{ManagedReference, Value, ValueCell};
 
 /// Call frame in the interpreter.
 #[derive(Debug)]
@@ -34,7 +34,7 @@ pub struct Frame {
     /// Count of local variables in this frame.
     pub local_count: usize,
     /// Stack-allocated cells (freed when frame pops).
-    pub stack_cells: Vec<HeapCell>,
+    pub stack_cells: Vec<ValueCell>,
     /// Closure environment pointer for this frame.
     pub closure_env: Value,
     /// Return destination for the caller or INVALID_VALUE_ID for none.
@@ -200,7 +200,7 @@ impl Frame {
     /// Allocate a new stack cell, returning its slot index.
     pub fn allocate_stack_cell(&mut self) -> usize {
         let slot = self.stack_cells.len();
-        self.stack_cells.push(HeapCell::new());
+        self.stack_cells.push(ValueCell::new());
         slot
     }
 
@@ -208,28 +208,29 @@ impl Frame {
     pub fn allocate_stack_cell_with_slots(&mut self, slot_count: usize) -> usize {
         // allocate stack cell
         let slot = self.stack_cells.len();
-        self.stack_cells.push(HeapCell::with_slots(slot_count));
+        self.stack_cells
+            .push(ValueCell::with_values_len(slot_count));
         slot
     }
 
     /// Get a stack cell by slot index.
     #[inline]
-    pub fn get_stack_cell(&self, slot: usize) -> Option<&HeapCell> {
+    pub fn get_stack_cell(&self, slot: usize) -> Option<&ValueCell> {
         self.stack_cells.get(slot)
     }
 
     /// Get a mutable reference to a stack cell by slot index.
     #[inline]
-    pub fn get_stack_cell_mut(&mut self, slot: usize) -> Option<&mut HeapCell> {
+    pub fn get_stack_cell_mut(&mut self, slot: usize) -> Option<&mut ValueCell> {
         self.stack_cells.get_mut(slot)
     }
 
-    /// Collect all managed pointers from this frame for GC roots.
+    /// Collect all managed references from this frame for GC roots.
     pub fn collect_roots(
         &self,
         values: &[Value],
         locals: &[Value],
-        roots: &mut Vec<ManagedPointer>,
+        roots: &mut Vec<ManagedReference>,
     ) {
         // validate stack bounds in debug builds
         debug_assert!(
@@ -257,15 +258,15 @@ impl Frame {
 
         // collect pointers from stack cells
         for cell in &self.stack_cells {
-            for value in &cell.slots {
+            for value in cell {
                 Self::collect_pointers_from_value(value, roots);
             }
         }
     }
 
-    /// Collect one managed pointer from a value if applicable.
-    fn collect_pointers_from_value(value: &Value, roots: &mut Vec<ManagedPointer>) {
-        if let Some(pointer) = value.as_managed_pointer() {
+    /// Collect one managed reference from a value if applicable.
+    fn collect_pointers_from_value(value: &Value, roots: &mut Vec<ManagedReference>) {
+        if let Some(pointer) = value.as_managed_reference() {
             roots.push(pointer);
         }
     }
@@ -276,7 +277,7 @@ impl Frame {
         let stack_cells = self
             .stack_cells
             .iter()
-            .map(HeapCell::clone_for_fork)
+            .map(ValueCell::clone_for_fork)
             .collect();
 
         // assemble cloned frame

@@ -141,7 +141,7 @@ block0(v0: @takeFrame#parameter:value#union):
         // find the union struct type
         let union_type = test.type_by_metadata_name(tree, strings, union_metadata_name);
 
-        // assert the payload field is a managed pointer
+        // assert the payload field is a managed reference
         let payload_type =
             test.expect_struct_field_type_by_name(tree, strings, union_type, "@payload");
         let payload_type = tree.get(payload_type);

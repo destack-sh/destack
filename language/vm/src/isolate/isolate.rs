@@ -10,7 +10,7 @@ use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
 use crate::interpreter::{Interpreter, InterpreterContext};
 use crate::options::IsolateOptions;
 use crate::snapshot::{ContinuationImage, IsolateImage, IsolateSnapshot};
-use destack_heap::{GcStats, Heap, ManagedPointer, RawPointer, Value};
+use destack_heap::{GcStats, Heap, ManagedReference, RawPointer, Value};
 
 /// VM isolate with globals and execution state.
 pub struct Isolate {
@@ -256,7 +256,7 @@ impl Isolate {
     pub fn string_value_for_handle(
         &self,
         heap: &Heap,
-        handle: ManagedPointer,
+        handle: ManagedReference,
     ) -> Result<String, Error> {
         self.state.string_value_for_handle(heap, handle)
     }

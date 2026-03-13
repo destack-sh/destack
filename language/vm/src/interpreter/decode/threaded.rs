@@ -8,7 +8,7 @@ use destack_mir as mir;
 
 use super::super::state::{Frame, InterpreterContext};
 use crate::diagnostic::{Error, RuntimeResult};
-use destack_heap::{Heap, ManagedHeap, RawCellStorage, RawHeap, RawPointer, ReferenceMeta, Value};
+use destack_heap::{Heap, RawPointer, ReferenceMeta, Value};
 
 /// Handler function for threaded dispatch.
 ///
@@ -1307,24 +1307,6 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         self.interpreter.heap
     }
 
-    /// Borrow the managed heap mutably for the current block.
-    #[inline]
-    pub(crate) fn managed_mut(&mut self) -> &mut ManagedHeap {
-        self.interpreter.heap.managed_mut()
-    }
-
-    /// Borrow the raw heap for the current block.
-    #[inline]
-    pub(crate) fn raw(&self) -> &RawHeap {
-        self.interpreter.heap.raw()
-    }
-
-    /// Borrow the raw heap mutably for the current block.
-    #[inline]
-    pub(crate) fn raw_mut(&mut self) -> &mut RawHeap {
-        self.interpreter.heap.raw_mut()
-    }
-
     /// Execute one intrinsic against the current interpreter and heap state.
     pub(crate) fn execute_intrinsic(
         &mut self,
@@ -1336,7 +1318,13 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
 
     /// Get the slot count for a raw pointer.
     pub(crate) fn raw_slot_count(&self, pointer: RawPointer) -> Option<usize> {
-        Some(self.raw().get(pointer)?.storage.len())
+        let cell = self.heap_ref().raw_allocation(pointer)?;
+
+        if cell.is_bytes() {
+            return self.heap_ref().raw_byte_len(pointer);
+        }
+
+        Some(cell.values()?.len())
     }
 
     /// Read a raw slot, dispatching to the correct raw heap.
@@ -1347,53 +1335,62 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         bounds_checks: bool,
     ) -> Result<Value, Error> {
         let cell = self
-            .raw()
-            .get(pointer)
-            .ok_or(Error::InvalidManagedPointer)?;
+            .heap_ref()
+            .raw_allocation(pointer)
+            .ok_or(Error::InvalidManagedReference)?;
 
-        match &cell.storage {
-            RawCellStorage::Bytes(bytes) => {
-                // treat empty slot 0 as void
-                if bytes.is_empty() && slot_index == 0 {
-                    return Ok(Value::VOID);
-                }
+        if cell.is_bytes() {
+            let byte_len = self
+                .heap_ref()
+                .raw_byte_len(pointer)
+                .expect("raw bytes cell should resolve to one byte run");
 
-                // enforce bounds even in unchecked mode to avoid UB
-                if slot_index >= bytes.len() {
-                    return Err(Error::InvalidFieldAccess {
-                        index: slot_index as u32,
-                        field_count: bytes.len(),
-                    });
-                }
-
-                let byte = bytes[slot_index];
-                Ok(Value::uint(byte as u64, 8))
+            // treat empty slot 0 as void
+            if byte_len == 0 && slot_index == 0 {
+                return Ok(Value::VOID);
             }
-            RawCellStorage::Values(slots) => {
-                // treat empty slot 0 as void
-                if slots.is_empty() && slot_index == 0 {
-                    return Ok(Value::VOID);
-                }
 
-                // fast path without bounds checks
-                if !bounds_checks {
-                    debug_assert!(slot_index < slots.len(), "raw slot out of bounds");
-                    // #Safety: bounds checks are disabled and slot is trusted
-                    let value = unsafe { *slots.get_unchecked(slot_index) };
-                    return Ok(value);
-                }
-
-                // read the slot when in bounds
-                if let Some(value) = slots.get(slot_index).copied() {
-                    return Ok(value);
-                }
-
-                Err(Error::InvalidFieldAccess {
+            // enforce bounds even in unchecked mode to avoid UB
+            if slot_index >= byte_len {
+                return Err(Error::InvalidFieldAccess {
                     index: slot_index as u32,
-                    field_count: slots.len(),
-                })
+                    field_count: byte_len,
+                });
             }
+
+            let byte = self
+                .heap_ref()
+                .raw_byte_at(pointer, slot_index)
+                .expect("validated raw byte slot should exist");
+            return Ok(Value::uint(byte as u64, 8));
         }
+
+        let slots = cell
+            .values()
+            .expect("raw value allocation should expose values");
+
+        // treat empty slot 0 as void
+        if slots.is_empty() && slot_index == 0 {
+            return Ok(Value::VOID);
+        }
+
+        // fast path without bounds checks
+        if !bounds_checks {
+            debug_assert!(slot_index < slots.len(), "raw slot out of bounds");
+            // #Safety: bounds checks are disabled and slot is trusted
+            let value = unsafe { *slots.get_unchecked(slot_index) };
+            return Ok(value);
+        }
+
+        // read the slot when in bounds
+        if let Some(value) = slots.get(slot_index).copied() {
+            return Ok(value);
+        }
+
+        Err(Error::InvalidFieldAccess {
+            index: slot_index as u32,
+            field_count: slots.len(),
+        })
     }
 
     /// Write a raw slot, dispatching to the correct raw heap.
@@ -1404,78 +1401,102 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         value: Value,
         bounds_checks: bool,
     ) -> Result<(), Error> {
-        let cell = self
-            .raw_mut()
-            .get_mut(pointer)
-            .ok_or(Error::InvalidManagedPointer)?;
+        let is_bytes = match self.heap_ref().raw_is_bytes(pointer) {
+            Some(is_bytes) => is_bytes,
+            None => return Err(Error::InvalidManagedReference),
+        };
 
-        match &mut cell.storage {
-            RawCellStorage::Bytes(bytes) => {
-                let raw = value.as_uint().ok_or_else(|| Error::TypeMismatch {
-                    expected: "integer".to_string(),
-                    actual: format!("{value:?}"),
-                })?;
-                let byte = raw as u8;
+        if is_bytes {
+            let raw = value.as_uint().ok_or_else(|| Error::TypeMismatch {
+                expected: "integer".to_string(),
+                actual: format!("{value:?}"),
+            })?;
+            let byte = raw as u8;
+            let byte_len = self
+                .heap_ref()
+                .raw_byte_len(pointer)
+                .expect("raw bytes cell should resolve to one byte run");
 
-                // enforce bounds even in unchecked mode to avoid UB
-                if slot_index >= bytes.len() {
-                    return Err(Error::InvalidFieldAccess {
-                        index: slot_index as u32,
-                        field_count: bytes.len(),
-                    });
-                }
-
-                bytes[slot_index] = byte;
-                Ok(())
-            }
-            RawCellStorage::Values(slots) => {
-                // resize slots as needed when bounds checks are enabled
-                if bounds_checks && slots.len() <= slot_index {
-                    slots.resize(slot_index + 1, Value::VOID);
-                }
-
-                // fast path without bounds checks
-                if !bounds_checks {
-                    debug_assert!(slot_index < slots.len(), "raw slot out of bounds");
-                    // #Safety: bounds checks are disabled and slot is trusted
-                    unsafe {
-                        *slots.get_unchecked_mut(slot_index) = value;
-                    }
-                    return Ok(());
-                }
-
-                // write the slot when in bounds
-                if let Some(slot) = slots.get_mut(slot_index) {
-                    *slot = value;
-                    return Ok(());
-                }
-
-                Err(Error::InvalidFieldAccess {
+            // enforce bounds even in unchecked mode to avoid UB
+            if slot_index >= byte_len {
+                return Err(Error::InvalidFieldAccess {
                     index: slot_index as u32,
-                    field_count: slots.len(),
-                })
+                    field_count: byte_len,
+                });
             }
+
+            if self.heap().set_raw_byte(pointer, slot_index, byte) {
+                return Ok(());
+            }
+
+            return Err(Error::InvalidFieldAccess {
+                index: slot_index as u32,
+                field_count: byte_len,
+            });
         }
+
+        let value_len = self
+            .heap_ref()
+            .raw_values(pointer)
+            .map(|values| values.len())
+            .ok_or(Error::InvalidManagedReference)?;
+
+        // resize slots as needed when bounds checks are enabled
+        if bounds_checks && value_len <= slot_index {
+            self.heap()
+                .resize_raw_values(pointer, slot_index + 1)
+                .map_err(Error::from)?;
+        }
+
+        // fast path without bounds checks
+        if !bounds_checks {
+            debug_assert!(slot_index < value_len, "raw slot out of bounds");
+            // #Safety: bounds checks are disabled and slot is trusted
+            unsafe {
+                self.heap()
+                    .set_raw_value_unchecked(pointer, slot_index, value)
+            };
+            return Ok(());
+        }
+
+        // write the slot when in bounds
+        if self.heap().set_raw_value(pointer, slot_index, value) {
+            return Ok(());
+        }
+
+        Err(Error::InvalidFieldAccess {
+            index: slot_index as u32,
+            field_count: value_len.max(slot_index + 1),
+        })
     }
 
     /// Allocate an aggregate on the managed heap.
     #[inline]
     pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        let handle = self.managed_mut().allocate_with_values(values);
+        let handle = self
+            .heap()
+            .allocate_managed_values(values)
+            .unwrap_or_else(|error| panic!("{error}"));
         Value::aggregate(handle)
     }
 
     /// Allocate a 2-element aggregate on the managed heap.
     #[inline]
     pub(crate) fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
-        let handle = self.managed_mut().allocate_pair(first, second);
+        let handle = self
+            .heap()
+            .allocate_managed_pair(first, second)
+            .unwrap_or_else(|error| panic!("{error}"));
         Value::aggregate(handle)
     }
 
     /// Allocate a 1-element aggregate on the managed heap.
     #[inline]
     pub(crate) fn allocate_single(&mut self, value: Value) -> Value {
-        let handle = self.managed_mut().allocate_single(value);
+        let handle = self
+            .heap()
+            .allocate_managed_single(value)
+            .unwrap_or_else(|error| panic!("{error}"));
         Value::aggregate(handle)
     }
 
@@ -1528,7 +1549,7 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
             .engine
             .call_stack
             .get(frame_index)
-            .ok_or(Error::InvalidManagedPointer)
+            .ok_or(Error::InvalidManagedReference)
     }
 
     /// Get a frame by index mutably.
@@ -1538,7 +1559,7 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
             .engine
             .call_stack
             .get_mut(frame_index)
-            .ok_or(Error::InvalidManagedPointer)
+            .ok_or(Error::InvalidManagedReference)
     }
 
     /// Get value by SSA id.

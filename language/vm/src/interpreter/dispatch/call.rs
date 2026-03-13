@@ -258,7 +258,7 @@ fn call_with_target(
             let current_func = unsafe { current_threaded_ptr.as_ref() };
             let caller_ptr = {
                 let Ok(caller) = state.frame_by_index(caller_index) else {
-                    return ControlFlow::Error(Error::InvalidManagedPointer);
+                    return ControlFlow::Error(Error::InvalidManagedReference);
                 };
                 caller as *const Frame
             };

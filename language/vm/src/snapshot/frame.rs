@@ -1,4 +1,4 @@
-use destack_heap::{HeapCell, Value};
+use destack_heap::{Value, ValueCell};
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +24,7 @@ pub struct FrameImage {
     /// The number of locals in this frame.
     pub local_count: usize,
     /// The captured stack allocated cells.
-    pub stack_cells: Vec<HeapCell>,
+    pub stack_cells: Vec<ValueCell>,
     /// The captured closure environment.
     pub closure_env: Value,
     /// The captured return destination.
