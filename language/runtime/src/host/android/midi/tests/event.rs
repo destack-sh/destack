@@ -1,5 +1,6 @@
 use super::core::{
-    TEST_DESCRIPTOR_NAME, TEST_EVENT_SESSION_ID, lock_test_callbacks, register_test_callbacks,
+    TEST_DESCRIPTOR_ID, TEST_DESCRIPTOR_NAME, TEST_EVENT_SESSION_ID, lock_test_callbacks,
+    recorded_test_state, register_test_callbacks,
 };
 use crate::host::android::abi::{HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_OK};
 use crate::host::android::midi::{
@@ -20,10 +21,17 @@ fn test_register_bindings_routes_event_callbacks() {
 
     // verify native event open returns the deterministic session id
     let status = unsafe {
-        destack_host_android_midi_event_open(callbacks.runtime_id, 0, 1, &mut session_id)
+        destack_host_android_midi_event_open(callbacks.runtime_id, 0x12, 0x03, &mut session_id)
     };
     assert_eq!(status, HOST_STATUS_OK);
     assert_eq!(session_id, TEST_EVENT_SESSION_ID);
+
+    let state = recorded_test_state();
+    let event_open = state
+        .event_open
+        .expect("event open should record one forwarded request");
+    assert_eq!(event_open.flags, 0x12);
+    assert_eq!(event_open.direction_mask, 0x03);
 
     // verify event reads honor the two-pass buffer contract
     let status = unsafe {
@@ -73,8 +81,14 @@ fn test_register_bindings_routes_event_callbacks() {
     assert_eq!(header.direction, 1);
     assert_eq!(header.timestamp_ns, 88);
 
+    let id_start = header.descriptor.id_offset as usize;
+    let id_end = id_start + header.descriptor.id_len as usize;
     let name_start = header.descriptor.name_offset as usize;
     let name_end = name_start + header.descriptor.name_len as usize;
+    assert_eq!(
+        std::str::from_utf8(&string_bytes[id_start..id_end]).unwrap(),
+        TEST_DESCRIPTOR_ID
+    );
     assert_eq!(
         std::str::from_utf8(&string_bytes[name_start..name_end]).unwrap(),
         TEST_DESCRIPTOR_NAME
@@ -85,4 +99,7 @@ fn test_register_bindings_routes_event_callbacks() {
         destack_host_android_midi_event_close(callbacks.runtime_id, TEST_EVENT_SESSION_ID)
     };
     assert_eq!(status, HOST_STATUS_OK);
+
+    let state = recorded_test_state();
+    assert_eq!(state.closed_event_sessions, vec![TEST_EVENT_SESSION_ID]);
 }

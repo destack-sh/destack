@@ -1,7 +1,7 @@
 use super::core::{
     TEST_DESCRIPTOR_NAME, TEST_INPUT_SESSION_ID, TEST_MANUFACTURER, TEST_MODEL,
-    TEST_OUTPUT_SESSION_ID, TEST_VERSION, lock_test_callbacks, native_string_ref,
-    register_test_callbacks,
+    TEST_OUTPUT_SESSION_ID, TEST_PROTOCOLS, TEST_VERSION, lock_test_callbacks, native_string_ref,
+    recorded_test_state, register_test_callbacks,
 };
 use crate::host::android::abi::{HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_OK};
 use crate::host::android::midi::{
@@ -60,6 +60,17 @@ fn test_register_bindings_routes_port_list_callbacks() {
     };
     assert_eq!(status, HOST_STATUS_OK);
     assert_eq!(header_count_written, 1);
+    assert_eq!(descriptor.name_len as usize, TEST_DESCRIPTOR_NAME.len());
+    assert_eq!(descriptor.supported_protocols, TEST_PROTOCOLS);
+    assert_eq!(descriptor.default_data_format, 1);
+    assert_eq!(descriptor.default_protocol, 1);
+
+    let name_start = descriptor.name_offset as usize;
+    let name_end = name_start + descriptor.name_len as usize;
+    assert_eq!(
+        std::str::from_utf8(&string_bytes[name_start..name_end]).unwrap(),
+        TEST_DESCRIPTOR_NAME
+    );
 }
 
 /// Route Android MIDI open and virtual-create callbacks through the registered callback table.
@@ -94,6 +105,15 @@ fn test_register_bindings_routes_open_and_virtual_create_callbacks() {
     assert_eq!(status, HOST_STATUS_OK);
     assert_eq!(opened_port.session_id, TEST_INPUT_SESSION_ID);
 
+    let state = recorded_test_state();
+    let input_port_open = state
+        .input_port_open
+        .expect("input open should record one forwarded request");
+    assert_eq!(input_port_open.id, TEST_DESCRIPTOR_NAME);
+    assert_eq!(input_port_open.data_format, 1);
+    assert_eq!(input_port_open.protocol, 1);
+    assert_eq!(input_port_open.queue_capacity, 16);
+
     // verify virtual output creation routes through the dedicated callback
     let status = unsafe {
         destack_host_android_midi_output_virtual_create(
@@ -114,4 +134,15 @@ fn test_register_bindings_routes_open_and_virtual_create_callbacks() {
     };
     assert_eq!(status, HOST_STATUS_OK);
     assert_eq!(opened_port.session_id, TEST_OUTPUT_SESSION_ID);
+
+    let state = recorded_test_state();
+    let output_virtual_create = state
+        .output_virtual_create
+        .expect("virtual output create should record one forwarded request");
+    assert_eq!(output_virtual_create.name, TEST_DESCRIPTOR_NAME);
+    assert_eq!(output_virtual_create.manufacturer, TEST_MANUFACTURER);
+    assert_eq!(output_virtual_create.model, TEST_MODEL);
+    assert_eq!(output_virtual_create.version, TEST_VERSION);
+    assert_eq!(output_virtual_create.data_format, 1);
+    assert_eq!(output_virtual_create.protocol, 1);
 }

@@ -3,10 +3,9 @@ use super::callbacks::{
     AndroidHostMidiEventOpenCallback, AndroidHostMidiEventReadCallback,
     AndroidHostMidiInputPortCloseCallback, AndroidHostMidiInputPortListCallback,
     AndroidHostMidiInputPortOpenCallback, AndroidHostMidiInputReadCallback,
-    AndroidHostMidiInputVirtualCreateCallback, AndroidHostMidiOutputFlushCallback,
-    AndroidHostMidiOutputPortCloseCallback, AndroidHostMidiOutputPortListCallback,
-    AndroidHostMidiOutputPortOpenCallback, AndroidHostMidiOutputVirtualCreateCallback,
-    AndroidHostMidiOutputWriteCallback,
+    AndroidHostMidiInputVirtualCreateCallback, AndroidHostMidiOutputPortCloseCallback,
+    AndroidHostMidiOutputPortListCallback, AndroidHostMidiOutputPortOpenCallback,
+    AndroidHostMidiOutputVirtualCreateCallback, AndroidHostMidiOutputWriteCallback,
 };
 
 /// Fixed-size Android MIDI port descriptor header.
@@ -169,8 +168,6 @@ pub struct AndroidHostMidiCallbacks {
     pub event_close: Option<AndroidHostMidiEventCloseCallback>,
     /// Callback for output record writes.
     pub output_write: Option<AndroidHostMidiOutputWriteCallback>,
-    /// Callback for output flush.
-    pub output_flush: Option<AndroidHostMidiOutputFlushCallback>,
 }
 
 impl Default for AndroidHostMidiCallbacks {
@@ -191,7 +188,6 @@ impl Default for AndroidHostMidiCallbacks {
             event_read: None,
             event_close: None,
             output_write: None,
-            output_flush: None,
         }
     }
 }

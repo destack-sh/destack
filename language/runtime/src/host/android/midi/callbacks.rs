@@ -138,7 +138,3 @@ pub type AndroidHostMidiOutputWriteCallback = unsafe extern "C" fn(
     blob_bytes: NativeSlice<u8>,
     records_written: *mut u32,
 ) -> u32;
-
-/// Host callback for flushing one Android MIDI output session.
-pub type AndroidHostMidiOutputFlushCallback =
-    unsafe extern "C" fn(runtime_id: u64, session_id: u64) -> u32;
