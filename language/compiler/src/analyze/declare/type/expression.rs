@@ -1291,6 +1291,26 @@ impl Compiler {
             }
             Expression::This | Expression::Super => Type::This,
             Expression::Parenthesized { expression } => {
+                if let Expression::Unary {
+                    operator: UnaryOperator::Spread,
+                    right,
+                } = ctx.tree.get(expression)
+                {
+                    let element_type_id = self.resolve_declared_type_expression(
+                        &mut ctx.reborrow(),
+                        *right,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+                    let mut element = TypeElement::new(element_type_id);
+                    element.is_rest = true;
+
+                    return Ok(Some(Type::Tuple {
+                        elements: vec![element],
+                        is_readonly: false,
+                    }));
+                }
+
                 return self.resolve_declared_expression_type(
                     &mut ctx.reborrow(),
                     expression,

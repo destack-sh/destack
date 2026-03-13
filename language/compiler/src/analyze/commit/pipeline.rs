@@ -26,6 +26,7 @@ impl Compiler {
         self.discharge_instance_commit_obligations(infer, &mut *ctx.types)?;
         let actions = self.collect_binding_value_commit_actions(&mut ctx, infer);
         self.apply_binding_value_commit_actions(actions, &mut ctx);
+        self.materialize_committed_symbol_type_surfaces(&mut ctx)?;
 
         Ok(())
     }

@@ -10,12 +10,12 @@ pub(super) use crate::{
 };
 pub(super) use destack_core::StringId;
 pub(super) use destack_dir::{
-    Argument, BinaryOperator, Declaration, Declarator, EnumFieldValue, Expression, ExtensionKind,
-    FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, IfKind, IntType,
-    LocalNodeId, LocalScopeMark, LocalTypeId, MatchCase, MatchSelector, NodeTree,
-    NormalizationMode, Pattern, PatternField, PrimitiveType, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeField,
-    TypeLiteral, TypeTable, TypeUnaryOperator,
+    Argument, BinaryOperator, Declaration, Declarator, DynamicKey, EnumFieldValue, Expression,
+    ExtensionKind, FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition,
+    IfKind, IntType, LocalNodeId, LocalScopeMark, LocalTypeId, MatchCase, MatchSelector, Member,
+    NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
+    Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 pub(super) use destack_source::ModuleId;
 pub(super) use destack_workspace::{DsConfigCompilerOptions, Module, ProfileId};
@@ -232,6 +232,44 @@ impl<'a> TestModuleView<'a> {
         panic!("expected enum field for {name:?}");
     }
 
+    /// Resolve the struct field symbol for one struct and field name.
+    pub(crate) fn expect_struct_field_symbol(
+        &self,
+        struct_name: StringId,
+        field_name: StringId,
+    ) -> GlobalSymbolId {
+        // scan struct declarations for the requested field
+        for declaration_id in self.tree.iter_node_ids_of_type::<Declaration>() {
+            let Declaration::Struct {
+                descriptor,
+                members,
+                ..
+            } = self.tree.get(declaration_id)
+            else {
+                continue;
+            };
+            if descriptor.name.map(|name| name.string()) != Some(struct_name) {
+                continue;
+            }
+
+            for member_id in members {
+                let Member::Field {
+                    key: Some(DynamicKey::Name(name)),
+                    symbol,
+                    ..
+                } = self.tree.get(*member_id)
+                else {
+                    continue;
+                };
+                if *name == field_name {
+                    return symbol.into_global(self.module_id);
+                }
+            }
+        }
+
+        panic!("expected struct field {field_name:?} on {struct_name:?}");
+    }
+
     /// Read a declared type id for a node.
     pub(crate) fn expect_declared_type_id(&self, node_id: GlobalNodeIdAny) -> LocalTypeId {
         self.types
@@ -294,6 +332,21 @@ impl<'a> TestModuleView<'a> {
         }
 
         panic!("expected object fields for type");
+    }
+
+    /// Resolve one object field type by field name.
+    pub(crate) fn expect_object_field_type(
+        &self,
+        ty_id: LocalTypeId,
+        field_name: StringId,
+    ) -> LocalTypeId {
+        let fields = self.object_fields_for_type(ty_id);
+        let field = fields
+            .iter()
+            .find(|field| field.key.name() == Some(field_name))
+            .unwrap_or_else(|| panic!("expected object field {field_name:?}"));
+
+        field.ty
     }
 }
 
