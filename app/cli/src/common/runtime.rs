@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 use destack_workspace::{
-    DsConfigRuntimeOptionsJson, ExecutionModeJson, GcOptionsJson, RandomModeJson,
+    DsConfigRuntimeOptionsJson, ExecutionModeJson, HeapOptionsJson, RandomModeJson,
     RandomOptionsJson, ReplayOptionsJson, RuntimeAccessJson, RuntimeWorldJson,
     SchedulerOptionsJson, SchedulerPolicyJson, TimeModeJson, TimeOptionsJson,
 };
@@ -106,21 +106,37 @@ pub struct RuntimeArgs {
     #[arg(long = "runtime-scheduler-max-tasks")]
     pub scheduler_max_tasks: Option<u64>,
 
-    /// Enable or disable the garbage collector.
-    #[arg(long = "runtime-gc-enabled")]
-    pub gc_enabled: Option<bool>,
+    /// Runtime heap growth target percentage.
+    #[arg(long = "runtime-heap-growth-percent")]
+    pub heap_growth_percent: Option<u32>,
 
-    /// Runtime GC heap growth target percentage.
-    #[arg(long = "runtime-gc-heap-growth-percent")]
-    pub gc_heap_growth_percent: Option<u32>,
+    /// Runtime heap soft limit in bytes.
+    #[arg(long = "runtime-heap-soft-limit-bytes")]
+    pub heap_soft_limit_bytes: Option<u64>,
 
-    /// Runtime GC soft heap limit in bytes.
-    #[arg(long = "runtime-gc-heap-soft-limit-bytes")]
-    pub gc_heap_soft_limit_bytes: Option<u64>,
+    /// Runtime heap initial size hint in bytes.
+    #[arg(long = "runtime-heap-initial-bytes")]
+    pub heap_initial_bytes: Option<u64>,
 
-    /// Runtime GC initial heap size hint in bytes.
-    #[arg(long = "runtime-gc-heap-initial-bytes")]
-    pub gc_heap_initial_bytes: Option<u64>,
+    /// Managed span threshold in values before using dedicated large spans.
+    #[arg(long = "runtime-heap-managed-large-span-values")]
+    pub managed_large_span_values: Option<usize>,
+
+    /// Raw span threshold in bytes before using dedicated large spans.
+    #[arg(long = "runtime-heap-raw-large-span-bytes")]
+    pub raw_large_span_bytes: Option<usize>,
+
+    /// Hard total retained heap byte limit.
+    #[arg(long = "runtime-heap-max-bytes")]
+    pub heap_max_bytes: Option<u64>,
+
+    /// Hard retained managed heap byte limit.
+    #[arg(long = "runtime-heap-max-managed-bytes")]
+    pub heap_max_managed_bytes: Option<u64>,
+
+    /// Hard retained raw heap byte limit.
+    #[arg(long = "runtime-heap-max-raw-bytes")]
+    pub heap_max_raw_bytes: Option<u64>,
 }
 
 impl RuntimeArgs {
@@ -150,10 +166,14 @@ impl RuntimeArgs {
             && self.scheduler_io_threads.is_none()
             && self.scheduler_blocking_threads.is_none()
             && self.scheduler_max_tasks.is_none()
-            && self.gc_enabled.is_none()
-            && self.gc_heap_growth_percent.is_none()
-            && self.gc_heap_soft_limit_bytes.is_none()
-            && self.gc_heap_initial_bytes.is_none()
+            && self.heap_growth_percent.is_none()
+            && self.heap_soft_limit_bytes.is_none()
+            && self.heap_initial_bytes.is_none()
+            && self.managed_large_span_values.is_none()
+            && self.raw_large_span_bytes.is_none()
+            && self.heap_max_bytes.is_none()
+            && self.heap_max_managed_bytes.is_none()
+            && self.heap_max_raw_bytes.is_none()
     }
 
     /// Convert runtime arguments into runtime option overrides.
@@ -239,16 +259,24 @@ impl RuntimeArgs {
             None
         };
 
-        let gc = if self.gc_enabled.is_some()
-            || self.gc_heap_growth_percent.is_some()
-            || self.gc_heap_soft_limit_bytes.is_some()
-            || self.gc_heap_initial_bytes.is_some()
+        let heap = if self.heap_growth_percent.is_some()
+            || self.heap_soft_limit_bytes.is_some()
+            || self.heap_initial_bytes.is_some()
+            || self.managed_large_span_values.is_some()
+            || self.raw_large_span_bytes.is_some()
+            || self.heap_max_bytes.is_some()
+            || self.heap_max_managed_bytes.is_some()
+            || self.heap_max_raw_bytes.is_some()
         {
-            Some(GcOptionsJson {
-                enabled: self.gc_enabled,
-                heap_growth_percent: self.gc_heap_growth_percent,
-                heap_soft_limit_bytes: self.gc_heap_soft_limit_bytes,
-                heap_initial_bytes: self.gc_heap_initial_bytes,
+            Some(HeapOptionsJson {
+                growth_percent: self.heap_growth_percent,
+                soft_limit_bytes: self.heap_soft_limit_bytes,
+                initial_bytes: self.heap_initial_bytes,
+                managed_large_span_values: self.managed_large_span_values,
+                raw_large_span_bytes: self.raw_large_span_bytes,
+                max_bytes: self.heap_max_bytes,
+                max_managed_bytes: self.heap_max_managed_bytes,
+                max_raw_bytes: self.heap_max_raw_bytes,
             })
         } else {
             None
@@ -262,7 +290,7 @@ impl RuntimeArgs {
             time,
             random,
             scheduler,
-            gc,
+            heap,
             platform: None,
             ..Default::default()
         })
