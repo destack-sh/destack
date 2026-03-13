@@ -30,7 +30,9 @@ impl Compiler {
                 let Some(dir) = module.dir_base_maybe() else {
                     return;
                 };
-                self.program.artifacts.set_dir_base(module_id, dir.to_data());
+                self.program
+                    .artifacts
+                    .set_dir_base(module_id, dir.to_data());
             }
             BuildKey::Artifact(
                 ArtifactKey::DirPrepared { module, profile }
@@ -151,9 +153,11 @@ impl Compiler {
                 continue;
             };
             let component_dir_data = component_dir.to_data();
-            self.program
-                .artifacts
-                .set_dir_interface(component_module_id, profile_id, component_dir_data);
+            self.program.artifacts.set_dir_interface(
+                component_module_id,
+                profile_id,
+                component_dir_data,
+            );
         }
     }
 

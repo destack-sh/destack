@@ -1,18 +1,18 @@
 # Runtime
 
 The runtime is how Destack actually does anything interesting beyond pure computation.
-The Destack runtime wraps VM and/or native execution with scheduling, bindings, host integration, trace, telemetry, and all the other "runtime stuff".
-Essentially, the runtime is where we integrate Node/Bun/Deno-level semantics with V8/JSC-runtime features, though we go much deeper and wider - it's really more like a universal software engine than it is another Node-derived runtime.
+The Destack runtime wraps VM and/or native execution with scheduling, bindings, host integration, simulation, telemetry, and all the other "runtime stuff".
+Essentially, the runtime is where we integrate Node/Bun/Deno-level semantics with V8/JSC-runtime features, though we go much deeper and wider - it's really more like a universal software engine than it is a Node-derived runtime.
 
 ## Runtime
 
-Runtime behavior is modeled along the three basic dimensions of engine ("where?"), execution ("how?") and world ("what?"):
+Runtime behaviour is modelled along the three basic dimensions of engine ("where?"), execution ("how?") and world ("what?"):
 
-| Dimension | Values | Purpose |
-|-----------|--------|---------|
-| engine | `vm`, `native` | chooses the execution engine |
-| execution | `fast`, `deterministic`, `record`, `replay` | chooses determinism and replay behavior |
-| world | `host`, `simulation` | chooses host-backed or simulation-backed bindings |
+| Dimension | Values                                      | Purpose                                           |
+| --------- | ------------------------------------------- | ------------------------------------------------- |
+| engine    | `vm`, `native`                              | chooses the execution engine                      |
+| execution | `fast`, `deterministic`, `record`, `replay` | chooses determinism and replay behavior           |
+| world     | `host`, `simulation`                        | chooses host-backed or simulation-backed bindings |
 
 The runtime is organized around core `runtime`, `platform` bindings, and the underlying `host` integration:
  - `runtime/`: all the core runtime scaffolding and orchestration (world, topology, poller, scheduler/loop, etc.)
@@ -25,7 +25,7 @@ The point of explicitly modeling execution like this is to enable end-to-end sim
 ## World
 
 The runtime lives in a main `World`, which owns the root clocks, topology, simulation state, policy / rules, trace / replay, and lineage ("history").
- - Each `World` contains 1-n `Runtime`s, and one `Runtime` contains 1-n `Agent`s.
+ - Each `World` contains 1-n `Runtime`s, and one `Runtime` contains 1-n `Agent`s (WHATWG-ish)
  - Each `Agent` has its own execution lane with one `EventLoop`, one `Heap`, one execution `Engine`, one platform resource table, etc..
  - The `Lineage` owns the authoritative `Trace` images for each `Revision`.
  - One `Image` only materializes world, runtime, and agent state for fast restore.
