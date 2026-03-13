@@ -2356,8 +2356,8 @@ fn test_input_windows_keyboard_state_surface_matches_capabilities() {
         let state = context.keyboard_state_from_value(state)?;
         assert_keyboard_state_record_semantics(&state);
         assert_eq!(
-            state.pressed_code_count, state.pressed_scan_code_count,
-            "windows keyboard snapshots should keep code and scan-code arrays aligned"
+            state.pressed_scan_code_count, 0,
+            "windows console keyboard snapshots should leave scan-code arrays empty until one real scan-code path exists"
         );
 
         context.destack_input_close(handle)?;
