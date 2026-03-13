@@ -6,7 +6,7 @@ use crate::platform::{NativeSlice, PlatformError, PlatformErrorCode, core as cor
 
 use crate::runtime::BindingCallContext;
 
-use super::{signals, wait};
+use super::wait;
 
 use crate::platform::process::{
     ProcessFdFlags, ProcessFdSignalFlags, ProcessId, ProcessWaitExitedStatus, ProcessWaitFlags,
@@ -508,55 +508,6 @@ fn send_signal_process_handle(
     Ok(())
 }
 
-/// Resolve a signal-fd handle into its signal mask payload.
-fn resolve_signal_fd(
-    binding: &BindingCallContext,
-    handle: resource::SignalFdHandle,
-) -> RuntimeResult<Vec<Signal>> {
-    let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
-            .map(|binding| binding.signals.clone())
-    });
-
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed()
-    })
-}
-
-/// Replace the signal mask payload for one signal-fd handle.
-fn update_signal_fd(
-    binding: &BindingCallContext,
-    handle: resource::SignalFdHandle,
-    signals: Vec<Signal>,
-) -> RuntimeResult<()> {
-    let updated = binding.agent().resources.with_entry_mut(handle.0, |entry| {
-        entry
-            .payload
-            .as_mut()
-            .and_then(|payload| payload.downcast_mut::<core_process::SignalFdBinding>())
-            .map(|binding| {
-                binding.signals = signals;
-            })
-    });
-
-    if updated.flatten().is_none() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed());
-    }
-
-    Ok(())
-}
-
 /// Ensure one process-fd handle resolves to a process-fd payload.
 fn ensure_process_fd_handle(
     binding: &BindingCallContext,
@@ -581,29 +532,6 @@ fn ensure_process_fd_handle(
     Ok(())
 }
 
-/// Ensure one signal-fd handle resolves to a signal-fd payload.
-fn ensure_signal_fd_handle(
-    binding: &BindingCallContext,
-    handle: resource::SignalFdHandle,
-) -> RuntimeResult<()> {
-    let is_signal_fd = binding.agent().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
-            .is_some()
-    });
-
-    if is_signal_fd != Some(true) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed());
-    }
-
-    Ok(())
-}
 /// Close one process descriptor.
 ///
 /// Close one host process descriptor and release the kernel object reference.
@@ -824,25 +752,14 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_close(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    ensure_signal_fd_handle(binding, handle)?;
-
-    let removed = binding.agent().resources.remove_and_finalize(
-        binding.world(),
-        handle.0,
-        Some(binding.engine()),
-    );
-    if !removed {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal fd handle",
-        ))
-        .boxed());
-    }
-
-    Ok(())
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.fd.signalFdClose",
+    ))
+    .boxed())
 }
 
 /// Open one signal descriptor for the provided signal mask.
@@ -863,7 +780,7 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_open(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
     flags: SignalFdFlags,
@@ -879,21 +796,11 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
         .boxed());
     }
 
-    let signals = unsafe { signals.as_slice()? }.to_vec();
-    let entry = resource::ResourceEntry::new(resource::ResourceKind::SignalFd)
-        .with_label("process.signal.fd")
-        .with_payload(core_process::SignalFdBinding { signals });
-    let resource_id =
-        binding
-            .agent()
-            .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
-
-    unsafe {
-        *out = resource::SignalFdHandle(resource_id);
-    }
-
-    Ok(())
+    let _ = signals;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.fd.signalFdOpen",
+    ))
+    .boxed())
 }
 
 /// Read one queued signal event from a signal descriptor.
@@ -914,20 +821,18 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_read(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let signals = resolve_signal_fd(binding, handle)?;
-    let event = signals::process_signal_wait(&signals)?;
-    unsafe {
-        *out = event;
-    }
-
-    Ok(())
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.fd.signalFdRead",
+    ))
+    .boxed())
 }
 
 /// Replace the active signal mask for one signal descriptor.
@@ -948,12 +853,15 @@ pub(crate) unsafe fn destack_process_signal_fd_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_set_mask(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
-    let signals = unsafe { signals.as_slice()? }.to_vec();
-    update_signal_fd(binding, handle, signals)
+    let _ = (handle, signals);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.fd.signalFdSetMask",
+    ))
+    .boxed())
 }
 
 /// Poll one queued signal event from a signal descriptor without blocking.
@@ -974,18 +882,16 @@ pub(crate) unsafe fn destack_process_signal_fd_set_mask(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_try_read(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let signals = resolve_signal_fd(binding, handle)?;
-    let event = signals::process_signal_try_wait(&signals)?;
-    unsafe {
-        *out = event;
-    }
-
-    Ok(())
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.fd.signalFdTryRead",
+    ))
+    .boxed())
 }

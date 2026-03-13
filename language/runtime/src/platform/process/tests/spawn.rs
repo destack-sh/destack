@@ -3,23 +3,26 @@ use std::os::fd::AsRawFd;
 
 #[cfg(unix)]
 use super::ProcessFdActionKind;
-#[cfg(windows)]
+#[cfg(unix)]
+use super::unique_temp_file_path;
+#[cfg(any(unix, windows))]
 use super::with_native_harness_context;
 use super::{
     ProcessFdActionSpec, ProcessSpawnOptionsSpec, ProcessStdioKind, ProcessStdioSpec,
-    ProcessWaitKind, shell_exit_command, shell_sleep_then_exit_command, spawn_shell,
-    with_harness_context,
+    ProcessWaitKind, shell_exit_command, with_harness_context,
 };
 #[cfg(unix)]
 use super::{
     assert_platform_error_code_with_privileged_policy,
-    assert_platform_error_codes_with_privileged_policy, is_would_block,
+    assert_platform_error_codes_with_privileged_policy,
 };
-#[cfg(unix)]
-use super::{fork_child_sleep_then_exit, unique_temp_file_path};
+#[cfg(any(target_os = "linux", target_os = "android"))]
+use super::{fork_child_sleep_then_exit, is_would_block};
+#[cfg(any(target_os = "linux", target_os = "android", windows))]
+use super::{shell_sleep_then_exit_command, spawn_shell};
 #[cfg(any(unix, windows))]
 use crate::diagnostic::RuntimeError;
-#[cfg(windows)]
+#[cfg(any(unix, windows))]
 use crate::diagnostic::RuntimeResult;
 #[cfg(any(unix, windows))]
 use crate::platform::PlatformError;
@@ -27,21 +30,19 @@ use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(unix)]
 use crate::platform::fs;
-#[cfg(windows)]
+#[cfg(any(unix, windows))]
 use crate::platform::fs::core as core_fs;
 use crate::platform::process as process_platform;
-#[cfg(windows)]
+#[cfg(unix)]
+use crate::platform::resource::ProcessFdHandle;
+#[cfg(any(unix, windows))]
 use crate::platform::resource::{self, ResourceId};
-#[cfg(unix)]
-use crate::platform::resource::{ProcessFdHandle, ResourceId};
-#[cfg(unix)]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use process_platform::ProcessId;
-#[cfg(windows)]
-use process_platform::{
-    ProcessFdAction, ProcessSpawnOptions, ProcessStdio, native as process_native,
-};
+#[cfg(any(unix, windows))]
+use process_platform::{ProcessFdAction, ProcessSpawnOptions, ProcessStdio};
 use process_platform::{ProcessFdFlags, ProcessWaitFlags};
-#[cfg(unix)]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use process_platform::{ProcessFdSignalFlags, Signal};
 
 /// Read the current process working directory as UTF-8 text.
@@ -138,6 +139,89 @@ impl Drop for WindowsPipeDescriptors {
     }
 }
 
+/// Own one unix pipe descriptor pair for process spawn tests.
+#[cfg(unix)]
+struct UnixPipeDescriptors {
+    /// Read descriptor owned by the parent.
+    read_fd: i32,
+    /// Write descriptor used for child stdio wiring.
+    write_fd: i32,
+}
+
+#[cfg(unix)]
+impl UnixPipeDescriptors {
+    /// Create one anonymous pipe descriptor pair.
+    fn open() -> RuntimeResult<Self> {
+        let mut descriptors = [0_i32; 2];
+        let rc = unsafe { libc::pipe(descriptors.as_mut_ptr()) };
+        if rc != 0 {
+            return Err(RuntimeError::from(PlatformError::io("failed to open test pipe")).boxed());
+        }
+
+        Ok(Self {
+            read_fd: descriptors[0],
+            write_fd: descriptors[1],
+        })
+    }
+
+    /// Read all bytes from the read descriptor until EOF.
+    fn read_all(&self) -> RuntimeResult<Vec<u8>> {
+        let mut output = Vec::<u8>::new();
+
+        loop {
+            let mut chunk = [0_u8; 256];
+            let read = unsafe {
+                libc::read(
+                    self.read_fd,
+                    chunk.as_mut_ptr() as *mut libc::c_void,
+                    chunk.len(),
+                )
+            };
+            if read < 0 {
+                let error = std::io::Error::last_os_error();
+                return Err(RuntimeError::from(PlatformError::io(format!(
+                    "failed to read test pipe: {error}",
+                )))
+                .boxed());
+            }
+            if read == 0 {
+                break;
+            }
+
+            output.extend_from_slice(&chunk[..read as usize]);
+        }
+
+        Ok(output)
+    }
+
+    /// Close the write descriptor before reading EOF from the read side.
+    fn close_write(&mut self) {
+        if self.write_fd >= 0 {
+            unsafe {
+                libc::close(self.write_fd);
+            }
+            self.write_fd = -1;
+        }
+    }
+}
+
+#[cfg(unix)]
+impl Drop for UnixPipeDescriptors {
+    fn drop(&mut self) {
+        if self.write_fd >= 0 {
+            unsafe {
+                libc::close(self.write_fd);
+            }
+        }
+
+        if self.read_fd >= 0 {
+            unsafe {
+                libc::close(self.read_fd);
+            }
+        }
+    }
+}
+
 /// Spawn a child process, wait for exit, and reject stale handle reuse.
 #[cfg(unix)]
 #[test]
@@ -176,7 +260,7 @@ fn test_process_spawn_wait_handle_roundtrip() {
 }
 
 /// Wait on a process-fd handle for a forked child exit.
-#[cfg(unix)]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 #[test]
 fn test_process_fd_wait_roundtrip() {
     with_harness_context(|mut context| {
@@ -276,15 +360,95 @@ fn test_process_spawn_with_actions_wait_roundtrip() {
 }
 
 /// Route spawned child stdout through a provided pipe handle.
-#[cfg(windows)]
+#[cfg(any(unix, windows))]
 #[test]
 fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
     let cwd = current_working_directory();
 
+    #[cfg(unix)]
+    with_native_harness_context(|mut context| {
+        let mut pipe = UnixPipeDescriptors::open()?;
+
+        let call_context = context.call_context;
+        let pipe_entry = resource::ResourceEntry::new(resource::ResourceKind::Pipe)
+            .with_label("process.test.pipe.stdout")
+            .with_fd(pipe.write_fd);
+        let pipe_resource_id = call_context.agent().resources.insert(
+            call_context.world(),
+            pipe_entry,
+            Some(call_context.engine()),
+        );
+        let pipe_handle = resource::PipeHandle(pipe_resource_id);
+
+        let command = core_fs::os_path_from_utf8_string(call_context, "/bin/sh".to_string());
+        let arguments = call_context.store_string_slice(vec![
+            call_context.store_string("-c"),
+            call_context.store_string("printf PIPE_STDIO_OK"),
+        ]);
+        let environment = call_context.store_string_slice(Vec::new());
+        let options = ProcessSpawnOptions {
+            cwd: core_fs::os_path_from_utf8_string(call_context, cwd.clone()),
+            detached: false,
+            reset_signals: false,
+            new_process_group: false,
+        };
+
+        let stdio_values = vec![
+            ProcessStdio::ProcessStdioInherit(process_platform::ProcessStdioInherit {
+                kind: call_context.store_string("inherit"),
+            }),
+            ProcessStdio::ProcessStdioPipe(process_platform::ProcessStdioPipe {
+                kind: call_context.store_string("pipe"),
+                pipe: pipe_handle,
+            }),
+            ProcessStdio::ProcessStdioInherit(process_platform::ProcessStdioInherit {
+                kind: call_context.store_string("inherit"),
+            }),
+        ];
+        let stdio = call_context.store_slice(stdio_values);
+        let actions = call_context.store_slice(Vec::<ProcessFdAction>::new());
+
+        let mut child = resource::ProcessHandle(ResourceId(0));
+        unsafe {
+            process_platform::native::destack_process_spawn_with_actions(
+                call_context,
+                &mut child,
+                command,
+                arguments,
+                environment,
+                options,
+                stdio,
+                actions,
+            )?;
+        }
+
+        // close the parent write descriptor to allow EOF on the read side
+        let _ = call_context.agent().resources.remove(
+            call_context.world(),
+            pipe_resource_id,
+            Some(call_context.engine()),
+        );
+        pipe.close_write();
+
+        // wait for the child process to complete successfully
+        let status = context.destack_process_wait(child, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
+        assert_eq!(status.kind, ProcessWaitKind::Exited);
+        assert_eq!(status.exit_code, Some(0));
+
+        // pipe output should contain the spawned command payload
+        let output = pipe.read_all()?;
+        let output = String::from_utf8_lossy(&output);
+        assert_eq!(output, "PIPE_STDIO_OK");
+
+        Ok(())
+    });
+
+    #[cfg(windows)]
     with_native_harness_context(|mut context| {
         let mut pipe = WindowsPipeDescriptors::open()?;
 
-        let call_context = context.call_context();
+        let call_context = context.call_context;
         let write_handle_raw = unsafe { libc::get_osfhandle(pipe.write_fd) };
         if write_handle_raw == -1 {
             return Err(windows_io_error(
@@ -333,7 +497,7 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
 
         let mut child = resource::ProcessHandle(ResourceId(0));
         unsafe {
-            process_native::destack_process_spawn_with_actions(
+            process_platform::native::destack_process_spawn_with_actions(
                 call_context,
                 &mut child,
                 command,
@@ -530,7 +694,7 @@ fn test_process_spawn_with_actions_dup2_stderr_roundtrip() {
 }
 
 /// Wait on a process-fd opened from a spawned child process id.
-#[cfg(any(unix, windows))]
+#[cfg(any(target_os = "linux", target_os = "android", windows))]
 #[test]
 fn test_process_fd_wait_spawn_roundtrip() {
     with_harness_context(|mut context| {
@@ -550,7 +714,7 @@ fn test_process_fd_wait_spawn_roundtrip() {
 }
 
 /// Wait a process-fd after child exit delay and still observe terminal status.
-#[cfg(any(unix, windows))]
+#[cfg(any(target_os = "linux", target_os = "android", windows))]
 #[test]
 fn test_process_fd_wait_after_exit_delay_roundtrip() {
     with_harness_context(|mut context| {
@@ -573,7 +737,7 @@ fn test_process_fd_wait_after_exit_delay_roundtrip() {
 }
 
 /// Poll a process-fd, send a no-op signal, and await completion.
-#[cfg(unix)]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 #[test]
 fn test_process_fd_try_wait_and_send_signal_roundtrip() {
     with_harness_context(|mut context| {
@@ -611,7 +775,7 @@ fn test_process_fd_try_wait_and_send_signal_roundtrip() {
 }
 
 /// Report specific errors for invalid process-fd arguments and handles.
-#[cfg(unix)]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 #[test]
 fn test_process_fd_validation_errors_are_specific() {
     with_harness_context(|mut context| {
@@ -671,6 +835,22 @@ fn test_process_fd_validation_errors_are_specific() {
         let timeout_status = context.wait_status_from_value(timeout_status);
         assert_eq!(timeout_status.kind, ProcessWaitKind::Exited);
         context.destack_process_process_fd_close(timeout_handle)?;
+
+        Ok(())
+    });
+}
+
+/// Reject process-fd support on unix hosts without pidfd semantics.
+#[cfg(all(unix, not(target_os = "linux"), not(target_os = "android")))]
+#[test]
+fn test_process_fd_reports_not_supported_without_pidfd_semantics() {
+    with_harness_context(|mut context| {
+        let pid = context.destack_process_pid()?;
+
+        assert_platform_error_code_with_privileged_policy(
+            context.destack_process_process_fd_open(pid, ProcessFdFlags(0)),
+            PlatformErrorCode::NotSupported,
+        )?;
 
         Ok(())
     });

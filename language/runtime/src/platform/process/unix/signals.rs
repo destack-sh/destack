@@ -479,7 +479,7 @@ pub(super) fn process_signal_try_wait(signals: &[Signal]) -> RuntimeResult<Signa
 const MAX_SIGNAL_SCAN: u32 = 128;
 
 /// Ensure all requested signals are blocked in the current thread mask.
-fn ensure_signals_blocked(signals: &[Signal]) -> RuntimeResult<()> {
+pub(super) fn ensure_signals_blocked(signals: &[Signal]) -> RuntimeResult<()> {
     let mut current_mask = unsafe { std::mem::zeroed::<libc::sigset_t>() };
     let read_result =
         unsafe { libc::pthread_sigmask(libc::SIG_SETMASK, std::ptr::null(), &mut current_mask) };

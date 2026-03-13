@@ -6,6 +6,8 @@ use super::{syscall_get_limit, syscall_get_priority};
 #[cfg(unix)]
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(windows)]
+use crate::platform::process::ProcessSchedulerConfig;
 #[cfg(unix)]
 use crate::platform::process::{ProcessId, ProcessLimit, ProcessLimitResource};
 #[cfg(target_os = "linux")]
@@ -183,6 +185,24 @@ fn test_process_scheduler_and_affinity_validation() {
 fn test_process_affinity_roundtrip_and_validation_windows() {
     with_harness_context(|mut context| {
         let pid = context.destack_process_pid()?;
+
+        // scheduler reads should succeed and roundtrip through supported policy mappings
+        let scheduler = context.destack_process_get_scheduler(pid)?;
+        let scheduler = scheduler.into_inner();
+        context.destack_process_set_scheduler(pid, context.unified_value(scheduler))?;
+
+        // unsupported scheduler flags should be rejected explicitly
+        assert_platform_error_code_with_privileged_policy(
+            context.destack_process_set_scheduler(
+                pid,
+                context.unified_value(ProcessSchedulerConfig {
+                    policy: scheduler.policy,
+                    priority: scheduler.priority,
+                    flags: 1,
+                }),
+            ),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
 
         // affinity reads should return at least one logical processor
         let affinity = context.destack_process_get_affinity(pid)?;

@@ -5,7 +5,10 @@ use crate::platform::{NativeSlice, PlatformError, core as core_platform};
 
 use crate::runtime::BindingCallContext;
 
-use super::{signals, wait};
+#[cfg(target_os = "linux")]
+use super::signals;
+#[cfg(target_os = "linux")]
+use super::wait;
 
 use crate::platform::process::{
     ProcessFdFlags, ProcessFdSignalFlags, ProcessId, ProcessWaitStatus, Signal, SignalEvent,
@@ -27,6 +30,175 @@ impl resource::ResourceFinalizer for StdioFdFinalizer {
             libc::close(self.fd);
         }
     }
+}
+
+/// Read the current thread errno value.
+#[cfg(target_os = "linux")]
+fn last_errno() -> i32 {
+    std::io::Error::last_os_error()
+        .raw_os_error()
+        .unwrap_or(libc::EINVAL)
+}
+
+/// Build one `ioWouldBlock` error for a descriptor wait timeout.
+#[cfg(target_os = "linux")]
+fn would_block_error(operation: &str, message: impl Into<String>) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(crate::platform::diagnostic::PlatformErrorCode::IoWouldBlock),
+        None,
+        Some(libc::EWOULDBLOCK),
+        Some(operation.to_string()),
+        None,
+        message,
+    ))
+    .boxed()
+}
+
+/// Convert one requested signal slice into a host signal set.
+#[cfg(target_os = "linux")]
+fn signal_set_from_slice(signals: &[Signal]) -> RuntimeResult<libc::sigset_t> {
+    let mut signal_set = unsafe { std::mem::zeroed::<libc::sigset_t>() };
+    let empty_result = unsafe { libc::sigemptyset(&mut signal_set) };
+    if empty_result != 0 {
+        return Err(core_process::process_errno_error(
+            last_errno(),
+            "sigemptyset",
+            "failed to initialize signal set",
+        ));
+    }
+
+    for signal in signals {
+        if signal.0 == 0 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "signals",
+                "signal id 0 is invalid",
+            ))
+            .boxed());
+        }
+
+        let add_result = unsafe { libc::sigaddset(&mut signal_set, signal.0 as libc::c_int) };
+        if add_result != 0 {
+            return Err(core_process::process_errno_error(
+                last_errno(),
+                "sigaddset",
+                "failed to build signal set",
+            ));
+        }
+    }
+
+    Ok(signal_set)
+}
+
+/// Open one linux pidfd for the target process id.
+#[cfg(target_os = "linux")]
+fn open_pidfd(pid: ProcessId, flags: ProcessFdFlags) -> RuntimeResult<i32> {
+    let pid = core_process::process_pid_to_unix_target(pid.0, "pid")?;
+    let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, pid, flags.0 as libc::c_uint) as i32 };
+    if fd < 0 {
+        let errno = last_errno();
+        if errno == libc::ENOSYS {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.process.fd.processFdOpen",
+            ))
+            .boxed());
+        }
+
+        return Err(core_process::process_errno_error(
+            errno,
+            "pidfd_open",
+            format!("failed to open process fd for pid {}", pid as u32),
+        ));
+    }
+
+    Ok(fd)
+}
+
+/// Send one signal through a linux pidfd.
+#[cfg(target_os = "linux")]
+fn send_pidfd_signal(fd: i32, signal: Signal, flags: ProcessFdSignalFlags) -> RuntimeResult<()> {
+    let result = unsafe {
+        libc::syscall(
+            libc::SYS_pidfd_send_signal,
+            fd,
+            signal.0 as libc::c_int,
+            std::ptr::null::<libc::siginfo_t>(),
+            flags.0 as libc::c_uint,
+        ) as i32
+    };
+    if result == 0 {
+        return Ok(());
+    }
+
+    let errno = last_errno();
+    if errno == libc::ENOSYS {
+        return Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.fd.processFdSendSignal",
+        ))
+        .boxed());
+    }
+
+    Err(core_process::process_errno_error(
+        errno,
+        "pidfd_send_signal",
+        "failed to send signal through process fd",
+    ))
+}
+
+/// Poll one descriptor for process-exit readiness.
+#[cfg(target_os = "linux")]
+fn poll_descriptor(fd: i32, timeout_ms: i32, operation: &str) -> RuntimeResult<()> {
+    let mut poll_fd = libc::pollfd {
+        fd,
+        events: libc::POLLIN,
+        revents: 0,
+    };
+    let result = unsafe { libc::poll(&mut poll_fd, 1, timeout_ms) };
+    if result > 0 {
+        return Ok(());
+    }
+    if result == 0 {
+        return Err(would_block_error(operation, "process fd wait would block"));
+    }
+
+    Err(core_process::process_errno_error(
+        last_errno(),
+        "poll",
+        "failed to poll process fd",
+    ))
+}
+
+/// Open one linux signalfd for the provided mask.
+#[cfg(target_os = "linux")]
+fn open_signalfd(signals: &[Signal], flags: SignalFdFlags) -> RuntimeResult<i32> {
+    if flags.0 != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "signal fd flags are not supported",
+        ))
+        .boxed());
+    }
+
+    signals::ensure_signals_blocked(signals)?;
+
+    let signal_set = signal_set_from_slice(signals)?;
+    let fd = unsafe { libc::signalfd(-1, &signal_set, libc::SFD_CLOEXEC) };
+    if fd >= 0 {
+        return Ok(fd);
+    }
+
+    let errno = last_errno();
+    if errno == libc::ENOSYS {
+        return Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.fd.signalFdOpen",
+        ))
+        .boxed());
+    }
+
+    Err(core_process::process_errno_error(
+        errno,
+        "signalfd",
+        "failed to open signal fd",
+    ))
 }
 
 /// Duplicate one stdio descriptor for the current process.
@@ -80,16 +252,20 @@ fn register_stdio_fd(
 }
 
 /// Resolve a process-fd handle into its process id payload.
+#[cfg(target_os = "linux")]
 fn resolve_process_fd(
     binding: &BindingCallContext,
     handle: resource::ProcessFdHandle,
-) -> RuntimeResult<ProcessId> {
+) -> RuntimeResult<(ProcessId, i32)> {
     let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
-        entry
+        let pid = entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<core_process::ProcessFdBinding>())
-            .map(|binding| binding.pid)
+            .map(|binding| binding.pid)?;
+        let fd = entry.fd()?;
+
+        Some((pid, fd))
     });
 
     resolved.flatten().ok_or_else(|| {
@@ -102,16 +278,20 @@ fn resolve_process_fd(
 }
 
 /// Resolve a signal-fd handle into its signal mask payload.
+#[cfg(target_os = "linux")]
 fn resolve_signal_fd(
     binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
-) -> RuntimeResult<Vec<Signal>> {
+) -> RuntimeResult<(Vec<Signal>, i32)> {
     let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
-        entry
+        let signals = entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
-            .map(|binding| binding.signals.clone())
+            .map(|binding| binding.signals.clone())?;
+        let fd = entry.fd()?;
+
+        Some((signals, fd))
     });
 
     resolved.flatten().ok_or_else(|| {
@@ -124,6 +304,7 @@ fn resolve_signal_fd(
 }
 
 /// Replace the signal mask payload for one signal-fd handle.
+#[cfg(target_os = "linux")]
 fn update_signal_fd(
     binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
@@ -343,21 +524,35 @@ pub(crate) unsafe fn destack_process_process_fd_open(
         .boxed());
     }
 
-    signals::process_kill(pid.0, 0)?;
-    let entry = resource::ResourceEntry::new(resource::ResourceKind::ProcessFd)
-        .with_label("process.fd")
-        .with_payload(core_process::ProcessFdBinding { pid });
-    let resource_id =
-        binding
-            .agent()
-            .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
-
-    unsafe {
-        *out = resource::ProcessFdHandle(resource_id);
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (binding, out, pid);
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.fd.processFdOpen",
+        ))
+        .boxed())
     }
 
-    Ok(())
+    #[cfg(target_os = "linux")]
+    {
+        let fd = open_pidfd(pid, flags)?;
+        let entry = resource::ResourceEntry::new(resource::ResourceKind::ProcessFd)
+            .with_label("process.fd")
+            .with_fd(fd)
+            .with_payload(core_process::ProcessFdBinding { pid })
+            .with_finalizer(StdioFdFinalizer { fd });
+        let resource_id =
+            binding
+                .agent()
+                .resources
+                .insert(binding.world(), entry, Some(binding.engine()));
+
+        unsafe {
+            *out = resource::ProcessFdHandle(resource_id);
+        }
+
+        Ok(())
+    }
 }
 
 /// Send one signal through a process descriptor.
@@ -391,8 +586,20 @@ pub(crate) unsafe fn destack_process_process_fd_send_signal(
         .boxed());
     }
 
-    let process_id = resolve_process_fd(binding, handle)?;
-    signals::process_kill(process_id.0, signal.0)
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (binding, handle, signal);
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.fd.processFdSendSignal",
+        ))
+        .boxed())
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let (_process_id, fd) = resolve_process_fd(binding, handle)?;
+        send_pidfd_signal(fd, signal, flags)
+    }
 }
 
 /// Poll one process descriptor state transition without blocking.
@@ -420,13 +627,27 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let process_id = resolve_process_fd(binding, handle)?;
-    let status = wait::process_wait_pid(process_id.0, wait::PROCESS_WAIT_FLAG_NOHANG)?;
-    unsafe {
-        *out = status;
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (binding, handle);
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.fd.processFdTryWait",
+        ))
+        .boxed())
     }
 
-    Ok(())
+    #[cfg(target_os = "linux")]
+    {
+        let (process_id, fd) = resolve_process_fd(binding, handle)?;
+        poll_descriptor(fd, 0, "destack.process.fd.processFdTryWait")?;
+
+        let status = wait::process_wait_pid(process_id.0, wait::PROCESS_WAIT_FLAG_NOHANG)?;
+        unsafe {
+            *out = status;
+        }
+
+        Ok(())
+    }
 }
 
 /// Wait for one process descriptor state transition.
@@ -455,13 +676,33 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let process_id = resolve_process_fd(binding, handle)?;
-    let status = wait::process_wait_pid_timeout(process_id.0, timeoutns)?;
-    unsafe {
-        *out = status;
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (binding, handle, timeoutns);
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.fd.processFdWait",
+        ))
+        .boxed())
     }
 
-    Ok(())
+    #[cfg(target_os = "linux")]
+    {
+        let (process_id, fd) = resolve_process_fd(binding, handle)?;
+        let timeout_ms = if timeoutns == u64::MAX {
+            -1
+        } else {
+            let timeout_ms = timeoutns / 1_000_000;
+            i32::try_from(timeout_ms).unwrap_or(i32::MAX)
+        };
+        poll_descriptor(fd, timeout_ms, "destack.process.fd.processFdWait")?;
+
+        let status = wait::process_wait_pid(process_id.0, 0)?;
+        unsafe {
+            *out = status;
+        }
+
+        Ok(())
+    }
 }
 
 /// Close one signal descriptor.
@@ -529,29 +770,36 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    if flags.0 != 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "flags",
-            "signal fd flags are not supported",
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (binding, signals, flags);
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.fd.signalFdOpen",
         ))
-        .boxed());
+        .boxed())
     }
 
-    let signals = unsafe { signals.as_slice()? }.to_vec();
-    let entry = resource::ResourceEntry::new(resource::ResourceKind::SignalFd)
-        .with_label("process.signal.fd")
-        .with_payload(core_process::SignalFdBinding { signals });
-    let resource_id =
-        binding
-            .agent()
-            .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+    #[cfg(target_os = "linux")]
+    {
+        let signals = unsafe { signals.as_slice()? }.to_vec();
+        let fd = open_signalfd(&signals, flags)?;
+        let entry = resource::ResourceEntry::new(resource::ResourceKind::SignalFd)
+            .with_label("process.signal.fd")
+            .with_fd(fd)
+            .with_payload(core_process::SignalFdBinding { signals })
+            .with_finalizer(StdioFdFinalizer { fd });
+        let resource_id =
+            binding
+                .agent()
+                .resources
+                .insert(binding.world(), entry, Some(binding.engine()));
 
-    unsafe {
-        *out = resource::SignalFdHandle(resource_id);
+        unsafe {
+            *out = resource::SignalFdHandle(resource_id);
+        }
+
+        Ok(())
     }
-
-    Ok(())
 }
 
 /// Read one queued signal event from a signal descriptor.
@@ -579,13 +827,51 @@ pub(crate) unsafe fn destack_process_signal_fd_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let signals = resolve_signal_fd(binding, handle)?;
-    let event = signals::process_signal_wait(&signals)?;
-    unsafe {
-        *out = event;
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (binding, handle);
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.fd.signalFdRead",
+        ))
+        .boxed())
     }
 
-    Ok(())
+    #[cfg(target_os = "linux")]
+    {
+        let (_signals, fd) = resolve_signal_fd(binding, handle)?;
+        let mut signal_info = unsafe { std::mem::zeroed::<libc::signalfd_siginfo>() };
+        let read = unsafe {
+            libc::read(
+                fd,
+                &mut signal_info as *mut libc::signalfd_siginfo as *mut libc::c_void,
+                std::mem::size_of::<libc::signalfd_siginfo>(),
+            )
+        };
+        if read < 0 {
+            return Err(core_process::process_errno_error(
+                last_errno(),
+                "read",
+                "failed to read signal fd",
+            ));
+        }
+        if read as usize != std::mem::size_of::<libc::signalfd_siginfo>() {
+            return Err(RuntimeError::from(PlatformError::io(
+                "signal fd read returned a truncated payload",
+            ))
+            .boxed());
+        }
+
+        let event = SignalEvent {
+            signal: Signal(signal_info.ssi_signo),
+            pid: ProcessId(signal_info.ssi_pid),
+        };
+        unsafe {
+            *out = event;
+        }
+
+        Ok(())
+    }
 }
 
 /// Replace the active signal mask for one signal descriptor.
@@ -611,7 +897,32 @@ pub(crate) unsafe fn destack_process_signal_fd_set_mask(
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
     let signals = unsafe { signals.as_slice()? }.to_vec();
-    update_signal_fd(binding, handle, signals)
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (binding, handle, signals);
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.fd.signalFdSetMask",
+        ))
+        .boxed())
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let (_current_signals, fd) = resolve_signal_fd(binding, handle)?;
+        signals::ensure_signals_blocked(&signals)?;
+        let signal_set = signal_set_from_slice(&signals)?;
+        let result = unsafe { libc::signalfd(fd, &signal_set, 0) };
+        if result < 0 {
+            return Err(core_process::process_errno_error(
+                last_errno(),
+                "signalfd",
+                "failed to update signal fd mask",
+            ));
+        }
+
+        return update_signal_fd(binding, handle, signals);
+    }
 }
 
 /// Poll one queued signal event from a signal descriptor without blocking.
@@ -639,11 +950,51 @@ pub(crate) unsafe fn destack_process_signal_fd_try_read(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let signals = resolve_signal_fd(binding, handle)?;
-    let event = signals::process_signal_try_wait(&signals)?;
-    unsafe {
-        *out = event;
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (binding, handle);
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.fd.signalFdTryRead",
+        ))
+        .boxed())
     }
 
-    Ok(())
+    #[cfg(target_os = "linux")]
+    {
+        let (_signals, fd) = resolve_signal_fd(binding, handle)?;
+        poll_descriptor(fd, 0, "destack.process.fd.signalFdTryRead")?;
+
+        let mut signal_info = unsafe { std::mem::zeroed::<libc::signalfd_siginfo>() };
+        let read = unsafe {
+            libc::read(
+                fd,
+                &mut signal_info as *mut libc::signalfd_siginfo as *mut libc::c_void,
+                std::mem::size_of::<libc::signalfd_siginfo>(),
+            )
+        };
+        if read < 0 {
+            return Err(core_process::process_errno_error(
+                last_errno(),
+                "read",
+                "failed to poll signal fd",
+            ));
+        }
+        if read as usize != std::mem::size_of::<libc::signalfd_siginfo>() {
+            return Err(RuntimeError::from(PlatformError::io(
+                "signal fd poll returned a truncated payload",
+            ))
+            .boxed());
+        }
+
+        let event = SignalEvent {
+            signal: Signal(signal_info.ssi_signo),
+            pid: ProcessId(signal_info.ssi_pid),
+        };
+        unsafe {
+            *out = event;
+        }
+
+        Ok(())
+    }
 }

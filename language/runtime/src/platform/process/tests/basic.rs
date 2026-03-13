@@ -159,6 +159,8 @@ fn test_process_identity_reads() {
     with_harness_context(|mut context| {
         let pid = context.destack_process_pid()?;
         assert!(pid.0 > 0);
+        let ppid = context.destack_process_ppid()?;
+        assert!(ppid.0 > 0);
 
         // uid should be available or explicitly unsupported
         match context.destack_process_uid() {
