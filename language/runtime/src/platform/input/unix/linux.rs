@@ -2315,7 +2315,7 @@ pub(super) fn query_linux_capabilities(
     binding: &BindingCallContext,
     descriptor: RawFd,
     device_kind: InputDeviceKind,
-    supports_exclusive_grab: bool,
+    _supports_exclusive_grab: bool,
     supports_text: bool,
     supports_rumble: bool,
     supports_battery: bool,

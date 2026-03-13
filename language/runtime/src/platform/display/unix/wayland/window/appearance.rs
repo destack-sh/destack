@@ -458,7 +458,7 @@ pub(crate) unsafe fn window_set_visibility(
         window_handle,
         "destack.display.window.setVisibility",
     )?;
-    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
 
     // skip no-op visibility transitions
     let previous_visibility = host_state.visibility;

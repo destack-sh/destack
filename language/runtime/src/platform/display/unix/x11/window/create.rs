@@ -402,7 +402,7 @@ pub(crate) unsafe fn window_open(
                 kind: match options.mode {
                     WindowModeOptions::WindowBorderlessModeOptions(value) => value.kind,
                     WindowModeOptions::WindowExclusiveFullscreenModeOptions(value) => value.kind,
-                    WindowModeOptions::WindowWindowedModeOptions(value) => value,
+                    WindowModeOptions::WindowWindowedModeOptions(value) => value.kind,
                 },
             })
         } else {

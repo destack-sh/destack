@@ -1,7 +1,6 @@
 pub mod bindings;
 pub mod capability;
 pub(crate) mod control;
-pub(crate) mod core;
 pub mod engine;
 pub mod history;
 pub mod memory;

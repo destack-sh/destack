@@ -206,6 +206,7 @@ pub(crate) struct SpawnedProcess {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ProcessFdBinding {
     /// Process id associated with the descriptor handle.
+    #[cfg_attr(target_os = "android", allow(dead_code))]
     pub pid: ProcessId,
 }
 
@@ -218,5 +219,6 @@ pub(crate) struct ProcessFdBinding {
 #[derive(Debug, Clone)]
 pub(crate) struct SignalFdBinding {
     /// Signal mask associated with the descriptor handle.
+    #[cfg_attr(target_os = "android", allow(dead_code))]
     pub signals: Vec<Signal>,
 }

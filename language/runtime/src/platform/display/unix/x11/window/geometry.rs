@@ -81,7 +81,6 @@ pub(crate) unsafe fn window_set_mode(
     let mut resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    let previous = resolved_host_state.clone();
 
     // validate mode display relation for exclusive fullscreen options
     let display = mode_display(mode);
@@ -154,7 +153,7 @@ pub(crate) unsafe fn window_set_position(
         window_handle,
         "destack.display.window.setPosition",
     )?;
-    let mut resolved_host_state = resolved_host_state
+    let resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
@@ -243,7 +242,7 @@ pub(crate) unsafe fn window_set_size_logical(
         window_handle,
         "destack.display.window.setSizeLogical",
     )?;
-    let mut resolved_host_state = resolved_host_state
+    let resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
@@ -312,7 +311,7 @@ pub(crate) unsafe fn window_set_size_physical(
         window_handle,
         "destack.display.window.setSizePhysical",
     )?;
-    let mut resolved_host_state = resolved_host_state
+    let resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 

@@ -40,7 +40,7 @@ pub(super) fn current_packet_backend(binding: &BindingCallContext) -> Option<Pac
     #[cfg(target_os = "linux")]
     {
         let _ = binding;
-        return Some(PacketBackend::AfPacket);
+        Some(PacketBackend::AfPacket)
     }
 
     #[cfg(target_os = "macos")]

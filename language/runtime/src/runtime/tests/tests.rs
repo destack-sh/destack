@@ -406,6 +406,7 @@ impl TestPoller {
 }
 
 impl TestWorld {
+    #[allow(clippy::arc_with_non_send_sync)]
     /// Create one world with default runtime options.
     pub(super) fn new() -> Self {
         Self {

@@ -15,11 +15,14 @@ use crate::platform::abi::{NativeAbi, VmAbi};
 use crate::platform::fs::{OsPath, OsPathBytes, OsPathUtf16, PathBytesAbi, PathUtf16Abi};
 use crate::platform::net::{
     KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, NetInterface, NetInterfaceVm,
-    PacketBackendDescriptor, PacketBackendDescriptorVm, ResolveFlags, ResolveQuery,
-    ReverseLookupName, RouteEntry, RouteEntryVm, SocketAddress, SocketAddressVm, SocketCredentials,
-    SocketCredentialsVm, SocketFamily, SocketMessageFlags, SocketRecvBatchRequest,
-    SocketRecvMessage, SocketSendBatchEntry, SocketSendMessage, SocketSendMessageVm, UdpReceive,
-    UdpReceiveVm, UdsAddress, vm as platform_vm,
+    ResolveFlags, ResolveQuery, ReverseLookupName, SocketAddress, SocketAddressVm,
+    SocketCredentials, SocketCredentialsVm, SocketFamily, SocketMessageFlags,
+    SocketRecvBatchRequest, SocketRecvMessage, SocketSendBatchEntry, SocketSendMessage,
+    SocketSendMessageVm, UdpReceive, UdpReceiveVm, UdsAddress, vm as platform_vm,
+};
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+use crate::platform::net::{
+    PacketBackendDescriptor, PacketBackendDescriptorVm, RouteEntry, RouteEntryVm,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice, net as platform_net};
@@ -62,7 +65,7 @@ impl<'call> NetHarnessContext<'call> {
         let context = self
             .vm_context_mut()
             .expect("vm context required for vm connectText helper");
-        let host = vm::StringHandle::new(context.intern_string(host));
+        let host = vm::StringHandle::new(context.intern_string(host)?);
 
         platform_vm::destack_net_connect_text(self.call_context, context, host, port)
     }
@@ -77,7 +80,7 @@ impl<'call> NetHarnessContext<'call> {
         let context = self
             .vm_context_mut()
             .expect("vm context required for vm listenText helper");
-        let host = vm::StringHandle::new(context.intern_string(host));
+        let host = vm::StringHandle::new(context.intern_string(host)?);
 
         platform_vm::destack_net_listen_text(self.call_context, context, host, port, backlog)
     }
@@ -217,6 +220,7 @@ impl<'call> NetHarnessContext<'call> {
     }
 
     /// Decode one backend-specific packet-backend descriptor list.
+    #[cfg(any(target_os = "linux", target_os = "macos", windows))]
     pub(crate) fn packet_backend_descriptors_from_value(
         &self,
         value: HarnessValue<
@@ -261,6 +265,7 @@ impl<'call> NetHarnessContext<'call> {
     }
 
     /// Decode one backend-specific route-entry list.
+    #[cfg(any(target_os = "linux", target_os = "macos", windows))]
     pub(crate) fn route_entries_from_value(
         &self,
         value: HarnessValue<NativeArray<RouteEntry>, VmArray<RouteEntryVm>>,

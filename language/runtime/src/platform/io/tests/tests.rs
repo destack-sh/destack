@@ -558,8 +558,8 @@ fn vm_path_from_utf8(
 ) -> RuntimeResult<fs::OsPathVm> {
     #[cfg(unix)]
     {
-        let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes()));
-        let kind = vm::StringHandle::new(context.intern_string("bytes"));
+        let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes())?);
+        let kind = vm::StringHandle::new(context.intern_string("bytes")?);
         Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))
     }
 
@@ -567,7 +567,7 @@ fn vm_path_from_utf8(
     {
         let utf16_values = value.encode_utf16().collect::<Vec<_>>();
         let utf16 = fs::PathUtf16Abi::<VmAbi>(VmArray::from_values(context, &utf16_values)?);
-        let kind = vm::StringHandle::new(context.intern_string("utf16"));
+        let kind = vm::StringHandle::new(context.intern_string("utf16")?);
         Ok(fs::OsPathVm::OsPathUtf16(fs::OsPathUtf16Vm { kind, utf16 }))
     }
 

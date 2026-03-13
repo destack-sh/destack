@@ -6,7 +6,6 @@ use std::ptr;
 use std::time::Instant;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-#[cfg(not(any(target_os = "linux", target_os = "android")))]
 use crate::platform::PlatformError;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::platform::core as core_platform;
@@ -74,15 +73,17 @@ pub(crate) unsafe fn destack_thread_address_wait(
                 .as_ref()
                 .map_or(ptr::null(), |value| value as *const libc::timespec);
 
-            let rc = libc::syscall(
-                libc::SYS_futex,
-                address_ptr,
-                FUTEX_WAIT_PRIVATE_OPERATION,
-                expected as libc::c_int,
-                timeout_ptr,
-                ptr::null::<libc::c_void>(),
-                0_usize,
-            );
+            let rc = unsafe {
+                libc::syscall(
+                    libc::SYS_futex,
+                    address_ptr,
+                    FUTEX_WAIT_PRIVATE_OPERATION,
+                    expected as libc::c_int,
+                    timeout_ptr,
+                    ptr::null::<libc::c_void>(),
+                    0_usize,
+                )
+            };
             if rc == 0 {
                 return Ok(());
             }
@@ -149,15 +150,17 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // wake all waiters blocked on this futex word
-        let rc = libc::syscall(
-            libc::SYS_futex,
-            address_ptr,
-            FUTEX_WAKE_PRIVATE_OPERATION,
-            i32::MAX,
-            ptr::null::<libc::timespec>(),
-            ptr::null::<libc::c_void>(),
-            0_usize,
-        );
+        let rc = unsafe {
+            libc::syscall(
+                libc::SYS_futex,
+                address_ptr,
+                FUTEX_WAKE_PRIVATE_OPERATION,
+                i32::MAX,
+                ptr::null::<libc::timespec>(),
+                ptr::null::<libc::c_void>(),
+                0_usize,
+            )
+        };
         if rc < 0 {
             return Err(core_platform::io_error_with_errno(
                 "futex",
@@ -191,15 +194,17 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // wake one waiter blocked on this futex word
-        let rc = libc::syscall(
-            libc::SYS_futex,
-            address_ptr,
-            FUTEX_WAKE_PRIVATE_OPERATION,
-            1_i32,
-            ptr::null::<libc::timespec>(),
-            ptr::null::<libc::c_void>(),
-            0_usize,
-        );
+        let rc = unsafe {
+            libc::syscall(
+                libc::SYS_futex,
+                address_ptr,
+                FUTEX_WAKE_PRIVATE_OPERATION,
+                1_i32,
+                ptr::null::<libc::timespec>(),
+                ptr::null::<libc::c_void>(),
+                0_usize,
+            )
+        };
         if rc < 0 {
             return Err(core_platform::io_error_with_errno(
                 "futex",

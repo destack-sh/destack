@@ -206,13 +206,9 @@ impl World {
         let trace_image = self.trace.capture_image();
 
         // commit the revision in one authoritative lineage update
-        let retain_image = if self.trace.mode() != ExecutionMode::Record {
-            true
-        } else if checkpoint_name.is_some() {
-            true
-        } else {
-            !matches!(mode, CaptureMode::Suspend)
-        };
+        let retain_image = self.trace.mode() != ExecutionMode::Record
+            || checkpoint_name.is_some()
+            || !matches!(mode, CaptureMode::Suspend);
         let committed = {
             let mut lineage = self.lineage.write();
             lineage.commit_revision(

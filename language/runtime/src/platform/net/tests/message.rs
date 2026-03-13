@@ -1,7 +1,13 @@
-use super::{
-    assert_platform_error_code_with_privileged_policy, tcp_protocol, tcp_stream_socket_type,
-    with_harness_context,
-};
+#[cfg(any(
+    windows,
+    all(unix, not(any(target_os = "linux", target_os = "android")))
+))]
+use super::assert_platform_error_code_with_privileged_policy;
+use super::{tcp_protocol, tcp_stream_socket_type, with_harness_context};
+#[cfg(any(
+    windows,
+    all(unix, not(any(target_os = "linux", target_os = "android")))
+))]
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{AcceptFlags, SocketFamily, SocketMessageFlags};
 
