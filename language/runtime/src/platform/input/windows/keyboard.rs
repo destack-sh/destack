@@ -63,7 +63,7 @@ pub(super) fn keyboard_state(
         sequence,
         device_id: binding.store_string(&device_id),
         modifiers,
-        pressed_scan_codes: binding.store_array(pressed_codes.clone()),
+        pressed_scan_codes: binding.store_array(Vec::new()),
         pressed_codes: binding.store_array(pressed_codes),
     })
 }
